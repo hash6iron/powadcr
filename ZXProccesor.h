@@ -1,0 +1,351 @@
+/*
+ ZXProccesor.h
+ Antonio Tamairón. 2023
+
+ Descripción:
+ Clase que implementa metodos y parametrizado para todas las señales que necesita el ZX Spectrum para el proceso de carga de programas.
+
+ Version: 0.1
+
+ NOTA: Esta clase necesita de la libreria Audio-kit de Phil Schatzmann - https://github.com/pschatzmann/arduino-audiokit
+
+*/
+
+
+#include <stdint.h>
+#include "AudioKitHAL.h"
+ 
+AudioKit m_kit;
+
+// Variables necesarias
+const int BUFFER_SIZE = 0;
+uint8_t buffer[BUFFER_SIZE];
+
+// Parametrizado para el ES8388
+const int samplingRate = 44100;
+const float sampleDuration = 0.0000002267; //segundos para 44.1HKz
+const float maxAmplitude = 32767.0;
+const int channels = 2;
+const int turboMode = 0;
+
+float m_amplitude = maxAmplitude; 
+
+// Parametrizado para el ZX Spectrum
+const float tState = 0.00000028571; //segundos Z80 T-State period (1 / 3.5MHz)
+int SYNC1 = 667;
+int SYNC2 = 735;
+int BIT_0 = 855;
+int BIT_1 = 1710;
+int PULSE_PILOT = 2168; //2168
+int PULSE_PILOT_HEADER = PULSE_PILOT * 8063;
+int PULSE_PILOT_DATA = PULSE_PILOT * 3223;
+
+
+// Clase para generar todo el conjunto de señales que necesita el ZX Spectrum
+class ZXProccesor 
+{
+
+    public:
+        
+        ZXProccesor(AudioKit kit)
+        {
+          // Constructor de la clase
+          m_kit = kit;
+        }
+
+        size_t readWave(uint8_t *buffer, size_t bytes){
+            
+            // Procedimiento para generar un tren de pulsos cuadrados completo
+
+            int chn = channels;
+            size_t result = 0;
+            int16_t *ptr = (int16_t*)buffer;
+
+            // Pulso alto (mitad del periodo)
+            for (int j=0;j<bytes/(4*chn);j++){
+
+                int16_t sample = m_amplitude;
+                *ptr++ = sample;
+                if (chn>1)
+                {
+                  *ptr++ = sample;
+                }
+                result+=2*chn;
+            }
+
+            // Pulso bajo (la otra mitad)
+            for (int j=bytes/(4*chn);j<bytes/(2*chn);j++){
+                
+                int16_t sample = 0;
+                
+                *ptr++ = sample;
+                if (chn>1)
+                {
+                  *ptr++ = sample;
+                }
+                result+=2*chn;
+            }
+
+            return result;
+        }
+
+        size_t readPulse(uint8_t *buffer, size_t bytes, int slope){
+
+            // Procedimiento para genera un pulso 
+            int chn = channels;
+            size_t result = 0;
+            int16_t *ptr = (int16_t*)buffer;
+            for (int j=0;j<bytes/(2*chn);j++){
+                int16_t sample = m_amplitude * slope;
+                
+                *ptr++ = sample;
+                
+                if (chn>1)
+                {
+                  *ptr++ = sample;
+                }
+                result+=2*chn;
+            }
+
+            return result;          
+        }
+
+        void generatePulse(float freq, int samplingRate, int slope)
+        {
+            // Obtenemos el periodo de muestreo
+            // Tsr = 1 / samplingRate
+            float Tsr = (1.0 / samplingRate);
+            int bytes = int(round((1.0 / ((freq / 4.0))) / Tsr));
+
+            uint8_t buffer[bytes];
+
+            for (int m=0;m < 1;m++)
+            {
+              // Escribimos el tren de pulsos en el procesador de Audio
+              m_kit.write(buffer, readPulse(buffer, bytes, slope));
+            } 
+        }
+
+        void generateWavePulses(float freq, int numPulses, int samplingRate)
+        {
+
+            // Obtenemos el periodo de muestreo
+            // Tsr = 1 / samplingRate
+            float Tsr = (1.0 / samplingRate);
+            int bytes = int(round((1.0 / ((freq / 4.0))) / Tsr));
+
+            //Serial.println("****** BUFFER SIZE --> " + String(bytes));
+
+            uint8_t buffer[bytes];
+
+            for (int m=0;m < numPulses;m++)
+            {
+              // Escribimos el tren de pulsos en el procesador de Audio
+              m_kit.write(buffer, readWave(buffer, bytes));
+            } 
+        }
+
+        void generateOneWave(float freq, int samplingRate)
+        {
+
+            // Obtenemos el periodo de muestreo
+            // Tsr = 1 / samplingRate
+            float Tsr = (1.0 / samplingRate);
+            int bytes = int(round((1.0 / ((freq / 4.0))) / Tsr));
+            uint8_t buffer[bytes];
+            m_kit.write(buffer, readWave(buffer, bytes));
+        }
+
+        void generateWaveDuration(float freq, float duration, int samplingRate)
+        {
+
+            // Obtenemos el periodo de muestreo
+            // Tsr = 1 / samplingRate
+            float Tsr = (1.0 / samplingRate);
+            int bytes = int(round((1.0 / ((freq / 4.0))) / Tsr));
+            int numPulses = 4 * int(duration / (bytes*Tsr));
+
+            //Serial.println("****** BUFFER SIZE --> " + String(bytes));
+            //Serial.println("****** Tsr         --> " + String(Tsr));
+            //Serial.println("****** NUM PULSES  --> " + String(numPulses));
+
+            uint8_t buffer[bytes];
+
+            for (int m=0;m < numPulses;m++)
+            {
+              m_kit.write(buffer, readWave(buffer, bytes));
+            } 
+        }
+
+        void pilotToneHeader()
+        {
+            float duration = tState * PULSE_PILOT_HEADER;
+            //Serial.println("****** BUFFER SIZE --> " + String(duration));
+            float freq = (1 / (PULSE_PILOT * tState)) / 2;    
+            //Serial.println("******* PILOT HEADER " + String(freq) + " Hz");
+
+            generateWaveDuration(freq, duration, samplingRate);
+        }
+
+
+        void pilotToneData()
+        {
+            float duration = tState * PULSE_PILOT_DATA;
+            float freq = (1 / (PULSE_PILOT * tState)) / 2;    
+            //Serial.println("******* PILOT DATA " + String(freq) + " Hz");
+            generateWaveDuration(freq, duration, samplingRate);
+        }
+
+
+        void zeroTone()
+        {
+            // Procedimiento que genera un bit "0"
+            float freq = (1 / (BIT_0 * tState)) / 2;
+            generateOneWave(freq, samplingRate);
+        }
+
+        void oneTone()
+        {
+            // Procedimiento que genera un bit "1"
+            float freq = (1 / (BIT_1 * tState)) / 2;
+            generateOneWave(freq, samplingRate);
+        }
+
+        void syncTone(int nTStates)
+        {
+            // Procedimiento que genera un pulso de sincronismo, según los
+            // T-States pasados por parámetro.
+            //
+            // El ZX Spectrum tiene dos tipo de sincronismo, uno al finalizar el tono piloto
+            // y otro al final de la recepción de los datos, que serán SYNC1 y SYNC2 respectivamente.
+            float freq = (1 / (nTStates * tState)) / 2;    
+            generateOneWave(freq, samplingRate);
+        }
+
+        void sendDataStr(String data)
+        {
+          //
+          // Procedimiento para enviar datos binarios desde una cadena de caracteres
+          //
+          for (int n=0;n<data.length();n++)
+          {
+            char c = data[n];
+
+            if (c == '0')
+            {
+              zeroTone();
+            }
+            else
+            {
+              oneTone();
+            }
+          }
+        }
+
+        void sendDataArray(byte* data, int size)
+        {
+            // Procedimiento para enviar datos desde un array
+            byte bRead = 0x00;
+            for (int i = 0; i < size;i++)
+            {
+              // Vamos a ir leyendo los bytes y generando el sonido
+              bRead = data[i];
+              //Serial.println("******* Byte " + String(bRead));
+              for (int n=0;n<8;n++)
+              {
+                // Si el bit leido del BYTE es un "1"
+                //Serial.println("*******---- bit " + String(bitRead(bRead,8-n)));
+                if(bitRead(bRead, 7-n) == 1)
+                {
+                  // Procesamos "1"
+                  oneTone();
+                }
+                else
+                {
+                  // En otro caso
+                  // procesamos "0"
+                  zeroTone();
+                }
+              }
+            }
+        }
+
+        void playBlock(byte* header, int len_header, byte* data, int len_data)
+        {           
+            #ifdef LOG==3
+              Serial.println("******* PROGRAM HEADER");
+              Serial.println("*******  - HEADER size " + String(len_header));
+              Serial.println("*******  - DATA   size " + String(len_data));
+            #endif
+
+            // PROGRAM
+            //HEADER PILOT TONE
+            pilotToneHeader();
+            // SYNC TONE
+            syncTone(SYNC1);
+            // Launch header
+
+            sendDataArray(header, len_header);
+            syncTone(SYNC2);
+
+            // Silent tone
+            #ifdef SILENT
+              sleep(SILENT);
+            #endif
+
+            #ifdef LOG==3
+              Serial.println("******* PROGRAM DATA");
+            #endif
+
+            // Put now code block
+            // syncronize with short leader tone
+            pilotToneData();
+            // syncronization for end short leader tone
+            syncTone(SYNC1);
+
+            // Send data
+            sendDataArray(data, len_data);
+            
+            // syncronization for end data block          
+            syncTone(SYNC2);
+            
+            // Silent tone
+            #ifdef SILENT
+              sleep(SILENT);
+            #endif
+
+        }
+
+        void playHeaderOnly(byte* header, int len_header)
+        {           
+            #ifdef LOG==3
+              Serial.println("");
+              Serial.println("******* PROGRAM HEADER");
+              Serial.println("*******  - HEADER size " + String(len_header) + " bytes");
+              Serial.println("");
+              Serial.println("Header to send:");
+              Serial.println("");
+              for (int n=0;n<19;n++)
+              {
+                  Serial.print(header[n],HEX);
+                  Serial.print(",");
+              }
+            #endif
+
+            // PROGRAM
+            //HEADER PILOT TONE
+            pilotToneHeader();
+            // SYNC TONE
+            syncTone(SYNC1);
+            // Launch header
+
+            sendDataArray(header, len_header);
+            syncTone(SYNC2);
+
+            // Silent tone
+            #ifdef SILENT
+              sleep(SILENT);
+            #endif
+        }        
+
+};
