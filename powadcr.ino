@@ -13,6 +13,7 @@
 #include "AudioKitHAL.h"
 #include "ZXProccesor.h"
 #include "SDmanager.h"
+#include "TAPproccesor.h"
 #include "test.h"
 
 AudioKit ESP32kit;
@@ -75,22 +76,22 @@ void setup()
 
   Serial.println("Getting file name: ");
 
-  char* prgName = new char[10];
-  prgName = getNameOfProgram32(sdFile32);
-  Serial.println("");
-  Serial.print("Name in ZXSpectrum: ");
-  for (int n=0;n<10;n++)
-  {
-      //String((char)my_hex)
-      Serial.print(prgName[n]);
-  }
+  // char* prgName = new char[10];
+  // prgName = getNameOfProgram32(sdFile32);
+  // Serial.println("");
+  // Serial.print("Name in ZXSpectrum: ");
+  // for (int n=0;n<10;n++)
+  // {
+  //     //String((char)my_hex)
+  //     Serial.print(prgName[n]);
+  // }
 
-  // Reproducimos la cabecera
-  byte* headerBl = new byte[19];
-  headerBl = getHeaderBlockForOut(buffer);
-  zxp.playHeaderOnly(headerBl,19);
-  // Cerramos el fichero
-  sdFile.close();
+  // // Reproducimos la cabecera
+  // byte* headerBl = new byte[19];
+  // headerBl = getHeaderBlockForOut(buffer);
+  // zxp.playHeaderOnly(headerBl,19);
+  // // Cerramos el fichero
+  // sdFile.close();
 
 }
 
