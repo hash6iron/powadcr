@@ -270,6 +270,48 @@ class ZXProccesor
             }
         }
 
+        void playHeader(byte* bBlock, int lenBlock)
+        {
+            // PROGRAM
+            //HEADER PILOT TONE
+            pilotToneHeader();
+            // SYNC TONE
+            syncTone(SYNC1);
+            // Launch header
+
+            sendDataArray(bBlock, lenBlock);
+            syncTone(SYNC2);
+
+            // Silent tone
+            #ifdef SILENT
+              sleep(SILENT);
+            #endif          
+        }
+
+        void playData(byte* bBlock, int lenBlock)
+        {
+            #ifdef LOG==3
+              Serial.println("******* PROGRAM DATA");
+            #endif
+
+            // Put now code block
+            // syncronize with short leader tone
+            pilotToneData();
+            // syncronization for end short leader tone
+            syncTone(SYNC1);
+
+            // Send data
+            sendDataArray(bBlock, lenBlock);
+            
+            // syncronization for end data block          
+            syncTone(SYNC2);
+            
+            // Silent tone
+            #ifdef SILENT
+              sleep(SILENT);
+            #endif          
+        }
+
         void playBlock(byte* header, int len_header, byte* data, int len_data)
         {           
             #ifdef LOG==3

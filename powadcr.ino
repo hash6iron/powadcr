@@ -26,6 +26,14 @@ File32 sdFile32;
   ZXProccesor zxp(ESP32kit);
 #endif
 
+void test()
+{
+  Serial.println("----- TEST ACTIVE ------");
+
+  zxp.playBlock(testHeader, 19, testData, 154);
+  zxp.playBlock(testScreenHeader, 19, testScreenData, 6914);
+  sleep(10);  
+}
 
 void setup() 
 {
@@ -54,6 +62,12 @@ void setup()
     Serial.println("SD card initialized!");
   }
 
+
+  // *****************************************
+   #if TEST==1
+     test();
+   #endif
+  // *****************************************
   // Listamos el directorio
   sdf.ls("/games/Classic48/Trashman/",LS_R);
 
@@ -66,15 +80,46 @@ void setup()
   byte* buffer = new byte[rlen];
   buffer = readFile32(sdFile32);
   Serial.println("");
-  Serial.println("Buffer filled succes!");
+  Serial.println("File open.");
+  Serial.println("Extracted BYTES succes!");
+  TAPproccesor pTAP(buffer, rlen);
 
+
+  // Ahora reproducimos todo
+  for (int i=0;i<totalBlocks;i++)
+  {
+      //Ahora vamos lanzando bloques
+      switch(pTAP.bDscr[i].type)
+      {
+          case HPRGM || HCODE:
+
+              // Definimos el buffer del PLAYER igual al tamaño del bloque
+              byte* bufferPlay = new byte[pTAP.bDscr[i].size];
+              bufferPlay = readFileRange32(sdFile32,pTAP.bDscr[i].offset,pTAP.bDscr[i].size);
+              zxp.playHeader(buffer[], 19);
+              break;
+          
+          case PRGM || SCRN || CODE:
+              // Definimos el buffer del PLAYER igual al tamaño del bloque
+              byte* bufferPlay = new byte[pTAP.bDscr[i].size];
+              bufferPlay = readFileRange32(sdFile32,pTAP.bDscr[i].offset,pTAP.bDscr[i].size);
+              zxp.playData(buffer[], 19);
+              break;
+      }
+      sleep(3);
+  } 
+
+  pTAP.calculateChecksum(testHeader,0,18);
+  sleep(5);
+
+  //tp.getTotalBlocks();
   // for (int n=0;n<rlen;n++)
   // {
   //   Serial.print(buffer[n],HEX);
   //   Serial.print(",");
   // }
 
-  Serial.println("Getting file name: ");
+  //Serial.println("Getting file name: ");
 
   // char* prgName = new char[10];
   // prgName = getNameOfProgram32(sdFile32);
@@ -102,8 +147,6 @@ void loop() {
   
 
 
-  // zxp.playBlock(testHeader, 19, testData, 154);
-  // zxp.playBlock(testScreenHeader, 19, testScreenData, 6914);
-  // sleep(10);
+
   
 }
