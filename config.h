@@ -3,14 +3,15 @@
 // 0 for ZX Spectrum
 // 1 for AMSTRAD
 // 2 for MSX
-#define MACHINE 0
-
+#define MACHINE
+#define TEST 0
 // Define nivel de log
 // 0 - Apagado
-// 1 - Error
-// 2 - Warning
-// 3 - Info
-#define LOG 3
+// 1 - Essential
+// 2 - Error
+// 3 - Warning
+// 4 - Info     / Full trace info
+#define LOG 1
 
 // Define silent block in seconds between blocks playing
 // each block has two SILENT block
@@ -20,3 +21,4 @@
 // 0 - No
 // 1 - Yes
 #define TURBOMODE 0
+

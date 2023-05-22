@@ -36,7 +36,7 @@ int SYNC1 = 667;
 int SYNC2 = 735;
 int BIT_0 = 855;
 int BIT_1 = 1710;
-int PULSE_PILOT = 2168; //2168
+int PULSE_PILOT = 2168;
 int PULSE_PILOT_HEADER = PULSE_PILOT * 8063;
 int PULSE_PILOT_DATA = PULSE_PILOT * 3223;
 
@@ -270,6 +270,44 @@ class ZXProccesor
             }
         }
 
+        void playHeader(byte* bBlock, int lenBlock)
+        {
+            // PROGRAM
+            //HEADER PILOT TONE
+            pilotToneHeader();
+            // SYNC TONE
+            syncTone(SYNC1);
+            // Launch header
+
+            sendDataArray(bBlock, lenBlock);
+            syncTone(SYNC2);
+
+            // Silent tone
+            #ifdef SILENT
+              sleep(SILENT);
+            #endif          
+        }
+
+        void playData(byte* bBlock, int lenBlock)
+        {
+            // Put now code block
+            // syncronize with short leader tone
+            pilotToneData();
+            // syncronization for end short leader tone
+            syncTone(SYNC1);
+
+            // Send data
+            sendDataArray(bBlock, lenBlock);
+            
+            // syncronization for end data block          
+            syncTone(SYNC2);
+            
+            // Silent tone
+            #ifdef SILENT
+              sleep(SILENT);
+            #endif          
+        }
+
         void playBlock(byte* header, int len_header, byte* data, int len_data)
         {           
             #ifdef LOG==3
@@ -313,7 +351,6 @@ class ZXProccesor
             #ifdef SILENT
               sleep(SILENT);
             #endif
-
         }
 
         void playHeaderOnly(byte* header, int len_header)

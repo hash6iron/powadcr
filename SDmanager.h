@@ -57,7 +57,7 @@ byte* resize(byte* buffer, size_t items, size_t newCapacity)
 
 byte* readFile(SdFile mFile)
 {
-    byte* bufferFile;
+    byte* bufferFile = NULL;
 
     mFile.rewind();
 
@@ -89,7 +89,7 @@ byte* readFile(SdFile mFile)
 
 byte* readFile32(File32 mFile)
 {
-    byte* bufferFile;
+    byte* bufferFile = NULL;
 
     mFile.rewind();
 
@@ -109,6 +109,50 @@ byte* readFile32(File32 mFile)
         {
             byte a = mFile.read();
             bufferFile[i] = a;
+            i++;
+        }
+    } 
+    else 
+    {
+        Serial.print(F("SD Card: error on opening file"));
+    }
+
+    return bufferFile;
+
+}
+
+byte* readFileRange32(File32 mFile, int startByte, int size)
+{
+    byte* bufferFile = NULL;
+
+    mFile.rewind();
+
+    Serial.println("***** readFileRange32 *****");
+    Serial.println("Offset: " + String(startByte));
+    Serial.println("Size: " + String(size));
+    Serial.println("");
+
+    if (mFile) 
+    {
+        int rlen = mFile.available();
+        _FILE_LENGTH = rlen;
+
+        // Serial.print("Len: ");
+        // Serial.print(String(rlen));
+
+        //Redimensionamos el buffer al tamaño acordado del rango
+        bufferFile = resize(bufferFile,0,size);
+
+        int i=0;
+        int j=0;
+        while(i < startByte+size)
+        {
+            byte a = mFile.read();
+            if ((i >= startByte) && (i < startByte+size))
+            {
+                bufferFile[j] = a;
+                j++;
+            }
             i++;
         }
     } 
