@@ -249,18 +249,11 @@ class TAPproccesor
                   
                   i++;
               }
-          // }
-          // else
-          // {
-          //     prgName = "";
-          // }
 
           // Pasamos la cadena de caracteres
           return prgName;
 
       }
-
-
 
       byte* getBlockRange(byte* bBlock, int byteStart, int byteEnd)
       {
@@ -317,21 +310,21 @@ class TAPproccesor
               blockNameDetected = false;
               chk = calculateChecksum(fileTAP,startBlock,sizeB-1);
               
-              #if LOG>3
-                Serial.println("");
-                Serial.print("[" + String (numBlocks) + "] - ");
-                Serial.print("*Chk calc: ");
-                Serial.print(chk,HEX);
-                Serial.println("");
-              #endif
+              // #if LOG>3
+              //   Serial.println("");
+              //   Serial.print("[" + String (numBlocks) + "] - ");
+              //   Serial.print("*Chk calc: ");
+              //   Serial.print(chk,HEX);
+              //   Serial.println("");
+              // #endif
 
               blockChk = fileTAP[startBlock+sizeB-1];
 
-              #if LOG>3
-                Serial.print(" / Chk block: ");
-                Serial.print(blockChk,HEX);
-                Serial.println("");
-              #endif
+              // #if LOG>3
+              //   Serial.print(" / Chk block: ");
+              //   Serial.print(blockChk,HEX);
+              //   Serial.println("");
+              // #endif
 
               if (blockChk == chk)
               {
@@ -355,10 +348,10 @@ class TAPproccesor
                   // 0x02 - ARRAY CHAR
                   // 0x03 - CODE FILE
                   int typeBlock = fileTAP[startBlock+1];
-                  #if LOG>3
-                    Serial.print(" - Flag: " + String(flagByte));
-                    Serial.print(" - Type: " + String(typeBlock));
-                  #endif
+                  // #if LOG>3
+                  //   Serial.print(" - Flag: " + String(flagByte));
+                  //   Serial.print(" - Type: " + String(typeBlock));
+                  // #endif
 
                   // Vemos si el bloque es una cabecera o un bloque de datos (bien BASIC o CM)
                   if (flagByte == 0)
@@ -432,11 +425,11 @@ class TAPproccesor
                       }
                   }
 
-                  #if LOG>0
-                      Serial.println("");
-                      Serial.print("[" + String (numBlocks) + "] - offset: " + String(startBlock));
-                      Serial.print(" - Size: " + String(sizeB) + "  ");   
-                  #endif
+                  // #if LOG>0
+                  //     Serial.println("");
+                  //     Serial.print("[" + String (numBlocks) + "] - offset: " + String(startBlock));
+                  //     Serial.print(" - Size: " + String(sizeB) + "  ");   
+                  // #endif
 
                   if (blockNameDetected)
                   {
@@ -468,7 +461,7 @@ class TAPproccesor
               {
                   reachEndByte = true;
                   Serial.println("");
-                  Serial.println("End: ");
+                  Serial.println("Success. End: ");
               }
 
           }
@@ -646,7 +639,8 @@ class TAPproccesor
 
           totalBlocks = getBlockDescriptor(fileTAP, sizeTAP);
 
-          showDescriptorTable(totalBlocks);         
+          showDescriptorTable(totalBlocks);    
+          myTAP.numBlocks = totalBlocks;     
       }
 
       TAPproccesor()

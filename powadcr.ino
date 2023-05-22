@@ -82,35 +82,104 @@ void setup()
   Serial.println("");
   Serial.println("File open.");
   Serial.println("Extracted BYTES succes!");
+  
+  
+  // Comenzamos
   TAPproccesor pTAP(buffer, rlen);
+  byte* bufferPlay = NULL;
+  sleep(10);
 
-
+  Serial.println("Num. blocks: " + String(pTAP.myTAP.numBlocks));
+  
   // Ahora reproducimos todo
-  for (int i=0;i<totalBlocks;i++)
+  for (int i=0;i<pTAP.myTAP.numBlocks;i++)
   {
       //Ahora vamos lanzando bloques
       switch(pTAP.bDscr[i].type)
       {
-          case HPRGM || HCODE:
+          case 0:
 
               // Definimos el buffer del PLAYER igual al tamaño del bloque
-              byte* bufferPlay = new byte[pTAP.bDscr[i].size];
-              bufferPlay = readFileRange32(sdFile32,pTAP.bDscr[i].offset,pTAP.bDscr[i].size);
-              zxp.playHeader(buffer[], 19);
+              #ifdef LOG==3
+                Serial.println("");
+                Serial.println("> PROGRAM HEADER");
+              #endif
+              
               break;
-          
-          case PRGM || SCRN || CODE:
+
+          case 1:
+
               // Definimos el buffer del PLAYER igual al tamaño del bloque
-              byte* bufferPlay = new byte[pTAP.bDscr[i].size];
-              bufferPlay = readFileRange32(sdFile32,pTAP.bDscr[i].offset,pTAP.bDscr[i].size);
-              zxp.playData(buffer[], 19);
+              #ifdef LOG==3
+                Serial.println("");
+                Serial.println("> BYTE HEADER");
+              #endif
+              
               break;
+
+          case 7:
+
+              // Definimos el buffer del PLAYER igual al tamaño del bloque
+              #ifdef LOG==3
+                Serial.println("");
+                Serial.println("> SCREEN HEADER");
+              #endif
+              
+              break;
+
+          case 2:
+              // Definimos el buffer del PLAYER igual al tamaño del bloque
+              #ifdef LOG==3
+                Serial.println("");
+                Serial.println("> BASIC PROGRAM");
+              #endif
+
+              break;
+
+          case 3:
+              // Definimos el buffer del PLAYER igual al tamaño del bloque
+              #ifdef LOG==3
+                Serial.println("");
+                Serial.println("> SCREEN");
+              #endif
+
+              break;
+
+          case 4:
+              // Definimos el buffer del PLAYER igual al tamaño del bloque
+              #ifdef LOG==3
+                Serial.println("");
+                Serial.println("> BYTE CODE");
+              #endif
+
+              break;
+
       }
-      sleep(3);
-  } 
 
-  pTAP.calculateChecksum(testHeader,0,18);
-  sleep(5);
+      if (pTAP.bDscr[i].type == 0 || pTAP.bDscr[i].type == 1 || pTAP.bDscr[i].type == 7)
+      {
+          // CABECERA
+          bufferPlay = new byte[pTAP.bDscr[i].size];
+          bufferPlay = readFileRange32(sdFile32,pTAP.bDscr[i].offset,pTAP.bDscr[i].size);
+          
+          zxp.playHeader(bufferPlay, pTAP.bDscr[i].size);        
+      }
+      else
+      {
+          // DATA
+          bufferPlay = new byte[pTAP.bDscr[i].size];
+          bufferPlay = readFileRange32(sdFile32,pTAP.bDscr[i].offset,pTAP.bDscr[i].size);
+
+          zxp.playData(bufferPlay, pTAP.bDscr[i].size);
+      }
+  } 
+  sleep(3);
+
+  Serial.println("");
+  Serial.println("Finish. STOP THE TAPE.");
+  
+  //pTAP.calculateChecksum(testHeader,0,18);
+  //sleep(5);
 
   //tp.getTotalBlocks();
   // for (int n=0;n<rlen;n++)

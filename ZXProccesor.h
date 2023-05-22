@@ -36,7 +36,7 @@ int SYNC1 = 667;
 int SYNC2 = 735;
 int BIT_0 = 855;
 int BIT_1 = 1710;
-int PULSE_PILOT = 2168; //2168
+int PULSE_PILOT = 2168;
 int PULSE_PILOT_HEADER = PULSE_PILOT * 8063;
 int PULSE_PILOT_DATA = PULSE_PILOT * 3223;
 
@@ -290,10 +290,6 @@ class ZXProccesor
 
         void playData(byte* bBlock, int lenBlock)
         {
-            #ifdef LOG==3
-              Serial.println("******* PROGRAM DATA");
-            #endif
-
             // Put now code block
             // syncronize with short leader tone
             pilotToneData();
@@ -355,7 +351,6 @@ class ZXProccesor
             #ifdef SILENT
               sleep(SILENT);
             #endif
-
         }
 
         void playHeaderOnly(byte* header, int len_header)
