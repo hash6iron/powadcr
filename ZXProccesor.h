@@ -173,7 +173,21 @@ class ZXProccesor
 
             for (int m=0;m < numPulses;m++)
             {
-              m_kit.write(buffer, readWave(buffer, bytes));
+                
+                if (LOADING_STATE == 1)
+                {
+                    if (PAUSE==true || STOP==true)
+                    {
+                      LOADING_STATE = 2; // Parada del bloque actual
+                      Serial.println("PAUSE the TAPE - STOP procces!");
+                      break;
+                    }
+
+                    //buttonsControl();
+                    //yield();
+                }
+                
+                m_kit.write(buffer, readWave(buffer, bytes));
             } 
         }
 
@@ -295,6 +309,34 @@ class ZXProccesor
             pilotToneData();
             // syncronization for end short leader tone
             syncTone(SYNC1);
+
+            // Send data
+            sendDataArray(bBlock, lenBlock);
+            
+            // syncronization for end data block          
+            syncTone(SYNC2);
+            
+            // Silent tone
+            #ifdef SILENT
+              sleep(SILENT);
+            #endif          
+        }
+
+        void playDataBegin(byte* bBlock, int lenBlock)
+        {
+            // Put now code block
+            // syncronize with short leader tone
+            pilotToneData();
+            // syncronization for end short leader tone
+            syncTone(SYNC1);
+
+            // Send data
+            sendDataArray(bBlock, lenBlock);
+                   
+        }
+
+        void playDataEnd(byte* bBlock, int lenBlock)
+        {
 
             // Send data
             sendDataArray(bBlock, lenBlock);

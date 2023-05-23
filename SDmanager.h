@@ -127,9 +127,9 @@ byte* readFileRange32(File32 mFile, int startByte, int size)
 
     mFile.rewind();
 
-    Serial.println("***** readFileRange32 *****");
-    Serial.println("Offset: " + String(startByte));
-    Serial.println("Size: " + String(size));
+    //Serial.println("***** readFileRange32 *****");
+    Serial.println("   + Offset: " + String(startByte));
+    Serial.println("   + Size: " + String(size));
     Serial.println("");
 
     if (mFile) 
@@ -141,7 +141,7 @@ byte* readFileRange32(File32 mFile, int startByte, int size)
         // Serial.print(String(rlen));
 
         //Redimensionamos el buffer al tamaño acordado del rango
-        bufferFile = resize(bufferFile,0,size);
+        bufferFile = new byte[size];
 
         int i=0;
         int j=0;

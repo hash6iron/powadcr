@@ -49,6 +49,8 @@ class TAPproccesor
       // Definicion de un TAP
       tTAP myTAP;
 
+      int CURRENT_LOADING_BLOCK = 0;
+
       // Creamos el contenedor de bloques. Descriptor de bloques
       tBlockDescriptor* bDscr = new tBlockDescriptor[255];
 
