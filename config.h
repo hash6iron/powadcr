@@ -11,7 +11,7 @@
 // 2 - Error
 // 3 - Warning
 // 4 - Info     / Full trace info
-#define LOG 1
+#define LOG 0
 
 // Define silent block in seconds between blocks playing
 // each block has two SILENT block
@@ -21,4 +21,8 @@
 // 0 - No
 // 1 - Yes
 #define TURBOMODE 0
+
+// Activa el modo de split de los bloques. 
+// EXPERIMENTAL. No funciona bien
+#define SPLIT_ENABLED 1
 
