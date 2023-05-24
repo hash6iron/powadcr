@@ -22,3 +22,7 @@
 // 1 - Yes
 #define TURBOMODE 0
 
+// Activa el modo de split de los bloques. 
+// EXPERIMENTAL. No funciona bien
+#define SPLIT_ENABLED 1
+

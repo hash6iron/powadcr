@@ -9,7 +9,7 @@
 // SD_FAT_TYPE = 0 for SdFat/File as defined in SdFatConfig.h,
 // 1 for FAT16/FAT32, 2 for exFAT, 3 for FAT16/FAT32 and exFAT.
 #define SD_FAT_TYPE 1
-#define SPI_SPEED SD_SCK_MHZ(4)
+//#define SPI_SPEED SD_SCK_MHZ(30)   // Con 4MHz, 10MHz, 20MHz funciona bien
 
 #if SD_FAT_TYPE == 0
   SdFat sdf;
@@ -121,38 +121,38 @@ byte* readFile32(File32 mFile)
 
 }
 
-byte* readFileRange32(File32 mFile, int startByte, int size)
+byte* readFileRange32(File32 mFile, int startByte, int size, bool logOn)
 {
     byte* bufferFile = NULL;
 
+    // Ponemos a cero el puntero de lectura del fichero
     mFile.rewind();
+    // Nos posicionamos en el byte definido
+    mFile.seek(startByte);
 
     //Serial.println("***** readFileRange32 *****");
-    Serial.println("   + Offset: " + String(startByte));
-    Serial.println("   + Size: " + String(size));
-    Serial.println("");
+    if (logOn)
+    {
+        Serial.println("   + Offset: " + String(startByte));
+        Serial.println("   + Size: " + String(size));
+        Serial.println("");
+    }
 
     if (mFile) 
     {
         int rlen = mFile.available();
         _FILE_LENGTH = rlen;
 
-        // Serial.print("Len: ");
-        // Serial.print(String(rlen));
-
         //Redimensionamos el buffer al tamaño acordado del rango
         bufferFile = new byte[size];
 
         int i=0;
         int j=0;
-        while(i < startByte+size)
+
+        while(i < size)
         {
             byte a = mFile.read();
-            if ((i >= startByte) && (i < startByte+size))
-            {
-                bufferFile[j] = a;
-                j++;
-            }
+            bufferFile[i] = a;
             i++;
         }
     } 

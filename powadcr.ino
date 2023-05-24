@@ -69,18 +69,22 @@ void playTAPfile(char* path)
     
     // Abrimos el fichero
     sdFile32 = openFile32(sdFile32, path);
+    int rlen = sdFile32.available();
+    TAPproccesor pTAP(sdFile32, rlen);
 
     // Leemos todo el fichero
-    int rlen = sdFile32.available();
-    byte* buffer = new byte[rlen];
-    buffer = readFile32(sdFile32);
+    //byte* buffer = (byte*)malloc[rlen];
+    //buffer = readFile32(sdFile32);
+    
     Serial.println("");
-    Serial.println("File open.");
-    Serial.println("Extracted BYTES succes!");
+    Serial.println("File opened. Size: " + String(rlen) + " bytes");
+    //Serial.println("Extracted BYTES succes!");
     
     
     // Comenzamos
-    TAPproccesor pTAP(buffer, rlen);
+    //TAPproccesor pTAP(buffer, rlen);
+    //free(buffer);
+
     byte* bufferPlay = NULL;
     //sleep(10);
 
@@ -181,65 +185,79 @@ void playTAPfile(char* path)
         if (pTAP.bDscr[i].type == 0 || pTAP.bDscr[i].type == 1 || pTAP.bDscr[i].type == 7)
         {
             // CABECERA
-            bufferPlay = new byte[pTAP.bDscr[i].size];
-            bufferPlay = readFileRange32(sdFile32,pTAP.bDscr[i].offset,pTAP.bDscr[i].size);
+            //bufferPlay = new byte[pTAP.bDscr[i].size];
+            bufferPlay = (byte*)malloc(pTAP.bDscr[i].size);
+            bufferPlay = readFileRange32(sdFile32,pTAP.bDscr[i].offset,pTAP.bDscr[i].size,true);
             
-            zxp.playHeader(bufferPlay, pTAP.bDscr[i].size);        
+            zxp.playHeader(bufferPlay, pTAP.bDscr[i].size);
+            free(bufferPlay);
+        
         }
         else
         {
             // DATA
             int blockSize = pTAP.bDscr[i].size;
 
-            if (blockSize > 20000)
+            // Si el bloque es mayor de 20KB hacemos Split.
+            if (SPLIT_ENABLED)
             {
-                // Lanzamos dos bloques
-                int bl1 = blockSize/2;
-                int bl2 = blockSize - bl1;
-                int blockPlaySize = 0;
-                int offsetPlay = 0;
-
-                Serial.println("   > Splitted block. Size [" + String(blockSize) + "]");
-
-                for (int j=0;j<2;j++)
+                if (blockSize > 20000)
                 {
+                    // Lanzamos dos bloques
+                    int bl1 = blockSize/2;
+                    int bl2 = blockSize - bl1;
+                    int blockPlaySize = 0;
+                    int offsetPlay = 0;
 
-                    if (j==0)
+                    Serial.println("   > Splitted block. Size [" + String(blockSize) + "]");
+
+                    for (int j=0;j<2;j++)
                     {
-                        blockPlaySize = bl1;
-                        offsetPlay = pTAP.bDscr[i].offset;
-                        bufferPlay = new byte[blockPlaySize];
 
-                        Serial.println("   > Offset [1/2] " + String(offsetPlay));
-                        Serial.println("   > Size   [1/2] " + String(blockPlaySize));
-                        bufferPlay = readFileRange32(sdFile32,offsetPlay,blockPlaySize);
-                        zxp.playDataBegin(bufferPlay, blockPlaySize);
-                    }
-                    else
-                    {                        
-                        blockPlaySize = bl2;
-                        offsetPlay = offsetPlay + bl1;
+                        if (j==0)
+                        {
+                            blockPlaySize = bl1;
+                            offsetPlay = pTAP.bDscr[i].offset;
+                            bufferPlay = (byte*)malloc(blockPlaySize);
 
-                        Serial.println("   > Offset [2/2] " + String(offsetPlay));
-                        Serial.println("   > Size   [2/2] " + String(blockPlaySize));
+                            // Serial.println("   > Offset [1/2] " + String(offsetPlay));
+                            // Serial.println("   > Size   [1/2] " + String(blockPlaySize));
+                            bufferPlay = readFileRange32(sdFile32,offsetPlay,blockPlaySize,true);
+                            zxp.playDataBegin(bufferPlay, blockPlaySize);
+                            free(bufferPlay);
 
-                        //
-                        // AQUI FALLA (AL CREAR EL BUFFERPLAY) Y PUEDE SER POR EL USO INDEBIDO DE PUNTEROS Y HE COLAPSADO
-                        // LA MEMORIA. REVISAR Y LIBERAR PUNTEROS
-                        //
-                        bufferPlay = new byte[blockPlaySize];
+                        }
+                        else
+                        {                        
+                            blockPlaySize = bl2;
+                            offsetPlay = offsetPlay + bl1;
 
+                            // Serial.println("   > Offset [2/2] " + String(offsetPlay));
+                            // Serial.println("   > Size   [2/2] " + String(blockPlaySize));
+                            bufferPlay = (byte*)malloc(blockPlaySize);
+                            bufferPlay = readFileRange32(sdFile32,offsetPlay,blockPlaySize,true);
+                            zxp.playDataEnd(bufferPlay, blockPlaySize);
+                            free(bufferPlay);
 
-                        bufferPlay = readFileRange32(sdFile32,offsetPlay,blockPlaySize);
-                        zxp.playDataEnd(bufferPlay, blockPlaySize);
+                        }
                     }
                 }
+                else
+                {
+                    // En el caso de bloques menores que no se dividen
+                    bufferPlay = (byte*)malloc(pTAP.bDscr[i].size);
+                    bufferPlay = readFileRange32(sdFile32,pTAP.bDscr[i].offset,pTAP.bDscr[i].size,true);
+                    zxp.playData(bufferPlay, pTAP.bDscr[i].size);
+                    free(bufferPlay);
+                }                
             }
             else
             {
-                bufferPlay = new byte[blockSize];
-                bufferPlay = readFileRange32(sdFile32,pTAP.bDscr[i].offset,pTAP.bDscr[i].size);
+                // En el caso de NO USAR SPLIT
+                bufferPlay = (byte*)malloc(pTAP.bDscr[i].size);
+                bufferPlay = readFileRange32(sdFile32,pTAP.bDscr[i].offset,pTAP.bDscr[i].size,true);
                 zxp.playData(bufferPlay, pTAP.bDscr[i].size);
+                free(bufferPlay);
             }
         }
     } 
@@ -275,16 +293,28 @@ void setup()
 
   Serial.println("Done!");
 
-  if (!sdf.begin(ESP32kit.pinSpiCs(), SPI_SPEED)) 
-  {
-		Serial.println("SD card error!");
-		while (true);
-	}
-  else
-  {
-    Serial.println("SD card initialized!");
-  }
+  // Configuramos la velocidad de acceso a la SD
+  int SD_Speed = 20;         // Velocidad en MHz
+  bool SD_ok = false;
 
+  while(!SD_ok)
+  {
+      if (!sdf.begin(ESP32kit.pinSpiCs(), SD_SCK_MHZ(SD_Speed))) 
+      {
+          Serial.println("SD card error!");
+          SD_Speed = SD_Speed - 5;
+          if (SD_Speed < 4)
+          {
+              SD_Speed = 4;
+          }
+          Serial.println("SD downgrade at " + String(SD_Speed) + "MHz");
+      }
+      else
+      {
+          Serial.println("SD card initialized at " + String(SD_Speed) + " MHz");
+          SD_ok = true;
+      }
+  }
 
   // //Asignamos funciones a los botones
 
@@ -345,6 +375,7 @@ void loop() {
       Serial.println("Starting TAPE PLAYER.");
       Serial.println("");
       //playTAPfile("/games/Classic48/Trashman/TRASHMAN.TAP");
+      //playTAPfile("/games/Classic128/Castlevania/Castlevania.tap");
       playTAPfile("games/Classic128/Shovel Adventure/Shovel Adventure ZX 1.2.tap");
       
   }
