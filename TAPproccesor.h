@@ -129,7 +129,7 @@ class TAPproccesor
       bool isProgramHeader(byte* header, int startByte)
       {
           // Verifica que es una cabecera
-          bool isHeaderPrg = false;
+          //bool isHeaderPrg = false;
           byte checksum = 0;
           byte calcBlockChk = 0;
 
@@ -142,14 +142,19 @@ class TAPproccesor
 
                   if (checksum == calcBlockChk)
                   {
-                      isHeaderPrg = true;
+                      //isHeaderPrg = true;
+                      return true;
                   }
               }
               else
-              {isHeaderPrg = false;}
+              //{isHeaderPrg = false;}
+              {
+                return false;
+              }
           }
 
-          return isHeaderPrg;
+          //return isHeaderPrg;
+          return false;
       }
 
       int getBlockLen(byte* header, int startByte)
