@@ -1,43 +1,34 @@
-//
-// SDManager para TAP files
-//
+/* +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    Nombre: SDmanager.h
+    
+    Creado por:
+      Antonio Tamairón. 2023  
+      @hash6iron / https://powagames.itch.io/
+
+
+    Colaboradores en el proyecto:
+      - Fernando Mosquera
+      - Guillermo
+      - Mario J
+      - Pedro Pelaez
+
+    
+    Descripción:
+    Funciones para la gestión de ficheros y lectura de bloques de bytes desde la SD
+
+    Version: 0.1
+
+    Historico de versiones
+    v.0.1 - Version de pruebas. En desarrollo
+    
+
+ +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
 
 #include "SdFat.h"
 
-// **************** SD CARD
-
-// SD_FAT_TYPE = 0 for SdFat/File as defined in SdFatConfig.h,
-// 1 for FAT16/FAT32, 2 for exFAT, 3 for FAT16/FAT32 and exFAT.
-#define SD_FAT_TYPE 1
-//#define SPI_SPEED SD_SCK_MHZ(30)   // Con 4MHz, 10MHz, 20MHz funciona bien
-
-#if SD_FAT_TYPE == 0
-  SdFat sdf;
-  File dir;
-  File file;
-#elif SD_FAT_TYPE == 1
-  SdFat32 sdf;
-  File32 dir;
-  File32 file;
-#elif SD_FAT_TYPE == 2
-  SdExFat sdf;
-  ExFile dir;
-  ExFile file;
-#elif SD_FAT_TYPE == 3
-  SdFs sdf;
-  FsFile dir;
-  FsFile file;
-#else  // SD_FAT_TYPE
-#error invalid SD_FAT_TYPE
-#endif  // SD_FAT_TYPE
-
-// ****************************************************************************
-//
-//                            Variables globales
-//
-// ****************************************************************************
-
-int _FILE_LENGTH = 0;    //Tamaño del fichero en bytes
+SdFat32 sdf;
+File32 dir;
+File32 file;
 
 // ****************************************************************************
 //
@@ -45,46 +36,19 @@ int _FILE_LENGTH = 0;    //Tamaño del fichero en bytes
 //
 // ****************************************************************************
 
-byte* resize(byte* buffer, size_t items, size_t newCapacity)
-{
-  size_t count = items;
-  byte* newBuffer = new byte[newCapacity];
-  memmove(newBuffer, buffer, count * sizeof(byte));
-  buffer = newBuffer;
 
-  return buffer;
-}
-
-byte* readFile(SdFile mFile)
-{
-    byte* bufferFile = NULL;
-
-    mFile.rewind();
-
-    if (mFile) 
+File32 openFile32(File32 fFile, char *path) 
+{ 
+    if (!fFile.open(path, FILE_READ)) 
     {
-        int rlen = mFile.available();
-        _FILE_LENGTH = rlen;
-        Serial.print("Len: ");
-        Serial.print(String(rlen));
-
-        //Redimensionamos el buffer al tamaño acordado del fichero
-        bufferFile = resize(bufferFile,0,rlen);
-
-        int i=0;
-        while(i < rlen)
-        {
-            byte a = mFile.read();
-            bufferFile[i] = a;
-            i++;
-        }
-    } 
-    else 
+        Serial.println("open failed");
+    }
+    else
     {
-        Serial.print(F("SD Card: error on opening file"));
+        Serial.println("open success");
     }
 
-    return bufferFile;
+    return fFile;
 }
 
 byte* readFile32(File32 mFile)
@@ -96,29 +60,27 @@ byte* readFile32(File32 mFile)
     if (mFile) 
     {
         int rlen = mFile.available();
-        _FILE_LENGTH = rlen;
+        FILE_LENGTH = rlen;
 
         Serial.print("Len: ");
         Serial.print(String(rlen));
 
         //Redimensionamos el buffer al tamaño acordado del fichero
-        bufferFile = resize(bufferFile,0,rlen);
+        bufferFile = (byte*)malloc(rlen);
 
         int i=0;
         while(i < rlen)
         {
-            byte a = mFile.read();
-            bufferFile[i] = a;
+            bufferFile[i] = (byte)mFile.read();
             i++;
         }
     } 
     else 
     {
-        Serial.print(F("SD Card: error on opening file"));
+        Serial.print(F("SD Card: error opening file. Please check SD frequency."));
     }
 
     return bufferFile;
-
 }
 
 byte* readFileRange32(File32 mFile, int startByte, int size, bool logOn)
@@ -141,54 +103,23 @@ byte* readFileRange32(File32 mFile, int startByte, int size, bool logOn)
     if (mFile) 
     {
         int rlen = mFile.available();
-        _FILE_LENGTH = rlen;
+        FILE_LENGTH = rlen;
 
         //Redimensionamos el buffer al tamaño acordado del rango
-        bufferFile = new byte[size];
+        bufferFile = (byte*)malloc(size);
 
         int i=0;
-        int j=0;
 
         while(i < size)
         {
-            byte a = mFile.read();
-            bufferFile[i] = a;
+            bufferFile[i] = (byte)mFile.read();;
             i++;
         }
     } 
     else 
     {
-        Serial.print(F("SD Card: error on opening file"));
+        Serial.print(F("SD Card: error opening file. Please check SD frequency."));
     }
 
     return bufferFile;
-
-}
-
-SdFile openFile(SdFile fFile, char *path) 
-{ 
-    if (!fFile.open(path, FILE_READ)) 
-    {
-        Serial.println("open failed");
-    }
-    else
-    {
-        Serial.println("open success");
-    }
-
-    return fFile;
-}
-
-File32 openFile32(File32 fFile, char *path) 
-{ 
-    if (!fFile.open(path, FILE_READ)) 
-    {
-        Serial.println("open failed");
-    }
-    else
-    {
-        Serial.println("open success");
-    }
-
-    return fFile;
 }
