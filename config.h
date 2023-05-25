@@ -23,6 +23,7 @@
 #define TURBOMODE 0
 
 // Activa el modo de split de los bloques. 
-// EXPERIMENTAL. No funciona bien
+// si superan el tamaño (en bytes) definido por SIZE_TO_ACTIVATE_SPLIT
 #define SPLIT_ENABLED 1
+#define SIZE_TO_ACTIVATE_SPLIT 40000
 

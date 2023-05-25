@@ -199,8 +199,9 @@ void playTAPfile(char* path)
             int blockSize = pTAP.bDscr[i].size;
 
             // Si el SPLIT esta activado y el bloque es mayor de 20KB hacemos Split.
-            if ((SPLIT_ENABLED) && (blockSize > 20000))
+            if ((SPLIT_ENABLED) && (blockSize > SIZE_TO_ACTIVATE_SPLIT))
             {
+
                 // Lanzamos dos bloques
                 int bl1 = blockSize/2;
                 int bl2 = blockSize - bl1;
@@ -210,6 +211,7 @@ void playTAPfile(char* path)
                 Serial.println("   > Splitted block. Size [" + String(blockSize) + "]");
 
                 for (int j=0;j<2;j++)
+
                 {
 
                    if (j==0)
@@ -366,8 +368,8 @@ void loop() {
       Serial.println("");
       //playTAPfile("/games/Classic48/Trashman/TRASHMAN.TAP");
       //playTAPfile("/games/Classic128/Castlevania/Castlevania.tap");
-      playTAPfile("games/Classic128/Shovel Adventure/Shovel Adventure ZX 1.2.tap");
-      
+      //playTAPfile("/games/Classic128/Shovel Adventure/Shovel Adventure ZX 1.2.tap");
+      playTAPfile("/games/Actuales/Donum/Donum_ESPv1.1.tap");
   }
   //delay(50);
   //playTAPfile("/games/Classic48/Trashman/TRASHMAN.TAP");
