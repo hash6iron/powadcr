@@ -198,8 +198,8 @@ void playTAPfile(char* path)
             // DATA
             int blockSize = pTAP.bDscr[i].size;
 
-            // Si el bloque es mayor de 20KB hacemos Split.
-            if ((SPLIT_ENABLED) || (blockSize > 20000))
+            // Si el SPLIT esta activado y el bloque es mayor de 20KB hacemos Split.
+            if ((SPLIT_ENABLED) && (blockSize > 20000))
             {
                 // Lanzamos dos bloques
                 int bl1 = blockSize/2;
