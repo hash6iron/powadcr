@@ -6,7 +6,7 @@ This project pretend to implement a Digital Cassette Recorder (for TAP/TZX/SNA f
 The launcher was this board below, ESP32 Audio Kit equipped with ESP32 microcontroller and ES8388 Audio proccesor 
 made by AI-Thinker Technology.
 
-![plot](./audiokit.png)
+![plot](./doc/audiokit.png)
 
 https://docs.ai-thinker.com/en/esp32-audio-kit
 
@@ -27,9 +27,28 @@ So, it's a beautiful develop board with a big possibilities.
 
 To begin with is necessary use the Phil Schatzmann's libraries for ESP32 Audio Kit (https://github.com/pschatzmann/arduino-audiokit) where we could take advantage of all resources of this kit, to create a digital player and recorder for ZX Spectrum easilly, or this is the first idea.
 
-About Sinclair ZX Spectrum TAP structure.
------
+This project need set PCB switches to
 
+|Switch|Value|
+|---|---|
+|1|On|
+|2|On|
+|3|On|
+|4|Off|
+|5|Off|
+
+## Set Arduino IDE
+
+Set board how "ESP32 DEV".
+
+Required libraries:
+- SdFat (https://github.com/greiman/SdFat)
+- arduino-audiokit (https://github.com/pschatzmann/arduino-audiokit/tree/main)
+- Audiotools (??)
+
+## About Sinclair ZX Spectrum TAP structure.
+
+-----
 
 About loading proccess in Sinclair ZX Spectrum
 -----
@@ -44,7 +63,7 @@ The sequence for ZS Spectrum, is always:
 + Large (x 8063 T-States) for typical "PROGRAM" block (BASIC)
 + Short (x 3223 T-States) for typical "BYTE" block, Z80 machine code.</br>
 
-![plot](./squarewave_train.png)
+![plot](./doc/squarewave_train.png)
 
 **What means T-State?**
 
