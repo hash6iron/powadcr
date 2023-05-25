@@ -6,7 +6,7 @@ This project pretend to implement a Digital Cassette Recorder (for TAP/TZX/SNA f
 The launcher was this board below, ESP32 Audio Kit equipped with ESP32 microcontroller and ES8388 Audio proccesor 
 made by AI-Thinker Technology.
 
-![plot](./audiokit.png)
+![plot](./doc/audiokit.png)
 
 https://docs.ai-thinker.com/en/esp32-audio-kit
 
@@ -44,7 +44,7 @@ The sequence for ZS Spectrum, is always:
 + Large (x 8063 T-States) for typical "PROGRAM" block (BASIC)
 + Short (x 3223 T-States) for typical "BYTE" block, Z80 machine code.</br>
 
-![plot](./squarewave_train.png)
+![plot](./doc/squarewave_train.png)
 
 **What means T-State?**
 
