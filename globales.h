@@ -84,3 +84,6 @@ bool button3_pressed = false;
 bool button4_pressed = false;
 bool button5_pressed = false;
 bool button6_pressed = false;
+
+// Controlador de eventos global
+ObserverEvents evManager;

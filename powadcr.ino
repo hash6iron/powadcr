@@ -24,11 +24,13 @@
  +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
 
 // Librerias (mantener este orden)
+#include "ObserverEvents.h"
 //   -- En esta se encuentran las variables globales a todo el proyecto
 #include "globales.h"
 //
 #include "interface.h"
 #include "config.h"
+#include "Logger.h"
 #include "AudioKitHAL.h"
 #include "ZXProccesor.h"
 #include "SDmanager.h"
@@ -227,7 +229,9 @@ void setup()
 {
     // Configuramos el nivel de log
     Serial.begin(115200);
+    initLogger();
     
+    debugLog("Hola mundo");
     Serial.println("Setting Audiokit.");
     
     // Configuramos los pulsadores
