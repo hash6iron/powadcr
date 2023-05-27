@@ -251,7 +251,7 @@ void setup()
     infoLog("Setting Audiokit.");
 
     // Configuramos los pulsadores
-    // --> configureButtons();
+    configureButtons();
 
     // Configuramos el ESP32kit
     LOGLEVEL_AUDIOKIT = AudioKitError; 
@@ -267,7 +267,7 @@ void setup()
 
     // Configuramos la velocidad de acceso a la SD
     int SD_Speed = SD_FRQ_MHZ_INITIAL;         // Velocidad en MHz (config.h)
-    // --> setSDFrequency(SD_Speed);
+    setSDFrequency(SD_Speed);
 
     // Si es test está activo. Lo lanzamos
     #if TEST==1
@@ -285,7 +285,7 @@ void loop() {
   //sdf.ls("/", LS_R);
   //sdf.ls("/games/Classic48/Trashman/",LS_R);
   
-  // --> buttonsControl();
+  buttonsControl();
 
   if (PLAY==true && LOADING_STATE == 0)
   {
