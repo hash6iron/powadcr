@@ -39,12 +39,15 @@ This project need set PCB switches to
 
 ## Set Arduino IDE
 
-Set board how "ESP32 DEV".
+Apply this BOARD repository to Arduino IDE preferences.
+- https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json
+
+Then, set board how "ESP32 DEV MOD".
 
 Required libraries:
 - SdFat (https://github.com/greiman/SdFat)
 - arduino-audiokit (https://github.com/pschatzmann/arduino-audiokit/tree/main)
-- Audiotools (??)
+
 
 ## About Sinclair ZX Spectrum TAP structure.
 
