@@ -36,6 +36,7 @@
 #include "SDmanager.h"
 #include "TAPproccesor.h"
 #include "test.h"
+#include "esp_heap_caps.h"
 
 // Declaración para eñ audiokitHal
 AudioKit ESP32kit;
@@ -50,6 +51,22 @@ File32 sdFile32;
 #ifdef MACHINE==0
   ZXProccesor zxp(ESP32kit);
 #endif
+
+// Formatea bytes para que sea mas facil de leer.
+String formatBytes(size_t bytes) {
+  if (bytes < 1024) {
+    return String(bytes) + " B";
+  } else if (bytes < 1024 * 1024) {
+    float kilobytes = bytes / 1024.0;
+    return String(kilobytes, 2) + " KB";
+  } else if (bytes < 1024 * 1024 * 1024) {
+    float megabytes = bytes / (1024.0 * 1024.0);
+    return String(megabytes, 2) + " MB";
+  } else {
+    float gigabytes = bytes / (1024.0 * 1024.0 * 1024.0);
+    return String(gigabytes, 2) + " GB";
+  }
+}
 
 void setSDFrequency(int SD_Speed)
 {
@@ -223,10 +240,18 @@ void setup()
     Serial.begin(115200);
     initLogger();
 
+    infoLog(("idf version: " + String(esp_get_idf_version())).c_str());
+    infoLog(("Free HEAP memory: " + String(formatBytes(esp_get_free_heap_size()))).c_str());
+
+    multi_heap_info_t info;
+    heap_caps_get_info(&info, MALLOC_CAP_8BIT);
+    infoLog(("Total free memory: " + String(formatBytes(info.total_free_bytes))).c_str());
+    infoLog(("Largest free block: " + String(formatBytes(heap_caps_get_largest_free_block(MALLOC_CAP_8BIT)))).c_str());
+
     infoLog("Setting Audiokit.");
 
     // Configuramos los pulsadores
-    configureButtons();
+    // --> configureButtons();
 
     // Configuramos el ESP32kit
     LOGLEVEL_AUDIOKIT = AudioKitError; 
@@ -242,7 +267,7 @@ void setup()
 
     // Configuramos la velocidad de acceso a la SD
     int SD_Speed = SD_FRQ_MHZ_INITIAL;         // Velocidad en MHz (config.h)
-    setSDFrequency(SD_Speed);
+    // --> setSDFrequency(SD_Speed);
 
     // Si es test está activo. Lo lanzamos
     #if TEST==1
@@ -260,7 +285,7 @@ void loop() {
   //sdf.ls("/", LS_R);
   //sdf.ls("/games/Classic48/Trashman/",LS_R);
   
-  buttonsControl();
+  // --> buttonsControl();
 
   if (PLAY==true && LOADING_STATE == 0)
   {
