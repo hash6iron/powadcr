@@ -22,7 +22,7 @@
 // CRITICAL = 500: Critical conditions. Example: Application component unavailable, unexpected exception.
 // ALERT = 550: Action must be taken immediately. Example: Entire website down, database unavailable, etc. This should trigger the SMS alerts and wake you up.
 // EMERGENCY = 600: Emergency: system is unusable.
-#define MIN_LOG_LEVEL 100 // INFO
+#define MIN_LOG_LEVEL 100
 
 // Define silent block in seconds between blocks playing
 // each block has two SILENT block
