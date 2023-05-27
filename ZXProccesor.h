@@ -179,7 +179,7 @@ class ZXProccesor
                     if (PAUSE==true || STOP==true)
                     {
                       LOADING_STATE = 2; // Parada del bloque actual
-                      Serial.println("PAUSE the TAPE - STOP procces!");
+                      infoLog("PAUSE the TAPE - STOP procces!");
                       break;
                     }
 
@@ -353,9 +353,9 @@ class ZXProccesor
         void playBlock(byte* header, int len_header, byte* data, int len_data)
         {           
             #ifdef LOG==3
-              Serial.println("******* PROGRAM HEADER");
-              Serial.println("*******  - HEADER size " + String(len_header));
-              Serial.println("*******  - DATA   size " + String(len_data));
+              debugLog("******* PROGRAM HEADER");
+              debugLog(("*******  - HEADER size " + String(len_header)).c_str());
+              debugLog(("*******  - DATA   size " + String(len_data)).c_str());
             #endif
 
             // PROGRAM
@@ -374,7 +374,7 @@ class ZXProccesor
             #endif
 
             #ifdef LOG==3
-              Serial.println("******* PROGRAM DATA");
+              debugLog("******* PROGRAM DATA");
             #endif
 
             // Put now code block
@@ -398,14 +398,12 @@ class ZXProccesor
         void playHeaderOnly(byte* header, int len_header)
         {           
             #ifdef LOG==3
-              Serial.println("");
-              Serial.println("******* PROGRAM HEADER");
-              Serial.println("*******  - HEADER size " + String(len_header) + " bytes");
-              Serial.println("");
-              Serial.println("Header to send:");
-              Serial.println("");
+              debugLog("******* PROGRAM HEADER");
+              debugLog(("*******  - HEADER size " + String(len_header) + " bytes").c_str());
+              debugLog("Header to send:");
               for (int n=0;n<19;n++)
               {
+                  // NOTA: Mensaje directo de depuracion.
                   Serial.print(header[n],HEX);
                   Serial.print(",");
               }

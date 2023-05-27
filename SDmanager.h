@@ -41,11 +41,11 @@ File32 openFile32(File32 fFile, char *path)
 { 
     if (!fFile.open(path, FILE_READ)) 
     {
-        Serial.println("open failed");
+        errorLog("open failed");
     }
     else
     {
-        Serial.println("open success");
+        debugLog("open success");
     }
 
     return fFile;
@@ -62,8 +62,7 @@ byte* readFile32(File32 mFile)
         int rlen = mFile.available();
         FILE_LENGTH = rlen;
 
-        Serial.print("Len: ");
-        Serial.print(String(rlen));
+        debugLog(("Len: " + String(rlen)).c_str());
 
         //Redimensionamos el buffer al tamaño acordado del fichero
         bufferFile = (byte*)malloc(rlen);
@@ -77,7 +76,7 @@ byte* readFile32(File32 mFile)
     } 
     else 
     {
-        Serial.print(F("SD Card: error opening file. Please check SD frequency."));
+        errorLog("SD Card: error opening file. Please check SD frequency.");
     }
 
     return bufferFile;
@@ -95,9 +94,8 @@ byte* readFileRange32(File32 mFile, int startByte, int size, bool logOn)
     //Serial.println("***** readFileRange32 *****");
     if (logOn)
     {
-        Serial.println("   + Offset: " + String(startByte));
-        Serial.println("   + Size: " + String(size));
-        Serial.println("");
+        debugLog(("   + Offset: " + String(startByte)).c_str());
+        debugLog(("   + Size: " + String(size)).c_str());
     }
 
     if (mFile) 
@@ -118,7 +116,7 @@ byte* readFileRange32(File32 mFile, int startByte, int size, bool logOn)
     } 
     else 
     {
-        Serial.print(F("SD Card: error opening file. Please check SD frequency."));
+        errorLog("SD Card: error opening file. Please check SD frequency.");
     }
 
     return bufferFile;
