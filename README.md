@@ -44,7 +44,7 @@ Set board how "ESP32 DEV".
 Required libraries:
 - SdFat (https://github.com/greiman/SdFat)
 - arduino-audiokit (https://github.com/pschatzmann/arduino-audiokit/tree/main)
-- Audiotools (??)
+- ObserverEvents (https://github.com/PSF1/ObserverEvents)
 
 ## About Sinclair ZX Spectrum TAP structure.
 

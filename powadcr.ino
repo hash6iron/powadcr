@@ -58,17 +58,17 @@ void setSDFrequency(int SD_Speed)
     {
         if (!sdf.begin(ESP32kit.pinSpiCs(), SD_SCK_MHZ(SD_Speed))) 
         {
-            Serial.println("SD card error!");
+            errorLog("SD card error!");
             SD_Speed = SD_Speed - 5;
             if (SD_Speed < 4)
             {
                 SD_Speed = 4;
             }
-            Serial.println("SD downgrade at " + String(SD_Speed) + "MHz");
+            noticeLog(("SD downgrade at " + String(SD_Speed) + "MHz").c_str());
         }
         else
         {
-            Serial.println("SD card initialized at " + String(SD_Speed) + " MHz");
+            infoLog(("SD card initialized at " + String(SD_Speed) + " MHz").c_str());
             SD_ok = true;
         }
     }
@@ -79,7 +79,7 @@ void test()
   // Si queremos activar el test que hay en memoria, para chequear con el ordenador
   #ifdef MACHINE==0
       //ZX Spectrum
-      Serial.println("----- TEST ACTIVE ------");
+      debugLog("----- TEST ACTIVE ------");
 
       zxp.playBlock(testHeader, 19, testData, 154);
       zxp.playBlock(testScreenHeader, 19, testScreenData, 6914);
@@ -103,17 +103,14 @@ void playTAPfile_ZXSpectrum(char* path)
 
 
     // Entregamos información por consola
-    Serial.println("");
-    Serial.println("File opened. Size: " + String(rlen) + " bytes");  
+    infoLog(("File opened. Size: " + String(rlen) + " bytes").c_str());
     
     // Inicializamos el buffer de reproducción. Memoria dinamica
     byte* bufferPlay = NULL;
 
     // Entregamos información por consola
-    Serial.println("Name TAP:    " + pTAP.myTAP.name);
-    Serial.println("Num. blocks: " + String(pTAP.myTAP.numBlocks));
-    Serial.println();
-    Serial.println();
+    infoLog(("Name TAP:    " + pTAP.myTAP.name).c_str());
+    infoLog(("Num. blocks: " + String(pTAP.myTAP.numBlocks)).c_str());
     
     // Ahora reproducimos todos los bloques desde el seleccionado (para cuando se quiera uno concreto)
     int m = BLOCK_SELECTED;
@@ -124,15 +121,13 @@ void playTAPfile_ZXSpectrum(char* path)
         CURRENT_BLOCK_IN_PROGRESS = i;
 
         // Vamos entregando información por consola
-        Serial.println("Block --> [" + String(i) + "]");
+        debugLog(("Block --> [" + String(i) + "]").c_str());
 
         // Si hemos pulsado PAUSE y estamos en estado de carga LOADING_STATE = 1
         // paramos
         if (PAUSE==true && LOADING_STATE == 1)
         {
-            Serial.println();
-            Serial.println("** PAUSE");
-            Serial.println();
+            debugLog("** PAUSE");
             //Pausa mantenemos el bloque
             LOADING_STATE = 2;  
             break;
@@ -140,9 +135,7 @@ void playTAPfile_ZXSpectrum(char* path)
 
         if (STOP==true && LOADING_STATE == 1)
         {
-            Serial.println();
-            Serial.println("** STOP");
-            Serial.println();
+            infoLog("** STOP");
             // Si paramos el bloque vuelve a ser el primero
             CURRENT_BLOCK_IN_PROGRESS = 0;
             LOADING_STATE = 0;  //STOP - Comenzamos de nuevo
@@ -178,7 +171,7 @@ void playTAPfile_ZXSpectrum(char* path)
                 int blockPlaySize = 0;
                 int offsetPlay = 0;
 
-                Serial.println("   > Splitted block. Size [" + String(blockSize) + "]");
+                debugLog(("   > Splitted block. Size [" + String(blockSize) + "]").c_str());
 
                 for (int j=0;j<2;j++)
                 {
@@ -217,8 +210,7 @@ void playTAPfile_ZXSpectrum(char* path)
     } 
     sleep(3);
 
-    Serial.println("");
-    Serial.println("Finish. STOP THE TAPE.");
+    infoLog("Finish. STOP THE TAPE.");
 
     free(bDscr);
     sdFile32.close();
@@ -230,10 +222,9 @@ void setup()
     // Configuramos el nivel de log
     Serial.begin(115200);
     initLogger();
-    
-    debugLog("Hola mundo");
-    Serial.println("Setting Audiokit.");
-    
+
+    infoLog("Setting Audiokit.");
+
     // Configuramos los pulsadores
     configureButtons();
 
@@ -243,11 +234,11 @@ void setup()
     // Configuracion de las librerias del AudioKit
     auto cfg = ESP32kit.defaultConfig(AudioOutput);
       
-    Serial.println("Initialized Audiokit.");
+    infoLog("Initialized Audiokit.");
 
     ESP32kit.begin(cfg);  
 
-    Serial.println("Done!");
+    infoLog("Done!");
 
     // Configuramos la velocidad de acceso a la SD
     int SD_Speed = SD_FRQ_MHZ_INITIAL;         // Velocidad en MHz (config.h)
@@ -274,9 +265,7 @@ void loop() {
   if (PLAY==true && LOADING_STATE == 0)
   {
       LOADING_STATE = 1;
-      Serial.println("");
-      Serial.println("Starting TAPE PLAYER.");
-      Serial.println("");
+      infoLog("Starting TAPE PLAYER.");
       //playTAPfile_ZXSpectrum("/games/Classic48/Trashman/TRASHMAN.TAP");
       //playTAPfile_ZXSpectrum("/games/Classic128/Castlevania/Castlevania.tap");
       //playTAPfile_ZXSpectrum("/games/Classic128/Shovel Adventure/Shovel Adventure ZX 1.2.tap");

@@ -4,6 +4,11 @@
 // Logger Handler
 void loggerHandler(const LogEvent& event) {
   std::string level;
+
+  if (event.level < MIN_LOG_LEVEL) {
+    return;
+  }
+
   switch (event.level) {
     case DEBUG: level = "DEBUG"; break;
     case INFO: level = "INFO"; break;
