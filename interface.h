@@ -39,9 +39,9 @@ void button2Action()
     }
     else
     {
-        FFWIND = true;
         PLAY = false;
         PAUSE = true;
+        STOP = false;
     }
 }
 
@@ -57,9 +57,9 @@ void button3Action()
     }
     else
     {
-        RWIND = true;
         PLAY = false;
-        PAUSE = true;
+        PAUSE = false;
+        STOP = true;
     }
 
 }
@@ -76,9 +76,6 @@ void button4Action()
     }
     else
     {
-        STOP = true;
-        PLAY = false;
-        PAUSE = true;
     }
 }
 
@@ -94,9 +91,7 @@ void button5Action()
     }
     else
     {
-        REC = true;
-        PLAY = false;
-        PAUSE = true;
+
     }
 }
 
@@ -112,8 +107,7 @@ void button6Action()
     }
     else
     {
-        // Vamos al menu principal
-        nMENU = 0;
+
     }
 }
 
@@ -172,3 +166,4 @@ void buttonsControl()
     }
 
 }
+

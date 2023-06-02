@@ -1,4 +1,3 @@
-
 /* +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     Nombre: powadcr.ino
     
@@ -27,9 +26,17 @@
 #include "ObserverEvents.h"
 //   -- En esta se encuentran las variables globales a todo el proyecto
 #include "globales.h"
+
 //
+#include "AudioKitHAL.h"
+// Declaración para eñ audiokitHal
+AudioKit ESP32kit;
+
+#include "HMI.h"
+
 #include "interface.h"
 #include "config.h"
+<<<<<<< Updated upstream
 #include "Logger.h"
 #include "AudioKitHAL.h"
 #include "ZXProccesor.h"
@@ -37,14 +44,27 @@
 #include "TAPproccesor.h"
 #include "test.h"
 #include "esp_heap_caps.h"
+=======
 
-// Declaración para eñ audiokitHal
-AudioKit ESP32kit;
+#include "ZXProccesor.h"
+#include "SDmanager.h"
+#include "TAPproccesor.h"
+>>>>>>> Stashed changes
+
+#include "test.h"
+//
+// #include <ESP32TimerInterrupt.h>
+// #include <ESP32TimerInterrupt.hpp>
+
+
 
 // Declaraciones para SdFat
 SdFat sd;
 SdFile sdFile;
 File32 sdFile32;
+
+//
+// hw_timer_t *Timer0_Cfg = NULL;
 
 // Inicializamos la clase ZXProccesor con el kit de audio.
 // ZX Spectrum
@@ -52,6 +72,7 @@ File32 sdFile32;
   ZXProccesor zxp(ESP32kit);
 #endif
 
+<<<<<<< Updated upstream
 // Formatea bytes para que sea mas facil de leer.
 String formatBytes(size_t bytes) {
   if (bytes < 1024) {
@@ -67,6 +88,9 @@ String formatBytes(size_t bytes) {
     return String(gigabytes, 2) + " GB";
   }
 }
+=======
+
+>>>>>>> Stashed changes
 
 void setSDFrequency(int SD_Speed)
 {
@@ -115,7 +139,7 @@ void playTAPfile_ZXSpectrum(char* path)
     TAPproccesor pTAP(sdFile32, rlen);
 
     //struct Vector *vector = malloc(sizeof (struct Vector));
-    tBlockDescriptor* bDscr = (tBlockDescriptor*)malloc[pTAP.myTAP.numBlocks];
+    tBlockDescriptor* bDscr = (tBlockDescriptor*)malloc(pTAP.myTAP.numBlocks);
     bDscr = pTAP.myTAP.descriptor;
 
 
@@ -126,24 +150,66 @@ void playTAPfile_ZXSpectrum(char* path)
     byte* bufferPlay = NULL;
 
     // Entregamos información por consola
+<<<<<<< Updated upstream
     infoLog(("Name TAP:    " + pTAP.myTAP.name).c_str());
     infoLog(("Num. blocks: " + String(pTAP.myTAP.numBlocks)).c_str());
     
+=======
+    PROGRAM_NAME = pTAP.myTAP.name;
+    TOTAL_BLOCKS = pTAP.myTAP.numBlocks;
+    LAST_NAME = "..";
+
+    Serial.println("Name TAP:    " + String(pTAP.myTAP.name));
+    Serial.println("Num. blocks: " + String(pTAP.myTAP.numBlocks));
+    Serial.println("Last block:  " + String(BLOCK_SELECTED));
+    Serial.println();
+    Serial.println();
+
+>>>>>>> Stashed changes
     // Ahora reproducimos todos los bloques desde el seleccionado (para cuando se quiera uno concreto)
     int m = BLOCK_SELECTED;
-    for (int i=m;i<pTAP.myTAP.numBlocks;i++)
+    BYTES_TOBE_LOAD = rlen;
+
+    // Reiniciamos
+    if (m==0)
     {
+      BYTES_LOADED = 0;
+      writeString("");
+      writeString("progressTotal.val=" + String((int)((BYTES_LOADED*100)/(BYTES_TOBE_LOAD-1))));      
+    }
+
+    for (int i=m;i<pTAP.myTAP.numBlocks;i++)
+    {   
+
+        //LAST_NAME = bDscr[i].name;
+
+        // Obtenemos el nombre del bloque
+        //char* tmp = (char*)malloc(10);
+        //Serial.println("");
+        //Serial.println("NAME = " + String(bDscr[i].name));
+        //Serial.println("");
+
+        LAST_NAME = bDscr[i].name;
+        LAST_SIZE = bDscr[i].size;
 
         // Almacenmas el bloque en curso para un posible PAUSE
-        CURRENT_BLOCK_IN_PROGRESS = i;
+        if (LOADING_STATE != 2)
+        {
+            CURRENT_BLOCK_IN_PROGRESS = i;
+            writeString("");
+            writeString("currentBlock.val=" + String(i+1));
+
+            writeString("");
+            writeString("progression.val=" + String(0));        
+        }
 
         // Vamos entregando información por consola
         debugLog(("Block --> [" + String(i) + "]").c_str());
 
-        // Si hemos pulsado PAUSE y estamos en estado de carga LOADING_STATE = 1
-        // paramos
-        if (PAUSE==true && LOADING_STATE == 1)
+        //Paramos la reproducción.
+        if (LOADING_STATE == 2)
         {
+<<<<<<< Updated upstream
             debugLog("** PAUSE");
             //Pausa mantenemos el bloque
             LOADING_STATE = 2;  
@@ -156,11 +222,23 @@ void playTAPfile_ZXSpectrum(char* path)
             // Si paramos el bloque vuelve a ser el primero
             CURRENT_BLOCK_IN_PROGRESS = 0;
             LOADING_STATE = 0;  //STOP - Comenzamos de nuevo
+=======
+            PAUSE = false;
+            STOP = false;
+            PLAY = false;
+            LOADING_STATE == 0;
+            Serial.println("Last block:  " + String(BLOCK_SELECTED));
+
+>>>>>>> Stashed changes
             break;
         }
 
         //Ahora vamos lanzando bloques dependiendo de su tipo
+        //Esto actualiza el LAST_TYPE
         pTAP.showInfoBlockInProgress(bDscr[i].type);
+        
+        // Actualizamos HMI
+        updateInformationMainPage();
 
         // Reproducimos el fichero
         if (bDscr[i].type == 0 || bDscr[i].type == 1 || bDscr[i].type == 7)
@@ -170,7 +248,7 @@ void playTAPfile_ZXSpectrum(char* path)
             bufferPlay = readFileRange32(sdFile32,bDscr[i].offset,bDscr[i].size,true);
             
             zxp.playHeader(bufferPlay, bDscr[i].size);
-            free(bufferPlay);
+            //free(bufferPlay);
         
         }
         else
@@ -200,7 +278,7 @@ void playTAPfile_ZXSpectrum(char* path)
 
                        bufferPlay = readFileRange32(sdFile32,offsetPlay,blockPlaySize,true);
                        zxp.playDataBegin(bufferPlay, blockPlaySize);
-                       free(bufferPlay);
+                       //free(bufferPlay);
 
                    }
                    else
@@ -211,7 +289,7 @@ void playTAPfile_ZXSpectrum(char* path)
                        bufferPlay = (byte*)malloc(blockPlaySize);
                        bufferPlay = readFileRange32(sdFile32,offsetPlay,blockPlaySize,true);
                        zxp.playDataEnd(bufferPlay, blockPlaySize);
-                       free(bufferPlay);
+                       //free(bufferPlay);
                    }
                 }                          
             }
@@ -221,23 +299,36 @@ void playTAPfile_ZXSpectrum(char* path)
                 bufferPlay = (byte*)malloc(bDscr[i].size);
                 bufferPlay = readFileRange32(sdFile32,bDscr[i].offset,bDscr[i].size,true);
                 zxp.playData(bufferPlay, bDscr[i].size);
-                free(bufferPlay);
+                //free(bufferPlay);
             }
         }
     } 
-    sleep(3);
+    //sleep(3);
 
+<<<<<<< Updated upstream
     infoLog("Finish. STOP THE TAPE.");
 
+=======
+    Serial.println("");
+    Serial.println("Finish. STOP THE TAPE.");
+    
+    PLAY=false;
+    
+>>>>>>> Stashed changes
     free(bDscr);
+    free(bufferPlay);
     sdFile32.close();
 
 }
+
+
+
 
 void setup() 
 {
     // Configuramos el nivel de log
     Serial.begin(115200);
+<<<<<<< Updated upstream
     initLogger();
 
     infoLog(("idf version: " + String(esp_get_idf_version())).c_str());
@@ -250,6 +341,11 @@ void setup()
 
     infoLog("Setting Audiokit.");
 
+=======
+    //Serial2.begin(9600);
+    Serial.println("Setting Audiokit.");
+    
+>>>>>>> Stashed changes
     // Configuramos los pulsadores
     configureButtons();
 
@@ -262,8 +358,14 @@ void setup()
     infoLog("Initialized Audiokit.");
 
     ESP32kit.begin(cfg);  
+<<<<<<< Updated upstream
 
     infoLog("Done!");
+=======
+    ESP32kit.setVolume(MAIN_VOL);
+  
+    Serial.println("Done!");
+>>>>>>> Stashed changes
 
     // Configuramos la velocidad de acceso a la SD
     int SD_Speed = SD_FRQ_MHZ_INITIAL;         // Velocidad en MHz (config.h)
@@ -274,6 +376,12 @@ void setup()
       test();
     #endif
 
+    // Interrupciones HW
+    // Timer0_Cfg = timerBegin(0, 80, true);
+    // timerAttachInterrupt(Timer0_Cfg, &Timer0_ISR, true);
+    // timerAlarmWrite(Timer0_Cfg, 1000000, true);
+    // timerAlarmEnable(Timer0_Cfg); 
+    LOADING_STATE = 0;   
 }
 
 
@@ -285,17 +393,30 @@ void loop() {
   //sdf.ls("/", LS_R);
   //sdf.ls("/games/Classic48/Trashman/",LS_R);
   
-  buttonsControl();
-
-  if (PLAY==true && LOADING_STATE == 0)
+  //buttonsControl();
+  readUART();
+  if (PLAY==true)
   {
+      
+      ESP32kit.setVolume(MAIN_VOL);
+
+      Serial.println("");
+      Serial.println(ESP.getFreeHeap());
+      Serial.println("");
+
       LOADING_STATE = 1;
+<<<<<<< Updated upstream
       infoLog("Starting TAPE PLAYER.");
       //playTAPfile_ZXSpectrum("/games/Classic48/Trashman/TRASHMAN.TAP");
+=======
+      Serial.println("");
+      Serial.println("Starting TAPE PLAYER.");
+      Serial.println("");
+      playTAPfile_ZXSpectrum("/games/Classic48/Trashman/TRASHMAN.TAP");
+>>>>>>> Stashed changes
       //playTAPfile_ZXSpectrum("/games/Classic128/Castlevania/Castlevania.tap");
-      //playTAPfile_ZXSpectrum("/games/Classic128/Shovel Adventure/Shovel Adventure ZX 1.2.tap");
+      //playTAPfile_ZXSpectrum((char*)"/games/Classic128/Shovel Adventure/Shovel Adventure ZX 1.2.tap");
       //playTAPfile_ZXSpectrum("/games/Actuales/Donum/Donum_ESPv1.1.tap");
-      playTAPfile_ZXSpectrum("/games/ROMSET/5000 juegos ordenados/D/Dark Fusion (1988)(Gremlin Graphics Software).tap");
+      //playTAPfile_ZXSpectrum("/games/ROMSET/5000 juegos ordenados/D/Dark Fusion (1988)(Gremlin Graphics Software).tap");
   }
-
 }
