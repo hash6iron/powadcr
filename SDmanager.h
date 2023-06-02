@@ -85,7 +85,8 @@ byte* readFile32(File32 mFile)
 
 byte* readFileRange32(File32 mFile, int startByte, int size, bool logOn)
 {
-    byte* bufferFile = NULL;
+    //Redimensionamos el buffer al tamaño acordado del rango
+    byte* bufferFile = (byte*)malloc(size);
 
     // Ponemos a cero el puntero de lectura del fichero
     mFile.rewind();
@@ -100,13 +101,15 @@ byte* readFileRange32(File32 mFile, int startByte, int size, bool logOn)
         Serial.println("");
     }
 
+    // Almacenamos el tamaño del bloque, para información
+    //LAST_SIZE = size;
+    // Actualizamos HMI
+    //updateInformationMainPage();
+
     if (mFile) 
     {
         int rlen = mFile.available();
         FILE_LENGTH = rlen;
-
-        //Redimensionamos el buffer al tamaño acordado del rango
-        bufferFile = (byte*)malloc(size);
 
         int i=0;
 

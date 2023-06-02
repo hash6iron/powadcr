@@ -3,8 +3,8 @@
     {
         int index;                      // Numero del bloque
         int offset = 0;                 // Byte donde empieza
-        byte* header;                   // Cabecera del bloque
-        byte* data;                     // Datos del bloque
+        byte* header = NULL;                   // Cabecera del bloque
+        byte* data = NULL;                     // Datos del bloque
     };
 
     struct tBlockDescriptor
@@ -12,7 +12,7 @@
         int offset;
         int size;
         int chk;
-        String name;
+        char* name;
         bool nameDetected;
         bool header;
         bool screen;
@@ -22,21 +22,30 @@
     // Estructura tipo TAP
     struct tTAP
     {
-        String name;                    // Nombre del TAP
+        char* name;                    // Nombre del TAP
         int size;                       // Tamaño
         int numBlocks;                  // Numero de bloques
-        tBlockDescriptor* descriptor;   // Descriptor
+        tBlockDescriptor* descriptor = NULL;   // Descriptor
     };
 
 // Tamaño del fichero abierto
 int FILE_LENGTH = 0;
 
 
-// Estados de gestión de la reproducción
+// Variables para intercambio de información con el HMI
 int LOADING_STATE = 0;
 int CURRENT_BLOCK_IN_PROGRESS = 0;
 int BLOCK_SELECTED = 0;
+char* LAST_NAME = "";
+String LAST_TYPE = "";
+String PROGRAM_NAME = "";
+int LAST_SIZE = 0;
+int BYTES_LOADED = 0;
+int BYTES_TOBE_LOAD = 0;
+int BYTES_LAST_BLOCK = 0;
+int TOTAL_BLOCKS = 0;
 
+// Variables de control de la reproducción
 bool PLAY = false;
 bool PAUSE = true;
 bool REC = false;
@@ -48,6 +57,8 @@ bool DOWN = false;
 bool LEFT = false;
 bool RIGHT = false;
 bool ENTER = false;
+//
+int MAIN_VOL = 90;
 
 // Gestion de menú
 bool MENU = false;
@@ -84,3 +95,4 @@ bool button3_pressed = false;
 bool button4_pressed = false;
 bool button5_pressed = false;
 bool button6_pressed = false;
+

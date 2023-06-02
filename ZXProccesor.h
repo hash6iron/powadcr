@@ -45,6 +45,33 @@ int PULSE_PILOT_DATA = PULSE_PILOT * 3223;
 class ZXProccesor 
 {
 
+    private:
+
+    void stopTape()
+    {
+        BLOCK_SELECTED = 0;
+        BYTES_LOADED = 0;
+        writeString("");
+        writeString("currentBlock.val=1");   
+        writeString("");
+        writeString("progressTotal.val=0");      
+        writeString("");
+        writeString("progression.val=0");      
+    }
+
+    void pauseTape()
+    {
+        BLOCK_SELECTED = CURRENT_BLOCK_IN_PROGRESS;
+
+        Serial.println("");
+        Serial.println("BYTES READ: " + String(BYTES_LAST_BLOCK) + "/" + String(BYTES_LOADED));
+        Serial.println("");
+
+        BYTES_LOADED = BYTES_LOADED - BYTES_LAST_BLOCK;                 
+        writeString("");
+        writeString("progressTotal.val=" + String((int)((BYTES_LOADED*100)/(BYTES_TOBE_LOAD-1))));
+    }
+
     public:
         
         ZXProccesor(AudioKit kit)
@@ -147,13 +174,29 @@ class ZXProccesor
 
         void generateOneWave(float freq, int samplingRate)
         {
-
             // Obtenemos el periodo de muestreo
             // Tsr = 1 / samplingRate
             float Tsr = (1.0 / samplingRate);
             int bytes = int(round((1.0 / ((freq / 4.0))) / Tsr));
             uint8_t buffer[bytes];
             m_kit.write(buffer, readWave(buffer, bytes));
+            
+            //buttonsControl();
+            readUART();
+
+            if (LOADING_STATE == 1)
+            {
+                if (STOP==true)
+                {
+                    LOADING_STATE = 2; // Parada del bloque actual
+                    stopTape();
+                }
+                else if (PAUSE==true)
+                {
+                    LOADING_STATE = 2; // Parada del bloque actual
+                    pauseTape();
+                }
+            }
         }
 
         void generateWaveDuration(float freq, float duration, int samplingRate)
@@ -174,17 +217,23 @@ class ZXProccesor
             for (int m=0;m < numPulses;m++)
             {
                 
+                //buttonsControl();
+                readUART();
+
                 if (LOADING_STATE == 1)
                 {
-                    if (PAUSE==true || STOP==true)
+                    if (STOP==true)
                     {
-                      LOADING_STATE = 2; // Parada del bloque actual
-                      Serial.println("PAUSE the TAPE - STOP procces!");
-                      break;
+                        LOADING_STATE = 2; // Parada del bloque actual
+                        stopTape();
+                        break;
                     }
-
-                    //buttonsControl();
-                    //yield();
+                    else if (PAUSE==true)
+                    {
+                        LOADING_STATE = 2; // Parada del bloque actual
+                        pauseTape();
+                        break;
+                    }
                 }
                 
                 m_kit.write(buffer, readWave(buffer, bytes));
@@ -258,30 +307,87 @@ class ZXProccesor
 
         void sendDataArray(byte* data, int size)
         {
+
             // Procedimiento para enviar datos desde un array
-            byte bRead = 0x00;
-            for (int i = 0; i < size;i++)
+            if (LOADING_STATE==1)
             {
-              // Vamos a ir leyendo los bytes y generando el sonido
-              bRead = data[i];
-              //Serial.println("******* Byte " + String(bRead));
-              for (int n=0;n<8;n++)
-              {
-                // Si el bit leido del BYTE es un "1"
-                //Serial.println("*******---- bit " + String(bitRead(bRead,8-n)));
-                if(bitRead(bRead, 7-n) == 1)
+                byte bRead = 0x00;
+                int bytes_in_this_block = 0;
+
+                for (int i = 0; i < size;i++)
                 {
-                  // Procesamos "1"
-                  oneTone();
+
+                  // Progreso de cada bloque
+                  writeString("");
+                  writeString("progression.val=" + String((int)((i*100)/(size-1))));
+
+                
+                  if (i % 8==0)
+                  {
+                      writeString("");
+                      writeString("progressTotal.val=" + String((int)((BYTES_LOADED*100)/(BYTES_TOBE_LOAD-1))));
+                  }
+
+                  //buttonsControl();
+                  readUART();
+
+                  if (LOADING_STATE == 1)
+                  {
+                      if (STOP==true)
+                      {
+                          LOADING_STATE = 2; // Parada del bloque actual
+                          stopTape();
+                          i=size;
+                          //break;
+                      }
+                      else if (PAUSE==true)
+                      {
+                          LOADING_STATE = 2; // Parada del bloque actual
+                          pauseTape();
+                          i=size;
+                          //break;
+                      }
+
+                  }
+
+                  if (LOADING_STATE == 1)
+                  {
+                      // Vamos a ir leyendo los bytes y generando el sonido
+                      bRead = data[i];
+                      //Serial.println("******* Byte " + String(bRead));
+                      for (int n=0;n<8;n++)
+                      {
+                          // Si el bit leido del BYTE es un "1"
+                          //Serial.println("*******---- bit " + String(bitRead(bRead,8-n)));
+                          if(bitRead(bRead, 7-n) == 1)
+                          {
+                              // Procesamos "1"
+                              oneTone();
+                          }
+                          else
+                          {
+                              // En otro caso
+                              // procesamos "0"
+                              zeroTone();
+                          }
+                      }
+
+                      // Hemos cargado 1 bytes. Seguimos
+                      BYTES_LOADED++;
+                      bytes_in_this_block++;
+                      BYTES_LAST_BLOCK = bytes_in_this_block;              
+                  }
+                  else
+                  {
+                    break;
+                  }
+
+
+
                 }
-                else
-                {
-                  // En otro caso
-                  // procesamos "0"
-                  zeroTone();
-                }
-              }
+
             }
+
         }
 
         void playHeader(byte* bBlock, int lenBlock)
@@ -352,7 +458,7 @@ class ZXProccesor
 
         void playBlock(byte* header, int len_header, byte* data, int len_data)
         {           
-            #ifdef LOG==3
+            #ifdef LOG=3
               Serial.println("******* PROGRAM HEADER");
               Serial.println("*******  - HEADER size " + String(len_header));
               Serial.println("*******  - DATA   size " + String(len_data));
@@ -373,7 +479,7 @@ class ZXProccesor
               sleep(SILENT);
             #endif
 
-            #ifdef LOG==3
+            #ifdef LOG=3
               Serial.println("******* PROGRAM DATA");
             #endif
 
@@ -397,7 +503,7 @@ class ZXProccesor
 
         void playHeaderOnly(byte* header, int len_header)
         {           
-            #ifdef LOG==3
+            #ifdef LOG=3
               Serial.println("");
               Serial.println("******* PROGRAM HEADER");
               Serial.println("*******  - HEADER size " + String(len_header) + " bytes");
