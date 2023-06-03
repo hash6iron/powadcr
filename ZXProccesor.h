@@ -63,9 +63,9 @@ class ZXProccesor
     {
         BLOCK_SELECTED = CURRENT_BLOCK_IN_PROGRESS;
 
-        Serial.println("");
-        Serial.println("BYTES READ: " + String(BYTES_LAST_BLOCK) + "/" + String(BYTES_LOADED));
-        Serial.println("");
+        //Serial.println("");
+        //Serial.println("BYTES READ: " + String(BYTES_LAST_BLOCK) + "/" + String(BYTES_LOADED));
+        //Serial.println("");
 
         BYTES_LOADED = BYTES_LOADED - BYTES_LAST_BLOCK;                 
         writeString("");
@@ -317,13 +317,25 @@ class ZXProccesor
                 for (int i = 0; i < size;i++)
                 {
 
-                  // Progreso de cada bloque
-                  writeString("");
-                  writeString("progression.val=" + String((int)((i*100)/(size-1))));
 
                 
                   if (i % 8==0)
                   {
+                      // Progreso de cada bloque.
+                      // Con este metodo reducimos el consumo de datos
+                      writeString("");
+                      writeString("progression.val=" + String((int)((i*100)/(size-1))));
+
+                      writeString("");
+                      writeString("progressTotal.val=" + String((int)((BYTES_LOADED*100)/(BYTES_TOBE_LOAD-1))));
+                  }
+
+                  if (i == (size-1))
+                  {
+                      // Esto lo hacemos para asegurarnos que la barra se llena entera
+                      writeString("");
+                      writeString("progression.val=" + String((int)((i*100)/(size-1))));
+
                       writeString("");
                       writeString("progressTotal.val=" + String((int)((BYTES_LOADED*100)/(BYTES_TOBE_LOAD-1))));
                   }
@@ -459,9 +471,9 @@ class ZXProccesor
         void playBlock(byte* header, int len_header, byte* data, int len_data)
         {           
             #ifdef LOG=3
-              Serial.println("******* PROGRAM HEADER");
-              Serial.println("*******  - HEADER size " + String(len_header));
-              Serial.println("*******  - DATA   size " + String(len_data));
+              //Serial.println("******* PROGRAM HEADER");
+              //Serial.println("*******  - HEADER size " + String(len_header));
+              //Serial.println("*******  - DATA   size " + String(len_data));
             #endif
 
             // PROGRAM
@@ -480,7 +492,7 @@ class ZXProccesor
             #endif
 
             #ifdef LOG=3
-              Serial.println("******* PROGRAM DATA");
+              //Serial.println("******* PROGRAM DATA");
             #endif
 
             // Put now code block
@@ -504,17 +516,17 @@ class ZXProccesor
         void playHeaderOnly(byte* header, int len_header)
         {           
             #ifdef LOG=3
-              Serial.println("");
-              Serial.println("******* PROGRAM HEADER");
-              Serial.println("*******  - HEADER size " + String(len_header) + " bytes");
-              Serial.println("");
-              Serial.println("Header to send:");
-              Serial.println("");
-              for (int n=0;n<19;n++)
-              {
-                  Serial.print(header[n],HEX);
-                  Serial.print(",");
-              }
+              //Serial.println("");
+              //Serial.println("******* PROGRAM HEADER");
+              //Serial.println("*******  - HEADER size " + String(len_header) + " bytes");
+              //Serial.println("");
+              //Serial.println("Header to send:");
+              //Serial.println("");
+              // for (int n=0;n<19;n++)
+              // {
+              //     Serial.print(header[n],HEX);
+              //     Serial.print(",");
+              // }
             #endif
 
             // PROGRAM

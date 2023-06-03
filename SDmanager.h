@@ -62,8 +62,8 @@ byte* readFile32(File32 mFile)
         int rlen = mFile.available();
         FILE_LENGTH = rlen;
 
-        Serial.print("Len: ");
-        Serial.print(String(rlen));
+        //Serial.print("Len: ");
+        //Serial.print(String(rlen));
 
         //Redimensionamos el buffer al tamaño acordado del fichero
         bufferFile = (byte*)malloc(rlen);
@@ -96,9 +96,9 @@ byte* readFileRange32(File32 mFile, int startByte, int size, bool logOn)
     //Serial.println("***** readFileRange32 *****");
     if (logOn)
     {
-        Serial.println("   + Offset: " + String(startByte));
-        Serial.println("   + Size: " + String(size));
-        Serial.println("");
+        //Serial.println("   + Offset: " + String(startByte));
+        //Serial.println("   + Size: " + String(size));
+        //Serial.println("");
     }
 
     // Almacenamos el tamaño del bloque, para información

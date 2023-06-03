@@ -17,6 +17,7 @@
         bool header;
         bool screen;
         int type;
+        char* typeName;
     };
 
     // Estructura tipo TAP
@@ -28,6 +29,8 @@
         tBlockDescriptor* descriptor = NULL;   // Descriptor
     };
 
+tTAP globalTAP;
+
 // Tamaño del fichero abierto
 int FILE_LENGTH = 0;
 
@@ -37,7 +40,7 @@ int LOADING_STATE = 0;
 int CURRENT_BLOCK_IN_PROGRESS = 0;
 int BLOCK_SELECTED = 0;
 char* LAST_NAME = "";
-String LAST_TYPE = "";
+char* LAST_TYPE = "";
 String PROGRAM_NAME = "";
 int LAST_SIZE = 0;
 int BYTES_LOADED = 0;
