@@ -15,37 +15,6 @@ class TAPproccesor
       #define SCRN 3                      //Bloque de datos Screen$
       #define CODE 4                      //Bloque de datps CM (BYTE)
 
-      // Definición de estructuras
-      // estructura tipo Bloque
-      // struct tBlock
-      // {
-      //     int index;                      // Numero del bloque
-      //     int offset = 0;                 // Byte donde empieza
-      //     byte* header;                   // Cabecera del bloque
-      //     byte* data;                     // Datos del bloque
-      // };
-
-      // struct tBlockDescriptor
-      // {
-      //     int offset;
-      //     int size;
-      //     int chk;
-      //     String name;
-      //     bool nameDetected;
-      //     bool header;
-      //     bool screen;
-      //     int type;
-      // };
-
-      // // Estructura tipo TAP
-      // struct tTAP
-      // {
-      //     String name;                    // Nombre del TAP
-      //     int size;                       // Tamaño
-      //     int numBlocks;                  // Numero de bloques
-      //     tBlockDescriptor* descriptor;   // Descriptor
-      // };
-
       SdFat fFile;
       SdFat32 fFile32;
 
@@ -202,7 +171,6 @@ class TAPproccesor
       {
           // Obtenemos el nombre del bloque cabecera
           char* prgName = (char*)malloc(10+1);
-          //char* prgName[10];
 
           if (isCorrectHeader(header,startByte))
           {
@@ -232,41 +200,10 @@ class TAPproccesor
       void getBlockName(char** prgName, byte* header, int startByte)
       {
           // Obtenemos el nombre del bloque cabecera
-          //char* prgName = new char[10];
-          //char* prgName = (char*)malloc(10);
-
-          // if (isCorrectHeader(header,startByte))
-          // {
-              // Es una cabecera PROGRAM 
-              // el nombre está en los bytes del 4 al 13 (empezando en 0)
-              #if LOG>3
-                Serial.println("");
-                Serial.println("Name detected ");
-              #endif
-              
-              header[startByte+12]=0;
-              *prgName = (char*) (header+2);
-              
-              /*
-
-              int i = 0;
-              // Extraemos el nombre del programa. 
-              // Contando con que la cabecera no tiene 0x13 0x00 (el tamaño)
-              for (int n=startByte+2;n<(startByte+12);n++)
-              {   
-                  prgName[i] = (char)header[n];
-                  
-                  #if LOG>3
-                      Serial.print(prgName[i]);
-                  #endif
-                  
-                  i++;
-              }
-
-          // Pasamos la cadena de caracteres
-          return prgName;
-          prgName[i]='\0';*/
-
+          // Es una cabecera PROGRAM 
+          // el nombre está en los bytes del 4 al 13 (empezando en 0)         
+          header[startByte+12]=0;
+          *prgName = (char*) (header+2);             
       }
 
       byte* getBlockRange(byte* bBlock, int byteStart, int byteEnd)
@@ -372,10 +309,6 @@ class TAPproccesor
                   // 0x03 - CODE FILE
                   int typeBlock = readFileRange32(mFile,startBlock+1,1,false)[0];
                   
-                  // Serial.println("");
-                  // Serial.println("MARK 1");
-                  // Serial.println("");
-
                   // Vemos si el bloque es una cabecera o un bloque de datos (bien BASIC o CM)
                   if (flagByte == 0)
                   {
@@ -400,10 +333,6 @@ class TAPproccesor
                           blockNameDetected = true;
 
                           // Almacenamos el nombre
-                          // byte* blockTmp = readFileRange32(mFile,startBlock,19,false);
-                          // String nameTmp = (String)getBlockName(blockTmp,0);
-
-                          // bDscr[numBlocks].name = nameTmp.substring(0,10);
                           getBlockName(&bDscr[numBlocks].name,readFileRange32(mFile,startBlock,19,false),0);
                           getBlockName(&globalTAP.descriptor[numBlocks].name,readFileRange32(mFile,startBlock,19,false),0);
 
@@ -436,17 +365,10 @@ class TAPproccesor
                           blockNameDetected = true;
                           
                           // Almacenamos el nombre
-                          // byte* blockTmp = readFileRange32(mFile,startBlock,19,false);
-                          // String nameTmp = (String)getBlockName(blockTmp,0);
-                          // bDscr[numBlocks].name = nameTmp.substring(0,10);
                           getBlockName(&bDscr[numBlocks].name,readFileRange32(mFile,startBlock,19,false),0);
                           getBlockName(&globalTAP.descriptor[numBlocks].name,readFileRange32(mFile,startBlock,19,false),0);                          
 
                           int tmpSizeBlock = (256*readFileRange32(mFile,startBlock + sizeB+1,1,false)[0]) + readFileRange32(mFile,startBlock + sizeB,1,false)[0];
-
-                          // Serial.println("");
-                          // Serial.println("MARK 2");
-                          // Serial.println("");
 
                           if (tmpSizeBlock == 6914)
                           {
@@ -518,11 +440,6 @@ class TAPproccesor
                   sizeB = newSizeB;
                   startBlock = startBlock + 2;
 
-                  // Serial.println("");
-                  // Serial.println("MARK 3");
-                  // Serial.println("StartBlock: " + String(startBlock) + "/" + String(sizeTAP));
-                  // Serial.println("Num block: " + String(numBlocks));
-                  // Serial.println("sizeB: " + String(sizeB));
               }
               else
               {
@@ -541,10 +458,6 @@ class TAPproccesor
 
           }
 
-          // Serial.println("");
-          // Serial.println("MARK 4");
-          // Serial.println("");
-
           // Componemos el TAP para devolverlo
           describedTAP.name = nameTAP;
           // Serial.println("nameTAP: OK " + String(nameTAP));
@@ -554,13 +467,6 @@ class TAPproccesor
           // Serial.println("SIZETAP OK ");
           describedTAP.numBlocks = numBlocks;
           // Serial.println("NUMBLOCKS OK ");
-
-
-          // Serial.println("");
-          // Serial.println("MARK 5");
-          // Serial.println("");
-
-          //free(bDscr);
           
           return describedTAP;
 
@@ -730,22 +636,6 @@ class TAPproccesor
 
       public:
 
-      // TAPproccesor(byte* fileTAP, int sizeTAP)
-      // {
-      //     // El constructor se crea a partir de pasarle el TAP completo a la clase TAP proccesor.
-      //     // entonces se analiza y se construye el buffer, etc para poder manejarlo.
-      //     int totalBlocks = 0;
-
-      //     #ifdef LOG==3
-      //         Serial.println("");
-      //         Serial.println("Getting total blocks...");
-      //     #endif
-
-      //     totalBlocks = getBlockDescriptor(fileTAP, sizeTAP);
-
-      //     showDescriptorTable(totalBlocks);    
-      //     myTAP.numBlocks = totalBlocks;     
-      // }
       TAPproccesor(File32 mFile, int sizeTAP)
       {
           // El constructor se crea a partir de pasarle el TAP completo a la clase TAP proccesor.

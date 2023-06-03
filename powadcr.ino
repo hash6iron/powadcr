@@ -70,17 +70,17 @@ void setSDFrequency(int SD_Speed)
     {
         if (!sdf.begin(ESP32kit.pinSpiCs(), SD_SCK_MHZ(SD_Speed))) 
         {
-            //Serial.println("SD card error!");
+            Serial.println("SD card error!");
             SD_Speed = SD_Speed - 5;
             if (SD_Speed < 4)
             {
                 SD_Speed = 4;
             }
-            //Serial.println("SD downgrade at " + String(SD_Speed) + "MHz");
+            Serial.println("SD downgrade at " + String(SD_Speed) + "MHz");
         }
         else
         {
-            //Serial.println("SD card initialized at " + String(SD_Speed) + " MHz");
+            Serial.println("SD card initialized at " + String(SD_Speed) + " MHz");
             SD_ok = true;
         }
     }
@@ -91,7 +91,7 @@ void test()
   // Si queremos activar el test que hay en memoria, para chequear con el ordenador
   #ifdef MACHINE==0
       //ZX Spectrum
-      //Serial.println("----- TEST ACTIVE ------");
+      Serial.println("----- TEST ACTIVE ------");
 
       zxp.playBlock(testHeader, 19, testData, 154);
       zxp.playBlock(testScreenHeader, 19, testScreenData, 6914);
@@ -100,8 +100,7 @@ void test()
 }
 
 void playTAPfile_ZXSpectrum(char* path)
-{
-   
+{   
     // Abrimos el fichero
     sdFile32 = openFile32(sdFile32, path);
     // Obtenemos su tamaño total
@@ -112,11 +111,7 @@ void playTAPfile_ZXSpectrum(char* path)
     //struct Vector *vector = malloc(sizeof (struct Vector));
     tBlockDescriptor* bDscr = (tBlockDescriptor*)malloc(pTAP.myTAP.numBlocks);
     bDscr = pTAP.myTAP.descriptor;
-    
-    // Entregamos información por consola
-    //Serial.println("");
-    //Serial.println("File opened. Size: " + String(rlen) + " bytes");  
-    
+       
     // Inicializamos el buffer de reproducción. Memoria dinamica
     byte* bufferPlay = NULL;
 
@@ -124,12 +119,6 @@ void playTAPfile_ZXSpectrum(char* path)
     PROGRAM_NAME = pTAP.myTAP.name;
     TOTAL_BLOCKS = pTAP.myTAP.numBlocks;
     LAST_NAME = "..";
-
-    //Serial.println("Name TAP:    " + String(pTAP.myTAP.name));
-    //Serial.println("Num. blocks: " + String(pTAP.myTAP.numBlocks));
-    //Serial.println("Last block:  " + String(BLOCK_SELECTED));
-    //Serial.println();
-    //Serial.println();
 
     // Ahora reproducimos todos los bloques desde el seleccionado (para cuando se quiera uno concreto)
     int m = BLOCK_SELECTED;
@@ -149,11 +138,6 @@ void playTAPfile_ZXSpectrum(char* path)
         //LAST_NAME = bDscr[i].name;
 
         // Obtenemos el nombre del bloque
-        //char* tmp = (char*)malloc(10);
-        //Serial.println("");
-        //Serial.println("NAME = " + String(bDscr[i].name));
-        //Serial.println("");
-
         LAST_NAME = bDscr[i].name;
         LAST_SIZE = bDscr[i].size;
 
@@ -180,8 +164,6 @@ void playTAPfile_ZXSpectrum(char* path)
             STOP = false;
             PLAY = false;
             LOADING_STATE == 0;
-            //Serial.println("Last block:  " + String(BLOCK_SELECTED));
-
             break;
         }
 
@@ -255,12 +237,12 @@ void playTAPfile_ZXSpectrum(char* path)
             }
         }
     } 
-    //sleep(3);
 
     //Serial.println("");
-    Serial.println("Finish. STOP THE TAPE.");
+    //Serial.println("Finish. STOP THE TAPE.");
     
     PLAY=false;
+    LOADING_STATE = 0;
     
     free(bDscr);
     free(bufferPlay);
@@ -322,7 +304,7 @@ void loop() {
   
   //buttonsControl();
   readUART();
-  if (PLAY==true)
+  if (PLAY==true && LOADING_STATE == 0)
   {
       
       ESP32kit.setVolume(MAIN_VOL);
@@ -331,7 +313,9 @@ void loop() {
       //Serial.println(ESP.getFreeHeap());
       //Serial.println("");
 
+      // Pasamos a estado de reproducción
       LOADING_STATE = 1;
+
       //Serial.println("");
       //Serial.println("Starting TAPE PLAYER.");
       //Serial.println("");
