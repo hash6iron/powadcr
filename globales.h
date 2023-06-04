@@ -34,6 +34,10 @@ tTAP globalTAP;
 // Tamaño del fichero abierto
 int FILE_LENGTH = 0;
 
+// Turbo mode
+// 0 - No
+// 1 - Yes
+bool TURBOMODE=false;
 
 // Variables para intercambio de información con el HMI
 int LOADING_STATE = 0;

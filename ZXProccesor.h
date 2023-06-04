@@ -26,7 +26,7 @@ const int samplingRate = 44100;
 const float sampleDuration = 0.0000002267; //segundos para 44.1HKz
 const float maxAmplitude = 32767.0;
 const int channels = 2;
-const int turboMode = 0;
+//const int turboMode = 1;
 
 float m_amplitude = maxAmplitude; 
 
@@ -39,7 +39,6 @@ int BIT_1 = 1710;
 int PULSE_PILOT = 2168;
 int PULSE_PILOT_HEADER = PULSE_PILOT * 8063;
 int PULSE_PILOT_DATA = PULSE_PILOT * 3223;
-
 
 // Clase para generar todo el conjunto de señales que necesita el ZX Spectrum
 class ZXProccesor 
@@ -139,6 +138,12 @@ class ZXProccesor
 
         void generatePulse(float freq, int samplingRate, int slope)
         {
+
+            if (TURBOMODE)
+            {
+                freq=freq*2;
+            }
+
             // Obtenemos el periodo de muestreo
             // Tsr = 1 / samplingRate
             float Tsr = (1.0 / samplingRate);
@@ -155,6 +160,11 @@ class ZXProccesor
 
         void generateWavePulses(float freq, int numPulses, int samplingRate)
         {
+
+            if (TURBOMODE)
+            {
+                freq=freq*2;
+            }
 
             // Obtenemos el periodo de muestreo
             // Tsr = 1 / samplingRate
@@ -176,6 +186,11 @@ class ZXProccesor
         {
             // Obtenemos el periodo de muestreo
             // Tsr = 1 / samplingRate
+            if (TURBOMODE)
+            {
+                freq=freq*2;
+            }
+
             float Tsr = (1.0 / samplingRate);
             int bytes = int(round((1.0 / ((freq / 4.0))) / Tsr));
             uint8_t buffer[bytes];
@@ -202,6 +217,10 @@ class ZXProccesor
         void generateWaveDuration(float freq, float duration, int samplingRate)
         {
 
+            // if (turboMode==1)
+            // {
+            //     freq=freq*2;
+            // }
             // Obtenemos el periodo de muestreo
             // Tsr = 1 / samplingRate
             float Tsr = (1.0 / samplingRate);

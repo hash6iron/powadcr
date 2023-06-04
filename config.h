@@ -17,10 +17,8 @@
 // each block has two SILENT block
 #define SILENT 1.5
 
-// Turbo mode
-// 0 - No
-// 1 - Yes
-#define TURBOMODE 0
+
+
 
 // Activa el modo de split de los bloques. 
 // si superan el tamaño (en bytes) definido por SIZE_TO_ACTIVATE_SPLIT
