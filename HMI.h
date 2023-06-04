@@ -1,49 +1,3 @@
-// String getTypeTAPBlock(int nBlock)
-// {
-//     switch(nBlock)
-//     {
-//         case 0:
-
-//             // Definimos el buffer del PLAYER igual al tamaño del bloque
-//             return "PROGRAM";
-//             break;
-
-//         case 1:
-
-//             // Definimos el buffer del PLAYER igual al tamaño del bloque
-//             return "BYTE.H";
-//             break;
-
-//         case 7:
-
-//             // Definimos el buffer del PLAYER igual al tamaño del bloque
-//             return "SCREEN.H";
-//             break;
-
-//         case 2:
-//             // Definimos el buffer del PLAYER igual al tamaño del bloque
-//             return "BASIC";
-//             break;
-
-//         case 3:
-//             // Definimos el buffer del PLAYER igual al tamaño del bloque
-//             return "SCREEN";
-//             break;
-
-//         case 4:
-//             // Definimos el buffer del PLAYER igual al tamaño del bloque
-//             if (LAST_SIZE != 6914)
-//             {
-//                 return "BYTE";
-//             }
-//             else
-//             {
-//                 return "SCREEN";
-//             }
-//             break;
-//     }        
-// }
-
 void writeString(String stringData) 
 { // Used to serially push out a String with Serial.write()
 
@@ -63,6 +17,12 @@ void updateInformationMainPage()
 
     if (TOTAL_BLOCKS != 0)
     {
+
+        // Cargamos la información
+        LAST_NAME = globalTAP.descriptor[BLOCK_SELECTED].name;
+        LAST_SIZE = globalTAP.descriptor[BLOCK_SELECTED].size;
+        LAST_TYPE = globalTAP.descriptor[BLOCK_SELECTED].typeName;
+
         // Enviamos información al HMI
         writeString("");
         writeString("name.txt=\"" + PROGRAM_NAME + "\"");
@@ -78,6 +38,7 @@ void updateInformationMainPage()
 
         writeString("");
         writeString("type.txt=\""+ String(LAST_TYPE) + ":" + String(LAST_NAME) + "\"");
+
     }
 }
 
@@ -95,18 +56,6 @@ void verifyCommand(String strCmd)
                 BLOCK_SELECTED = 0;
             }
 
-            writeString("");
-            writeString("currentBlock.val=" + String(BLOCK_SELECTED+1)); 
-
-            // Cargamos la información
-            LAST_NAME = globalTAP.descriptor[BLOCK_SELECTED].name;
-            LAST_SIZE = globalTAP.descriptor[BLOCK_SELECTED].size;
-            LAST_TYPE = globalTAP.descriptor[BLOCK_SELECTED].typeName;
-
-            Serial.println("");
-            Serial.println("LAST_TYPE=" + String(LAST_TYPE));
-            Serial.println("");
-
             updateInformationMainPage();      
         }
 
@@ -123,14 +72,6 @@ void verifyCommand(String strCmd)
             {
                 BLOCK_SELECTED = TOTAL_BLOCKS-1;
             }
-
-            writeString("");
-            writeString("currentBlock.val=" + String(BLOCK_SELECTED+1));  
-
-            // Cargamos la información
-            LAST_NAME = globalTAP.descriptor[BLOCK_SELECTED].name;
-            LAST_SIZE = globalTAP.descriptor[BLOCK_SELECTED].size;
-            LAST_TYPE = globalTAP.descriptor[BLOCK_SELECTED].typeName;
 
             updateInformationMainPage();           
         }
@@ -194,6 +135,7 @@ void readUART()
     // get the new byte:
     String strCmd = Serial.readString();
     verifyCommand(strCmd);
+    //Serial.flush();
   }  
 }
 

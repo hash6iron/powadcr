@@ -238,15 +238,43 @@ void playTAPfile_ZXSpectrum(char* path)
         }
     } 
 
-    //Serial.println("");
-    //Serial.println("Finish. STOP THE TAPE.");
-    
-    PLAY=false;
+    Serial.println("");
+    Serial.println("Playing was finish.");
+    // En el caso de no haber parado manualmente, es por finalizar 
+    // la reproducción
+    if (LOADING_STATE == 1)
+    {
+        PLAY=false;
+        STOP=true;
+        PAUSE=false;
+        BLOCK_SELECTED = 0;
+        updateInformationMainPage();
+
+        writeString("");
+        writeString("g0.txt=\"Playing end\""); 
+
+        // Ahora ya podemos tocar el HMI panel otra vez    
+        writeString("");
+        writeString("rx.txt=\"END\"");
+    }
+
+    // Cerrando
     LOADING_STATE = 0;
     
     free(bDscr);
     free(bufferPlay);
+
+    delay(1000);
+
     sdFile32.close();
+
+    Serial.flush();
+
+    // Ahora ya podemos tocar el HMI panel otra vez    
+    writeString("");
+    writeString("rx.txt=\"READY\"");
+
+
 
 }
 
@@ -304,6 +332,17 @@ void loop() {
   
   //buttonsControl();
   readUART();
+
+  if (STOP==true)
+  {
+      LOADING_STATE = 0;
+      BLOCK_SELECTED = 0;
+      updateInformationMainPage();      
+      STOP=false;
+      PLAY=false;
+      PAUSE=false;
+  }
+
   if (PLAY==true && LOADING_STATE == 0)
   {
       

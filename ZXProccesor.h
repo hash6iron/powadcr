@@ -330,6 +330,11 @@ class ZXProccesor
                       writeString("progressTotal.val=" + String((int)((BYTES_LOADED*100)/(BYTES_TOBE_LOAD-1))));
                   }
 
+                  if (i % 32==0)
+                  {
+                      updateInformationMainPage();                    
+                  }
+
                   if (i == (size-1))
                   {
                       // Esto lo hacemos para asegurarnos que la barra se llena entera
