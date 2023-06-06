@@ -109,15 +109,15 @@ void playTAPfile_ZXSpectrum(char* path)
     TAPproccesor pTAP(sdFile32, rlen);
 
     //struct Vector *vector = malloc(sizeof (struct Vector));
-    tBlockDescriptor* bDscr = (tBlockDescriptor*)malloc(pTAP.myTAP.numBlocks);
-    bDscr = pTAP.myTAP.descriptor;
+    tBlockDescriptor* bDscr = (tBlockDescriptor*)calloc(globalTAP.numBlocks,sizeof(tBlockDescriptor));
+    //bDscr = globalTAP.descriptor;
        
     // Inicializamos el buffer de reproducción. Memoria dinamica
     byte* bufferPlay = NULL;
 
     // Entregamos información por consola
-    PROGRAM_NAME = pTAP.myTAP.name;
-    TOTAL_BLOCKS = pTAP.myTAP.numBlocks;
+    PROGRAM_NAME = globalTAP.name;
+    TOTAL_BLOCKS = globalTAP.numBlocks;
     LAST_NAME = "..";
 
     // Ahora reproducimos todos los bloques desde el seleccionado (para cuando se quiera uno concreto)
@@ -132,14 +132,14 @@ void playTAPfile_ZXSpectrum(char* path)
       writeString("progressTotal.val=" + String((int)((BYTES_LOADED*100)/(BYTES_TOBE_LOAD-1))));      
     }
 
-    for (int i=m;i<pTAP.myTAP.numBlocks;i++)
+    for (int i=m;i<globalTAP.numBlocks;i++)
     {   
 
         //LAST_NAME = bDscr[i].name;
 
         // Obtenemos el nombre del bloque
-        LAST_NAME = bDscr[i].name;
-        LAST_SIZE = bDscr[i].size;
+        LAST_NAME = globalTAP.descriptor[i].name;
+        LAST_SIZE = globalTAP.descriptor[i].size;
 
         // Almacenmas el bloque en curso para un posible PAUSE
         if (LOADING_STATE != 2)
@@ -169,26 +169,34 @@ void playTAPfile_ZXSpectrum(char* path)
 
         //Ahora vamos lanzando bloques dependiendo de su tipo
         //Esto actualiza el LAST_TYPE
-        pTAP.showInfoBlockInProgress(bDscr[i].type);
+        pTAP.showInfoBlockInProgress(globalTAP.descriptor[i].type);
         
         // Actualizamos HMI
         updateInformationMainPage();
 
         // Reproducimos el fichero
-        if (bDscr[i].type == 0 || bDscr[i].type == 1 || bDscr[i].type == 7)
+        if (globalTAP.descriptor[i].type == 0)
         {
             // CABECERAS
-            bufferPlay = (byte*)malloc(bDscr[i].size);
-            bufferPlay = readFileRange32(sdFile32,bDscr[i].offset,bDscr[i].size,true);
+            bufferPlay = (byte*)calloc(globalTAP.descriptor[i].size,sizeof(byte));
+            bufferPlay = readFileRange32(sdFile32,globalTAP.descriptor[i].offset,globalTAP.descriptor[i].size,true);
             
-            zxp.playHeader(bufferPlay, bDscr[i].size);
+            zxp.playHeaderProgram(bufferPlay, globalTAP.descriptor[i].size);
             //free(bufferPlay);
         
         }
-        else
+        else if (globalTAP.descriptor[i].type == 1 || globalTAP.descriptor[i].type == 7)
+        {
+            // CABECERAS
+            bufferPlay = (byte*)calloc(globalTAP.descriptor[i].size,sizeof(byte));
+            bufferPlay = readFileRange32(sdFile32,globalTAP.descriptor[i].offset,globalTAP.descriptor[i].size,true);
+            
+            zxp.playHeader(bufferPlay, globalTAP.descriptor[i].size);          
+        }
+        else 
         {
             // DATA
-            int blockSize = bDscr[i].size;
+            int blockSize = globalTAP.descriptor[i].size;
 
             // Si el SPLIT esta activado y el bloque es mayor de 20KB hacemos Split.
             if ((SPLIT_ENABLED) && (blockSize > SIZE_TO_ACTIVATE_SPLIT))
@@ -207,8 +215,8 @@ void playTAPfile_ZXSpectrum(char* path)
                    if (j==0)
                    {
                        blockPlaySize = bl1;
-                       offsetPlay = bDscr[i].offset;
-                       bufferPlay = (byte*)malloc(blockPlaySize);
+                       offsetPlay = globalTAP.descriptor[i].offset;
+                       bufferPlay = (byte*)calloc(blockPlaySize,sizeof(byte));
 
                        bufferPlay = readFileRange32(sdFile32,offsetPlay,blockPlaySize,true);
                        zxp.playDataBegin(bufferPlay, blockPlaySize);
@@ -220,7 +228,7 @@ void playTAPfile_ZXSpectrum(char* path)
                        blockPlaySize = bl2;
                        offsetPlay = offsetPlay + bl1;
 
-                       bufferPlay = (byte*)malloc(blockPlaySize);
+                       bufferPlay = (byte*)calloc(blockPlaySize,sizeof(byte));
                        bufferPlay = readFileRange32(sdFile32,offsetPlay,blockPlaySize,true);
                        zxp.playDataEnd(bufferPlay, blockPlaySize);
                        //free(bufferPlay);
@@ -230,9 +238,9 @@ void playTAPfile_ZXSpectrum(char* path)
             else
             {
                 // En el caso de NO USAR SPLIT o el bloque es menor de 20K
-                bufferPlay = (byte*)malloc(bDscr[i].size);
-                bufferPlay = readFileRange32(sdFile32,bDscr[i].offset,bDscr[i].size,true);
-                zxp.playData(bufferPlay, bDscr[i].size);
+                bufferPlay = (byte*)calloc(globalTAP.descriptor[i].size,sizeof(byte));
+                bufferPlay = readFileRange32(sdFile32,globalTAP.descriptor[i].offset,globalTAP.descriptor[i].size,true);
+                zxp.playData(bufferPlay, globalTAP.descriptor[i].size);
                 //free(bufferPlay);
             }
         }
@@ -248,10 +256,9 @@ void playTAPfile_ZXSpectrum(char* path)
         STOP=true;
         PAUSE=false;
         BLOCK_SELECTED = 0;
-        updateInformationMainPage();
+        LAST_MESSAGE = "Playing end.";
 
-        writeString("");
-        writeString("g0.txt=\"Playing end\""); 
+        updateInformationMainPage();
 
         // Ahora ya podemos tocar el HMI panel otra vez    
         writeString("");
@@ -261,7 +268,6 @@ void playTAPfile_ZXSpectrum(char* path)
     // Cerrando
     LOADING_STATE = 0;
     
-    free(bDscr);
     free(bufferPlay);
 
     delay(1000);
@@ -358,10 +364,13 @@ void loop() {
       //Serial.println("");
       //Serial.println("Starting TAPE PLAYER.");
       //Serial.println("");
-      playTAPfile_ZXSpectrum("/games/Classic48/Trashman/TRASHMAN.TAP");
+      //playTAPfile_ZXSpectrum("/games/Classic48/Trashman/TRASHMAN.TAP");
       //playTAPfile_ZXSpectrum("/games/Classic128/Castlevania/Castlevania.tap");
       //playTAPfile_ZXSpectrum((char*)"/games/Classic128/Shovel Adventure/Shovel Adventure ZX 1.2.tap");
       //playTAPfile_ZXSpectrum("/games/Actuales/Donum/Donum_ESPv1.1.tap");
       //playTAPfile_ZXSpectrum("/games/ROMSET/5000 juegos ordenados/D/Dark Fusion (1988)(Gremlin Graphics Software).tap");
+      playTAPfile_ZXSpectrum("/games/ROMSET/5000 juegos ordenados/A/Arkanoid II - Revenge of Doh (1988)(Imagine Software)[128K][Multiface copy].tap");
+      //playTAPfile_ZXSpectrum("/games/ROMSET/5000 juegos ordenados/A/Arkanoid II - Revenge of Doh (1988)(Imagine Software)[128K].tap");
+      //playTAPfile_ZXSpectrum("/games/ROMSET/5000 juegos ordenados/A/Arkanoid II - Revenge of Doh (1988)(Imagine Software)[cr][128K].tap");
   }
 }

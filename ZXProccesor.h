@@ -269,6 +269,15 @@ class ZXProccesor
             generateWaveDuration(freq, duration, samplingRate);
         }
 
+        void pilotToneHeader(float duration)
+        {
+            //Serial.println("****** BUFFER SIZE --> " + String(duration));
+            float freq = (1 / (PULSE_PILOT * tState)) / 2;    
+            //Serial.println("******* PILOT HEADER " + String(freq) + " Hz");
+
+            generateWaveDuration(freq, duration, samplingRate);
+        }
+
 
         void pilotToneData()
         {
@@ -278,6 +287,13 @@ class ZXProccesor
             generateWaveDuration(freq, duration, samplingRate);
         }
 
+
+        void pilotToneData(float duration)
+        {
+            float freq = (1 / (PULSE_PILOT * tState)) / 2;    
+            //Serial.println("******* PILOT DATA " + String(freq) + " Hz");
+            generateWaveDuration(freq, duration, samplingRate);
+        }
 
         void zeroTone()
         {
@@ -430,6 +446,25 @@ class ZXProccesor
         {
             // PROGRAM
             //HEADER PILOT TONE
+            float duration = tState * PULSE_PILOT_HEADER/3;
+            pilotToneHeader(duration);
+            // SYNC TONE
+            syncTone(SYNC1);
+            // Launch header
+
+            sendDataArray(bBlock, lenBlock);
+            syncTone(SYNC2);
+
+            // Silent tone
+            #ifdef SILENT
+              sleep(SILENT);
+            #endif          
+        }
+
+        void playHeaderProgram(byte* bBlock, int lenBlock)
+        {
+            // PROGRAM
+            //HEADER PILOT TONE
             pilotToneHeader();
             // SYNC TONE
             syncTone(SYNC1);
@@ -448,6 +483,7 @@ class ZXProccesor
         {
             // Put now code block
             // syncronize with short leader tone
+            //float duration = tState * PULSE_PILOT_DATA/2;
             pilotToneData();
             // syncronization for end short leader tone
             syncTone(SYNC1);
