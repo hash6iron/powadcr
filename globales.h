@@ -45,6 +45,7 @@ int CURRENT_BLOCK_IN_PROGRESS = 0;
 int BLOCK_SELECTED = 0;
 char* LAST_NAME = "";
 char* LAST_TYPE = "";
+String LAST_MESSAGE = "";
 String PROGRAM_NAME = "";
 int LAST_SIZE = 0;
 int BYTES_LOADED = 0;

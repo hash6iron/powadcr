@@ -39,6 +39,9 @@ void updateInformationMainPage()
         writeString("");
         writeString("type.txt=\""+ String(LAST_TYPE) + ":" + String(LAST_NAME) + "\"");
 
+        writeString("");
+        writeString("g0.txt=\"" + LAST_MESSAGE + "\"");
+
     }
 }
 
@@ -86,8 +89,8 @@ void verifyCommand(String strCmd)
         Serial.println("");
         Serial.print("PLAY pressed");
 
-        writeString("");
-        writeString("g0.txt=\"Loading in progress. Please wait.\"");
+        LAST_MESSAGE = "Loading in progress. Please wait.";
+        updateInformationMainPage();           
     }
 
     if (strCmd.indexOf("PAUSE") != -1)
@@ -99,9 +102,8 @@ void verifyCommand(String strCmd)
         Serial.println("");
         Serial.print("PAUSE pressed");
 
-        writeString("");
-        writeString("g0.txt=\"Tape paused. Press play to continue load.\"");
-
+        LAST_MESSAGE = "Tape paused. Press play to continue load.";
+        updateInformationMainPage();           
     }
 
     if (strCmd.indexOf("STOP") != -1)
@@ -113,8 +115,8 @@ void verifyCommand(String strCmd)
         Serial.println("");
         Serial.print("STOP pressed");    
 
-        writeString("");
-        writeString("g0.txt=\"Tape stop. Press play to start again.\"");
+        LAST_MESSAGE = "Tape stop. Press play to start again.";
+        updateInformationMainPage();           
     }
 
     if (strCmd.indexOf("VOL") != -1)
