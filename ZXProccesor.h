@@ -362,7 +362,7 @@ class ZXProccesor
                       writeString("progression.val=" + String((int)((i*100)/(size-1))));
 
                       writeString("");
-                      writeString("progressTotal.val=" + String((int)((BYTES_LOADED*100)/(BYTES_TOBE_LOAD-1))));
+                      writeString("progressTotal.val=" + String((int)((BYTES_LOADED*100)/(BYTES_TOBE_LOAD))));
                   }
 
                   if (i % 32==0)
@@ -377,7 +377,7 @@ class ZXProccesor
                       writeString("progression.val=" + String((int)((i*100)/(size-1))));
 
                       writeString("");
-                      writeString("progressTotal.val=" + String((int)((BYTES_LOADED*100)/(BYTES_TOBE_LOAD-1))));
+                      writeString("progressTotal.val=" + String((int)((BYTES_LOADED*100)/(BYTES_TOBE_LOAD))));
                   }
 
                   //buttonsControl();

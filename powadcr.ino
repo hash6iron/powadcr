@@ -122,15 +122,23 @@ void playTAPfile_ZXSpectrum(char* path)
 
     // Ahora reproducimos todos los bloques desde el seleccionado (para cuando se quiera uno concreto)
     int m = BLOCK_SELECTED;
-    BYTES_TOBE_LOAD = rlen;
+    //BYTES_TOBE_LOAD = rlen;
 
     // Reiniciamos
     if (m==0)
     {
       BYTES_LOADED = 0;
+      BYTES_TOBE_LOAD = rlen;
       writeString("");
-      writeString("progressTotal.val=" + String((int)((BYTES_LOADED*100)/(BYTES_TOBE_LOAD-1))));      
+      writeString("progressTotal.val=" + String((int)((BYTES_LOADED*100)/(BYTES_TOBE_LOAD))));      
     }
+    else
+    {
+      BYTES_TOBE_LOAD = rlen - globalTAP.descriptor[m].offset;
+    }
+
+
+    
 
     for (int i=m;i<globalTAP.numBlocks;i++)
     {   
