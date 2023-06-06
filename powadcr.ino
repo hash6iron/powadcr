@@ -125,7 +125,7 @@ void playTAPfile_ZXSpectrum(char* path)
     //BYTES_TOBE_LOAD = rlen;
 
     // Reiniciamos
-    if (m==0)
+    if (BLOCK_SELECTED==0)
     {
       BYTES_LOADED = 0;
       BYTES_TOBE_LOAD = rlen;
@@ -134,7 +134,7 @@ void playTAPfile_ZXSpectrum(char* path)
     }
     else
     {
-      BYTES_TOBE_LOAD = rlen - globalTAP.descriptor[m].offset;
+      BYTES_TOBE_LOAD = rlen - globalTAP.descriptor[BLOCK_SELECTED-1].offset;
     }
 
 
@@ -332,7 +332,8 @@ void setup()
     // timerAttachInterrupt(Timer0_Cfg, &Timer0_ISR, true);
     // timerAlarmWrite(Timer0_Cfg, 1000000, true);
     // timerAlarmEnable(Timer0_Cfg); 
-    LOADING_STATE = 0;   
+    LOADING_STATE = 0; 
+    BLOCK_SELECTED = 0;  
 }
 
 
@@ -372,12 +373,12 @@ void loop() {
       //Serial.println("");
       //Serial.println("Starting TAPE PLAYER.");
       //Serial.println("");
-      //playTAPfile_ZXSpectrum("/games/Classic48/Trashman/TRASHMAN.TAP");
+      playTAPfile_ZXSpectrum("/games/Classic48/Trashman/TRASHMAN.TAP");
       //playTAPfile_ZXSpectrum("/games/Classic128/Castlevania/Castlevania.tap");
       //playTAPfile_ZXSpectrum((char*)"/games/Classic128/Shovel Adventure/Shovel Adventure ZX 1.2.tap");
       //playTAPfile_ZXSpectrum("/games/Actuales/Donum/Donum_ESPv1.1.tap");
       //playTAPfile_ZXSpectrum("/games/ROMSET/5000 juegos ordenados/D/Dark Fusion (1988)(Gremlin Graphics Software).tap");
-      playTAPfile_ZXSpectrum("/games/ROMSET/5000 juegos ordenados/A/Arkanoid II - Revenge of Doh (1988)(Imagine Software)[128K][Multiface copy].tap");
+      //playTAPfile_ZXSpectrum("/games/ROMSET/5000 juegos ordenados/A/Arkanoid II - Revenge of Doh (1988)(Imagine Software)[128K][Multiface copy].tap");
       //playTAPfile_ZXSpectrum("/games/ROMSET/5000 juegos ordenados/A/Arkanoid II - Revenge of Doh (1988)(Imagine Software)[128K].tap");
       //playTAPfile_ZXSpectrum("/games/ROMSET/5000 juegos ordenados/A/Arkanoid II - Revenge of Doh (1988)(Imagine Software)[cr][128K].tap");
   }

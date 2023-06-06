@@ -66,9 +66,15 @@ class ZXProccesor
         //Serial.println("BYTES READ: " + String(BYTES_LAST_BLOCK) + "/" + String(BYTES_LOADED));
         //Serial.println("");
 
-        BYTES_LOADED = BYTES_LOADED - BYTES_LAST_BLOCK;                 
+        BYTES_LOADED = BYTES_LOADED - BYTES_LAST_BLOCK;
+
+        if (BYTES_LOADED > BYTES_TOBE_LOAD)
+        {
+            BYTES_LOADED = BYTES_TOBE_LOAD;
+        }
+
         writeString("");
-        writeString("progressTotal.val=" + String((int)((BYTES_LOADED*100)/(BYTES_TOBE_LOAD-1))));
+        writeString("progressTotal.val=" + String((int)((BYTES_LOADED*100)/(BYTES_TOBE_LOAD))));
     }
 
     public:
@@ -361,6 +367,11 @@ class ZXProccesor
                       writeString("");
                       writeString("progression.val=" + String((int)((i*100)/(size-1))));
 
+                      if (BYTES_LOADED > BYTES_TOBE_LOAD)
+                      {
+                          BYTES_LOADED = BYTES_TOBE_LOAD;
+                      }
+
                       writeString("");
                       writeString("progressTotal.val=" + String((int)((BYTES_LOADED*100)/(BYTES_TOBE_LOAD))));
                   }
@@ -375,6 +386,11 @@ class ZXProccesor
                       // Esto lo hacemos para asegurarnos que la barra se llena entera
                       writeString("");
                       writeString("progression.val=" + String((int)((i*100)/(size-1))));
+
+                      if (BYTES_LOADED > BYTES_TOBE_LOAD)
+                      {
+                          BYTES_LOADED = BYTES_TOBE_LOAD;
+                      }
 
                       writeString("");
                       writeString("progressTotal.val=" + String((int)((BYTES_LOADED*100)/(BYTES_TOBE_LOAD))));
