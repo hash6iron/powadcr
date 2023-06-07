@@ -38,15 +38,19 @@ void updateInformationMainPage()
 
         writeString("");
         writeString("type.txt=\""+ String(LAST_TYPE) + ":" + String(LAST_NAME) + "\"");
-
-        writeString("");
-        writeString("g0.txt=\"" + LAST_MESSAGE + "\"");
-
     }
+
+    writeString("");
+    writeString("g0.txt=\"" + LAST_MESSAGE + "\"");
 }
 
 void verifyCommand(String strCmd)
 {
+    
+    if(strCmd.indexOf("LCD_ON") != -1)
+    {
+        LCD_ON = true;
+    }
     
     if (strCmd.indexOf("RWD") != -1)
     {

@@ -65,6 +65,9 @@ bool DOWN = false;
 bool LEFT = false;
 bool RIGHT = false;
 bool ENTER = false;
+bool LCD_ON = false;
+bool FILE_SELECTED = false;
+String FILE_PATH_SELECTED = "";
 //
 int MAIN_VOL = 90;
 

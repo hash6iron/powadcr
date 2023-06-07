@@ -66,22 +66,32 @@ File32 sdFile32;
 void setSDFrequency(int SD_Speed)
 {
     bool SD_ok = false;
+    bool lastStatus = false;
     while(!SD_ok)
     {
-        if (!sdf.begin(ESP32kit.pinSpiCs(), SD_SCK_MHZ(SD_Speed))) 
+        if (!sdf.begin(ESP32kit.pinSpiCs(), SD_SCK_MHZ(SD_Speed)) && lastStatus) 
         {
             Serial.println("SD card error!");
             SD_Speed = SD_Speed - 5;
             if (SD_Speed < 4)
             {
                 SD_Speed = 4;
+                lastStatus = true;
             }
             Serial.println("SD downgrade at " + String(SD_Speed) + "MHz");
+        }
+        else if (!sdf.begin(ESP32kit.pinSpiCs(), SD_SCK_MHZ(SD_Speed)) && !lastStatus)
+        {
+          LAST_MESSAGE = "Error in SD Card. Check and reset POWADCR.";
+          updateInformationMainPage();
         }
         else
         {
             Serial.println("SD card initialized at " + String(SD_Speed) + " MHz");
             SD_ok = true;
+
+            LAST_MESSAGE = "Please, select file and press PLAY.";
+            updateInformationMainPage();
         }
     }
 }
@@ -288,8 +298,6 @@ void playTAPfile_ZXSpectrum(char* path)
     writeString("");
     writeString("rx.txt=\"READY\"");
 
-
-
 }
 
 
@@ -299,6 +307,11 @@ void setup()
 {
     // Configuramos el nivel de log
     Serial.begin(115200);
+    
+    LAST_MESSAGE = "Resseting CPU. Please wait.";
+    updateInformationMainPage();
+    delay(2000);
+
     //Serial2.begin(9600);
     Serial.println("Setting Audiokit.");
     
@@ -317,6 +330,14 @@ void setup()
     ESP32kit.setVolume(MAIN_VOL);
   
     Serial.println("Done!");
+
+    //Esperamos a la pantalla
+    while (!LCD_ON)
+    {
+        readUART();      
+    }
+
+    delay(2000);
 
     // Configuramos la velocidad de acceso a la SD
     int SD_Speed = SD_FRQ_MHZ_INITIAL;         // Velocidad en MHz (config.h)
@@ -337,7 +358,8 @@ void setup()
 }
 
 
-void loop() {
+void loop() 
+{
 
   // Procedimiento principal
 
@@ -363,23 +385,34 @@ void loop() {
       
       ESP32kit.setVolume(MAIN_VOL);
 
-      //Serial.println("");
-      //Serial.println(ESP.getFreeHeap());
-      //Serial.println("");
+      if (FILE_SELECTED)
+      {
 
-      // Pasamos a estado de reproducción
-      LOADING_STATE = 1;
+          //Serial.println("");
+          //Serial.println(ESP.getFreeHeap());
+          //Serial.println("");
 
-      //Serial.println("");
-      //Serial.println("Starting TAPE PLAYER.");
-      //Serial.println("");
-      playTAPfile_ZXSpectrum("/games/Classic48/Trashman/TRASHMAN.TAP");
-      //playTAPfile_ZXSpectrum("/games/Classic128/Castlevania/Castlevania.tap");
-      //playTAPfile_ZXSpectrum((char*)"/games/Classic128/Shovel Adventure/Shovel Adventure ZX 1.2.tap");
-      //playTAPfile_ZXSpectrum("/games/Actuales/Donum/Donum_ESPv1.1.tap");
-      //playTAPfile_ZXSpectrum("/games/ROMSET/5000 juegos ordenados/D/Dark Fusion (1988)(Gremlin Graphics Software).tap");
-      //playTAPfile_ZXSpectrum("/games/ROMSET/5000 juegos ordenados/A/Arkanoid II - Revenge of Doh (1988)(Imagine Software)[128K][Multiface copy].tap");
-      //playTAPfile_ZXSpectrum("/games/ROMSET/5000 juegos ordenados/A/Arkanoid II - Revenge of Doh (1988)(Imagine Software)[128K].tap");
-      //playTAPfile_ZXSpectrum("/games/ROMSET/5000 juegos ordenados/A/Arkanoid II - Revenge of Doh (1988)(Imagine Software)[cr][128K].tap");
+          // Pasamos a estado de reproducción
+          LOADING_STATE = 1;
+
+          //Serial.println("");
+          //Serial.println("Starting TAPE PLAYER.");
+          //Serial.println("");
+          playTAPfile_ZXSpectrum("/games/Classic48/Trashman/TRASHMAN.TAP");
+          //playTAPfile_ZXSpectrum("/games/Classic128/Castlevania/Castlevania.tap");
+          //playTAPfile_ZXSpectrum((char*)"/games/Classic128/Shovel Adventure/Shovel Adventure ZX 1.2.tap");
+          //playTAPfile_ZXSpectrum("/games/Actuales/Donum/Donum_ESPv1.1.tap");
+          //playTAPfile_ZXSpectrum("/games/ROMSET/5000 juegos ordenados/D/Dark Fusion (1988)(Gremlin Graphics Software).tap");
+          //playTAPfile_ZXSpectrum("/games/ROMSET/5000 juegos ordenados/A/Arkanoid II - Revenge of Doh (1988)(Imagine Software)[128K][Multiface copy].tap");
+          //playTAPfile_ZXSpectrum("/games/ROMSET/5000 juegos ordenados/A/Arkanoid II - Revenge of Doh (1988)(Imagine Software)[128K].tap");
+          //playTAPfile_ZXSpectrum("/games/ROMSET/5000 juegos ordenados/A/Arkanoid II - Revenge of Doh (1988)(Imagine Software)[cr][128K].tap");
+      }
+      else
+      {
+            LAST_MESSAGE = "No file was selected.";
+            updateInformationMainPage();
+      }
+
   }
+
 }
