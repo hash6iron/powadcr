@@ -38,7 +38,7 @@ This project need set PCB switches to
 |5|Off|
 
 
-## LCD Screen Dysplay
+## LCD Screen Display
 
 The LCD screen Display choosen foir this project is a TFT HMI LCD Display Module Screen Touch.
 Size: 3.5".
