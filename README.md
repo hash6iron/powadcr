@@ -40,7 +40,7 @@ This project need set PCB switches to
 
 ## LCD Screen Display
 
-The LCD screen Display chosen foir this project is a TFT HMI LCD Display Module Screen Touch.
+The LCD screen Display chosen for this project is a TFT HMI LCD Display Module Screen Touch connected with 2 serial pins (TX and RX) to the board. 
 Size: 3.5".
 Resolution:  480x320.
 https://a.aliexpress.com/_EwTLSbP
