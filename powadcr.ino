@@ -62,7 +62,37 @@ File32 sdFile32;
 #endif
 
 
+void sendStatus(int action, int value)
+{
 
+    switch(action)
+    {
+      case PLAY_ST:
+          writeString("");
+          writeString("PLAYst.val=" + String(value));
+      break;
+
+      case STOP_ST:
+          writeString("");
+          writeString("STOPst.val=" + String(value));
+      break;
+
+      case PAUSE_ST:
+          writeString("");
+          writeString("PAUSEst.val=" + String(value));
+      break;
+
+      case END_ST:
+          writeString("");
+          writeString("ENDst.val=" + String(value));
+      break;
+
+      case READY_ST:
+          writeString("");
+          writeString("READYst.val=" + String(value));
+      break;
+    }
+}
 void setSDFrequency(int SD_Speed)
 {
     bool SD_ok = false;
@@ -111,6 +141,14 @@ void test()
 
 void playTAPfile_ZXSpectrum(char* path)
 {   
+
+    writeString("");
+    writeString("READYst.val=0");
+
+    writeString("");
+    writeString("ENDst.val=0");
+
+
     // Abrimos el fichero
     sdFile32 = openFile32(sdFile32, path);
     // Obtenemos su tamaño total
@@ -279,8 +317,9 @@ void playTAPfile_ZXSpectrum(char* path)
         updateInformationMainPage();
 
         // Ahora ya podemos tocar el HMI panel otra vez    
-        writeString("");
-        writeString("rx.txt=\"END\"");
+        //writeString("");
+        //writeString("rx.txt=\"END\"");     
+        sendStatus(END_ST,1);
     }
 
     // Cerrando
@@ -295,9 +334,9 @@ void playTAPfile_ZXSpectrum(char* path)
     Serial.flush();
 
     // Ahora ya podemos tocar el HMI panel otra vez    
-    writeString("");
-    writeString("rx.txt=\"READY\"");
-
+    // writeString("");
+    // writeString("rx.txt=\"READY\"");
+    sendStatus(READY_ST,1);
 }
 
 
@@ -359,8 +398,21 @@ void setup()
     LOADING_STATE = 0; 
     BLOCK_SELECTED = 0;  
     FILE_SELECTED = true;
-    writeString("");
-    writeString("rx.txt=\"READY\"");
+    
+    // Inicialmente el POWADCR está en STOP
+    STOP=true;
+    PLAY=false;
+    PAUSE=false;
+
+    sendStatus(STOP_ST,1);
+    sendStatus(PLAY_ST,0);
+    sendStatus(PAUSE_ST,0);
+    sendStatus(READY_ST,1);
+    sendStatus(END_ST,0);
+    //writeString("");
+    //writeString("rx.txt=\"READY\"");
+
+
 }
 
 
@@ -376,7 +428,7 @@ void loop()
   //buttonsControl();
   readUART();
 
-  if (STOP==true)
+  if (STOP==true && LOADING_STATE != 0)
   {
       LOADING_STATE = 0;
       BLOCK_SELECTED = 0;
@@ -384,6 +436,12 @@ void loop()
       STOP=false;
       PLAY=false;
       PAUSE=false;
+
+      sendStatus(STOP_ST,0);
+      sendStatus(PLAY_ST,0);
+      sendStatus(PAUSE_ST,0);
+      sendStatus(READY_ST,1);
+      sendStatus(END_ST,0);
   }
 
   if (PLAY==true && LOADING_STATE == 0)
@@ -400,7 +458,10 @@ void loop()
 
           // Pasamos a estado de reproducción
           LOADING_STATE = 1;
-
+          sendStatus(PLAY_ST,1);
+          sendStatus(STOP_ST,0);
+          sendStatus(PAUSE_ST,0);
+          sendStatus(END_ST,0);
           //Serial.println("");
           //Serial.println("Starting TAPE PLAYER.");
           //Serial.println("");

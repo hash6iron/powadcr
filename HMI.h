@@ -1,16 +1,29 @@
 void writeString(String stringData) 
-{ // Used to serially push out a String with Serial.write()
+{ 
 
-  for (int i = 0; i < stringData.length(); i++)
-  {
-    Serial.write(stringData[i]);   // Push each char 1 by 1 on each loop pass  
-  }
+    // Controlamos el buffer overflow.
+    if ((stringData.length() + Serial.available()) < 64)
+    {
+        for (int i = 0; i < stringData.length(); i++)
+        {
+          // Enviamos los datos
+          Serial.write(stringData[i]);   
+        }
 
-  Serial.write(0xff); //We need to write the 3 ending bits to the Nextion as well
-  Serial.write(0xff); //it will tell the Nextion that this is the end of what we want to send.
-  Serial.write(0xff);
-
-}// end writeString function
+        // Indicamos a la pantalla que ya hemos enviado todos 
+        // los datos, con este triple byte 0xFF
+        Serial.write(0xff); 
+        Serial.write(0xff); 
+        Serial.write(0xff);
+    }
+    else
+    {
+        Serial.flush();
+        Serial.println("");
+        Serial.println("OVERFLOW FLUSHED!!!");
+        Serial.println("");
+    }
+}
 
 void updateInformationMainPage()
 {
@@ -155,12 +168,28 @@ void verifyCommand(String strCmd)
 
 void readUART()
 {
-  if (Serial.available()) 
+
+
+  if (Serial.available() > 0) 
   {
     // get the new byte:
     String strCmd = Serial.readString();
     verifyCommand(strCmd);
     //Serial.flush();
   }  
+}
+
+void serialSendData(String data)
+{
+
+    if (Serial.available() + data.length() < 64)
+    { 
+      // Lo envio
+      Serial.println(data);
+    }
+    else
+    {
+      // Lo descarto
+    }
 }
 

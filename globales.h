@@ -68,6 +68,13 @@ bool ENTER = false;
 bool LCD_ON = false;
 bool FILE_SELECTED = false;
 String FILE_PATH_SELECTED = "";
+
+//Estado de acciones de reproducción
+const int PLAY_ST = 0;
+const int STOP_ST = 1;
+const int PAUSE_ST = 2;
+const int READY_ST = 3;
+const int END_ST = 4;
 //
 int MAIN_VOL = 90;
 
