@@ -60,10 +60,10 @@ void updateInformationMainPage()
 void verifyCommand(String strCmd)
 {
     
-    if(strCmd.indexOf("LCD_ON") != -1)
-    {
-        LCD_ON = true;
-    }
+    // if(strCmd.indexOf("LCDON") != -1)
+    // {
+    //     LCD_ON = true;
+    // }
     
     if (strCmd.indexOf("FFWD") != -1)
     {

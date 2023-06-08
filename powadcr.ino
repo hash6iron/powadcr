@@ -371,15 +371,15 @@ void setup()
     Serial.println("Done!");
 
     //Esperamos a la pantalla
-    while (!LCD_ON)
-    {
-        readUART();      
-    }
+    // while (!LCD_ON)
+    // {
+    //     readUART();      
+    // }
 
-    Serial.println("");
-    Serial.println("LCD READY");
-    Serial.println("");
-    delay(2000);
+    // Serial.println("");
+    // Serial.println("LCD READY");
+    // Serial.println("");
+    // delay(2000);
 
     // Configuramos la velocidad de acceso a la SD
     int SD_Speed = SD_FRQ_MHZ_INITIAL;         // Velocidad en MHz (config.h)
