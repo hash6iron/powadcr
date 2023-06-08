@@ -37,6 +37,14 @@ This project need set PCB switches to
 |4|Off|
 |5|Off|
 
+
+## LCD Screen Dysplay
+
+The LCD screen Display choosen foir this project is a TFT HMI LCD Display Module Screen Touch.
+Size: 3.5".
+Resolution:  480x320.
+https://a.aliexpress.com/_EwTLSbP
+
 ## Set Arduino IDE
 
 Apply this BOARD repository to Arduino IDE preferences.
