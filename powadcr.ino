@@ -337,6 +337,9 @@ void setup()
         readUART();      
     }
 
+    Serial.println("");
+    Serial.println("LCD READY");
+    Serial.println("");
     delay(2000);
 
     // Configuramos la velocidad de acceso a la SD
@@ -355,6 +358,9 @@ void setup()
     // timerAlarmEnable(Timer0_Cfg); 
     LOADING_STATE = 0; 
     BLOCK_SELECTED = 0;  
+    FILE_SELECTED = true;
+    writeString("");
+    writeString("rx.txt=\"READY\"");
 }
 
 

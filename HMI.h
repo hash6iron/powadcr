@@ -52,7 +52,7 @@ void verifyCommand(String strCmd)
         LCD_ON = true;
     }
     
-    if (strCmd.indexOf("RWD") != -1)
+    if (strCmd.indexOf("FFWD") != -1)
     {
         if (LOADING_STATE == 2 || LOADING_STATE == 0)
         {
@@ -68,7 +68,7 @@ void verifyCommand(String strCmd)
 
     }
 
-    if (strCmd.indexOf("FFWD") != -1)
+    if (strCmd.indexOf("RWD") != -1)
     {
         if (LOADING_STATE == 2 || LOADING_STATE == 0)
         {
@@ -132,6 +132,25 @@ void verifyCommand(String strCmd)
         MAIN_VOL = valVol;
         ESP32kit.setVolume(MAIN_VOL);
     }
+
+    if (strCmd.indexOf("TXT_SEARCH") != -1)
+    {
+        //Cogemos el valor
+        byte buff[50];
+        strCmd.getBytes(buff, 50);
+        int n = 12;
+        char phrase[50];
+        char str=(char)buff[n];
+        while (str !='@')
+        {
+            phrase[n-12] += (char)buff[n];
+            n++;
+            str = (char)buff[n];
+        }
+
+        Serial.println("TXT TO SEARCH: " + String(phrase));
+    }
+
 }
 
 void readUART()
