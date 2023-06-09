@@ -46,37 +46,7 @@ class ZXProccesor
 
     private:
 
-    void stopTape()
-    {
-        BLOCK_SELECTED = 0;
-        BYTES_LOADED = 0;
-        writeString("");
-        writeString("currentBlock.val=1");   
-        writeString("");
-        writeString("progressTotal.val=0");      
-        writeString("");
-        writeString("progression.val=0");      
-    }
-
-    void pauseTape()
-    {
-        BLOCK_SELECTED = CURRENT_BLOCK_IN_PROGRESS;
-
-        //Serial.println("");
-        //Serial.println("BYTES READ: " + String(BYTES_LAST_BLOCK) + "/" + String(BYTES_LOADED));
-        //Serial.println("");
-
-        BYTES_LOADED = BYTES_LOADED - BYTES_LAST_BLOCK;
-
-        if (BYTES_LOADED > BYTES_TOBE_LOAD)
-        {
-            BYTES_LOADED = BYTES_TOBE_LOAD;
-        }
-
-        writeString("");
-        writeString("progressTotal.val=" + String((int)((BYTES_LOADED*100)/(BYTES_TOBE_LOAD))));
-    }
-
+    
     public:
         
         ZXProccesor(AudioKit kit)
@@ -210,12 +180,12 @@ class ZXProccesor
                 if (STOP==true)
                 {
                     LOADING_STATE = 2; // Parada del bloque actual
-                    stopTape();
+                    //stopTape();
                 }
                 else if (PAUSE==true)
                 {
                     LOADING_STATE = 2; // Parada del bloque actual
-                    pauseTape();
+                    //pauseTape();
                 }
             }
         }
@@ -250,13 +220,13 @@ class ZXProccesor
                     if (STOP==true)
                     {
                         LOADING_STATE = 2; // Parada del bloque actual
-                        stopTape();
+                        //stopTape();
                         break;
                     }
                     else if (PAUSE==true)
                     {
                         LOADING_STATE = 2; // Parada del bloque actual
-                        pauseTape();
+                        //pauseTape();
                         break;
                     }
                 }
@@ -404,14 +374,14 @@ class ZXProccesor
                       if (STOP==true)
                       {
                           LOADING_STATE = 2; // Parada del bloque actual
-                          stopTape();
+                          //stopTape();
                           i=size;
                           //break;
                       }
                       else if (PAUSE==true)
                       {
                           LOADING_STATE = 2; // Parada del bloque actual
-                          pauseTape();
+                          //pauseTape();
                           i=size;
                           //break;
                       }

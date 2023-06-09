@@ -91,6 +91,11 @@ void sendStatus(int action, int value)
           writeString("");
           writeString("READYst.val=" + String(value));
       break;
+
+      case ACK_LCD:
+          writeString("");
+          writeString("LCDACK.val=" + String(value));
+      break;
     }
 }
 void setSDFrequency(int SD_Speed)
@@ -312,7 +317,7 @@ void playTAPfile_ZXSpectrum(char* path)
         STOP=true;
         PAUSE=false;
         BLOCK_SELECTED = 0;
-        LAST_MESSAGE = "Playing end.";
+        LAST_MESSAGE = "Playing end. Automatic STOP.";
 
         updateInformationMainPage();
 
@@ -327,7 +332,7 @@ void playTAPfile_ZXSpectrum(char* path)
     
     free(bufferPlay);
 
-    delay(1000);
+    //delay(1000);
 
     sdFile32.close();
 
@@ -371,14 +376,16 @@ void setup()
     Serial.println("Done!");
 
     //Esperamos a la pantalla
-    // while (!LCD_ON)
-    // {
-    //     readUART();      
-    // }
+    while (!LCD_ON)
+    {
+        readUART();      
+    }
 
-    // Serial.println("");
-    // Serial.println("LCD READY");
-    // Serial.println("");
+    Serial.println("");
+    Serial.println("LCD READY");
+    Serial.println("");
+    
+    sendStatus(ACK_LCD,1);
     // delay(2000);
 
     // Configuramos la velocidad de acceso a la SD
@@ -403,6 +410,8 @@ void setup()
     STOP=true;
     PLAY=false;
     PAUSE=false;
+
+
 
     sendStatus(STOP_ST,1);
     sendStatus(PLAY_ST,0);

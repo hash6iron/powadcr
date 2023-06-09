@@ -75,6 +75,7 @@ const int STOP_ST = 1;
 const int PAUSE_ST = 2;
 const int READY_ST = 3;
 const int END_ST = 4;
+const int ACK_LCD = 5;
 //
 int MAIN_VOL = 90;
 

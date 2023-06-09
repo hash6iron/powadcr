@@ -60,10 +60,10 @@ void updateInformationMainPage()
 void verifyCommand(String strCmd)
 {
     
-    // if(strCmd.indexOf("LCDON") != -1)
-    // {
-    //     LCD_ON = true;
-    // }
+    if(strCmd.indexOf("LCDON") != -1)
+    {
+        LCD_ON = true;
+    }
     
     if (strCmd.indexOf("FFWD") != -1)
     {
@@ -128,11 +128,19 @@ void verifyCommand(String strCmd)
         PLAY = false;
         PAUSE = false;
         STOP = true;
+        BLOCK_SELECTED = 0;
+        BYTES_LOADED = 0;
 
         Serial.println("");
         Serial.print("STOP pressed");    
 
         LAST_MESSAGE = "Tape stop. Press play to start again.";
+        writeString("");
+        writeString("currentBlock.val=1");   
+        writeString("");
+        writeString("progressTotal.val=0");      
+        writeString("");
+        writeString("progression.val=0");                   
         updateInformationMainPage();           
     }
 
