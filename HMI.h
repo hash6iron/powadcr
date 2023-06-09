@@ -61,16 +61,18 @@ void updateInformationMainPage() {
 }
 
 void verifyCommand(String strCmd) {
-  // if (strCmd.indexOf("BKX=")) {
-  //   //Cogemos el valor
-  //   byte buff[7];
-  //   strCmd.getBytes(buff, 7);
-  //   //BLOCK_SELECTED = buff[4]) * 1000 + ((int)buff[5]) * 100 + ((int)buff[6]) * 10 + ((int)buff[7]);
-  //   String num = String(buff[4]+buff[5]+buff[6]+buff[7]);
-  //   BLOCK_SELECTED = num.toInt();
+   
+   if (strCmd.indexOf("BKX=") != -1) 
+  {
+      //Cogemos el valor
+      byte buff[7];
+      strCmd.getBytes(buff, 7);
+      //BLOCK_SELECTED = buff[4]) * 1000 + ((int)buff[5]) * 100 + ((int)buff[6]) * 10 + ((int)buff[7]);
+      String num = String(buff[4]+buff[5]+buff[6]+buff[7]);
+      BLOCK_SELECTED = num.toInt();
 
-  //   updateInformationMainPage();
-  // }
+      updateInformationMainPage();
+  }
 
   if (strCmd.indexOf("LCDON") != -1) {
     LCD_ON = true;
