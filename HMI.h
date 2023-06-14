@@ -60,6 +60,34 @@ void updateInformationMainPage() {
   writeString("g0.txt=\"" + LAST_MESSAGE + "\"");
 }
 
+void getFilesFromSD()
+{
+    // String szSubDir;
+    // String szFileName;
+
+    // sdf.chdir("/");
+
+    // Serial.println("/");
+
+    // while (file.openNext(sdf.vwd(), O_READ))
+    // {
+    //     if (file.isDir())
+    //     {
+    //         file.getName(szSubDir, sizeof(szSubDir));
+    //         file.close();
+    //         sdf.chdir(szSubDir);
+    //         sdf.vwd()->rewind();
+
+    //         Serial.println(szSubDir);
+    //         continue;
+    //     }
+
+    //     file.getName(szFileName, sizeof(szFileName));
+    //     // .... do stuff 
+    //     file.close();
+    // }
+}
+
 void verifyCommand(String strCmd) {
    
    if (strCmd.indexOf("BKX=") != -1) 
@@ -146,6 +174,28 @@ void verifyCommand(String strCmd) {
     writeString("progression.val=0");
     updateInformationMainPage();
   }
+
+  if (strCmd.indexOf("EJECT") != -1) {
+    PLAY = false;
+    PAUSE = false;
+    STOP = true;
+    BLOCK_SELECTED = 0;
+    BYTES_LOADED = 0;
+
+    Serial.println("");
+    Serial.print("STOP pressed");
+
+    LAST_MESSAGE = "Tape stop. Press play to start again.";
+    writeString("");
+    writeString("currentBlock.val=1");
+    writeString("");
+    writeString("progressTotal.val=0");
+    writeString("");
+    writeString("progression.val=0");
+    updateInformationMainPage();
+    getFilesFromSD();
+  }
+
 
   if (strCmd.indexOf("VOL") != -1) {
     //Cogemos el valor

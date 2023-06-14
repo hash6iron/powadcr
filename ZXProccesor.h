@@ -172,7 +172,6 @@ class ZXProccesor
             uint8_t buffer[bytes];
             m_kit.write(buffer, readWave(buffer, bytes));
             
-            //buttonsControl();
             readUART();
 
             if (LOADING_STATE == 1)
@@ -392,6 +391,21 @@ class ZXProccesor
                   {
                       // Vamos a ir leyendo los bytes y generando el sonido
                       bRead = data[i];
+
+                      if(SCREEN_LOADING)
+                      {
+                          writeString("");
+                          writeString("line " + String(112+SCREEN_COL) "," + String(64+SCREEN_LINE) + "," + String(112+SCREEN_COL) "," + String(64+SCREEN_LINE) + ",BLUE");
+
+                          SCREEN_COL++;
+                          if(SCREEN_COL > 255)
+                          {
+                            SCREEN_COL=0;
+                            SCREEN_LINE++;
+                          }
+
+                      }
+
                       //Serial.println("******* Byte " + String(bRead));
                       for (int n=0;n<8;n++)
                       {

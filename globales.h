@@ -52,6 +52,11 @@ int BYTES_LOADED = 0;
 int BYTES_TOBE_LOAD = 0;
 int BYTES_LAST_BLOCK = 0;
 int TOTAL_BLOCKS = 0;
+// Screen
+bool SCREEN_LOADING = 0
+int SCREEN_LINE = 0
+int SCREEN_COL = 0
+int SCREEN_SECTION = 0
 
 // Variables de control de la reproducción
 bool PLAY = false;

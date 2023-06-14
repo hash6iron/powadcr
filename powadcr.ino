@@ -28,6 +28,7 @@
 
 //
 #include "AudioKitHAL.h"
+#include "SDmanager.h"
 // Declaración para eñ audiokitHal
 AudioKit ESP32kit;
 
@@ -37,7 +38,6 @@ AudioKit ESP32kit;
 #include "config.h"
 
 #include "ZXProccesor.h"
-#include "SDmanager.h"
 #include "TAPproccesor.h"
 
 #include "test.h"
@@ -45,12 +45,13 @@ AudioKit ESP32kit;
 // #include <ESP32TimerInterrupt.h>
 // #include <ESP32TimerInterrupt.hpp>
 
-
-
 // Declaraciones para SdFat
 SdFat sd;
 SdFile sdFile;
 File32 sdFile32;
+
+
+
 
 //
 // hw_timer_t *Timer0_Cfg = NULL;
@@ -382,6 +383,11 @@ void setup() {
   PLAY = false;
   PAUSE = false;
 
+  // writeString("");
+  // writeString("page scrload");
+
+  // writeString("");
+  // writeString("draw 112,64,368,256,BLUE");
 
 
   sendStatus(STOP_ST, 1);
@@ -391,6 +397,7 @@ void setup() {
   sendStatus(END_ST, 0);
   //writeString("");
   //writeString("rx.txt=\"READY\"");
+
 }
 
 
