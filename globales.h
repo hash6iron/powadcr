@@ -1,4 +1,5 @@
 // Variables GLOBALES a todo el proyecto
+
     struct tBlock
     {
         int index;                      // Numero del bloque
@@ -53,10 +54,18 @@ int BYTES_TOBE_LOAD = 0;
 int BYTES_LAST_BLOCK = 0;
 int TOTAL_BLOCKS = 0;
 // Screen
-bool SCREEN_LOADING = 0
-int SCREEN_LINE = 0
-int SCREEN_COL = 0
-int SCREEN_SECTION = 0
+bool SCREEN_LOADING = 0;
+int SCREEN_LINE = 0;
+int SCREEN_COL = 0;
+int SCREEN_SECTION = 0;
+
+// File system
+int FILE_INDEX = 0;          // Índice de la fila seleccionada
+int FILE_PAGE = 0;           // Contador de la pagina leida
+char* FILE_PATH = "";         // Ruta del archivo seleccionado
+int FILE_LAST_DIR_LEVEL = 0; // Nivel de profundida de directorio
+char* FILE_LAST_DIR = "/";
+int FILE_LAST_INDEX = 0;  
 
 // Variables de control de la reproducción
 bool PLAY = false;

@@ -397,6 +397,14 @@ void setup() {
   sendStatus(END_ST, 0);
   //writeString("");
   //writeString("rx.txt=\"READY\"");
+  FILE_SELECTED = true;
+
+  // \games\Classic48\Trashman\TRASHMAN.TAP
+  //sdf.ls("/", LS_R);
+  // sdf.ls("/games/Classic48/Trashman/",LS_R);
+  // Serial.println();
+  // Serial.println();
+  //testFile1();
 
 }
 
@@ -404,10 +412,6 @@ void setup() {
 void loop() {
 
   // Procedimiento principal
-
-  // \games\Classic48\Trashman\TRASHMAN.TAP
-  //sdf.ls("/", LS_R);
-  //sdf.ls("/games/Classic48/Trashman/",LS_R);
 
   //buttonsControl();
   readUART();
@@ -431,7 +435,8 @@ void loop() {
 
     ESP32kit.setVolume(MAIN_VOL);
 
-    if (FILE_SELECTED) {
+    if (FILE_SELECTED) 
+    {
 
       //Serial.println("");
       //Serial.println(ESP.getFreeHeap());
