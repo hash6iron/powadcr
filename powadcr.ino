@@ -397,7 +397,7 @@ void setup() {
   sendStatus(END_ST, 0);
   //writeString("");
   //writeString("rx.txt=\"READY\"");
-  FILE_SELECTED = true;
+  //FILE_SELECTED = true;
 
   // \games\Classic48\Trashman\TRASHMAN.TAP
   //sdf.ls("/", LS_R);
@@ -448,11 +448,18 @@ void loop() {
       sendStatus(STOP_ST, 0);
       sendStatus(PAUSE_ST, 0);
       sendStatus(END_ST, 0);
+
+      Serial.println("");
+      Serial.println("Fichero seleccionado: " + FILE_TO_LOAD);
+      
+      char file_ch[FILE_TO_LOAD.length()];
+      FILE_TO_LOAD.toCharArray(file_ch,FILE_TO_LOAD.length());
+      playTAPfile_ZXSpectrum(file_ch);
       //Serial.println("");
       //Serial.println("Starting TAPE PLAYER.");
       //Serial.println("");
       //playTAPfile_ZXSpectrum("/games/Classic48/Trashman/TRASHMAN.TAP");
-      playTAPfile_ZXSpectrum("/games/Classic128/Castlevania/Castlevania.tap");
+      //playTAPfile_ZXSpectrum("/games/Classic128/Castlevania/Castlevania.tap");
       //playTAPfile_ZXSpectrum((char*)"/games/Classic128/Shovel Adventure/Shovel Adventure ZX 1.2.tap");
       //playTAPfile_ZXSpectrum("/games/Actuales/Donum/Donum_ESPv1.1.tap");
       //playTAPfile_ZXSpectrum("/games/ROMSET/5000 juegos ordenados/D/Dark Fusion (1988)(Gremlin Graphics Software).tap");

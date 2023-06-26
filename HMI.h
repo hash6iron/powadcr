@@ -99,18 +99,9 @@ void testFile1()
 
 }
 
-
-void getFilesFromSD()
+void putInHome()
 {
-    char* szName = (char*)calloc(255,sizeof(char));
-    char* szDirName = (char*)calloc(255,sizeof(char));
-
-    //Serial.println(FILE_LAST_DIR);
-    int pos_in_HMI_file = 0;
-    int i = 0;
-
-    //sdf.chdir(FILE_LAST_DIR);
-
+    FILE_LAST_DIR="/";
     // Open root directory
     if (!dir.open(FILE_LAST_DIR)) 
     {
@@ -120,21 +111,37 @@ void getFilesFromSD()
     dir.rewind();
     file.rewind();
 
-    // Open next file in root.
-    // Warning, openNext starts at the current position of dir so a
-    // rewind may be necessary in your application.
+    dir.close();
+    file.close();
 
-    // while (file.openNext(&dir, O_RDONLY) && i < FILE_LAST_INDEX)
-    // {
-    //     // Buscamos el ultimo indice y vamos pasando ficheros hasta que 
-    //     // llegamos. Una especie de SEEK
-    //     i++;
-    // }
+}
+
+void getFilesFromSD()
+{
+    char* szName = (char*)calloc(255,sizeof(char));
+    char* szDirName = (char*)calloc(255,sizeof(char));
+
+    //Serial.println(FILE_LAST_DIR);
+    int j = 0;
+    int i = 0;
+    
+    FILE_TOTAL_FILES = 0;
+
+
+    if (!dir.open(FILE_LAST_DIR)) 
+    {
+      Serial.println("");
+      Serial.println("dir.open failed");
+    }
+      
+    dir.rewind();
+    file.rewind();
+
     Serial.println();  
     Serial.println("------------------------------------------------------");
     Serial.println(FILE_LAST_DIR);    
 
-    while (file.openNext(&dir, O_RDONLY) && pos_in_HMI_file < 10)
+    while (file.openNext(&dir, O_RDONLY))
     {
         if (file.isDir())
         {
@@ -157,6 +164,32 @@ void getFilesFromSD()
             file.close();
         }
 
+        // Guardamos el fichero en el buffer de ficheros mostrados
+        FILES_BUFF[j] = FILE_LAST_DIR + String(szName);
+
+        j++;
+        FILE_TOTAL_FILES++;
+
+    }
+
+    //writeString("");
+    //writeString("com_stop");
+    Serial.println("Total files");
+    Serial.println(FILE_TOTAL_FILES);   
+
+    dir.close();
+    file.close();
+}
+
+void putFilesInScreen()
+{
+
+  int pos_in_HMI_file = 0;
+  String szName = "";
+
+  for (int i=FILE_PTR_POS;i<FILE_PTR_POS+13;i++)
+  {
+        szName = FILES_BUFF[FILE_PTR_POS + pos_in_HMI_file];
         // Lo trasladamos a la pantalla
         switch(pos_in_HMI_file)
         {
@@ -209,21 +242,30 @@ void getFilesFromSD()
               writeString("");
               writeString("file9.txt=\"" + String(szName) + "\"");
               break;
+
+          case 10:
+              writeString("");
+              writeString("file10.txt=\"" + String(szName) + "\"");
+              break;
+
+          case 11:
+              writeString("");
+              writeString("file11.txt=\"" + String(szName) + "\"");
+              break;
+
+          case 12:
+              writeString("");
+              writeString("file12.txt=\"" + String(szName) + "\"");
+              break;
+
+          case 13:
+              writeString("");
+              writeString("file13.txt=\"" + String(szName) + "\"");
+              break;
         }
-
-        // Pasamos a la siguiente fila de la pantalla
         pos_in_HMI_file++;
-        FILE_LAST_INDEX = FILE_LAST_INDEX + pos_in_HMI_file;
+  }
 
-        //Serial.println(String(pos_in_HMI_file));
-        //Serial.println(String(szName));   
-    }
-
-    //writeString("");
-    //writeString("com_stop");
-   
-    dir.close();
-    file.close();
 }
 
 void verifyCommand(String strCmd) 
@@ -250,17 +292,89 @@ void verifyCommand(String strCmd)
       String num = String(buff[4]+buff[5]);
       FILE_INDEX = num.toInt();
 
-      updateInformationMainPage();
+      //updateInformationMainPage();
   }
 
   if (strCmd.indexOf("GFIL") != -1) 
   {
       // Con este comando nos indica la pantalla que quiere
       // le devolvamos ficheros en la posición actual del puntero
+      putInHome();
       getFilesFromSD();
-      updateInformationMainPage();
+      putFilesInScreen();
+      //updateInformationMainPage();
+      FILE_STATUS = 1;
   }
 
+  if (strCmd.indexOf("FPUP") != -1) 
+  {
+      // Con este comando nos indica la pantalla que quiere
+      // le devolvamos ficheros en la posición actual del puntero
+      FILE_PTR_POS++;
+
+      // if (FILE_PTR_POS > FILE_TOTAL_FILES-14)
+      // {
+      //     FILE_PTR_POS = FILE_TOTAL_FILES-14;
+      // }
+
+      putFilesInScreen();
+      //updateInformationMainPage();
+
+
+  }
+
+  if (strCmd.indexOf("FPDONW") != -1) 
+  {
+      // Con este comando nos indica la pantalla que quiere
+      // le devolvamos ficheros en la posición actual del puntero
+      
+      //updateInformationMainPage();
+  }
+
+  if (strCmd.indexOf("FDIRUP") != -1) 
+  {
+      // Con este comando nos indica la pantalla que quiere
+      // le devolvamos ficheros en la posición actual del puntero
+      
+      //updateInformationMainPage();
+  }
+
+  if (strCmd.indexOf("FPHOME") != -1) 
+  {
+      // Con este comando nos indica la pantalla que quiere
+      // le devolvamos ficheros en la posición actual del puntero
+      putInHome();
+      getFilesFromSD();
+      //updateInformationMainPage();
+  }
+
+  if (strCmd.indexOf("LFI=") != -1) 
+  {
+      // Con este comando nos indica la pantalla que quiere
+      // le devolvamos ficheros en la posición actual del puntero
+      // Cogemos el valor
+
+      // Cargamos el fichero
+      byte buff[7];
+      strCmd.getBytes(buff, 7);
+      String num = String(buff[4]+buff[5]+buff[6]+buff[7]);
+
+      FILE_IDX_SELECTED = num.toInt();
+
+      //Cogemos el fichero
+      FILE_TO_LOAD = FILES_BUFF[FILE_IDX_SELECTED];
+      if (FILE_TO_LOAD != "")
+      {
+          FILE_SELECTED = true;
+      }
+      else
+      {
+          FILE_SELECTED = false;
+      }
+
+      //updateInformationMainPage();
+      FILE_STATUS = 0;
+  }
 
   if (strCmd.indexOf("LCDON") != -1) 
   {

@@ -66,6 +66,12 @@ char* FILE_PATH = "";         // Ruta del archivo seleccionado
 int FILE_LAST_DIR_LEVEL = 0; // Nivel de profundida de directorio
 char* FILE_LAST_DIR = "/";
 int FILE_LAST_INDEX = 0;  
+int FILE_IDX_SELECTED = -1;
+String FILES_BUFF[2000];
+String FILE_TO_LOAD = "";
+int FILE_PTR_POS = 0;
+int FILE_TOTAL_FILES = 0;
+int FILE_STATUS = 0;
 
 // Variables de control de la reproducción
 bool PLAY = false;
