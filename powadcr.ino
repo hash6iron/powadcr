@@ -134,6 +134,30 @@ void test() {
 #endif
 }
 
+void getInfoFileTAP(char* path)
+{
+
+  // Abrimos el fichero
+  sdFile32 = openFile32(sdFile32, path);
+  // Obtenemos su tamaño total
+  int rlen = sdFile32.available();
+  // creamos un objeto TAPproccesor
+  TAPproccesor pTAP(sdFile32, rlen);
+
+  tBlockDescriptor* bDscr = (tBlockDescriptor*)calloc(globalTAP.numBlocks, sizeof(tBlockDescriptor));
+
+  // Inicializamos el buffer de reproducción. Memoria dinamica
+  byte* bufferPlay = NULL;
+
+  // Entregamos información por consola
+  PROGRAM_NAME = globalTAP.name;
+  TOTAL_BLOCKS = globalTAP.numBlocks;
+  LAST_NAME = "..";  
+
+  updateInformationMainPage();
+
+}
+
 void playTAPfile_ZXSpectrum(char* path) {
 
   writeString("");
@@ -150,9 +174,7 @@ void playTAPfile_ZXSpectrum(char* path) {
   // creamos un objeto TAPproccesor
   TAPproccesor pTAP(sdFile32, rlen);
 
-  //struct Vector *vector = malloc(sizeof (struct Vector));
   tBlockDescriptor* bDscr = (tBlockDescriptor*)calloc(globalTAP.numBlocks, sizeof(tBlockDescriptor));
-  //bDscr = globalTAP.descriptor;
 
   // Inicializamos el buffer de reproducción. Memoria dinamica
   byte* bufferPlay = NULL;
@@ -175,9 +197,6 @@ void playTAPfile_ZXSpectrum(char* path) {
   } else {
     BYTES_TOBE_LOAD = rlen - globalTAP.descriptor[BLOCK_SELECTED - 1].offset;
   }
-
-
-
 
   for (int i = m; i < globalTAP.numBlocks; i++) {
 
@@ -376,7 +395,7 @@ void setup() {
   // timerAlarmEnable(Timer0_Cfg);
   LOADING_STATE = 0;
   BLOCK_SELECTED = 0;
-  FILE_SELECTED = true;
+  FILE_SELECTED = false;
 
   // Inicialmente el POWADCR está en STOP
   STOP = true;
@@ -431,12 +450,34 @@ void loop() {
     sendStatus(END_ST, 0);
   }
 
+  if (FILE_SELECTED && !FILE_NOTIFIED)
+  {
+      char* file_ch = (char*)calloc(FILE_TO_LOAD.length()+1,sizeof(char));
+      FILE_TO_LOAD.toCharArray(file_ch,FILE_TO_LOAD.length()+1);
+      
+      Serial.println("++++++++++++++++++++++++++++++++++++++++++++++");
+      Serial.println("");
+      Serial.println(String(file_ch));
+      Serial.println("++++++++++++++++++++++++++++++++++++++++++++++");
+
+      if (FILE_TO_LOAD != "")
+      {
+          LAST_MESSAGE = "Press PLAY to enjoy!";
+          getInfoFileTAP(file_ch);
+          FILE_NOTIFIED = true;        
+      }
+
+  }
+
   if (PLAY == true && LOADING_STATE == 0) {
 
     ESP32kit.setVolume(MAIN_VOL);
 
     if (FILE_SELECTED) 
     {
+
+      char* file_ch = (char*)calloc(FILE_TO_LOAD.length()+1,sizeof(char));
+      FILE_TO_LOAD.toCharArray(file_ch,FILE_TO_LOAD.length()+1);
 
       //Serial.println("");
       //Serial.println(ESP.getFreeHeap());
@@ -449,12 +490,14 @@ void loop() {
       sendStatus(PAUSE_ST, 0);
       sendStatus(END_ST, 0);
 
-      Serial.println("");
-      Serial.println("Fichero seleccionado: " + FILE_TO_LOAD);
+      // Serial.println("");
+      // Serial.println("Fichero seleccionado: " + FILE_TO_LOAD);
       
-      char file_ch[FILE_TO_LOAD.length()];
-      FILE_TO_LOAD.toCharArray(file_ch,FILE_TO_LOAD.length());
+
+      
       playTAPfile_ZXSpectrum(file_ch);
+      
+      
       //Serial.println("");
       //Serial.println("Starting TAPE PLAYER.");
       //Serial.println("");
@@ -466,7 +509,9 @@ void loop() {
       //playTAPfile_ZXSpectrum("/games/ROMSET/5000 juegos ordenados/A/Arkanoid II - Revenge of Doh (1988)(Imagine Software)[128K][Multiface copy].tap");
       //playTAPfile_ZXSpectrum("/games/ROMSET/5000 juegos ordenados/A/Arkanoid II - Revenge of Doh (1988)(Imagine Software)[128K].tap");
       //playTAPfile_ZXSpectrum("/games/ROMSET/5000 juegos ordenados/A/Arkanoid II - Revenge of Doh (1988)(Imagine Software)[cr][128K].tap");
-    } else {
+    } 
+    else 
+    {
       LAST_MESSAGE = "No file was selected.";
       updateInformationMainPage();
     }

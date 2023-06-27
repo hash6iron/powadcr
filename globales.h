@@ -67,11 +67,15 @@ int FILE_LAST_DIR_LEVEL = 0; // Nivel de profundida de directorio
 char* FILE_LAST_DIR = "/";
 int FILE_LAST_INDEX = 0;  
 int FILE_IDX_SELECTED = -1;
-String FILES_BUFF[2000];
+String FILES_BUFF[2000][2];
 String FILE_TO_LOAD = "";
+String FILE_DIR_TO_CHANGE = "";
 int FILE_PTR_POS = 0;
 int FILE_TOTAL_FILES = 0;
 int FILE_STATUS = 0;
+bool FILE_NOTIFIED = false;
+bool FILE_SELECTED = false;
+String FILE_PATH_SELECTED = "";
 
 // Variables de control de la reproducción
 bool PLAY = false;
@@ -86,8 +90,6 @@ bool LEFT = false;
 bool RIGHT = false;
 bool ENTER = false;
 bool LCD_ON = false;
-bool FILE_SELECTED = false;
-String FILE_PATH_SELECTED = "";
 
 //Estado de acciones de reproducción
 const int PLAY_ST = 0;

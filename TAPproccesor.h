@@ -762,6 +762,29 @@ class TAPproccesor
       
       private:
 
+      bool isFileTAP(File32 tapFileName)
+      {
+          // char* szName = (char*)calloc(255,sizeof(char));
+          // String fileName = tapFileName.getName(szName,sizeof(char));
+          
+          // if (fileName != "")
+          // {
+          //     String fileExtension = (fileName.substring(fileName.length()-3)).toUpperCase()
+          //     if (fileExtension = "TAP")
+          //     {
+          //         return true;
+          //     }
+          //     else
+          //     {
+          //         return false;
+          //     }
+          // }
+          // else
+          // {
+          //     return false;
+          // }
+          return true;
+      }
 
       public:
 
@@ -776,10 +799,13 @@ class TAPproccesor
               Serial.println("Getting total blocks...");
           #endif
 
-          getBlockDescriptor(mFile, sizeTAP);
+          if (isFileTAP(mFile))
+          {
+              getBlockDescriptor(mFile, sizeTAP);
 
-          showDescriptorTable();
-          myTAP = globalTAP;   
+              showDescriptorTable();
+              myTAP = globalTAP;   
+          }
       }      
 
       TAPproccesor()
