@@ -107,6 +107,7 @@ int FILE_STATUS = 0;
 bool FILE_NOTIFIED = false;
 bool FILE_SELECTED = false;
 String FILE_PATH_SELECTED = "";
+bool FILE_DIR_OPEN_FAILED = false;
 
 // Variables de control de la reproducción
 bool PLAY = false;

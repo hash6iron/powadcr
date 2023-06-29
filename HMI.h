@@ -101,132 +101,136 @@ void fillDirStructure()
 
 int countFiles(char* path)
 {
-    int fileCount = -1;
-    //dir.close();
-    //file.close();
+    int fileC = -1;
 
-    if (!dir.open(FILE_LAST_DIR)) 
+    dir.rewindDirectory();
+
+    if (dir.open(path)) 
     {
-        dir.rewind();
-        file.rewind();
+        // Si se ha abierto. Partimos de que el directorio
+        // esta vacio.
+        fileC = 0;
 
-        while (file.openNext(&dir, O_RDONLY)) 
+        //file.rewind();
+        char* szName = (char*)calloc(255,sizeof(char));
+
+        while (file.openNext(&dir, O_RDONLY))
         {
-        //if (!file.isHidden()) 
-        //{
-          fileCount++;
-        //}
-        file.close();
+            if (file.isDir())
+            {
+                file.getName(szName,255);
+                sdf.chdir(szName);
+                file.close();
+            }
+            else
+            {
+                // Es un fichero
+                file.getName(szName,255);
+                file.close();
+            }
+            fileC++;
         }
+        //
         dir.close();
     }
-    else
-    {
-        Serial.println("");
-        Serial.println("Count files. Failed!");
-    }
 
-    return fileCount;
+    return fileC;
 }
 
 void getFilesFromSD()
 {
     char* szName = (char*)calloc(255,sizeof(char));
-    char* szDirName = (char*)calloc(255,sizeof(char));
-
-    //Serial.println(FILE_LAST_DIR);
     int j = 0;
-    int i = 0;
-    
-    // Serial.println("");
-    // Serial.println("Path: " + String(FILE_LAST_DIR));
-    // FILE_TOTAL_FILES = countFiles(FILE_LAST_DIR);
-    // Serial.println("");
-    // Serial.println("Count files: " + String(FILE_TOTAL_FILES));
-    FILE_TOTAL_FILES = 1000;
 
     // Dimensionamos el array con calloc
-    FILES_BUFF = (tFileBuffer*)calloc(FILE_TOTAL_FILES,sizeof(tFileBuffer));
+    FILE_TOTAL_FILES = countFiles(FILE_LAST_DIR);
+    FILES_BUFF = (tFileBuffer*)calloc(FILE_TOTAL_FILES+1,sizeof(tFileBuffer));
+
+    FILE_DIR_OPEN_FAILED = false;
     
+    //dir.close();
+
     if (!dir.open(FILE_LAST_DIR)) 
     {
-      Serial.println("");
-      Serial.println("dir.open failed");
+        Serial.println("");
+        Serial.println("dir.open failed");
+        FILE_DIR_OPEN_FAILED = true;
     }
-      
-    dir.rewind();
-    file.rewind();
-
-    Serial.println();  
-    Serial.println("------------------------------------------------------");
-    Serial.println(FILE_LAST_DIR);    
-
-    //  AÑADIMOS AL INICIO EL PARENT DIR
-    FILES_BUFF[0].isDir = true;
-    FILES_BUFF[0].type = "PAR";
-    FILES_BUFF[0].path = String(FILE_PREVIOUS_DIR);
-    j++;
-    
-
-    while (file.openNext(&dir, O_RDONLY))
+    else
     {
-        if (file.isDir())
-        {
-            file.getName(szName,255);
-            //Cambiamos 
-            sdf.chdir(szName);
-            file.rewind();
-            file.close();
-            
-            // //Ponemos un asterisco delante del directorio
-            // strcpy(szDirName,"-");
-            // strcat(szDirName,szName);
-            
-            // //Ahora transfiero todo el nombre
-            // strcpy(szName,szDirName);
+        dir.rewindDirectory();
+        file.rewind();
 
-            FILES_BUFF[j].isDir = true;
-            FILES_BUFF[j].type = "DIR";
-            //continue;
-        }
-        else
-        {
-            // Es un fichero
-            file.getName(szName,255);
-            int8_t len = strlen(szName);
+        Serial.println();  
+        Serial.println("------------------------------------------------------");
+        Serial.println(FILE_LAST_DIR);    
 
-            if (strstr(strlwr(szName + (len - 4)), ".tap")) 
+        //  AÑADIMOS AL INICIO EL PARENT DIR
+        FILES_BUFF[0].isDir = true;
+        FILES_BUFF[0].type = "PAR";
+        FILES_BUFF[0].path = String(FILE_PREVIOUS_DIR);
+        j++;
+        
+
+        while (file.openNext(&dir, O_RDONLY) && j < FILE_TOTAL_FILES)
+        {
+            if (file.isDir())
             {
-                FILES_BUFF[j].type = "TAP";
-            }
-            else if (strstr(strlwr(szName + (len - 4)), ".tzx")) 
-            {
-                FILES_BUFF[j].type = "TZX";
+                file.getName(szName,255);
+                //Cambiamos 
+                sdf.chdir(szName);
+                //file.rewind();
+                file.close();
+                
+                // //Ponemos un asterisco delante del directorio
+                // strcpy(szDirName,"-");
+                // strcat(szDirName,szName);
+                
+                // //Ahora transfiero todo el nombre
+                // strcpy(szName,szDirName);
+
+                FILES_BUFF[j].isDir = true;
+                FILES_BUFF[j].type = "DIR";
+                //continue;
             }
             else
             {
-                FILES_BUFF[j].type = "";
+                // Es un fichero
+                file.getName(szName,255);
+                int8_t len = strlen(szName);
+
+                if (strstr(strlwr(szName + (len - 4)), ".tap")) 
+                {
+                    FILES_BUFF[j].type = "TAP";
+                }
+                else if (strstr(strlwr(szName + (len - 4)), ".tzx")) 
+                {
+                    FILES_BUFF[j].type = "TZX";
+                }
+                else
+                {
+                    FILES_BUFF[j].type = "";
+                }
+
+                file.close();
             }
 
-            file.close();
+
+            // Guardamos el fichero en el buffer de ficheros mostrados
+            FILES_BUFF[j].path = String(szName);
+            j++;
+
         }
 
-
-        // Guardamos el fichero en el buffer de ficheros mostrados
-        FILES_BUFF[j].path = String(szName);
-
-        j++;
         FILE_TOTAL_FILES = j;
 
+        //writeString("");
+        //writeString("com_stop");
+        Serial.println("Total files");
+        Serial.println(FILE_TOTAL_FILES);   
+
+        dir.close();
     }
-
-    //writeString("");
-    //writeString("com_stop");
-    Serial.println("Total files");
-    Serial.println(FILE_TOTAL_FILES);   
-
-    dir.close();
-    file.close();
 }
 
 void printFileRows(int row, int color, String szName)
@@ -353,10 +357,11 @@ char* getPreviousDirFromPath(char* path)
             //ponemos n-1 para que copie también la "/"
             strTmp = (char*)calloc(n+2,sizeof(char));
             strlcpy(strTmp,path,n+2);
-            return strTmp;
             break;
         }
     }
+
+    return strTmp;
 }
 
 void clearFilesInScreen()
@@ -435,7 +440,7 @@ void verifyCommand(String strCmd)
   {
       // Con este procedimiento capturamos el bloque seleccionado
       // desde la pantalla.
-      byte buff[7];
+      byte* buff = (byte*)calloc(8,sizeof(byte));
       strCmd.getBytes(buff, 7);
       String num = String(buff[4]+buff[5]+buff[6]+buff[7]);
       BLOCK_SELECTED = num.toInt();
@@ -447,7 +452,7 @@ void verifyCommand(String strCmd)
   {
       // Con este comando nos indica la pantalla que está en modo FILESYSTEM
       // y nos ha devuelto el numero de la fila pulsada
-      byte buff[7];
+      byte buff[8];
       strCmd.getBytes(buff, 7);
       String num = String(buff[4]+buff[5]);
       FILE_INDEX = num.toInt();
@@ -459,11 +464,16 @@ void verifyCommand(String strCmd)
   {
       // Con este comando nos indica la pantalla que quiere
       // le devolvamos ficheros en la posición actual del puntero
-      putInHome();
+      //putInHome();
+      //FILE_TOTAL_FILES = countFiles(FILE_LAST_DIR) + 1;
+      //Serial.println("");
+      //Serial.println("Count files: " + String(FILE_TOTAL_FILES));
       getFilesFromSD();
-      putFilesInScreen();
-      //updateInformationMainPage();
-      FILE_STATUS = 1;
+      if (!FILE_DIR_OPEN_FAILED)
+      {
+          putFilesInScreen();
+          FILE_STATUS = 1;
+      }
   }
 
   if (strCmd.indexOf("FPUP") != -1) 
@@ -517,7 +527,7 @@ void verifyCommand(String strCmd)
   if (strCmd.indexOf("CHD=") != -1) 
   {
       // Con este comando capturamos el directorio a cambiar
-      byte buff[7];
+      byte* buff = (byte*)calloc(8,sizeof(byte));
       strCmd.getBytes(buff, 7);
       String num = String(buff[4]+buff[5]+buff[6]+buff[7]);
 
@@ -540,13 +550,17 @@ void verifyCommand(String strCmd)
       FILE_PTR_POS = 0;
       clearFilesInScreen();
       getFilesFromSD();
-      putFilesInScreen();
+      if (!FILE_DIR_OPEN_FAILED)
+      {
+          putFilesInScreen();
+      }
   }
   
     if (strCmd.indexOf("PAR=") != -1) 
   {
       // Con este comando capturamos el directorio padre
-      byte buff[7];
+      //byte buff[8];
+      byte* buff = (byte*)calloc(8,sizeof(byte));
       strCmd.getBytes(buff, 7);
       String num = String(buff[4]+buff[5]+buff[6]+buff[7]);
 
@@ -577,7 +591,10 @@ void verifyCommand(String strCmd)
       //
       FILE_PTR_POS = 0;
       clearFilesInScreen();
-      getFilesFromSD();
+      if (!FILE_DIR_OPEN_FAILED)
+      {
+          putFilesInScreen();
+      }
       putFilesInScreen();
   }
 
@@ -587,7 +604,7 @@ void verifyCommand(String strCmd)
       // le devolvamos ficheros en la posición actual del puntero
       // Cogemos el valor
       // Cargamos el fichero
-      byte buff[7];
+      byte* buff = (byte*)calloc(8,sizeof(byte));
       strCmd.getBytes(buff, 7);
       String num = String(buff[4]+buff[5]+buff[6]+buff[7]);
 

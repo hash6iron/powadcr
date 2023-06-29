@@ -143,10 +143,10 @@ void getInfoFileTAP(char* path) {
   // creamos un objeto TAPproccesor
   TAPproccesor pTAP(sdFile32, rlen);
 
-  tBlockDescriptor* bDscr = (tBlockDescriptor*)calloc(globalTAP.numBlocks, sizeof(tBlockDescriptor));
+  //tBlockDescriptor* bDscr = (tBlockDescriptor*)calloc(globalTAP.numBlocks, sizeof(tBlockDescriptor));
 
   // Inicializamos el buffer de reproducción. Memoria dinamica
-  byte* bufferPlay = NULL;
+  //byte* bufferPlay = NULL;
 
   // Entregamos información por consola
   PROGRAM_NAME = globalTAP.name;
@@ -172,7 +172,7 @@ void playTAPfile_ZXSpectrum(char* path) {
   // creamos un objeto TAPproccesor
   TAPproccesor pTAP(sdFile32, rlen);
 
-  tBlockDescriptor* bDscr = (tBlockDescriptor*)calloc(globalTAP.numBlocks, sizeof(tBlockDescriptor));
+  //tBlockDescriptor* bDscr = (tBlockDescriptor*)calloc(globalTAP.numBlocks, sizeof(tBlockDescriptor));
 
   // Inicializamos el buffer de reproducción. Memoria dinamica
   byte* bufferPlay = NULL;
@@ -224,7 +224,7 @@ void playTAPfile_ZXSpectrum(char* path) {
       PAUSE = false;
       STOP = false;
       PLAY = false;
-      LOADING_STATE == 0;
+      LOADING_STATE = 0;
       break;
     }
 

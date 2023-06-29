@@ -232,10 +232,10 @@ class TAPproccesor
           int chk = 0;
           int blockChk = 0;
           int numBlocks = 0;
-          char* blockName = (char*)calloc(10+1,sizeof(char));
-          blockName = "\0";
+          //char* blockName = (char*)calloc(10+1,sizeof(char));
+          //blockName = "\0";
 
-          bool blockNameDetected = false;
+          //bool blockNameDetected = false;
           
           bool reachEndByte = false;
 
@@ -278,7 +278,7 @@ class TAPproccesor
                       if (typeBlock==0)
                       {
 
-                          blockNameDetected = true;
+                          //blockNameDetected = true;
                           state = 1;
                       }
                       else if (typeBlock==1)
@@ -296,7 +296,7 @@ class TAPproccesor
                           // Vemos si es una cabecera de una SCREEN
                           // para ello temporalmente vemos el tamaño del bloque de codigo. Si es 6914 bytes (incluido el checksum y el flag - 6912 + 2 bytes)
                           // es una pantalla SCREEN
-                          blockNameDetected = true;                                              
+                          //blockNameDetected = true;                                              
 
                           int tmpSizeBlock = (256*readFileRange32(mFile,startBlock + sizeB+1,1,false)[0]) + readFileRange32(mFile,startBlock + sizeB,1,false)[0];
 
@@ -792,7 +792,7 @@ class TAPproccesor
       {
           // El constructor se crea a partir de pasarle el TAP completo a la clase TAP proccesor.
           // entonces se analiza y se construye el buffer, etc para poder manejarlo.
-          int totalBlocks = 0;
+          //int totalBlocks = 0;
 
           #ifdef LOG==3
               Serial.println("");
