@@ -1,34 +1,64 @@
 // Variables GLOBALES a todo el proyecto
 
-    struct tBlock
-    {
-        int index;                      // Numero del bloque
-        int offset = 0;                 // Byte donde empieza
-        byte* header = NULL;                   // Cabecera del bloque
-        byte* data = NULL;                     // Datos del bloque
-    };
+struct tBlock 
+{
+  int index;            // Numero del bloque
+  int offset = 0;       // Byte donde empieza
+  byte* header = NULL;  // Cabecera del bloque
+  byte* data = NULL;    // Datos del bloque
+};
 
-    struct tBlockDescriptor
-    {
-        int offset;
-        int size;
-        int chk;
-        char* name;
-        bool nameDetected;
-        bool header;
-        bool screen;
-        int type;
-        char* typeName;
-    };
+struct tBlockDescriptor 
+{
+  int offset;
+  int size;
+  int chk;
+  char* name;
+  bool nameDetected;
+  bool header;
+  bool screen;
+  int type;
+  char* typeName;
+};
 
-    // Estructura tipo TAP
-    struct tTAP
-    {
-        char* name;                    // Nombre del TAP
-        int size;                       // Tamaño
-        int numBlocks;                  // Numero de bloques
-        tBlockDescriptor* descriptor = NULL;   // Descriptor
-    };
+// Estructura tipo TAP
+struct tTAP 
+{
+  char* name;                           // Nombre del TAP
+  int size;                             // Tamaño
+  int numBlocks;                        // Numero de bloques
+  tBlockDescriptor* descriptor = NULL;  // Descriptor
+};
+
+// Estructura de un buffer de ficheros y directorios
+// struct tFile 
+// {
+//   String path;                  // Ruta del fichero completa
+//   char* parentDir;              // Directorio donde está el fichero
+//   char* previousDir;            // Directorio anterior
+//   int indexOfPreviousDir;       // Indice del array donde está el directorio
+//   int indexOfParentDir;         // Indice del directorio actual
+// };
+
+// struct tDir 
+// {
+//   int totalFiles;               // Numero total de ficheros dentro del dir.
+//   int indexOfPreviousDir;       // Indice del array donde está el directorio
+//   int indexOfParentDir;         // Indice del directorio actual
+//   char* dirPreviousPath;        // Ruta del directorio anterior
+//   char* dirPath;                // Ruta de este directorio
+//   bool scaned = false;          // Indica si el dir. ha sido escaneado
+//   tFile* fileBuffer = NULL;     // Buffer de ficheros
+//   tDir*  dirBuffer = NULL;      // Buffer de directorios
+// };
+
+struct tFileBuffer
+{
+    bool isDir;
+    int dirPos;
+    String path;
+    String type;
+};
 
 tTAP globalTAP;
 
@@ -38,7 +68,7 @@ int FILE_LENGTH = 0;
 // Turbo mode
 // 0 - No
 // 1 - Yes
-bool TURBOMODE=false;
+bool TURBOMODE = false;
 
 // Variables para intercambio de información con el HMI
 int LOADING_STATE = 0;
@@ -60,14 +90,15 @@ int SCREEN_COL = 0;
 int SCREEN_SECTION = 0;
 
 // File system
-int FILE_INDEX = 0;          // Índice de la fila seleccionada
-int FILE_PAGE = 0;           // Contador de la pagina leida
+int FILE_INDEX = 0;           // Índice de la fila seleccionada
+int FILE_PAGE = 0;            // Contador de la pagina leida
 char* FILE_PATH = "";         // Ruta del archivo seleccionado
-int FILE_LAST_DIR_LEVEL = 0; // Nivel de profundida de directorio
+int FILE_LAST_DIR_LEVEL = 0;  // Nivel de profundida de directorio
 char* FILE_LAST_DIR = "/";
-int FILE_LAST_INDEX = 0;  
+char* FILE_PREVIOUS_DIR = "/";
+int FILE_LAST_INDEX = 0;
 int FILE_IDX_SELECTED = -1;
-String FILES_BUFF[2000][2];
+tFileBuffer* FILES_BUFF;
 String FILE_TO_LOAD = "";
 String FILE_DIR_TO_CHANGE = "";
 int FILE_PTR_POS = 0;
@@ -136,4 +167,3 @@ bool button3_pressed = false;
 bool button4_pressed = false;
 bool button5_pressed = false;
 bool button6_pressed = false;
-

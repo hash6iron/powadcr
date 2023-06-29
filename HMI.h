@@ -67,9 +67,8 @@ void updateInformationMainPage()
   writeString("g0.txt=\"" + LAST_MESSAGE + "\"");
 }
 
-void testFile1()
+void fillDirStructure()
 {
-
   // Open root directory
   if (!dir.open("/")) {
     Serial.println("dir.open failed");
@@ -99,21 +98,35 @@ void testFile1()
 
 }
 
-void putInHome()
+
+int countFiles(char* path)
 {
-    FILE_LAST_DIR="/";
-    // Open root directory
+    int fileCount = -1;
+    //dir.close();
+    //file.close();
+
     if (!dir.open(FILE_LAST_DIR)) 
     {
-      Serial.println("dir.open failed");
+        dir.rewind();
+        file.rewind();
+
+        while (file.openNext(&dir, O_RDONLY)) 
+        {
+        //if (!file.isHidden()) 
+        //{
+          fileCount++;
+        //}
+        file.close();
+        }
+        dir.close();
     }
-    
-    dir.rewind();
-    file.rewind();
+    else
+    {
+        Serial.println("");
+        Serial.println("Count files. Failed!");
+    }
 
-    dir.close();
-    file.close();
-
+    return fileCount;
 }
 
 void getFilesFromSD()
@@ -125,9 +138,16 @@ void getFilesFromSD()
     int j = 0;
     int i = 0;
     
-    FILE_TOTAL_FILES = 0;
+    // Serial.println("");
+    // Serial.println("Path: " + String(FILE_LAST_DIR));
+    // FILE_TOTAL_FILES = countFiles(FILE_LAST_DIR);
+    // Serial.println("");
+    // Serial.println("Count files: " + String(FILE_TOTAL_FILES));
+    FILE_TOTAL_FILES = 1000;
 
-
+    // Dimensionamos el array con calloc
+    FILES_BUFF = (tFileBuffer*)calloc(FILE_TOTAL_FILES,sizeof(tFileBuffer));
+    
     if (!dir.open(FILE_LAST_DIR)) 
     {
       Serial.println("");
@@ -140,6 +160,13 @@ void getFilesFromSD()
     Serial.println();  
     Serial.println("------------------------------------------------------");
     Serial.println(FILE_LAST_DIR);    
+
+    //  AÑADIMOS AL INICIO EL PARENT DIR
+    FILES_BUFF[0].isDir = true;
+    FILES_BUFF[0].type = "PAR";
+    FILES_BUFF[0].path = String(FILE_PREVIOUS_DIR);
+    j++;
+    
 
     while (file.openNext(&dir, O_RDONLY))
     {
@@ -158,7 +185,8 @@ void getFilesFromSD()
             // //Ahora transfiero todo el nombre
             // strcpy(szName,szDirName);
 
-            FILES_BUFF[j][1] = "DIR";
+            FILES_BUFF[j].isDir = true;
+            FILES_BUFF[j].type = "DIR";
             //continue;
         }
         else
@@ -169,15 +197,15 @@ void getFilesFromSD()
 
             if (strstr(strlwr(szName + (len - 4)), ".tap")) 
             {
-                FILES_BUFF[j][1] = "TAP";
+                FILES_BUFF[j].type = "TAP";
             }
             else if (strstr(strlwr(szName + (len - 4)), ".tzx")) 
             {
-                FILES_BUFF[j][1] = "TZX";
+                FILES_BUFF[j].type = "TZX";
             }
             else
             {
-                FILES_BUFF[j][1] = "";
+                FILES_BUFF[j].type = "";
             }
 
             file.close();
@@ -185,17 +213,10 @@ void getFilesFromSD()
 
 
         // Guardamos el fichero en el buffer de ficheros mostrados
-        if (FILES_BUFF[j][1]=="DIR")
-        {
-            FILES_BUFF[j][0] = String(szName);
-        }
-        else
-        {
-            FILES_BUFF[j][0] = String(szName);
-        }
+        FILES_BUFF[j].path = String(szName);
 
         j++;
-        FILE_TOTAL_FILES++;
+        FILE_TOTAL_FILES = j;
 
     }
 
@@ -208,6 +229,136 @@ void getFilesFromSD()
     file.close();
 }
 
+void printFileRows(int row, int color, String szName)
+{
+      switch(row)
+      {
+        case 0:
+            writeString("");
+            writeString("file0.txt=\"" + String(szName) + "\"");
+            writeString("");
+            writeString("file0.pco=" + String(color));
+            break;
+
+        case 1:
+            writeString("");
+            writeString("file1.txt=\"" + String(szName) + "\"");
+            writeString("");
+            writeString("file1.pco=" + String(color));
+            break;
+
+        case 2:
+            writeString("");
+            writeString("file2.txt=\"" + String(szName) + "\"");
+            writeString("");
+            writeString("file2.pco=" + String(color));
+            break;
+
+        case 3:
+            writeString("");
+            writeString("file3.txt=\"" + String(szName) + "\"");
+            writeString("");
+            writeString("file3.pco=" + String(color));
+            break;
+
+        case 4:
+            writeString("");
+            writeString("file4.txt=\"" + String(szName) + "\"");
+            writeString("");
+            writeString("file4.pco=" + String(color));
+            break;
+
+        case 5:
+            writeString("");
+            writeString("file5.txt=\"" + String(szName) + "\"");
+            writeString("");
+            writeString("file5.pco=" + String(color));
+            break;
+
+        case 6:
+            writeString("");
+            writeString("file6.txt=\"" + String(szName) + "\"");
+            writeString("");
+            writeString("file6.pco=" + String(color));
+            break;
+
+        case 7:
+            writeString("");
+            writeString("file7.txt=\"" + String(szName) + "\"");
+            writeString("");
+            writeString("file7.pco=" + String(color));
+            break;
+
+        case 8:
+            writeString("");
+            writeString("file8.txt=\"" + String(szName) + "\"");
+            writeString("");
+            writeString("file8.pco=" + String(color));
+            break;
+
+        case 9:
+            writeString("");
+            writeString("file9.txt=\"" + String(szName) + "\"");
+            writeString("");
+            writeString("file9.pco=" + String(color));
+            break;
+
+        case 10:
+            writeString("");
+            writeString("file10.txt=\"" + String(szName) + "\"");
+            writeString("");
+            writeString("file10.pco=" + String(color));
+            break;
+
+        case 11:
+            writeString("");
+            writeString("file11.txt=\"" + String(szName) + "\"");
+            writeString("");
+            writeString("file11.pco=" + String(color));
+            break;
+
+        case 12:
+            writeString("");
+            writeString("file12.txt=\"" + String(szName) + "\"");
+            writeString("");
+            writeString("file12.pco=" + String(color));
+            break;
+
+        case 13:
+            writeString("");
+            writeString("file13.txt=\"" + String(szName) + "\"");
+            writeString("");
+            writeString("file13.pco=" + String(color));
+            break;
+        }  
+}
+
+char* getPreviousDirFromPath(char* path)
+{
+    char* strTmp = (char*)calloc(1,sizeof(char));
+    strTmp = "/";
+    int lpath = strlen(path);
+    
+    Serial.println("");          
+    Serial.println("- PATH - LEN: " + String(lpath));
+
+    for (int n=lpath-2;n>1;n--)
+    {
+        char chrRead = path[n];
+        if (chrRead == '/')
+        {
+            Serial.println("");          
+            Serial.println("- PATH - POS: " + String(n+2));
+            //Copiamos ahora el trozo de cadena restante
+            //ponemos n-1 para que copie también la "/"
+            strTmp = (char*)calloc(n+2,sizeof(char));
+            strlcpy(strTmp,path,n+2);
+            return strTmp;
+            break;
+        }
+    }
+}
+
 void clearFilesInScreen()
 {
   String szName = "";
@@ -216,108 +367,8 @@ void clearFilesInScreen()
 
   for (int i=0;i<=13;i++)
   {
-
-        switch(pos_in_HMI_file)
-        {
-          case 0:
-              writeString("");
-              writeString("file0.txt=\"" + String(szName) + "\"");
-              writeString("");
-              writeString("file0.pco=" + String(color));
-              break;
-
-          case 1:
-              writeString("");
-              writeString("file1.txt=\"" + String(szName) + "\"");
-              writeString("");
-              writeString("file1.pco=" + String(color));
-              break;
-
-          case 2:
-              writeString("");
-              writeString("file2.txt=\"" + String(szName) + "\"");
-              writeString("");
-              writeString("file2.pco=" + String(color));
-              break;
-
-          case 3:
-              writeString("");
-              writeString("file3.txt=\"" + String(szName) + "\"");
-              writeString("");
-              writeString("file3.pco=" + String(color));
-              break;
-
-          case 4:
-              writeString("");
-              writeString("file4.txt=\"" + String(szName) + "\"");
-              writeString("");
-              writeString("file4.pco=" + String(color));
-              break;
-
-          case 5:
-              writeString("");
-              writeString("file5.txt=\"" + String(szName) + "\"");
-              writeString("");
-              writeString("file5.pco=" + String(color));
-              break;
-
-          case 6:
-              writeString("");
-              writeString("file6.txt=\"" + String(szName) + "\"");
-              writeString("");
-              writeString("file6.pco=" + String(color));
-              break;
-
-          case 7:
-              writeString("");
-              writeString("file7.txt=\"" + String(szName) + "\"");
-              writeString("");
-              writeString("file7.pco=" + String(color));
-              break;
-
-          case 8:
-              writeString("");
-              writeString("file8.txt=\"" + String(szName) + "\"");
-              writeString("");
-              writeString("file8.pco=" + String(color));
-              break;
-
-          case 9:
-              writeString("");
-              writeString("file9.txt=\"" + String(szName) + "\"");
-              writeString("");
-              writeString("file9.pco=" + String(color));
-              break;
-
-          case 10:
-              writeString("");
-              writeString("file10.txt=\"" + String(szName) + "\"");
-              writeString("");
-              writeString("file10.pco=" + String(color));
-              break;
-
-          case 11:
-              writeString("");
-              writeString("file11.txt=\"" + String(szName) + "\"");
-              writeString("");
-              writeString("file11.pco=" + String(color));
-              break;
-
-          case 12:
-              writeString("");
-              writeString("file12.txt=\"" + String(szName) + "\"");
-              writeString("");
-              writeString("file12.pco=" + String(color));
-              break;
-
-          case 13:
-              writeString("");
-              writeString("file13.txt=\"" + String(szName) + "\"");
-              writeString("");
-              writeString("file13.pco=" + String(color));
-              break;
-        }
-        pos_in_HMI_file++;
+      printFileRows(pos_in_HMI_file, color, szName);
+      pos_in_HMI_file++;
   }
 
 }
@@ -333,8 +384,8 @@ void putFilesInScreen()
   
   for (int i=FILE_PTR_POS;i<=FILE_PTR_POS+13;i++)
   {
-        szName = FILES_BUFF[FILE_PTR_POS + pos_in_HMI_file][0];
-        type = FILES_BUFF[FILE_PTR_POS + pos_in_HMI_file][1];
+        szName = FILES_BUFF[FILE_PTR_POS + pos_in_HMI_file].path;
+        type = FILES_BUFF[FILE_PTR_POS + pos_in_HMI_file].type;
         // Lo trasladamos a la pantalla
         Serial.println("");
         Serial.println("-->" + type);
@@ -344,6 +395,12 @@ void putFilesInScreen()
             color = 60868;  // Amarillo
             szName = String("<DIR>  ") + szName;
         }
+        else if (type == "PAR")
+        {
+            //Parent DIR
+            color = 2016;  // Verde
+            szName = String("..     ") + szName;
+        }        
         else if (type == "TAP" || type == "TZX")
         {
             //Fichero
@@ -354,109 +411,21 @@ void putFilesInScreen()
             color = 44405;  // gris apagado
         }
 
-        switch(pos_in_HMI_file)
-        {
-          case 0:
-              writeString("");
-              writeString("file0.txt=\"" + String(szName) + "\"");
-              writeString("");
-              writeString("file0.pco=" + String(color));
-              break;
-
-          case 1:
-              writeString("");
-              writeString("file1.txt=\"" + String(szName) + "\"");
-              writeString("");
-              writeString("file1.pco=" + String(color));
-              break;
-
-          case 2:
-              writeString("");
-              writeString("file2.txt=\"" + String(szName) + "\"");
-              writeString("");
-              writeString("file2.pco=" + String(color));
-              break;
-
-          case 3:
-              writeString("");
-              writeString("file3.txt=\"" + String(szName) + "\"");
-              writeString("");
-              writeString("file3.pco=" + String(color));
-              break;
-
-          case 4:
-              writeString("");
-              writeString("file4.txt=\"" + String(szName) + "\"");
-              writeString("");
-              writeString("file4.pco=" + String(color));
-              break;
-
-          case 5:
-              writeString("");
-              writeString("file5.txt=\"" + String(szName) + "\"");
-              writeString("");
-              writeString("file5.pco=" + String(color));
-              break;
-
-          case 6:
-              writeString("");
-              writeString("file6.txt=\"" + String(szName) + "\"");
-              writeString("");
-              writeString("file6.pco=" + String(color));
-              break;
-
-          case 7:
-              writeString("");
-              writeString("file7.txt=\"" + String(szName) + "\"");
-              writeString("");
-              writeString("file7.pco=" + String(color));
-              break;
-
-          case 8:
-              writeString("");
-              writeString("file8.txt=\"" + String(szName) + "\"");
-              writeString("");
-              writeString("file8.pco=" + String(color));
-              break;
-
-          case 9:
-              writeString("");
-              writeString("file9.txt=\"" + String(szName) + "\"");
-              writeString("");
-              writeString("file9.pco=" + String(color));
-              break;
-
-          case 10:
-              writeString("");
-              writeString("file10.txt=\"" + String(szName) + "\"");
-              writeString("");
-              writeString("file10.pco=" + String(color));
-              break;
-
-          case 11:
-              writeString("");
-              writeString("file11.txt=\"" + String(szName) + "\"");
-              writeString("");
-              writeString("file11.pco=" + String(color));
-              break;
-
-          case 12:
-              writeString("");
-              writeString("file12.txt=\"" + String(szName) + "\"");
-              writeString("");
-              writeString("file12.pco=" + String(color));
-              break;
-
-          case 13:
-              writeString("");
-              writeString("file13.txt=\"" + String(szName) + "\"");
-              writeString("");
-              writeString("file13.pco=" + String(color));
-              break;
-        }
+        printFileRows(pos_in_HMI_file, color, szName);
         pos_in_HMI_file++;
   }
 
+}
+
+void putInHome()
+{
+    FILE_LAST_DIR="/";
+    FILE_PREVIOUS_DIR="/";
+    // Open root directory
+    FILE_PTR_POS = 0;
+    clearFilesInScreen();
+    getFilesFromSD();
+    putFilesInScreen();
 }
 
 void verifyCommand(String strCmd) 
@@ -555,10 +524,11 @@ void verifyCommand(String strCmd)
       FILE_IDX_SELECTED = num.toInt();
 
       //Cogemos el directorio
-      FILE_DIR_TO_CHANGE = FILE_LAST_DIR + FILES_BUFF[FILE_IDX_SELECTED + FILE_PTR_POS][0] + "/";    
+      FILE_DIR_TO_CHANGE = FILE_LAST_DIR + FILES_BUFF[FILE_IDX_SELECTED + FILE_PTR_POS].path + "/";    
 
       char* dir_ch = (char*)calloc(FILE_DIR_TO_CHANGE.length()+1,sizeof(char));
       FILE_DIR_TO_CHANGE.toCharArray(dir_ch,FILE_DIR_TO_CHANGE.length()+1);
+      FILE_PREVIOUS_DIR = FILE_LAST_DIR;
       FILE_LAST_DIR = dir_ch;
       //;
 
@@ -573,6 +543,44 @@ void verifyCommand(String strCmd)
       putFilesInScreen();
   }
   
+    if (strCmd.indexOf("PAR=") != -1) 
+  {
+      // Con este comando capturamos el directorio padre
+      byte buff[7];
+      strCmd.getBytes(buff, 7);
+      String num = String(buff[4]+buff[5]+buff[6]+buff[7]);
+
+      FILE_IDX_SELECTED = num.toInt();
+
+      //Cogemos el directorio
+      FILE_DIR_TO_CHANGE = FILES_BUFF[FILE_IDX_SELECTED + FILE_PTR_POS].path;    
+
+      char* dir_ch = (char*)calloc(FILE_DIR_TO_CHANGE.length()+1,sizeof(char));
+      FILE_DIR_TO_CHANGE.toCharArray(dir_ch,FILE_DIR_TO_CHANGE.length()+1);
+      FILE_LAST_DIR = dir_ch;
+
+      if (FILE_DIR_TO_CHANGE.length() == 1)
+      {
+          //Es el nivel mas alto
+          FILE_PREVIOUS_DIR = "/";
+      }
+      else
+      {
+          //Cogemos el directorio anterior de la cadena
+          Serial.println("");          
+          Serial.println("- DIR PREVIOUS -");
+          FILE_PREVIOUS_DIR = (char*)calloc(FILE_DIR_TO_CHANGE.length(),sizeof(char));
+          FILE_PREVIOUS_DIR = getPreviousDirFromPath(FILE_LAST_DIR);
+          Serial.println(FILE_PREVIOUS_DIR);
+      }
+      //
+      //
+      FILE_PTR_POS = 0;
+      clearFilesInScreen();
+      getFilesFromSD();
+      putFilesInScreen();
+  }
+
   if (strCmd.indexOf("LFI=") != -1) 
   {
       // Con este comando nos indica la pantalla que quiere
@@ -586,7 +594,7 @@ void verifyCommand(String strCmd)
       FILE_IDX_SELECTED = num.toInt();
 
       //Cogemos el fichero
-      FILE_TO_LOAD = FILE_LAST_DIR + FILES_BUFF[FILE_IDX_SELECTED + FILE_PTR_POS][0];
+      FILE_TO_LOAD = FILE_LAST_DIR + FILES_BUFF[FILE_IDX_SELECTED + FILE_PTR_POS].path;
 
       if (FILE_TO_LOAD != "")
       {
@@ -605,7 +613,7 @@ void verifyCommand(String strCmd)
 
   if (strCmd.indexOf("LCDON") != -1) 
   {
-    LCD_ON = true;
+      LCD_ON = true;
   }
 
   if (strCmd.indexOf("FFWD") != -1) 

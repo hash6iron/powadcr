@@ -134,8 +134,7 @@ void test() {
 #endif
 }
 
-void getInfoFileTAP(char* path)
-{
+void getInfoFileTAP(char* path) {
 
   // Abrimos el fichero
   sdFile32 = openFile32(sdFile32, path);
@@ -152,10 +151,9 @@ void getInfoFileTAP(char* path)
   // Entregamos información por consola
   PROGRAM_NAME = globalTAP.name;
   TOTAL_BLOCKS = globalTAP.numBlocks;
-  LAST_NAME = "..";  
+  LAST_NAME = "..";
 
   updateInformationMainPage();
-
 }
 
 void playTAPfile_ZXSpectrum(char* path) {
@@ -366,10 +364,14 @@ void setup() {
   Serial.println("");
   Serial.println("Waiting for LCD.");
   Serial.println("");
+  LAST_MESSAGE = "...";
 
   //Esperamos a la pantalla
-  while (!LCD_ON) {
+  while (!LCD_ON) 
+  {
     readUART();
+    Serial.flush();
+    delay(250);
   }
 
   Serial.println("");
@@ -424,7 +426,6 @@ void setup() {
   // Serial.println();
   // Serial.println();
   //testFile1();
-
 }
 
 
@@ -450,34 +451,30 @@ void loop() {
     sendStatus(END_ST, 0);
   }
 
-  if (FILE_SELECTED && !FILE_NOTIFIED)
-  {
-      char* file_ch = (char*)calloc(FILE_TO_LOAD.length()+1,sizeof(char));
-      FILE_TO_LOAD.toCharArray(file_ch,FILE_TO_LOAD.length()+1);
-      
-      Serial.println("++++++++++++++++++++++++++++++++++++++++++++++");
-      Serial.println("");
-      Serial.println(String(file_ch));
-      Serial.println("++++++++++++++++++++++++++++++++++++++++++++++");
+  if (FILE_SELECTED && !FILE_NOTIFIED) {
+    char* file_ch = (char*)calloc(FILE_TO_LOAD.length() + 1, sizeof(char));
+    FILE_TO_LOAD.toCharArray(file_ch, FILE_TO_LOAD.length() + 1);
 
-      if (FILE_TO_LOAD != "")
-      {
-          LAST_MESSAGE = "Press PLAY to enjoy!";
-          getInfoFileTAP(file_ch);
-          FILE_NOTIFIED = true;        
-      }
+    Serial.println("++++++++++++++++++++++++++++++++++++++++++++++");
+    Serial.println("");
+    Serial.println(String(file_ch));
+    Serial.println("++++++++++++++++++++++++++++++++++++++++++++++");
 
+    if (FILE_TO_LOAD != "") {
+      LAST_MESSAGE = "Press PLAY to enjoy!";
+      getInfoFileTAP(file_ch);
+      FILE_NOTIFIED = true;
+    }
   }
 
   if (PLAY == true && LOADING_STATE == 0) {
 
     ESP32kit.setVolume(MAIN_VOL);
 
-    if (FILE_SELECTED) 
-    {
+    if (FILE_SELECTED) {
 
-      char* file_ch = (char*)calloc(FILE_TO_LOAD.length()+1,sizeof(char));
-      FILE_TO_LOAD.toCharArray(file_ch,FILE_TO_LOAD.length()+1);
+      char* file_ch = (char*)calloc(FILE_TO_LOAD.length() + 1, sizeof(char));
+      FILE_TO_LOAD.toCharArray(file_ch, FILE_TO_LOAD.length() + 1);
 
       //Serial.println("");
       //Serial.println(ESP.getFreeHeap());
@@ -492,12 +489,12 @@ void loop() {
 
       // Serial.println("");
       // Serial.println("Fichero seleccionado: " + FILE_TO_LOAD);
-      
 
-      
+
+
       playTAPfile_ZXSpectrum(file_ch);
-      
-      
+
+
       //Serial.println("");
       //Serial.println("Starting TAPE PLAYER.");
       //Serial.println("");
@@ -509,9 +506,7 @@ void loop() {
       //playTAPfile_ZXSpectrum("/games/ROMSET/5000 juegos ordenados/A/Arkanoid II - Revenge of Doh (1988)(Imagine Software)[128K][Multiface copy].tap");
       //playTAPfile_ZXSpectrum("/games/ROMSET/5000 juegos ordenados/A/Arkanoid II - Revenge of Doh (1988)(Imagine Software)[128K].tap");
       //playTAPfile_ZXSpectrum("/games/ROMSET/5000 juegos ordenados/A/Arkanoid II - Revenge of Doh (1988)(Imagine Software)[cr][128K].tap");
-    } 
-    else 
-    {
+    } else {
       LAST_MESSAGE = "No file was selected.";
       updateInformationMainPage();
     }
