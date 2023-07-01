@@ -15,14 +15,7 @@ void writeString(String stringData)
     Serial.write(0xff);
     Serial.write(0xff);
     Serial.write(0xff);
-  // } 
-  // else 
-  // {
-  //   Serial.flush();
-  //   Serial.println("");
-  //   Serial.println("OVERFLOW FLUSHED!!!");
-  //   Serial.println("");
-  // }
+
 }
 
 void updateInformationMainPage() 
@@ -67,36 +60,36 @@ void updateInformationMainPage()
   writeString("g0.txt=\"" + LAST_MESSAGE + "\"");
 }
 
-void fillDirStructure()
-{
-  // Open root directory
-  if (!dir.open("/")) {
-    Serial.println("dir.open failed");
-  }
-  // Open next file in root.
-  // Warning, openNext starts at the current position of dir so a
-  // rewind may be necessary in your application.
-  while (file.openNext(&dir, O_RDONLY)) {
-    file.printFileSize(&Serial);
-    Serial.write(' ');
-    file.printModifyDateTime(&Serial);
-    Serial.write(' ');
-    file.printName(&Serial);
-    if (file.isDir()) {
-      // Indicate a directory.
-      Serial.write('/');
-    }
-    Serial.println();
-    file.close();
-  }
-  if (dir.getError()) {
-    Serial.println("openNext failed");
-  } else {
-    Serial.println("Done!");
-    dir.close();
-  }
+// void fillDirStructure()
+// {
+//   // Open root directory
+//   if (!dir.open("/")) {
+//     Serial.println("dir.open failed");
+//   }
+//   // Open next file in root.
+//   // Warning, openNext starts at the current position of dir so a
+//   // rewind may be necessary in your application.
+//   while (file.openNext(&dir, O_RDONLY)) {
+//     file.printFileSize(&Serial);
+//     Serial.write(' ');
+//     file.printModifyDateTime(&Serial);
+//     Serial.write(' ');
+//     file.printName(&Serial);
+//     if (file.isDir()) {
+//       // Indicate a directory.
+//       Serial.write('/');
+//     }
+//     Serial.println();
+//     file.close();
+//   }
+//   if (dir.getError()) {
+//     Serial.println("openNext failed");
+//   } else {
+//     Serial.println("Done!");
+//     dir.close();
+//   }
 
-}
+// }
 
 
 int countFiles(char* path)
@@ -143,13 +136,18 @@ void getFilesFromSD()
     int j = 0;
 
     // Dimensionamos el array con calloc
-    FILE_TOTAL_FILES = countFiles(FILE_LAST_DIR);
+    if (FILES_BUFF != NULL)
+    {
+        // Liberamos primero el espacio anterior
+        free(FILES_BUFF);
+    }
+
+    //FILE_TOTAL_FILES = countFiles(FILE_LAST_DIR);
+    FILE_TOTAL_FILES = 2000;
     FILES_BUFF = (tFileBuffer*)calloc(FILE_TOTAL_FILES+1,sizeof(tFileBuffer));
 
     FILE_DIR_OPEN_FAILED = false;
     
-    //dir.close();
-
     if (!dir.open(FILE_LAST_DIR)) 
     {
         Serial.println("");
@@ -161,74 +159,65 @@ void getFilesFromSD()
         dir.rewindDirectory();
         file.rewind();
 
-        Serial.println();  
-        Serial.println("------------------------------------------------------");
-        Serial.println(FILE_LAST_DIR);    
-
         //  AÑADIMOS AL INICIO EL PARENT DIR
         FILES_BUFF[0].isDir = true;
         FILES_BUFF[0].type = "PAR";
         FILES_BUFF[0].path = String(FILE_PREVIOUS_DIR);
         j++;
         
-
         while (file.openNext(&dir, O_RDONLY) && j < FILE_TOTAL_FILES)
         {
             if (file.isDir())
             {
-                file.getName(szName,255);
-                //Cambiamos 
-                sdf.chdir(szName);
-                //file.rewind();
-                file.close();
-                
-                // //Ponemos un asterisco delante del directorio
-                // strcpy(szDirName,"-");
-                // strcat(szDirName,szName);
-                
-                // //Ahora transfiero todo el nombre
-                // strcpy(szName,szDirName);
+                if (!file.isHidden())
+                {
+                    file.getName(szName,255);
+                    //Cambiamos 
+                    sdf.chdir(szName);
+                   
+                    FILES_BUFF[j].isDir = true;
+                    FILES_BUFF[j].type = "DIR";
 
-                FILES_BUFF[j].isDir = true;
-                FILES_BUFF[j].type = "DIR";
+                    // Guardamos el fichero en el buffer de ficheros mostrados
+                    FILES_BUFF[j].path = String(szName);
+                    j++;
+                }
+
                 //continue;
             }
             else
             {
-                // Es un fichero
-                file.getName(szName,255);
-                int8_t len = strlen(szName);
+                if (!file.isHidden())
+                {
+                    // Es un fichero
+                    file.getName(szName,255);
+                    int8_t len = strlen(szName);
 
-                if (strstr(strlwr(szName + (len - 4)), ".tap")) 
-                {
-                    FILES_BUFF[j].type = "TAP";
-                }
-                else if (strstr(strlwr(szName + (len - 4)), ".tzx")) 
-                {
-                    FILES_BUFF[j].type = "TZX";
-                }
-                else
-                {
-                    FILES_BUFF[j].type = "";
-                }
+                    if (strstr(strlwr(szName + (len - 4)), ".tap")) 
+                    {
+                        FILES_BUFF[j].type = "TAP";
+                    }
+                    else if (strstr(strlwr(szName + (len - 4)), ".tzx")) 
+                    {
+                        FILES_BUFF[j].type = "TZX";
+                    }
+                    else
+                    {
+                        FILES_BUFF[j].type = "";
+                    }
 
-                file.close();
+                    // Guardamos el fichero en el buffer de ficheros mostrados
+                    FILES_BUFF[j].path = String(szName);
+                    j++;
+                }
             }
+            
+            file.close();
 
-
-            // Guardamos el fichero en el buffer de ficheros mostrados
-            FILES_BUFF[j].path = String(szName);
-            j++;
 
         }
 
         FILE_TOTAL_FILES = j;
-
-        //writeString("");
-        //writeString("com_stop");
-        Serial.println("Total files");
-        Serial.println(FILE_TOTAL_FILES);   
-
         dir.close();
     }
 }
@@ -328,31 +317,21 @@ void printFileRows(int row, int color, String szName)
             writeString("file12.pco=" + String(color));
             break;
 
-        case 13:
-            writeString("");
-            writeString("file13.txt=\"" + String(szName) + "\"");
-            writeString("");
-            writeString("file13.pco=" + String(color));
-            break;
         }  
 }
 
 char* getPreviousDirFromPath(char* path)
 {
-    char* strTmp = (char*)calloc(1,sizeof(char));
+    char* strTmp = (char*)calloc(2,sizeof(char));
     strTmp = "/";
     int lpath = strlen(path);
     
-    Serial.println("");          
-    Serial.println("- PATH - LEN: " + String(lpath));
-
     for (int n=lpath-2;n>1;n--)
     {
         char chrRead = path[n];
+        
         if (chrRead == '/')
         {
-            Serial.println("");          
-            Serial.println("- PATH - POS: " + String(n+2));
             //Copiamos ahora el trozo de cadena restante
             //ponemos n-1 para que copie también la "/"
             strTmp = (char*)calloc(n+2,sizeof(char));
@@ -381,31 +360,43 @@ void clearFilesInScreen()
 void putFilesInScreen()
 {
 
+  //Antes de empezar, limpiamos el buffer
+  //para evitar que se colapse
+
   int pos_in_HMI_file = 0;
   String szName = "";
   String type="";
 
   int color = 65535; //60868
   
-  for (int i=FILE_PTR_POS;i<=FILE_PTR_POS+13;i++)
+  if (FILE_PTR_POS==0)
+  {
+      // Esto es solo para el parent dir, para que siempre salga arriba
+      szName = FILES_BUFF[FILE_PTR_POS].path;
+      color = 2016;  // Verde
+      szName = String("..     ") + szName;
+      
+      writeString("");
+      writeString("prevDir.txt=\"" + String(szName) + "\"");
+      writeString("");
+      writeString("prevDir.pco=" + String(color));
+      
+      // Descartamos la posición cero del buffer porque es una posición especial
+      FILE_PTR_POS=1;
+  }
+
+  for (int i=FILE_PTR_POS;i<=FILE_PTR_POS+12;i++)
   {
         szName = FILES_BUFF[FILE_PTR_POS + pos_in_HMI_file].path;
         type = FILES_BUFF[FILE_PTR_POS + pos_in_HMI_file].type;
+        
         // Lo trasladamos a la pantalla
-        Serial.println("");
-        Serial.println("-->" + type);
         if (type == "DIR")
         {
             //Directorio
             color = 60868;  // Amarillo
             szName = String("<DIR>  ") + szName;
-        }
-        else if (type == "PAR")
-        {
-            //Parent DIR
-            color = 2016;  // Verde
-            szName = String("..     ") + szName;
-        }        
+        }     
         else if (type == "TAP" || type == "TZX")
         {
             //Fichero
@@ -468,19 +459,27 @@ void verifyCommand(String strCmd)
       //FILE_TOTAL_FILES = countFiles(FILE_LAST_DIR) + 1;
       //Serial.println("");
       //Serial.println("Count files: " + String(FILE_TOTAL_FILES));
+      writeString("");
+      writeString("statusFILE.txt=\"GETTING FILES\"");
+
       getFilesFromSD();
+
       if (!FILE_DIR_OPEN_FAILED)
       {
           putFilesInScreen();
           FILE_STATUS = 1;
       }
+
+      writeString("");
+      writeString("statusFILE.txt=\"\"");
+
   }
 
   if (strCmd.indexOf("FPUP") != -1) 
   {
       // Con este comando nos indica la pantalla que quiere
       // le devolvamos ficheros en la posición actual del puntero
-      FILE_PTR_POS = FILE_PTR_POS - 14;
+      FILE_PTR_POS = FILE_PTR_POS - 13;
 
       if (FILE_PTR_POS < 0)
       {
@@ -496,22 +495,14 @@ void verifyCommand(String strCmd)
       // Con este comando nos indica la pantalla que quiere
       // le devolvamos ficheros en la posición actual del puntero
 
-      FILE_PTR_POS = FILE_PTR_POS + 14;
+      FILE_PTR_POS = FILE_PTR_POS + 13;
 
-      if (FILE_PTR_POS > (FILE_TOTAL_FILES-14))
+      if (FILE_PTR_POS > (FILE_TOTAL_FILES-13))
       {
-          FILE_PTR_POS = FILE_TOTAL_FILES-14;
+          FILE_PTR_POS = FILE_TOTAL_FILES-13;
       }
       
       putFilesInScreen();      
-      //updateInformationMainPage();
-  }
-
-  if (strCmd.indexOf("FDIRUP") != -1) 
-  {
-      // Con este comando nos indica la pantalla que quiere
-      // le devolvamos ficheros en la posición actual del puntero
-      
       //updateInformationMainPage();
   }
 
@@ -520,8 +511,15 @@ void verifyCommand(String strCmd)
       // Con este comando nos indica la pantalla que quiere
       // le devolvamos ficheros en la posición actual del puntero
       putInHome();
+
+      writeString("");
+      writeString("statusFILE.txt=\"GETTING FILES\"");
+
       getFilesFromSD();
-      //updateInformationMainPage();
+
+      writeString("");
+      writeString("statusFILE.txt=\"\"");
+
   }
 
   if (strCmd.indexOf("CHD=") != -1) 
@@ -540,34 +538,37 @@ void verifyCommand(String strCmd)
       FILE_DIR_TO_CHANGE.toCharArray(dir_ch,FILE_DIR_TO_CHANGE.length()+1);
       FILE_PREVIOUS_DIR = FILE_LAST_DIR;
       FILE_LAST_DIR = dir_ch;
-      //;
 
-      Serial.println("- DIR -");
-      Serial.println(FILE_LAST_DIR);
-      
-      //
-      //
       FILE_PTR_POS = 0;
       clearFilesInScreen();
+
+      writeString("");
+      writeString("statusFILE.txt=\"GETTING FILES\"");
+
       getFilesFromSD();
+      
       if (!FILE_DIR_OPEN_FAILED)
       {
           putFilesInScreen();
       }
+      
+      writeString("");
+      writeString("statusFILE.txt=\"\"");
   }
   
     if (strCmd.indexOf("PAR=") != -1) 
   {
       // Con este comando capturamos el directorio padre
       //byte buff[8];
-      byte* buff = (byte*)calloc(8,sizeof(byte));
-      strCmd.getBytes(buff, 7);
-      String num = String(buff[4]+buff[5]+buff[6]+buff[7]);
+      // byte* buff = (byte*)calloc(8,sizeof(byte));
+      // strCmd.getBytes(buff, 7);
+      // String num = String(buff[4]+buff[5]+buff[6]+buff[7]);
 
-      FILE_IDX_SELECTED = num.toInt();
+      // FILE_IDX_SELECTED = num.toInt();
 
-      //Cogemos el directorio
-      FILE_DIR_TO_CHANGE = FILES_BUFF[FILE_IDX_SELECTED + FILE_PTR_POS].path;    
+      //Cogemos el directorio padre que siempre estará en el prevDir y por tanto
+      //no hay que calcular la posición
+      FILE_DIR_TO_CHANGE = FILES_BUFF[0].path;    
 
       char* dir_ch = (char*)calloc(FILE_DIR_TO_CHANGE.length()+1,sizeof(char));
       FILE_DIR_TO_CHANGE.toCharArray(dir_ch,FILE_DIR_TO_CHANGE.length()+1);
@@ -581,21 +582,27 @@ void verifyCommand(String strCmd)
       else
       {
           //Cogemos el directorio anterior de la cadena
-          Serial.println("");          
-          Serial.println("- DIR PREVIOUS -");
           FILE_PREVIOUS_DIR = (char*)calloc(FILE_DIR_TO_CHANGE.length(),sizeof(char));
           FILE_PREVIOUS_DIR = getPreviousDirFromPath(FILE_LAST_DIR);
-          Serial.println(FILE_PREVIOUS_DIR);
       }
       //
       //
       FILE_PTR_POS = 0;
       clearFilesInScreen();
+
+      writeString("");
+      writeString("statusFILE.txt=\"GETTING FILES\"");
+      
+      getFilesFromSD();
+      
       if (!FILE_DIR_OPEN_FAILED)
       {
           putFilesInScreen();
       }
-      putFilesInScreen();
+
+      writeString("");
+      writeString("statusFILE.txt=\"\"");
+
   }
 
   if (strCmd.indexOf("LFI=") != -1) 
@@ -670,9 +677,6 @@ void verifyCommand(String strCmd)
     PAUSE = false;
     STOP = false;
 
-    Serial.println("");
-    Serial.print("PLAY pressed");
-
     LAST_MESSAGE = "Loading in progress. Please wait.";
     updateInformationMainPage();
   }
@@ -682,9 +686,6 @@ void verifyCommand(String strCmd)
     PLAY = false;
     PAUSE = true;
     STOP = false;
-
-    Serial.println("");
-    Serial.print("PAUSE pressed");
 
     LAST_MESSAGE = "Tape paused. Press play to continue load.";
     updateInformationMainPage();
@@ -697,9 +698,6 @@ void verifyCommand(String strCmd)
     STOP = true;
     BLOCK_SELECTED = 0;
     BYTES_LOADED = 0;
-
-    Serial.println("");
-    Serial.print("STOP pressed");
 
     LAST_MESSAGE = "Tape stop. Press play to start again.";
     writeString("");
@@ -718,9 +716,6 @@ void verifyCommand(String strCmd)
     STOP = true;
     BLOCK_SELECTED = 0;
     BYTES_LOADED = 0;
-
-    Serial.println("");
-    Serial.print("STOP pressed");
 
     LAST_MESSAGE = "Tape stop. Press play to start again.";
     writeString("");
@@ -785,5 +780,6 @@ void serialSendData(String data)
   else 
   {
     // Lo descarto
+    //Serial.flush();
   }
 }

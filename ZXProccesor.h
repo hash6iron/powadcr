@@ -326,8 +326,6 @@ class ZXProccesor
 
                 for (int i = 0; i < size;i++)
                 {
-
-
                 
                   if (i % 8==0)
                   {
@@ -392,20 +390,9 @@ class ZXProccesor
                       // Vamos a ir leyendo los bytes y generando el sonido
                       bRead = data[i];
 
-                      // if(SCREEN_LOADING)
-                      // {
-
-
-                      //     writeString("");
-                      //     writeString("line " + String(112+SCREEN_COL) "," + String(64+SCREEN_LINE) + "," + String(112+SCREEN_COL) "," + String(64+SCREEN_LINE) + ",BLUE");
-
-                      // }
-
-                      //Serial.println("******* Byte " + String(bRead));
                       for (int n=0;n<8;n++)
                       {
                           // Si el bit leido del BYTE es un "1"
-                          //Serial.println("*******---- bit " + String(bitRead(bRead,8-n)));
                           if(bitRead(bRead, 7-n) == 1)
                           {
                               // Procesamos "1"

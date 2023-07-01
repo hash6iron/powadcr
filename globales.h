@@ -98,7 +98,7 @@ char* FILE_LAST_DIR = "/";
 char* FILE_PREVIOUS_DIR = "/";
 int FILE_LAST_INDEX = 0;
 int FILE_IDX_SELECTED = -1;
-tFileBuffer* FILES_BUFF;
+tFileBuffer* FILES_BUFF = NULL;
 String FILE_TO_LOAD = "";
 String FILE_DIR_TO_CHANGE = "";
 int FILE_PTR_POS = 0;
@@ -130,6 +130,7 @@ const int PAUSE_ST = 2;
 const int READY_ST = 3;
 const int END_ST = 4;
 const int ACK_LCD = 5;
+const int RESET = 6;
 //
 int MAIN_VOL = 90;
 

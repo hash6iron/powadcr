@@ -93,8 +93,14 @@ void sendStatus(int action, int value) {
 
     case ACK_LCD:
       writeString("");
-      writeString("LCDACK.val=" + String(value));
+      writeString("tape.LCDACK.val=" + String(value));
+      writeString("");
+      writeString("statusLCD.txt=\"READY\"");
       break;
+    
+    case RESET:
+      writeString("");
+      writeString("statusLCD.txt=\"System reboot\"");
   }
 }
 void setSDFrequency(int SD_Speed) {
@@ -116,7 +122,7 @@ void setSDFrequency(int SD_Speed) {
       Serial.println("SD card initialized at " + String(SD_Speed) + " MHz");
       SD_ok = true;
 
-      LAST_MESSAGE = "Please, select file and press PLAY.";
+      LAST_MESSAGE = "SD card - Detected";
       updateInformationMainPage();
     }
   }
@@ -332,15 +338,42 @@ void playTAPfile_ZXSpectrum(char* path) {
 }
 
 
+void waitForHMI()
+{
 
+      //Esperamos a la pantalla
+      while (!LCD_ON) 
+      {
+          readUART();
+      }
+
+      LCD_ON = true;
+
+      Serial.println("");
+      Serial.println("LCD READY");
+      Serial.println("");
+
+      sendStatus(ACK_LCD, 1);  
+}
 
 void setup() {
   // Configuramos el nivel de log
   Serial.begin(115200);
 
-  LAST_MESSAGE = "Resseting CPU. Please wait.";
-  updateInformationMainPage();
-  delay(2000);
+  delay(250);
+  // Forzamos un reinicio de la pantalla
+  writeString("");
+  writeString("rest");
+
+  delay(250);
+
+  sendStatus(RESET, 1);
+
+  delay(500);
+
+  //LAST_MESSAGE = "Resseting CPU. Please wait.";
+  // updateInformationMainPage();
+  // delay(1000);
 
   //Serial2.begin(9600);
   Serial.println("Setting Audiokit.");
@@ -364,22 +397,10 @@ void setup() {
   Serial.println("");
   Serial.println("Waiting for LCD.");
   Serial.println("");
-  LAST_MESSAGE = "...";
 
-  //Esperamos a la pantalla
-  while (!LCD_ON) 
-  {
-    readUART();
-    Serial.flush();
-    delay(250);
-  }
-
-  Serial.println("");
-  Serial.println("LCD READY");
-  Serial.println("");
-
-  sendStatus(ACK_LCD, 1);
   // delay(2000);
+
+  waitForHMI();
 
   // Configuramos la velocidad de acceso a la SD
   int SD_Speed = SD_FRQ_MHZ_INITIAL;  // Velocidad en MHz (config.h)
@@ -426,6 +447,9 @@ void setup() {
   // Serial.println();
   // Serial.println();
   //testFile1();
+  LAST_MESSAGE = "...";
+
+
 }
 
 
