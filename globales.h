@@ -30,28 +30,6 @@ struct tTAP
   tBlockDescriptor* descriptor = NULL;  // Descriptor
 };
 
-// Estructura de un buffer de ficheros y directorios
-// struct tFile 
-// {
-//   String path;                  // Ruta del fichero completa
-//   char* parentDir;              // Directorio donde está el fichero
-//   char* previousDir;            // Directorio anterior
-//   int indexOfPreviousDir;       // Indice del array donde está el directorio
-//   int indexOfParentDir;         // Indice del directorio actual
-// };
-
-// struct tDir 
-// {
-//   int totalFiles;               // Numero total de ficheros dentro del dir.
-//   int indexOfPreviousDir;       // Indice del array donde está el directorio
-//   int indexOfParentDir;         // Indice del directorio actual
-//   char* dirPreviousPath;        // Ruta del directorio anterior
-//   char* dirPath;                // Ruta de este directorio
-//   bool scaned = false;          // Indica si el dir. ha sido escaneado
-//   tFile* fileBuffer = NULL;     // Buffer de ficheros
-//   tDir*  dirBuffer = NULL;      // Buffer de directorios
-// };
-
 struct tFileBuffer
 {
     bool isDir;
@@ -108,6 +86,9 @@ bool FILE_NOTIFIED = false;
 bool FILE_SELECTED = false;
 String FILE_PATH_SELECTED = "";
 bool FILE_DIR_OPEN_FAILED = false;
+bool FILE_BROWSER_OPEN = false;
+bool FILE_BROWSER_SEARCHING = false;
+String FILE_TXT_TO_SEARCH = "";
 
 // Variables de control de la reproducción
 bool PLAY = false;

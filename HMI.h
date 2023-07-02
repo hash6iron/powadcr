@@ -1,9 +1,12 @@
 void writeString(String stringData) 
 {
 
-  // Controlamos el buffer overflow.
-  // if ((stringData.length() + Serial.available()) < 64) 
-  // {
+    //Serial.flush();
+
+    Serial.write(0xff);
+    Serial.write(0xff);
+    Serial.write(0xff);
+
     for (int i = 0; i < stringData.length(); i++) 
     {
       // Enviamos los datos
@@ -15,6 +18,13 @@ void writeString(String stringData)
     Serial.write(0xff);
     Serial.write(0xff);
     Serial.write(0xff);
+
+    if(FILE_BROWSER_OPEN)
+    {
+        // Metemos un delay de 10ms
+        // menos da problemas.
+        delay(10);       
+    }
 
 }
 
@@ -30,67 +40,35 @@ void updateInformationMainPage()
     LAST_TYPE = globalTAP.descriptor[BLOCK_SELECTED].typeName;
 
     // Enviamos información al HMI
-    writeString("");
+    //writeString("");
     writeString("name.txt=\"" + PROGRAM_NAME + "\"");
-    writeString("");
+    //writeString("");
     writeString("screen2.name.txt=\"" + PROGRAM_NAME + "\"");
 
-    writeString("");
+    //writeString("");
     writeString("size.txt=\"" + String(LAST_SIZE - 2) + " bytes\"");
-    writeString("");
+    //writeString("");
     writeString("screen2.size.txt=\"" + String(LAST_SIZE - 2) + " bytes\"");
 
-    writeString("");
+    //writeString("");
     writeString("type.txt=\"" + String(LAST_TYPE) + ":" + String(LAST_NAME) + "\"");
-    writeString("");
+    //writeString("");
     writeString("screen2.type.txt=\"" + String(LAST_TYPE) + ":" + String(LAST_NAME) + "\"");
 
-    writeString("");
+    //writeString("");
     writeString("totalBlocks.val=" + String(TOTAL_BLOCKS));
-    writeString("");
+    //writeString("");
     writeString("screen2.totalBlocks.val=" + String(TOTAL_BLOCKS));
 
-    writeString("");
+    //writeString("");
     writeString("currentBlock.val=" + String(BLOCK_SELECTED + 1));
-    writeString("");
+    //writeString("");
     writeString("screen2.currentBlock.val=" + String(BLOCK_SELECTED + 1));
   }
 
-  writeString("");
+  //writeString("");
   writeString("g0.txt=\"" + LAST_MESSAGE + "\"");
 }
-
-// void fillDirStructure()
-// {
-//   // Open root directory
-//   if (!dir.open("/")) {
-//     Serial.println("dir.open failed");
-//   }
-//   // Open next file in root.
-//   // Warning, openNext starts at the current position of dir so a
-//   // rewind may be necessary in your application.
-//   while (file.openNext(&dir, O_RDONLY)) {
-//     file.printFileSize(&Serial);
-//     Serial.write(' ');
-//     file.printModifyDateTime(&Serial);
-//     Serial.write(' ');
-//     file.printName(&Serial);
-//     if (file.isDir()) {
-//       // Indicate a directory.
-//       Serial.write('/');
-//     }
-//     Serial.println();
-//     file.close();
-//   }
-//   if (dir.getError()) {
-//     Serial.println("openNext failed");
-//   } else {
-//     Serial.println("Done!");
-//     dir.close();
-//   }
-
-// }
-
 
 int countFiles(char* path)
 {
@@ -158,6 +136,8 @@ void getFilesFromSD()
     {
         dir.rewindDirectory();
         file.rewind();
+        
+        FILE_DIR_OPEN_FAILED = false;
 
         //  AÑADIMOS AL INICIO EL PARENT DIR
         FILES_BUFF[0].isDir = true;
@@ -182,8 +162,11 @@ void getFilesFromSD()
                     FILES_BUFF[j].path = String(szName);
                     j++;
                 }
+                else
+                {
+                  // No se muestra el dir porque está oculto
+                }
 
-                //continue;
             }
             else
             {
@@ -196,30 +179,53 @@ void getFilesFromSD()
                     if (strstr(strlwr(szName + (len - 4)), ".tap")) 
                     {
                         FILES_BUFF[j].type = "TAP";
+                        // Guardamos el fichero en el buffer
+                        FILES_BUFF[j].path = String(szName);
+                        j++;
                     }
                     else if (strstr(strlwr(szName + (len - 4)), ".tzx")) 
                     {
                         FILES_BUFF[j].type = "TZX";
+                        // Guardamos el fichero en el buffer
+                        FILES_BUFF[j].path = String(szName);
+                        j++;
                     }
+                    else if (strstr(strlwr(szName + (len - 4)), ".sna")) 
+                    {
+                        FILES_BUFF[j].type = "SNA";
+                        // Guardamos el fichero en el buffer
+                        FILES_BUFF[j].path = String(szName);
+                        j++;
+                    }                    
+                    else if (strstr(strlwr(szName + (len - 4)), ".z80")) 
+                    {
+                        FILES_BUFF[j].type = "Z80";
+                        // Guardamos el fichero en el buffer
+                        FILES_BUFF[j].path = String(szName);
+                        j++;
+                    } 
                     else
                     {
                         FILES_BUFF[j].type = "";
+                        // No se guarda
                     }
-
-                    // Guardamos el fichero en el buffer de ficheros mostrados
-                    FILES_BUFF[j].path = String(szName);
-                    j++;
+                }
+                else
+                {
+                  // No se muestra el fichero porque está oculto
                 }
             }
-            
             file.close();
-
 
         }
 
         FILE_TOTAL_FILES = j;
         dir.close();
     }
+
+    Serial.println("");
+    Serial.println("");
+    Serial.println("TOTAL FILES READ: " + String(FILE_TOTAL_FILES));
 }
 
 void printFileRows(int row, int color, String szName)
@@ -227,93 +233,93 @@ void printFileRows(int row, int color, String szName)
       switch(row)
       {
         case 0:
-            writeString("");
+            //writeString("");
             writeString("file0.txt=\"" + String(szName) + "\"");
-            writeString("");
+            //writeString("");
             writeString("file0.pco=" + String(color));
             break;
 
         case 1:
-            writeString("");
+            //writeString("");
             writeString("file1.txt=\"" + String(szName) + "\"");
-            writeString("");
+            //writeString("");
             writeString("file1.pco=" + String(color));
             break;
 
         case 2:
-            writeString("");
+            //writeString("");
             writeString("file2.txt=\"" + String(szName) + "\"");
-            writeString("");
+            //writeString("");
             writeString("file2.pco=" + String(color));
             break;
 
         case 3:
-            writeString("");
+            //writeString("");
             writeString("file3.txt=\"" + String(szName) + "\"");
-            writeString("");
+            //writeString("");
             writeString("file3.pco=" + String(color));
             break;
 
         case 4:
-            writeString("");
+            //writeString("");
             writeString("file4.txt=\"" + String(szName) + "\"");
-            writeString("");
+            //writeString("");
             writeString("file4.pco=" + String(color));
             break;
 
         case 5:
-            writeString("");
+            //writeString("");
             writeString("file5.txt=\"" + String(szName) + "\"");
-            writeString("");
+            //writeString("");
             writeString("file5.pco=" + String(color));
             break;
 
         case 6:
-            writeString("");
+            //writeString("");
             writeString("file6.txt=\"" + String(szName) + "\"");
-            writeString("");
+            //writeString("");
             writeString("file6.pco=" + String(color));
             break;
 
         case 7:
-            writeString("");
+            //writeString("");
             writeString("file7.txt=\"" + String(szName) + "\"");
-            writeString("");
+            //writeString("");
             writeString("file7.pco=" + String(color));
             break;
 
         case 8:
-            writeString("");
+            //writeString("");
             writeString("file8.txt=\"" + String(szName) + "\"");
-            writeString("");
+            //writeString("");
             writeString("file8.pco=" + String(color));
             break;
 
         case 9:
-            writeString("");
+            //writeString("");
             writeString("file9.txt=\"" + String(szName) + "\"");
-            writeString("");
+            //writeString("");
             writeString("file9.pco=" + String(color));
             break;
 
         case 10:
-            writeString("");
+            //writeString("");
             writeString("file10.txt=\"" + String(szName) + "\"");
-            writeString("");
+            //writeString("");
             writeString("file10.pco=" + String(color));
             break;
 
         case 11:
-            writeString("");
+            //writeString("");
             writeString("file11.txt=\"" + String(szName) + "\"");
-            writeString("");
+            //writeString("");
             writeString("file11.pco=" + String(color));
             break;
 
         case 12:
-            writeString("");
+            //writeString("");
             writeString("file12.txt=\"" + String(szName) + "\"");
-            writeString("");
+            //writeString("");
             writeString("file12.pco=" + String(color));
             break;
 
@@ -376,9 +382,9 @@ void putFilesInScreen()
       color = 2016;  // Verde
       szName = String("..     ") + szName;
       
-      writeString("");
+      //writeString("");
       writeString("prevDir.txt=\"" + String(szName) + "\"");
-      writeString("");
+      //writeString("");
       writeString("prevDir.pco=" + String(color));
       
       // Descartamos la posición cero del buffer porque es una posición especial
@@ -424,6 +430,58 @@ void putInHome()
     putFilesInScreen();
 }
 
+void findTheTextInFiles()
+{
+
+    bool filesFound = false;
+
+    tFileBuffer* fileBufferFiltered = (tFileBuffer*)calloc(2000+1,sizeof(tFileBuffer));
+    
+    if (FILE_BROWSER_SEARCHING)
+    {
+        // Buscamos el texto en el buffer actual.
+        String fileRead = "";
+        int j = 0;
+
+        Serial.println();
+        Serial.println();
+        Serial.println(FILE_TXT_TO_SEARCH);
+
+        for (int i=1;i<FILE_TOTAL_FILES;i++)
+        {
+            fileRead = FILES_BUFF[i].path;
+            fileRead.toLowerCase();
+            FILE_TXT_TO_SEARCH.toLowerCase();
+
+            if (fileRead.indexOf(FILE_TXT_TO_SEARCH) != -1)
+            {
+                
+                filesFound = true;
+
+                //Fichero localizado. Lo almacenamos
+                fileBufferFiltered[j].path = FILES_BUFF[i].path;
+                fileBufferFiltered[j].path = FILES_BUFF[i].type;
+                fileBufferFiltered[j].path = FILES_BUFF[i].isDir;
+                fileBufferFiltered[j].path = FILES_BUFF[i].dirPos;
+                Serial.println(fileRead);
+
+                j++;
+            }
+        }
+
+        if(filesFound)
+        {
+            FILE_TOTAL_FILES = j;
+            FILE_BROWSER_SEARCHING = false;
+            memcpy(FILES_BUFF,fileBufferFiltered,sizeof(fileBufferFiltered));
+        }
+        
+        FILE_PTR_POS=0;        
+        clearFilesInScreen();
+        putFilesInScreen();
+    }
+}
+
 void verifyCommand(String strCmd) 
 {
    
@@ -439,27 +497,38 @@ void verifyCommand(String strCmd)
       updateInformationMainPage();
   }
 
-  if (strCmd.indexOf("FILE=") != -1) 
+  if (strCmd.indexOf("INFB") != -1) 
   {
-      // Con este comando nos indica la pantalla que está en modo FILESYSTEM
-      // y nos ha devuelto el numero de la fila pulsada
-      byte buff[8];
-      strCmd.getBytes(buff, 7);
-      String num = String(buff[4]+buff[5]);
-      FILE_INDEX = num.toInt();
+      // Con este comando nos indica la pantalla que 
+      // está en modo FILEBROWSER
+      FILE_BROWSER_OPEN = true;
+  }
 
-      //updateInformationMainPage();
+  if (strCmd.indexOf("SHR") != -1) 
+  {
+      // Con este comando nos indica la pantalla que 
+      // está en modo FILEBROWSER
+      FILE_BROWSER_SEARCHING = true;
+      Serial.println("");
+      Serial.println("");
+      Serial.println(" ---------- Buscando ficheros");
+      findTheTextInFiles();
+      Serial.println(" ----------------------------");
+
+  }
+
+  if (strCmd.indexOf("OUTFB") != -1) 
+  {
+      // Con este comando nos indica la pantalla que 
+      // está en modo FILEBROWSER
+      FILE_BROWSER_OPEN = false;
   }
 
   if (strCmd.indexOf("GFIL") != -1) 
   {
       // Con este comando nos indica la pantalla que quiere
       // le devolvamos ficheros en la posición actual del puntero
-      //putInHome();
-      //FILE_TOTAL_FILES = countFiles(FILE_LAST_DIR) + 1;
-      //Serial.println("");
-      //Serial.println("Count files: " + String(FILE_TOTAL_FILES));
-      writeString("");
+
       writeString("statusFILE.txt=\"GETTING FILES\"");
 
       getFilesFromSD();
@@ -470,7 +539,7 @@ void verifyCommand(String strCmd)
           FILE_STATUS = 1;
       }
 
-      writeString("");
+      //writeString("");
       writeString("statusFILE.txt=\"\"");
 
   }
@@ -486,8 +555,8 @@ void verifyCommand(String strCmd)
           FILE_PTR_POS = 0;
       }
 
+      clearFilesInScreen();
       putFilesInScreen();
-      //updateInformationMainPage();
   }
 
   if (strCmd.indexOf("FPDOWN") != -1) 
@@ -501,9 +570,9 @@ void verifyCommand(String strCmd)
       {
           FILE_PTR_POS = FILE_TOTAL_FILES-13;
       }
-      
-      putFilesInScreen();      
-      //updateInformationMainPage();
+
+      clearFilesInScreen();
+      putFilesInScreen(); 
   }
 
   if (strCmd.indexOf("FPHOME") != -1) 
@@ -512,12 +581,10 @@ void verifyCommand(String strCmd)
       // le devolvamos ficheros en la posición actual del puntero
       putInHome();
 
-      writeString("");
       writeString("statusFILE.txt=\"GETTING FILES\"");
 
       getFilesFromSD();
 
-      writeString("");
       writeString("statusFILE.txt=\"\"");
 
   }
@@ -542,29 +609,24 @@ void verifyCommand(String strCmd)
       FILE_PTR_POS = 0;
       clearFilesInScreen();
 
-      writeString("");
+      //writeString("");
       writeString("statusFILE.txt=\"GETTING FILES\"");
 
       getFilesFromSD();
       
       if (!FILE_DIR_OPEN_FAILED)
       {
+          //putFilesInScreen();
           putFilesInScreen();
       }
       
-      writeString("");
+      //writeString("");
       writeString("statusFILE.txt=\"\"");
   }
   
     if (strCmd.indexOf("PAR=") != -1) 
   {
       // Con este comando capturamos el directorio padre
-      //byte buff[8];
-      // byte* buff = (byte*)calloc(8,sizeof(byte));
-      // strCmd.getBytes(buff, 7);
-      // String num = String(buff[4]+buff[5]+buff[6]+buff[7]);
-
-      // FILE_IDX_SELECTED = num.toInt();
 
       //Cogemos el directorio padre que siempre estará en el prevDir y por tanto
       //no hay que calcular la posición
@@ -590,7 +652,6 @@ void verifyCommand(String strCmd)
       FILE_PTR_POS = 0;
       clearFilesInScreen();
 
-      writeString("");
       writeString("statusFILE.txt=\"GETTING FILES\"");
       
       getFilesFromSD();
@@ -600,17 +661,14 @@ void verifyCommand(String strCmd)
           putFilesInScreen();
       }
 
-      writeString("");
       writeString("statusFILE.txt=\"\"");
 
   }
 
   if (strCmd.indexOf("LFI=") != -1) 
   {
-      // Con este comando nos indica la pantalla que quiere
-      // le devolvamos ficheros en la posición actual del puntero
-      // Cogemos el valor
-      // Cargamos el fichero
+      // Con este comando
+      // devolvamos el fichero que se ha seleccionado en la pantalla
       byte* buff = (byte*)calloc(8,sizeof(byte));
       strCmd.getBytes(buff, 7);
       String num = String(buff[4]+buff[5]+buff[6]+buff[7]);
@@ -620,6 +678,7 @@ void verifyCommand(String strCmd)
       //Cogemos el fichero
       FILE_TO_LOAD = FILE_LAST_DIR + FILES_BUFF[FILE_IDX_SELECTED + FILE_PTR_POS].path;
 
+      // Cambiamos el estado de fichero seleccionado
       if (FILE_TO_LOAD != "")
       {
           FILE_SELECTED = true;
@@ -629,7 +688,6 @@ void verifyCommand(String strCmd)
           FILE_SELECTED = false;
       }
 
-      //updateInformationMainPage();
       FILE_STATUS = 0;
       FILE_NOTIFIED = false;
 
@@ -700,11 +758,11 @@ void verifyCommand(String strCmd)
     BYTES_LOADED = 0;
 
     LAST_MESSAGE = "Tape stop. Press play to start again.";
-    writeString("");
+    //writeString("");
     writeString("currentBlock.val=1");
-    writeString("");
+    //writeString("");
     writeString("progressTotal.val=0");
-    writeString("");
+    //writeString("");
     writeString("progression.val=0");
     updateInformationMainPage();
   }
@@ -718,11 +776,11 @@ void verifyCommand(String strCmd)
     BYTES_LOADED = 0;
 
     LAST_MESSAGE = "Tape stop. Press play to start again.";
-    writeString("");
+    //writeString("");
     writeString("currentBlock.val=1");
-    writeString("");
+    //writeString("");
     writeString("progressTotal.val=0");
-    writeString("");
+    //writeString("");
     writeString("progression.val=0");
     updateInformationMainPage();
     //getFilesFromSD();
@@ -739,22 +797,26 @@ void verifyCommand(String strCmd)
     ESP32kit.setVolume(MAIN_VOL);
   }
 
-  if (strCmd.indexOf("TXT_SEARCH") != -1) 
+  if (strCmd.indexOf("TXTF=") != -1) 
   {
     //Cogemos el valor
     byte buff[50];
     strCmd.getBytes(buff, 50);
-    int n = 12;
+    const int lencmd = 5;
+    int n = lencmd;
     char phrase[50];
     char str = (char)buff[n];
     while (str != '@') 
     {
-      phrase[n - 12] += (char)buff[n];
+      phrase[n - lencmd] += (char)buff[n];
       n++;
       str = (char)buff[n];
     }
 
-    Serial.println("TXT TO SEARCH: " + String(phrase));
+    FILE_TXT_TO_SEARCH = phrase;
+    Serial.println("");
+    Serial.println("");
+    Serial.println("TXT TO SEARCH:" + String(phrase));
   }
 }
 

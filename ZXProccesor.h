@@ -331,7 +331,7 @@ class ZXProccesor
                   {
                       // Progreso de cada bloque.
                       // Con este metodo reducimos el consumo de datos
-                      writeString("");
+                      //writeString("");
                       writeString("progression.val=" + String((int)((i*100)/(size-1))));
 
                       if (BYTES_LOADED > BYTES_TOBE_LOAD)
@@ -339,7 +339,7 @@ class ZXProccesor
                           BYTES_LOADED = BYTES_TOBE_LOAD;
                       }
 
-                      writeString("");
+                      //writeString("");
                       writeString("progressTotal.val=" + String((int)((BYTES_LOADED*100)/(BYTES_TOBE_LOAD))));
                   }
 
@@ -351,7 +351,7 @@ class ZXProccesor
                   if (i == (size-1))
                   {
                       // Esto lo hacemos para asegurarnos que la barra se llena entera
-                      writeString("");
+                      //writeString("");
                       writeString("progression.val=" + String((int)((i*100)/(size-1))));
 
                       if (BYTES_LOADED > BYTES_TOBE_LOAD)
@@ -359,7 +359,7 @@ class ZXProccesor
                           BYTES_LOADED = BYTES_TOBE_LOAD;
                       }
 
-                      writeString("");
+                      //writeString("");
                       writeString("progressTotal.val=" + String((int)((BYTES_LOADED*100)/(BYTES_TOBE_LOAD))));
                   }
 

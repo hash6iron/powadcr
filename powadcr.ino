@@ -67,39 +67,39 @@ void sendStatus(int action, int value) {
 
   switch (action) {
     case PLAY_ST:
-      writeString("");
+      //writeString("");
       writeString("PLAYst.val=" + String(value));
       break;
 
     case STOP_ST:
-      writeString("");
+      //writeString("");
       writeString("STOPst.val=" + String(value));
       break;
 
     case PAUSE_ST:
-      writeString("");
+      //writeString("");
       writeString("PAUSEst.val=" + String(value));
       break;
 
     case END_ST:
-      writeString("");
+      //writeString("");
       writeString("ENDst.val=" + String(value));
       break;
 
     case READY_ST:
-      writeString("");
+      //writeString("");
       writeString("READYst.val=" + String(value));
       break;
 
     case ACK_LCD:
-      writeString("");
+      //writeString("");
       writeString("tape.LCDACK.val=" + String(value));
-      writeString("");
+      //writeString("");
       writeString("statusLCD.txt=\"READY\"");
       break;
     
     case RESET:
-      writeString("");
+      //writeString("");
       writeString("statusLCD.txt=\"System reboot\"");
   }
 }
@@ -164,10 +164,10 @@ void getInfoFileTAP(char* path) {
 
 void playTAPfile_ZXSpectrum(char* path) {
 
-  writeString("");
+  //writeString("");
   writeString("READYst.val=0");
 
-  writeString("");
+  //writeString("");
   writeString("ENDst.val=0");
 
 
@@ -196,7 +196,7 @@ void playTAPfile_ZXSpectrum(char* path) {
   if (BLOCK_SELECTED == 0) {
     BYTES_LOADED = 0;
     BYTES_TOBE_LOAD = rlen;
-    writeString("");
+    //writeString("");
     writeString("progressTotal.val=" + String((int)((BYTES_LOADED * 100) / (BYTES_TOBE_LOAD))));
   } else {
     BYTES_TOBE_LOAD = rlen - globalTAP.descriptor[BLOCK_SELECTED - 1].offset;
@@ -215,10 +215,10 @@ void playTAPfile_ZXSpectrum(char* path) {
       CURRENT_BLOCK_IN_PROGRESS = i;
       BLOCK_SELECTED = i;
 
-      writeString("");
+      //writeString("");
       writeString("currentBlock.val=" + String(i + 1));
 
-      writeString("");
+      //writeString("");
       writeString("progression.val=" + String(0));
     }
 
@@ -315,7 +315,7 @@ void playTAPfile_ZXSpectrum(char* path) {
     updateInformationMainPage();
 
     // Ahora ya podemos tocar el HMI panel otra vez
-    //writeString("");
+    ////writeString("");
     //writeString("rx.txt=\"END\"");
     sendStatus(END_ST, 1);
   }
@@ -332,7 +332,7 @@ void playTAPfile_ZXSpectrum(char* path) {
   Serial.flush();
 
   // Ahora ya podemos tocar el HMI panel otra vez
-  // writeString("");
+  // //writeString("");
   // writeString("rx.txt=\"READY\"");
   sendStatus(READY_ST, 1);
 }
@@ -362,7 +362,7 @@ void setup() {
 
   delay(250);
   // Forzamos un reinicio de la pantalla
-  writeString("");
+  //writeString("");
   writeString("rest");
 
   delay(250);
@@ -425,10 +425,10 @@ void setup() {
   PLAY = false;
   PAUSE = false;
 
-  // writeString("");
+  // //writeString("");
   // writeString("page scrload");
 
-  // writeString("");
+  // //writeString("");
   // writeString("draw 112,64,368,256,BLUE");
 
 
@@ -437,7 +437,7 @@ void setup() {
   sendStatus(PAUSE_ST, 0);
   sendStatus(READY_ST, 1);
   sendStatus(END_ST, 0);
-  //writeString("");
+  ////writeString("");
   //writeString("rx.txt=\"READY\"");
   //FILE_SELECTED = true;
 
@@ -460,79 +460,85 @@ void loop() {
   //buttonsControl();
   readUART();
 
-  if (STOP == true && LOADING_STATE != 0) {
-    LOADING_STATE = 0;
-    BLOCK_SELECTED = 0;
-    updateInformationMainPage();
-    STOP = false;
-    PLAY = false;
-    PAUSE = false;
+  if (!FILE_BROWSER_OPEN)
+  {
+      if (STOP == true && LOADING_STATE != 0) {
+        LOADING_STATE = 0;
+        BLOCK_SELECTED = 0;
+        updateInformationMainPage();
+        STOP = false;
+        PLAY = false;
+        PAUSE = false;
 
-    sendStatus(STOP_ST, 0);
-    sendStatus(PLAY_ST, 0);
-    sendStatus(PAUSE_ST, 0);
-    sendStatus(READY_ST, 1);
-    sendStatus(END_ST, 0);
-  }
+        sendStatus(STOP_ST, 0);
+        sendStatus(PLAY_ST, 0);
+        sendStatus(PAUSE_ST, 0);
+        sendStatus(READY_ST, 1);
+        sendStatus(END_ST, 0);
+      }
 
-  if (FILE_SELECTED && !FILE_NOTIFIED) {
-    char* file_ch = (char*)calloc(FILE_TO_LOAD.length() + 1, sizeof(char));
-    FILE_TO_LOAD.toCharArray(file_ch, FILE_TO_LOAD.length() + 1);
+      if (FILE_SELECTED && !FILE_NOTIFIED) {
+        char* file_ch = (char*)calloc(FILE_TO_LOAD.length() + 1, sizeof(char));
+        FILE_TO_LOAD.toCharArray(file_ch, FILE_TO_LOAD.length() + 1);
 
-    Serial.println("++++++++++++++++++++++++++++++++++++++++++++++");
-    Serial.println("");
-    Serial.println(String(file_ch));
-    Serial.println("++++++++++++++++++++++++++++++++++++++++++++++");
+        Serial.println("++++++++++++++++++++++++++++++++++++++++++++++");
+        Serial.println("");
+        Serial.println(String(file_ch));
+        Serial.println("++++++++++++++++++++++++++++++++++++++++++++++");
 
-    if (FILE_TO_LOAD != "") {
-      LAST_MESSAGE = "Press PLAY to enjoy!";
-      getInfoFileTAP(file_ch);
-      FILE_NOTIFIED = true;
-    }
-  }
+        if (FILE_TO_LOAD != "") {
+          LAST_MESSAGE = "Press PLAY to enjoy!";
+          getInfoFileTAP(file_ch);
+          FILE_NOTIFIED = true;
+        }
+      }
 
-  if (PLAY == true && LOADING_STATE == 0) {
+      if (PLAY == true && LOADING_STATE == 0) 
+      {
 
-    ESP32kit.setVolume(MAIN_VOL);
+        ESP32kit.setVolume(MAIN_VOL);
 
-    if (FILE_SELECTED) {
+        if (FILE_SELECTED) {
 
-      char* file_ch = (char*)calloc(FILE_TO_LOAD.length() + 1, sizeof(char));
-      FILE_TO_LOAD.toCharArray(file_ch, FILE_TO_LOAD.length() + 1);
+          char* file_ch = (char*)calloc(FILE_TO_LOAD.length() + 1, sizeof(char));
+          FILE_TO_LOAD.toCharArray(file_ch, FILE_TO_LOAD.length() + 1);
 
-      //Serial.println("");
-      //Serial.println(ESP.getFreeHeap());
-      //Serial.println("");
+          //Serial.println("");
+          //Serial.println(ESP.getFreeHeap());
+          //Serial.println("");
 
-      // Pasamos a estado de reproducción
-      LOADING_STATE = 1;
-      sendStatus(PLAY_ST, 1);
-      sendStatus(STOP_ST, 0);
-      sendStatus(PAUSE_ST, 0);
-      sendStatus(END_ST, 0);
+          // Pasamos a estado de reproducción
+          LOADING_STATE = 1;
+          sendStatus(PLAY_ST, 1);
+          sendStatus(STOP_ST, 0);
+          sendStatus(PAUSE_ST, 0);
+          sendStatus(END_ST, 0);
 
-      // Serial.println("");
-      // Serial.println("Fichero seleccionado: " + FILE_TO_LOAD);
-
-
-
-      playTAPfile_ZXSpectrum(file_ch);
+          // Serial.println("");
+          // Serial.println("Fichero seleccionado: " + FILE_TO_LOAD);
 
 
-      //Serial.println("");
-      //Serial.println("Starting TAPE PLAYER.");
-      //Serial.println("");
-      //playTAPfile_ZXSpectrum("/games/Classic48/Trashman/TRASHMAN.TAP");
-      //playTAPfile_ZXSpectrum("/games/Classic128/Castlevania/Castlevania.tap");
-      //playTAPfile_ZXSpectrum((char*)"/games/Classic128/Shovel Adventure/Shovel Adventure ZX 1.2.tap");
-      //playTAPfile_ZXSpectrum("/games/Actuales/Donum/Donum_ESPv1.1.tap");
-      //playTAPfile_ZXSpectrum("/games/ROMSET/5000 juegos ordenados/D/Dark Fusion (1988)(Gremlin Graphics Software).tap");
-      //playTAPfile_ZXSpectrum("/games/ROMSET/5000 juegos ordenados/A/Arkanoid II - Revenge of Doh (1988)(Imagine Software)[128K][Multiface copy].tap");
-      //playTAPfile_ZXSpectrum("/games/ROMSET/5000 juegos ordenados/A/Arkanoid II - Revenge of Doh (1988)(Imagine Software)[128K].tap");
-      //playTAPfile_ZXSpectrum("/games/ROMSET/5000 juegos ordenados/A/Arkanoid II - Revenge of Doh (1988)(Imagine Software)[cr][128K].tap");
-    } else {
-      LAST_MESSAGE = "No file was selected.";
-      updateInformationMainPage();
-    }
+
+          playTAPfile_ZXSpectrum(file_ch);
+
+
+          //Serial.println("");
+          //Serial.println("Starting TAPE PLAYER.");
+          //Serial.println("");
+          //playTAPfile_ZXSpectrum("/games/Classic48/Trashman/TRASHMAN.TAP");
+          //playTAPfile_ZXSpectrum("/games/Classic128/Castlevania/Castlevania.tap");
+          //playTAPfile_ZXSpectrum((char*)"/games/Classic128/Shovel Adventure/Shovel Adventure ZX 1.2.tap");
+          //playTAPfile_ZXSpectrum("/games/Actuales/Donum/Donum_ESPv1.1.tap");
+          //playTAPfile_ZXSpectrum("/games/ROMSET/5000 juegos ordenados/D/Dark Fusion (1988)(Gremlin Graphics Software).tap");
+          //playTAPfile_ZXSpectrum("/games/ROMSET/5000 juegos ordenados/A/Arkanoid II - Revenge of Doh (1988)(Imagine Software)[128K][Multiface copy].tap");
+          //playTAPfile_ZXSpectrum("/games/ROMSET/5000 juegos ordenados/A/Arkanoid II - Revenge of Doh (1988)(Imagine Software)[128K].tap");
+          //playTAPfile_ZXSpectrum("/games/ROMSET/5000 juegos ordenados/A/Arkanoid II - Revenge of Doh (1988)(Imagine Software)[cr][128K].tap");
+        } 
+        else 
+        {
+          LAST_MESSAGE = "No file was selected.";
+          updateInformationMainPage();
+        }
+      }
   }
 }
