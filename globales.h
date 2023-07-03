@@ -76,7 +76,10 @@ char* FILE_LAST_DIR = "/";
 char* FILE_PREVIOUS_DIR = "/";
 int FILE_LAST_INDEX = 0;
 int FILE_IDX_SELECTED = -1;
+
 tFileBuffer* FILES_BUFF = NULL;
+tFileBuffer* FILES_FOUND_BUFF = NULL;
+
 String FILE_TO_LOAD = "";
 String FILE_DIR_TO_CHANGE = "";
 int FILE_PTR_POS = 0;

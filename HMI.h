@@ -363,6 +363,61 @@ void clearFilesInScreen()
 
 }
 
+void putFilesFoundInScreen()
+{
+
+  //Antes de empezar, limpiamos el buffer
+  //para evitar que se colapse
+
+  int pos_in_HMI_file = 0;
+  String szName = "";
+  String type="";
+
+  int color = 65535; //60868
+  
+  if (FILE_PTR_POS==0)
+  {
+      // Esto es solo para el parent dir, para que siempre salga arriba
+      szName = FILES_FOUND_BUFF[FILE_PTR_POS].path;
+      color = 2016;  // Verde
+      szName = String("..     ") + szName;
+      
+      //writeString("");
+      writeString("prevDir.txt=\"" + String(szName) + "\"");
+      //writeString("");
+      writeString("prevDir.pco=" + String(color));
+      
+      // Descartamos la posición cero del buffer porque es una posición especial
+      FILE_PTR_POS=1;
+  }
+
+  for (int i=FILE_PTR_POS;i<=FILE_PTR_POS+12;i++)
+  {
+        szName = FILES_FOUND_BUFF[FILE_PTR_POS + pos_in_HMI_file].path;
+        type = FILES_FOUND_BUFF[FILE_PTR_POS + pos_in_HMI_file].type;
+        
+        // Lo trasladamos a la pantalla
+        if (type == "DIR")
+        {
+            //Directorio
+            color = 60868;  // Amarillo
+            szName = String("<DIR>  ") + szName;
+        }     
+        else if (type == "TAP" || type == "TZX")
+        {
+            //Fichero
+            color = 65535;   // Blanco
+        }
+        else
+        {
+            color = 44405;  // gris apagado
+        }
+
+        printFileRows(pos_in_HMI_file, color, szName);
+        pos_in_HMI_file++;
+  }
+}
+
 void putFilesInScreen()
 {
 
@@ -421,6 +476,7 @@ void putFilesInScreen()
 
 void putInHome()
 {
+    FILE_BROWSER_SEARCHING = false;  
     FILE_LAST_DIR="/";
     FILE_PREVIOUS_DIR="/";
     // Open root directory
@@ -435,13 +491,27 @@ void findTheTextInFiles()
 
     bool filesFound = false;
 
-    tFileBuffer* fileBufferFiltered = (tFileBuffer*)calloc(2000+1,sizeof(tFileBuffer));
+    if(FILES_FOUND_BUFF!=NULL)
+    {
+        free(FILES_FOUND_BUFF);
+    }
+
+    const int maxResults = 500;
+
+    FILES_FOUND_BUFF = (tFileBuffer*)calloc(maxResults+1,sizeof(tFileBuffer));
+
+    // Copiamos el primer registro que no cambia
+    // porque es la ruta anterior.
+    FILES_FOUND_BUFF[0].path = FILES_BUFF[0].path;
+    FILES_FOUND_BUFF[0].type = FILES_BUFF[0].type;
+    FILES_FOUND_BUFF[0].isDir = FILES_BUFF[0].isDir;
+    FILES_FOUND_BUFF[0].dirPos = FILES_BUFF[0].dirPos;
     
     if (FILE_BROWSER_SEARCHING)
     {
         // Buscamos el texto en el buffer actual.
         String fileRead = "";
-        int j = 0;
+        int j = 1;
 
         Serial.println();
         Serial.println();
@@ -458,27 +528,32 @@ void findTheTextInFiles()
                 
                 filesFound = true;
 
-                //Fichero localizado. Lo almacenamos
-                fileBufferFiltered[j].path = FILES_BUFF[i].path;
-                fileBufferFiltered[j].path = FILES_BUFF[i].type;
-                fileBufferFiltered[j].path = FILES_BUFF[i].isDir;
-                fileBufferFiltered[j].path = FILES_BUFF[i].dirPos;
-                Serial.println(fileRead);
-
-                j++;
+                if (j < maxResults)
+                {
+                    //Fichero localizado. Lo almacenamos
+                    FILES_FOUND_BUFF[j].path = FILES_BUFF[i].path;
+                    FILES_FOUND_BUFF[j].type = FILES_BUFF[i].type;
+                    FILES_FOUND_BUFF[j].isDir = FILES_BUFF[i].isDir;
+                    FILES_FOUND_BUFF[j].dirPos = FILES_BUFF[i].dirPos;
+                    
+                    Serial.println(fileRead);
+                    
+                    j++;
+                }
+                else
+                {
+                    // No se muestran mas resultados. Hemos llegado a "maxResults"
+                    break;
+                }
             }
         }
 
-        if(filesFound)
-        {
-            FILE_TOTAL_FILES = j;
-            FILE_BROWSER_SEARCHING = false;
-            memcpy(FILES_BUFF,fileBufferFiltered,sizeof(fileBufferFiltered));
-        }
-        
-        FILE_PTR_POS=0;        
+        FILE_TOTAL_FILES = j;       
+        FILE_PTR_POS=0;     
+
+        // Representamos ahora   
         clearFilesInScreen();
-        putFilesInScreen();
+        putFilesFoundInScreen();
     }
 }
 
@@ -533,11 +608,20 @@ void verifyCommand(String strCmd)
 
       getFilesFromSD();
 
-      if (!FILE_DIR_OPEN_FAILED)
+      if (FILE_BROWSER_SEARCHING)
       {
-          putFilesInScreen();
-          FILE_STATUS = 1;
+          putInHome();
       }
+      else
+      {
+          if (!FILE_DIR_OPEN_FAILED)
+          {
+              putFilesInScreen();
+              FILE_STATUS = 1;
+          }        
+      }
+
+
 
       //writeString("");
       writeString("statusFILE.txt=\"\"");
@@ -555,24 +639,42 @@ void verifyCommand(String strCmd)
           FILE_PTR_POS = 0;
       }
 
-      clearFilesInScreen();
-      putFilesInScreen();
+      if (!FILE_BROWSER_SEARCHING)
+      {
+          clearFilesInScreen();
+          putFilesInScreen(); 
+      }
+      else
+      {
+          clearFilesInScreen();
+          putFilesFoundInScreen(); 
+      }
   }
 
   if (strCmd.indexOf("FPDOWN") != -1) 
   {
       // Con este comando nos indica la pantalla que quiere
       // le devolvamos ficheros en la posición actual del puntero
-
-      FILE_PTR_POS = FILE_PTR_POS + 13;
-
-      if (FILE_PTR_POS > (FILE_TOTAL_FILES-13))
+      if(FILE_TOTAL_FILES > 13)
       {
-          FILE_PTR_POS = FILE_TOTAL_FILES-13;
-      }
+          FILE_PTR_POS = FILE_PTR_POS + 13;
 
-      clearFilesInScreen();
-      putFilesInScreen(); 
+          if (FILE_PTR_POS > (FILE_TOTAL_FILES-13))
+          {
+              FILE_PTR_POS = FILE_TOTAL_FILES-13;
+          }
+
+          if (!FILE_BROWSER_SEARCHING)
+          {
+              clearFilesInScreen();
+              putFilesInScreen(); 
+          }
+          else
+          {
+              clearFilesInScreen();
+              putFilesFoundInScreen(); 
+          }
+      }
   }
 
   if (strCmd.indexOf("FPHOME") != -1) 
@@ -676,7 +778,30 @@ void verifyCommand(String strCmd)
       FILE_IDX_SELECTED = num.toInt();
 
       //Cogemos el fichero
-      FILE_TO_LOAD = FILE_LAST_DIR + FILES_BUFF[FILE_IDX_SELECTED + FILE_PTR_POS].path;
+      if (!FILE_BROWSER_SEARCHING)
+      {
+          FILE_TO_LOAD = FILE_LAST_DIR + FILES_BUFF[FILE_IDX_SELECTED + FILE_PTR_POS].path;     
+
+          Serial.println();
+          Serial.println();
+          Serial.println("File to load: " + FILE_TO_LOAD);    
+
+          // Ya no me hace falta. Lo libero
+          free(FILES_BUFF);
+      }
+      else
+      {
+          FILE_TO_LOAD = FILE_LAST_DIR + FILES_FOUND_BUFF[FILE_IDX_SELECTED + FILE_PTR_POS].path;     
+
+          Serial.println();
+          Serial.println();
+          Serial.println("File to load: " + FILE_TO_LOAD); 
+
+          // Ya no me hace falta. Lo libero
+          free(FILES_FOUND_BUFF);
+
+      }
+
 
       // Cambiamos el estado de fichero seleccionado
       if (FILE_TO_LOAD != "")
@@ -690,6 +815,8 @@ void verifyCommand(String strCmd)
 
       FILE_STATUS = 0;
       FILE_NOTIFIED = false;
+
+      FILE_BROWSER_OPEN = false;
 
   }
 
@@ -813,10 +940,10 @@ void verifyCommand(String strCmd)
       str = (char)buff[n];
     }
 
+    // Ahora localizamos los ficheros
     FILE_TXT_TO_SEARCH = phrase;
-    Serial.println("");
-    Serial.println("");
-    Serial.println("TXT TO SEARCH:" + String(phrase));
+    FILE_BROWSER_SEARCHING = true;
+    findTheTextInFiles();
   }
 }
 

@@ -140,7 +140,11 @@ void test() {
 #endif
 }
 
-void getInfoFileTAP(char* path) {
+void getInfoFileTAP(char* path) 
+{
+
+  LAST_MESSAGE = "Analyzing file";
+  updateInformationMainPage();
 
   // Abrimos el fichero
   sdFile32 = openFile32(sdFile32, path);
@@ -148,11 +152,6 @@ void getInfoFileTAP(char* path) {
   int rlen = sdFile32.available();
   // creamos un objeto TAPproccesor
   TAPproccesor pTAP(sdFile32, rlen);
-
-  //tBlockDescriptor* bDscr = (tBlockDescriptor*)calloc(globalTAP.numBlocks, sizeof(tBlockDescriptor));
-
-  // Inicializamos el buffer de reproducción. Memoria dinamica
-  //byte* bufferPlay = NULL;
 
   // Entregamos información por consola
   PROGRAM_NAME = globalTAP.name;
@@ -177,8 +176,6 @@ void playTAPfile_ZXSpectrum(char* path) {
   int rlen = sdFile32.available();
   // creamos un objeto TAPproccesor
   TAPproccesor pTAP(sdFile32, rlen);
-
-  //tBlockDescriptor* bDscr = (tBlockDescriptor*)calloc(globalTAP.numBlocks, sizeof(tBlockDescriptor));
 
   // Inicializamos el buffer de reproducción. Memoria dinamica
   byte* bufferPlay = NULL;
@@ -243,7 +240,13 @@ void playTAPfile_ZXSpectrum(char* path) {
 
     // Reproducimos el fichero
     if (globalTAP.descriptor[i].type == 0) {
+      
       // CABECERAS
+      if(bufferPlay!=NULL)
+      {
+          free(bufferPlay);
+      }
+
       bufferPlay = (byte*)calloc(globalTAP.descriptor[i].size, sizeof(byte));
       bufferPlay = readFileRange32(sdFile32, globalTAP.descriptor[i].offset, globalTAP.descriptor[i].size, true);
 
@@ -251,7 +254,13 @@ void playTAPfile_ZXSpectrum(char* path) {
       //free(bufferPlay);
 
     } else if (globalTAP.descriptor[i].type == 1 || globalTAP.descriptor[i].type == 7) {
+      
       // CABECERAS
+      if(bufferPlay!=NULL)
+      {
+          free(bufferPlay);
+      }      
+
       bufferPlay = (byte*)calloc(globalTAP.descriptor[i].size, sizeof(byte));
       bufferPlay = readFileRange32(sdFile32, globalTAP.descriptor[i].offset, globalTAP.descriptor[i].size, true);
 
@@ -275,6 +284,12 @@ void playTAPfile_ZXSpectrum(char* path) {
           if (j == 0) {
             blockPlaySize = bl1;
             offsetPlay = globalTAP.descriptor[i].offset;
+
+            if(bufferPlay!=NULL)
+            {
+                free(bufferPlay);
+            }
+
             bufferPlay = (byte*)calloc(blockPlaySize, sizeof(byte));
 
             bufferPlay = readFileRange32(sdFile32, offsetPlay, blockPlaySize, true);
@@ -285,6 +300,11 @@ void playTAPfile_ZXSpectrum(char* path) {
             blockPlaySize = bl2;
             offsetPlay = offsetPlay + bl1;
 
+            if(bufferPlay!=NULL)
+            {
+                free(bufferPlay);
+            }
+
             bufferPlay = (byte*)calloc(blockPlaySize, sizeof(byte));
             bufferPlay = readFileRange32(sdFile32, offsetPlay, blockPlaySize, true);
             zxp.playDataEnd(bufferPlay, blockPlaySize);
@@ -293,6 +313,12 @@ void playTAPfile_ZXSpectrum(char* path) {
         }
       } else {
         // En el caso de NO USAR SPLIT o el bloque es menor de 20K
+
+        if(bufferPlay!=NULL)
+        {
+            free(bufferPlay);
+        }
+
         bufferPlay = (byte*)calloc(globalTAP.descriptor[i].size, sizeof(byte));
         bufferPlay = readFileRange32(sdFile32, globalTAP.descriptor[i].offset, globalTAP.descriptor[i].size, true);
         zxp.playData(bufferPlay, globalTAP.descriptor[i].size);
@@ -477,7 +503,9 @@ void loop() {
         sendStatus(END_ST, 0);
       }
 
-      if (FILE_SELECTED && !FILE_NOTIFIED) {
+      if (FILE_SELECTED && !FILE_NOTIFIED) 
+      {
+              
         char* file_ch = (char*)calloc(FILE_TO_LOAD.length() + 1, sizeof(char));
         FILE_TO_LOAD.toCharArray(file_ch, FILE_TO_LOAD.length() + 1);
 
@@ -487,8 +515,12 @@ void loop() {
         Serial.println("++++++++++++++++++++++++++++++++++++++++++++++");
 
         if (FILE_TO_LOAD != "") {
-          LAST_MESSAGE = "Press PLAY to enjoy!";
+                   
           getInfoFileTAP(file_ch);
+          
+          LAST_MESSAGE = "Press PLAY to enjoy!";
+          updateInformationMainPage();
+
           FILE_NOTIFIED = true;
         }
       }
@@ -498,14 +530,11 @@ void loop() {
 
         ESP32kit.setVolume(MAIN_VOL);
 
-        if (FILE_SELECTED) {
+        if (FILE_SELECTED) 
+        {
 
           char* file_ch = (char*)calloc(FILE_TO_LOAD.length() + 1, sizeof(char));
           FILE_TO_LOAD.toCharArray(file_ch, FILE_TO_LOAD.length() + 1);
-
-          //Serial.println("");
-          //Serial.println(ESP.getFreeHeap());
-          //Serial.println("");
 
           // Pasamos a estado de reproducción
           LOADING_STATE = 1;
@@ -516,8 +545,9 @@ void loop() {
 
           // Serial.println("");
           // Serial.println("Fichero seleccionado: " + FILE_TO_LOAD);
-
-
+          
+          Serial.println("");
+          Serial.println("Fichero seleccionado: " + FILE_TO_LOAD);
 
           playTAPfile_ZXSpectrum(file_ch);
 

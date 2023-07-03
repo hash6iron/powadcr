@@ -39,6 +39,16 @@ File32 file;
 
 File32 openFile32(File32 fFile, char *path) 
 { 
+    Serial.println();
+    Serial.println("Open file:");
+    Serial.println(path);
+
+    if (fFile != NULL)
+    {
+        fFile.close();
+        Serial.println("closing file");
+    }
+
     if (!fFile.open(path, FILE_READ)) 
     {
         Serial.println("open failed");

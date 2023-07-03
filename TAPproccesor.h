@@ -362,7 +362,13 @@ class TAPproccesor
           Serial.println("");
 
           //tBlockDescriptor* bDscr = (tBlockDescriptor*)calloc(numBlks,sizeof(tBlockDescriptor));
-          globalTAP.descriptor = (tBlockDescriptor*)calloc(numBlks,sizeof(tBlockDescriptor));
+          
+          if (globalTAP.descriptor != NULL)
+          {
+              free(globalTAP.descriptor);
+          }
+
+          globalTAP.descriptor = (tBlockDescriptor*)calloc(numBlks+1,sizeof(tBlockDescriptor));
           // Guardamos el numero total de bloques
           //globalTAP.numBlocks = numBlks;
           
