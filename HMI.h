@@ -84,6 +84,7 @@ int countFiles(char* path)
 
         //file.rewind();
         char* szName = (char*)calloc(255,sizeof(char));
+        szName = "\0";
 
         while (file.openNext(&dir, O_RDONLY))
         {
@@ -110,7 +111,9 @@ int countFiles(char* path)
 
 void getFilesFromSD()
 {
-    char* szName = (char*)calloc(255,sizeof(char));
+    char* szName = (char*)calloc(255+1,sizeof(char));
+    //szName = "\0";
+
     int j = 0;
 
     // Dimensionamos el array con calloc
@@ -118,11 +121,16 @@ void getFilesFromSD()
     {
         // Liberamos primero el espacio anterior
         free(FILES_BUFF);
+        FILES_BUFF = NULL;
     }
 
     //FILE_TOTAL_FILES = countFiles(FILE_LAST_DIR);
     FILE_TOTAL_FILES = 2000;
     FILES_BUFF = (tFileBuffer*)calloc(FILE_TOTAL_FILES+1,sizeof(tFileBuffer));
+
+    Serial.println("");
+    Serial.println("");
+    Serial.println("TEST 1");
 
     FILE_DIR_OPEN_FAILED = false;
     
@@ -136,13 +144,21 @@ void getFilesFromSD()
     {
         dir.rewindDirectory();
         file.rewind();
-        
+
+        Serial.println("");
+        Serial.println("dir.open OK");
+
         FILE_DIR_OPEN_FAILED = false;
 
         //  AÑADIMOS AL INICIO EL PARENT DIR
         FILES_BUFF[0].isDir = true;
         FILES_BUFF[0].type = "PAR";
         FILES_BUFF[0].path = String(FILE_PREVIOUS_DIR);
+
+        Serial.println("");
+        Serial.println("");
+        Serial.println("TEST 2");
+
         j++;
         
         while (file.openNext(&dir, O_RDONLY) && j < FILE_TOTAL_FILES)
@@ -151,15 +167,32 @@ void getFilesFromSD()
             {
                 if (!file.isHidden())
                 {
+
+    Serial.println("");
+    Serial.println("");
+    Serial.println("TEST 2.2");
+
                     file.getName(szName,255);
+
+    Serial.println("");
+    Serial.println("");
+    Serial.println("TEST 2.3");
+
                     //Cambiamos 
                     sdf.chdir(szName);
-                   
+
+    Serial.println("");
+    Serial.println("");
+    Serial.println("TEST 3");
+
                     FILES_BUFF[j].isDir = true;
                     FILES_BUFF[j].type = "DIR";
-
-                    // Guardamos el fichero en el buffer de ficheros mostrados
                     FILES_BUFF[j].path = String(szName);
+
+    Serial.println("");
+    Serial.println("");
+    Serial.println("TEST 4");
+
                     j++;
                 }
                 else
@@ -176,9 +209,15 @@ void getFilesFromSD()
                     file.getName(szName,255);
                     int8_t len = strlen(szName);
 
+    Serial.println("");
+    Serial.println("");
+    Serial.println("TEST 5");
+
+
                     if (strstr(strlwr(szName + (len - 4)), ".tap")) 
                     {
                         FILES_BUFF[j].type = "TAP";
+                        FILES_BUFF[j].isDir = false;
                         // Guardamos el fichero en el buffer
                         FILES_BUFF[j].path = String(szName);
                         j++;
@@ -186,6 +225,7 @@ void getFilesFromSD()
                     else if (strstr(strlwr(szName + (len - 4)), ".tzx")) 
                     {
                         FILES_BUFF[j].type = "TZX";
+                        FILES_BUFF[j].isDir = false;
                         // Guardamos el fichero en el buffer
                         FILES_BUFF[j].path = String(szName);
                         j++;
@@ -193,6 +233,7 @@ void getFilesFromSD()
                     else if (strstr(strlwr(szName + (len - 4)), ".sna")) 
                     {
                         FILES_BUFF[j].type = "SNA";
+                        FILES_BUFF[j].isDir = false;
                         // Guardamos el fichero en el buffer
                         FILES_BUFF[j].path = String(szName);
                         j++;
@@ -200,14 +241,17 @@ void getFilesFromSD()
                     else if (strstr(strlwr(szName + (len - 4)), ".z80")) 
                     {
                         FILES_BUFF[j].type = "Z80";
+                        FILES_BUFF[j].isDir = false;
                         // Guardamos el fichero en el buffer
                         FILES_BUFF[j].path = String(szName);
                         j++;
                     } 
                     else
                     {
-                        FILES_BUFF[j].type = "";
                         // No se guarda
+                        //FILES_BUFF[j].type = "";
+                        //FILES_BUFF[j].isDir = false;
+                        //FILES_BUFF[j].path = "";
                     }
                 }
                 else
@@ -215,6 +259,7 @@ void getFilesFromSD()
                   // No se muestra el fichero porque está oculto
                 }
             }
+
             file.close();
 
         }
@@ -494,6 +539,7 @@ void findTheTextInFiles()
     if(FILES_FOUND_BUFF!=NULL)
     {
         free(FILES_FOUND_BUFF);
+        FILES_FOUND_BUFF=NULL;
     }
 
     const int maxResults = 500;
@@ -505,7 +551,6 @@ void findTheTextInFiles()
     FILES_FOUND_BUFF[0].path = FILES_BUFF[0].path;
     FILES_FOUND_BUFF[0].type = FILES_BUFF[0].type;
     FILES_FOUND_BUFF[0].isDir = FILES_BUFF[0].isDir;
-    FILES_FOUND_BUFF[0].dirPos = FILES_BUFF[0].dirPos;
     
     if (FILE_BROWSER_SEARCHING)
     {
@@ -534,7 +579,6 @@ void findTheTextInFiles()
                     FILES_FOUND_BUFF[j].path = FILES_BUFF[i].path;
                     FILES_FOUND_BUFF[j].type = FILES_BUFF[i].type;
                     FILES_FOUND_BUFF[j].isDir = FILES_BUFF[i].isDir;
-                    FILES_FOUND_BUFF[j].dirPos = FILES_BUFF[i].dirPos;
                     
                     Serial.println(fileRead);
                     
@@ -608,18 +652,25 @@ void verifyCommand(String strCmd)
 
       getFilesFromSD();
 
-      if (FILE_BROWSER_SEARCHING)
+      // if (FILE_BROWSER_SEARCHING)
+      // {
+      if (!FILE_DIR_OPEN_FAILED)
       {
-          putInHome();
-      }
-      else
-      {
-          if (!FILE_DIR_OPEN_FAILED)
-          {
-              putFilesInScreen();
-              FILE_STATUS = 1;
-          }        
-      }
+          putFilesInScreen();
+          FILE_STATUS = 1;
+          // El GFIL desconecta el filtro de busqueda
+          FILE_BROWSER_SEARCHING = false;
+      }        
+          //putInHome();
+      // }
+      // else
+      // {
+      //     if (!FILE_DIR_OPEN_FAILED)
+      //     {
+      //         putFilesInScreen();
+      //         FILE_STATUS = 1;
+      //     }        
+      // }
 
 
 
@@ -787,7 +838,12 @@ void verifyCommand(String strCmd)
           Serial.println("File to load: " + FILE_TO_LOAD);    
 
           // Ya no me hace falta. Lo libero
-          free(FILES_BUFF);
+          if (FILES_BUFF!=NULL)
+          {
+              free(FILES_BUFF);
+              FILES_BUFF=NULL;
+          }
+          
       }
       else
       {
@@ -798,7 +854,11 @@ void verifyCommand(String strCmd)
           Serial.println("File to load: " + FILE_TO_LOAD); 
 
           // Ya no me hace falta. Lo libero
-          free(FILES_FOUND_BUFF);
+          if(FILES_FOUND_BUFF!=NULL)
+          {
+              free(FILES_FOUND_BUFF);
+              FILES_FOUND_BUFF = NULL;
+          }
 
       }
 

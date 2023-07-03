@@ -2,7 +2,7 @@
 
 struct tBlock 
 {
-  int index;            // Numero del bloque
+  int index = 0;            // Numero del bloque
   int offset = 0;       // Byte donde empieza
   byte* header = NULL;  // Cabecera del bloque
   byte* data = NULL;    // Datos del bloque
@@ -10,32 +10,31 @@ struct tBlock
 
 struct tBlockDescriptor 
 {
-  int offset;
-  int size;
-  int chk;
-  char* name;
-  bool nameDetected;
-  bool header;
-  bool screen;
-  int type;
-  char* typeName;
+  int offset = 0;
+  int size = 0;
+  int chk = 0;
+  char* name = "\0";
+  bool nameDetected = false;
+  bool header = false;
+  bool screen = false;
+  int type = 0;
+  char* typeName = "\0";
 };
 
 // Estructura tipo TAP
 struct tTAP 
 {
-  char* name;                           // Nombre del TAP
-  int size;                             // Tamaño
-  int numBlocks;                        // Numero de bloques
+  char* name = "\0";                           // Nombre del TAP
+  int size = 0;                             // Tamaño
+  int numBlocks = 0;                        // Numero de bloques
   tBlockDescriptor* descriptor = NULL;  // Descriptor
 };
 
 struct tFileBuffer
 {
-    bool isDir;
-    int dirPos;
-    String path;
-    String type;
+    bool isDir = false;
+    String path = "";
+    String type = "";
 };
 
 tTAP globalTAP;
@@ -52,8 +51,8 @@ bool TURBOMODE = false;
 int LOADING_STATE = 0;
 int CURRENT_BLOCK_IN_PROGRESS = 0;
 int BLOCK_SELECTED = 0;
-char* LAST_NAME = "";
-char* LAST_TYPE = "";
+char* LAST_NAME = "\0";
+char* LAST_TYPE = "\0";
 String LAST_MESSAGE = "";
 String PROGRAM_NAME = "";
 int LAST_SIZE = 0;
@@ -70,10 +69,10 @@ int SCREEN_SECTION = 0;
 // File system
 int FILE_INDEX = 0;           // Índice de la fila seleccionada
 int FILE_PAGE = 0;            // Contador de la pagina leida
-char* FILE_PATH = "";         // Ruta del archivo seleccionado
+char* FILE_PATH = "\0";         // Ruta del archivo seleccionado
 int FILE_LAST_DIR_LEVEL = 0;  // Nivel de profundida de directorio
-char* FILE_LAST_DIR = "/";
-char* FILE_PREVIOUS_DIR = "/";
+char* FILE_LAST_DIR = "/\0";
+char* FILE_PREVIOUS_DIR = "/\0";
 int FILE_LAST_INDEX = 0;
 int FILE_IDX_SELECTED = -1;
 

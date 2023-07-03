@@ -245,6 +245,8 @@ void playTAPfile_ZXSpectrum(char* path) {
       if(bufferPlay!=NULL)
       {
           free(bufferPlay);
+          bufferPlay=NULL;
+
       }
 
       bufferPlay = (byte*)calloc(globalTAP.descriptor[i].size, sizeof(byte));
@@ -259,6 +261,7 @@ void playTAPfile_ZXSpectrum(char* path) {
       if(bufferPlay!=NULL)
       {
           free(bufferPlay);
+          bufferPlay=NULL;
       }      
 
       bufferPlay = (byte*)calloc(globalTAP.descriptor[i].size, sizeof(byte));
@@ -288,6 +291,7 @@ void playTAPfile_ZXSpectrum(char* path) {
             if(bufferPlay!=NULL)
             {
                 free(bufferPlay);
+                bufferPlay=NULL;
             }
 
             bufferPlay = (byte*)calloc(blockPlaySize, sizeof(byte));
@@ -303,6 +307,7 @@ void playTAPfile_ZXSpectrum(char* path) {
             if(bufferPlay!=NULL)
             {
                 free(bufferPlay);
+                bufferPlay=NULL;
             }
 
             bufferPlay = (byte*)calloc(blockPlaySize, sizeof(byte));
@@ -317,6 +322,7 @@ void playTAPfile_ZXSpectrum(char* path) {
         if(bufferPlay!=NULL)
         {
             free(bufferPlay);
+            bufferPlay=NULL;
         }
 
         bufferPlay = (byte*)calloc(globalTAP.descriptor[i].size, sizeof(byte));
@@ -349,7 +355,13 @@ void playTAPfile_ZXSpectrum(char* path) {
   // Cerrando
   LOADING_STATE = 0;
 
-  free(bufferPlay);
+  if(bufferPlay!=NULL)
+  {
+    free(bufferPlay);
+    bufferPlay=NULL;
+  }
+  
+
 
   //delay(1000);
 
@@ -509,16 +521,17 @@ void loop() {
         char* file_ch = (char*)calloc(FILE_TO_LOAD.length() + 1, sizeof(char));
         FILE_TO_LOAD.toCharArray(file_ch, FILE_TO_LOAD.length() + 1);
 
-        Serial.println("++++++++++++++++++++++++++++++++++++++++++++++");
-        Serial.println("");
-        Serial.println(String(file_ch));
-        Serial.println("++++++++++++++++++++++++++++++++++++++++++++++");
+        // Serial.println("++++++++++++++++++++++++++++++++++++++++++++++");
+        // Serial.println("");
+        // Serial.println(String(file_ch));
+        // Serial.println("++++++++++++++++++++++++++++++++++++++++++++++");
 
         if (FILE_TO_LOAD != "") {
                    
           getInfoFileTAP(file_ch);
           
           LAST_MESSAGE = "Press PLAY to enjoy!";
+          delay(125);
           updateInformationMainPage();
 
           FILE_NOTIFIED = true;

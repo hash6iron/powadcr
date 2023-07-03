@@ -257,7 +257,13 @@ class TAPproccesor
               byte* tmpRng = (byte*)calloc(sizeB,sizeof(byte));
               tmpRng = readFileRange32(mFile,startBlock,sizeB-1,false);
               chk = calculateChecksum(tmpRng,0,sizeB-1);
-              free(tmpRng);
+
+              if (tmpRng!=NULL)
+              {
+                  free(tmpRng);
+                  tmpRng=NULL;
+              }
+              
               //Serial.println("MARK CHK: ");
               
               blockChk = readFileRange32(mFile,startBlock+sizeB-1,1,false)[0];
@@ -366,6 +372,7 @@ class TAPproccesor
           if (globalTAP.descriptor != NULL)
           {
               free(globalTAP.descriptor);
+              globalTAP.descriptor = NULL;
           }
 
           globalTAP.descriptor = (tBlockDescriptor*)calloc(numBlks+1,sizeof(tBlockDescriptor));
@@ -375,7 +382,7 @@ class TAPproccesor
           char* nameTAP = (char*)calloc(10+1,sizeof(char));
           nameTAP = "\0";
 
-          char* typeName = (char*)calloc(10,sizeof(char));
+          char* typeName = (char*)calloc(10+1,sizeof(char));
           typeName = "\0";
 
           int startBlock = 0;
@@ -403,9 +410,8 @@ class TAPproccesor
           sizeB = (256*readFileRange32(mFile,startBlock+1,1,false)[0]) + readFileRange32(mFile,startBlock,1,false)[0];
           startBlock = 2;
 
-          while(reachEndByte==false)
+          while(reachEndByte==false && sizeB!=0)
           {
-
               // Inicializamos
               blockName = "\0";
               //bDscr[numBlocks].name = blockName;
@@ -417,7 +423,13 @@ class TAPproccesor
               byte* tmpRng = (byte*)calloc(sizeB,sizeof(byte));
               tmpRng = readFileRange32(mFile,startBlock,sizeB-1,false);
               chk = calculateChecksum(tmpRng,0,sizeB-1);
-              free(tmpRng);
+
+              if (tmpRng!=NULL)
+              {
+                  free(tmpRng);
+                  tmpRng=NULL;
+              }
+
               //Serial.println("MARK CHK: ");
               
               blockChk = readFileRange32(mFile,startBlock+sizeB-1,1,false)[0];
@@ -426,16 +438,9 @@ class TAPproccesor
               if (blockChk == chk)
               {
                   
-                  // bDscr[numBlocks].offset = startBlock;
-                  // bDscr[numBlocks].size = sizeB;
-                  // bDscr[numBlocks].chk = chk;
-
                   globalTAP.descriptor[numBlocks].offset = startBlock;
                   globalTAP.descriptor[numBlocks].size = sizeB;
-                  globalTAP.descriptor[numBlocks].chk = chk;
-
-
-                  //Serial.println("SAVE 1: ");            
+                  globalTAP.descriptor[numBlocks].chk = chk;        
 
                   // Cogemos info del bloque
                   
@@ -454,10 +459,7 @@ class TAPproccesor
                   if (flagByte == 0)
                   {
 
-                      // Inicializamos
-                      // bDscr[numBlocks].type = 0;
-                      // bDscr[numBlocks].typeName = typeName;
-                      
+                      // Inicializamos                    
                       globalTAP.descriptor[numBlocks].type = 0;
                       globalTAP.descriptor[numBlocks].typeName = typeName;
                       
@@ -465,8 +467,6 @@ class TAPproccesor
                       if (typeBlock==0)
                       {
                           // Es un header PROGRAM
-                          // bDscr[numBlocks].header = true;
-                          // bDscr[numBlocks].type = HPRGM;
 
                           globalTAP.descriptor[numBlocks].header = true;
                           globalTAP.descriptor[numBlocks].type = HPRGM;
@@ -474,7 +474,6 @@ class TAPproccesor
                           blockNameDetected = true;
 
                           // Almacenamos el nombre
-                          //getBlockName(&bDscr[numBlocks].name,readFileRange32(mFile,startBlock,19,false),0);
                           getBlockName(&globalTAP.descriptor[numBlocks].name,readFileRange32(mFile,startBlock,19,false),0);
 
 
@@ -507,7 +506,6 @@ class TAPproccesor
                           blockNameDetected = true;
                           
                           // Almacenamos el nombre
-                          //getBlockName(&bDscr[numBlocks].name,readFileRange32(mFile,startBlock,19,false),0);
                           getBlockName(&globalTAP.descriptor[numBlocks].name,readFileRange32(mFile,startBlock,19,false),0);                          
 
                           int tmpSizeBlock = (256*readFileRange32(mFile,startBlock + sizeB+1,1,false)[0]) + readFileRange32(mFile,startBlock + sizeB,1,false)[0];
@@ -515,17 +513,13 @@ class TAPproccesor
                           if (tmpSizeBlock == 6914)
                           {
                               // Es una cabecera de un Screen
-                              // bDscr[numBlocks].screen = true;
-                              // bDscr[numBlocks].type = HSCRN;
-                              
                               globalTAP.descriptor[numBlocks].screen = true;
                               globalTAP.descriptor[numBlocks].type = HSCRN;                              
 
                               state = 2;
                           }
                           else
-                          {
-                              //bDscr[numBlocks].type = HCODE;                       
+                          {               
                               globalTAP.descriptor[numBlocks].type = HCODE;    
                           }
                    
@@ -537,38 +531,31 @@ class TAPproccesor
                       if (state == 1)
                       {
                           state = 0;
-                          // Es un bloque BASIC
-                          //bDscr[numBlocks].type = PRGM;                         
+                          // Es un bloque BASIC                         
                           globalTAP.descriptor[numBlocks].type = PRGM;
                       }
                       else if (state == 2)
                       {
                           state = 0;
-                          // Es un bloque SCREEN
-                          //bDscr[numBlocks].type = SCRN;                         
+                          // Es un bloque SCREEN                     
                           globalTAP.descriptor[numBlocks].type = SCRN;                         
                       }
                       else
                       {
-                          // Es un bloque CM
-                          //bDscr[numBlocks].type = CODE;                         
+                          // Es un bloque CM                        
                           globalTAP.descriptor[numBlocks].type = CODE;                         
                       }
                   }
 
-
-                  //bDscr[numBlocks].typeName = getTypeTAPBlock(bDscr[numBlocks].type);
                   globalTAP.descriptor[numBlocks].typeName = getTypeTAPBlock(globalTAP.descriptor[numBlocks].type);                         
 
 
                   if (blockNameDetected)
-                  {
-                      //bDscr[numBlocks].nameDetected = true;                                      
+                  {                                     
                       globalTAP.descriptor[numBlocks].nameDetected = true;                                      
                   }
                   else
                   {
-                      //bDscr[numBlocks].nameDetected = false;
                       globalTAP.descriptor[numBlocks].nameDetected = false;
                   }
 
