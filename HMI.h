@@ -554,6 +554,10 @@ void findTheTextInFiles()
     
     if (FILE_BROWSER_SEARCHING)
     {
+    
+        writeString("statusFILE.txt=\"SEARCHING FILES\"");
+        delay(125);
+
         // Buscamos el texto en el buffer actual.
         String fileRead = "";
         int j = 1;
@@ -590,6 +594,19 @@ void findTheTextInFiles()
                     break;
                 }
             }
+        }
+
+        if (j<=1)
+        {
+            // No hay resultados
+            writeString("statusFILE.txt=\"NO FILES FOUND\"");
+            delay(125);
+        }
+        else
+        {
+            // Limpiamos el mensaje
+            writeString("statusFILE.txt=\"\"");
+            delay(125);
         }
 
         FILE_TOTAL_FILES = j;       
@@ -649,6 +666,7 @@ void verifyCommand(String strCmd)
       // le devolvamos ficheros en la posición actual del puntero
 
       writeString("statusFILE.txt=\"GETTING FILES\"");
+      delay(125);
 
       getFilesFromSD();
 
@@ -676,6 +694,7 @@ void verifyCommand(String strCmd)
 
       //writeString("");
       writeString("statusFILE.txt=\"\"");
+      delay(125);
 
   }
 
@@ -974,13 +993,14 @@ void verifyCommand(String strCmd)
   }
 
 
-  if (strCmd.indexOf("VOL") != -1) 
+  if (strCmd.indexOf("VOL=") != -1) 
   {
     //Cogemos el valor
-    byte buff[7];
+    byte buff[8];
     strCmd.getBytes(buff, 7);
     int valVol = (int)buff[4];
     MAIN_VOL = valVol;
+    //
     ESP32kit.setVolume(MAIN_VOL);
   }
 

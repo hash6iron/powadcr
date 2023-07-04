@@ -100,7 +100,7 @@ void sendStatus(int action, int value) {
     
     case RESET:
       //writeString("");
-      writeString("statusLCD.txt=\"System reboot\"");
+      writeString("statusLCD.txt=\"SYSTEM REBOOT\"");
   }
 }
 void setSDFrequency(int SD_Speed) {
@@ -347,8 +347,6 @@ void playTAPfile_ZXSpectrum(char* path) {
     updateInformationMainPage();
 
     // Ahora ya podemos tocar el HMI panel otra vez
-    ////writeString("");
-    //writeString("rx.txt=\"END\"");
     sendStatus(END_ST, 1);
   }
 
@@ -361,17 +359,10 @@ void playTAPfile_ZXSpectrum(char* path) {
     bufferPlay=NULL;
   }
   
-
-
-  //delay(1000);
-
   sdFile32.close();
-
   Serial.flush();
 
   // Ahora ya podemos tocar el HMI panel otra vez
-  // //writeString("");
-  // writeString("rx.txt=\"READY\"");
   sendStatus(READY_ST, 1);
 }
 
@@ -397,16 +388,13 @@ void waitForHMI()
 void setup() {
   // Configuramos el nivel de log
   Serial.begin(115200);
-
   delay(250);
-  // Forzamos un reinicio de la pantalla
-  //writeString("");
-  writeString("rest");
 
+  // Forzamos un reinicio de la pantalla
+  writeString("rest");
   delay(250);
 
   sendStatus(RESET, 1);
-
   delay(500);
 
   //LAST_MESSAGE = "Resseting CPU. Please wait.";
@@ -436,8 +424,6 @@ void setup() {
   Serial.println("Waiting for LCD.");
   Serial.println("");
 
-  // delay(2000);
-
   waitForHMI();
 
   // Configuramos la velocidad de acceso a la SD
@@ -463,29 +449,13 @@ void setup() {
   PLAY = false;
   PAUSE = false;
 
-  // //writeString("");
-  // writeString("page scrload");
-
-  // //writeString("");
-  // writeString("draw 112,64,368,256,BLUE");
-
-
   sendStatus(STOP_ST, 1);
   sendStatus(PLAY_ST, 0);
   sendStatus(PAUSE_ST, 0);
   sendStatus(READY_ST, 1);
   sendStatus(END_ST, 0);
-  ////writeString("");
-  //writeString("rx.txt=\"READY\"");
-  //FILE_SELECTED = true;
 
-  // \games\Classic48\Trashman\TRASHMAN.TAP
-  //sdf.ls("/", LS_R);
-  // sdf.ls("/games/Classic48/Trashman/",LS_R);
-  // Serial.println();
-  // Serial.println();
-  //testFile1();
-  LAST_MESSAGE = "...";
+  LAST_MESSAGE = "Press EJECT to select a file.";
 
 
 }
