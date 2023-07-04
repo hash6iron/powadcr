@@ -387,7 +387,8 @@ void waitForHMI()
 
 void setup() {
   // Configuramos el nivel de log
-  Serial.begin(115200);
+  //Serial.begin(115200);
+  Serial.begin(921600);
   delay(250);
 
   // Forzamos un reinicio de la pantalla

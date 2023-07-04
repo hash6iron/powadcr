@@ -23,7 +23,7 @@ void writeString(String stringData)
     {
         // Metemos un delay de 10ms
         // menos da problemas.
-        delay(10);       
+        //delay(10);       
     }
 
 }
