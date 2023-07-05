@@ -102,7 +102,7 @@ In this section we are going to describe parts to be needed to assemble the Powa
 **How firmware is loaded in ESP32 Audiokit?**
 1. Install Arduino IDE 2.0
 2. Apply this BOARD repository to Arduino IDE preferences.
-- https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json
+   - https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json
 
 3. Set board how "ESP32 DEV MOD".
 
