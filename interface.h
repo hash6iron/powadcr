@@ -1,3 +1,21 @@
+/* +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    Nombre: interface.h
+    
+    Creado por:
+      Antonio Tamairón. 2023  
+      @hash6iron / https://powagames.itch.io/
+    
+    Descripción:
+    Conjunto de metodos para la gestión de la botonera. 
+    
+    NOTA: Posiblemente a extinguir.
+   
+    Version: 1.0
+
+    Historico de versiones
+
+ +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
+
 void configureButtons()
 {
     pinMode(button1_GPIO, INPUT);

@@ -1,3 +1,19 @@
+/* +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    Nombre: HMI.h
+    
+    Creado por:
+      Antonio Tamairón. 2023  
+      @hash6iron / https://powagames.itch.io/
+    
+    Descripción:
+    Conjunto de recursos para la gestión de la pantalla TJC
+
+    Version: 1.0
+
+    Historico de versiones
+
+ +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
+
 void writeString(String stringData) 
 {
 

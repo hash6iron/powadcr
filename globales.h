@@ -1,4 +1,18 @@
-// Variables GLOBALES a todo el proyecto
+/* +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    Nombre: config.h
+    
+    Creado por:
+      Antonio Tamairón. 2023  
+      @hash6iron / https://powagames.itch.io/
+    
+    Descripción:
+    Fichero de variables, estructuras globales
+   
+    Version: 1.0
+
+    Historico de versiones
+
+ +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
 
 struct tBlock 
 {

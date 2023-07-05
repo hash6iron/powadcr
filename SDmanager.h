@@ -4,14 +4,6 @@
     Creado por:
       Antonio Tamairón. 2023  
       @hash6iron / https://powagames.itch.io/
-
-
-    Colaboradores en el proyecto:
-      - Fernando Mosquera
-      - Guillermo
-      - Mario J
-      - Pedro Pelaez
-
     
     Descripción:
     Funciones para la gestión de ficheros y lectura de bloques de bytes desde la SD

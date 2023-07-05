@@ -1,16 +1,20 @@
-/*
- ZXProccesor.h
- Antonio Tamairón. 2023
+/* +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    Nombre: ZXProccesor.h
+    
+    Creado por:
+      Antonio Tamairón. 2023  
+      @hash6iron / https://powagames.itch.io/
+    
+    Descripción:
+    Clase que implementa metodos y parametrizado para todas las señales que necesita el ZX Spectrum para la carga de programas.
 
- Descripción:
- Clase que implementa metodos y parametrizado para todas las señales que necesita el ZX Spectrum para el proceso de carga de programas.
+    NOTA: Esta clase necesita de la libreria Audio-kit de Phil Schatzmann - https://github.com/pschatzmann/arduino-audiokit
+    
+    Version: 1.0
 
- Version: 0.1
+    Historico de versiones
 
- NOTA: Esta clase necesita de la libreria Audio-kit de Phil Schatzmann - https://github.com/pschatzmann/arduino-audiokit
-
-*/
-
+ +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
 
 #include <stdint.h>
 #include "AudioKitHAL.h"

@@ -1,3 +1,19 @@
+/* +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    Nombre: config.h
+    
+    Creado por:
+      Antonio Tamairón. 2023  
+      @hash6iron / https://powagames.itch.io/
+    
+    Descripción:
+    Fichero de configuración
+   
+    Version: 1.0
+
+    Historico de versiones
+
+ +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
+
 // Machine
 //
 // 0 for ZX Spectrum

@@ -1,6 +1,27 @@
+/* +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    Nombre: test.h
+    
+    Creado por:
+      Antonio Tamairón. 2023  
+      @hash6iron / https://powagames.itch.io/
+    
+    Descripción:
+    Datos en memoria para probar conexión de audio con Spectrum sin necesidad de usar SD
+    Es un fragmento del juego Snakepower de Powa Games. 
+
+    NOTA: Posiblemente a extinguir para liberar memoria.
+
+    NOTA: Para cargar poner en ZX Spectrum --> LOAD "" screen$
+   
+    Version: 1.0
+
+    Historico de versiones
+
+ +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
+
 // Test
 // snakepower.tap (screen only)
-//
+
 byte testHeader[19] = {
 	// Offset 0x00000004 to 0x00000014
 	0X00, 0X00, 0x73, 0x6E, 0x61, 0x6B, 0x65, 0x70, 0x6F, 0x77, 0x65, 0x72, 0x98, 0x00,
