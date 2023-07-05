@@ -91,3 +91,27 @@ Well, this concept could be difficult to understando, but it's not far of realli
 + We know that SHORT LEADER TONE pulse train is 1.99s
 + The frecuency for both leader tones (2168 x 0.00000028571) / 2 = 809.2Hz
 
+About POWADCR Device.
+-----
+In this section we are going to describe parts to be needed to ensamble a PowaDCR.
+
+**Bill of material
++ Main board: ESP32 Audiokit by AI-Thinker technology : https://docs.ai-thinker.com/en/esp32-audio-kit (Possible buy site. Alliexpress)
++ Color LCD 3.5" 400x380 pixels. Resistive TouchScreen - TJC4832T035 _ 011 resistive (low priced but possible to discontinued and replaced by TJC4832T135 _ 011C capacitive or TJC4832T135 _ 011R resistive)
++ Cable XH2.5 to dupont to connecto LCD to the extended port of ESP32 Audiokit
++ Battery 2000mAh 3.7v (optional not needed)
++ Micro SD card FAT32 formatted (to contain all ZX Spectrum games in TAP and other formats to be red for PowaDCR in the future)
++ Micro SD card or FT232RL FTDI serial interface to program the TJC LCD (both methods are available)
++ Cable with jacks Stereo-stereo male-male 3.5mm to connect PowaDCR to Spectrum Next or N-Go or clone versions.
++ Cable with XH2.5 and mono jack 3.5mm to connect from amplifier out of PowaDCR to EAR connector on ZX Spectrum classic versions (Rubber keyboard 16K, 48K, Spectrum+ and Spectrum 128K Toastrack)
++ HMI Chinesse editor version https://unofficialnextion.com/t/tjc-usart-hmi-editor-1-64-1/1511
++ Arduino IDE 2.0
+
+**How PowaDCR parts are connected?
+
+**How firmware is loaded in ESP32 Audiokit?
+
+**How firmware is loaded in TJC LCD?
+
+**What PowaDCR beta version is able to do?
+
