@@ -78,7 +78,7 @@ The sequence for ZS Spectrum, is always:
 
 **What means T-State?**
 
-Well, this concept could be difficult to understando, but it's not far of reallity, as summarized full pulse (two peaks one to high and one to low) has a period equal to 2 x T-State time, where T-State = 1/3.5MHz = 0.28571 us, then for example: LARGE LEADER TONE.
+Well, this concept could be difficult to understand, but it's not far of reallity, as summarized full pulse (two peaks one to high and one to low) has a period equal to 2 x T-State time, where T-State = 1/3.5MHz = 0.28571 us, then for example: LARGE LEADER TONE.
 + LEADER TONE = 2168 x 8063 T-States = 17480584 T-States
 + 1 T-State = 1 / 3.5MHz = 0.28571 us = 0.00000028571 s
 + LEADER TONE duration = 17480584 x 0.00000028571 s = 4.98s
