@@ -40,10 +40,11 @@ This project need set PCB switches to
 
 ## LCD Screen Display
 
-The LCD screen Display chosen for this project is a TFT HMI LCD Display Module Screen Touch connected with 2 serial pins (TX and RX) to the board. 
+The LCD touch screen display chosen for this project is a TFT HMI LCD Display Module Screen Touch connected with 2 serial pins (TX and RX) to the board. 
+Brand: TJC
+Model: TJC4832T035_011
 Size: 3.5".
 Resolution:  480x320.
-https://a.aliexpress.com/_EwTLSbP
 
 ## Set Arduino IDE
 
@@ -97,7 +98,7 @@ In this section we are going to describe parts to be needed to assemble the Powa
 
 **Bill of material**
 + Main board: ESP32 Audiokit by AI-Thinker technology : https://docs.ai-thinker.com/en/esp32-audio-kit (Possible buy site. Alliexpress)
-+ Color LCD 3.5" 400x380 pixels. Resistive TouchScreen - TJC4832T035 _ 011 resistive (low priced but possible to discontinued and replaced by TJC4832T135 _ 011C capacitive or TJC4832T135 _ 011R resistive)
++ Color LCD 3.5" 480x320 pixels. Resistive TouchScreen - TJC4832T035_011 resistive (low priced but possible to discontinued and replaced by TJC4832T135 _ 011C capacitive or TJC4832T135 _ 011R resistive)
 + Cable XH2.5 to dupont to connecto LCD to the extended port of ESP32 Audiokit
 + Battery 2000mAh 3.7v (optional not needed)
 + Micro SD card FAT32 formatted (to contain all ZX Spectrum games in TAP and other formats to be red for PowaDCR in the future)
