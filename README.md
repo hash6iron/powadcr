@@ -1,7 +1,7 @@
 # POWADCR
 TAP/TZX Digital cassette recorder for 8-bit machines
 -----
-This project pretend to implement a Digital Cassette Recorder (for TAP/TZX/SNA files playing and recording) for 8-bit machines on ESP32 Audio kit development board.
+This project intends to implement a Digital Cassette Recorder (for TAP/TZX/SNA files playing and recording) for 8-bit machines using the ESP32 Audio kit development board.
 
 The launcher was this board below, ESP32 Audio Kit equipped with ESP32 microcontroller and ES8388 Audio proccesor 
 made by AI-Thinker Technology.
@@ -23,11 +23,11 @@ The summary of specifications is.
 + SD slot
 + ...
 
-So, it's a beautiful develop board with a big possibilities. 
+So, it's a beautiful development board with a lot of possibilities. 
 
-To begin with is necessary use the Phil Schatzmann's libraries for ESP32 Audio Kit (https://github.com/pschatzmann/arduino-audiokit) where we could take advantage of all resources of this kit, to create a digital player and recorder for ZX Spectrum easilly, or this is the first idea.
+For starters, it is necessary to use Phil Schatzmann's libraries for the ESP32 Audio Kit (https://github.com/pschatzmann/arduino-audiokit). We could take advantage of all resources on this kit to create a digital player and recorder for the ZX Spectrum easily, or at least this is the idea.
 
-This project need set PCB switches to
+This project needs the PCB switches set to:
 
 |Switch|Value|
 |---|---|
@@ -42,15 +42,15 @@ This project need set PCB switches to
 
 The LCD screen Display chosen for this project is a TFT HMI LCD Display Module Screen Touch connected with 2 serial pins (TX and RX) to the board. 
 Size: 3.5".
-Resolution:  480x320.
+Resolution: 480x320.
 https://a.aliexpress.com/_EwTLSbP
 
 ## Set Arduino IDE
 
-Apply this BOARD repository to Arduino IDE preferences.
+Add this BOARD repository to Arduino IDE preferences:
 - https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json
 
-Then, set board how "ESP32 DEV MOD".
+Then, set board as "ESP32 DEV MOD".
 
 Required libraries:
 - SdFat (https://github.com/greiman/SdFat)
@@ -61,30 +61,30 @@ Required libraries:
 
 -----
 
-About loading proccess in Sinclair ZX Spectrum
+About loading proccess on a Sinclair ZX Spectrum
 -----
-I recomend the Alessandro Grussu's website with an interesting information about the loading process and processor timming for this goal. https://www.alessandrogrussu.it/tapir/tzxform120.html#MACHINFO
+I recommend Alessandro Grussu's website, since it contains interesting information about the loading process and processor timmings which are key for the goal: https://www.alessandrogrussu.it/tapir/tzxform120.html#MACHINFO
 
-Now, I'd like to show you how the signal generated from TAP file that Sinclair ZX Spectrum is able to understand. The mechanism to read the audio signal is based on squarewave peaks counting, using the Z80 clock timming, then:
+Now, I'd like to describe how is the signal generated from TAP file that a Sinclair ZX Spectrum would be able to understand. The mechanism to read the audio signal is based on squarewave peaks counting, using the Z80 clock timming.
 
-The sequence for ZS Spectrum, is always: 
+The sequence for ZX Spectrum is always: 
 + LEADER TONE + SYNC1 + DATA TONES + SYNC2 + SILENT
 
-<br>Where: LEADER TONE (2168 T-States) is two kind of length. 
-+ Large (x 8063 T-States) for typical "PROGRAM" block (BASIC)
-+ Short (x 3223 T-States) for typical "BYTE" block, Z80 machine code.</br>
+<br>Where LEADER TONE (2168 T-States) can be one of two types according to its length: 
++ Large (x 8063 T-States) for a typical "PROGRAM" block (BASIC)
++ Short (x 3223 T-States) for a typical "BYTE" block, Z80 machine code.</br>
 
 ![plot](./doc/squarewave_train.png)
 
-**What means T-State?**
+**What does T-State mean?**
 
-Well, this concept could be difficult to understando, but it's not far of reallity, as summarized full pulse (two peaks one to high and one to low) has a period equal to 2 x T-State time, where T-State = 1/3.5MHz = 0.28571 us, then for example: LARGE LEADER TONE.
+Well, this concept could be difficult to understand, but it's not far from reality, as summarized full pulse (two peaks, one to high and one to low) has a period equal to 2 x T-State time, where T-State = 1/3.5MHz = 0.28571 us, then for example: LARGE LEADER TONE.
 + LEADER TONE = 2168 x 8063 T-States = 17480584 T-States
 + 1 T-State = 1 / 3.5MHz = 0.28571 us = 0.00000028571 s
 + LEADER TONE duration = 17480584 x 0.00000028571 s = 4.98s
 
-**How many peaks has the LARGE LEADER TONE pulse train?**
-+ The pulse train has 2168 peaks in both cases but short leader tone has a different duration (3223 T-States) versus large leader tone (8063 T-States)
+**How many peaks does the LARGE LEADER TONE pulse train have?**
++ The pulse train has 2168 peaks in both cases, but short leader tone has a different duration (3223 T-States) versus large leader tone (8063 T-States)
 
 **What's the signal frequency?**
 + We know that LARGE LEADER TONE pulse train is 4.98s 
