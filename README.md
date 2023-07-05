@@ -46,18 +46,6 @@ The LCD touch screen display chosen for this project is a TFT HMI LCD Display Mo
 + Size: 3.5".
 + Resolution:  480x320.
 
-## Set Arduino IDE
-
-Apply this BOARD repository to Arduino IDE preferences.
-- https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json
-
-Then, set board how "ESP32 DEV MOD".
-
-Required libraries:
-- SdFat (https://github.com/greiman/SdFat)
-- arduino-audiokit (https://github.com/pschatzmann/arduino-audiokit/tree/main)
-
-
 ## About Sinclair ZX Spectrum TAP structure.
 
 -----
@@ -112,7 +100,15 @@ In this section we are going to describe parts to be needed to assemble the Powa
 (in progress)
 
 **How firmware is loaded in ESP32 Audiokit?**
-(in progress)
+1. Install Arduino IDE 2.0
+2. Apply this BOARD repository to Arduino IDE preferences.
+- https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json
+
+3. Set board how "ESP32 DEV MOD".
+
+Required libraries:
+- SdFat (https://github.com/greiman/SdFat)
+- arduino-audiokit (https://github.com/pschatzmann/arduino-audiokit/tree/main)
 
 **How firmware is loaded in TJC LCD?**
 (in progress)
