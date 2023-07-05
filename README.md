@@ -93,9 +93,9 @@ Well, this concept could be difficult to understando, but it's not far of realli
 
 About POWADCR Device.
 -----
-In this section we are going to describe parts to be needed to ensamble a PowaDCR.
+In this section we are going to describe parts to be needed to assemble the PowaDCR device.
 
-**Bill of material
+**Bill of material**
 + Main board: ESP32 Audiokit by AI-Thinker technology : https://docs.ai-thinker.com/en/esp32-audio-kit (Possible buy site. Alliexpress)
 + Color LCD 3.5" 400x380 pixels. Resistive TouchScreen - TJC4832T035 _ 011 resistive (low priced but possible to discontinued and replaced by TJC4832T135 _ 011C capacitive or TJC4832T135 _ 011R resistive)
 + Cable XH2.5 to dupont to connecto LCD to the extended port of ESP32 Audiokit
@@ -107,11 +107,15 @@ In this section we are going to describe parts to be needed to ensamble a PowaDC
 + HMI Chinesse editor version https://unofficialnextion.com/t/tjc-usart-hmi-editor-1-64-1/1511
 + Arduino IDE 2.0
 
-**How PowaDCR parts are connected?
+**How PowaDCR parts are connected?**
+(in progress)
 
-**How firmware is loaded in ESP32 Audiokit?
+**How firmware is loaded in ESP32 Audiokit?**
+(in progress)
 
-**How firmware is loaded in TJC LCD?
+**How firmware is loaded in TJC LCD?**
+(in progress)
 
-**What PowaDCR beta version is able to do?
+**What PowaDCR beta version is able to do?**
+(in progress)
 
