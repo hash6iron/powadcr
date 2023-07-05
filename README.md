@@ -41,10 +41,10 @@ This project need set PCB switches to
 ## LCD Screen Display
 
 The LCD touch screen display chosen for this project is a TFT HMI LCD Display Module Screen Touch connected with 2 serial pins (TX and RX) to the board. 
-Brand: TJC
-Model: TJC4832T035_011
-Size: 3.5".
-Resolution:  480x320.
++ Brand: TJC
++ Model: TJC4832T035_011
++ Size: 3.5".
++ Resolution:  480x320.
 
 ## Set Arduino IDE
 
