@@ -104,7 +104,8 @@ In this section we are going to describe parts to be needed to assemble the Powa
 2. Apply this BOARD repository to Arduino IDE preferences.
    - https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json
 
-3. Set board how "ESP32 DEV MOD".
+3. Connect the ESP32 Audiokit USART USB port to any USB PC port
+4. Set board as "ESP32 DEV MOD" and select correct COM port
 
 Required libraries:
 - SdFat (https://github.com/greiman/SdFat)
