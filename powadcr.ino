@@ -29,7 +29,8 @@
 //
 #include "AudioKitHAL.h"
 #include "SDmanager.h"
-// Declaración para eñ audiokitHal
+
+// Declaración para el audiokitHal
 AudioKit ESP32kit;
 
 #include "HMI.h"
@@ -50,7 +51,8 @@ SdFat sd;
 SdFile sdFile;
 File32 sdFile32;
 
-
+TAPproccesor pTAP;
+int rlen = 0;
 
 
 //
@@ -149,16 +151,33 @@ void getInfoFileTAP(char* path)
   // Abrimos el fichero
   sdFile32 = openFile32(sdFile32, path);
   // Obtenemos su tamaño total
-  int rlen = sdFile32.available();
+  rlen = sdFile32.available();
+
   // creamos un objeto TAPproccesor
-  TAPproccesor pTAP(sdFile32, rlen);
+  pTAP.set_file(sdFile32, rlen);
+  pTAP.proccess_tap();
+  
+  Serial.println("");
+  Serial.println("");
+  Serial.println("END PROCCESING TAP: ");
 
-  // Entregamos información por consola
-  PROGRAM_NAME = globalTAP.name;
-  TOTAL_BLOCKS = globalTAP.numBlocks;
-  LAST_NAME = "..";
+  if ((pTAP.get_tap()).descriptor != NULL)
+  {
+      // Entregamos información por consola
+      PROGRAM_NAME = pTAP.get_tap_name();
+      TOTAL_BLOCKS = pTAP.get_tap_numBlocks();
+      LAST_NAME = "..";
 
-  updateInformationMainPage();
+      Serial.println("");
+      Serial.println("");
+      Serial.println("PROGRAM_NAME: " + PROGRAM_NAME);
+      Serial.println("TOTAL_BLOCKS: " + String(TOTAL_BLOCKS));
+
+      // Pasamos el descriptor
+      globalTAP = pTAP.get_tap();
+
+      updateInformationMainPage();
+  }
 }
 
 void playTAPfile_ZXSpectrum(char* path) {
@@ -169,201 +188,213 @@ void playTAPfile_ZXSpectrum(char* path) {
   //writeString("");
   writeString("ENDst.val=0");
 
+  if ((pTAP.get_tap()).descriptor != NULL)
+  {
 
-  // Abrimos el fichero
-  sdFile32 = openFile32(sdFile32, path);
-  // Obtenemos su tamaño total
-  int rlen = sdFile32.available();
-  // creamos un objeto TAPproccesor
-  TAPproccesor pTAP(sdFile32, rlen);
-
-  // Inicializamos el buffer de reproducción. Memoria dinamica
-  byte* bufferPlay = NULL;
-
-  // Entregamos información por consola
-  PROGRAM_NAME = globalTAP.name;
-  TOTAL_BLOCKS = globalTAP.numBlocks;
-  LAST_NAME = "..";
-
-  // Ahora reproducimos todos los bloques desde el seleccionado (para cuando se quiera uno concreto)
-  int m = BLOCK_SELECTED;
-  //BYTES_TOBE_LOAD = rlen;
-
-  // Reiniciamos
-  if (BLOCK_SELECTED == 0) {
-    BYTES_LOADED = 0;
-    BYTES_TOBE_LOAD = rlen;
-    //writeString("");
-    writeString("progressTotal.val=" + String((int)((BYTES_LOADED * 100) / (BYTES_TOBE_LOAD))));
-  } else {
-    BYTES_TOBE_LOAD = rlen - globalTAP.descriptor[BLOCK_SELECTED - 1].offset;
-  }
-
-  for (int i = m; i < globalTAP.numBlocks; i++) {
-
-    //LAST_NAME = bDscr[i].name;
-
-    // Obtenemos el nombre del bloque
-    LAST_NAME = globalTAP.descriptor[i].name;
-    LAST_SIZE = globalTAP.descriptor[i].size;
-
-    // Almacenmas el bloque en curso para un posible PAUSE
-    if (LOADING_STATE != 2) {
-      CURRENT_BLOCK_IN_PROGRESS = i;
-      BLOCK_SELECTED = i;
-
-      //writeString("");
-      writeString("currentBlock.val=" + String(i + 1));
-
-      //writeString("");
-      writeString("progression.val=" + String(0));
-    }
-
-    // Vamos entregando información por consola
-    //Serial.println("Block --> [" + String(i) + "]");
-
-    //Paramos la reproducción.
-    if (LOADING_STATE == 2) {
-      PAUSE = false;
-      STOP = false;
-      PLAY = false;
-      LOADING_STATE = 0;
-      break;
-    }
-
-    //Ahora vamos lanzando bloques dependiendo de su tipo
-    //Esto actualiza el LAST_TYPE
-    pTAP.showInfoBlockInProgress(globalTAP.descriptor[i].type);
-
-    // Actualizamos HMI
-    updateInformationMainPage();
-
-    // Reproducimos el fichero
-    if (globalTAP.descriptor[i].type == 0) {
+        // Abrimos el fichero
+        //sdFile32 = openFile32(sdFile32, path);
+        // Obtenemos su tamaño total
+        //int rlen = sdFile32.available();
+        // creamos un objeto TAPproccesor
+        //TAPproccesor pTAP(sdFile32, rlen);
       
-      // CABECERAS
-      if(bufferPlay!=NULL)
-      {
-          free(bufferPlay);
-          bufferPlay=NULL;
 
-      }
+        // Inicializamos el buffer de reproducción. Memoria dinamica
+        byte* bufferPlay = NULL;
 
-      bufferPlay = (byte*)calloc(globalTAP.descriptor[i].size, sizeof(byte));
-      bufferPlay = readFileRange32(sdFile32, globalTAP.descriptor[i].offset, globalTAP.descriptor[i].size, true);
+        // Entregamos información por consola
+        PROGRAM_NAME = globalTAP.name;
+        TOTAL_BLOCKS = globalTAP.numBlocks;
+        LAST_NAME = "..";
 
-      zxp.playHeaderProgram(bufferPlay, globalTAP.descriptor[i].size);
-      //free(bufferPlay);
+        // Ahora reproducimos todos los bloques desde el seleccionado (para cuando se quiera uno concreto)
+        int m = BLOCK_SELECTED;
+        //BYTES_TOBE_LOAD = rlen;
 
-    } else if (globalTAP.descriptor[i].type == 1 || globalTAP.descriptor[i].type == 7) {
-      
-      // CABECERAS
-      if(bufferPlay!=NULL)
-      {
-          free(bufferPlay);
-          bufferPlay=NULL;
-      }      
+        // Reiniciamos
+        if (BLOCK_SELECTED == 0) {
+          BYTES_LOADED = 0;
+          BYTES_TOBE_LOAD = rlen;
+          //writeString("");
+          writeString("progressTotal.val=" + String((int)((BYTES_LOADED * 100) / (BYTES_TOBE_LOAD))));
+        } else {
+          BYTES_TOBE_LOAD = rlen - globalTAP.descriptor[BLOCK_SELECTED - 1].offset;
+        }
 
-      bufferPlay = (byte*)calloc(globalTAP.descriptor[i].size, sizeof(byte));
-      bufferPlay = readFileRange32(sdFile32, globalTAP.descriptor[i].offset, globalTAP.descriptor[i].size, true);
+        for (int i = m; i < globalTAP.numBlocks; i++) {
 
-      zxp.playHeader(bufferPlay, globalTAP.descriptor[i].size);
-    } else {
-      // DATA
-      int blockSize = globalTAP.descriptor[i].size;
+          //LAST_NAME = bDscr[i].name;
 
-      // Si el SPLIT esta activado y el bloque es mayor de 20KB hacemos Split.
-      if ((SPLIT_ENABLED) && (blockSize > SIZE_TO_ACTIVATE_SPLIT)) {
+          // Obtenemos el nombre del bloque
+          LAST_NAME = globalTAP.descriptor[i].name;
+          LAST_SIZE = globalTAP.descriptor[i].size;
 
-        // Lanzamos dos bloques
-        int bl1 = blockSize / 2;
-        int bl2 = blockSize - bl1;
-        int blockPlaySize = 0;
-        int offsetPlay = 0;
+          // Almacenmas el bloque en curso para un posible PAUSE
+          if (LOADING_STATE != 2) {
+            CURRENT_BLOCK_IN_PROGRESS = i;
+            BLOCK_SELECTED = i;
 
-        //Serial.println("   > Splitted block. Size [" + String(blockSize) + "]");
+            //writeString("");
+            writeString("currentBlock.val=" + String(i + 1));
 
-        for (int j = 0; j < 2; j++) {
-          if (j == 0) {
-            blockPlaySize = bl1;
-            offsetPlay = globalTAP.descriptor[i].offset;
+            //writeString("");
+            writeString("progression.val=" + String(0));
+          }
 
+          // Vamos entregando información por consola
+          //Serial.println("Block --> [" + String(i) + "]");
+
+          //Paramos la reproducción.
+          if (LOADING_STATE == 2) {
+            PAUSE = false;
+            STOP = false;
+            PLAY = false;
+            LOADING_STATE = 0;
+            break;
+          }
+
+          //Ahora vamos lanzando bloques dependiendo de su tipo
+          //Esto actualiza el LAST_TYPE
+          pTAP.showInfoBlockInProgress(globalTAP.descriptor[i].type);
+
+          // Actualizamos HMI
+          updateInformationMainPage();
+
+          // Reproducimos el fichero
+          if (globalTAP.descriptor[i].type == 0) {
+            
+            // CABECERAS
             if(bufferPlay!=NULL)
             {
                 free(bufferPlay);
                 bufferPlay=NULL;
+
             }
 
-            bufferPlay = (byte*)calloc(blockPlaySize, sizeof(byte));
+            bufferPlay = (byte*)calloc(globalTAP.descriptor[i].size, sizeof(byte));
+            bufferPlay = readFileRange32(sdFile32, globalTAP.descriptor[i].offset, globalTAP.descriptor[i].size, true);
 
-            bufferPlay = readFileRange32(sdFile32, offsetPlay, blockPlaySize, true);
-            zxp.playDataBegin(bufferPlay, blockPlaySize);
+            zxp.playHeaderProgram(bufferPlay, globalTAP.descriptor[i].size);
             //free(bufferPlay);
 
+          } else if (globalTAP.descriptor[i].type == 1 || globalTAP.descriptor[i].type == 7) {
+            
+            // CABECERAS
+            if(bufferPlay!=NULL)
+            {
+                free(bufferPlay);
+                bufferPlay=NULL;
+            }      
+
+            bufferPlay = (byte*)calloc(globalTAP.descriptor[i].size, sizeof(byte));
+            bufferPlay = readFileRange32(sdFile32, globalTAP.descriptor[i].offset, globalTAP.descriptor[i].size, true);
+
+            zxp.playHeader(bufferPlay, globalTAP.descriptor[i].size);
           } else {
-            blockPlaySize = bl2;
-            offsetPlay = offsetPlay + bl1;
+            // DATA
+            int blockSize = globalTAP.descriptor[i].size;
 
-            if(bufferPlay!=NULL)
-            {
-                free(bufferPlay);
-                bufferPlay=NULL;
+            // Si el SPLIT esta activado y el bloque es mayor de 20KB hacemos Split.
+            if ((SPLIT_ENABLED) && (blockSize > SIZE_TO_ACTIVATE_SPLIT)) {
+
+              // Lanzamos dos bloques
+              int bl1 = blockSize / 2;
+              int bl2 = blockSize - bl1;
+              int blockPlaySize = 0;
+              int offsetPlay = 0;
+
+              //Serial.println("   > Splitted block. Size [" + String(blockSize) + "]");
+
+              for (int j = 0; j < 2; j++) {
+                if (j == 0) {
+                  blockPlaySize = bl1;
+                  offsetPlay = globalTAP.descriptor[i].offset;
+
+                  if(bufferPlay!=NULL)
+                  {
+                      free(bufferPlay);
+                      bufferPlay=NULL;
+                  }
+
+                  bufferPlay = (byte*)calloc(blockPlaySize, sizeof(byte));
+
+                  bufferPlay = readFileRange32(sdFile32, offsetPlay, blockPlaySize, true);
+                  zxp.playDataBegin(bufferPlay, blockPlaySize);
+                  //free(bufferPlay);
+
+                } else {
+                  blockPlaySize = bl2;
+                  offsetPlay = offsetPlay + bl1;
+
+                  if(bufferPlay!=NULL)
+                  {
+                      free(bufferPlay);
+                      bufferPlay=NULL;
+                  }
+
+                  bufferPlay = (byte*)calloc(blockPlaySize, sizeof(byte));
+                  bufferPlay = readFileRange32(sdFile32, offsetPlay, blockPlaySize, true);
+                  zxp.playDataEnd(bufferPlay, blockPlaySize);
+                  //free(bufferPlay);
+                }
+              }
+            } else {
+              // En el caso de NO USAR SPLIT o el bloque es menor de 20K
+
+              if(bufferPlay!=NULL)
+              {
+                  free(bufferPlay);
+                  bufferPlay=NULL;
+              }
+
+              bufferPlay = (byte*)calloc(globalTAP.descriptor[i].size, sizeof(byte));
+              bufferPlay = readFileRange32(sdFile32, globalTAP.descriptor[i].offset, globalTAP.descriptor[i].size, true);
+              zxp.playData(bufferPlay, globalTAP.descriptor[i].size);
+              //free(bufferPlay);
             }
-
-            bufferPlay = (byte*)calloc(blockPlaySize, sizeof(byte));
-            bufferPlay = readFileRange32(sdFile32, offsetPlay, blockPlaySize, true);
-            zxp.playDataEnd(bufferPlay, blockPlaySize);
-            //free(bufferPlay);
           }
         }
-      } else {
-        // En el caso de NO USAR SPLIT o el bloque es menor de 20K
+
+        Serial.println("");
+        Serial.println("Playing was finish.");
+        // En el caso de no haber parado manualmente, es por finalizar
+        // la reproducción
+        if (LOADING_STATE == 1) {
+          PLAY = false;
+          STOP = true;
+          PAUSE = false;
+          BLOCK_SELECTED = 0;
+          LAST_MESSAGE = "Playing end. Automatic STOP.";
+
+          updateInformationMainPage();
+
+          // Ahora ya podemos tocar el HMI panel otra vez
+          sendStatus(END_ST, 1);
+        }
+
+        // Cerrando
+        LOADING_STATE = 0;
 
         if(bufferPlay!=NULL)
         {
-            free(bufferPlay);
-            bufferPlay=NULL;
+          free(bufferPlay);
+          bufferPlay=NULL;
         }
+        
+        sdFile32.close();
+        Serial.flush();
 
-        bufferPlay = (byte*)calloc(globalTAP.descriptor[i].size, sizeof(byte));
-        bufferPlay = readFileRange32(sdFile32, globalTAP.descriptor[i].offset, globalTAP.descriptor[i].size, true);
-        zxp.playData(bufferPlay, globalTAP.descriptor[i].size);
-        //free(bufferPlay);
-      }
-    }
+        // Ahora ya podemos tocar el HMI panel otra vez
+        sendStatus(READY_ST, 1);
+
   }
-
-  Serial.println("");
-  Serial.println("Playing was finish.");
-  // En el caso de no haber parado manualmente, es por finalizar
-  // la reproducción
-  if (LOADING_STATE == 1) {
-    PLAY = false;
-    STOP = true;
-    PAUSE = false;
-    BLOCK_SELECTED = 0;
-    LAST_MESSAGE = "Playing end. Automatic STOP.";
-
-    updateInformationMainPage();
-
-    // Ahora ya podemos tocar el HMI panel otra vez
-    sendStatus(END_ST, 1);
-  }
-
-  // Cerrando
-  LOADING_STATE = 0;
-
-  if(bufferPlay!=NULL)
+  else
   {
-    free(bufferPlay);
-    bufferPlay=NULL;
+      LAST_MESSAGE = "No file selected.";
+      updateInformationMainPage();
   }
-  
-  sdFile32.close();
-  Serial.flush();
 
-  // Ahora ya podemos tocar el HMI panel otra vez
-  sendStatus(READY_ST, 1);
+
 }
 
 
@@ -551,6 +582,18 @@ void loop() {
         else 
         {
           LAST_MESSAGE = "No file was selected.";
+          
+          // Inicializamos
+          if (globalTAP.descriptor != NULL)
+          {
+            free(globalTAP.descriptor);
+            free(globalTAP.name);
+            globalTAP.descriptor = NULL;
+            globalTAP.name = "\0";
+            globalTAP.numBlocks = 0;
+            globalTAP.size = 0;
+          }
+
           updateInformationMainPage();
         }
       }

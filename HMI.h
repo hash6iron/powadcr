@@ -1016,7 +1016,8 @@ void verifyCommand(String strCmd)
     strCmd.getBytes(buff, 7);
     int valVol = (int)buff[4];
     MAIN_VOL = valVol;
-    //
+    
+    // Ajustamos el volumen
     ESP32kit.setVolume(MAIN_VOL);
   }
 
