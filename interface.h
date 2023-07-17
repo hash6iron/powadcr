@@ -25,6 +25,7 @@ void configureButtons()
     pinMode(button5_GPIO, INPUT);
     pinMode(button6_GPIO, INPUT);
 }
+
 void showMenu(int nMenu)
 {}
 

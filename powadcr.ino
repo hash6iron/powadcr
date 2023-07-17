@@ -97,7 +97,7 @@ void sendStatus(int action, int value) {
       //writeString("");
       writeString("tape.LCDACK.val=" + String(value));
       //writeString("");
-      writeString("statusLCD.txt=\"READY\"");
+      writeString("statusLCD.txt=\"READY. PRESS SCREEN\"");
       break;
     
     case RESET:
@@ -108,26 +108,48 @@ void sendStatus(int action, int value) {
 void setSDFrequency(int SD_Speed) {
   bool SD_ok = false;
   bool lastStatus = false;
-  while (!SD_ok) {
-    if (!sdf.begin(ESP32kit.pinSpiCs(), SD_SCK_MHZ(SD_Speed)) && lastStatus) {
+  while (!SD_ok) 
+  {
+    if (!sdf.begin(ESP32kit.pinSpiCs(), SD_SCK_MHZ(SD_Speed)) && lastStatus) 
+    {
+      Serial.println("");
+      Serial.println("");
       Serial.println("SD card error!");
+
+      writeString("statusLCD.txt=\"SD ERROR\"");
+
       SD_Speed = SD_Speed - 5;
-      if (SD_Speed < 4) {
+      if (SD_Speed < 4) 
+      {
         SD_Speed = 4;
         lastStatus = true;
       }
+      Serial.println("");
+      Serial.println("");
       Serial.println("SD downgrade at " + String(SD_Speed) + "MHz");
-    } else if (!sdf.begin(ESP32kit.pinSpiCs(), SD_SCK_MHZ(SD_Speed)) && !lastStatus) {
-      LAST_MESSAGE = "Error in SD Card. Check and reset POWADCR.";
-      updateInformationMainPage();
-    } else {
+
+    } 
+    else if (!sdf.begin(ESP32kit.pinSpiCs(), SD_SCK_MHZ(SD_Speed)) && !lastStatus) 
+    {
+      //LAST_MESSAGE = "Error in SD Card. Check and reset POWADCR.";
+      //updateInformationMainPage();
+    } 
+    else 
+    {
+      Serial.println("");
+      Serial.println("");
       Serial.println("SD card initialized at " + String(SD_Speed) + " MHz");
       SD_ok = true;
 
-      LAST_MESSAGE = "SD card - Detected";
-      updateInformationMainPage();
+      writeString("statusLCD.txt=\"SD DETECTED AT " + String(SD_Speed) + " MHz\"" );
+      
+      //LAST_MESSAGE = "SD card - Detected";
+      //updateInformationMainPage();
+
     }
   }
+
+  delay(1250);
 }
 
 void test() {
@@ -426,18 +448,15 @@ void setup() {
   writeString("rest");
   delay(250);
 
+  // Indicamos que estamos haciendo reset
   sendStatus(RESET, 1);
-  delay(500);
+  delay(1250);
 
-  //LAST_MESSAGE = "Resseting CPU. Please wait.";
-  // updateInformationMainPage();
-  // delay(1000);
 
-  //Serial2.begin(9600);
   Serial.println("Setting Audiokit.");
 
   // Configuramos los pulsadores
-  configureButtons();
+  //configureButtons();
 
   // Configuramos el ESP32kit
   LOGLEVEL_AUDIOKIT = AudioKitError;
@@ -452,15 +471,16 @@ void setup() {
 
   Serial.println("Done!");
 
+  // Configuramos acceso a la SD
+  int SD_Speed = SD_FRQ_MHZ_INITIAL;  // Velocidad en MHz (config.h)
+  setSDFrequency(SD_Speed);
+
+  // Esperamos finalmente a la pantalla
   Serial.println("");
   Serial.println("Waiting for LCD.");
   Serial.println("");
 
   waitForHMI();
-
-  // Configuramos la velocidad de acceso a la SD
-  int SD_Speed = SD_FRQ_MHZ_INITIAL;  // Velocidad en MHz (config.h)
-  setSDFrequency(SD_Speed);
 
 // Si es test está activo. Lo lanzamos
 #if TEST == 1
