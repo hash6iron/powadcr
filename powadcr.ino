@@ -40,6 +40,7 @@ AudioKit ESP32kit;
 
 #include "ZXProccesor.h"
 #include "TAPproccesor.h"
+#include "TZXproccesor.h"
 
 #include "test.h"
 //
@@ -51,7 +52,10 @@ SdFat sd;
 SdFile sdFile;
 File32 sdFile32;
 
+// Añadimos los distintos manejadores de ficheros, TAP y TZX
 TAPproccesor pTAP;
+TZXproccesor pTZX;
+
 int rlen = 0;
 
 

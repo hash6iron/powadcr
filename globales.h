@@ -35,6 +35,19 @@ struct tBlockDescriptor
   char* typeName = "\0";
 };
 
+struct tTZXBlockDescriptor 
+{
+  int offset = 0;
+  int size = 0;
+  int chk = 0;
+  char* name = "\0";
+  bool nameDetected = false;
+  bool header = false;
+  bool screen = false;
+  int type = 0;
+  char* typeName = "\0";
+};
+
 // Estructura tipo TAP
 struct tTAP 
 {
@@ -42,6 +55,15 @@ struct tTAP
   int size = 0;                             // Tamaño
   int numBlocks = 0;                        // Numero de bloques
   tBlockDescriptor* descriptor = NULL;  // Descriptor
+};
+
+// Estructura tipo TZX
+struct tTZX
+{
+  char* name = "\0";                           // Nombre del TAP
+  int size = 0;                             // Tamaño
+  int numBlocks = 0;                        // Numero de bloques
+  tTZXBlockDescriptor* descriptor = NULL;  // Descriptor
 };
 
 struct tFileBuffer
@@ -52,6 +74,7 @@ struct tFileBuffer
 };
 
 tTAP globalTAP;
+tTZX globalTZX;
 
 // Tamaño del fichero abierto
 int FILE_LENGTH = 0;

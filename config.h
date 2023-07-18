@@ -39,6 +39,8 @@
 // Activa el modo de split de los bloques. 
 // si superan el tamaño (en bytes) definido por SIZE_TO_ACTIVATE_SPLIT
 #define SPLIT_ENABLED 0
-#define SD_FRQ_MHZ_INITIAL 4
 #define SIZE_TO_ACTIVATE_SPLIT 20000
+
+// Frecuencia inicial de la SD
+#define SD_FRQ_MHZ_INITIAL 4
 
