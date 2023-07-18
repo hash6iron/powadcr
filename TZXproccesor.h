@@ -90,20 +90,21 @@ class TZXproccesor
             bBlock = readFileRange32(tzxFileName,0,10,false);
 
             // Obtenemos la firma del TZX
-            char* nameTZXHeader = (char*)calloc(8+1,sizeof(char));
+            char* signTZXHeader = (char*)calloc(8+1,sizeof(char));
+            nameTZXHeader = "\0";
 
             // Analizamos la cabecera
             // Extraemos el nombre del programa
             for (int n=0;n<7;n++)
             {   
-                nameTZXHeader[n] = (char)bBlock[n];
+                signTZXHeader[n] = (char)bBlock[n];
             }
             
-            String sign = String(nameTZXHeader);
+            String sign = String(signTZXHeader);
 
             Serial.println("");
             Serial.println("");
-            Serial.println("TZX file detected.");
+            Serial.println("sign in TZX file detected.");
             Serial.println(sign);
 
             if (sign == "ZXTape!")
