@@ -530,8 +530,6 @@ void setup() {
   Serial.println("");
 
   writeString("statusLCD.txt=\"WAITING FOR HMI\"" );
-  delay(1250);
-
   waitForHMI();
 
 // Si es test está activo. Lo lanzamos
