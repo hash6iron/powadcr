@@ -517,7 +517,7 @@ void setup() {
   
   // Configuramos acceso a la SD
   writeString("statusLCD.txt=\"WAITING FOR SD CARD\"" );
-  delay(1500);
+  delay(1250);
 
   int SD_Speed = SD_FRQ_MHZ_INITIAL;  // Velocidad en MHz (config.h)
   setSDFrequency(SD_Speed);
@@ -529,8 +529,8 @@ void setup() {
   Serial.println("Waiting for LCD.");
   Serial.println("");
 
-  writeString("statusLCD.txt=\"WAITING FOR LCD\"" );
-  delay(1500);
+  writeString("statusLCD.txt=\"WAITING FOR HMI\"" );
+  delay(1250);
 
   waitForHMI();
 
