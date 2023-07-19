@@ -91,7 +91,7 @@ class TZXproccesor
 
             // Obtenemos la firma del TZX
             char* signTZXHeader = (char*)calloc(8+1,sizeof(char));
-            nameTZXHeader = "\0";
+            signTZXHeader = "\0";
 
             // Analizamos la cabecera
             // Extraemos el nombre del programa
@@ -120,14 +120,22 @@ class TZXproccesor
       bool isFileTZX(File32 tzxFileName)
       {
           // Analizamos el fichero. Para ello analizamos la cabecera
-          char* szName = (char*)calloc(255,sizeof(char));
-          String fileName = tzxFileName.getName(szName,sizeof(char));
+          char* szName = (char*)calloc(254+1,sizeof(char));
+          szName = "\0";
           
-          if (fileName != "")
+          // Capturamos el nombre del fichero en szName
+          tzxFileName.getName(szName,254);
+          String szNameStr = String(szName);
+                    
+          if (szNameStr != "")
           {
-               String fileExtension = (fileName.substring(fileName.length()-3)).toUpperCase()
-               if (fileExtension = "TZX")
+               //String fileExtension = szNameStr.substring(szNameStr.length()-3);
+               szNameStr.toUpperCase();
+               
+               if (szNameStr.indexOf(".TZX") != -1)
                {
+                    // La extensión es TZX pero ahora vamos a comprobar si
+                    // internamente también lo es
                     if (isHeaderTZX(tzxFileName))
                     { 
                       return true;
@@ -162,4 +170,4 @@ class TZXproccesor
           _myTZX.descriptor = NULL;
           _myTZX.size = 0;
       } 
-}
+};
