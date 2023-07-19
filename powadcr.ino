@@ -109,71 +109,84 @@ void sendStatus(int action, int value) {
       writeString("statusLCD.txt=\"SYSTEM REBOOT\"");
   }
 }
-void setSDFrequency(int SD_Speed) {
+void setSDFrequency(int SD_Speed) 
+{
   bool SD_ok = false;
   bool lastStatus = false;
   while (!SD_ok) 
   {
-    if (!sdf.begin(ESP32kit.pinSpiCs(), SD_SCK_MHZ(SD_Speed)) && lastStatus) 
+    if (!sdf.begin(ESP32kit.pinSpiCs(), SD_SCK_MHZ(SD_Speed)) || lastStatus) 
     {
+      
+      sdFile32.close();
+
       Serial.println("");
       Serial.println("");
       Serial.println("SD card error!");
 
-      writeString("statusLCD.txt=\"SD ERROR\"");
-
-      SD_Speed = SD_Speed - 1;
-
-      if (SD_Speed < 4) 
-      {
-        if (SD_Speed < 2)
-        {
-          // Very low speed
-          SD_Speed = 1;
-          lastStatus = true;
-        }
-        else
-        {
-          // Normal compatibility speed
-          SD_Speed = 4;
-          lastStatus = true;
-        }
-      }
       Serial.println("");
       Serial.println("");
       Serial.println("SD downgrade at " + String(SD_Speed) + "MHz");
 
       writeString("statusLCD.txt=\"SD FREQ. DOWN AT " + String(SD_Speed) + " MHz\"" );
 
-    } 
-    else if (!sdf.begin(ESP32kit.pinSpiCs(), SD_SCK_MHZ(SD_Speed)) && !lastStatus) 
-    {
-      // La SD no es accesible. Entonces no es problema de la frecuencia de acceso.
-      Serial.println("");
-      Serial.println("");
-      Serial.println("Fatal error. SD card not compatible. Change SD");      
-      
+      //writeString("statusLCD.txt=\"SD ERROR\"");
 
-      // loop infinito
-      while(true)
+      SD_Speed = SD_Speed - 1;
+
+      if (SD_Speed < 4) 
       {
-        writeString("statusLCD.txt=\"SD NOT COMPATIBLE\"" );
-        delay(1500);
-        writeString("statusLCD.txt=\"CHANGE SD AND RESET\"" );
-        delay(1500);
+          if (SD_Speed < 2)
+          {
+            // Very low speed
+            SD_Speed = 1;
+            lastStatus = true;
+          }
+          else
+          {
+              // Error fatal
+              // La SD no es accesible. Entonces no es problema de la frecuencia de acceso.
+              Serial.println("");
+              Serial.println("");
+              Serial.println("Fatal error. SD card not compatible. Change SD");      
+              
+              // loop infinito
+              while(true)
+              {
+                writeString("statusLCD.txt=\"SD NOT COMPATIBLE\"" );
+                delay(1500);
+                writeString("statusLCD.txt=\"CHANGE SD AND RESET\"" );
+                delay(1500);
+              }
+          } 
       }
-    } 
+    }
     else 
     {
-      Serial.println("");
-      Serial.println("");
-      Serial.println("SD card initialized at " + String(SD_Speed) + " MHz");
-      SD_ok = true;
+        // La SD ha aceptado la frecuencia de acceso
+        Serial.println("");
+        Serial.println("");
+        Serial.println("SD card initialized at " + String(SD_Speed) + " MHz");
 
-      writeString("statusLCD.txt=\"SD DETECTED AT " + String(SD_Speed) + " MHz\"" );
-      
-      //LAST_MESSAGE = "SD card - Detected";
-      //updateInformationMainPage();
+        writeString("statusLCD.txt=\"SD DETECTED AT " + String(SD_Speed) + " MHz\"" );
+
+        // Probamos a listar un directorio
+        if (!dir.open("/"))
+        {
+            dir.close();
+            SD_ok = false;
+            lastStatus = false;
+
+            Serial.println("");
+            Serial.println("");
+            Serial.println("Listing files. Error!");
+        }
+        else
+        {
+            dir.close();
+            SD_ok = true;
+            lastStatus = true;
+        }
 
     }
   }
