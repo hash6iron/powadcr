@@ -42,5 +42,5 @@
 #define SIZE_TO_ACTIVATE_SPLIT 20000
 
 // Frecuencia inicial de la SD
-#define SD_FRQ_MHZ_INITIAL 4
+#define SD_FRQ_MHZ_INITIAL 40
 

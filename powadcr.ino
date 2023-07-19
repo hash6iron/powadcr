@@ -122,21 +122,46 @@ void setSDFrequency(int SD_Speed) {
 
       writeString("statusLCD.txt=\"SD ERROR\"");
 
-      SD_Speed = SD_Speed - 5;
+      SD_Speed = SD_Speed - 1;
+
       if (SD_Speed < 4) 
       {
-        SD_Speed = 4;
-        lastStatus = true;
+        if (SD_Speed < 2)
+        {
+          // Very low speed
+          SD_Speed = 1;
+          lastStatus = true;
+        }
+        else
+        {
+          // Normal compatibility speed
+          SD_Speed = 4;
+          lastStatus = true;
+        }
       }
       Serial.println("");
       Serial.println("");
       Serial.println("SD downgrade at " + String(SD_Speed) + "MHz");
 
+      writeString("statusLCD.txt=\"SD FREQ. DOWN AT " + String(SD_Speed) + " MHz\"" );
+
     } 
     else if (!sdf.begin(ESP32kit.pinSpiCs(), SD_SCK_MHZ(SD_Speed)) && !lastStatus) 
     {
-      //LAST_MESSAGE = "Error in SD Card. Check and reset POWADCR.";
-      //updateInformationMainPage();
+      // La SD no es accesible. Entonces no es problema de la frecuencia de acceso.
+      Serial.println("");
+      Serial.println("");
+      Serial.println("Fatal error. SD card not compatible. Change SD");      
+      
+
+      // loop infinito
+      while(true)
+      {
+        writeString("statusLCD.txt=\"SD NOT COMPATIBLE\"" );
+        delay(1500);
+        writeString("statusLCD.txt=\"CHANGE SD AND RESET\"" );
+        delay(1500);
+      }
     } 
     else 
     {
@@ -475,14 +500,24 @@ void setup() {
 
   Serial.println("Done!");
 
+  Serial.println("Initializing SD SLOT.");
+  
   // Configuramos acceso a la SD
+  writeString("statusLCD.txt=\"WAITING FOR SD CARD\"" );
+  delay(1500);
+
   int SD_Speed = SD_FRQ_MHZ_INITIAL;  // Velocidad en MHz (config.h)
   setSDFrequency(SD_Speed);
+
+  Serial.println("Done!");
 
   // Esperamos finalmente a la pantalla
   Serial.println("");
   Serial.println("Waiting for LCD.");
   Serial.println("");
+
+  writeString("statusLCD.txt=\"WAITING FOR LCD\"" );
+  delay(1500);
 
   waitForHMI();
 
