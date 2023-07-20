@@ -57,7 +57,7 @@ File32 sdFile32;
 SDmanager sdm;
 HMI hmi;
 TAPproccesor pTAP(ESP32kit);
-//TZXproccesor pTZX;
+TZXproccesor pTZX;
 
 
 //int rlen = 0;
@@ -72,6 +72,29 @@ TAPproccesor pTAP(ESP32kit);
 ZXProccesor zxp;
 #endif
 
+void proccesingTAP(char* file_ch)
+{
+    pTAP.set_SdFat32(sdf);
+    pTAP.getInfoFileTAP(file_ch);
+
+    LAST_MESSAGE = "Press PLAY to enjoy!";
+    delay(125);
+    hmi.updateInformationMainPage();
+
+    FILE_NOTIFIED = true;  
+}
+
+void proccesingTZX(char* file_ch)
+{
+    pTZX.set_SdFat32(sdf);
+    pTZX.getInfoFileTZX(file_ch);
+
+    LAST_MESSAGE = "Press PLAY to enjoy!";
+    delay(125);
+    hmi.updateInformationMainPage();
+
+    FILE_NOTIFIED = true;  
+}
 
 void sendStatus(int action, int value) {
 
@@ -351,25 +374,29 @@ void loop() {
 
       if (FILE_SELECTED && !FILE_NOTIFIED) 
       {
-              
+
+        // Cogemos el fichero seleccionado y lo cargamos              
         char* file_ch = (char*)calloc(FILE_TO_LOAD.length() + 1, sizeof(char));
         FILE_TO_LOAD.toCharArray(file_ch, FILE_TO_LOAD.length() + 1);
 
-        // Serial.println("++++++++++++++++++++++++++++++++++++++++++++++");
-        // Serial.println("");
-        // Serial.println(String(file_ch));
-        // Serial.println("++++++++++++++++++++++++++++++++++++++++++++++");
-
+        // Si no está vacio
         if (FILE_TO_LOAD != "") {
-
-          pTAP.set_SdFat32(sdf);
-          pTAP.getInfoFileTAP(file_ch);
           
-          LAST_MESSAGE = "Press PLAY to enjoy!";
-          delay(125);
-          hmi.updateInformationMainPage();
+          // Convierto a mayusculas
+          FILE_TO_LOAD.toUpperCase();
 
-          FILE_NOTIFIED = true;
+          if (FILE_TO_LOAD.indexOf(".TAP") != -1)
+          {
+              // Lo procesamos
+              proccesingTAP(file_ch);
+              TYPE_FILE_LOAD = "TAP";
+          }
+          else if (FILE_TO_LOAD.indexOf(".TZX") != -1)    
+          {
+              // Lo procesamos
+              proccesingTZX(file_ch);
+              TYPE_FILE_LOAD = "TZX";            
+          }   
         }
       }
 
@@ -381,8 +408,8 @@ void loop() {
         if (FILE_SELECTED) 
         {
 
-          char* file_ch = (char*)calloc(FILE_TO_LOAD.length() + 1, sizeof(char));
-          FILE_TO_LOAD.toCharArray(file_ch, FILE_TO_LOAD.length() + 1);
+          // char* file_ch = (char*)calloc(FILE_TO_LOAD.length() + 1, sizeof(char));
+          // FILE_TO_LOAD.toCharArray(file_ch, FILE_TO_LOAD.length() + 1);
 
           // Pasamos a estado de reproducción
           LOADING_STATE = 1;
@@ -391,16 +418,33 @@ void loop() {
           sendStatus(PAUSE_ST, 0);
           sendStatus(END_ST, 0);
           
-          Serial.println("");
-          Serial.println("Fichero seleccionado: " + FILE_TO_LOAD);
+          // Serial.println("");
+          // Serial.println("Fichero seleccionado: " + FILE_TO_LOAD);
 
           // Reproducimos el fichero
-          pTAP.play();
+          if (TYPE_FILE_LOAD == "TAP")
+          {
+              pTAP.play();
+          }
+          else if (TYPE_FILE_LOAD = "TZX")
+          {
+              pTZX.play();
+          }
+  
         } 
         else 
         {
           LAST_MESSAGE = "No file was selected.";
-          pTAP.initializeTap();
+          
+          if (TYPE_FILE_LOAD == "TAP")
+          {
+              pTAP.initialize();
+          }
+          else if (TYPE_FILE_LOAD = "TZX")
+          {
+              pTZX.initialize();
+          }
+
           hmi.updateInformationMainPage();
         }
       }

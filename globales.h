@@ -86,10 +86,12 @@ int FILE_LENGTH = 0;
 bool TURBOMODE = false;
 
 // Variables para intercambio de información con el HMI
+
 bool TEST_RUNNING = false;
 int LOADING_STATE = 0;
 int CURRENT_BLOCK_IN_PROGRESS = 0;
 int BLOCK_SELECTED = 0;
+String TYPE_FILE_LOAD = "";
 char* LAST_NAME = "\0";
 char* LAST_TYPE = "\0";
 String LAST_MESSAGE = "";

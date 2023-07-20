@@ -884,7 +884,7 @@ class TAPproccesor
          _hmi = hmi;
       }
       
-      void initializeTap()
+      void initialize()
       {
           if (_myTAP.descriptor != NULL)
           {
