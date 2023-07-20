@@ -17,166 +17,197 @@
  +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
 
 #include <stdint.h>
-#include "AudioKitHAL.h"
- 
-AudioKit m_kit;
-
-// Variables necesarias
-const int BUFFER_SIZE = 0;
-uint8_t buffer[BUFFER_SIZE];
-
-// Parametrizado para el ES8388
-const int samplingRate = 44100;
-const float sampleDuration = 0.0000002267; //segundos para 44.1HKz
-const float maxAmplitude = 32767.0;
-const int channels = 2;
-//const int turboMode = 1;
-
-float m_amplitude = maxAmplitude; 
-
-// Parametrizado para el ZX Spectrum
-const float tState = 0.00000028571; //segundos Z80 T-State period (1 / 3.5MHz)
-int SYNC1 = 667;
-int SYNC2 = 735;
-int BIT_0 = 855;
-int BIT_1 = 1710;
-int PULSE_PILOT = 2168;
-int PULSE_PILOT_HEADER = PULSE_PILOT * 8063;
-int PULSE_PILOT_DATA = PULSE_PILOT * 3223;
 
 // Clase para generar todo el conjunto de señales que necesita el ZX Spectrum
 class ZXProccesor 
 {
-
+   
     private:
 
+    HMI _hmi;
     
-    public:
+    // Definición de variables internas y constantes
+    uint8_t buffer[0];
+    
+    // Parametrizado para el ES8388
+    const int samplingRate = 44100;
+    const float sampleDuration = 0.0000002267; //segundos para 44.1HKz
+    const float maxAmplitude = 32767.0;
+    const int channels = 2;
+    //const int turboMode = 1;
+    
+    float m_amplitude = maxAmplitude; 
+    
+    // Parametrizado para el ZX Spectrum
+    const float tState = 0.00000028571; //segundos Z80 T-State period (1 / 3.5MHz)
+    const int SYNC1 = 667;
+    const int SYNC2 = 735;
+    const int BIT_0 = 855;
+    const int BIT_1 = 1710;
+    const int PULSE_PILOT = 2168;
+    const int PULSE_PILOT_HEADER = PULSE_PILOT * 8063;
+    const int PULSE_PILOT_DATA = PULSE_PILOT * 3223;
+
+    AudioKit m_kit;
+
+    size_t readWave(uint8_t *buffer, size_t bytes){
         
-        ZXProccesor(AudioKit kit)
-        {
-          // Constructor de la clase
-          m_kit = kit;
+        // Procedimiento para generar un tren de pulsos cuadrados completo
+
+        int chn = channels;
+        size_t result = 0;
+        int16_t *ptr = (int16_t*)buffer;
+
+        // Pulso alto (mitad del periodo)
+        for (int j=0;j<bytes/(4*chn);j++){
+
+            int16_t sample = m_amplitude;
+            *ptr++ = sample;
+            if (chn>1)
+            {
+              *ptr++ = sample;
+            }
+            result+=2*chn;
         }
 
-        size_t readWave(uint8_t *buffer, size_t bytes){
+        // Pulso bajo (la otra mitad)
+        for (int j=bytes/(4*chn);j<bytes/(2*chn);j++){
             
-            // Procedimiento para generar un tren de pulsos cuadrados completo
-
-            int chn = channels;
-            size_t result = 0;
-            int16_t *ptr = (int16_t*)buffer;
-
-            // Pulso alto (mitad del periodo)
-            for (int j=0;j<bytes/(4*chn);j++){
-
-                int16_t sample = m_amplitude;
-                *ptr++ = sample;
-                if (chn>1)
-                {
-                  *ptr++ = sample;
-                }
-                result+=2*chn;
-            }
-
-            // Pulso bajo (la otra mitad)
-            for (int j=bytes/(4*chn);j<bytes/(2*chn);j++){
-                
-                int16_t sample = 0;
-                
-                *ptr++ = sample;
-                if (chn>1)
-                {
-                  *ptr++ = sample;
-                }
-                result+=2*chn;
-            }
-
-            return result;
-        }
-
-        size_t readPulse(uint8_t *buffer, size_t bytes, int slope){
-
-            // Procedimiento para genera un pulso 
-            int chn = channels;
-            size_t result = 0;
-            int16_t *ptr = (int16_t*)buffer;
-            for (int j=0;j<bytes/(2*chn);j++){
-                int16_t sample = m_amplitude * slope;
-                
-                *ptr++ = sample;
-                
-                if (chn>1)
-                {
-                  *ptr++ = sample;
-                }
-                result+=2*chn;
-            }
-
-            return result;          
-        }
-
-        void generatePulse(float freq, int samplingRate, int slope)
-        {
-
-            if (TURBOMODE)
-            {
-                freq=freq*2;
-            }
-
-            // Obtenemos el periodo de muestreo
-            // Tsr = 1 / samplingRate
-            float Tsr = (1.0 / samplingRate);
-            int bytes = int(round((1.0 / ((freq / 4.0))) / Tsr));
-
-            uint8_t buffer[bytes];
-
-            for (int m=0;m < 1;m++)
-            {
-              // Escribimos el tren de pulsos en el procesador de Audio
-              m_kit.write(buffer, readPulse(buffer, bytes, slope));
-            } 
-        }
-
-        void generateWavePulses(float freq, int numPulses, int samplingRate)
-        {
-
-            if (TURBOMODE)
-            {
-                freq=freq*2;
-            }
-
-            // Obtenemos el periodo de muestreo
-            // Tsr = 1 / samplingRate
-            float Tsr = (1.0 / samplingRate);
-            int bytes = int(round((1.0 / ((freq / 4.0))) / Tsr));
-
-            //Serial.println("****** BUFFER SIZE --> " + String(bytes));
-
-            uint8_t buffer[bytes];
-
-            for (int m=0;m < numPulses;m++)
-            {
-              // Escribimos el tren de pulsos en el procesador de Audio
-              m_kit.write(buffer, readWave(buffer, bytes));
-            } 
-        }
-
-        void generateOneWave(float freq, int samplingRate)
-        {
-            // Obtenemos el periodo de muestreo
-            // Tsr = 1 / samplingRate
-            if (TURBOMODE)
-            {
-                freq=freq*2;
-            }
-
-            float Tsr = (1.0 / samplingRate);
-            int bytes = int(round((1.0 / ((freq / 4.0))) / Tsr));
-            uint8_t buffer[bytes];
-            m_kit.write(buffer, readWave(buffer, bytes));
+            int16_t sample = 0;
             
-            readUART();
+            *ptr++ = sample;
+            if (chn>1)
+            {
+              *ptr++ = sample;
+            }
+            result+=2*chn;
+        }
+
+        return result;
+    }
+
+    size_t readPulse(uint8_t *buffer, size_t bytes, int slope){
+
+        // Procedimiento para genera un pulso 
+        int chn = channels;
+        size_t result = 0;
+        int16_t *ptr = (int16_t*)buffer;
+        for (int j=0;j<bytes/(2*chn);j++){
+            int16_t sample = m_amplitude * slope;
+            
+            *ptr++ = sample;
+            
+            if (chn>1)
+            {
+              *ptr++ = sample;
+            }
+            result+=2*chn;
+        }
+
+        return result;          
+    }
+
+    void generatePulse(float freq, int samplingRate, int slope)
+    {
+
+        if (TURBOMODE)
+        {
+            freq=freq*2;
+        }
+
+        // Obtenemos el periodo de muestreo
+        // Tsr = 1 / samplingRate
+        float Tsr = (1.0 / samplingRate);
+        int bytes = int(round((1.0 / ((freq / 4.0))) / Tsr));
+
+        uint8_t buffer[bytes];
+
+        for (int m=0;m < 1;m++)
+        {
+          // Escribimos el tren de pulsos en el procesador de Audio
+          m_kit.write(buffer, readPulse(buffer, bytes, slope));
+        } 
+    }
+
+    void generateWavePulses(float freq, int numPulses, int samplingRate)
+    {
+
+        if (TURBOMODE)
+        {
+            freq=freq*2;
+        }
+
+        // Obtenemos el periodo de muestreo
+        // Tsr = 1 / samplingRate
+        float Tsr = (1.0 / samplingRate);
+        int bytes = int(round((1.0 / ((freq / 4.0))) / Tsr));
+
+        //Serial.println("****** BUFFER SIZE --> " + String(bytes));
+
+        uint8_t buffer[bytes];
+
+        for (int m=0;m < numPulses;m++)
+        {
+          // Escribimos el tren de pulsos en el procesador de Audio
+          m_kit.write(buffer, readWave(buffer, bytes));
+        } 
+    }
+
+    void generateOneWave(float freq, int samplingRate)
+    {
+        // Obtenemos el periodo de muestreo
+        // Tsr = 1 / samplingRate
+        if (TURBOMODE)
+        {
+            freq=freq*2;
+        }
+
+        float Tsr = (1.0 / samplingRate);
+        int bytes = int(round((1.0 / ((freq / 4.0))) / Tsr));
+        uint8_t buffer[bytes];
+        m_kit.write(buffer, readWave(buffer, bytes));
+        
+        _hmi.readUART();
+
+        if (LOADING_STATE == 1)
+        {
+            if (STOP==true)
+            {
+                LOADING_STATE = 2; // Parada del bloque actual
+                //stopTape();
+            }
+            else if (PAUSE==true)
+            {
+                LOADING_STATE = 2; // Parada del bloque actual
+                //pauseTape();
+            }
+        }
+    }
+
+    void generateWaveDuration(float freq, float duration, int samplingRate)
+    {
+
+        // if (turboMode==1)
+        // {
+        //     freq=freq*2;
+        // }
+        // Obtenemos el periodo de muestreo
+        // Tsr = 1 / samplingRate
+        float Tsr = (1.0 / samplingRate);
+        int bytes = int(round((1.0 / ((freq / 4.0))) / Tsr));
+        int numPulses = 4 * int(duration / (bytes*Tsr));
+
+        //Serial.println("****** BUFFER SIZE --> " + String(bytes));
+        //Serial.println("****** Tsr         --> " + String(Tsr));
+        //Serial.println("****** NUM PULSES  --> " + String(numPulses));
+
+        uint8_t buffer[bytes];
+
+        for (int m=0;m < numPulses;m++)
+        {
+            
+            //buttonsControl();
+            _hmi.readUART();
 
             if (LOADING_STATE == 1)
             {
@@ -184,249 +215,214 @@ class ZXProccesor
                 {
                     LOADING_STATE = 2; // Parada del bloque actual
                     //stopTape();
+                    break;
                 }
                 else if (PAUSE==true)
                 {
                     LOADING_STATE = 2; // Parada del bloque actual
                     //pauseTape();
+                    break;
                 }
             }
-        }
+            
+            m_kit.write(buffer, readWave(buffer, bytes));
+        } 
+    }
 
-        void generateWaveDuration(float freq, float duration, int samplingRate)
+    void pilotToneHeader()
+    {
+        float duration = tState * PULSE_PILOT_HEADER;
+        //Serial.println("****** BUFFER SIZE --> " + String(duration));
+        float freq = (1 / (PULSE_PILOT * tState)) / 2;    
+        //Serial.println("******* PILOT HEADER " + String(freq) + " Hz");
+
+        generateWaveDuration(freq, duration, samplingRate);
+    }
+
+    void pilotToneHeader(float duration)
+    {
+        //Serial.println("****** BUFFER SIZE --> " + String(duration));
+        float freq = (1 / (PULSE_PILOT * tState)) / 2;    
+        //Serial.println("******* PILOT HEADER " + String(freq) + " Hz");
+
+        generateWaveDuration(freq, duration, samplingRate);
+    }
+
+
+    void pilotToneData()
+    {
+        float duration = tState * PULSE_PILOT_DATA;
+        float freq = (1 / (PULSE_PILOT * tState)) / 2;    
+        //Serial.println("******* PILOT DATA " + String(freq) + " Hz");
+        generateWaveDuration(freq, duration, samplingRate);
+    }
+
+
+    void pilotToneData(float duration)
+    {
+        float freq = (1 / (PULSE_PILOT * tState)) / 2;    
+        //Serial.println("******* PILOT DATA " + String(freq) + " Hz");
+        generateWaveDuration(freq, duration, samplingRate);
+    }
+
+    void zeroTone()
+    {
+        // Procedimiento que genera un bit "0"
+        float freq = (1 / (BIT_0 * tState)) / 2;
+        generateOneWave(freq, samplingRate);
+    }
+
+    void oneTone()
+    {
+        // Procedimiento que genera un bit "1"
+        float freq = (1 / (BIT_1 * tState)) / 2;
+        generateOneWave(freq, samplingRate);
+    }
+
+    void syncTone(int nTStates)
+    {
+        // Procedimiento que genera un pulso de sincronismo, según los
+        // T-States pasados por parámetro.
+        //
+        // El ZX Spectrum tiene dos tipo de sincronismo, uno al finalizar el tono piloto
+        // y otro al final de la recepción de los datos, que serán SYNC1 y SYNC2 respectivamente.
+        float freq = (1 / (nTStates * tState)) / 2;    
+        generateOneWave(freq, samplingRate);
+    }
+
+    void sendDataStr(String data)
+    {
+      //
+      // Procedimiento para enviar datos binarios desde una cadena de caracteres
+      //
+      for (int n=0;n<data.length();n++)
+      {
+        char c = data[n];
+
+        if (c == '0')
         {
+          zeroTone();
+        }
+        else
+        {
+          oneTone();
+        }
+      }
+    }
 
-            // if (turboMode==1)
-            // {
-            //     freq=freq*2;
-            // }
-            // Obtenemos el periodo de muestreo
-            // Tsr = 1 / samplingRate
-            float Tsr = (1.0 / samplingRate);
-            int bytes = int(round((1.0 / ((freq / 4.0))) / Tsr));
-            int numPulses = 4 * int(duration / (bytes*Tsr));
+    void sendDataArray(byte* data, int size)
+    {
 
-            //Serial.println("****** BUFFER SIZE --> " + String(bytes));
-            //Serial.println("****** Tsr         --> " + String(Tsr));
-            //Serial.println("****** NUM PULSES  --> " + String(numPulses));
+        // Procedimiento para enviar datos desde un array
+        if (LOADING_STATE==1 || TEST_RUNNING)
+        {
+            byte bRead = 0x00;
+            int bytes_in_this_block = 0;
 
-            uint8_t buffer[bytes];
-
-            for (int m=0;m < numPulses;m++)
+            for (int i = 0; i < size;i++)
             {
-                
-                //buttonsControl();
-                readUART();
+            
+              if (!TEST_RUNNING)
+              {
 
-                if (LOADING_STATE == 1)
-                {
-                    if (STOP==true)
+                    if (i % 8==0)
                     {
-                        LOADING_STATE = 2; // Parada del bloque actual
-                        //stopTape();
-                        break;
+                        // Progreso de cada bloque.
+                        // Con este metodo reducimos el consumo de datos
+                        //_hmi.writeString("");
+                        _hmi.writeString("progression.val=" + String((int)((i*100)/(size-1))));
+
+                        if (BYTES_LOADED > BYTES_TOBE_LOAD)
+                        {
+                            BYTES_LOADED = BYTES_TOBE_LOAD;
+                        }
+
+                        //_hmi.writeString("");
+                        _hmi.writeString("progressTotal.val=" + String((int)((BYTES_LOADED*100)/(BYTES_TOBE_LOAD))));
                     }
-                    else if (PAUSE==true)
+
+                    if (i % 32==0)
                     {
-                        LOADING_STATE = 2; // Parada del bloque actual
-                        //pauseTape();
-                        break;
+                        _hmi.updateInformationMainPage();                    
                     }
-                }
-                
-                m_kit.write(buffer, readWave(buffer, bytes));
-            } 
-        }
 
-        void pilotToneHeader()
-        {
-            float duration = tState * PULSE_PILOT_HEADER;
-            //Serial.println("****** BUFFER SIZE --> " + String(duration));
-            float freq = (1 / (PULSE_PILOT * tState)) / 2;    
-            //Serial.println("******* PILOT HEADER " + String(freq) + " Hz");
+                    if (i == (size-1))
+                    {
+                        // Esto lo hacemos para asegurarnos que la barra se llena entera
+                        //_hmi.writeString("");
+                        _hmi.writeString("progression.val=" + String((int)((i*100)/(size-1))));
 
-            generateWaveDuration(freq, duration, samplingRate);
-        }
+                        if (BYTES_LOADED > BYTES_TOBE_LOAD)
+                        {
+                            BYTES_LOADED = BYTES_TOBE_LOAD;
+                        }
 
-        void pilotToneHeader(float duration)
-        {
-            //Serial.println("****** BUFFER SIZE --> " + String(duration));
-            float freq = (1 / (PULSE_PILOT * tState)) / 2;    
-            //Serial.println("******* PILOT HEADER " + String(freq) + " Hz");
+                        //_hmi.writeString("");
+                        _hmi.writeString("progressTotal.val=" + String((int)((BYTES_LOADED*100)/(BYTES_TOBE_LOAD))));
+                    }
 
-            generateWaveDuration(freq, duration, samplingRate);
-        }
+                    //buttonsControl();
+                    _hmi.readUART();
+
+                    if (LOADING_STATE == 1)
+                    {
+                        if (STOP==true)
+                        {
+                            LOADING_STATE = 2; // Parada del bloque actual
+                            //stopTape();
+                            i=size;
+                            //break;
+                        }
+                        else if (PAUSE==true)
+                        {
+                            LOADING_STATE = 2; // Parada del bloque actual
+                            //pauseTape();
+                            i=size;
+                            //break;
+                        }
+
+                    }
+              }
 
 
-        void pilotToneData()
-        {
-            float duration = tState * PULSE_PILOT_DATA;
-            float freq = (1 / (PULSE_PILOT * tState)) / 2;    
-            //Serial.println("******* PILOT DATA " + String(freq) + " Hz");
-            generateWaveDuration(freq, duration, samplingRate);
-        }
+              if (LOADING_STATE == 1 || TEST_RUNNING)
+              {
+                  // Vamos a ir leyendo los bytes y generando el sonido
+                  bRead = data[i];
 
-
-        void pilotToneData(float duration)
-        {
-            float freq = (1 / (PULSE_PILOT * tState)) / 2;    
-            //Serial.println("******* PILOT DATA " + String(freq) + " Hz");
-            generateWaveDuration(freq, duration, samplingRate);
-        }
-
-        void zeroTone()
-        {
-            // Procedimiento que genera un bit "0"
-            float freq = (1 / (BIT_0 * tState)) / 2;
-            generateOneWave(freq, samplingRate);
-        }
-
-        void oneTone()
-        {
-            // Procedimiento que genera un bit "1"
-            float freq = (1 / (BIT_1 * tState)) / 2;
-            generateOneWave(freq, samplingRate);
-        }
-
-        void syncTone(int nTStates)
-        {
-            // Procedimiento que genera un pulso de sincronismo, según los
-            // T-States pasados por parámetro.
-            //
-            // El ZX Spectrum tiene dos tipo de sincronismo, uno al finalizar el tono piloto
-            // y otro al final de la recepción de los datos, que serán SYNC1 y SYNC2 respectivamente.
-            float freq = (1 / (nTStates * tState)) / 2;    
-            generateOneWave(freq, samplingRate);
-        }
-
-        void sendDataStr(String data)
-        {
-          //
-          // Procedimiento para enviar datos binarios desde una cadena de caracteres
-          //
-          for (int n=0;n<data.length();n++)
-          {
-            char c = data[n];
-
-            if (c == '0')
-            {
-              zeroTone();
-            }
-            else
-            {
-              oneTone();
-            }
-          }
-        }
-
-        void sendDataArray(byte* data, int size)
-        {
-
-            // Procedimiento para enviar datos desde un array
-            if (LOADING_STATE==1)
-            {
-                byte bRead = 0x00;
-                int bytes_in_this_block = 0;
-
-                for (int i = 0; i < size;i++)
-                {
-                
-                  if (i % 8==0)
+                  for (int n=0;n<8;n++)
                   {
-                      // Progreso de cada bloque.
-                      // Con este metodo reducimos el consumo de datos
-                      //writeString("");
-                      writeString("progression.val=" + String((int)((i*100)/(size-1))));
-
-                      if (BYTES_LOADED > BYTES_TOBE_LOAD)
+                      // Si el bit leido del BYTE es un "1"
+                      if(bitRead(bRead, 7-n) == 1)
                       {
-                          BYTES_LOADED = BYTES_TOBE_LOAD;
+                          // Procesamos "1"
+                          oneTone();
                       }
-
-                      //writeString("");
-                      writeString("progressTotal.val=" + String((int)((BYTES_LOADED*100)/(BYTES_TOBE_LOAD))));
+                      else
+                      {
+                          // En otro caso
+                          // procesamos "0"
+                          zeroTone();
+                      }
                   }
 
-                  if (i % 32==0)
+                  // Hemos cargado 1 bytes. Seguimos
+                  if (!TEST_RUNNING)
                   {
-                      updateInformationMainPage();                    
-                  }
-
-                  if (i == (size-1))
-                  {
-                      // Esto lo hacemos para asegurarnos que la barra se llena entera
-                      //writeString("");
-                      writeString("progression.val=" + String((int)((i*100)/(size-1))));
-
-                      if (BYTES_LOADED > BYTES_TOBE_LOAD)
-                      {
-                          BYTES_LOADED = BYTES_TOBE_LOAD;
-                      }
-
-                      //writeString("");
-                      writeString("progressTotal.val=" + String((int)((BYTES_LOADED*100)/(BYTES_TOBE_LOAD))));
-                  }
-
-                  //buttonsControl();
-                  readUART();
-
-                  if (LOADING_STATE == 1)
-                  {
-                      if (STOP==true)
-                      {
-                          LOADING_STATE = 2; // Parada del bloque actual
-                          //stopTape();
-                          i=size;
-                          //break;
-                      }
-                      else if (PAUSE==true)
-                      {
-                          LOADING_STATE = 2; // Parada del bloque actual
-                          //pauseTape();
-                          i=size;
-                          //break;
-                      }
-
-                  }
-
-                  if (LOADING_STATE == 1)
-                  {
-                      // Vamos a ir leyendo los bytes y generando el sonido
-                      bRead = data[i];
-
-                      for (int n=0;n<8;n++)
-                      {
-                          // Si el bit leido del BYTE es un "1"
-                          if(bitRead(bRead, 7-n) == 1)
-                          {
-                              // Procesamos "1"
-                              oneTone();
-                          }
-                          else
-                          {
-                              // En otro caso
-                              // procesamos "0"
-                              zeroTone();
-                          }
-                      }
-
-                      // Hemos cargado 1 bytes. Seguimos
                       BYTES_LOADED++;
                       bytes_in_this_block++;
                       BYTES_LAST_BLOCK = bytes_in_this_block;              
                   }
-                  else
-                  {
-                    break;
-                  }
-
-
-
-                }
-
+              }
+              else
+              {
+                break;
+              }
             }
-
         }
+    }
+    
+    public:
 
         void playHeader(byte* bBlock, int lenBlock)
         {
@@ -517,9 +513,9 @@ class ZXProccesor
         void playBlock(byte* header, int len_header, byte* data, int len_data)
         {           
             #ifdef LOG=3
-              //Serial.println("******* PROGRAM HEADER");
-              //Serial.println("*******  - HEADER size " + String(len_header));
-              //Serial.println("*******  - DATA   size " + String(len_data));
+              Serial.println("******* PROGRAM HEADER");
+              Serial.println("*******  - HEADER size " + String(len_header));
+              Serial.println("*******  - DATA   size " + String(len_data));
             #endif
 
             // PROGRAM
@@ -538,7 +534,7 @@ class ZXProccesor
             #endif
 
             #ifdef LOG=3
-              //Serial.println("******* PROGRAM DATA");
+              Serial.println("******* PROGRAM DATA");
             #endif
 
             // Put now code block
@@ -590,5 +586,22 @@ class ZXProccesor
               sleep(SILENT);
             #endif
         }        
+
+        void set_ESP32kit(AudioKit kit)
+        { 
+          m_kit = kit;
+        }
+
+        void set_HMI(HMI hmi)
+        {
+          _hmi = hmi;
+        }
+
+        // Constructor
+        ZXProccesor()
+        {
+          // Constructor de la clase
+          //m_kit = kit;
+        }
 
 };

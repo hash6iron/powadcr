@@ -19,8 +19,11 @@
 // 0 for ZX Spectrum
 // 1 for AMSTRAD
 // 2 for MSX
-#define MACHINE
-#define TEST 0
+#define MACHINE_ZX
+
+// Descomentar para test de reproducción en memoria
+//#define TEST
+
 // Define nivel de log
 // 0 - Apagado
 // 1 - Essential
@@ -32,9 +35,6 @@
 // Define silent block in seconds between blocks playing
 // each block has two SILENT block
 #define SILENT 1.5
-
-
-
 
 // Activa el modo de split de los bloques. 
 // si superan el tamaño (en bytes) definido por SIZE_TO_ACTIVATE_SPLIT

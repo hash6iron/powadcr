@@ -14,14 +14,16 @@
 
  +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
 
+// Estructura de un bloque
 struct tBlock 
 {
   int index = 0;            // Numero del bloque
-  int offset = 0;       // Byte donde empieza
-  byte* header = NULL;  // Cabecera del bloque
-  byte* data = NULL;    // Datos del bloque
+  int offset = 0;           // Byte donde empieza
+  byte* header = NULL;      // Cabecera del bloque
+  byte* data = NULL;        // Datos del bloque
 };
 
+// Descriptor de bloque de un TAP
 struct tBlockDescriptor 
 {
   int offset = 0;
@@ -35,6 +37,7 @@ struct tBlockDescriptor
   char* typeName = "\0";
 };
 
+// Descriptor de bloque de un TZX
 struct tTZXBlockDescriptor 
 {
   int offset = 0;
@@ -66,15 +69,13 @@ struct tTZX
   tTZXBlockDescriptor* descriptor = NULL;  // Descriptor
 };
 
+// Estructura para el HMI
 struct tFileBuffer
 {
     bool isDir = false;
     String path = "";
     String type = "";
 };
-
-tTAP globalTAP;
-tTZX globalTZX;
 
 // Tamaño del fichero abierto
 int FILE_LENGTH = 0;
@@ -85,6 +86,7 @@ int FILE_LENGTH = 0;
 bool TURBOMODE = false;
 
 // Variables para intercambio de información con el HMI
+bool TEST_RUNNING = false;
 int LOADING_STATE = 0;
 int CURRENT_BLOCK_IN_PROGRESS = 0;
 int BLOCK_SELECTED = 0;
