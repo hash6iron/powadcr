@@ -2,7 +2,7 @@
     Nombre: TAPproccesor.h
     
     Creado por:
-      Antonio Tamairón. 2023  
+      Copyright (c) Antonio Tamairón. 2023  / https://github.com/hash6iron/powadcr
       @hash6iron / https://powagames.itch.io/
     
     Descripción:
@@ -15,6 +15,22 @@
     v.0.1 - Version inicial
     v.0.2 - Se han hecho modificaciones relativas al resto de clases para HMI y SDmanager. Se ha incluido la reproducción y analisis de bloques que estaba antes en el powadcr.ino
 
+    Derechos de autor y distribución
+    --------------------------------
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+    
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+    
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+    
+    To Contact the dev team you can write to hash6iron@gmail.com
  +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
 
 // TYPE block
@@ -169,7 +185,7 @@ class TAPproccesor
       char* getTypeTAPBlock(int nBlock)
       {
           char* typeName = (char*)calloc(10,sizeof(char));
-          typeName = "\0";
+          typeName = &INITCHAR[0];
 
           switch(nBlock)
           {
@@ -225,7 +241,7 @@ class TAPproccesor
           {
               // Es una cabecera PROGRAM 
               // el nombre está en los bytes del 4 al 13 (empezando en 0)
-              #ifdef LOG==3
+              #if LOG==3
                 Serial.println("");
                 Serial.println("Name detected ");
               #endif
@@ -238,7 +254,7 @@ class TAPproccesor
           }
           else
           {
-              prgName = "";
+              prgName = &INITCHAR[0];
           }
 
           // Pasamos la cadena de caracteres
@@ -428,10 +444,10 @@ class TAPproccesor
           // Guardamos el numero total de bloques
           
           char* nameTAP = (char*)calloc(10+1,sizeof(char));
-          nameTAP = "\0";
+          nameTAP = &INITCHAR[0];
 
           char* typeName = (char*)calloc(10+1,sizeof(char));
-          typeName = "\0";
+          typeName = &INITCHAR[0];
 
           int startBlock = 0;
           int lastStartBlock = 0;
@@ -441,7 +457,7 @@ class TAPproccesor
           int blockChk = 0;
           int numBlocks = 0;
           char* blockName = (char*)calloc(10+1,sizeof(char));
-          blockName = "\0";
+          blockName = &INITCHAR[0];
 
           bool blockNameDetected = false;
           
@@ -461,7 +477,7 @@ class TAPproccesor
           while(reachEndByte==false && sizeB!=0)
           {
               // Inicializamos
-              blockName = "\0";
+              blockName = &INITCHAR[0];
               //bDscr[numBlocks].name = blockName;
               _myTAP.descriptor[numBlocks].name = blockName;
 
@@ -655,35 +671,36 @@ class TAPproccesor
           for (int n=0;n<totalBlocks;n++)
           {
               Serial.print("[" + String(n) + "]" + " - Offset: " + String(_myTAP.descriptor[n].offset) + " - Size: " + String(_myTAP.descriptor[n].size));
-              char* strType = "";
+              char* strType = &INITCHAR[0];
+              
               switch(_myTAP.descriptor[n].type)
               {
                   case 0: 
-                    strType = "PROGRAM - HEADER";
+                    strType = &STRTYPE0[0];
                   break;
 
                   case 1:
-                    strType = "BYTE - HEADER";
+                    strType = &STRTYPE1[0];
                   break;
 
                   case 7:
-                    strType = "BYTE <SCREEN> - HEADER";
+                    strType = &STRTYPE7[0];
                   break;
 
                   case 2:
-                    strType = "BASIC DATA";
+                    strType = &STRTYPE2[0];
                   break;
 
                   case 3:
-                    strType = "SCREEN DATA";
+                    strType = &STRTYPE3[0];
                   break;
 
                   case 4:
-                    strType = "BYTE DATA";
+                    strType = &STRTYPE4[0];
                   break;
 
                   default:
-                    strType="Standard data";
+                    strType=&STRTYPEDEF[0];
               }
 
               if (_myTAP.descriptor[n].nameDetected)
@@ -739,63 +756,63 @@ class TAPproccesor
               case 0:
 
                   // Definimos el buffer del PLAYER igual al tamaño del bloque
-                  #ifdef LOG==3
+                  #if LOG==3
                     Serial.println("> PROGRAM HEADER");
                   #endif
-                  LAST_TYPE = "PROGRAM";
+                  LAST_TYPE = &LASTYPE0[0];
                   break;
 
               case 1:
 
                   // Definimos el buffer del PLAYER igual al tamaño del bloque
-                  #ifdef LOG==3
+                  #if LOG==3
                     Serial.println("");
                     Serial.println("> BYTE HEADER");
                   #endif
-                  LAST_TYPE = "BYTE.H";
+                  LAST_TYPE = &LASTYPE1[0];
                   break;
 
               case 7:
 
                   // Definimos el buffer del PLAYER igual al tamaño del bloque
-                  #ifdef LOG==3
+                  #if LOG==3
                     Serial.println("");
                     Serial.println("> SCREEN HEADER");
                   #endif
-                  LAST_TYPE = "SCREEN.H";
+                  LAST_TYPE = &LASTYPE7[0];
                   break;
 
               case 2:
                   // Definimos el buffer del PLAYER igual al tamaño del bloque
-                  #ifdef LOG==3
+                  #if LOG==3
                     Serial.println("");
                     Serial.println("> BASIC PROGRAM");
                   #endif
-                  LAST_TYPE = "BASIC";
+                  LAST_TYPE = &LASTYPE2[0];
                   break;
 
               case 3:
                   // Definimos el buffer del PLAYER igual al tamaño del bloque
-                  #ifdef LOG==3
+                  #if LOG==3
                     Serial.println("");
                     Serial.println("> SCREEN");
                   #endif
-                  LAST_TYPE = "SCREEN";
+                  LAST_TYPE = &LASTYPE3[0];
                   break;
 
               case 4:
                   // Definimos el buffer del PLAYER igual al tamaño del bloque
-                  #ifdef LOG==3
+                  #if LOG==3
                     Serial.println("");
                     Serial.println("> BYTE CODE");
                   #endif
                   if (LAST_SIZE != 6914)
                   {
-                      LAST_TYPE = "BYTE";
+                      LAST_TYPE = &LASTYPE4_1[0];
                   }
                   else
                   {
-                      LAST_TYPE = "SCREEN";
+                      LAST_TYPE = &LASTYPE4_2[0];
                   }
                   break;
           }        
@@ -891,7 +908,7 @@ class TAPproccesor
             free(_myTAP.descriptor);
             free(_myTAP.name);
             _myTAP.descriptor = NULL;
-            _myTAP.name = "\0";
+            _myTAP.name = &INITCHAR[0];
             _myTAP.numBlocks = 0;
             _myTAP.size = 0;
           }          
@@ -935,7 +952,7 @@ class TAPproccesor
             // Entregamos información por consola
             PROGRAM_NAME = get_tap_name();
             TOTAL_BLOCKS = get_tap_numBlocks();
-            LAST_NAME = "..";
+            LAST_NAME = &INITCHAR2[0];
       
             Serial.println("");
             Serial.println("");
@@ -967,7 +984,7 @@ class TAPproccesor
               // Entregamos información por consola
               PROGRAM_NAME = _myTAP.name;
               TOTAL_BLOCKS = _myTAP.numBlocks;
-              LAST_NAME = "..";
+              LAST_NAME = &INITCHAR2[0];
 
               // Ahora reproducimos todos los bloques desde el seleccionado (para cuando se quiera uno concreto)
               int m = BLOCK_SELECTED;
@@ -1164,12 +1181,8 @@ class TAPproccesor
       // Constructor de la clase
       TAPproccesor(AudioKit kit)
       {
-          if ( _myTAP.name != "\0")
-          {
-              free( _myTAP.name);
-          }
           _myTAP.name = (char*)calloc(10+1,sizeof(char));
-          _myTAP.name != "\0";
+          _myTAP.name = &INITCHAR[0];
           _myTAP.numBlocks = 0;
           _myTAP.descriptor = NULL;
           _myTAP.size = 0;

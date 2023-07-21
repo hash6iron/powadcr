@@ -2,7 +2,7 @@
     Nombre: config.h
     
     Creado por:
-      Antonio Tamairón. 2023  
+      Copyright (c) Antonio Tamairón. 2023  / https://github.com/hash6iron/powadcr
       @hash6iron / https://powagames.itch.io/
     
     Descripción:
@@ -12,7 +12,44 @@
 
     Historico de versiones
 
+
+    Derechos de autor y distribución
+    --------------------------------
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+    
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+    
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+    
+    To Contact the dev team you can write to hash6iron@gmail.com
  +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
+
+// Inicializadores para los char*
+char INITCHAR[] = "\0";
+char INITCHAR2[] = "..\0";
+char INITFILEPATH[] = "/\0";
+char STRTYPE0[] = "PROGRAM - HEADER\0";
+char STRTYPE1[] = "BYTE - HEADER\0";
+char STRTYPE2[] = "BASIC DATA\0";
+char STRTYPE3[] = "SCREEN DATA\0";
+char STRTYPE4[] = "BYTE DATA\0";
+char STRTYPE7[] = "BYTE <SCREEN> - HEADER\0";
+char STRTYPEDEF[] = "Standard data\0";
+
+char LASTYPE0[] = "PROGRAM\0";
+char LASTYPE1[] = "BYTE.H\0";
+char LASTYPE2[] = "BASIC\0";
+char LASTYPE3[] = "SCREEN\0";
+char LASTYPE4_1[] = "BYTE\0";
+char LASTYPE4_2[] = "SCREEN\0";
+char LASTYPE7[] = "SCREEN.H\0";
 
 // Estructura de un bloque
 struct tBlock 
@@ -29,12 +66,12 @@ struct tBlockDescriptor
   int offset = 0;
   int size = 0;
   int chk = 0;
-  char* name = "\0";
+  char* name = &INITCHAR[0];
   bool nameDetected = false;
   bool header = false;
   bool screen = false;
   int type = 0;
-  char* typeName = "\0";
+  char* typeName = &INITCHAR[0];
 };
 
 // Descriptor de bloque de un TZX
@@ -43,18 +80,18 @@ struct tTZXBlockDescriptor
   int offset = 0;
   int size = 0;
   int chk = 0;
-  char* name = "\0";
+  char* name = &INITCHAR[0];
   bool nameDetected = false;
   bool header = false;
   bool screen = false;
   int type = 0;
-  char* typeName = "\0";
+  char* typeName = &INITCHAR[0];
 };
 
 // Estructura tipo TAP
 struct tTAP 
 {
-  char* name = "\0";                           // Nombre del TAP
+  char* name = &INITCHAR[0];                          // Nombre del TAP
   int size = 0;                             // Tamaño
   int numBlocks = 0;                        // Numero de bloques
   tBlockDescriptor* descriptor = NULL;  // Descriptor
@@ -63,7 +100,7 @@ struct tTAP
 // Estructura tipo TZX
 struct tTZX
 {
-  char* name = "\0";                           // Nombre del TAP
+  char* name = &INITCHAR[0];                           // Nombre del TAP
   int size = 0;                             // Tamaño
   int numBlocks = 0;                        // Numero de bloques
   tTZXBlockDescriptor* descriptor = NULL;  // Descriptor
@@ -92,8 +129,8 @@ int LOADING_STATE = 0;
 int CURRENT_BLOCK_IN_PROGRESS = 0;
 int BLOCK_SELECTED = 0;
 String TYPE_FILE_LOAD = "";
-char* LAST_NAME = "\0";
-char* LAST_TYPE = "\0";
+char* LAST_NAME = &INITCHAR[0];
+char* LAST_TYPE = &INITCHAR[0];
 String LAST_MESSAGE = "";
 String PROGRAM_NAME = "";
 int LAST_SIZE = 0;
@@ -110,10 +147,10 @@ int SCREEN_SECTION = 0;
 // File system
 int FILE_INDEX = 0;           // Índice de la fila seleccionada
 int FILE_PAGE = 0;            // Contador de la pagina leida
-char* FILE_PATH = "\0";         // Ruta del archivo seleccionado
+char* FILE_PATH = &INITCHAR[0];         // Ruta del archivo seleccionado
 int FILE_LAST_DIR_LEVEL = 0;  // Nivel de profundida de directorio
-char* FILE_LAST_DIR = "/\0";
-char* FILE_PREVIOUS_DIR = "/\0";
+char* FILE_LAST_DIR = &INITFILEPATH[0];
+char* FILE_PREVIOUS_DIR = &INITFILEPATH[0];
 int FILE_LAST_INDEX = 0;
 int FILE_IDX_SELECTED = -1;
 

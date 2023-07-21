@@ -2,7 +2,7 @@
     Nombre: HMI.h
     
     Creado por:
-      Antonio Tamairón. 2023  
+      Copyright (c) Antonio Tamairón. 2023  / https://github.com/hash6iron/powadcr
       @hash6iron / https://powagames.itch.io/
     
     Descripción:
@@ -13,6 +13,23 @@
     Historico de versiones
     v.0.1 - Version inicial
     v.0.2 - Convertida en class
+
+    Derechos de autor y distribución
+    --------------------------------
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+    
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+    
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+    
+    To Contact the dev team you can write to hash6iron@gmail.com
  +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
 
 class HMI
@@ -36,7 +53,7 @@ class HMI
       
               //_sdm.file.rewind();
               char* szName = (char*)calloc(255,sizeof(char));
-              szName = "\0";
+              szName = &INITCHAR[0];
       
               while (_sdm.file.openNext(&_sdm.dir, O_RDONLY))
               {
@@ -79,11 +96,7 @@ class HMI
           //FILE_TOTAL_FILES = countFiles(FILE_LAST_DIR);
           FILE_TOTAL_FILES = 2000;
           FILES_BUFF = (tFileBuffer*)calloc(FILE_TOTAL_FILES+1,sizeof(tFileBuffer));
-      
-          Serial.println("");
-          Serial.println("");
-          Serial.println("TEST 1");
-      
+            
           FILE_DIR_OPEN_FAILED = false;
           
           if (!_sdm.dir.open(FILE_LAST_DIR)) 
@@ -107,10 +120,6 @@ class HMI
               FILES_BUFF[0].type = "PAR";
               FILES_BUFF[0].path = String(FILE_PREVIOUS_DIR);
       
-              Serial.println("");
-              Serial.println("");
-              Serial.println("TEST 2");
-      
               j++;
               
               while (_sdm.file.openNext(&_sdm.dir, O_RDONLY) && j < FILE_TOTAL_FILES)
@@ -119,32 +128,14 @@ class HMI
                   {
                       if (!_sdm.file.isHidden())
                       {
-      
-          Serial.println("");
-          Serial.println("");
-          Serial.println("TEST 2.2");
-      
-                          _sdm.file.getName(szName,255);
-      
-          Serial.println("");
-          Serial.println("");
-          Serial.println("TEST 2.3");
-      
+                          _sdm.file.getName(szName,255);     
                           //Cambiamos 
                           _sdm.sdf.chdir(szName);
       
-          Serial.println("");
-          Serial.println("");
-          Serial.println("TEST 3");
-      
                           FILES_BUFF[j].isDir = true;
                           FILES_BUFF[j].type = "DIR";
-                          FILES_BUFF[j].path = String(szName);
-      
-          Serial.println("");
-          Serial.println("");
-          Serial.println("TEST 4");
-      
+                          FILES_BUFF[j].path = String(szName);      
+                          
                           j++;
                       }
                       else
@@ -159,12 +150,7 @@ class HMI
                       {
                           // Es un fichero
                           _sdm.file.getName(szName,255);
-                          int8_t len = strlen(szName);
-      
-          Serial.println("");
-          Serial.println("");
-          Serial.println("TEST 5");
-      
+                          int8_t len = strlen(szName);    
       
                           if (strstr(strlwr(szName + (len - 4)), ".tap")) 
                           {
@@ -327,7 +313,8 @@ class HMI
       char* getPreviousDirFromPath(char* path)
       {
           char* strTmp = (char*)calloc(2,sizeof(char));
-          strTmp = "/";
+          strTmp = &INITFILEPATH[0];
+          
           int lpath = strlen(path);
           
           for (int n=lpath-2;n>1;n--)
@@ -475,8 +462,8 @@ class HMI
       void putInHome()
       {
           FILE_BROWSER_SEARCHING = false;  
-          FILE_LAST_DIR="/";
-          FILE_PREVIOUS_DIR="/";
+          FILE_LAST_DIR=&INITFILEPATH[0];
+          FILE_PREVIOUS_DIR=&INITFILEPATH[0];
           // Open root directory
           FILE_PTR_POS = 0;
           clearFilesInScreen();
@@ -487,7 +474,7 @@ class HMI
       void findTheTextInFiles()
       {
       
-          bool filesFound = false;
+          //bool filesFound = false;
       
           if(FILES_FOUND_BUFF!=NULL)
           {
@@ -528,7 +515,7 @@ class HMI
                   if (fileRead.indexOf(FILE_TXT_TO_SEARCH) != -1)
                   {
                       
-                      filesFound = true;
+                      //filesFound = true;
       
                       if (j < maxResults)
                       {
@@ -764,7 +751,7 @@ class HMI
             if (FILE_DIR_TO_CHANGE.length() == 1)
             {
                 //Es el nivel mas alto
-                FILE_PREVIOUS_DIR = "/";
+                FILE_PREVIOUS_DIR = &INITFILEPATH[0];
             }
             else
             {

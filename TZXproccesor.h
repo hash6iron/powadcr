@@ -2,7 +2,7 @@
     Nombre: TZXproccesor.h
     
     Creado por:
-      Antonio Tamairón. 2023  
+      Copyright (c) Antonio Tamairón. 2023  / https://github.com/hash6iron/powadcr
       @hash6iron / https://powagames.itch.io/
     
     Descripción:
@@ -12,6 +12,22 @@
 
     Historico de versiones
 
+    Derechos de autor y distribución
+    --------------------------------
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+    
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+    
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+    
+    To Contact the dev team you can write to hash6iron@gmail.com
  +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
 
 // TYPE block
@@ -29,7 +45,7 @@
 class TZXproccesor
 {
 
-     private:
+    private:
 
     // Procesador de audio
     ZXProccesor _zxp;
@@ -91,15 +107,45 @@ class TZXproccesor
 
      bool isHeaderTZX()
      {
-        if (_mFile != NULL)
+        if (_mFile != 0)
         {
+
+           Serial.println("");
+           Serial.println("");
+           Serial.println("Begin isHeaderTZX");
+
            // Capturamos la cabecera
-           byte* bBlock = (byte*)malloc(10+1);
+           // ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR
+           // ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR
+           /*
+            Guru Meditation Error: Core  1 panic'ed (LoadStoreAlignment). Exception was unhandled.
+            04:08:11.907 -> 
+            04:08:11.907 -> Core  1 register dump:
+            04:08:11.907 -> PC      : 0x4008b794  PS      : 0x00060a33  A0      : 0x800898ed  A1      : 0x3ffb1bc0  
+            04:08:11.907 -> A2      : 0x6f5320bf  A3      : 0xb33fffff  A4      : 0x0000cdcd  A5      : 0x00060a23  
+            04:08:11.907 -> A6      : 0x00060a20  A7      : 0x0000abab  A8      : 0x0000abab  A9      : 0xffffffff  
+            04:08:11.907 -> A10     : 0x00000003  A11     : 0x00060a23  A12     : 0x00060a20  A13     : 0x00000001  
+            04:08:11.907 -> A14     : 0x2fd320bf  A15     : 0x003fffff  SAR     : 0x0000001a  EXCCAUSE: 0x00000009  
+            04:08:11.907 -> EXCVADDR: 0x6f5320bf  LBEG    : 0x4008663c  LEND    : 0x40086647  LCOUNT  : 0xffffffff             
+            */
+           byte* bBlock = (byte*)calloc(11+1,sizeof(byte));
+           bBlock = NULL;
            bBlock = _sdm.readFileRange32(_mFile,0,10,false);
+
+           // ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR
+           // ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR
+
+           Serial.println("");
+           Serial.println("");
+           Serial.println("Got bBlock");
 
            // Obtenemos la firma del TZX
            char* signTZXHeader = (char*)calloc(8+1,sizeof(char));
-           signTZXHeader = "\0";
+           signTZXHeader = &INITCHAR[0];
+
+           Serial.println("");
+           Serial.println("");
+           Serial.println("Initialized signTZX Header");
 
            // Analizamos la cabecera
            // Extraemos el nombre del programa
@@ -132,22 +178,14 @@ class TZXproccesor
 
      bool isFileTZX()
      {
-         if (_mFile != NULL)
+         if (_mFile != 0)
          {
-            // Analizamos el fichero. Para ello analizamos la cabecera
-            char* szName = (char*)calloc(254+1,sizeof(char));
-            szName = "\0";
-
-            Serial.println();
-            Serial.println();
-            Serial.println("Preparing calloc memory");
 
             // Capturamos el nombre del fichero en szName
-            _mFile.getName(szName,254);
-            String szNameStr = String(szName);
+            String szNameStr = _sdm.getFileName(_mFile);
 
-            Serial.println();
-            Serial.println();
+            Serial.println("");
+            Serial.println("");
             Serial.println("Name " + szNameStr);
 
             if (szNameStr != "")
@@ -276,17 +314,15 @@ class TZXproccesor
   void play()
   {}
 
-  TZXproccesor()
+  TZXproccesor(AudioKit kit)
   {
       // Constructor de la clase
-      if ( _myTZX.name != "\0")
-      {
-          free( _myTZX.name);
-      }
       _myTZX.name = (char*)calloc(10+1,sizeof(char));
-      _myTZX.name != "\0";
+      _myTZX.name = &INITCHAR[0];
       _myTZX.numBlocks = 0;
       _myTZX.descriptor = NULL;
       _myTZX.size = 0;
+
+      _zxp.set_ESP32kit(kit);      
   } 
 };

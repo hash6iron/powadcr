@@ -2,7 +2,7 @@
     Nombre: SDmanager.h
     
     Creado por:
-      Antonio Tamairón. 2023  
+      Copyright (c) Antonio Tamairón. 2023  / https://github.com/hash6iron/powadcr
       @hash6iron / https://powagames.itch.io/
     
     Descripción:
@@ -13,7 +13,23 @@
     Historico de versiones
     v.0.1 - Version de pruebas. En desarrollo
     v.0.2 - Se convierte en una clase
+
+    Derechos de autor y distribución
+    --------------------------------
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
     
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+    
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+    
+    To Contact the dev team you can write to hash6iron@gmail.com    
 
  +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
 
@@ -32,7 +48,7 @@ class SDmanager
         Serial.println("Open file:");
         Serial.println(path);
     
-        if (fFile != NULL)
+        if (fFile != 0)
         {
             fFile.close();
             Serial.println("closing file");
@@ -85,7 +101,7 @@ class SDmanager
     byte* readFileRange32(File32 mFile, int startByte, int size, bool logOn)
     {
         //Redimensionamos el buffer al tamaño acordado del rango
-        byte* bufferFile = (byte*)malloc(size);
+        byte* bufferFile = (byte*)calloc(size+1,sizeof(byte));
     
         // Ponemos a cero el puntero de lectura del fichero
         mFile.rewind();
@@ -95,9 +111,9 @@ class SDmanager
         //Serial.println("***** readFileRange32 *****");
         if (logOn)
         {
-            //Serial.println("   + Offset: " + String(startByte));
-            //Serial.println("   + Size: " + String(size));
-            //Serial.println("");
+            Serial.println("   + Offset: " + String(startByte));
+            Serial.println("   + Size: " + String(size));
+            Serial.println("");
         }
     
         // Almacenamos el tamaño del bloque, para información
@@ -126,6 +142,14 @@ class SDmanager
         return bufferFile;
     }
 
+    String getFileName(File32 f)
+    {
+          char* szName = (char*)calloc(255,sizeof(char));
+          szName = &INITCHAR[0];
+          f.getName(szName,255);
+
+          return String(szName);
+    }
     // Constructor de la clase
     SDmanager()
     {}

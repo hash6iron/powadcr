@@ -2,7 +2,7 @@
     Nombre: powadcr.ino
     
     Creado por:
-      Antonio Tamairón. 2023  
+      Copyright (c) Antonio Tamairón. 2023  / https://github.com/hash6iron/powadcr
       @hash6iron / https://powagames.itch.io/
 
     Colaboradores en el proyecto:
@@ -20,6 +20,24 @@
     v.0.1 - Version de pruebas. En desarrollo
     v.1.0.0 - Primera versión optimizada, comentada y preparada con el procesador de TAP y generador de señal de audio.
     v.1.0.1 - Mejorada la rutina de inicializado de SD Card. Cambios relativos a las nuevas clases generadas. Corregido bug con el modo TEST
+
+
+    Derechos de autor y distribución
+    --------------------------------
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+    
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+    
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+    
+    To Contact the dev team you can write to hash6iron@gmail.com
 
  +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
 
@@ -57,7 +75,7 @@ File32 sdFile32;
 SDmanager sdm;
 HMI hmi;
 TAPproccesor pTAP(ESP32kit);
-TZXproccesor pTZX;
+TZXproccesor pTZX(ESP32kit);
 
 
 //int rlen = 0;
