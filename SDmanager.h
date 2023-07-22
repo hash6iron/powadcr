@@ -71,6 +71,7 @@ byte* readFile32(File32 mFile)
         int i=0;
         while(i < rlen)
         {
+<<<<<<< Updated upstream
             bufferFile[i] = (byte)mFile.read();
             i++;
         }
@@ -107,6 +108,67 @@ byte* readFileRange32(File32 mFile, int startByte, int size, bool logOn)
 
         //Redimensionamos el buffer al tamaño acordado del rango
         bufferFile = (byte*)malloc(size);
+=======
+            int rlen = mFile.available();
+            FILE_LENGTH = rlen;
+    
+            //Serial.print("Len: ");
+            //Serial.print(String(rlen));
+    
+            //Redimensionamos el buffer al tamaño acordado del fichero
+            bufferFile = (byte*)calloc(rlen,sizeof(byte));
+
+            // Leemos todo el contenido del fichero de una vez
+            mFile.read(bufferFile,rlen);
+        } 
+        else 
+        {
+            Serial.print(F("SD Card: error opening file. Please check SD frequency."));
+        }
+        
+        // Devolvemos el conjunto de bytes leidos
+        return bufferFile;
+    }
+    
+    byte* readFileRange32(File32 mFile, int startByte, int size, bool logOn)
+    {
+
+        //Redimensionamos el buffer al tamaño acordado del rango
+        byte* bufferFile = (byte*)calloc(size+1,sizeof(byte));
+
+        if (mFile != 0) 
+        {
+        
+            // Ponemos el puntero de lectura del fichero, al inicio del fichero.
+            mFile.rewind();
+
+            // Nos posicionamos en el byte definido por startByte
+            mFile.seek(startByte);
+        
+            if (logOn)
+            {
+                Serial.println("Reading bytes block:");
+                Serial.println("   + Offset: " + String(startByte));
+                Serial.println("   + Length: " + String(size));
+                Serial.println("");
+            }
+        
+            // Vemos el tamaño del fichero
+            int rlen = mFile.available();
+            FILE_LENGTH = rlen;
+
+            // Leemos el bloque de bytes
+            mFile.read(bufferFile,size);
+        } 
+        else 
+        {
+            Serial.print(F("SD Card: error opening file. Please check SD frequency."));
+        }
+    
+        // Devolvemos el bloque de bytes
+        return bufferFile;
+    }
+>>>>>>> Stashed changes
 
         int i=0;
 
@@ -121,5 +183,12 @@ byte* readFileRange32(File32 mFile, int startByte, int size, bool logOn)
         Serial.print(F("SD Card: error opening file. Please check SD frequency."));
     }
 
+<<<<<<< Updated upstream
     return bufferFile;
 }
+=======
+    // Constructor de la clase
+    SDmanager()
+    {}
+};
+>>>>>>> Stashed changes

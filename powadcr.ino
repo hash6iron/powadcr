@@ -43,6 +43,7 @@ SdFat sd;
 SdFile sdFile;
 File32 sdFile32;
 
+<<<<<<< Updated upstream
 // Inicializamos la clase ZXProccesor con el kit de audio.
 // ZX Spectrum
 #ifdef MACHINE==0
@@ -50,6 +51,21 @@ File32 sdFile32;
 #endif
 
 void setSDFrequency(int SD_Speed)
+=======
+// Añadimos los distintos manejadores de ficheros, TAP y TZX
+SDmanager sdm;
+HMI hmi;
+
+#ifdef MACHINE_ZX
+ZXProccesor zxp;
+#endif
+
+TZXproccesor pTZX(ESP32kit);
+TAPproccesor pTAP(ESP32kit);
+
+
+void proccesingTAP(char* file_ch)
+>>>>>>> Stashed changes
 {
     bool SD_ok = false;
     while(!SD_ok)
@@ -249,10 +265,98 @@ void setup()
     int SD_Speed = SD_FRQ_MHZ_INITIAL;         // Velocidad en MHz (config.h)
     setSDFrequency(SD_Speed);
 
+<<<<<<< Updated upstream
     // Si es test está activo. Lo lanzamos
     #if TEST==1
       test();
     #endif
+=======
+  // Configuramos el ESP32kit
+  LOGLEVEL_AUDIOKIT = AudioKitError;
+
+  // Configuracion de las librerias del AudioKit
+  auto cfg = ESP32kit.defaultConfig(AudioOutput);
+
+  Serial.println("Initialized Audiokit.");
+
+  ESP32kit.begin(cfg);
+  ESP32kit.setVolume(MAIN_VOL);
+
+  Serial.println("Done!");
+
+  Serial.println("Initializing SD SLOT.");
+  
+  // Configuramos acceso a la SD
+  hmi.writeString("statusLCD.txt=\"WAITING FOR SD CARD\"" );
+  delay(1250);
+
+  int SD_Speed = SD_FRQ_MHZ_INITIAL;  // Velocidad en MHz (config.h)
+  setSDFrequency(SD_Speed);
+
+  Serial.println("Done!");
+
+  // Esperamos finalmente a la pantalla
+  Serial.println("");
+  Serial.println("Waiting for LCD.");
+  Serial.println("");
+
+  hmi.writeString("statusLCD.txt=\"WAITING FOR HMI\"" );
+  waitForHMI();
+
+
+// Si es test está activo. Lo lanzamos
+#ifdef TEST
+  TEST_RUNNING = true;
+  hmi.writeString("statusLCD.txt=\"TEST RUNNING\"" );
+  test();
+  hmi.writeString("statusLCD.txt=\"PRESS SCREEN\"" );
+  TEST_RUNNING = false;
+#endif
+
+  // Interrupciones HW
+  // Timer0_Cfg = timerBegin(0, 80, true);
+  // timerAttachInterrupt(Timer0_Cfg, &Timer0_ISR, true);
+  // timerAlarmWrite(Timer0_Cfg, 1000000, true);
+  // timerAlarmEnable(Timer0_Cfg);
+  LOADING_STATE = 0;
+  BLOCK_SELECTED = 0;
+  FILE_SELECTED = false;
+
+  // Inicialmente el POWADCR está en STOP
+  STOP = true;
+  PLAY = false;
+  PAUSE = false;
+
+  sendStatus(STOP_ST, 1);
+  sendStatus(PLAY_ST, 0);
+  sendStatus(PAUSE_ST, 0);
+  sendStatus(READY_ST, 1);
+  sendStatus(END_ST, 0);
+
+  LAST_MESSAGE = "Press EJECT to select a file.";
+>>>>>>> Stashed changes
+
+  #ifdef TESTDEV
+      Serial.println("");
+      Serial.println("");
+      Serial.println("Testing readFileRange32(..)"); 
+
+      byte* buffer = (byte*)calloc(11,sizeof(byte));
+      sdFile32 = sdm.openFile32(sdFile32, "/Correcaminos - Nifty Lifty (1984)(Visions Software Factory).tzx");
+      buffer = sdm.readFileRange32(sdFile32,0,10,true);
+      free(buffer);
+      buffer = NULL;
+
+      Serial.println("");
+      Serial.println("");
+      Serial.println("Test OK");  
+  #endif
+
+  // Asignamos a los objetos
+  pTAP.set_HMI(hmi);
+
+  pTZX.set_HMI(hmi);
+  pTZX.set_SDM(sdm);  
 
 }
 

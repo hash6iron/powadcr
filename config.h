@@ -1,10 +1,22 @@
 // Machine
 //
+<<<<<<< Updated upstream
 // 0 for ZX Spectrum
 // 1 for AMSTRAD
 // 2 for MSX
 #define MACHINE
 #define TEST 0
+=======
+// Seleccionar solo uno por dispositivo powaDCR
+// MACHINE_ZX para ZX Spectrum
+// MACHINE_AMSTRAD para AMSTRAD
+#define MACHINE_ZX
+//#define MACHINE_AMSTRAD
+
+// Descomentar para test de reproducción desde memoria
+//#define TEST
+
+>>>>>>> Stashed changes
 // Define nivel de log
 // 0 - Apagado
 // 1 - Essential
@@ -13,8 +25,10 @@
 // 4 - Info     / Full trace info
 #define LOG 0
 
-// Define silent block in seconds between blocks playing
-// each block has two SILENT block
+// Inserta codigo de trazabilidad para desarrollo
+#define TESTDEV 
+
+// Definición del silencio entre bloques
 #define SILENT 1.5
 
 // Turbo mode
