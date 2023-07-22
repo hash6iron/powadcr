@@ -117,20 +117,9 @@ class TZXproccesor
            // Capturamos la cabecera
            // ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR
            // ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR
-           /*
-            Guru Meditation Error: Core  1 panic'ed (LoadStoreAlignment). Exception was unhandled.
-            04:08:11.907 -> 
-            04:08:11.907 -> Core  1 register dump:
-            04:08:11.907 -> PC      : 0x4008b794  PS      : 0x00060a33  A0      : 0x800898ed  A1      : 0x3ffb1bc0  
-            04:08:11.907 -> A2      : 0x6f5320bf  A3      : 0xb33fffff  A4      : 0x0000cdcd  A5      : 0x00060a23  
-            04:08:11.907 -> A6      : 0x00060a20  A7      : 0x0000abab  A8      : 0x0000abab  A9      : 0xffffffff  
-            04:08:11.907 -> A10     : 0x00000003  A11     : 0x00060a23  A12     : 0x00060a20  A13     : 0x00000001  
-            04:08:11.907 -> A14     : 0x2fd320bf  A15     : 0x003fffff  SAR     : 0x0000001a  EXCCAUSE: 0x00000009  
-            04:08:11.907 -> EXCVADDR: 0x6f5320bf  LBEG    : 0x4008663c  LEND    : 0x40086647  LCOUNT  : 0xffffffff             
-            */
-           byte* bBlock = (byte*)calloc(11+1,sizeof(byte));
-           bBlock = NULL;
-           bBlock = _sdm.readFileRange32(_mFile,0,10,false);
+
+           byte* bBlock = (byte*)calloc(10+1,sizeof(byte));
+           bBlock = _sdm.readFileRange32(_mFile,0,10,true);
 
            // ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR
            // ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR
@@ -226,7 +215,18 @@ class TZXproccesor
 
    
     void proccess_tzx()
-    {}
+    {
+          // Procesamos el fichero
+          Serial.println("");
+          Serial.println("Getting total blocks...");     
+
+        if (isFileTZX())
+        {
+            Serial.println();
+            Serial.println();
+            Serial.println("Is TZX file");
+        }      
+    }
 
     
     
@@ -262,67 +262,39 @@ class TZXproccesor
       // creamos un objeto TZXproccesor
       //set_file(_mFile, _rlen);
 
-      Serial.println();
-      Serial.println();
-      Serial.println("Set file");      
-
-      if (isFileTZX())
-      {
-          Serial.println();
-          Serial.println();
-          Serial.println("Is TZX file");
-      }
-
       proccess_tzx();
       
       Serial.println("");
       Serial.println("");
       Serial.println("END PROCCESING TZX: ");
     
-      // if (_myTAP.descriptor != NULL)
-      // {
-      //     // Entregamos información por consola
-      //     PROGRAM_NAME = get_tap_name();
-      //     TOTAL_BLOCKS = get_tap_numBlocks();
-      //     LAST_NAME = "..";
-    
-      //     Serial.println("");
-      //     Serial.println("");
-      //     Serial.println("PROGRAM_NAME: " + PROGRAM_NAME);
-      //     Serial.println("TOTAL_BLOCKS: " + String(TOTAL_BLOCKS));
-    
-      //     // Pasamos el descriptor           
-      //     _hmi.setBasicFileInformation(_myTAP.descriptor[BLOCK_SELECTED].name,_myTAP.descriptor[BLOCK_SELECTED].typeName,_myTAP.descriptor[BLOCK_SELECTED].size);
-
-      //     _hmi.updateInformationMainPage();
-      // }
     }
 
-  void initialize()
-  {
-      // if (_myTAP.descriptor != NULL)
-      // {
-      //   free(_myTAP.descriptor);
-      //   free(_myTAP.name);
-      //   _myTAP.descriptor = NULL;
-      //   _myTAP.name = "\0";
-      //   _myTAP.numBlocks = 0;
-      //   _myTAP.size = 0;
-      // }          
-  }
+    void initialize()
+    {
+        // if (_myTAP.descriptor != NULL)
+        // {
+        //   free(_myTAP.descriptor);
+        //   free(_myTAP.name);
+        //   _myTAP.descriptor = NULL;
+        //   _myTAP.name = "\0";
+        //   _myTAP.numBlocks = 0;
+        //   _myTAP.size = 0;
+        // }          
+    }
 
-  void play()
-  {}
+    void play()
+    {}
 
-  TZXproccesor(AudioKit kit)
-  {
-      // Constructor de la clase
-      _myTZX.name = (char*)calloc(10+1,sizeof(char));
-      _myTZX.name = &INITCHAR[0];
-      _myTZX.numBlocks = 0;
-      _myTZX.descriptor = NULL;
-      _myTZX.size = 0;
+    TZXproccesor(AudioKit kit)
+    {
+        // Constructor de la clase
+        _myTZX.name = (char*)calloc(10+1,sizeof(char));
+        _myTZX.name = &INITCHAR[0];
+        _myTZX.numBlocks = 0;
+        _myTZX.descriptor = NULL;
+        _myTZX.size = 0;
 
-      _zxp.set_ESP32kit(kit);      
-  } 
+        _zxp.set_ESP32kit(kit);      
+    } 
 };

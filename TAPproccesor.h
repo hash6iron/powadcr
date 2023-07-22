@@ -67,28 +67,89 @@ class TAPproccesor
       // Creamos el contenedor de bloques. Descriptor de bloques
       //tBlockDescriptor* bDscr = new tBlockDescriptor[255];
 
+      bool isHeaderTAP(File32 tapFileName)
+      {
+          if (_mFile != 0)
+          {
+                Serial.println("");
+                Serial.println("");
+                Serial.println("Begin isHeaderTAP");
+
+                // La cabecera son 10 bytes
+                byte* bBlock = (byte*)calloc(19+1,sizeof(byte));
+                bBlock = _sdm.readFileRange32(tapFileName,0,19,true);
+
+                Serial.println("");
+                Serial.println("");
+                Serial.println("Got bBlock");
+
+                // Obtenemos la firma del TZX
+                char* signTZXHeader = (char*)calloc(3+1,sizeof(char));
+                signTZXHeader = &INITCHAR[0];
+
+                Serial.println("");
+                Serial.println("");
+                Serial.println("Initialized signTAP Header");
+
+                // Analizamos la cabecera
+                // Extraemos el nombre del programa
+                for (int n=0;n<3;n++)
+                {   
+                    signTZXHeader[n] = (byte)bBlock[n];
+                    
+                    Serial.println("");
+                    Serial.println("");
+                    Serial.println((int)signTZXHeader[n]);                  
+                }
+
+                if (signTZXHeader[0] == 19 && signTZXHeader[1] == 0 && signTZXHeader[2] == 0)
+                {
+                    Serial.println("");
+                    Serial.println("");
+                    Serial.println("is TAP ok");                
+                    return true;
+                }
+                else
+                {
+                    return false;
+                }
+          }
+          else
+          { 
+            return false;
+          }
+      }
+
       bool isFileTAP(File32 tapFileName)
       {
-          // char* szName = (char*)calloc(255,sizeof(char));
-          // String fileName = tapFileName.getName(szName,sizeof(char));
+          char* szName = (char*)calloc(255,sizeof(char));
+          tapFileName.getName(szName,254);
           
-          // if (fileName != "")
-          // {
-          //     String fileExtension = (fileName.substring(fileName.length()-3)).toUpperCase()
-          //     if (fileExtension = "TAP")
-          //     {
-          //         return true;
-          //     }
-          //     else
-          //     {
-          //         return false;
-          //     }
-          // }
-          // else
-          // {
-          //     return false;
-          // }
-          return true;
+          String fileName = String(szName);
+
+          if (fileName != "")
+          {
+              fileName.toUpperCase();
+              if (fileName.indexOf("TAP") != -1)
+              {
+                  if (isHeaderTAP(tapFileName))
+                  {
+                    return true;
+                  }
+                  else
+                  {
+                    return false;
+                  }
+              }
+              else
+              {
+                  return false;
+              }
+          }
+          else
+          {
+              return false;
+          }
       }
 
       byte calculateChecksum(byte* bBlock, int startByte, int numBytes)

@@ -35,8 +35,9 @@
 //
 // 0 for ZX Spectrum
 // 1 for AMSTRAD
-// 2 for MSX
+
 #define MACHINE_ZX
+//#define MACHINE_AMSTRAD
 
 // Descomentar para test de reproducción en memoria
 //#define TEST
@@ -49,8 +50,10 @@
 // 4 - Info     / Full trace info
 #define LOG 0
 
-// Define silent block in seconds between blocks playing
-// each block has two SILENT block
+// Inserta codigo de trazabilidad para desarrollo
+#define TESTDEV 
+
+// Definición del silencio entre bloques
 #define SILENT 1.5
 
 // Activa el modo de split de los bloques. 

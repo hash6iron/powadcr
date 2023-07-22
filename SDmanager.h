@@ -81,14 +81,15 @@ class SDmanager
             //Serial.print(String(rlen));
     
             //Redimensionamos el buffer al tamaño acordado del fichero
-            bufferFile = (byte*)malloc(rlen);
-    
-            int i=0;
-            while(i < rlen)
-            {
-                bufferFile[i] = (byte)mFile.read();
-                i++;
-            }
+            bufferFile = (byte*)calloc(rlen+1,sizeof(byte));
+            mFile.read(bufferFile,rlen);
+            
+            // int i=0;
+            // while(i < rlen)
+            // {
+            //     bufferFile[i] = (byte)mFile.read();
+            //     i++;
+            // }
         } 
         else 
         {
@@ -125,14 +126,15 @@ class SDmanager
         {
             int rlen = mFile.available();
             FILE_LENGTH = rlen;
+            
+            mFile.read(bufferFile,size);
+            // int i=0;
     
-            int i=0;
-    
-            while(i < size)
-            {
-                bufferFile[i] = (byte)mFile.read();;
-                i++;
-            }
+            // while(i < size)
+            // {
+            //     bufferFile[i] = (byte)mFile.read();;
+            //     i++;
+            // }
         } 
         else 
         {
@@ -150,6 +152,7 @@ class SDmanager
 
           return String(szName);
     }
+    
     // Constructor de la clase
     SDmanager()
     {}

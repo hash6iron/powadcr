@@ -74,21 +74,15 @@ File32 sdFile32;
 // Añadimos los distintos manejadores de ficheros, TAP y TZX
 SDmanager sdm;
 HMI hmi;
-TAPproccesor pTAP(ESP32kit);
-TZXproccesor pTZX(ESP32kit);
 
-
-//int rlen = 0;
-
-
-//
-// hw_timer_t *Timer0_Cfg = NULL;
-
-// Inicializamos la clase ZXProccesor con el kit de audio.
 // ZX Spectrum
 #ifdef MACHINE_ZX
 ZXProccesor zxp;
 #endif
+
+TAPproccesor pTAP(ESP32kit);
+TZXproccesor pTZX(ESP32kit);
+
 
 void proccesingTAP(char* file_ch)
 {
@@ -360,6 +354,22 @@ void setup() {
   sendStatus(END_ST, 0);
 
   LAST_MESSAGE = "Press EJECT to select a file.";
+
+  #ifdef TESTDEV
+      Serial.println("");
+      Serial.println("");
+      Serial.println("Testing readFileRange32(..)"); 
+
+      byte* buffer = (byte*)calloc(11,sizeof(byte));
+      sdFile32 = sdm.openFile32(sdFile32, "/Correcaminos - Nifty Lifty (1984)(Visions Software Factory).tzx");
+      buffer = sdm.readFileRange32(sdFile32,0,10,true);
+      free(buffer);
+      buffer = NULL;
+
+      Serial.println("");
+      Serial.println("");
+      Serial.println("Test OK");  
+  #endif
 
 }
 
