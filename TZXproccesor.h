@@ -30,6 +30,8 @@
     To Contact the dev team you can write to hash6iron@gmail.com
  +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
 
+#pragma once
+
 // TYPE block
 #define HPRGM 0                     //Cabecera PROGRAM
 #define HCODE 1                     //Cabecera BYTE  
@@ -232,9 +234,19 @@ class TZXproccesor
     
     public:
 
+    void set_SDM(SDmanager sdmTmp)
+    {
+        _sdm = sdmTmp;
+    }
+
     void set_SdFat32(SdFat32 sdf32)
     {
         _sdf32 = sdf32;
+    }
+
+    void set_HMI(HMI hmi)
+    {
+        _hmi = hmi;
     }
 
     void set_file(File32 mFile, int sizeTZX)
@@ -297,4 +309,6 @@ class TZXproccesor
 
         _zxp.set_ESP32kit(kit);      
     } 
+
+
 };

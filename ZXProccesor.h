@@ -33,7 +33,9 @@
     To Contact the dev team you can write to hash6iron@gmail.com
  +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
 
-#include <stdint.h>
+//#include <stdint.h>
+
+#pragma once
 
 // Clase para generar todo el conjunto de señales que necesita el ZX Spectrum
 class ZXProccesor 

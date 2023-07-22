@@ -322,6 +322,10 @@ void setup() {
   waitForHMI();
 
   pTAP.set_HMI(hmi);
+  pTZX.set_HMI(hmi);
+
+  pTAP.set_SDM(sdm);
+  pTZX.set_SDM(sdm);
 
 
 // Si es test está activo. Lo lanzamos

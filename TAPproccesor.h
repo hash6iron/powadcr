@@ -33,6 +33,8 @@
     To Contact the dev team you can write to hash6iron@gmail.com
  +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
 
+#pragma once
+
 // TYPE block
 #define HPRGM 0                     //Cabecera PROGRAM
 #define HCODE 1                     //Cabecera BYTE  
@@ -920,7 +922,7 @@ class TAPproccesor
         }
       }
 
-      public:
+      public:    
 
       void set_SdFat32(SdFat32 sdf32)
       {
@@ -952,10 +954,10 @@ class TAPproccesor
           return _myTAP.numBlocks;
       }
 
-//      void set_rlen(int l)
-//      {
-//          _rlen = l;
-//      }
+      void set_SDM(SDmanager sdmTmp)
+      {
+          _sdm = sdmTmp;
+      }
 
       void set_HMI(HMI hmi)
       {
