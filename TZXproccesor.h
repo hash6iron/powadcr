@@ -117,7 +117,7 @@ class TZXproccesor
 
            // Analizamos la cabecera
            // Extraemos el nombre del programa
-           for (int n=0;n<6;n++)
+           for (int n=0;n<7;n++)
            {   
                signTZXHeader[n] = (char)bBlock[n];
            }
@@ -129,7 +129,7 @@ class TZXproccesor
            Serial.println("sign in TZX file detected.");
            Serial.println(sign);
 
-           if (sign == "ZXTape!")
+           if (sign.indexOf("ZXTape!") != -1)
            {
                return true;
            }
@@ -207,6 +207,8 @@ class TZXproccesor
             Serial.println();
             Serial.println();
             Serial.println("Is TZX file");
+
+
         }      
     }
 
@@ -247,7 +249,7 @@ class TZXproccesor
     
       // Abrimos el fichero
       tzxFile = sdm.openFile32(tzxFile, path);
-      
+
       // Obtenemos su tamaño total
       _mFile = tzxFile;
       _rlen = tzxFile.available();
@@ -257,7 +259,7 @@ class TZXproccesor
       Serial.println("Size: " + String(_rlen));
 
       // creamos un objeto TZXproccesor
-      //set_file(tzxFile, _rlen);
+      set_file(tzxFile, _rlen);
       proccess_tzx(tzxFile);
       
       Serial.println("");

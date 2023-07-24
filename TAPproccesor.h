@@ -1007,7 +1007,7 @@ class TAPproccesor
         _rlen = tapFile.available();
       
         // creamos un objeto TAPproccesor
-        //set_file(tapFileName, _rlen);
+        set_file(tapFile, _rlen);
         proccess_tap(tapFile);
         
         Serial.println("");
