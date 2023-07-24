@@ -98,15 +98,10 @@ class TZXproccesor
            Serial.println("Begin isHeaderTZX");
 
            // Capturamos la cabecera
-           // ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR
-           // ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR
 
-           byte* bBlock = NULL; 
-           bBlock = (byte*)calloc(12,sizeof(byte));
+           //byte* bBlock = NULL; 
+           byte* bBlock = (byte*)calloc(10+1,sizeof(byte));
            bBlock = sdm.readFileRange32(tzxFileName,0,10,true);
-
-           // ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR
-           // ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR
 
            Serial.println("");
            Serial.println("");
@@ -122,7 +117,7 @@ class TZXproccesor
 
            // Analizamos la cabecera
            // Extraemos el nombre del programa
-           for (int n=0;n<7;n++)
+           for (int n=0;n<6;n++)
            {   
                signTZXHeader[n] = (char)bBlock[n];
            }
@@ -155,18 +150,21 @@ class TZXproccesor
          {
 
             // Capturamos el nombre del fichero en szName
-            String szNameStr = sdm.getFileName(tzxFileName);
+            char* szName = (char*)calloc(255,sizeof(char));
+            tzxFileName.getName(szName,254);
+            //String szNameStr = sdm.getFileName(tzxFileName);
+            String fileName = String(szName);
 
             Serial.println("");
             Serial.println("");
-            Serial.println("Name " + szNameStr);
+            Serial.println("Name " + fileName);
 
-            if (szNameStr != "")
+            if (fileName != "")
             {
                   //String fileExtension = szNameStr.substring(szNameStr.length()-3);
-                  szNameStr.toUpperCase();
+                  fileName.toUpperCase();
                   
-                  if (szNameStr.indexOf(".TZX") != -1)
+                  if (fileName.indexOf(".TZX") != -1)
                   {
                       // La extensión es TZX pero ahora vamos a comprobar si
                       // internamente también lo es
@@ -242,25 +240,25 @@ class TZXproccesor
     void getInfoFileTZX(char* path) 
     {
       
-      File32 tzxFileName;
+      File32 tzxFile;
 
       LAST_MESSAGE = "Analyzing file";
       _hmi.updateInformationMainPage();
     
       // Abrimos el fichero
-      tzxFileName = sdm.openFile32(tzxFileName, path);
+      tzxFile = sdm.openFile32(tzxFile, path);
+      
       // Obtenemos su tamaño total
-      //_rlen = tzxFileName.available();
+      _mFile = tzxFile;
+      _rlen = tzxFile.available();
 
       Serial.println();
       Serial.println();
       Serial.println("Size: " + String(_rlen));
 
       // creamos un objeto TZXproccesor
-      //set_file(_mFile, _rlen);
-      
-      //_mFile = tzxFileName;
-      proccess_tzx(tzxFileName);
+      //set_file(tzxFile, _rlen);
+      proccess_tzx(tzxFile);
       
       Serial.println("");
       Serial.println("");

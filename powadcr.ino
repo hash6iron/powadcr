@@ -94,7 +94,7 @@ TAPproccesor pTAP(ESP32kit);
 
 void proccesingTAP(char* file_ch)
 {
-    pTAP.set_SdFat32(sdf);
+    //pTAP.set_SdFat32(sdf);
     pTAP.getInfoFileTAP(file_ch);
 
     LAST_MESSAGE = "Press PLAY to enjoy!";
@@ -106,7 +106,7 @@ void proccesingTAP(char* file_ch)
 
 void proccesingTZX(char* file_ch)
 {
-    pTZX.set_SdFat32(sdf);
+    //pTZX.set_SdFat32(sdf);
     pTZX.getInfoFileTZX(file_ch);
 
     LAST_MESSAGE = "Press PLAY to enjoy!";

@@ -70,7 +70,7 @@ class TAPproccesor
 
       bool isHeaderTAP(File32 tapFileName)
       {
-          if (_mFile != 0)
+          if (tapFileName != 0)
           {
                 Serial.println("");
                 Serial.println("");
@@ -994,18 +994,21 @@ class TAPproccesor
       void getInfoFileTAP(char* path) 
       {
       
-        File32 tapFileName;
+        File32 tapFile;
+
         LAST_MESSAGE = "Analyzing file";
         _hmi.updateInformationMainPage();
       
         // Abrimos el fichero
-        tapFileName = sdm.openFile32(tapFileName, path);
+        tapFile = sdm.openFile32(tapFile, path);
+        
         // Obtenemos su tamaño total
-        _rlen = tapFileName.available();
+        _mFile = tapFile;
+        _rlen = tapFile.available();
       
         // creamos un objeto TAPproccesor
-        set_file(tapFileName, _rlen);
-        proccess_tap(tapFileName);
+        //set_file(tapFileName, _rlen);
+        proccess_tap(tapFile);
         
         Serial.println("");
         Serial.println("");
