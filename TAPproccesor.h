@@ -51,10 +51,9 @@ class TAPproccesor
       private:
 
       // Procesador de audio
-      ZXProccesor _zxp;
+
       
       // Gestor de SD
-      SDmanager _sdm;
       HMI _hmi;
 
       // Definicion de un TAP
@@ -79,7 +78,7 @@ class TAPproccesor
 
                 // La cabecera son 10 bytes
                 byte* bBlock = (byte*)calloc(19+1,sizeof(byte));
-                bBlock = _sdm.readFileRange32(tapFileName,0,19,true);
+                bBlock = sdm.readFileRange32(tapFileName,0,19,true);
 
                 Serial.println("");
                 Serial.println("");
@@ -375,7 +374,7 @@ class TAPproccesor
           Serial.println("Analyzing TAP file. Please wait ...");
           
           // Los dos primeros bytes son el tamaño a contar
-          sizeB = (256*_sdm.readFileRange32(_mFile,startBlock+1,1,false)[0]) + _sdm.readFileRange32(_mFile,startBlock,1,false)[0];
+          sizeB = (256*sdm.readFileRange32(_mFile,startBlock+1,1,false)[0]) + sdm.readFileRange32(_mFile,startBlock,1,false)[0];
           startBlock = 2;
 
           while(reachEndByte==false)
@@ -383,7 +382,7 @@ class TAPproccesor
 
               //Serial.println("START LOOP AGAIN: ");  
               byte* tmpRng = (byte*)calloc(sizeB,sizeof(byte));
-              tmpRng = _sdm.readFileRange32(_mFile,startBlock,sizeB-1,false);
+              tmpRng = sdm.readFileRange32(_mFile,startBlock,sizeB-1,false);
               chk = calculateChecksum(tmpRng,0,sizeB-1);
 
               if (tmpRng!=NULL)
@@ -394,15 +393,15 @@ class TAPproccesor
               
               //Serial.println("MARK CHK: ");
               
-              blockChk = _sdm.readFileRange32(_mFile,startBlock+sizeB-1,1,false)[0];
+              blockChk = sdm.readFileRange32(_mFile,startBlock+sizeB-1,1,false)[0];
               //Serial.println("MARK BLOCK CHK: ");            
 
               if (blockChk == chk)
               {
                   
-                  int flagByte = _sdm.readFileRange32(_mFile,startBlock,1,false)[0];
+                  int flagByte = sdm.readFileRange32(_mFile,startBlock,1,false)[0];
 
-                  int typeBlock = _sdm.readFileRange32(_mFile,startBlock+1,1,false)[0];
+                  int typeBlock = sdm.readFileRange32(_mFile,startBlock+1,1,false)[0];
                   
                   // Vemos si el bloque es una cabecera o un bloque de datos (bien BASIC o CM)
                   if (flagByte == 0)
@@ -432,7 +431,7 @@ class TAPproccesor
                           // es una pantalla SCREEN
                           //blockNameDetected = true;                                              
 
-                          int tmpSizeBlock = (256*_sdm.readFileRange32(_mFile,startBlock + sizeB+1,1,false)[0]) + _sdm.readFileRange32(_mFile,startBlock + sizeB,1,false)[0];
+                          int tmpSizeBlock = (256*sdm.readFileRange32(_mFile,startBlock + sizeB+1,1,false)[0]) + sdm.readFileRange32(_mFile,startBlock + sizeB,1,false)[0];
 
                           if (tmpSizeBlock == 6914)
                           {
@@ -457,7 +456,7 @@ class TAPproccesor
                   // Direcion de inicio (offset)
                   startBlock = startBlock + sizeB;
                   // Tamaño
-                  newSizeB = (256*_sdm.readFileRange32(_mFile,startBlock+1,1,false)[0]) + _sdm.readFileRange32(_mFile,startBlock,1,false)[0];
+                  newSizeB = (256*sdm.readFileRange32(_mFile,startBlock+1,1,false)[0]) + sdm.readFileRange32(_mFile,startBlock,1,false)[0];
 
                   numBlocks++;
                   sizeB = newSizeB;
@@ -534,7 +533,7 @@ class TAPproccesor
           Serial.println("Analyzing TAP file. Please wait ...");
           
           // Los dos primeros bytes son el tamaño a contar
-          sizeB = (256*_sdm.readFileRange32(_mFile,startBlock+1,1,false)[0]) + _sdm.readFileRange32(_mFile,startBlock,1,false)[0];
+          sizeB = (256*sdm.readFileRange32(_mFile,startBlock+1,1,false)[0]) + sdm.readFileRange32(_mFile,startBlock,1,false)[0];
           startBlock = 2;
 
           while(reachEndByte==false && sizeB!=0)
@@ -548,7 +547,7 @@ class TAPproccesor
               
               //Serial.println("START LOOP AGAIN: ");  
               byte* tmpRng = (byte*)calloc(sizeB,sizeof(byte));
-              tmpRng = _sdm.readFileRange32(_mFile,startBlock,sizeB-1,false);
+              tmpRng = sdm.readFileRange32(_mFile,startBlock,sizeB-1,false);
               chk = calculateChecksum(tmpRng,0,sizeB-1);
 
               if (tmpRng!=NULL)
@@ -559,7 +558,7 @@ class TAPproccesor
 
               //Serial.println("MARK CHK: ");
               
-              blockChk = _sdm.readFileRange32(_mFile,startBlock+sizeB-1,1,false)[0];
+              blockChk = sdm.readFileRange32(_mFile,startBlock+sizeB-1,1,false)[0];
               //Serial.println("MARK BLOCK CHK: ");            
 
               if (blockChk == chk)
@@ -574,13 +573,13 @@ class TAPproccesor
                   // Flagbyte
                   // 0x00 - HEADER
                   // 0xFF - DATA BLOCK
-                  int flagByte = _sdm.readFileRange32(_mFile,startBlock,1,false)[0];
+                  int flagByte = sdm.readFileRange32(_mFile,startBlock,1,false)[0];
 
                   // 0x00 - PROGRAM
                   // 0x01 - ARRAY NUM
                   // 0x02 - ARRAY CHAR
                   // 0x03 - CODE FILE
-                  int typeBlock = _sdm.readFileRange32(_mFile,startBlock+1,1,false)[0];
+                  int typeBlock = sdm.readFileRange32(_mFile,startBlock+1,1,false)[0];
                   
                   // Vemos si el bloque es una cabecera o un bloque de datos (bien BASIC o CM)
                   if (flagByte == 0)
@@ -601,7 +600,7 @@ class TAPproccesor
                           blockNameDetected = true;
 
                           // Almacenamos el nombre
-                          getBlockName(&_myTAP.descriptor[numBlocks].name,_sdm.readFileRange32(_mFile,startBlock,19,false),0);
+                          getBlockName(&_myTAP.descriptor[numBlocks].name,sdm.readFileRange32(_mFile,startBlock,19,false),0);
 
 
                           //Cogemos el nombre del TAP de la primera cabecera
@@ -633,9 +632,9 @@ class TAPproccesor
                           blockNameDetected = true;
                           
                           // Almacenamos el nombre
-                          getBlockName(&_myTAP.descriptor[numBlocks].name,_sdm.readFileRange32(_mFile,startBlock,19,false),0);                          
+                          getBlockName(&_myTAP.descriptor[numBlocks].name,sdm.readFileRange32(_mFile,startBlock,19,false),0);                          
 
-                          int tmpSizeBlock = (256*_sdm.readFileRange32(_mFile,startBlock + sizeB+1,1,false)[0]) + _sdm.readFileRange32(_mFile,startBlock + sizeB,1,false)[0];
+                          int tmpSizeBlock = (256*sdm.readFileRange32(_mFile,startBlock + sizeB+1,1,false)[0]) + sdm.readFileRange32(_mFile,startBlock + sizeB,1,false)[0];
 
                           if (tmpSizeBlock == 6914)
                           {
@@ -690,7 +689,7 @@ class TAPproccesor
                   // Direcion de inicio (offset)
                   startBlock = startBlock + sizeB;
                   // Tamaño
-                  newSizeB = (256*_sdm.readFileRange32(_mFile,startBlock+1,1,false)[0]) + _sdm.readFileRange32(_mFile,startBlock,1,false)[0];
+                  newSizeB = (256*sdm.readFileRange32(_mFile,startBlock+1,1,false)[0]) + sdm.readFileRange32(_mFile,startBlock,1,false)[0];
 
                   numBlocks++;
                   sizeB = newSizeB;
@@ -929,10 +928,10 @@ class TAPproccesor
           _sdf32 = sdf32;
       }
 
-      void set_file(File32 mFile, int sizeTAP)
+      void set_file(File32 tapFileName, int sizeTAP)
       {
           // Pasamos los parametros a la clase
-          _mFile = mFile;
+          _mFile = tapFileName;
           _sizeTAP = sizeTAP;
       }
 
@@ -956,7 +955,8 @@ class TAPproccesor
 
       void set_SDM(SDmanager sdmTmp)
       {
-          _sdm = sdmTmp;
+          //_sdm = sdmTmp;
+          //ptrSdm = &sdmTmp;
       }
 
       void set_HMI(HMI hmi)
@@ -977,13 +977,13 @@ class TAPproccesor
           }          
       }
 
-      void proccess_tap()
+      void proccess_tap(File32 tapFileName)
       {
           // Procesamos el fichero
           Serial.println("");
           Serial.println("Getting total blocks...");
 
-          if (isFileTAP(_mFile))
+          if (isFileTAP(tapFileName))
           {
               getBlockDescriptor(_mFile, _sizeTAP);
               showDescriptorTable();
@@ -994,17 +994,18 @@ class TAPproccesor
       void getInfoFileTAP(char* path) 
       {
       
+        File32 tapFileName;
         LAST_MESSAGE = "Analyzing file";
         _hmi.updateInformationMainPage();
       
         // Abrimos el fichero
-        _mFile = _sdm.openFile32(_mFile, path);
+        tapFileName = sdm.openFile32(tapFileName, path);
         // Obtenemos su tamaño total
-        _rlen = _mFile.available();
+        _rlen = tapFileName.available();
       
         // creamos un objeto TAPproccesor
-        set_file(_mFile, _rlen);
-        proccess_tap();
+        set_file(tapFileName, _rlen);
+        proccess_tap(tapFileName);
         
         Serial.println("");
         Serial.println("");
@@ -1113,10 +1114,10 @@ class TAPproccesor
                   }
 
                   bufferPlay = (byte*)calloc(_myTAP.descriptor[i].size, sizeof(byte));
-                  bufferPlay = _sdm.readFileRange32(_mFile, _myTAP.descriptor[i].offset, _myTAP.descriptor[i].size, true);
+                  bufferPlay = sdm.readFileRange32(_mFile, _myTAP.descriptor[i].offset, _myTAP.descriptor[i].size, true);
 
                   // Llamamos a la clase de reproducción
-                  _zxp.playHeaderProgram(bufferPlay, _myTAP.descriptor[i].size);
+                  zxp.playHeaderProgram(bufferPlay, _myTAP.descriptor[i].size);
 
                 } else if (_myTAP.descriptor[i].type == 1 || _myTAP.descriptor[i].type == 7) {
                   
@@ -1128,9 +1129,9 @@ class TAPproccesor
                   }      
 
                   bufferPlay = (byte*)calloc(_myTAP.descriptor[i].size, sizeof(byte));
-                  bufferPlay = _sdm.readFileRange32(_mFile, _myTAP.descriptor[i].offset, _myTAP.descriptor[i].size, true);
+                  bufferPlay = sdm.readFileRange32(_mFile, _myTAP.descriptor[i].offset, _myTAP.descriptor[i].size, true);
 
-                  _zxp.playHeader(bufferPlay, _myTAP.descriptor[i].size);
+                  zxp.playHeader(bufferPlay, _myTAP.descriptor[i].size);
                 } else {
                   // DATA
                   int blockSize = _myTAP.descriptor[i].size;
@@ -1159,8 +1160,8 @@ class TAPproccesor
 
                         bufferPlay = (byte*)calloc(blockPlaySize, sizeof(byte));
 
-                        bufferPlay = _sdm.readFileRange32(_mFile, offsetPlay, blockPlaySize, true);
-                        _zxp.playDataBegin(bufferPlay, blockPlaySize);
+                        bufferPlay = sdm.readFileRange32(_mFile, offsetPlay, blockPlaySize, true);
+                        zxp.playDataBegin(bufferPlay, blockPlaySize);
                         //free(bufferPlay);
 
                       } else {
@@ -1174,9 +1175,9 @@ class TAPproccesor
                         }
 
                         bufferPlay = (byte*)calloc(blockPlaySize, sizeof(byte));
-                        bufferPlay = _sdm.readFileRange32(_mFile, offsetPlay, blockPlaySize, true);
+                        bufferPlay = sdm.readFileRange32(_mFile, offsetPlay, blockPlaySize, true);
 
-                        _zxp.playDataEnd(bufferPlay, blockPlaySize);
+                        zxp.playDataEnd(bufferPlay, blockPlaySize);
                       }
                     }
                   } else {
@@ -1189,9 +1190,9 @@ class TAPproccesor
                     }
 
                     bufferPlay = (byte*)calloc(_myTAP.descriptor[i].size, sizeof(byte));
-                    bufferPlay = _sdm.readFileRange32(_mFile, _myTAP.descriptor[i].offset, _myTAP.descriptor[i].size, true);
+                    bufferPlay = sdm.readFileRange32(_mFile, _myTAP.descriptor[i].offset, _myTAP.descriptor[i].size, true);
                     
-                    _zxp.playData(bufferPlay, _myTAP.descriptor[i].size);
+                    zxp.playData(bufferPlay, _myTAP.descriptor[i].size);
                   }
                 }
               }
@@ -1250,7 +1251,7 @@ class TAPproccesor
           _myTAP.descriptor = NULL;
           _myTAP.size = 0;
 
-          _zxp.set_ESP32kit(kit);
+          //zxp.set_ESP32kit(kit);
       }      
 
 };

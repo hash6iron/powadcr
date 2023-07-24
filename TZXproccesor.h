@@ -30,30 +30,11 @@
     To Contact the dev team you can write to hash6iron@gmail.com
  +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
 
-#pragma once
-
-// TYPE block
-#define HPRGM 0                     //Cabecera PROGRAM
-#define HCODE 1                     //Cabecera BYTE  
-#define HSCRN 7                     //Cabecera BYTE SCREEN$
-#define HARRAYNUM 5                 //Cabecera ARRAY numerico
-#define HARRAYCHR 6                 //Cabecera ARRAY char
-#define PRGM 2                      //Bloque de datos BASIC
-#define SCRN 3                      //Bloque de datos Screen$
-#define CODE 4                      //Bloque de datps CM (BYTE)
-
-
-
 class TZXproccesor
 {
 
     private:
 
-    // Procesador de audio
-    ZXProccesor _zxp;
-    
-    // Gestor de SD
-    SDmanager _sdm;
     HMI _hmi;
 
     // Definicion de un TZX
@@ -107,9 +88,9 @@ class TZXproccesor
          return blockExtracted;
      }
 
-     bool isHeaderTZX()
+     bool isHeaderTZX(File32 tzxFileName)
      {
-        if (_mFile != 0)
+        if (tzxFileName != 0)
         {
 
            Serial.println("");
@@ -120,8 +101,9 @@ class TZXproccesor
            // ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR
            // ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR
 
-           byte* bBlock = (byte*)calloc(10+1,sizeof(byte));
-           bBlock = _sdm.readFileRange32(_mFile,0,10,true);
+           byte* bBlock = NULL; 
+           bBlock = (byte*)calloc(12,sizeof(byte));
+           bBlock = sdm.readFileRange32(tzxFileName,0,10,true);
 
            // ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR
            // ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR
@@ -167,13 +149,13 @@ class TZXproccesor
         }
      }
 
-     bool isFileTZX()
+     bool isFileTZX(File32 tzxFileName)
      {
-         if (_mFile != 0)
+         if (tzxFileName != 0)
          {
 
             // Capturamos el nombre del fichero en szName
-            String szNameStr = _sdm.getFileName(_mFile);
+            String szNameStr = sdm.getFileName(tzxFileName);
 
             Serial.println("");
             Serial.println("");
@@ -188,7 +170,7 @@ class TZXproccesor
                   {
                       // La extensión es TZX pero ahora vamos a comprobar si
                       // internamente también lo es
-                      if (isHeaderTZX())
+                      if (isHeaderTZX(tzxFileName))
                       { 
                         return true;
                       }
@@ -216,13 +198,13 @@ class TZXproccesor
      }
 
    
-    void proccess_tzx()
+    void proccess_tzx(File32 tzxFileName)
     {
           // Procesamos el fichero
           Serial.println("");
           Serial.println("Getting total blocks...");     
 
-        if (isFileTZX())
+        if (isFileTZX(tzxFileName))
         {
             Serial.println();
             Serial.println();
@@ -236,7 +218,8 @@ class TZXproccesor
 
     void set_SDM(SDmanager sdmTmp)
     {
-        _sdm = sdmTmp;
+        //_sdm = sdmTmp;
+        //ptrSdm = &sdmTmp;
     }
 
     void set_SdFat32(SdFat32 sdf32)
@@ -258,14 +241,16 @@ class TZXproccesor
 
     void getInfoFileTZX(char* path) 
     {
-    
+      
+      File32 tzxFileName;
+
       LAST_MESSAGE = "Analyzing file";
       _hmi.updateInformationMainPage();
     
       // Abrimos el fichero
-      _mFile = _sdm.openFile32(_mFile, path);
+      tzxFileName = sdm.openFile32(tzxFileName, path);
       // Obtenemos su tamaño total
-      _rlen = _mFile.available();
+      //_rlen = tzxFileName.available();
 
       Serial.println();
       Serial.println();
@@ -273,8 +258,9 @@ class TZXproccesor
 
       // creamos un objeto TZXproccesor
       //set_file(_mFile, _rlen);
-
-      proccess_tzx();
+      
+      //_mFile = tzxFileName;
+      proccess_tzx(tzxFileName);
       
       Serial.println("");
       Serial.println("");
@@ -307,7 +293,7 @@ class TZXproccesor
         _myTZX.descriptor = NULL;
         _myTZX.size = 0;
 
-        _zxp.set_ESP32kit(kit);      
+        //zxp.set_ESP32kit(kit);      
     } 
 
 

@@ -38,43 +38,41 @@ class HMI
 {
 
       private:
-
-      SDmanager _sdm;
       
       int countFiles(char* path)
       {
           int fileC = -1;
       
-          _sdm.dir.rewindDirectory();
+          sdm.dir.rewindDirectory();
       
-          if (_sdm.dir.open(path)) 
+          if (sdm.dir.open(path)) 
           {
               // Si se ha abierto. Partimos de que el directorio
               // esta vacio.
               fileC = 0;
       
-              //_sdm.file.rewind();
+              //sdm.file.rewind();
               char* szName = (char*)calloc(255,sizeof(char));
               szName = &INITCHAR[0];
       
-              while (_sdm.file.openNext(&_sdm.dir, O_RDONLY))
+              while (sdm.file.openNext(&sdm.dir, O_RDONLY))
               {
-                  if (_sdm.file.isDir())
+                  if (sdm.file.isDir())
                   {
-                      _sdm.file.getName(szName,255);
-                      _sdm.sdf.chdir(szName);
-                      _sdm.file.close();
+                      sdm.file.getName(szName,255);
+                      sdm.sdf.chdir(szName);
+                      sdm.file.close();
                   }
                   else
                   {
                       // Es un fichero
-                      _sdm.file.getName(szName,255);
-                      _sdm.file.close();
+                      sdm.file.getName(szName,255);
+                      sdm.file.close();
                   }
                   fileC++;
               }
               //
-              _sdm.dir.close();
+              sdm.dir.close();
           }
       
           return fileC;
@@ -101,7 +99,7 @@ class HMI
             
           FILE_DIR_OPEN_FAILED = false;
           
-          if (!_sdm.dir.open(FILE_LAST_DIR)) 
+          if (!sdm.dir.open(FILE_LAST_DIR)) 
           {
               Serial.println("");
               Serial.println("dir.open failed");
@@ -109,8 +107,8 @@ class HMI
           }
           else
           {
-              _sdm.dir.rewindDirectory();
-              _sdm.file.rewind();
+              sdm.dir.rewindDirectory();
+              sdm.file.rewind();
       
               Serial.println("");
               Serial.println("dir.open OK");
@@ -124,15 +122,15 @@ class HMI
       
               j++;
               
-              while (_sdm.file.openNext(&_sdm.dir, O_RDONLY) && j < FILE_TOTAL_FILES)
+              while (sdm.file.openNext(&sdm.dir, O_RDONLY) && j < FILE_TOTAL_FILES)
               {
-                  if (_sdm.file.isDir())
+                  if (sdm.file.isDir())
                   {
-                      if (!_sdm.file.isHidden())
+                      if (!sdm.file.isHidden())
                       {
-                          _sdm.file.getName(szName,255);     
+                          sdm.file.getName(szName,255);     
                           //Cambiamos 
-                          _sdm.sdf.chdir(szName);
+                          sdm.sdf.chdir(szName);
       
                           FILES_BUFF[j].isDir = true;
                           FILES_BUFF[j].type = "DIR";
@@ -148,10 +146,10 @@ class HMI
                   }
                   else
                   {
-                      if (!_sdm.file.isHidden())
+                      if (!sdm.file.isHidden())
                       {
                           // Es un fichero
-                          _sdm.file.getName(szName,255);
+                          sdm.file.getName(szName,255);
                           int8_t len = strlen(szName);    
       
                           if (strstr(strlwr(szName + (len - 4)), ".tap")) 
@@ -200,12 +198,12 @@ class HMI
                       }
                   }
       
-                  _sdm.file.close();
+                  sdm.file.close();
       
               }
       
               FILE_TOTAL_FILES = j;
-              _sdm.dir.close();
+              sdm.dir.close();
           }
       
           Serial.println("");
@@ -1078,7 +1076,7 @@ class HMI
 
       void set_SDM(SDmanager sdm)
       {
-        _sdm = sdm;
+        //_sdm = sdm;
       }
       
       // Constructor

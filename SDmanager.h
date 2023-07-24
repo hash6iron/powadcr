@@ -104,7 +104,8 @@ class SDmanager
     byte* readFileRange32(File32 mFile, int startByte, int size, bool logOn)
     {
         //Redimensionamos el buffer al tamaño acordado del rango
-        byte* bufferFile = (byte*)calloc(size+1,sizeof(byte));
+        byte* bufferFile = NULL;
+        bufferFile = (byte*)calloc(size+1,sizeof(byte));
     
         // Ponemos a cero el puntero de lectura del fichero
         mFile.rewind();
@@ -128,15 +129,32 @@ class SDmanager
         {
             int rlen = mFile.available();
             FILE_LENGTH = rlen;
+
+            Serial.println("");
+            Serial.println("");
+            Serial.println("LENGTH: " + String(rlen));            
             
-            mFile.read(bufferFile,size);
-            // int i=0;
-    
-            // while(i < size)
-            // {
-            //     bufferFile[i] = (byte)mFile.read();;
-            //     i++;
-            // }
+            if (rlen != 0)
+            {
+                mFile.read(bufferFile,size);
+                // int i=0;
+      
+                // while(i < size)
+                // {
+                //   bufferFile[i] = (byte)mFile.read();
+
+                //   Serial.println("");
+                //   Serial.println("");
+                //   Serial.println("Reading: " + String(i));
+
+                //   i++;
+                // }
+
+                Serial.println("");
+                Serial.println("");
+                Serial.println("Block red");
+            }
+
         } 
         else 
         {

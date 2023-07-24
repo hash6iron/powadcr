@@ -55,10 +55,21 @@ AudioKit ESP32kit;
 
 // Estos includes deben ir en este orden por dependencias
 #include "SDmanager.h"
+
+// Creamos el gestor de ficheros para usarlo en todo el firmware
+SDmanager sdm;
+
 #include "HMI.h"
 #include "ZXProccesor.h"
-#include "TAPproccesor.h"
+// ZX Spectrum
+#ifdef MACHINE_ZX
+ZXProccesor zxp;
+#endif
+
+
 #include "TZXproccesor.h"
+#include "TAPproccesor.h"
+
 
 #include "test.h"
 //
@@ -71,17 +82,14 @@ SdFat32 sdf;
 SdFile sdFile;
 File32 sdFile32;
 
-// Añadimos los distintos manejadores de ficheros, TAP y TZX
-SDmanager sdm;
+
+
 HMI hmi;
 
-// ZX Spectrum
-#ifdef MACHINE_ZX
-ZXProccesor zxp;
-#endif
 
-TAPproccesor pTAP(ESP32kit);
 TZXproccesor pTZX(ESP32kit);
+TAPproccesor pTAP(ESP32kit);
+
 
 
 void proccesingTAP(char* file_ch)
@@ -327,6 +335,7 @@ void setup() {
   pTAP.set_SDM(sdm);
   pTZX.set_SDM(sdm);
 
+  zxp.set_ESP32kit(ESP32kit);
 
 // Si es test está activo. Lo lanzamos
 #ifdef TEST
