@@ -139,29 +139,18 @@ class SDmanager
             int rlen = mFile.available();
             FILE_LENGTH = rlen;
 
-            Serial.println("");
-            Serial.println("");
-            Serial.println("LENGTH: " + String(rlen));            
-            
+            #if LOG > 3
+              Serial.println("");
+              Serial.println("LENGTH: " + String(rlen));            
+            #endif
+
             if (rlen != 0)
             {
                 mFile.read(bufferFile,size);
-                // int i=0;
-      
-                // while(i < size)
-                // {
-                //   bufferFile[i] = (byte)mFile.read();
-
-                //   Serial.println("");
-                //   Serial.println("");
-                //   Serial.println("Reading: " + String(i));
-
-                //   i++;
-                // }
-
-                Serial.println("");
-                Serial.println("");
-                Serial.println("Block red");
+                
+                #if LOG > 3
+                  Serial.println(" - Block red");
+                #endif
             }
 
         } 

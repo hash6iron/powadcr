@@ -268,9 +268,17 @@ void test()
     #endif
 }
 
-void waitForHMI()
+void waitForHMI(bool waitAndNotForze)
 {
-
+    // Le decimos que no queremos esperar sincronización
+    // y forzamos un READY del HMI
+    if (!waitAndNotForze)
+    {
+        LCD_ON = true;
+        sendStatus(ACK_LCD, 1);
+    }
+    else
+    {
       //Esperamos a la pantalla
       while (!LCD_ON) 
       {
@@ -284,6 +292,7 @@ void waitForHMI()
       Serial.println("");
 
       sendStatus(ACK_LCD, 1);  
+    }
 }
 
 void setup() {
@@ -338,7 +347,10 @@ void setup() {
   Serial.println("");
 
   hmi.writeString("statusLCD.txt=\"WAITING FOR HMI\"" );
-  waitForHMI();
+  
+  // Si false --> No esperamos sincronización
+  // Si true  --> Si esperamos
+  waitForHMI(false);
 
   pTAP.set_HMI(hmi);
   pTZX.set_HMI(hmi);

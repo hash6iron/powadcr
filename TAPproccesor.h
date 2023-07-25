@@ -373,6 +373,9 @@ class TAPproccesor
           Serial.println("");
           Serial.println("Analyzing TAP file. Please wait ...");
           
+          Serial.println("");
+          Serial.println("SIZE TAP: " + String(sizeTAP));
+
           // Los dos primeros bytes son el tamaño a contar
           sizeB = (256*sdm.readFileRange32(_mFile,startBlock+1,1,false)[0]) + sdm.readFileRange32(_mFile,startBlock,1,false)[0];
           startBlock = 2;
@@ -390,11 +393,9 @@ class TAPproccesor
                   free(tmpRng);
                   tmpRng=NULL;
               }
-              
-              //Serial.println("MARK CHK: ");
-              
+                           
               blockChk = sdm.readFileRange32(_mFile,startBlock+sizeB-1,1,false)[0];
-              //Serial.println("MARK BLOCK CHK: ");            
+          
 
               if (blockChk == chk)
               {
@@ -461,6 +462,10 @@ class TAPproccesor
                   numBlocks++;
                   sizeB = newSizeB;
                   startBlock = startBlock + 2;
+
+                  Serial.println("");
+                  Serial.println("OFFSET: " + String(startBlock));
+                  Serial.println("SIZE:   " + String(newSizeB));
 
               }
               else
