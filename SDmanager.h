@@ -67,6 +67,15 @@ class SDmanager
     
         return fFile;
     }
+
+    void closeFile32(File32 fFile)
+    {
+        if (fFile != 0)
+        {
+            fFile.close();
+            Serial.println("closing file");
+        } 
+    }
     
     byte* readFile32(File32 mFile)
     {

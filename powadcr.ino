@@ -175,7 +175,7 @@ void setSDFrequency(int SD_Speed)
       Serial.println("");
       Serial.println("SD downgrade at " + String(SD_Speed) + "MHz");
 
-      hmi.writeString("statusLCD.txt=\"SD FREQ. DOWN AT " + String(SD_Speed) + " MHz\"" );
+      hmi.writeString("statusLCD.txt=\"SD FREQ. AT " + String(SD_Speed) + " MHz\"" );
 
 
 
@@ -300,6 +300,8 @@ void setup() {
   sendStatus(RESET, 1);
   delay(1250);
 
+  hmi.writeString("statusLCD.txt=\"POWADCR " + String(VERSION) + "\"" );
+  delay(2000);
 
   Serial.println("Setting Audiokit.");
 
@@ -383,7 +385,8 @@ void setup() {
       Serial.println("Testing readFileRange32(..)"); 
 
       byte* buffer = (byte*)calloc(11,sizeof(byte));
-      sdFile32 = sdm.openFile32(sdFile32, "/Correcaminos - Nifty Lifty (1984)(Visions Software Factory).tzx");
+      char* fileTest = "/Correcaminos - Nifty Lifty (1984)(Visions Software Factory).tzx";
+      sdFile32 = sdm.openFile32(sdFile32,fileTest);
       buffer = sdm.readFileRange32(sdFile32,0,10,true);
       free(buffer);
       buffer = NULL;
@@ -457,19 +460,12 @@ void loop() {
 
         if (FILE_SELECTED) 
         {
-
-          // char* file_ch = (char*)calloc(FILE_TO_LOAD.length() + 1, sizeof(char));
-          // FILE_TO_LOAD.toCharArray(file_ch, FILE_TO_LOAD.length() + 1);
-
           // Pasamos a estado de reproducción
           LOADING_STATE = 1;
           sendStatus(PLAY_ST, 1);
           sendStatus(STOP_ST, 0);
           sendStatus(PAUSE_ST, 0);
           sendStatus(END_ST, 0);
-          
-          // Serial.println("");
-          // Serial.println("Fichero seleccionado: " + FILE_TO_LOAD);
 
           // Reproducimos el fichero
           if (TYPE_FILE_LOAD == "TAP")

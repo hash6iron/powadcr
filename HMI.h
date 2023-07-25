@@ -102,7 +102,7 @@ class HMI
           if (!sdm.dir.open(FILE_LAST_DIR)) 
           {
               Serial.println("");
-              Serial.println("dir.open failed");
+              Serial.println("dir.open failed - " + String(FILE_LAST_DIR));
               FILE_DIR_OPEN_FAILED = true;
           }
           else
@@ -206,6 +206,10 @@ class HMI
               sdm.dir.close();
           }
       
+          // Cerramos todos los ficheros (añadido el 25/07/2023)
+          sdm.dir.close();
+          sdm.file.close();
+
           Serial.println("");
           Serial.println("");
           Serial.println("TOTAL FILES READ: " + String(FILE_TOTAL_FILES));
@@ -608,10 +612,16 @@ class HMI
             writeString("statusFILE.txt=\"GETTING FILES\"");
             delay(125);
       
+            if (sdm.dir.isOpen())
+            {
+                sdm.dir.close();
+                Serial.println("");
+                Serial.println("");
+                Serial.println(" Closing file before new browsing.");                
+            }
+
             getFilesFromSD();
       
-            // if (FILE_BROWSER_SEARCHING)
-            // {
             if (!FILE_DIR_OPEN_FAILED)
             {
                 putFilesInScreen();
@@ -619,20 +629,7 @@ class HMI
                 // El GFIL desconecta el filtro de busqueda
                 FILE_BROWSER_SEARCHING = false;
             }        
-                //putInHome();
-            // }
-            // else
-            // {
-            //     if (!FILE_DIR_OPEN_FAILED)
-            //     {
-            //         putFilesInScreen();
-            //         FILE_STATUS = 1;
-            //     }        
-            // }
-      
-      
-      
-            //writeString("");
+          
             writeString("statusFILE.txt=\"\"");
             delay(125);
       

@@ -88,12 +88,11 @@ class TZXproccesor
          return blockExtracted;
      }
 
-     bool isHeaderTZX(File32 tzxFileName)
+     bool isHeaderTZX(File32 tzxFile)
      {
-        if (tzxFileName != 0)
+        if (tzxFile != 0)
         {
 
-           Serial.println("");
            Serial.println("");
            Serial.println("Begin isHeaderTZX");
 
@@ -101,35 +100,27 @@ class TZXproccesor
 
            //byte* bBlock = NULL; 
            byte* bBlock = (byte*)calloc(10+1,sizeof(byte));
-           bBlock = sdm.readFileRange32(tzxFileName,0,10,true);
+           bBlock = sdm.readFileRange32(tzxFile,0,10,true);
 
-           Serial.println("");
-           Serial.println("");
-           Serial.println("Got bBlock");
+          // Obtenemos la firma del TZX
+          char* signTZXHeader = (char*)calloc(8+1,sizeof(char));
 
-           // Obtenemos la firma del TZX
-           char* signTZXHeader = (char*)calloc(8+1,sizeof(char));
-           signTZXHeader = &INITCHAR[0];
-
-           Serial.println("");
-           Serial.println("");
-           Serial.println("Initialized signTZX Header");
-
-           // Analizamos la cabecera
-           // Extraemos el nombre del programa
+          // Analizamos la cabecera
+          // Extraemos el nombre del programa
            for (int n=0;n<7;n++)
            {   
                signTZXHeader[n] = (char)bBlock[n];
            }
            
-           String sign = String(signTZXHeader);
-
+           //Aplicamos un terminador a la cadena de char
+           signTZXHeader[7] = '\0';
+           //Convertimos a String
+           String signStr = String(signTZXHeader);
+           
            Serial.println("");
-           Serial.println("");
-           Serial.println("sign in TZX file detected.");
-           Serial.println(sign);
+           Serial.println("Sign: " + signStr);
 
-           if (sign.indexOf("ZXTape!") != -1)
+           if (signStr.indexOf("ZXTape!") != -1)
            {
                return true;
            }
@@ -144,18 +135,18 @@ class TZXproccesor
         }
      }
 
-     bool isFileTZX(File32 tzxFileName)
+     bool isFileTZX(File32 tzxFile)
      {
-         if (tzxFileName != 0)
+         if (tzxFile != 0)
          {
 
             // Capturamos el nombre del fichero en szName
             char* szName = (char*)calloc(255,sizeof(char));
-            tzxFileName.getName(szName,254);
+            tzxFile.getName(szName,254);
+            
             //String szNameStr = sdm.getFileName(tzxFileName);
             String fileName = String(szName);
 
-            Serial.println("");
             Serial.println("");
             Serial.println("Name " + fileName);
 
@@ -166,14 +157,17 @@ class TZXproccesor
                   
                   if (fileName.indexOf(".TZX") != -1)
                   {
-                      // La extensión es TZX pero ahora vamos a comprobar si
-                      // internamente también lo es
-                      if (isHeaderTZX(tzxFileName))
+                      //La extensión es TZX pero ahora vamos a comprobar si internamente también lo es
+                      if (isHeaderTZX(tzxFile))
                       { 
+                        //Cerramos el fichero porque no se usará mas.
+                        tzxFile.close();
                         return true;
                       }
                       else
                       {
+                        //Cerramos el fichero porque no se usará mas.
+                        tzxFile.close();
                         return false;
                       }
                   }
@@ -205,10 +199,7 @@ class TZXproccesor
         if (isFileTZX(tzxFileName))
         {
             Serial.println();
-            Serial.println();
             Serial.println("Is TZX file");
-
-
         }      
     }
 
@@ -254,15 +245,10 @@ class TZXproccesor
       _mFile = tzxFile;
       _rlen = tzxFile.available();
 
-      Serial.println();
-      Serial.println();
-      Serial.println("Size: " + String(_rlen));
-
       // creamos un objeto TZXproccesor
       set_file(tzxFile, _rlen);
       proccess_tzx(tzxFile);
       
-      Serial.println("");
       Serial.println("");
       Serial.println("END PROCCESING TZX: ");
     
@@ -270,15 +256,15 @@ class TZXproccesor
 
     void initialize()
     {
-        // if (_myTAP.descriptor != NULL)
-        // {
-        //   free(_myTAP.descriptor);
-        //   free(_myTAP.name);
-        //   _myTAP.descriptor = NULL;
-        //   _myTAP.name = "\0";
-        //   _myTAP.numBlocks = 0;
-        //   _myTAP.size = 0;
-        // }          
+        if (_myTZX.descriptor != NULL)
+        {
+          free(_myTZX.descriptor);
+          free(_myTZX.name);
+          _myTZX.descriptor = NULL;
+          _myTZX.name = "\0";
+          _myTZX.numBlocks = 0;
+          _myTZX.size = 0;
+        }          
     }
 
     void play()
