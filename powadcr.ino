@@ -227,6 +227,15 @@ void setSDFrequency(int SD_Speed)
             Serial.println("");
             Serial.println("");
             Serial.println("Listing files. Error!");
+
+            // loop infinito
+            while(true)
+            {
+              hmi.writeString("statusLCD.txt=\"SD NOT COMPATIBLE\"" );
+              delay(1500);
+              hmi.writeString("statusLCD.txt=\"CHANGE SD AND RESET\"" );
+              delay(1500);
+            }
         }
         else
         {
