@@ -57,6 +57,12 @@
 // Definición del silencio entre bloques
 #define SILENT 1.5
 
+// Browser
+// Numero máximo de ficheros que se listan por directorio.
+#define MAX_FILES_TO_LOAD 5000
+// Cada n ficheros refresca el marcador. Por defecto 5
+#define EACH_FILES_REFRESH 5
+
 // Activa el modo de split de los bloques. 
 // si superan el tamaño (en bytes) definido por SIZE_TO_ACTIVATE_SPLIT
 #define SPLIT_ENABLED 0

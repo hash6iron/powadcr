@@ -44,43 +44,59 @@ class HMI
           int fileC = -1;
       
           sdm.dir.rewindDirectory();
-      
+
+          if (sdm.dir != 0)
+          {
+              sdm.dir.close();
+          }
+
           if (sdm.dir.open(path)) 
           {
               // Si se ha abierto. Partimos de que el directorio
               // esta vacio.
               fileC = 0;
-      
-              //sdm.file.rewind();
-              char* szName = (char*)calloc(255,sizeof(char));
-              szName = &INITCHAR[0];
-      
-              while (sdm.file.openNext(&sdm.dir, O_RDONLY))
+
+              if (sdm.file != 0)
               {
+                  sdm.file.close();
+              }
+
+              while (sdm.file.openNext(&sdm.dir, O_READ)) //O_RDONLY
+              {
+
+                  char* szName = (char*)calloc(255,sizeof(char));
+
                   if (sdm.file.isDir())
                   {
-                      sdm.file.getName(szName,255);
+                      sdm.file.getName(szName,254);
                       sdm.sdf.chdir(szName);
                       sdm.file.close();
                   }
                   else
                   {
                       // Es un fichero
-                      sdm.file.getName(szName,255);
+                      sdm.file.getName(szName,254);
                       sdm.file.close();
                   }
                   fileC++;
+
+                  if (szName != NULL)
+                  {
+                    free(szName);
+                    szName = NULL;
+                  }
               }
-              //
-              sdm.dir.close();
           }
       
+          sdm.dir.close();
+          sdm.file.close();
+          
           return fileC;
       }      
 
       void getFilesFromSD()
       {
-          char* szName = (char*)calloc(255+1,sizeof(char));
+          char* szName = (char*)calloc(255,sizeof(char));
           //szName = "\0";
       
           int j = 0;
@@ -93,8 +109,12 @@ class HMI
               FILES_BUFF = NULL;
           }
       
-          //FILE_TOTAL_FILES = countFiles(FILE_LAST_DIR);
-          FILE_TOTAL_FILES = 2000;
+          // FILE_TOTAL_FILES = countFiles(FILE_LAST_DIR);
+          // Serial.println("");
+          // Serial.println("Files to load - " + String(FILE_TOTAL_FILES));
+
+          FILE_TOTAL_FILES = MAX_FILES_TO_LOAD;
+          
           FILES_BUFF = (tFileBuffer*)calloc(FILE_TOTAL_FILES+1,sizeof(tFileBuffer));
             
           FILE_DIR_OPEN_FAILED = false;
@@ -128,7 +148,7 @@ class HMI
                   {
                       if (!sdm.file.isHidden())
                       {
-                          sdm.file.getName(szName,255);     
+                          sdm.file.getName(szName,254);     
                           //Cambiamos 
                           sdm.sdf.chdir(szName);
       
@@ -149,7 +169,7 @@ class HMI
                       if (!sdm.file.isHidden())
                       {
                           // Es un fichero
-                          sdm.file.getName(szName,255);
+                          sdm.file.getName(szName,254);
                           int8_t len = strlen(szName);    
       
                           if (strstr(strlwr(szName + (len - 4)), ".tap")) 
@@ -199,20 +219,28 @@ class HMI
                   }
       
                   sdm.file.close();
+                  if ((j % EACH_FILES_REFRESH) == 0)
+                  {
+                      writeString("statusFILE.txt=\"FILES " + String(j) +"\"");
+                  }
+                  
       
               }
       
               FILE_TOTAL_FILES = j;
               sdm.dir.close();
           }
-      
+
+          writeString("statusFILE.txt=\"FILES " + String(FILE_TOTAL_FILES-1) +"\"");
+          //delay(1000);
+
           // Cerramos todos los ficheros (añadido el 25/07/2023)
           sdm.dir.close();
           sdm.file.close();
 
           Serial.println("");
           Serial.println("");
-          Serial.println("TOTAL FILES READ: " + String(FILE_TOTAL_FILES));
+          Serial.println("TOTAL FILES READ: " + String(FILE_TOTAL_FILES-1));
       }
 
 
@@ -609,8 +637,8 @@ class HMI
             // Con este comando nos indica la pantalla que quiere
             // le devolvamos ficheros en la posición actual del puntero
       
-            writeString("statusFILE.txt=\"GETTING FILES\"");
-            delay(125);
+            //writeString("statusFILE.txt=\"GETTING FILES\"");
+            //delay(125);
       
             if (sdm.dir.isOpen())
             {
@@ -624,13 +652,14 @@ class HMI
       
             if (!FILE_DIR_OPEN_FAILED)
             {
+                clearFilesInScreen();
                 putFilesInScreen();
                 FILE_STATUS = 1;
                 // El GFIL desconecta el filtro de busqueda
                 FILE_BROWSER_SEARCHING = false;
             }        
           
-            writeString("statusFILE.txt=\"\"");
+            //writeString("statusFILE.txt=\"\"");
             delay(125);
       
         }
@@ -690,11 +719,11 @@ class HMI
             // le devolvamos ficheros en la posición actual del puntero
             putInHome();
       
-            writeString("statusFILE.txt=\"GETTING FILES\"");
+            //writeString("statusFILE.txt=\"GETTING FILES\"");
       
             getFilesFromSD();
       
-            writeString("statusFILE.txt=\"\"");
+            //writeString("statusFILE.txt=\"\"");
       
         }
       
@@ -719,7 +748,7 @@ class HMI
             clearFilesInScreen();
       
             //writeString("");
-            writeString("statusFILE.txt=\"GETTING FILES\"");
+            //writeString("statusFILE.txt=\"GETTING FILES\"");
       
             getFilesFromSD();
             
@@ -730,7 +759,7 @@ class HMI
             }
             
             //writeString("");
-            writeString("statusFILE.txt=\"\"");
+            //writeString("statusFILE.txt=\"\"");
         }
         
           if (strCmd.indexOf("PAR=") != -1) 
@@ -761,7 +790,7 @@ class HMI
             FILE_PTR_POS = 0;
             clearFilesInScreen();
       
-            writeString("statusFILE.txt=\"GETTING FILES\"");
+            //writeString("statusFILE.txt=\"GETTING FILES\"");
             
             getFilesFromSD();
             
@@ -770,7 +799,7 @@ class HMI
                 putFilesInScreen();
             }
       
-            writeString("statusFILE.txt=\"\"");
+            //writeString("statusFILE.txt=\"\"");
       
         }
       

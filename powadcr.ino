@@ -21,6 +21,12 @@
     v.1.0.0 - Primera versión optimizada, comentada y preparada con el procesador de TAP y generador de señal de audio.
     v.1.0.1 - Mejorada la rutina de inicializado de SD Card. Cambios relativos a las nuevas clases generadas. Corregido bug con el modo TEST
 
+    Configuración en ARDUINO IDE
+    ----------------------------
+    1. Seleccionar la placa ESP32 Dev Module 
+    2. Acceder al menú "Herramientas" --> 
+      - Configuración del ESP32 por defecto 
+      - PSRAM = Enabled
 
     Derechos de autor y distribución
     --------------------------------
@@ -97,11 +103,21 @@ void proccesingTAP(char* file_ch)
     //pTAP.set_SdFat32(sdf);
     pTAP.getInfoFileTAP(file_ch);
 
-    LAST_MESSAGE = "Press PLAY to enjoy!";
-    delay(125);
-    hmi.updateInformationMainPage();
+    if (!FILE_CORRUPTED)
+    {
+      LAST_MESSAGE = "Press PLAY to enjoy!";
+      delay(125);
+      hmi.updateInformationMainPage();
+    }
+    else
+    {
+      LAST_MESSAGE = "ERROR! Selected file is CORRUPTED.";
+      delay(125);
+      hmi.updateInformationMainPage();
+    }
 
-    FILE_NOTIFIED = true;  
+    FILE_NOTIFIED = true;
+
 }
 
 void proccesingTZX(char* file_ch)
