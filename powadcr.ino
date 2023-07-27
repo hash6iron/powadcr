@@ -366,7 +366,7 @@ void setup() {
   
   // Si false --> No esperamos sincronización
   // Si true  --> Si esperamos
-  waitForHMI(false);
+  waitForHMI(CFG_FORZE_SINC_HMI);
 
   pTAP.set_HMI(hmi);
   pTZX.set_HMI(hmi);
@@ -424,6 +424,8 @@ void setup() {
       Serial.println("Test OK");  
   #endif
 
+  getMemFree();
+
 }
 
 
@@ -469,14 +471,16 @@ void loop() {
           if (FILE_TO_LOAD.indexOf(".TAP") != -1)
           {
               // Lo procesamos
-              proccesingTAP(file_ch);
+              proccesingTAP(file_ch);            
               TYPE_FILE_LOAD = "TAP";
+              getMemFree();
           }
           else if (FILE_TO_LOAD.indexOf(".TZX") != -1)    
           {
               // Lo procesamos
               proccesingTZX(file_ch);
               TYPE_FILE_LOAD = "TZX";            
+              getMemFree();              
           }   
         }
       }
@@ -498,10 +502,12 @@ void loop() {
           // Reproducimos el fichero
           if (TYPE_FILE_LOAD == "TAP")
           {
+              getMemFree();
               pTAP.play();
           }
           else if (TYPE_FILE_LOAD = "TZX")
           {
+              getMemFree();
               pTZX.play();
           }
   
@@ -512,10 +518,12 @@ void loop() {
           
           if (TYPE_FILE_LOAD == "TAP")
           {
+              getMemFree();
               pTAP.initialize();
           }
           else if (TYPE_FILE_LOAD = "TZX")
           {
+              getMemFree();
               pTZX.initialize();
           }
 

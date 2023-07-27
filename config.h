@@ -54,15 +54,21 @@
 // Inserta codigo de trazabilidad para desarrollo
 #define TESTDEV 
 
-// Definición del silencio entre bloques
-#define SILENT 1.5
+// Interfaz
+// --------------------------------------------------------------
+// CFG_FORZE_SINC_HMI = false --> No espera sincronizar con HMI
+// CFG_FORZE_SINC_HMI = true  --> Espera sincronizar con HMI
+#define CFG_FORZE_SINC_HMI true
 
 // Browser
+// --------------------------------------------------------------
 // Numero máximo de ficheros que se listan por directorio.
-#define MAX_FILES_TO_LOAD 5000
+#define MAX_FILES_TO_LOAD 15000
 // Cada n ficheros refresca el marcador. Por defecto 5
 #define EACH_FILES_REFRESH 5
 
+// Player / SD
+// -------------------------------------------------------------------
 // Activa el modo de split de los bloques. 
 // si superan el tamaño (en bytes) definido por SIZE_TO_ACTIVATE_SPLIT
 #define SPLIT_ENABLED 0
@@ -70,3 +76,6 @@
 
 // Frecuencia inicial de la SD
 #define SD_FRQ_MHZ_INITIAL 40
+
+// Definición del silencio entre bloques
+#define SILENT 1.5

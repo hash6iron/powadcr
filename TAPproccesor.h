@@ -254,40 +254,40 @@ class TAPproccesor
               case 0:
 
                   // Definimos el buffer del PLAYER igual al tamaño del bloque
-                  typeName = (char*)"PROGRAM";
+                  typeName = (char*)"PROGRAM.HEAD";
                   break;
 
               case 1:
 
                   // Definimos el buffer del PLAYER igual al tamaño del bloque
-                  typeName = (char*)"BYTE.H";
+                  typeName = (char*)"BYTE.DATA";
                   break;
 
               case 7:
 
                   // Definimos el buffer del PLAYER igual al tamaño del bloque
-                  typeName = (char*)"SCREEN.H";
+                  typeName = (char*)"SCREEN.HEAD";
                   break;
 
               case 2:
                   // Definimos el buffer del PLAYER igual al tamaño del bloque
-                  typeName = (char*)"BASIC";
+                  typeName = (char*)"BASIC BLOCK";
                   break;
 
               case 3:
                   // Definimos el buffer del PLAYER igual al tamaño del bloque
-                  typeName = (char*)"SCREEN";
+                  typeName = (char*)"SCREEN.DATA";
                   break;
 
               case 4:
                   // Definimos el buffer del PLAYER igual al tamaño del bloque
                   if (LAST_SIZE != 6914)
                   {
-                      typeName = (char*)"BYTE";
+                      typeName = (char*)"BYTE.DATA";
                   }
                   else
                   {
-                      typeName = (char*)"SCREEN";
+                      typeName = (char*)"SCREEN.DATA";
                   }
                   break;
           }        

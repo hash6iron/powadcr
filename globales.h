@@ -231,3 +231,16 @@ bool button3_pressed = false;
 bool button4_pressed = false;
 bool button5_pressed = false;
 bool button6_pressed = false;
+
+void getMemFree()
+{
+    Serial.println("");
+    Serial.println("");
+    Serial.println("> MEM REPORT");
+    Serial.println("------------------------------------------------------------");
+    Serial.println("");
+    Serial.println("Total heap: " + String(ESP.getHeapSize() / 1024) + "KB");
+    Serial.println("Free heap: " + String(ESP.getFreeHeap() / 1024) + "KB");
+    Serial.println("Total PSRAM: " + String(ESP.getPsramSize() / 1024 / 1024) + "MB");
+    Serial.println("Free PSRAM: " + String (ESP.getFreePsram() / 1024 / 1024) + "MB");  
+}

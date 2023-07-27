@@ -150,7 +150,7 @@ class HMI
                       {
                           sdm.file.getName(szName,254);     
                           //Cambiamos 
-                          sdm.sdf.chdir(szName);
+                          //sdm.sdf.chdir(szName);
       
                           FILES_BUFF[j].isDir = true;
                           FILES_BUFF[j].type = "DIR";
@@ -170,37 +170,32 @@ class HMI
                       {
                           // Es un fichero
                           sdm.file.getName(szName,254);
-                          int8_t len = strlen(szName);    
-      
-                          if (strstr(strlwr(szName + (len - 4)), ".tap")) 
+                          int8_t len = strlen(szName);
+                          char* substr = strlwr(szName + (len - 4));    
+
+                          FILES_BUFF[j].isDir = false;      
+
+                          if (strstr(substr, ".tap")) 
                           {
                               FILES_BUFF[j].type = "TAP";
-                              FILES_BUFF[j].isDir = false;
-                              // Guardamos el fichero en el buffer
                               FILES_BUFF[j].path = String(szName);
                               j++;
                           }
-                          else if (strstr(strlwr(szName + (len - 4)), ".tzx")) 
+                          else if (strstr(substr, ".tzx")) 
                           {
                               FILES_BUFF[j].type = "TZX";
-                              FILES_BUFF[j].isDir = false;
-                              // Guardamos el fichero en el buffer
                               FILES_BUFF[j].path = String(szName);
                               j++;
                           }
-                          else if (strstr(strlwr(szName + (len - 4)), ".sna")) 
+                          else if (strstr(substr, ".sna")) 
                           {
                               FILES_BUFF[j].type = "SNA";
-                              FILES_BUFF[j].isDir = false;
-                              // Guardamos el fichero en el buffer
                               FILES_BUFF[j].path = String(szName);
                               j++;
                           }                    
-                          else if (strstr(strlwr(szName + (len - 4)), ".z80")) 
+                          else if (strstr(substr, ".z80")) 
                           {
                               FILES_BUFF[j].type = "Z80";
-                              FILES_BUFF[j].isDir = false;
-                              // Guardamos el fichero en el buffer
                               FILES_BUFF[j].path = String(szName);
                               j++;
                           } 
@@ -219,16 +214,19 @@ class HMI
                   }
       
                   sdm.file.close();
+
                   if ((j % EACH_FILES_REFRESH) == 0)
                   {
                       writeString("statusFILE.txt=\"FILES " + String(j) +"\"");
+
                   }
-                  
-      
+                        
               }
       
               FILE_TOTAL_FILES = j;
               sdm.dir.close();
+
+              getMemFree();
           }
 
           writeString("statusFILE.txt=\"FILES " + String(FILE_TOTAL_FILES-1) +"\"");
@@ -375,6 +373,8 @@ class HMI
         for (int i=0;i<=13;i++)
         {
             printFileRows(pos_in_HMI_file, color, szName);
+            delay(5);
+            //printFileRows(pos_in_HMI_file, color, szName);
             pos_in_HMI_file++;
         }
       
@@ -429,8 +429,12 @@ class HMI
               {
                   color = 44405;  // gris apagado
               }
-      
+
+              //Realizamos dos pasadas para evitar temas de perdida de información
               printFileRows(pos_in_HMI_file, color, szName);
+              delay(5);
+              //printFileRows(pos_in_HMI_file, color, szName);
+
               pos_in_HMI_file++;
         }
       }
@@ -486,6 +490,8 @@ class HMI
               }
       
               printFileRows(pos_in_HMI_file, color, szName);
+              delay(5);
+              //printFileRows(pos_in_HMI_file, color, szName);
               pos_in_HMI_file++;
         }
       
@@ -1065,23 +1071,38 @@ class HMI
           // Enviamos información al HMI
           writeString("name.txt=\"" + PROGRAM_NAME + "\"");
 
-          writeString("screen2.name.txt=\"" + PROGRAM_NAME + "\"");
+          //writeString("screen2.name.txt=\"" + PROGRAM_NAME + "\"");
 
           writeString("size.txt=\"" + String(LAST_SIZE - 2) + " bytes\"");
 
-          writeString("screen2.size.txt=\"" + String(LAST_SIZE - 2) + " bytes\"");
+          //writeString("screen2.size.txt=\"" + String(LAST_SIZE - 2) + " bytes\"");
 
-          writeString("type.txt=\"" + String(LAST_TYPE) + ":" + String(LAST_NAME) + "\"");
+          String cmpTypeStr = String(LAST_NAME);
+          cmpTypeStr.trim();
 
-          writeString("screen2.type.txt=\"" + String(LAST_TYPE) + ":" + String(LAST_NAME) + "\"");
+          // Serial.println("");
+          // Serial.println("");
+          // Serial.println(">" + cmpTypeStr + "<");
+
+          if (cmpTypeStr != "")
+          {
+              writeString("type.txt=\"" + String(LAST_TYPE) + ": " + String(LAST_NAME) + "\"");            
+          }
+          else
+          {
+              writeString("type.txt=\"" + String(LAST_TYPE) + " " + String(LAST_NAME) + "\"");            
+          }
+
+
+          //writeString("screen2.type.txt=\"" + String(LAST_TYPE) + ": " + String(LAST_NAME) + "\"");
       
           writeString("totalBlocks.val=" + String(TOTAL_BLOCKS));
 
-          writeString("screen2.totalBlocks.val=" + String(TOTAL_BLOCKS));
+          //writeString("screen2.totalBlocks.val=" + String(TOTAL_BLOCKS));
 
           writeString("currentBlock.val=" + String(BLOCK_SELECTED + 1));
 
-          writeString("screen2.currentBlock.val=" + String(BLOCK_SELECTED + 1));
+          //writeString("screen2.currentBlock.val=" + String(BLOCK_SELECTED + 1));
         }
       
         //writeString("");
