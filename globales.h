@@ -50,6 +50,8 @@ char LASTYPE3[] = "SCREEN\0";
 char LASTYPE4_1[] = "BYTE\0";
 char LASTYPE4_2[] = "SCREEN\0";
 char LASTYPE7[] = "SCREEN.H\0";
+char LASTYPE5[] = "ARRAY.NUM\0";
+char LASTYPE6[] = "ARRAY.CHR\0";
 
 // Estructura de un bloque
 struct tBlock 
@@ -77,6 +79,7 @@ struct tBlockDescriptor
 // Descriptor de bloque de un TZX
 struct tTZXBlockDescriptor 
 {
+  int ID = 0;
   int offset = 0;
   int size = 0;
   int chk = 0;

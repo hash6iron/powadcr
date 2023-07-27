@@ -189,6 +189,43 @@ class TZXproccesor
   
      }
 
+    int getNumBlocks(File32 mFile, int sizeTZX)
+    {
+        int totalBlocks = 0;
+        return totalBlocks;
+    }
+
+    void getBlockDescriptor(File32 mFile, int sizeTZX)
+    {
+          // Para ello tenemos que ir leyendo el TZX poco a poco
+          // Detectaremos los IDs a partir del byte 9 (empezando por offset = 0)
+          // Cada bloque empieza por un ID menos el primero 
+          // que empieza por ZXTape!
+          // Ejemplo ID + bytes
+          //
+
+          // Comenzamos a rastrear el fichero
+
+          // Necesitamos conocer el numero de bloques para poder
+          // reservar memoria para el descriptor
+          int numBlks = getNumBlocks(mFile, sizeTZX);
+
+          if (!FILE_CORRUPTED)
+          {
+              Serial.println("");
+              Serial.println("Num. de bloques: " + String(numBlks));
+              Serial.println("");
+             
+              if (_myTZX.descriptor != NULL)
+              {
+                  free(_myTZX.descriptor);
+                  _myTZX.descriptor = NULL;
+              }
+
+              // Reservamos espacio para el descriptor
+              _myTZX.descriptor = (tTZXBlockDescriptor*)calloc(numBlks+1,sizeof(tTZXBlockDescriptor));              
+          }          
+    }
    
     void proccess_tzx(File32 tzxFileName)
     {
@@ -200,6 +237,8 @@ class TZXproccesor
         {
             Serial.println();
             Serial.println("Is TZX file");
+
+            getBlockDescriptor(_mFile,_sizeTZX);
         }      
     }
 

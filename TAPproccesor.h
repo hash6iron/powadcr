@@ -620,10 +620,19 @@ class TAPproccesor
                           else if (typeBlock==1)
                           {
                               // Array num header
+                              // Almacenamos el nombre
+                              getBlockName(&_myTAP.descriptor[numBlocks].name,sdm.readFileRange32(_mFile,startBlock,19,false),0); 
+
+                              _myTAP.descriptor[numBlocks].type = HARRAYNUM;    
+
                           }
                           else if (typeBlock==2)
                           {
                               // Array char header
+                              // Almacenamos el nombre
+                              getBlockName(&_myTAP.descriptor[numBlocks].name,sdm.readFileRange32(_mFile,startBlock,19,false),0); 
+
+                              _myTAP.descriptor[numBlocks].type = HARRAYCHR;    
 
                           }
                           else if (typeBlock==3)
@@ -890,6 +899,26 @@ class TAPproccesor
                       LAST_TYPE = &LASTYPE4_2[0];
                   }
                   break;
+
+              case 5:
+                  // Definimos el buffer del PLAYER igual al tamaño del bloque
+                  #if LOG==3
+                    Serial.println("");
+                    Serial.println("> ARRAY.NUM");
+                  #endif
+                  LAST_TYPE = &LASTYPE5[0];
+                  break;
+
+              case 6:
+                  // Definimos el buffer del PLAYER igual al tamaño del bloque
+                  #if LOG==3
+                    Serial.println("");
+                    Serial.println("> ARRAY.CHR");
+                  #endif
+                  LAST_TYPE = &LASTYPE6[0];
+                  break;
+
+
           }        
       }
 
