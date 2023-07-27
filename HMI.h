@@ -669,6 +669,22 @@ class HMI
             delay(125);
       
         }
+
+        if (strCmd.indexOf("RFSH") != -1) 
+        {
+            // Refrescamos el listado de ficheros visualizado
+              if (!FILE_BROWSER_SEARCHING)
+              {
+                  clearFilesInScreen();
+                  putFilesInScreen(); 
+              }
+              else
+              {
+                  clearFilesInScreen();
+                  putFilesFoundInScreen(); 
+              }            
+        }
+
       
         if (strCmd.indexOf("FPUP") != -1) 
         {
