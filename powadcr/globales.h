@@ -77,17 +77,39 @@ struct tBlockDescriptor
 };
 
 // Descriptor de bloque de un TZX
+    // Timming de la ROM
+    // SYNC1 = 667;
+    // SYNC2 = 735;
+    // BIT_0 = 855;
+    // BIT_1 = 1710;
+    // PULSE_PILOT = 2168;
+    // PULSE_PILOT_HEADER = PULSE_PILOT * 8063;
+    // PULSE_PILOT_DATA = PULSE_PILOT * 3223;
+
+struct tTimming()
+{
+  int bit_0 = 855;
+  int bit_1 = 1710;
+  int pulse_pilot = 2168;
+  int pulse_pilot_header = pulse_pilot * 8063;
+  int pulse_pilot_data = pulse_pilot * 3223;
+}
+
 struct tTZXBlockDescriptor 
 {
   int ID = 0;
   int offset = 0;
   int size = 0;
   int chk = 0;
+  int pauseAfterThisBlock = 1000;   //ms
+  int lengthOfData = 0;
+  int offsetData = 0;
   char* name = &INITCHAR[0];
   bool nameDetected = false;
   bool header = false;
   bool screen = false;
   int type = 0;
+  tTimming timming;
   char* typeName = &INITCHAR[0];
 };
 

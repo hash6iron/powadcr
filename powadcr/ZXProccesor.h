@@ -48,17 +48,20 @@ class ZXProccesor
     // Definición de variables internas y constantes
     uint8_t buffer[0];
     
-    // Parametrizado para el ES8388
+    // Parametrizado para el ES8388 a 44.1MHz
     const int samplingRate = 44100;
-    const float sampleDuration = 0.0000002267; //segundos para 44.1HKz
+    const float sampleDuration = (1.0 / (float)samplingRate); //0.0000002267; //
+                                                              // segundos para 44.1HKz
     const float maxAmplitude = 32767.0;
     const int channels = 2;
     //const int turboMode = 1;
     
     float m_amplitude = maxAmplitude; 
     
-    // Parametrizado para el ZX Spectrum
-    const float tState = 0.00000028571; //segundos Z80 T-State period (1 / 3.5MHz)
+    // Parametrizado para el ZX Spectrum - Timming de la ROM
+    const float freqCPU = 3500000.0;
+    const float tState = (1.0 / freqCPU); //0.00000028571 --> segundos Z80 
+                                          //T-State period (1 / 3.5MHz)
     const int SYNC1 = 667;
     const int SYNC2 = 735;
     const int BIT_0 = 855;
@@ -447,7 +450,14 @@ class ZXProccesor
         {
             // PROGRAM
             //HEADER PILOT TONE
-            float duration = tState * PULSE_PILOT_HEADER/3;
+            float duration = tState * PULSE_PILOT_HEADER / LEVEL_REDUCTION_HEADER_TONE_IN_TAP;
+
+            // El ZX Spectrum es capaz de reconocer un tono guia de minímo 1s
+            if (duration < 1)
+            {
+                duration = 1;
+            }
+
             pilotToneHeader(duration);
             // SYNC TONE
             syncTone(SYNC1);

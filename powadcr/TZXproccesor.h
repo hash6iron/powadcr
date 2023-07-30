@@ -226,9 +226,47 @@ class TZXproccesor
         return bloque;
     }
 
-    tTZXBlockDescriptor analyzeBlock(byte* block)
+    tTZXBlockDescriptor analyzeID16(File32 mFile, int currentOffset)
     {
+        // Normal speed block
+        
         tTZXBlockDescriptor blockDescriptor; 
+        _myTZX.descriptor[block].ID = 16;
+        _myTZX.descriptor[block].offset = currentOffset;
+
+        // No contamos el ID. Entonces:
+
+        // Obtenemos el "pause despues del bloque"
+        // BYTE 0x00 y 0x01
+        _myTZX.descriptor[block].pauseAfterThisBlock = getDWORD(mFile,currentOffset+1);
+        // Obtenemos el "tamaño de los datos"
+        // BYTE 0x02 y 0x03
+        _myTZX.descriptor[block].lengthOfData = getDWORD(mFile,currentOffset+3);
+        // Los datos (TAP) empiezan en 0x04. Posición del bloque de datos.
+        _myTZX.descriptor[block].offsetData = currentOffset + 4;
+        // No contamos el ID
+        // La cabecera tiene 4 bytes de parametros y N bytes de datos
+        // pero para saber el total de bytes de datos hay que analizar el TAP
+        _myTZX.descriptor[block].size = 4 + _myTZX.descriptor[block].lengthOfData;
+
+        return blockDescriptor;
+    }
+
+    tTZXBlockDescriptor analyzeID48(File32 mFile, int currentOffset)
+    {
+        // Information block
+        int sizeTextInformation = 0;
+
+        tTZXBlockDescriptor blockDescriptor; 
+        _myTZX.descriptor[block].ID = 48;
+        _myTZX.descriptor[block].offset = currentOffset;
+
+        sizeTextInformation = getByte(mFile,currenOffset+1);
+        
+        // El tamaño del bloque es "1 byte de longitud de texto + TAMAÑO_TEXTO"
+        // el bloque comienza en el offset del ID y acaba en
+        // offset[ID] + tamaño_bloque
+        _myTZX.descriptor[block].size = sizeTextInformation + 1;
 
         return blockDescriptor;
     }
@@ -247,6 +285,9 @@ class TZXproccesor
           int nextIDoffset = 0;
           int currentOffset = 0;
           int lenghtDataBlock = 0;
+          int currentBlock = 1;
+          bool endTZX = false;
+          bool endWithErrors = false;
 
           currentOffset = startOffset;
 
@@ -261,54 +302,101 @@ class TZXproccesor
           // Reservamos espacio para el primer bloque y después iremos extendiendo
           // Vamos a ir usando realloc() para ir incrementando el espacio en memoria de manera dinámica.
 
-          _myTZX.descriptor = (tTZXBlockDescriptor*)calloc(2,sizeof(tTZXBlockDescriptor));              
+          _myTZX.descriptor = (tTZXBlockDescriptor*)calloc(currentblock+1,sizeof(tTZXBlockDescriptor));              
 
-          // El objetivo es ENCONTRAR IDs y ultimo byte, y analizar el bloque completo para el descriptor.
-          currentID = getID(mFile, startOffset);
-          Serial.println("");
-          Serial.println("TZX ID " + String(currentID));
-
-          // Ahora dependiendo del ID analizamos. Los ID están en HEX
-          // y la rutina devolverá la posición del siguiente ID, así hasta
-          // completar todo el fichero
-          switch (currentID)
+          while (!endTZX)
           {
-            // ID 10 - Standard Speed Data Block
-            case 16:
+              // El objetivo es ENCONTRAR IDs y ultimo byte, y analizar el bloque completo para el descriptor.
+              currentID = getID(mFile, currentOffset);
+              
+              Serial.println("");
+              Serial.println("TZX ID " + String(currentID));
 
-              // Obtenemos la dirección del siguiente offset
-              nextIDoffset = currentOffset + 26 + lenghtDataBlock;
-            break;
+              // Ahora dependiendo del ID analizamos. Los ID están en HEX
+              // y la rutina devolverá la posición del siguiente ID, así hasta
+              // completar todo el fichero
+              switch (currentID)
+              {
+                // ID 10 - Standard Speed Data Block
+                case 16:
 
-            // ID 11- Turbo Speed Data Block
-            case 17:
-            break;
+                  if (_myTZX.descriptor != NULL)
+                  {
+                      // Obtenemos la dirección del siguiente offset
+                      _myTZX.descriptor[currentblock] = analyzeID16(mFile,currentoffset);
 
-            // ID 12 - Pure Tone
-            case 18:
-            break;
+                      nextIDoffset = currentOffset + _myTZX.descriptor[currentblock].size + 1;
+                      currentblock++;
+                  }
+                  else
+                  {
+                      Serial.println("");
+                      Serial.println("Error: Not allocation memory for block ID 0x10");
+                      endTZX = true;
+                      endWithErrors = true;
+                  }
 
-            // ID 13 - Pulse sequence
-            case 19:
-            break;
 
-            // ID 14 - Pure Data Block
-            case 20:
-            break;
 
-            // ID 15 - Direct Recording
-            case 21:
-            break;
+                break;
 
-            // ID 18 - CSW Recording
-            case 24:
-            break;
+                // ID 11- Turbo Speed Data Block
+                case 17:
+                break;
 
-            // ID 19 - Generalized Data Block
-            case 25:
-            break;
+                // ID 12 - Pure Tone
+                case 18:
+                break;
+
+                // ID 13 - Pulse sequence
+                case 19:
+                break;
+
+                // ID 14 - Pure Data Block
+                case 20:
+                break;
+
+                // ID 15 - Direct Recording
+                case 21:
+                break;
+
+                // ID 18 - CSW Recording
+                case 24:
+                break;
+
+                // ID 19 - Generalized Data Block
+                case 25:
+                break;
+
+                // ID 30 - Information
+                case 48:
+                  // No hacemos nada solamente coger el siguiente offset
+                  if (_myTZX.descriptor != NULL)
+                  {
+                      // Obtenemos la dirección del siguiente offset
+                      _myTZX.descriptor[currentblock] = analyzeID48(mFile,currentoffset);
+
+                      // Siguiente ID
+                      nextIDoffset = currentOffset + _myTZX.descriptor[currentblock].size + 1;
+
+                      currentblock++;
+                  }
+                  else
+                  {
+                      Serial.println("");
+                      Serial.println("Error: Not allocation memory for block ID 0x10");
+                      endTZX = true;
+                      endWithErrors = true;
+                  }                  
+                  break;
+
+              }
+
+              Serial.println("");
+              Serial.println("Next ID offset: " + String(nextIDoffset));
+              _myTZX.descriptor = (tTZXBlockDescriptor*)realloc(currentblock,sizeof(tTZXBlockDescriptor)); 
+
           }
-
           // El siguiente bloque será
           // currentOffset + blockSize (que obtenemos del descriptor)
 
