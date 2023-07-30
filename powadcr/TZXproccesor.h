@@ -189,10 +189,48 @@ class TZXproccesor
   
      }
 
-    int getNumBlocks(File32 mFile, int sizeTZX)
+    int getDWORD(File32 mFile, int offset)
     {
-        int totalBlocks = 0;
-        return totalBlocks;
+        int sizeDW = 0;
+        sizeDW = (256*sdm.readFileRange32(_mFile,offset+1,1,false)[0]) + sdm.readFileRange32(_mFile,offset,1,false)[0];  
+
+        return sizeDW;    
+    }
+
+    int getBYTE(File32 mFile, int offset)
+    {
+        int sizeB = 0;
+        sizeB = sdm.readFileRange32(_mFile,offset,1,false)[0];  
+
+        return sizeB;      
+    }
+
+    int getID(File32 mFile, int offset)
+    {
+        // Obtenemos el ID
+        int ID = 0;
+        ID = getBYTE(_mFile,offset);
+
+        return ID;      
+    }
+
+    byte* getBlock(File32 mFile, int offset, int size)
+    {
+        //Entonces recorremos el TZX. 
+        // La primera cabecera SIEMPRE debe darse.
+        byte* bloque = (byte*)calloc(size,sizeof(byte));
+
+
+        // Obtenemos el bloque
+
+        return bloque;
+    }
+
+    tTZXBlockDescriptor analyzeBlock(byte* block)
+    {
+        tTZXBlockDescriptor blockDescriptor; 
+
+        return blockDescriptor;
     }
 
     void getBlockDescriptor(File32 mFile, int sizeTZX)
@@ -203,28 +241,77 @@ class TZXproccesor
           // que empieza por ZXTape!
           // Ejemplo ID + bytes
           //
+          int startOffset = 10;   // Posición del primero ID, pero el offset
+                                  // 0x00 de cada ID, sería el siguiente
+          int currentID = 0;
+          int nextIDoffset = 0;
+          int currentOffset = 0;
+          int lenghtDataBlock = 0;
+
+          currentOffset = startOffset;
 
           // Comenzamos a rastrear el fichero
-
-          // Necesitamos conocer el numero de bloques para poder
-          // reservar memoria para el descriptor
-          int numBlks = getNumBlocks(mFile, sizeTZX);
-
-          if (!FILE_CORRUPTED)
+          
+          if (_myTZX.descriptor != NULL)
           {
-              Serial.println("");
-              Serial.println("Num. de bloques: " + String(numBlks));
-              Serial.println("");
-             
-              if (_myTZX.descriptor != NULL)
-              {
-                  free(_myTZX.descriptor);
-                  _myTZX.descriptor = NULL;
-              }
+              free(_myTZX.descriptor);
+              _myTZX.descriptor = NULL;
+          }
 
-              // Reservamos espacio para el descriptor
-              _myTZX.descriptor = (tTZXBlockDescriptor*)calloc(numBlks+1,sizeof(tTZXBlockDescriptor));              
-          }          
+          // Reservamos espacio para el primer bloque y después iremos extendiendo
+          // Vamos a ir usando realloc() para ir incrementando el espacio en memoria de manera dinámica.
+
+          _myTZX.descriptor = (tTZXBlockDescriptor*)calloc(2,sizeof(tTZXBlockDescriptor));              
+
+          // El objetivo es ENCONTRAR IDs y ultimo byte, y analizar el bloque completo para el descriptor.
+          currentID = getID(mFile, startOffset);
+          Serial.println("");
+          Serial.println("TZX ID " + String(currentID));
+
+          // Ahora dependiendo del ID analizamos. Los ID están en HEX
+          // y la rutina devolverá la posición del siguiente ID, así hasta
+          // completar todo el fichero
+          switch (currentID)
+          {
+            // ID 10 - Standard Speed Data Block
+            case 16:
+
+              // Obtenemos la dirección del siguiente offset
+              nextIDoffset = currentOffset + 26 + lenghtDataBlock;
+            break;
+
+            // ID 11- Turbo Speed Data Block
+            case 17:
+            break;
+
+            // ID 12 - Pure Tone
+            case 18:
+            break;
+
+            // ID 13 - Pulse sequence
+            case 19:
+            break;
+
+            // ID 14 - Pure Data Block
+            case 20:
+            break;
+
+            // ID 15 - Direct Recording
+            case 21:
+            break;
+
+            // ID 18 - CSW Recording
+            case 24:
+            break;
+
+            // ID 19 - Generalized Data Block
+            case 25:
+            break;
+          }
+
+          // El siguiente bloque será
+          // currentOffset + blockSize (que obtenemos del descriptor)
+
     }
    
     void proccess_tzx(File32 tzxFileName)
