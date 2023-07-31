@@ -100,7 +100,7 @@ class TZXproccesor
 
            //byte* bBlock = NULL; 
            byte* bBlock = (byte*)calloc(10+1,sizeof(byte));
-           bBlock = sdm.readFileRange32(tzxFile,0,10,true);
+           bBlock = sdm.readFileRange32(tzxFile,0,10,false);
 
           // Obtenemos la firma del TZX
           char* signTZXHeader = (char*)calloc(8+1,sizeof(char));
@@ -192,7 +192,7 @@ class TZXproccesor
     int getDWORD(File32 mFile, int offset)
     {
         int sizeDW = 0;
-        sizeDW = (256*sdm.readFileRange32(_mFile,offset+1,1,false)[0]) + sdm.readFileRange32(_mFile,offset,1,false)[0];  
+        sizeDW = (256*sdm.readFileRange32(mFile,offset+1,1,false)[0]) + sdm.readFileRange32(mFile,offset,1,false)[0];  
 
         return sizeDW;    
     }
@@ -200,7 +200,7 @@ class TZXproccesor
     int getBYTE(File32 mFile, int offset)
     {
         int sizeB = 0;
-        sizeB = sdm.readFileRange32(_mFile,offset,1,false)[0];  
+        sizeB = sdm.readFileRange32(mFile,offset,1,false)[0];  
 
         return sizeB;      
     }
@@ -209,7 +209,7 @@ class TZXproccesor
     {
         // Obtenemos el ID
         int ID = 0;
-        ID = getBYTE(_mFile,offset);
+        ID = getBYTE(mFile,offset);
 
         return ID;      
     }
@@ -226,49 +226,133 @@ class TZXproccesor
         return bloque;
     }
 
-    tTZXBlockDescriptor analyzeID16(File32 mFile, int currentOffset)
+    void analyzeID16(File32 mFile, int currentOffset, int currentBlock)
     {
-        // Normal speed block
+      //Normal speed block
+
+      //
+      // TAP description block
+      //
+      
+      //       |------ Spectrum-generated data -------|       |---------|
+
+      // 13 00 00 03 52 4f 4d 7x20 02 00 00 00 00 80 f1 04 00 ff f3 af a3
+
+      // ^^^^^...... first block is 19 bytes (17 bytes+flag+checksum)
+      //       ^^... flag byte (A reg, 00 for headers, ff for data blocks)
+      //          ^^ first byte of header, indicating a code block
+
+      // file name ..^^^^^^^^^^^^^
+      // header info ..............^^^^^^^^^^^^^^^^^
+      // checksum of header .........................^^
+      // length of second block ........................^^^^^
+      // flag byte ...........................................^^
+      // first two bytes of rom .................................^^^^^
+      // checksum (checkbittoggle would be a better name!).............^^      
+     
+        int headerTAPsize = 21;   //Contando blocksize + flagbyte + etc hasta 
+                                  //checksum
+        int dataTAPsize = 0;
         
         tTZXBlockDescriptor blockDescriptor; 
-        _myTZX.descriptor[block].ID = 16;
-        _myTZX.descriptor[block].offset = currentOffset;
+        _myTZX.descriptor[currentBlock].ID = 16;
+        _myTZX.descriptor[currentBlock].offset = currentOffset;
 
         // No contamos el ID. Entonces:
 
         // Obtenemos el "pause despues del bloque"
         // BYTE 0x00 y 0x01
-        _myTZX.descriptor[block].pauseAfterThisBlock = getDWORD(mFile,currentOffset+1);
+        _myTZX.descriptor[currentBlock].pauseAfterThisBlock = getDWORD(mFile,currentOffset+1);
+
+        Serial.println("");
+        Serial.println("Pause after block: " + String(_myTZX.descriptor[currentBlock].pauseAfterThisBlock));
         // Obtenemos el "tamaño de los datos"
         // BYTE 0x02 y 0x03
-        _myTZX.descriptor[block].lengthOfData = getDWORD(mFile,currentOffset+3);
+        _myTZX.descriptor[currentBlock].lengthOfData = getDWORD(mFile,currentOffset+3);
+
+        Serial.println("");
+        Serial.println("Length of data: ");
+        Serial.print(_myTZX.descriptor[currentBlock].lengthOfData,HEX);
+
         // Los datos (TAP) empiezan en 0x04. Posición del bloque de datos.
-        _myTZX.descriptor[block].offsetData = currentOffset + 4;
+        _myTZX.descriptor[currentBlock].offsetData = currentOffset + 5;
+
+        Serial.println("");
+        Serial.println("Offset of data: ");
+        Serial.print(_myTZX.descriptor[currentBlock].offsetData,HEX);
+
+        // Vamos a verificar el flagByte
+
+        int flagByte = getBYTE(mFile,_myTZX.descriptor[currentBlock].offsetData);
+        int typeBlock = getBYTE(mFile,_myTZX.descriptor[currentBlock].offsetData+1);
+
+        if (flagByte == 0)
+        {
+            if (typeBlock == 0)
+            {
+                // Es una cabecera BASIC
+                _myTZX.descriptor[currentBlock].header = true;
+                _myTZX.descriptor[currentBlock].type = 0;
+
+            }
+            else if (typeBlock == 1)
+            {
+                _myTZX.descriptor[currentBlock].header = true;
+                _myTZX.descriptor[currentBlock].type = 0;
+            }
+            else if (typeBlock == 2)
+            {
+                _myTZX.descriptor[currentBlock].header = true;
+                _myTZX.descriptor[currentBlock].type = 0;
+            }
+            else if (typeBlock == 3)
+            {
+              if (_myTZX.descriptor[currentBlock].lengthOfData == 6914)
+              {
+                  _myTZX.descriptor[currentBlock].screen = true;
+                  _myTZX.descriptor[currentBlock].type = 7;
+              }
+              else
+              {
+                  // Es un bloque BYTE
+                  _myTZX.descriptor[currentBlock].type = 1;                
+              }
+            }
+        }
+        else
+        {
+            // Es un bloque BYTE
+            _myTZX.descriptor[currentBlock].type = 4;
+        }
+
         // No contamos el ID
         // La cabecera tiene 4 bytes de parametros y N bytes de datos
         // pero para saber el total de bytes de datos hay que analizar el TAP
-        _myTZX.descriptor[block].size = 4 + _myTZX.descriptor[block].lengthOfData;
-
-        return blockDescriptor;
+        // int positionOfTAPblock = currentOffset + 4;
+        // dataTAPsize = getDWORD(mFile,positionOfTAPblock + headerTAPsize + 1);
+        
+        // NOTA: Sumamos 2 bytes que son la DWORD que indica el dataTAPsize
+        _myTZX.descriptor[currentBlock].size = _myTZX.descriptor[currentBlock].lengthOfData; 
     }
 
-    tTZXBlockDescriptor analyzeID48(File32 mFile, int currentOffset)
+    void analyzeID48(File32 mFile, int currentOffset, int currentBlock)
     {
         // Information block
         int sizeTextInformation = 0;
 
         tTZXBlockDescriptor blockDescriptor; 
-        _myTZX.descriptor[block].ID = 48;
-        _myTZX.descriptor[block].offset = currentOffset;
+        _myTZX.descriptor[currentBlock].ID = 48;
+        _myTZX.descriptor[currentBlock].offset = currentOffset;
 
-        sizeTextInformation = getByte(mFile,currenOffset+1);
+        sizeTextInformation = getBYTE(mFile,currentOffset+1);
+
+        Serial.println("");
+        Serial.println("ID48 - TextSize: " + String(sizeTextInformation));
         
         // El tamaño del bloque es "1 byte de longitud de texto + TAMAÑO_TEXTO"
         // el bloque comienza en el offset del ID y acaba en
         // offset[ID] + tamaño_bloque
-        _myTZX.descriptor[block].size = sizeTextInformation + 1;
-
-        return blockDescriptor;
+        _myTZX.descriptor[currentBlock].size = sizeTextInformation + 1;
     }
 
     void getBlockDescriptor(File32 mFile, int sizeTZX)
@@ -302,7 +386,7 @@ class TZXproccesor
           // Reservamos espacio para el primer bloque y después iremos extendiendo
           // Vamos a ir usando realloc() para ir incrementando el espacio en memoria de manera dinámica.
 
-          _myTZX.descriptor = (tTZXBlockDescriptor*)calloc(currentblock+1,sizeof(tTZXBlockDescriptor));              
+          _myTZX.descriptor = (tTZXBlockDescriptor*)calloc(255,sizeof(tTZXBlockDescriptor));              
 
           while (!endTZX)
           {
@@ -310,7 +394,8 @@ class TZXproccesor
               currentID = getID(mFile, currentOffset);
               
               Serial.println("");
-              Serial.println("TZX ID " + String(currentID));
+              Serial.println("TZX ID ");
+              Serial.print(currentID, HEX);
 
               // Ahora dependiendo del ID analizamos. Los ID están en HEX
               // y la rutina devolverá la posición del siguiente ID, así hasta
@@ -323,10 +408,11 @@ class TZXproccesor
                   if (_myTZX.descriptor != NULL)
                   {
                       // Obtenemos la dirección del siguiente offset
-                      _myTZX.descriptor[currentblock] = analyzeID16(mFile,currentoffset);
+                      analyzeID16(mFile,currentOffset, currentBlock);
 
-                      nextIDoffset = currentOffset + _myTZX.descriptor[currentblock].size + 1;
-                      currentblock++;
+                      nextIDoffset = currentOffset + _myTZX.descriptor[currentBlock].size + 5;
+                      
+                      currentBlock++;
                   }
                   else
                   {
@@ -374,12 +460,12 @@ class TZXproccesor
                   if (_myTZX.descriptor != NULL)
                   {
                       // Obtenemos la dirección del siguiente offset
-                      _myTZX.descriptor[currentblock] = analyzeID48(mFile,currentoffset);
+                      analyzeID48(mFile,currentOffset,currentBlock);
 
                       // Siguiente ID
-                      nextIDoffset = currentOffset + _myTZX.descriptor[currentblock].size + 1;
+                      nextIDoffset = currentOffset + _myTZX.descriptor[currentBlock].size + 1;
 
-                      currentblock++;
+                      currentBlock++;
                   }
                   else
                   {
@@ -393,13 +479,31 @@ class TZXproccesor
               }
 
               Serial.println("");
-              Serial.println("Next ID offset: " + String(nextIDoffset));
-              _myTZX.descriptor = (tTZXBlockDescriptor*)realloc(currentblock,sizeof(tTZXBlockDescriptor)); 
+              Serial.println("Next ID offset: ");
+              Serial.print(nextIDoffset, HEX);
+              
+              //_myTZX.descriptor = (tTZXBlockDescriptor*)realloc(_myTZX.descriptor,currentBlock + 1); 
 
+              if (nextIDoffset >= sizeTZX)
+              {
+                  // Finalizamos
+                  endTZX = true;
+              }
+              else
+              {
+                  currentOffset = nextIDoffset;
+              }
+
+              //delay(2000);
           }
           // El siguiente bloque será
           // currentOffset + blockSize (que obtenemos del descriptor)
+          Serial.println("");
+          Serial.println("End: Total blocks " + String(currentBlock));
 
+          _myTZX.numBlocks = currentBlock;
+          _myTZX.size = sizeTZX;
+          _myTZX.name = "TZX";
     }
    
     void proccess_tzx(File32 tzxFileName)
@@ -413,13 +517,144 @@ class TZXproccesor
             Serial.println();
             Serial.println("Is TZX file");
 
+            Serial.println();
+            Serial.println("Size: " + String(_sizeTZX));
+
             getBlockDescriptor(_mFile,_sizeTZX);
         }      
     }
 
-    
-    
+          void sendStatus(int action, int value) {
+
+        switch (action) {
+          case PLAY_ST:
+            //_hmi.writeString("");
+            _hmi.writeString("PLAYst.val=" + String(value));
+            break;
+
+          case STOP_ST:
+            //_hmi.writeString("");
+            _hmi.writeString("STOPst.val=" + String(value));
+            break;
+
+          case PAUSE_ST:
+            //_hmi.writeString("");
+            _hmi.writeString("PAUSEst.val=" + String(value));
+            break;
+
+          case END_ST:
+            //_hmi.writeString("");
+            _hmi.writeString("ENDst.val=" + String(value));
+            break;
+
+          case READY_ST:
+            //_hmi.writeString("");
+            _hmi.writeString("READYst.val=" + String(value));
+            break;
+
+          case ACK_LCD:
+            //_hmi.writeString("");
+            _hmi.writeString("tape.LCDACK.val=" + String(value));
+            //_hmi.writeString("");
+            _hmi.writeString("statusLCD.txt=\"READY. PRESS SCREEN\"");
+            break;
+          
+          case RESET:
+            //_hmi.writeString("");
+            _hmi.writeString("statusLCD.txt=\"SYSTEM REBOOT\"");
+        }
+      }
+
     public:
+
+      void showInfoBlockInProgress(int nBlock)
+      {
+          switch(nBlock)
+          {
+              case 0:
+
+                  // Definimos el buffer del PLAYER igual al tamaño del bloque
+                  #if LOG==3
+                    Serial.println("> PROGRAM HEADER");
+                  #endif
+                  LAST_TYPE = &LASTYPE0[0];
+                  break;
+
+              case 1:
+
+                  // Definimos el buffer del PLAYER igual al tamaño del bloque
+                  #if LOG==3
+                    Serial.println("");
+                    Serial.println("> BYTE HEADER");
+                  #endif
+                  LAST_TYPE = &LASTYPE1[0];
+                  break;
+
+              case 7:
+
+                  // Definimos el buffer del PLAYER igual al tamaño del bloque
+                  #if LOG==3
+                    Serial.println("");
+                    Serial.println("> SCREEN HEADER");
+                  #endif
+                  LAST_TYPE = &LASTYPE7[0];
+                  break;
+
+              case 2:
+                  // Definimos el buffer del PLAYER igual al tamaño del bloque
+                  #if LOG==3
+                    Serial.println("");
+                    Serial.println("> BASIC PROGRAM");
+                  #endif
+                  LAST_TYPE = &LASTYPE2[0];
+                  break;
+
+              case 3:
+                  // Definimos el buffer del PLAYER igual al tamaño del bloque
+                  #if LOG==3
+                    Serial.println("");
+                    Serial.println("> SCREEN");
+                  #endif
+                  LAST_TYPE = &LASTYPE3[0];
+                  break;
+
+              case 4:
+                  // Definimos el buffer del PLAYER igual al tamaño del bloque
+                  #if LOG==3
+                    Serial.println("");
+                    Serial.println("> BYTE CODE");
+                  #endif
+                  if (LAST_SIZE != 6914)
+                  {
+                      LAST_TYPE = &LASTYPE4_1[0];
+                  }
+                  else
+                  {
+                      LAST_TYPE = &LASTYPE4_2[0];
+                  }
+                  break;
+
+              case 5:
+                  // Definimos el buffer del PLAYER igual al tamaño del bloque
+                  #if LOG==3
+                    Serial.println("");
+                    Serial.println("> ARRAY.NUM");
+                  #endif
+                  LAST_TYPE = &LASTYPE5[0];
+                  break;
+
+              case 6:
+                  // Definimos el buffer del PLAYER igual al tamaño del bloque
+                  #if LOG==3
+                    Serial.println("");
+                    Serial.println("> ARRAY.CHR");
+                  #endif
+                  LAST_TYPE = &LASTYPE6[0];
+                  break;
+
+
+          }        
+      }
 
     void set_SDM(SDmanager sdmTmp)
     {
@@ -482,7 +717,225 @@ class TZXproccesor
     }
 
     void play()
-    {}
+    {
+        //_hmi.writeString("");
+        _hmi.writeString("READYst.val=0");
+
+        //_hmi.writeString("");
+        _hmi.writeString("ENDst.val=0");
+
+        if (_myTZX.descriptor != NULL)
+        {         
+              // Inicializamos el buffer de reproducción. Memoria dinamica
+              byte* bufferPlay = NULL;
+
+              // Entregamos información por consola
+              PROGRAM_NAME = _myTZX.name;
+              TOTAL_BLOCKS = _myTZX.numBlocks;
+              LAST_NAME = &INITCHAR2[0];
+
+              // Ahora reproducimos todos los bloques desde el seleccionado (para cuando se quiera uno concreto)
+              int m = BLOCK_SELECTED;
+              //BYTES_TOBE_LOAD = _rlen;
+
+              // Reiniciamos
+              if (BLOCK_SELECTED == 0) {
+                BYTES_LOADED = 0;
+                BYTES_TOBE_LOAD = _rlen;
+                //_hmi.writeString("");
+                _hmi.writeString("progressTotal.val=" + String((int)((BYTES_LOADED * 100) / (BYTES_TOBE_LOAD))));
+              } else {
+                BYTES_TOBE_LOAD = _rlen - _myTZX.descriptor[BLOCK_SELECTED - 1].offset;
+              }
+
+              for (int i = m; i < _myTZX.numBlocks; i++) 
+              {
+
+                //LAST_NAME = bDscr[i].name;
+
+                // Obtenemos el nombre del bloque
+                LAST_NAME = _myTZX.descriptor[i].name;
+                LAST_SIZE = _myTZX.descriptor[i].size;
+
+                Serial.println("");
+                Serial.println("");
+                Serial.println("Playing TZX");
+                Serial.println("+ Name: " + String(LAST_NAME));
+                Serial.println("+ Size: " + String(LAST_SIZE));
+
+                // Almacenmas el bloque en curso para un posible PAUSE
+                if (LOADING_STATE != 2) {
+                  CURRENT_BLOCK_IN_PROGRESS = i;
+                  BLOCK_SELECTED = i;
+
+                  //_hmi.writeString("");
+                  _hmi.writeString("currentBlock.val=" + String(i + 1));
+
+                  //_hmi.writeString("");
+                  _hmi.writeString("progression.val=" + String(0));
+                }
+
+                //Paramos la reproducción.
+                if (LOADING_STATE == 2) {
+                  PAUSE = false;
+                  STOP = false;
+                  PLAY = false;
+                  LOADING_STATE = 0;
+                  break;
+                }
+
+                //Ahora vamos lanzando bloques dependiendo de su tipo
+                //Esto actualiza el LAST_TYPE
+                showInfoBlockInProgress(_myTZX.descriptor[i].type);
+
+                // Actualizamos HMI
+                _hmi.setBasicFileInformation(_myTZX.descriptor[BLOCK_SELECTED].name,_myTZX.descriptor[BLOCK_SELECTED].typeName,_myTZX.descriptor[BLOCK_SELECTED].size);
+
+                _hmi.updateInformationMainPage();
+
+                // Reproducimos el fichero
+                if (_myTZX.descriptor[i].type == 0) 
+                {
+                  
+                  // CABECERAS
+                  if(bufferPlay!=NULL)
+                  {
+                      free(bufferPlay);
+                      bufferPlay=NULL;
+
+                  }
+
+                  bufferPlay = (byte*)calloc(_myTZX.descriptor[i].size, sizeof(byte));
+                  bufferPlay = sdm.readFileRange32(_mFile, _myTZX.descriptor[i].offset+5, _myTZX.descriptor[i].size, true);
+
+                  // Llamamos a la clase de reproducción
+                  zxp.playHeaderProgram(bufferPlay, _myTZX.descriptor[i].size);
+
+                } 
+                else if (_myTZX.descriptor[i].type == 1 || _myTZX.descriptor[i].type == 7) 
+                {
+                  
+                  // CABECERAS
+                  if(bufferPlay!=NULL)
+                  {
+                      free(bufferPlay);
+                      bufferPlay=NULL;
+                  }      
+
+                  bufferPlay = (byte*)calloc(_myTZX.descriptor[i].size, sizeof(byte));
+                  bufferPlay = sdm.readFileRange32(_mFile, _myTZX.descriptor[i].offset, _myTZX.descriptor[i].size, true);
+
+                  zxp.playHeader(bufferPlay, _myTZX.descriptor[i].size);
+                } 
+                else 
+                {
+                  // DATA
+                  int blockSize = _myTZX.descriptor[i].size;
+
+                  // Si el SPLIT esta activado y el bloque es mayor de 20KB hacemos Split.
+                  if ((SPLIT_ENABLED) && (blockSize > SIZE_TO_ACTIVATE_SPLIT)) {
+
+                    // Lanzamos dos bloques
+                    int bl1 = blockSize / 2;
+                    int bl2 = blockSize - bl1;
+                    int blockPlaySize = 0;
+                    int offsetPlay = 0;
+
+                    //Serial.println("   > Splitted block. Size [" + String(blockSize) + "]");
+
+                    for (int j = 0; j < 2; j++) {
+                      if (j == 0) {
+                        blockPlaySize = bl1;
+                        offsetPlay = _myTZX.descriptor[i].offset;
+
+                        if(bufferPlay!=NULL)
+                        {
+                            free(bufferPlay);
+                            bufferPlay=NULL;
+                        }
+
+                        bufferPlay = (byte*)calloc(blockPlaySize, sizeof(byte));
+
+                        bufferPlay = sdm.readFileRange32(_mFile, offsetPlay, blockPlaySize, true);
+                        zxp.playDataBegin(bufferPlay, blockPlaySize);
+                        //free(bufferPlay);
+
+                      } else {
+                        blockPlaySize = bl2;
+                        offsetPlay = offsetPlay + bl1;
+
+                        if(bufferPlay!=NULL)
+                        {
+                            free(bufferPlay);
+                            bufferPlay=NULL;
+                        }
+
+                        bufferPlay = (byte*)calloc(blockPlaySize, sizeof(byte));
+                        bufferPlay = sdm.readFileRange32(_mFile, offsetPlay, blockPlaySize, true);
+
+                        zxp.playDataEnd(bufferPlay, blockPlaySize);
+                      }
+                    }
+                  } else {
+                    // En el caso de NO USAR SPLIT o el bloque es menor de 20K
+
+                    if(bufferPlay!=NULL)
+                    {
+                        free(bufferPlay);
+                        bufferPlay=NULL;
+                    }
+
+                    bufferPlay = (byte*)calloc(_myTZX.descriptor[i].size, sizeof(byte));
+                    bufferPlay = sdm.readFileRange32(_mFile, _myTZX.descriptor[i].offset, _myTZX.descriptor[i].size, true);
+                    
+                    zxp.playData(bufferPlay, _myTZX.descriptor[i].size);
+                  }
+                }
+              }
+
+              Serial.println("");
+              Serial.println("Playing was finish.");
+              // En el caso de no haber parado manualmente, es por finalizar
+              // la reproducción
+              if (LOADING_STATE == 1) {
+                PLAY = false;
+                STOP = true;
+                PAUSE = false;
+                BLOCK_SELECTED = 0;
+                LAST_MESSAGE = "Playing end. Automatic STOP.";
+
+                _hmi.setBasicFileInformation(_myTZX.descriptor[BLOCK_SELECTED].name,_myTZX.descriptor[BLOCK_SELECTED].typeName,_myTZX.descriptor[BLOCK_SELECTED].size);
+
+                _hmi.updateInformationMainPage();
+
+                // Ahora ya podemos tocar el HMI panel otra vez
+                sendStatus(END_ST, 1);
+              }
+
+              // Cerrando
+              LOADING_STATE = 0;
+
+              if(bufferPlay!=NULL)
+              {
+                free(bufferPlay);
+                bufferPlay=NULL;
+              }
+              
+              Serial.flush();
+
+              // Ahora ya podemos tocar el HMI panel otra vez
+              sendStatus(READY_ST, 1);
+
+        }
+        else
+        {
+            LAST_MESSAGE = "No file selected.";
+            _hmi.setBasicFileInformation(_myTZX.descriptor[BLOCK_SELECTED].name,_myTZX.descriptor[BLOCK_SELECTED].typeName,_myTZX.descriptor[BLOCK_SELECTED].size);
+
+            _hmi.updateInformationMainPage();
+        }        
+
+    }
 
     TZXproccesor(AudioKit kit)
     {

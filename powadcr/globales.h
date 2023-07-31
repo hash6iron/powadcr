@@ -86,29 +86,29 @@ struct tBlockDescriptor
     // PULSE_PILOT_HEADER = PULSE_PILOT * 8063;
     // PULSE_PILOT_DATA = PULSE_PILOT * 3223;
 
-struct tTimming()
+struct tTimming
 {
   int bit_0 = 855;
   int bit_1 = 1710;
   int pulse_pilot = 2168;
   int pulse_pilot_header = pulse_pilot * 8063;
   int pulse_pilot_data = pulse_pilot * 3223;
-}
+};
 
 struct tTZXBlockDescriptor 
 {
-  int ID = 0;
-  int offset = 0;
-  int size = 0;
-  int chk = 0;
-  int pauseAfterThisBlock = 1000;   //ms
-  int lengthOfData = 0;
-  int offsetData = 0;
+  uint ID = 0;
+  uint offset = 0;
+  uint size = 0;
+  uint chk = 0;
+  uint pauseAfterThisBlock = 1000;   //ms
+  uint lengthOfData = 0;
+  uint offsetData = 0;
   char* name = &INITCHAR[0];
   bool nameDetected = false;
   bool header = false;
   bool screen = false;
-  int type = 0;
+  uint type = 0;
   tTimming timming;
   char* typeName = &INITCHAR[0];
 };
@@ -116,19 +116,19 @@ struct tTZXBlockDescriptor
 // Estructura tipo TAP
 struct tTAP 
 {
-  char* name = &INITCHAR[0];                          // Nombre del TAP
+  char* name = &INITCHAR[0];                // Nombre del TAP
   int size = 0;                             // Tamaño
   int numBlocks = 0;                        // Numero de bloques
-  tBlockDescriptor* descriptor = NULL;  // Descriptor
+  tBlockDescriptor* descriptor = NULL;      // Descriptor
 };
 
 // Estructura tipo TZX
 struct tTZX
 {
-  char* name = &INITCHAR[0];                           // Nombre del TAP
+  char* name = &INITCHAR[0];                // Nombre del TZX
   int size = 0;                             // Tamaño
   int numBlocks = 0;                        // Numero de bloques
-  tTZXBlockDescriptor* descriptor = NULL;  // Descriptor
+  tTZXBlockDescriptor* descriptor = NULL;   // Descriptor
 };
 
 // Estructura para el HMI
