@@ -1161,7 +1161,7 @@ class TAPproccesor
                   }
 
                   bufferPlay = (byte*)calloc(_myTAP.descriptor[i].size, sizeof(byte));
-                  bufferPlay = sdm.readFileRange32(_mFile, _myTAP.descriptor[i].offset, _myTAP.descriptor[i].size, true);
+                  bufferPlay = sdm.readFileRange32(_mFile, _myTAP.descriptor[i].offset, _myTAP.descriptor[i].size, false);
 
                   // Llamamos a la clase de reproducción
                   zxp.playHeaderProgram(bufferPlay, _myTAP.descriptor[i].size);
@@ -1176,7 +1176,7 @@ class TAPproccesor
                   }      
 
                   bufferPlay = (byte*)calloc(_myTAP.descriptor[i].size, sizeof(byte));
-                  bufferPlay = sdm.readFileRange32(_mFile, _myTAP.descriptor[i].offset, _myTAP.descriptor[i].size, true);
+                  bufferPlay = sdm.readFileRange32(_mFile, _myTAP.descriptor[i].offset, _myTAP.descriptor[i].size, false);
 
                   zxp.playHeader(bufferPlay, _myTAP.descriptor[i].size);
                 } else {
@@ -1237,7 +1237,7 @@ class TAPproccesor
                     }
 
                     bufferPlay = (byte*)calloc(_myTAP.descriptor[i].size, sizeof(byte));
-                    bufferPlay = sdm.readFileRange32(_mFile, _myTAP.descriptor[i].offset, _myTAP.descriptor[i].size, true);
+                    bufferPlay = sdm.readFileRange32(_mFile, _myTAP.descriptor[i].offset, _myTAP.descriptor[i].size, false);
                     
                     zxp.playData(bufferPlay, _myTAP.descriptor[i].size);
                   }

@@ -91,8 +91,9 @@ struct tTimming
   int bit_0 = 855;
   int bit_1 = 1710;
   int pulse_pilot = 2168;
-  int pulse_pilot_header = pulse_pilot * 8063;
-  int pulse_pilot_data = pulse_pilot * 3223;
+  int tone_pilot = pulse_pilot * 8063;
+  int sync_1 = 667;
+  int sync_2 = 735;
 };
 
 struct tTZXBlockDescriptor 
@@ -109,6 +110,7 @@ struct tTZXBlockDescriptor
   bool header = false;
   bool screen = false;
   uint type = 0;
+  bool playeable = false;
   tTimming timming;
   char* typeName = &INITCHAR[0];
 };
