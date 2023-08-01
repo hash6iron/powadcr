@@ -1194,13 +1194,40 @@ class TZXproccesor
                         }
 
                         bufferPlay = (byte*)calloc(_myTZX.descriptor[i].size, sizeof(byte));
-                        bufferPlay = sdm.readFileRange32(_mFile, _myTZX.descriptor[i].offset+5, _myTZX.descriptor[i].size, true);
+
+                        // bufferPlay = sdm.readFileRange32(_mFile, _myTZX.descriptor[i].offset+5, _myTZX.descriptor[i].size, true);
 
                         Serial.println("");
-                        Serial.println("Head:");
+                        Serial.println("Head 1:");
 
-                        showBufferPlay(bufferPlay,_myTZX.descriptor[i].size);
-                        verifyChecksum(_mFile,_myTZX.descriptor[i].offset+5,_myTZX.descriptor[i].size);
+                        switch (_myTZX.descriptor[i].ID)
+                        {
+
+                            case 16:
+                                Serial.println("");
+                                Serial.println("Head ID16:");
+
+                                bufferPlay = (byte*)calloc(_myTZX.descriptor[i].size, sizeof(byte));
+                                bufferPlay = sdm.readFileRange32(_mFile, _myTZX.descriptor[i].offset+5, _myTZX.descriptor[i].size, false);
+
+                                showBufferPlay(bufferPlay,_myTZX.descriptor[i].size);
+                                verifyChecksum(_mFile,_myTZX.descriptor[i].offset+5,_myTZX.descriptor[i].size);
+                                break;
+
+                            case 17:
+                                Serial.println("");
+                                Serial.println("Head ID17:");
+
+                                bufferPlay = (byte*)calloc(_myTZX.descriptor[i].size, sizeof(byte));
+                                bufferPlay = sdm.readFileRange32(_mFile, _myTZX.descriptor[i].offset+19, _myTZX.descriptor[i].size, false);
+
+                                showBufferPlay(bufferPlay,_myTZX.descriptor[i].size);
+                                verifyChecksum(_mFile,_myTZX.descriptor[i].offset+19,_myTZX.descriptor[i].size);
+                                break;
+                        }
+
+                        // showBufferPlay(bufferPlay,_myTZX.descriptor[i].size);
+                        // verifyChecksum(_mFile,_myTZX.descriptor[i].offset+5,_myTZX.descriptor[i].size);
 
                         switch (_myTZX.descriptor[i].ID)
                         {
@@ -1230,13 +1257,31 @@ class TZXproccesor
                             bufferPlay=NULL;
                         }      
 
-                        bufferPlay = (byte*)calloc(_myTZX.descriptor[i].size, sizeof(byte));
-                        bufferPlay = sdm.readFileRange32(_mFile, _myTZX.descriptor[i].offset+5, _myTZX.descriptor[i].size, true);
+                        switch (_myTZX.descriptor[i].ID)
+                        {
 
-                        Serial.println("");
-                        Serial.println("Head:");
-                        showBufferPlay(bufferPlay,_myTZX.descriptor[i].size);
-                        verifyChecksum(_mFile,_myTZX.descriptor[i].offset+5,_myTZX.descriptor[i].size);
+                            case 16:
+                                Serial.println("");
+                                Serial.println("Head ID16:");
+
+                                bufferPlay = (byte*)calloc(_myTZX.descriptor[i].size, sizeof(byte));
+                                bufferPlay = sdm.readFileRange32(_mFile, _myTZX.descriptor[i].offset+5, _myTZX.descriptor[i].size, false);
+
+                                showBufferPlay(bufferPlay,_myTZX.descriptor[i].size);
+                                verifyChecksum(_mFile,_myTZX.descriptor[i].offset+5,_myTZX.descriptor[i].size);
+                                break;
+
+                            case 17:
+                                Serial.println("");
+                                Serial.println("Head ID17:");
+
+                                bufferPlay = (byte*)calloc(_myTZX.descriptor[i].size, sizeof(byte));
+                                bufferPlay = sdm.readFileRange32(_mFile, _myTZX.descriptor[i].offset+19, _myTZX.descriptor[i].size, false);
+
+                                showBufferPlay(bufferPlay,_myTZX.descriptor[i].size);
+                                verifyChecksum(_mFile,_myTZX.descriptor[i].offset+19,_myTZX.descriptor[i].size);
+                                break;
+                        }
 
                         // Llamamos a la clase de reproducción
                         switch (_myTZX.descriptor[i].ID)
@@ -1267,11 +1312,34 @@ class TZXproccesor
                         }
 
                         bufferPlay = (byte*)calloc(_myTZX.descriptor[i].size, sizeof(byte));
-                        bufferPlay = sdm.readFileRange32(_mFile, _myTZX.descriptor[i].offset+5, _myTZX.descriptor[i].size, true);
-                        Serial.println("");
-                        Serial.println("Data:");
-                        showBufferPlay(bufferPlay,_myTZX.descriptor[i].size);
-                        verifyChecksum(_mFile,_myTZX.descriptor[i].offset+5,_myTZX.descriptor[i].size);
+
+                        switch (_myTZX.descriptor[i].ID)
+                        {
+                            case 17:                              
+                              bufferPlay = sdm.readFileRange32(_mFile, _myTZX.descriptor[i].offset+19, _myTZX.descriptor[i].size, true);
+
+
+                              Serial.println("");
+                              Serial.println("Data ID17");
+                              Serial.println("");
+                              showBufferPlay(bufferPlay,_myTZX.descriptor[i].size);
+                              verifyChecksum(_mFile,_myTZX.descriptor[i].offset+19,_myTZX.descriptor[i].size);
+
+                              break;
+
+                            case 16:
+                              bufferPlay = sdm.readFileRange32(_mFile, _myTZX.descriptor[i].offset+5, _myTZX.descriptor[i].size, true);
+
+                              Serial.println("");
+                              Serial.println("Data ID16:");
+                              Serial.println("");
+                              showBufferPlay(bufferPlay,_myTZX.descriptor[i].size);
+                              verifyChecksum(_mFile,_myTZX.descriptor[i].offset+5,_myTZX.descriptor[i].size);
+                              break;
+
+                        }
+
+
 
                         Serial.println("");
                         Serial.println("ID:");
