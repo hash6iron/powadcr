@@ -76,7 +76,7 @@
 // TAP config.
 // ********************************************************************
 // Acorta el tono guia del bloque data despues de header
-#define LEVEL_REDUCTION_HEADER_TONE_IN_TAP 3
+#define LEVEL_REDUCTION_HEADER_TONE_IN_TAP 1
 // Activa el modo de split de los bloques. 
 // si superan el tamaño (en bytes) definido por SIZE_TO_ACTIVATE_SPLIT
 #define SPLIT_ENABLED 0

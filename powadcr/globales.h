@@ -133,6 +133,7 @@ struct tTZXBlockDescriptor
   bool screen = false;
   uint type = 0;
   bool playeable = false;
+  int silent;
   byte maskLastByte = 8;
   tTimming timming;
   char* typeName = &INITCHAR[0];

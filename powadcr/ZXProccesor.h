@@ -343,7 +343,7 @@ class ZXProccesor
 
     void sendDataArray(byte* data, int size)
     {
-        byte _mask = MASK   // Para el last_byte
+        byte _mask = 8;   // Para el last_byte
 
         // Procedimiento para enviar datos desde un array
         if (LOADING_STATE==1 || TEST_RUNNING)
@@ -428,7 +428,7 @@ class ZXProccesor
                   
                   // ¿Es el ultimo BYTE?. Si se ha aplicado mascara entonces
                   // se modifica el numero de bits a transmitir
-                  if (i = size-1)
+                  if (i == size-1)
                   {
                       _mask = _mask_last_byte;
                   }
@@ -436,6 +436,7 @@ class ZXProccesor
                   {
                       _mask = 8;
                   }
+
                   for (int n=0;n < _mask;n++)
                   {
                       // Si el bit leido del BYTE es un "1"
