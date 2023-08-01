@@ -58,17 +58,26 @@ class ZXProccesor
     
     float m_amplitude = maxAmplitude; 
     
+    public:
     // Parametrizado para el ZX Spectrum - Timming de la ROM
-    const float freqCPU = 3500000.0;
-    const float tState = (1.0 / freqCPU); //0.00000028571 --> segundos Z80 
+    float freqCPU = DfreqCPU;
+    float tState = (1.0 / freqCPU); //0.00000028571 --> segundos Z80 
                                           //T-State period (1 / 3.5MHz)
-    const int SYNC1 = 667;
-    const int SYNC2 = 735;
-    const int BIT_0 = 855;
-    const int BIT_1 = 1710;
-    const int PULSE_PILOT = 2168;
-    const int PULSE_PILOT_HEADER = PULSE_PILOT * 8063;
-    const int PULSE_PILOT_DATA = PULSE_PILOT * 3223;
+    int SYNC1 = DSYNC1;
+    int SYNC2 = DSYNC2;
+    int BIT_0 = DBIT_0;
+    int BIT_1 = DBIT_1;
+    int PULSE_PILOT = DPULSE_PILOT;
+    int PILOT_TONE = DPILOT_TONE;
+
+    int PULSE_PILOT_DURATION = PULSE_PILOT * PILOT_TONE;
+    //int PULSE_PILOT_DURATION = PULSE_PILOT * DPILOT_DATA;
+
+    int silent = DSILENT;
+
+    private:
+
+    byte _mask_last_byte = 8;
 
     AudioKit m_kit;
 
@@ -251,9 +260,18 @@ class ZXProccesor
         } 
     }
 
-    void pilotToneHeader()
+    // void pilotTone()
+    // {
+    //     float duration = tState * PULSE_PILOT_DURATION;
+    //     //Serial.println("****** BUFFER SIZE --> " + String(duration));
+    //     float freq = (1 / (PULSE_PILOT * tState)) / 2;    
+    //     //Serial.println("******* PILOT HEADER " + String(freq) + " Hz");
+
+    //     generateWaveDuration(freq, duration, samplingRate);
+    // }
+
+    void pilotTone(float duration)
     {
-        float duration = tState * PULSE_PILOT_HEADER;
         //Serial.println("****** BUFFER SIZE --> " + String(duration));
         float freq = (1 / (PULSE_PILOT * tState)) / 2;    
         //Serial.println("******* PILOT HEADER " + String(freq) + " Hz");
@@ -261,31 +279,22 @@ class ZXProccesor
         generateWaveDuration(freq, duration, samplingRate);
     }
 
-    void pilotToneHeader(float duration)
-    {
-        //Serial.println("****** BUFFER SIZE --> " + String(duration));
-        float freq = (1 / (PULSE_PILOT * tState)) / 2;    
-        //Serial.println("******* PILOT HEADER " + String(freq) + " Hz");
 
-        generateWaveDuration(freq, duration, samplingRate);
-    }
-
-
-    void pilotToneData()
-    {
-        float duration = tState * PULSE_PILOT_DATA;
-        float freq = (1 / (PULSE_PILOT * tState)) / 2;    
-        //Serial.println("******* PILOT DATA " + String(freq) + " Hz");
-        generateWaveDuration(freq, duration, samplingRate);
-    }
+    // void pilotToneData()
+    // {
+    //     float duration = tState * PULSE_PILOT_DURATION;
+    //     float freq = (1 / (PULSE_PILOT * tState)) / 2;    
+    //     //Serial.println("******* PILOT DATA " + String(freq) + " Hz");
+    //     generateWaveDuration(freq, duration, samplingRate);
+    // }
 
 
-    void pilotToneData(float duration)
-    {
-        float freq = (1 / (PULSE_PILOT * tState)) / 2;    
-        //Serial.println("******* PILOT DATA " + String(freq) + " Hz");
-        generateWaveDuration(freq, duration, samplingRate);
-    }
+    // void pilotToneData(float duration)
+    // {
+    //     float freq = (1 / (PULSE_PILOT * tState)) / 2;    
+    //     //Serial.println("******* PILOT DATA " + String(freq) + " Hz");
+    //     generateWaveDuration(freq, duration, samplingRate);
+    // }
 
     void zeroTone()
     {
@@ -334,6 +343,7 @@ class ZXProccesor
 
     void sendDataArray(byte* data, int size)
     {
+        byte _mask = MASK   // Para el last_byte
 
         // Procedimiento para enviar datos desde un array
         if (LOADING_STATE==1 || TEST_RUNNING)
@@ -411,8 +421,22 @@ class ZXProccesor
               {
                   // Vamos a ir leyendo los bytes y generando el sonido
                   bRead = data[i];
-
-                  for (int n=0;n<8;n++)
+                  
+                  // Para la protección con mascara ID11 - 0x0C
+                  // "Used bits in the last byte (other bits should be 0) {8}
+                  //(e.g. if this is 6, then the bits used (x) in the last byte are: xxxxxx00, wh///ere MSb is the leftmost bit, LSb is the rightmost bit)"
+                  
+                  // ¿Es el ultimo BYTE?. Si se ha aplicado mascara entonces
+                  // se modifica el numero de bits a transmitir
+                  if (i = size-1)
+                  {
+                      _mask = _mask_last_byte;
+                  }
+                  else
+                  {
+                      _mask = 8;
+                  }
+                  for (int n=0;n < _mask;n++)
                   {
                       // Si el bit leido del BYTE es un "1"
                       if(bitRead(bRead, 7-n) == 1)
@@ -446,11 +470,16 @@ class ZXProccesor
     
     public:
 
-        void playHeader(byte* bBlock, int lenBlock)
+        void set_maskLastByte(byte mask)
+        {
+            _mask_last_byte = mask;
+        }
+
+        void playHeader(byte* bBlock, int lenBlock, int pulse_pilot_duration)
         {
             // PROGRAM
             //HEADER PILOT TONE
-            float duration = tState * PULSE_PILOT_HEADER / LEVEL_REDUCTION_HEADER_TONE_IN_TAP;
+            float duration = tState * pulse_pilot_duration / LEVEL_REDUCTION_HEADER_TONE_IN_TAP;
 
             // El ZX Spectrum es capaz de reconocer un tono guia de minímo 1s
             if (duration < 1)
@@ -458,7 +487,8 @@ class ZXProccesor
                 duration = 1;
             }
 
-            pilotToneHeader(duration);
+            //Header
+            pilotTone(duration);
             // SYNC TONE
             syncTone(SYNC1);
             // Launch header
@@ -467,16 +497,16 @@ class ZXProccesor
             syncTone(SYNC2);
 
             // Silent tone
-            #ifdef SILENT
-              sleep(SILENT);
-            #endif          
+            delay(silent);
         }
 
-        void playHeaderProgram(byte* bBlock, int lenBlock)
+        void playHeaderProgram(byte* bBlock, int lenBlock, int pulse_pilot_duration)
         {
             // PROGRAM
+            float duration = tState * pulse_pilot_duration;
+
             //HEADER PILOT TONE
-            pilotToneHeader();
+            pilotTone(duration);
             // SYNC TONE
             syncTone(SYNC1);
             // Launch header
@@ -485,17 +515,16 @@ class ZXProccesor
             syncTone(SYNC2);
 
             // Silent tone
-            #ifdef SILENT
-              sleep(SILENT);
-            #endif          
+            delay(silent);
         }
 
-        void playData(byte* bBlock, int lenBlock)
+        void playData(byte* bBlock, int lenBlock, int pulse_pilot_duration)
         {
+            float duration = tState * pulse_pilot_duration;
             // Put now code block
             // syncronize with short leader tone
-            //float duration = tState * PULSE_PILOT_DATA/2;
-            pilotToneData();
+            //float duration = tState * PULSE_PILOT_DURATION/2;
+            pilotTone(duration);
             // syncronization for end short leader tone
             syncTone(SYNC1);
 
@@ -506,16 +535,16 @@ class ZXProccesor
             syncTone(SYNC2);
             
             // Silent tone
-            #ifdef SILENT
-              sleep(SILENT);
-            #endif          
+            delay(silent);
         }
 
-        void playDataBegin(byte* bBlock, int lenBlock)
+        void playDataBegin(byte* bBlock, int lenBlock, int pulse_pilot_duration)
         {
+                    // PROGRAM
+            float duration = tState * pulse_pilot_duration;
             // Put now code block
             // syncronize with short leader tone
-            pilotToneData();
+            pilotTone(duration);
             // syncronization for end short leader tone
             syncTone(SYNC1);
 
@@ -524,9 +553,10 @@ class ZXProccesor
                    
         }
 
-        void playDataEnd(byte* bBlock, int lenBlock)
+        void playDataEnd(byte* bBlock, int lenBlock, int pulse_pilot_duration)
         {
 
+            float duration = tState * pulse_pilot_duration;
             // Send data
             sendDataArray(bBlock, lenBlock);
             
@@ -534,12 +564,10 @@ class ZXProccesor
             syncTone(SYNC2);
             
             // Silent tone
-            #ifdef SILENT
-              sleep(SILENT);
-            #endif          
+            delay(silent);
         }
 
-        void playBlock(byte* header, int len_header, byte* data, int len_data)
+        void playBlock(byte* header, int len_header, byte* data, int len_data, int pulse_pilot_duration_header, int pulse_pilot_duration_data)
         {           
             #if LOG==3
               Serial.println("******* PROGRAM HEADER");
@@ -547,9 +575,13 @@ class ZXProccesor
               Serial.println("*******  - DATA   size " + String(len_data));
             #endif
 
+            float durationHeader = tState * pulse_pilot_duration_header;
+            float durationData = tState * pulse_pilot_duration_data;
+
+
             // PROGRAM
             //HEADER PILOT TONE
-            pilotToneHeader();
+            pilotTone(durationHeader);
             // SYNC TONE
             syncTone(SYNC1);
             // Launch header
@@ -558,9 +590,7 @@ class ZXProccesor
             syncTone(SYNC2);
 
             // Silent tone
-            #ifdef SILENT
-              sleep(SILENT);
-            #endif
+            delay(silent);
 
             #if LOG==3
               Serial.println("******* PROGRAM DATA");
@@ -568,7 +598,7 @@ class ZXProccesor
 
             // Put now code block
             // syncronize with short leader tone
-            pilotToneData();
+            pilotTone(durationData);
             // syncronization for end short leader tone
             syncTone(SYNC1);
 
@@ -579,30 +609,17 @@ class ZXProccesor
             syncTone(SYNC2);
             
             // Silent tone
-            #ifdef SILENT
-              sleep(SILENT);
-            #endif
+            delay(silent);
         }
 
-        void playHeaderOnly(byte* header, int len_header)
+        void playHeaderOnly(byte* header, int len_header, int pulse_pilot_duration)
         {           
-            #if LOG==3
-              //Serial.println("");
-              //Serial.println("******* PROGRAM HEADER");
-              //Serial.println("*******  - HEADER size " + String(len_header) + " bytes");
-              //Serial.println("");
-              //Serial.println("Header to send:");
-              //Serial.println("");
-              // for (int n=0;n<19;n++)
-              // {
-              //     Serial.print(header[n],HEX);
-              //     Serial.print(",");
-              // }
-            #endif
+
+            float duration = tState * pulse_pilot_duration;
 
             // PROGRAM
             //HEADER PILOT TONE
-            pilotToneHeader();
+            pilotTone(duration);
             // SYNC TONE
             syncTone(SYNC1);
             // Launch header
@@ -611,9 +628,7 @@ class ZXProccesor
             syncTone(SYNC2);
 
             // Silent tone
-            #ifdef SILENT
-              sleep(SILENT);
-            #endif
+            delay(silent);
         }        
 
         void set_ESP32kit(AudioKit kit)

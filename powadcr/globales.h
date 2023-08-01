@@ -31,6 +31,26 @@
     To Contact the dev team you can write to hash6iron@gmail.com
  +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
 
+// ZX Proccesor config
+// ********************************************************************
+//
+#ifdef MACHINE_ZX
+  const int DPILOT_HEADER = 8063;
+  const int DPILOT_DATA = 3223;
+  
+  // Timming estandar de la ROM
+  float DfreqCPU = 3500000.0;
+  int DSYNC1 = 667;
+  int DSYNC2 = 735;
+  int DBIT_0 = 855;
+  int DBIT_1 = 1710;
+  int DPULSE_PILOT = 2168;
+  int DPILOT_TONE = DPILOT_HEADER;
+  
+  // Definición del silencio entre bloques en ms
+  int DSILENT = 1500;
+#endif
+
 // Inicializadores para los char*
 char INITCHAR[] = "\0";
 char INITCHAR2[] = "..\0";
@@ -91,7 +111,9 @@ struct tTimming
   int bit_0 = 855;
   int bit_1 = 1710;
   int pulse_pilot = 2168;
-  int tone_pilot = pulse_pilot * 8063;
+  int pilot_tone = 8063;
+  int pilot_header = 8063;
+  int pilot_data = 3223;
   int sync_1 = 667;
   int sync_2 = 735;
 };
@@ -111,6 +133,7 @@ struct tTZXBlockDescriptor
   bool screen = false;
   uint type = 0;
   bool playeable = false;
+  byte maskLastByte = 8;
   tTimming timming;
   char* typeName = &INITCHAR[0];
 };

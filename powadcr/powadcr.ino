@@ -49,6 +49,8 @@
 
 // Librerias (mantener este orden)
 //   -- En esta se encuentran las variables globales a todo el proyecto
+#include "config.h"
+
 #include "SdFat.h"
 #include "globales.h"
 
@@ -57,7 +59,6 @@
 AudioKit ESP32kit;
 
 #include "interface.h"
-#include "config.h"
 
 // Estos includes deben ir en este orden por dependencias
 #include "SDmanager.h"
@@ -275,8 +276,8 @@ void test()
       Serial.println();
       Serial.println("----- TEST ACTIVE ------");
 
-      zxp.playBlock(testHeader, 19, testData, 154);
-      zxp.playBlock(testScreenHeader, 19, testScreenData, 6914);
+      zxp.playBlock(testHeader, 19, testData, 154, DPILOT_HEADER,DPILOT_DATA);
+      zxp.playBlock(testScreenHeader, 19, testScreenData, 6914, DPILOT_HEADER,DPILOT_DATA);
 
       Serial.println();
       Serial.println();
