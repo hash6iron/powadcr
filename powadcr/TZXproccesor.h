@@ -437,7 +437,6 @@ class TZXproccesor
         // Con este ID analizamos la parte solo del timming ya que el resto
         // información del bloque se puede analizar con "analyzeID16"
 
-        tTZXBlockDescriptor blockDescriptor; 
         _myTZX.descriptor[currentBlock].ID = 17;
         _myTZX.descriptor[currentBlock].playeable = true;
         _myTZX.descriptor[currentBlock].offset = currentOffset;
@@ -583,12 +582,62 @@ class TZXproccesor
 
 
     }
+
+    void analyzeID18(File32 mFile, int currentOffset, int currentBlock)
+    {
+        // Con este ID analizamos la parte solo del timming ya que el resto
+        // información del bloque se puede analizar con "analyzeID16"
+
+        _myTZX.descriptor[currentBlock].ID = 18;
+        _myTZX.descriptor[currentBlock].playeable = false;
+        _myTZX.descriptor[currentBlock].forSetting = true;
+        _myTZX.descriptor[currentBlock].offset = currentOffset;    
+
+        // Timming de PILOT TONE
+        _myTZX.descriptor[currentBlock].timming.pilot_tone = getDWORD(mFile,currentOffset+1) * getDWORD(mFile,currentOffset+3);          
+    }
+
+    void analyzeID32(File32 mFile, int currentOffset, int currentBlock)
+    {
+        // Con este ID analizamos la parte solo del timming ya que el resto
+        // información del bloque se puede analizar con "analyzeID16"
+
+        _myTZX.descriptor[currentBlock].ID = 32;
+        _myTZX.descriptor[currentBlock].playeable = false;
+        _myTZX.descriptor[currentBlock].forSetting = true;
+        _myTZX.descriptor[currentBlock].offset = currentOffset;    
+
+        // Timming de PILOT TONE
+        _myTZX.descriptor[currentBlock].delay = getDWORD(mFile,currentOffset+1);          
+    }
+
+    void analyzeID50(File32 mFile, int currentOffset, int currentBlock)
+    {
+        // Information block
+        int sizeBlock = 0;
+
+        _myTZX.descriptor[currentBlock].ID = 50;
+        _myTZX.descriptor[currentBlock].playeable = false;
+        // Los dos primeros bytes del bloque no se cuentan para
+        // el tamaño total
+        _myTZX.descriptor[currentBlock].offset = currentOffset+3;
+
+        sizeBlock = getDWORD(mFile,currentOffset+1);
+
+        //Serial.println("");
+        //Serial.println("ID48 - TextSize: " + String(sizeTextInformation));
+        
+        // El tamaño del bloque es "1 byte de longitud de texto + TAMAÑO_TEXTO"
+        // el bloque comienza en el offset del ID y acaba en
+        // offset[ID] + tamaño_bloque
+        _myTZX.descriptor[currentBlock].size = sizeBlock;         
+    }    
+
     void analyzeID48(File32 mFile, int currentOffset, int currentBlock)
     {
         // Information block
         int sizeTextInformation = 0;
 
-        tTZXBlockDescriptor blockDescriptor; 
         _myTZX.descriptor[currentBlock].ID = 48;
         _myTZX.descriptor[currentBlock].playeable = false;
         _myTZX.descriptor[currentBlock].offset = currentOffset;
@@ -604,9 +653,28 @@ class TZXproccesor
         _myTZX.descriptor[currentBlock].size = sizeTextInformation + 1;
     }
 
+    void analyzeID33(File32 mFile, int currentOffset, int currentBlock)
+    {
+        // Group start
+        int sizeTextInformation = 0;
+
+        _myTZX.descriptor[currentBlock].ID = 33;
+        _myTZX.descriptor[currentBlock].playeable = false;
+        _myTZX.descriptor[currentBlock].offset = currentOffset+2;
+
+        sizeTextInformation = getBYTE(mFile,currentOffset+1);
+
+        Serial.println("");
+        Serial.println("ID33 - TextSize: " + String(sizeTextInformation));
+        
+        // El tamaño del bloque es "1 byte de longitud de texto + TAMAÑO_TEXTO"
+        // el bloque comienza en el offset del ID y acaba en
+        // offset[ID] + tamaño_bloque
+        _myTZX.descriptor[currentBlock].size = sizeTextInformation;
+    }
+
     void analyzeBlockUnknow(int id_num, int currentOffset, int currentBlock)
     {
-        tTZXBlockDescriptor blockDescriptor; 
         _myTZX.descriptor[currentBlock].ID = id_num;
         _myTZX.descriptor[currentBlock].playeable = false;
         _myTZX.descriptor[currentBlock].offset = currentOffset;      
@@ -643,7 +711,7 @@ class TZXproccesor
           // Reservamos espacio para el primer bloque y después iremos extendiendo
           // Vamos a ir usando realloc() para ir incrementando el espacio en memoria de manera dinámica.
 
-          _myTZX.descriptor = (tTZXBlockDescriptor*)calloc(255,sizeof(tTZXBlockDescriptor));              
+          _myTZX.descriptor = (tTZXBlockDescriptor*)calloc(3000,sizeof(tTZXBlockDescriptor));              
 
           while (!endTZX)
           {
@@ -694,7 +762,7 @@ class TZXproccesor
                   else
                   {
                       Serial.println("");
-                      Serial.println("Error: Not allocation memory for block ID 0x10");
+                      Serial.println("Error: Not allocation memory for block ID 0x11");
                       endTZX = true;
                       endWithErrors = true;
                   }
@@ -702,7 +770,23 @@ class TZXproccesor
 
                 // ID 12 - Pure Tone
                 case 18:
-                  analyzeBlockUnknow(currentID,currentOffset, currentBlock);
+                  //analyzeBlockUnknow(currentID,currentOffset, currentBlock);
+                  if (_myTZX.descriptor != NULL)
+                  {
+                      // Obtenemos la dirección del siguiente offset
+                      analyzeID16(mFile,currentOffset, currentBlock);
+
+                      nextIDoffset = currentOffset + _myTZX.descriptor[currentBlock].size + 4;
+                      
+                      currentBlock++;
+                  }
+                  else
+                  {
+                      Serial.println("");
+                      Serial.println("Error: Not allocation memory for block ID 0x12");
+                      endTZX = true;
+                      endWithErrors = true;
+                  }
                 break;
 
                 // ID 13 - Pulse sequence
@@ -732,17 +816,62 @@ class TZXproccesor
 
                 // ID 20 - Pause and Stop Tape
                 case 32:
-                  analyzeBlockUnknow(currentID,currentOffset, currentBlock);
-                break;
+                  //analyzeBlockUnknow(currentID,currentOffset, currentBlock);
+                  if (_myTZX.descriptor != NULL)
+                  {
+                      // Obtenemos la dirección del siguiente offset
+                      analyzeID32(mFile,currentOffset, currentBlock);
+
+                      nextIDoffset = currentOffset + _myTZX.descriptor[currentBlock].size + 3;
+                      
+                      currentBlock++;
+                  }
+                  else
+                  {
+                      Serial.println("");
+                      Serial.println("Error: Not allocation memory for block ID 0x20");
+                      endTZX = true;
+                      endWithErrors = true;
+                  }
+                  break;
 
                 // ID 21 - Group start
                 case 33:
-                  analyzeBlockUnknow(currentID,currentOffset, currentBlock);
-                break;
+                  if (_myTZX.descriptor != NULL)
+                  {
+                      // Obtenemos la dirección del siguiente offset
+                      analyzeID33(mFile,currentOffset, currentBlock);
+
+                      nextIDoffset = currentOffset + 2 + _myTZX.descriptor[currentBlock].size;
+                      
+                      //currentBlock++;
+                  }
+                  else
+                  {
+                      Serial.println("");
+                      Serial.println("Error: Not allocation memory for block ID 0x21");
+                      endTZX = true;
+                      endWithErrors = true;
+                  }
+                  break;                
 
                 // ID 22 - Group end
                 case 34:
-                  analyzeBlockUnknow(currentID,currentOffset, currentBlock);
+                  if (_myTZX.descriptor != NULL)
+                  {
+                      // Obtenemos la dirección del siguiente offset
+                      nextIDoffset = currentOffset + 1;
+                      
+                      //currentBlock++;
+                  }
+                  else
+                  {
+                      Serial.println("");
+                      Serial.println("Error: Not allocation memory for block ID 0x22");
+                      endTZX = true;
+                      endWithErrors = true;
+                  }
+                  break;
                 break;
 
                 // ID 23 - Jump to block
@@ -796,7 +925,7 @@ class TZXproccesor
                       // Siguiente ID
                       nextIDoffset = currentOffset + _myTZX.descriptor[currentBlock].size + 1;
 
-                      currentBlock++;
+                      //currentBlock++;
                   }
                   else
                   {
@@ -814,8 +943,25 @@ class TZXproccesor
 
                 // ID 32 - Archive info
                 case 50:
-                  analyzeBlockUnknow(currentID,currentOffset, currentBlock);
-                break;
+                  // No hacemos nada solamente coger el siguiente offset
+                  if (_myTZX.descriptor != NULL)
+                  {
+                      // Obtenemos la dirección del siguiente offset
+                      analyzeID50(mFile,currentOffset,currentBlock);
+
+                      // Siguiente ID
+                      nextIDoffset = currentOffset + 3 + _myTZX.descriptor[currentBlock].size;
+
+                      //currentBlock++;
+                  }
+                  else
+                  {
+                      Serial.println("");
+                      Serial.println("Error: Not allocation memory for block ID 0x10");
+                      endTZX = true;
+                      endWithErrors = true;
+                  }                  
+                  break;
 
                 // ID 33 - Hardware type
                 case 51:
@@ -1124,6 +1270,38 @@ class TZXproccesor
 
               for (int i = m; i < _myTZX.numBlocks; i++) 
               {
+                
+                Serial.println("");
+                Serial.println("++++++++++++++++++++++++++++++++++++++++++++");
+                Serial.println("> BLOCK " + String(i));
+                Serial.print(_myTZX.descriptor[i].offset,HEX);
+                Serial.println("");
+                Serial.println("++++++++++++++++++++++++++++++++++++++++++++");
+                Serial.println("");
+
+                if (_myTZX.descriptor[i].ID == 18)
+                {
+                    // Reproducimos un tono puro
+                    zxp.pilotTone(_myTZX.descriptor[i].timming.pilot_tone);
+                }
+
+                if (_myTZX.descriptor[i].ID == 32)
+                {
+                    // Hacemos un delay
+                    int dly = _myTZX.descriptor[i].delay;
+                    if (dly == 0)
+                    {
+                      // En el caso de cero. Paramos el TAPE
+                      i = _myTZX.numBlocks;
+                      break;
+                    }
+                    else
+                    {
+                      // En otro caso. Delay
+                      delay(dly);
+                    }                    
+                }
+
 
                 if (_myTZX.descriptor[i].playeable)
                 {
@@ -1193,41 +1371,15 @@ class TZXproccesor
 
                         }
 
-                        bufferPlay = (byte*)calloc(_myTZX.descriptor[i].size, sizeof(byte));
-
-                        // bufferPlay = sdm.readFileRange32(_mFile, _myTZX.descriptor[i].offset+5, _myTZX.descriptor[i].size, true);
-
                         Serial.println("");
-                        Serial.println("Head 1:");
+                        Serial.println("Head " + _myTZX.descriptor[i].ID);
 
-                        switch (_myTZX.descriptor[i].ID)
-                        {
+                        bufferPlay = (byte*)calloc(_myTZX.descriptor[i].size, sizeof(byte));
+                        bufferPlay = sdm.readFileRange32(_mFile, _myTZX.descriptor[i].offsetData, _myTZX.descriptor[i].size, false);
 
-                            case 16:
-                                Serial.println("");
-                                Serial.println("Head ID16:");
+                        showBufferPlay(bufferPlay,_myTZX.descriptor[i].size);
+                        verifyChecksum(_mFile,_myTZX.descriptor[i].offsetData,_myTZX.descriptor[i].size);
 
-                                bufferPlay = (byte*)calloc(_myTZX.descriptor[i].size, sizeof(byte));
-                                bufferPlay = sdm.readFileRange32(_mFile, _myTZX.descriptor[i].offset+5, _myTZX.descriptor[i].size, false);
-
-                                showBufferPlay(bufferPlay,_myTZX.descriptor[i].size);
-                                verifyChecksum(_mFile,_myTZX.descriptor[i].offset+5,_myTZX.descriptor[i].size);
-                                break;
-
-                            case 17:
-                                Serial.println("");
-                                Serial.println("Head ID17:");
-
-                                bufferPlay = (byte*)calloc(_myTZX.descriptor[i].size, sizeof(byte));
-                                bufferPlay = sdm.readFileRange32(_mFile, _myTZX.descriptor[i].offset+19, _myTZX.descriptor[i].size, false);
-
-                                showBufferPlay(bufferPlay,_myTZX.descriptor[i].size);
-                                verifyChecksum(_mFile,_myTZX.descriptor[i].offset+19,_myTZX.descriptor[i].size);
-                                break;
-                        }
-
-                        // showBufferPlay(bufferPlay,_myTZX.descriptor[i].size);
-                        // verifyChecksum(_mFile,_myTZX.descriptor[i].offset+5,_myTZX.descriptor[i].size);
 
                         switch (_myTZX.descriptor[i].ID)
                         {
@@ -1257,31 +1409,15 @@ class TZXproccesor
                             bufferPlay=NULL;
                         }      
 
-                        switch (_myTZX.descriptor[i].ID)
-                        {
+                        Serial.println("");
+                        Serial.println("Head " + _myTZX.descriptor[i].ID);
 
-                            case 16:
-                                Serial.println("");
-                                Serial.println("Head ID16:");
+                        bufferPlay = (byte*)calloc(_myTZX.descriptor[i].size, sizeof(byte));
+                        bufferPlay = sdm.readFileRange32(_mFile, _myTZX.descriptor[i].offsetData, _myTZX.descriptor[i].size, false);
 
-                                bufferPlay = (byte*)calloc(_myTZX.descriptor[i].size, sizeof(byte));
-                                bufferPlay = sdm.readFileRange32(_mFile, _myTZX.descriptor[i].offset+5, _myTZX.descriptor[i].size, false);
+                        showBufferPlay(bufferPlay,_myTZX.descriptor[i].size);
+                        verifyChecksum(_mFile,_myTZX.descriptor[i].offsetData,_myTZX.descriptor[i].size);
 
-                                showBufferPlay(bufferPlay,_myTZX.descriptor[i].size);
-                                verifyChecksum(_mFile,_myTZX.descriptor[i].offset+5,_myTZX.descriptor[i].size);
-                                break;
-
-                            case 17:
-                                Serial.println("");
-                                Serial.println("Head ID17:");
-
-                                bufferPlay = (byte*)calloc(_myTZX.descriptor[i].size, sizeof(byte));
-                                bufferPlay = sdm.readFileRange32(_mFile, _myTZX.descriptor[i].offset+19, _myTZX.descriptor[i].size, false);
-
-                                showBufferPlay(bufferPlay,_myTZX.descriptor[i].size);
-                                verifyChecksum(_mFile,_myTZX.descriptor[i].offset+19,_myTZX.descriptor[i].size);
-                                break;
-                        }
 
                         // Llamamos a la clase de reproducción
                         switch (_myTZX.descriptor[i].ID)
@@ -1312,33 +1448,15 @@ class TZXproccesor
                         }
 
                         bufferPlay = (byte*)calloc(_myTZX.descriptor[i].size, sizeof(byte));
-
-                        switch (_myTZX.descriptor[i].ID)
-                        {
-                            case 17:                              
-                              bufferPlay = sdm.readFileRange32(_mFile, _myTZX.descriptor[i].offset+19, _myTZX.descriptor[i].size, true);
+                        
+                        bufferPlay = sdm.readFileRange32(_mFile, _myTZX.descriptor[i].offsetData, _myTZX.descriptor[i].size, true);
 
 
-                              Serial.println("");
-                              Serial.println("Data ID17");
-                              Serial.println("");
-                              showBufferPlay(bufferPlay,_myTZX.descriptor[i].size);
-                              verifyChecksum(_mFile,_myTZX.descriptor[i].offset+19,_myTZX.descriptor[i].size);
-
-                              break;
-
-                            case 16:
-                              bufferPlay = sdm.readFileRange32(_mFile, _myTZX.descriptor[i].offset+5, _myTZX.descriptor[i].size, true);
-
-                              Serial.println("");
-                              Serial.println("Data ID16:");
-                              Serial.println("");
-                              showBufferPlay(bufferPlay,_myTZX.descriptor[i].size);
-                              verifyChecksum(_mFile,_myTZX.descriptor[i].offset+5,_myTZX.descriptor[i].size);
-                              break;
-
-                        }
-
+                        Serial.println("");
+                        Serial.println("Data ID17");
+                        Serial.println("");
+                        showBufferPlay(bufferPlay,_myTZX.descriptor[i].size);
+                        verifyChecksum(_mFile,_myTZX.descriptor[i].offsetData,_myTZX.descriptor[i].size);
 
 
                         Serial.println("");

@@ -133,6 +133,8 @@ struct tTZXBlockDescriptor
   bool screen = false;
   uint type = 0;
   bool playeable = false;
+  bool forSetting = false;
+  int delay = 1000;
   int silent;
   byte maskLastByte = 8;
   tTimming timming;

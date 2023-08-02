@@ -403,7 +403,7 @@ class TAPproccesor
                   int typeBlock = sdm.readFileRange32(_mFile,startBlock+1,1,false)[0];
                   
                   // Vemos si el bloque es una cabecera o un bloque de datos (bien BASIC o CM)
-                  if (flagByte == 0)
+                  if (flagByte < 128)
                   {
                      
                       // Es una CABECERA
@@ -586,7 +586,7 @@ class TAPproccesor
                       int typeBlock = sdm.readFileRange32(_mFile,startBlock+1,1,false)[0];
                       
                       // Vemos si el bloque es una cabecera o un bloque de datos (bien BASIC o CM)
-                      if (flagByte == 0)
+                      if (flagByte < 128)
                       {
 
                           // Inicializamos                    

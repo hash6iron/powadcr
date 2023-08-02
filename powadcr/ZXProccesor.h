@@ -270,6 +270,7 @@ class ZXProccesor
     //     generateWaveDuration(freq, duration, samplingRate);
     // }
 
+    public:
     void pilotTone(float duration)
     {
         //Serial.println("****** BUFFER SIZE --> " + String(duration));
@@ -278,23 +279,6 @@ class ZXProccesor
 
         generateWaveDuration(freq, duration, samplingRate);
     }
-
-
-    // void pilotToneData()
-    // {
-    //     float duration = tState * PULSE_PILOT_DURATION;
-    //     float freq = (1 / (PULSE_PILOT * tState)) / 2;    
-    //     //Serial.println("******* PILOT DATA " + String(freq) + " Hz");
-    //     generateWaveDuration(freq, duration, samplingRate);
-    // }
-
-
-    // void pilotToneData(float duration)
-    // {
-    //     float freq = (1 / (PULSE_PILOT * tState)) / 2;    
-    //     //Serial.println("******* PILOT DATA " + String(freq) + " Hz");
-    //     generateWaveDuration(freq, duration, samplingRate);
-    // }
 
     void zeroTone()
     {
@@ -321,6 +305,7 @@ class ZXProccesor
         generateOneWave(freq, samplingRate);
     }
 
+    private:
     void sendDataStr(String data)
     {
       //
