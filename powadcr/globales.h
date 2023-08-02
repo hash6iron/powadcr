@@ -39,7 +39,7 @@
   const int DPILOT_DATA = 3223;
   
   // Timming estandar de la ROM
-  float DfreqCPU = 3500000.0;
+  float DfreqCPU = 3510000.0;
   int DSYNC1 = 667;
   int DSYNC2 = 735;
   int DBIT_0 = 855;

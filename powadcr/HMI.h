@@ -1089,7 +1089,7 @@ class HMI
 
           //writeString("screen2.name.txt=\"" + PROGRAM_NAME + "\"");
 
-          writeString("size.txt=\"" + String(LAST_SIZE - 2) + " bytes\"");
+          writeString("size.txt=\"" + String(LAST_SIZE) + " bytes\"");
 
           //writeString("screen2.size.txt=\"" + String(LAST_SIZE - 2) + " bytes\"");
 
