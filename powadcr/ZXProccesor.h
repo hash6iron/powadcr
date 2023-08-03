@@ -330,10 +330,10 @@ class ZXProccesor
         float freq = (1 / (nTStates * tState));    
         generatePulse(freq, samplingRate,slope);
 
-        int width = 200;
-        // Metemos un pulso de cambio de estado
-        freq = (1 / (width * tState)) / 2;    
-        generateOneWave(freq,samplingRate);  
+        //int width = 200;
+        //// Metemos un pulso de cambio de estado
+        //freq = (1 / (width * tState)) / 2;    
+        //generateOneWave(freq,samplingRate);  
         
     }
 
@@ -484,10 +484,11 @@ class ZXProccesor
               }
             }
 
-            int width = 150;
+            int width = 40;
             // Metemos un pulso de cambio de estado
-            float freq = (1 / (width * tState)) / 2;    
-            generateOneWave(freq,samplingRate);  
+            float freq = (1 / (width * tState));    
+            //generateOneWave(freq,samplingRate);  
+            generatePulse(freq, samplingRate,1);
 
         }
     }
