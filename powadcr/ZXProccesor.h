@@ -213,8 +213,10 @@ class ZXProccesor
 
         uint8_t buffer[bytes];
 
+
         for (int m=0;m < numPulses;m++)
         {
+
           // Escribimos el tren de pulsos en el procesador de Audio
           m_kit.write(buffer, readWave(buffer, bytes));
         } 
@@ -232,6 +234,7 @@ class ZXProccesor
         float Tsr = (1.0 / samplingRate);
         int bytes = int(round((1.0 / ((freq / 4.0))) / Tsr));
         uint8_t buffer[bytes];
+
         m_kit.write(buffer, readWave(buffer, bytes));
                 
         _hmi.readUART();
@@ -291,7 +294,7 @@ class ZXProccesor
                     break;
                 }
             }
-            
+
             m_kit.write(buffer, readWave(buffer, bytes));
         } 
     }
@@ -485,7 +488,6 @@ class ZXProccesor
             }
 
             int width = 0;
-
             // Leemos el ultimo bit (del ultimo byte), y dependiendo de como sea
             // así cerramos el flanco.
             // Cogemos el ultimo byte
@@ -505,7 +507,6 @@ class ZXProccesor
             // Metemos un pulso de cambio de estado
             // para asegurar el cambio de flanco alto->bajo, del ultimo bit
             float freq = (1 / (width * tState))/2;    
-            //generateOneWave(freq,samplingRate);  
             generatePulse(freq, samplingRate,1);
 
         }

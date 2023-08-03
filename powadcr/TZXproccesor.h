@@ -1426,6 +1426,7 @@ class TZXproccesor
                         {
                             free(bufferPlay);
                             bufferPlay=NULL;
+
                         }
 
                         Serial.println("");
@@ -1433,6 +1434,7 @@ class TZXproccesor
                         Serial.println("");
 
                         bufferPlay = (byte*)calloc(_myTZX.descriptor[i].size, sizeof(byte));
+
                         bufferPlay = sdm.readFileRange32(_mFile, _myTZX.descriptor[i].offsetData, _myTZX.descriptor[i].size, false);
 
                         showBufferPlay(bufferPlay,_myTZX.descriptor[i].size);
@@ -1472,6 +1474,7 @@ class TZXproccesor
                         Serial.println("");
 
                         bufferPlay = (byte*)calloc(_myTZX.descriptor[i].size, sizeof(byte));
+
                         bufferPlay = sdm.readFileRange32(_mFile, _myTZX.descriptor[i].offsetData, _myTZX.descriptor[i].size, false);
 
                         showBufferPlay(bufferPlay,_myTZX.descriptor[i].size);
@@ -1507,7 +1510,7 @@ class TZXproccesor
                         }
 
                         bufferPlay = (byte*)calloc(_myTZX.descriptor[i].size, sizeof(byte));
-                        
+
                         bufferPlay = sdm.readFileRange32(_mFile, _myTZX.descriptor[i].offsetData, _myTZX.descriptor[i].size, true);
 
 
