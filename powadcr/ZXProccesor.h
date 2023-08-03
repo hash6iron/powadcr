@@ -48,12 +48,12 @@ class ZXProccesor
     // Definición de variables internas y constantes
     uint8_t buffer[0];
     
-    // Parametrizado para el ES8388 a 44.1MHz
+    // Parametrizado para el ES8388 a 44.1KHz
     const int samplingRate = 44100;
     const float sampleDuration = (1.0 / (float)samplingRate); //0.0000002267; //
                                                               // segundos para 44.1HKz
     const float maxAmplitude = 32767.0;
-    const int channels = 2;
+    const int channels = 1;
     //const int turboMode = 1;
     
     float m_amplitude = maxAmplitude; 
@@ -80,6 +80,42 @@ class ZXProccesor
     byte _mask_last_byte = 8;
 
     AudioKit m_kit;
+
+    // size_t readWave(uint8_t *buffer, size_t bytes){
+        
+    //     // Procedimiento para generar un tren de pulsos cuadrados completo
+
+    //     int chn = channels;
+    //     size_t result = 0;
+    //     int16_t *ptr = (int16_t*)buffer;
+
+    //     // Pulso alto (mitad del periodo)
+    //     for (int j=0;j<bytes/2;j++){
+
+    //         int16_t sample = m_amplitude;
+    //         *ptr++ = sample;
+    //         if (chn>1)
+    //         {
+    //           *ptr++ = sample;
+    //         }
+    //         result+=2*chn;
+    //     }
+
+    //     // Pulso bajo (la otra mitad)
+    //     for (int j=bytes/2;j<bytes;j++){
+            
+    //         int16_t sample = 0;
+            
+    //         *ptr++ = sample;
+    //         if (chn>1)
+    //         {
+    //           *ptr++ = sample;
+    //         }
+    //         result+=2*chn;
+    //     }
+
+    //     return result;
+    // }
 
     size_t readWave(uint8_t *buffer, size_t bytes){
         
@@ -197,7 +233,7 @@ class ZXProccesor
         int bytes = int(round((1.0 / ((freq / 4.0))) / Tsr));
         uint8_t buffer[bytes];
         m_kit.write(buffer, readWave(buffer, bytes));
-        
+                
         _hmi.readUART();
 
         if (LOADING_STATE == 1)
@@ -260,16 +296,6 @@ class ZXProccesor
         } 
     }
 
-    // void pilotTone()
-    // {
-    //     float duration = tState * PULSE_PILOT_DURATION;
-    //     //Serial.println("****** BUFFER SIZE --> " + String(duration));
-    //     float freq = (1 / (PULSE_PILOT * tState)) / 2;    
-    //     //Serial.println("******* PILOT HEADER " + String(freq) + " Hz");
-
-    //     generateWaveDuration(freq, duration, samplingRate);
-    // }
-
     public:
     void pilotTone(float duration)
     {
@@ -294,15 +320,21 @@ class ZXProccesor
         generateOneWave(freq, samplingRate);
     }
 
-    void syncTone(int nTStates)
+    void syncTone(int nTStates, int slope)
     {
         // Procedimiento que genera un pulso de sincronismo, según los
         // T-States pasados por parámetro.
         //
         // El ZX Spectrum tiene dos tipo de sincronismo, uno al finalizar el tono piloto
         // y otro al final de la recepción de los datos, que serán SYNC1 y SYNC2 respectivamente.
-        float freq = (1 / (nTStates * tState)) / 2;    
-        generateOneWave(freq, samplingRate);
+        float freq = (1 / (nTStates * tState));    
+        generatePulse(freq, samplingRate,slope);
+
+        int width = 200;
+        // Metemos un pulso de cambio de estado
+        freq = (1 / (width * tState)) / 2;    
+        generateOneWave(freq,samplingRate);  
+        
     }
 
     private:
@@ -451,6 +483,12 @@ class ZXProccesor
                 break;
               }
             }
+
+            int width = 150;
+            // Metemos un pulso de cambio de estado
+            float freq = (1 / (width * tState)) / 2;    
+            generateOneWave(freq,samplingRate);  
+
         }
     }
     
@@ -476,11 +514,11 @@ class ZXProccesor
             //Header
             pilotTone(duration);
             // SYNC TONE
-            syncTone(SYNC1);
+            syncTone(SYNC1,1);
             // Launch header
+            syncTone(SYNC2,0);
 
             sendDataArray(bBlock, lenBlock);
-            syncTone(SYNC2);
 
             // Silent tone
             delay(silent);
@@ -494,11 +532,11 @@ class ZXProccesor
             //HEADER PILOT TONE
             pilotTone(duration);
             // SYNC TONE
-            syncTone(SYNC1);
+            syncTone(SYNC1,1);
             // Launch header
+            syncTone(SYNC2,0);
 
             sendDataArray(bBlock, lenBlock);
-            syncTone(SYNC2);
 
             // Silent tone
             delay(silent);
@@ -512,13 +550,13 @@ class ZXProccesor
             //float duration = tState * PULSE_PILOT_DURATION/2;
             pilotTone(duration);
             // syncronization for end short leader tone
-            syncTone(SYNC1);
+            syncTone(SYNC1,1);
+            syncTone(SYNC2,0);
 
             // Send data
             sendDataArray(bBlock, lenBlock);
             
             // syncronization for end data block          
-            syncTone(SYNC2);
             
             // Silent tone
             delay(silent);
@@ -532,7 +570,8 @@ class ZXProccesor
             // syncronize with short leader tone
             pilotTone(duration);
             // syncronization for end short leader tone
-            syncTone(SYNC1);
+            syncTone(SYNC1,1);
+            syncTone(SYNC2,0);
 
             // Send data
             sendDataArray(bBlock, lenBlock);
@@ -547,7 +586,7 @@ class ZXProccesor
             sendDataArray(bBlock, lenBlock);
             
             // syncronization for end data block          
-            syncTone(SYNC2);
+            //syncTone(SYNC2,0);
             
             // Silent tone
             delay(silent);
@@ -569,11 +608,11 @@ class ZXProccesor
             //HEADER PILOT TONE
             pilotTone(durationHeader);
             // SYNC TONE
-            syncTone(SYNC1);
+            syncTone(SYNC1,1);
             // Launch header
+            syncTone(SYNC2,0);
 
             sendDataArray(header, len_header);
-            syncTone(SYNC2);
 
             // Silent tone
             delay(silent);
@@ -586,13 +625,13 @@ class ZXProccesor
             // syncronize with short leader tone
             pilotTone(durationData);
             // syncronization for end short leader tone
-            syncTone(SYNC1);
+            syncTone(SYNC1,1);
+            syncTone(SYNC2,0);
 
             // Send data
             sendDataArray(data, len_data);
             
             // syncronization for end data block          
-            syncTone(SYNC2);
             
             // Silent tone
             delay(silent);
@@ -607,11 +646,11 @@ class ZXProccesor
             //HEADER PILOT TONE
             pilotTone(duration);
             // SYNC TONE
-            syncTone(SYNC1);
+            syncTone(SYNC1,1);
             // Launch header
+            syncTone(SYNC2,0);
 
             sendDataArray(header, len_header);
-            syncTone(SYNC2);
 
             // Silent tone
             delay(silent);
