@@ -484,9 +484,27 @@ class ZXProccesor
               }
             }
 
-            int width = 40;
+            int width = 0;
+
+            // Leemos el ultimo bit (del ultimo byte), y dependiendo de como sea
+            // así cerramos el flanco.
+            // Cogemos el ultimo byte
+            bRead = data[size-1];
+
+            // Vemos como es el último bit MSB es la posición 0, el ultimo bit
+            if (bitRead(bRead, 0) == 1)
+            {
+                width = BIT_1 / 2;
+            }
+            else
+            {
+                width = BIT_0 / 2;
+            }
+
+            
             // Metemos un pulso de cambio de estado
-            float freq = (1 / (width * tState));    
+            // para asegurar el cambio de flanco alto->bajo, del ultimo bit
+            float freq = (1 / (width * tState))/2;    
             //generateOneWave(freq,samplingRate);  
             generatePulse(freq, samplingRate,1);
 
