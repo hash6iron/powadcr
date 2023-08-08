@@ -178,7 +178,7 @@ int FILE_LENGTH = 0;
 // 0 - No
 // 1 - Yes
 bool TURBOMODE = false;
-
+bool TIMMING_STABLISHED = false;
 // Variables para intercambio de información con el HMI
 
 bool TEST_RUNNING = false;

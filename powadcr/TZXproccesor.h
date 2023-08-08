@@ -647,7 +647,7 @@ class TZXproccesor
         _myTZX.descriptor[currentBlock].offset = currentOffset;    
 
         // Timming de PILOT TONE
-        _myTZX.descriptor[currentBlock].delay = getDWORD(mFile,currentOffset+1);          
+        _myTZX.descriptor[currentBlock].pauseAfterThisBlock = getDWORD(mFile,currentOffset+1);          
     }
 
     void analyzeID50(File32 mFile, int currentOffset, int currentBlock)
@@ -752,6 +752,8 @@ class TZXproccesor
 
           _myTZX.descriptor = (tTZXBlockDescriptor*)calloc(3000,sizeof(tTZXBlockDescriptor));              
 
+          TIMMING_STABLISHED = false;
+
           while (!endTZX)
           {
               // El objetivo es ENCONTRAR IDs y ultimo byte, y analizar el bloque completo para el descriptor.
@@ -793,6 +795,9 @@ class TZXproccesor
 
                 // ID 11- Turbo Speed Data Block
                 case 17:
+                  
+                  TIMMING_STABLISHED = true;
+                  
                   if (_myTZX.descriptor != NULL)
                   {
                       // Obtenemos la dirección del siguiente offset
@@ -835,27 +840,32 @@ class TZXproccesor
                 // ID 13 - Pulse sequence
                 case 19:
                   analyzeBlockUnknow(currentID,currentOffset, currentBlock);
-                break;
+                  currentBlock++;
+                  break;
 
                 // ID 14 - Pure Data Block
                 case 20:
                   analyzeBlockUnknow(currentID,currentOffset, currentBlock);
-                break;
+                  currentBlock++;
+                  break;
 
                 // ID 15 - Direct Recording
                 case 21:
                   analyzeBlockUnknow(currentID,currentOffset, currentBlock);
-                break;
+                  currentBlock++;
+                  break;
 
                 // ID 18 - CSW Recording
                 case 24:
                   analyzeBlockUnknow(currentID,currentOffset, currentBlock);
-                break;
+                  currentBlock++;
+                  break;
 
                 // ID 19 - Generalized Data Block
                 case 25:
                   analyzeBlockUnknow(currentID,currentOffset, currentBlock);
-                break;
+                  currentBlock++;
+                  break;
 
                 // ID 20 - Pause and Stop Tape
                 case 32:
@@ -922,42 +932,50 @@ class TZXproccesor
                 // ID 23 - Jump to block
                 case 35:
                   analyzeBlockUnknow(currentID,currentOffset, currentBlock);
-                break;
+                  currentBlock++;
+                  break;
 
                 // ID 24 - Loop start
                 case 36:
                   analyzeBlockUnknow(currentID,currentOffset, currentBlock);
-                break;
+                  currentBlock++;
+                  break;
 
                 // ID 25 - Loop end
                 case 37:
                   analyzeBlockUnknow(currentID,currentOffset, currentBlock);
-                break;
+                  currentBlock++;
+                  break;
 
                 // ID 26 - Call sequence
                 case 38:
                   analyzeBlockUnknow(currentID,currentOffset, currentBlock);
-                break;
+                  currentBlock++;
+                  break;
 
                 // ID 27 - Return from sequence
                 case 39:
                   analyzeBlockUnknow(currentID,currentOffset, currentBlock);
-                break;
+                  currentBlock++;
+                  break;
 
                 // ID 28 - Select block
                 case 40:
                   analyzeBlockUnknow(currentID,currentOffset, currentBlock);
-                break;
+                  currentBlock++;
+                  break;
 
                 // ID 2A - Stop the tape if in 48K mode
                 case 42:
                   analyzeBlockUnknow(currentID,currentOffset, currentBlock);
-                break;
+                  currentBlock++;
+                  break;
 
                 // ID 2B - Set signal level
                 case 43:
                   analyzeBlockUnknow(currentID,currentOffset, currentBlock);
-                break;
+                  currentBlock++;
+                  break;
 
                 // ID 30 - Information
                 case 48:
@@ -984,7 +1002,8 @@ class TZXproccesor
                 // ID 31 - Message block
                 case 49:
                   analyzeBlockUnknow(currentID,currentOffset, currentBlock);
-                break;
+                  currentBlock++;
+                  break;
 
                 // ID 32 - Archive info
                 case 50:
@@ -1011,22 +1030,25 @@ class TZXproccesor
                 // ID 33 - Hardware type
                 case 51:
                   analyzeBlockUnknow(currentID,currentOffset, currentBlock);
-                break;
+                  currentBlock++;
+                  break;
 
                 // ID 35 - Custom info block
                 case 53:
                   analyzeBlockUnknow(currentID,currentOffset, currentBlock);
-                break;
+                  currentBlock++;
+                  break;
 
                 // ID 5A - "Glue" block (90 dec, ASCII Letter 'Z')
                 case 90:
                   analyzeBlockUnknow(currentID,currentOffset, currentBlock);
-                break;
+                  currentBlock++;
+                  break;
 
                 default:
                   Serial.println("");
                   Serial.println("ID unknow " + currentID);
-                  analyzeBlockUnknow(currentID,currentOffset, currentBlock);
+                  //analyzeBlockUnknow(currentID,currentOffset, currentBlock);
                   break;
           }
 
@@ -1334,9 +1356,12 @@ class TZXproccesor
                 Serial.println("");
                 Serial.println("++++++++++++++++++++++++++++++++++++++++++++");
                 Serial.println("> BLOCK " + String(i));
-                Serial.println("> ID " + String(_myTZX.descriptor[i].ID));
+                Serial.print("> ID ");
+                Serial.print(_myTZX.descriptor[i].ID,HEX);
                 Serial.print("> Offset: ");
                 Serial.print(_myTZX.descriptor[i].offset,HEX);
+                Serial.print("> Pause after block: ");
+                Serial.print(_myTZX.descriptor[i].pauseAfterThisBlock,HEX);
                 Serial.println("");
                 Serial.println("");
 
@@ -1349,7 +1374,7 @@ class TZXproccesor
                 if (_myTZX.descriptor[i].ID == 32)
                 {
                     // Hacemos un delay
-                    int dly = _myTZX.descriptor[i].delay;
+                    int dly = _myTZX.descriptor[i].pauseAfterThisBlock;
                     if (dly == 0)
                     {
                         // En el caso de cero. Paramos el TAPE
@@ -1367,7 +1392,10 @@ class TZXproccesor
                 if (_myTZX.descriptor[i].playeable)
                 {
                       //Silent
-                      zxp.silent = _myTZX.descriptor[i].pauseAfterThisBlock;             
+                      zxp.silent = _myTZX.descriptor[i].pauseAfterThisBlock;        
+
+
+
                       //SYNC1
                       zxp.SYNC1 = _myTZX.descriptor[i].timming.sync_1;
                       //SYNC2

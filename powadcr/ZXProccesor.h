@@ -71,7 +71,8 @@ class ZXProccesor
     int PULSE_PILOT_DURATION = PULSE_PILOT * PILOT_TONE;
     //int PULSE_PILOT_DURATION = PULSE_PILOT * DPILOT_DATA;
 
-    int silent = DSILENT;
+    float silent = DSILENT;
+    float m_time = 0;
 
     private:
 
@@ -153,6 +154,16 @@ class ZXProccesor
         }
 
         return result;
+    }
+
+    size_t readSin(uint8_t *buffer, size_t bytes, float freq)
+    {
+        float double_Pi = PI * 2.0;
+        float angle = double_Pi * freq * m_time + 0;
+        int16_t result = m_amplitude * sin(angle);
+        m_time += 1.0 / samplingRate; 
+
+        return m_time;     
     }
 
     size_t readWave(uint8_t *buffer, size_t bytes){
@@ -241,7 +252,7 @@ class ZXProccesor
         float Tsr = (1.0 / samplingRate);
         int bytes = int(round((1.0 / ((freq / 4.0))) / Tsr));
 
-        uint8_t buffer[bytes];
+        uint8_t buffer[bytes+2];
 
         for (int m=0;m < 1;m++)
         {
@@ -265,7 +276,7 @@ class ZXProccesor
 
         //Serial.println("****** BUFFER SIZE --> " + String(bytes));
 
-        uint8_t buffer[bytes];
+        uint8_t buffer[bytes+2];
 
 
         for (int m=0;m < numPulses;m++)
@@ -287,7 +298,7 @@ class ZXProccesor
 
         float Tsr = (1.0 / samplingRate);
         int bytes = int(round((1.0 / ((freq / 4.0))) / Tsr));
-        uint8_t buffer[bytes];
+        uint8_t buffer[bytes+2];
 
         m_kit.write(buffer, readWave(buffer, bytes));
                 
@@ -317,7 +328,7 @@ class ZXProccesor
         int bytes = int((1.0 / ((freq / 4.0))) / Tsr);
         int numPulses = 4 * int(duration / (bytes*Tsr));
 
-        uint8_t buffer[bytes];      
+        uint8_t buffer[bytes+2];      
 
         for (int m=0;m < numPulses;m++)
         {
@@ -350,16 +361,38 @@ class ZXProccesor
 
     public:
 
+    void clear(float duration)
+    {
+
+        // // Obtenemos el periodo de muestreo
+        // // Tsr = 1 / samplingRate
+        // float Tsr = (1.0 / samplingRate);
+        // int bytes = int((1.0 / ((812 / 4.0))) / Tsr);
+        // int numPulses = 4 * int((duration/1000) / (bytes*Tsr));
+
+        // uint8_t buffer[bytes];      
+
+        // for (int m=0;m < numPulses;m++)
+        // {
+        //     // Rellenamos
+        //     m_kit.write(buffer, clearBuffer(buffer, bytes));
+        // }    
+        //m_kit.write()  
+    }
     void silence(float duration)
     {
 
+        Serial.println("");
+        Serial.println("");
+        Serial.println("Silencio: " + String(duration));
+        Serial.println("");
         // Obtenemos el periodo de muestreo
         // Tsr = 1 / samplingRate
         float Tsr = (1.0 / samplingRate);
         int bytes = int((1.0 / ((812 / 4.0))) / Tsr);
         int numPulses = 4 * int((duration/1000) / (bytes*Tsr));
 
-        uint8_t buffer[bytes];      
+        uint8_t buffer[bytes+2];      
 
         for (int m=0;m < numPulses;m++)
         {
@@ -591,6 +624,7 @@ class ZXProccesor
             float duration = tState * pulse_pilot_duration;
             // Put now code block
             // syncronize with short leader tone
+            clear(duration);
             pilotTone(duration);
 
             // syncronization for end short leader tone
