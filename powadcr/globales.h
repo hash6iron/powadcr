@@ -52,7 +52,7 @@
   int DPILOT_TONE = DPILOT_HEADER;
   
   // Definición del silencio entre bloques en ms
-  int DSILENT = 1000 / 2;
+  int DSILENT = 1000;
 #endif
 
 // Inicializadores para los char*
