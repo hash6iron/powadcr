@@ -381,13 +381,20 @@ class ZXProccesor
     }
     void silence(float duration)
     {
+     
+        Serial.println("");
+        Serial.println("");
+        Serial.println("Silencio: " + String(duration));
+        Serial.println("");
+        Serial.println("");
+
         // Obtenemos el periodo de muestreo
         // Tsr = 1 / samplingRate
         float Tsr = (1.0 / samplingRate);
         int bytes = int((1.0 / ((812 / 4.0))) / Tsr);
-        int numPulses = 4 * int(((2*duration)/1000) / (bytes*Tsr));
+        int numPulses = numPulses = 4 * int(((2*duration)/1000) / (bytes*Tsr));;
 
-        uint8_t buffer[bytes+2];      
+        uint8_t buffer[(bytes+2)];      
 
         for (int m=0;m < numPulses;m++)
         {

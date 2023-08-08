@@ -359,7 +359,7 @@ class TZXproccesor
 
         // Obtenemos el "pause despues del bloque"
         // BYTE 0x00 y 0x01
-        _myTZX.descriptor[currentBlock].pauseAfterThisBlock = getDWORD(mFile,currentOffset+1);
+        _myTZX.descriptor[currentBlock].pauseAfterThisBlock = getDWORD(mFile,currentOffset+1) / 2;
 
         SerialHW.println("");
         SerialHW.println("Pause after block: " + String(_myTZX.descriptor[currentBlock].pauseAfterThisBlock));
