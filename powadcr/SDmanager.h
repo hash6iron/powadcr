@@ -46,23 +46,23 @@ class SDmanager
 
     File32 openFile32(File32 fFile, char *path) 
     { 
-        Serial.println();
-        Serial.println("Open file:");
-        Serial.println(path);
+        SerialHW.println();
+        SerialHW.println("Open file:");
+        SerialHW.println(path);
     
         if (fFile != 0)
         {
             fFile.close();
-            Serial.println("closing file");
+            SerialHW.println("closing file");
         }
     
         if (!fFile.open(path, FILE_READ)) 
         {
-            Serial.println("open failed");
+            SerialHW.println("open failed");
         }
         else
         {
-            Serial.println("open success");
+            SerialHW.println("open success");
         }
     
         return fFile;
@@ -73,7 +73,7 @@ class SDmanager
         if (fFile != 0)
         {
             fFile.close();
-            Serial.println("closing file");
+            SerialHW.println("closing file");
         } 
     }
     
@@ -88,8 +88,8 @@ class SDmanager
             int rlen = mFile.available();
             FILE_LENGTH = rlen;
     
-            //Serial.print("Len: ");
-            //Serial.print(String(rlen));
+            //SerialHW.print("Len: ");
+            //SerialHW.print(String(rlen));
     
             //Redimensionamos el buffer al tamaño acordado del fichero
             bufferFile = (byte*)calloc(rlen+1,sizeof(byte));
@@ -104,7 +104,7 @@ class SDmanager
         } 
         else 
         {
-            Serial.print(F("SD Card: error opening file. Please check SD frequency."));
+            SerialHW.print(F("SD Card: error opening file. Please check SD frequency."));
         }
     
         return bufferFile;
@@ -121,12 +121,12 @@ class SDmanager
         // Nos posicionamos en el byte definido
         mFile.seek(startByte);
     
-        //Serial.println("***** readFileRange32 *****");
+        //SerialHW.println("***** readFileRange32 *****");
         if (logOn)
         {
-            Serial.println("   + Offset: " + String(startByte));
-            Serial.println("   + Size: " + String(size));
-            Serial.println("");
+            SerialHW.println("   + Offset: " + String(startByte));
+            SerialHW.println("   + Size: " + String(size));
+            SerialHW.println("");
         }
     
         // Almacenamos el tamaño del bloque, para información
@@ -140,8 +140,8 @@ class SDmanager
             FILE_LENGTH = rlen;
 
             #if LOG > 3
-              Serial.println("");
-              Serial.println("LENGTH: " + String(rlen));            
+              SerialHW.println("");
+              SerialHW.println("LENGTH: " + String(rlen));            
             #endif
 
             if (rlen != 0)
@@ -149,14 +149,14 @@ class SDmanager
                 mFile.read(bufferFile,size);
                 
                 #if LOG > 3
-                  Serial.println(" - Block red");
+                  SerialHW.println(" - Block red");
                 #endif
             }
 
         } 
         else 
         {
-            Serial.print(F("SD Card: error opening file. Please check SD frequency."));
+            SerialHW.print(F("SD Card: error opening file. Please check SD frequency."));
         }
     
         return bufferFile;

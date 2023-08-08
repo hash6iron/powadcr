@@ -80,7 +80,7 @@ class ZXProccesor
 
     AudioKit m_kit;
 
-    // size_t readWave(uint8_t *buffer, size_t bytes){
+    // size_t createWave(uint8_t *buffer, size_t bytes){
         
     //     // Procedimiento para generar un tren de pulsos cuadrados completo
 
@@ -124,7 +124,7 @@ class ZXProccesor
 
         for (int j=0;j<bytes/(2*chn);j++){
 
-            int16_t sample = 0;
+            int16_t sample = (m_amplitude/2);
             *ptr++ = sample;
             if (chn>1)
             {
@@ -166,7 +166,7 @@ class ZXProccesor
         return m_time;     
     }
 
-    size_t readWave(uint8_t *buffer, size_t bytes){
+    size_t createWave(uint8_t *buffer, size_t bytes){
         
         // Procedimiento para generar un tren de pulsos cuadrados completo
 
@@ -274,7 +274,7 @@ class ZXProccesor
         float Tsr = (1.0 / samplingRate);
         int bytes = int(round((1.0 / ((freq / 4.0))) / Tsr));
 
-        //Serial.println("****** BUFFER SIZE --> " + String(bytes));
+        //SerialHW.println("****** BUFFER SIZE --> " + String(bytes));
 
         uint8_t buffer[bytes+2];
 
@@ -283,7 +283,7 @@ class ZXProccesor
         {
 
           // Escribimos el tren de pulsos en el procesador de Audio
-          m_kit.write(buffer, readWave(buffer, bytes));
+          m_kit.write(buffer, createWave(buffer, bytes));
         } 
     }
 
@@ -300,7 +300,7 @@ class ZXProccesor
         int bytes = int(round((1.0 / ((freq / 4.0))) / Tsr));
         uint8_t buffer[bytes+2];
 
-        m_kit.write(buffer, readWave(buffer, bytes));
+        m_kit.write(buffer, createWave(buffer, bytes));
                 
         _hmi.readUART();
 
@@ -355,7 +355,7 @@ class ZXProccesor
             // Limpiamos el buffer
             //m_kit.write(buffer, clearBuffer(buffer,bytes));
             // Rellenamos
-            m_kit.write(buffer, readWave(buffer, bytes));
+            m_kit.write(buffer, createWave(buffer, bytes));
         } 
     }
 
@@ -381,16 +381,11 @@ class ZXProccesor
     }
     void silence(float duration)
     {
-
-        Serial.println("");
-        Serial.println("");
-        Serial.println("Silencio: " + String(duration));
-        Serial.println("");
         // Obtenemos el periodo de muestreo
         // Tsr = 1 / samplingRate
         float Tsr = (1.0 / samplingRate);
         int bytes = int((1.0 / ((812 / 4.0))) / Tsr);
-        int numPulses = 4 * int((duration/1000) / (bytes*Tsr));
+        int numPulses = 4 * int(((2*duration)/1000) / (bytes*Tsr));
 
         uint8_t buffer[bytes+2];      
 
@@ -403,9 +398,9 @@ class ZXProccesor
 
     void pilotTone(float duration)
     {
-        //Serial.println("****** BUFFER SIZE --> " + String(duration));
+        //SerialHW.println("****** BUFFER SIZE --> " + String(duration));
         float freq = (1 / (PULSE_PILOT * tState)) / 2;    
-        //Serial.println("******* PILOT HEADER " + String(freq) + " Hz");
+        //SerialHW.println("******* PILOT HEADER " + String(freq) + " Hz");
 
         generateWaveDuration(freq, duration, samplingRate);
     }
@@ -671,9 +666,9 @@ class ZXProccesor
         void playBlock(byte* header, int len_header, byte* data, int len_data, int pulse_pilot_duration_header, int pulse_pilot_duration_data)
         {           
             #if LOG==3
-              Serial.println("******* PROGRAM HEADER");
-              Serial.println("*******  - HEADER size " + String(len_header));
-              Serial.println("*******  - DATA   size " + String(len_data));
+              SerialHW.println("******* PROGRAM HEADER");
+              SerialHW.println("*******  - HEADER size " + String(len_header));
+              SerialHW.println("*******  - DATA   size " + String(len_data));
             #endif
 
             float durationHeader = tState * pulse_pilot_duration_header;
@@ -694,7 +689,7 @@ class ZXProccesor
             silence(silent);
 
             #if LOG==3
-              Serial.println("******* PROGRAM DATA");
+              SerialHW.println("******* PROGRAM DATA");
             #endif
 
             // Put now code block

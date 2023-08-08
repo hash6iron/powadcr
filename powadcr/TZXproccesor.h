@@ -52,9 +52,9 @@ class TZXproccesor
          byte newChk = 0;
 
          #if LOG>3
-           Serial.println("");
-           Serial.println("Block len: ");
-           Serial.print(sizeof(bBlock)/sizeof(byte*));
+           SerialHW.println("");
+           SerialHW.println("Block len: ");
+           SerialHW.print(sizeof(bBlock)/sizeof(byte*));
          #endif
 
          // Calculamos el checksum (no se contabiliza el ultimo numero que es precisamente el checksum)
@@ -65,8 +65,8 @@ class TZXproccesor
          }
 
          #if LOG>3
-           Serial.println("");
-           Serial.println("Checksum: " + String(newChk));
+           SerialHW.println("");
+           SerialHW.println("Checksum: " + String(newChk));
          #endif
 
          return newChk;
@@ -82,8 +82,8 @@ class TZXproccesor
       //         // Es una cabecera PROGRAM 
       //         // el nombre está en los bytes del 4 al 13 (empezando en 0)
       //         #if LOG==3
-      //           Serial.println("");
-      //           Serial.println("Name detected ");
+      //           SerialHW.println("");
+      //           SerialHW.println("Name detected ");
       //         #endif
 
       //         // Extraemos el nombre del programa
@@ -123,8 +123,8 @@ class TZXproccesor
         if (tzxFile != 0)
         {
 
-           Serial.println("");
-           Serial.println("Begin isHeaderTZX");
+           SerialHW.println("");
+           SerialHW.println("Begin isHeaderTZX");
 
            // Capturamos la cabecera
 
@@ -147,8 +147,8 @@ class TZXproccesor
            //Convertimos a String
            String signStr = String(signTZXHeader);
            
-           Serial.println("");
-           Serial.println("Sign: " + signStr);
+           SerialHW.println("");
+           SerialHW.println("Sign: " + signStr);
 
            if (signStr.indexOf("ZXTape!") != -1)
            {
@@ -177,8 +177,8 @@ class TZXproccesor
             //String szNameStr = sdm.getFileName(tzxFileName);
             String fileName = String(szName);
 
-            Serial.println("");
-            Serial.println("Name " + fileName);
+            SerialHW.println("");
+            SerialHW.println("Name " + fileName);
 
             if (fileName != "")
             {
@@ -239,17 +239,17 @@ class TZXproccesor
     {
         int sizeNB = 0;
 
-        Serial.println("");
-        Serial.println("HEX VALUE n bytes");
+        SerialHW.println("");
+        SerialHW.println("HEX VALUE n bytes");
 
         for (int i = 0; i<n;i++)
         {
             sizeNB += pow(2,(8*i)) * (sdm.readFileRange32(mFile,offset+i,1,false)[0]);  
         }
 
-        Serial.println("");
-        Serial.println("DECIMAL");
-        Serial.println(String(sizeNB));
+        SerialHW.println("");
+        SerialHW.println("DECIMAL");
+        SerialHW.println(String(sizeNB));
 
         return sizeNB;           
     }
@@ -283,16 +283,16 @@ class TZXproccesor
         // Vamos a verificar que el bloque cumple con el checksum
         // Cogemos el checksum del bloque
         byte chk = getBYTE(mFile,offset+size-1);
-        Serial.println("");
-        Serial.println("Original checksum:");
-        Serial.print(chk,HEX);
+        // SerialHW.println("");
+        // SerialHW.println("Original checksum:");
+        // SerialHW.print(chk,HEX);
 
         byte* block = getBlock(mFile,offset,size-1);
         byte calcChk = calculateChecksum(block,0,size-1);
-        Serial.println("");
-        Serial.println("Calculated checksum:");
-        Serial.print(calcChk,HEX);
-        Serial.println("");
+        // SerialHW.println("");
+        // SerialHW.println("Calculated checksum:");
+        // SerialHW.print(calcChk,HEX);
+        // SerialHW.println("");
 
         if (chk == calcChk)
         {
@@ -361,22 +361,22 @@ class TZXproccesor
         // BYTE 0x00 y 0x01
         _myTZX.descriptor[currentBlock].pauseAfterThisBlock = getDWORD(mFile,currentOffset+1);
 
-        Serial.println("");
-        Serial.println("Pause after block: " + String(_myTZX.descriptor[currentBlock].pauseAfterThisBlock));
+        SerialHW.println("");
+        SerialHW.println("Pause after block: " + String(_myTZX.descriptor[currentBlock].pauseAfterThisBlock));
         // Obtenemos el "tamaño de los datos"
         // BYTE 0x02 y 0x03
         _myTZX.descriptor[currentBlock].lengthOfData = getDWORD(mFile,currentOffset+3);
 
-        Serial.println("");
-        Serial.println("Length of data: ");
-        Serial.print(_myTZX.descriptor[currentBlock].lengthOfData,HEX);
+        SerialHW.println("");
+        SerialHW.println("Length of data: ");
+        SerialHW.print(_myTZX.descriptor[currentBlock].lengthOfData,HEX);
 
         // Los datos (TAP) empiezan en 0x04. Posición del bloque de datos.
         _myTZX.descriptor[currentBlock].offsetData = currentOffset + 5;
 
-        Serial.println("");
-        Serial.println("Offset of data: ");
-        Serial.print(_myTZX.descriptor[currentBlock].offsetData,HEX);
+        SerialHW.println("");
+        SerialHW.println("Offset of data: ");
+        SerialHW.print(_myTZX.descriptor[currentBlock].offsetData,HEX);
 
         // Vamos a verificar el flagByte
 
@@ -389,9 +389,9 @@ class TZXproccesor
             if (typeBlock == 0)
             {
                 // Es una cabecera PROGRAM: BASIC
-              Serial.println("");
-              Serial.println("TYPEBLOCK: 0 - Header");
-              Serial.println("");
+              SerialHW.println("");
+              SerialHW.println("TYPEBLOCK: 0 - Header");
+              SerialHW.println("");
 
                 _myTZX.descriptor[currentBlock].header = true;
                 _myTZX.descriptor[currentBlock].type = 0;
@@ -400,18 +400,18 @@ class TZXproccesor
             else if (typeBlock == 1)
             {
 
-              Serial.println("");
-              Serial.println("TYPEBLOCK: 1 - Header");
-              Serial.println("");
+              SerialHW.println("");
+              SerialHW.println("TYPEBLOCK: 1 - Header");
+              SerialHW.println("");
 
                 _myTZX.descriptor[currentBlock].header = true;
                 _myTZX.descriptor[currentBlock].type = 0;
             }
             else if (typeBlock == 2)
             {
-                Serial.println("");
-                Serial.println("TYPEBLOCK: 2 - Header");
-                Serial.println("");
+                SerialHW.println("");
+                SerialHW.println("TYPEBLOCK: 2 - Header");
+                SerialHW.println("");
 
                 _myTZX.descriptor[currentBlock].header = true;
                 _myTZX.descriptor[currentBlock].type = 0;
@@ -419,9 +419,9 @@ class TZXproccesor
             else if (typeBlock == 3)
             {
 
-              Serial.println("");
-              Serial.println("TYPEBLOCK: 3 - Header");
-              Serial.println("");
+              SerialHW.println("");
+              SerialHW.println("TYPEBLOCK: 3 - Header");
+              SerialHW.println("");
 
               if (_myTZX.descriptor[currentBlock].lengthOfData == 6914)
               {
@@ -441,9 +441,9 @@ class TZXproccesor
 
             if (typeBlock == 3)
             {
-              Serial.println("");
-              Serial.println("TYPEBLOCK: 3");
-              Serial.println("");
+              SerialHW.println("");
+              SerialHW.println("TYPEBLOCK: 3");
+              SerialHW.println("");
 
               if (_myTZX.descriptor[currentBlock].lengthOfData == 6914)
               {
@@ -485,52 +485,52 @@ class TZXproccesor
         // Timming de PULSE PILOT
         _myTZX.descriptor[currentBlock].timming.pulse_pilot = getDWORD(mFile,currentOffset+1);
 
-        Serial.println("");
-        Serial.print("PULSE PILOT=");
-        Serial.print(_myTZX.descriptor[currentBlock].timming.pulse_pilot, HEX);
+        SerialHW.println("");
+        SerialHW.print("PULSE PILOT=");
+        SerialHW.print(_myTZX.descriptor[currentBlock].timming.pulse_pilot, HEX);
 
         // Timming de SYNC_1
         _myTZX.descriptor[currentBlock].timming.sync_1 = getDWORD(mFile,currentOffset+3);
 
-          //Serial.println("");
-          Serial.print(",SYNC1=");
-          Serial.print(_myTZX.descriptor[currentBlock].timming.sync_1, HEX);
+          //SerialHW.println("");
+          SerialHW.print(",SYNC1=");
+          SerialHW.print(_myTZX.descriptor[currentBlock].timming.sync_1, HEX);
 
         // Timming de SYNC_2
         _myTZX.descriptor[currentBlock].timming.sync_2 = getDWORD(mFile,currentOffset+5);
 
-          //Serial.println("");
-          Serial.print(",SYNC2=");
-          Serial.print(_myTZX.descriptor[currentBlock].timming.sync_2, HEX);
+          //SerialHW.println("");
+          SerialHW.print(",SYNC2=");
+          SerialHW.print(_myTZX.descriptor[currentBlock].timming.sync_2, HEX);
 
         // Timming de BIT 0
         _myTZX.descriptor[currentBlock].timming.bit_0 = getDWORD(mFile,currentOffset+7);
 
-          //Serial.println("");
-          Serial.print(",BIT_0=");
-          Serial.print(_myTZX.descriptor[currentBlock].timming.bit_0, HEX);
+          //SerialHW.println("");
+          SerialHW.print(",BIT_0=");
+          SerialHW.print(_myTZX.descriptor[currentBlock].timming.bit_0, HEX);
 
         // Timming de BIT 1
         _myTZX.descriptor[currentBlock].timming.bit_1 = getDWORD(mFile,currentOffset+9);        
 
-          //Serial.println("");
-          Serial.print(",BIT_1=");
-          Serial.print(_myTZX.descriptor[currentBlock].timming.bit_1, HEX);
+          //SerialHW.println("");
+          SerialHW.print(",BIT_1=");
+          SerialHW.print(_myTZX.descriptor[currentBlock].timming.bit_1, HEX);
 
         // Timming de PILOT TONE
         _myTZX.descriptor[currentBlock].timming.pilot_tone = getDWORD(mFile,currentOffset+11);
 
-          //Serial.println("");
-          Serial.print(",PILOT TONE=");
-          Serial.print(_myTZX.descriptor[currentBlock].timming.pilot_tone, HEX);
+          //SerialHW.println("");
+          SerialHW.print(",PILOT TONE=");
+          SerialHW.print(_myTZX.descriptor[currentBlock].timming.pilot_tone, HEX);
 
         // Cogemos el byte de bits of the last byte
         _myTZX.descriptor[currentBlock].maskLastByte = getBYTE(mFile,currentOffset+13);
         zxp.set_maskLastByte(_myTZX.descriptor[currentBlock].maskLastByte);
 
-          //Serial.println("");
-          Serial.print(",MASK LAST BYTE=");
-          Serial.print(_myTZX.descriptor[currentBlock].maskLastByte, HEX);
+          //SerialHW.println("");
+          SerialHW.print(",MASK LAST BYTE=");
+          SerialHW.print(_myTZX.descriptor[currentBlock].maskLastByte, HEX);
 
 
         // ********************************************************************
@@ -549,22 +549,22 @@ class TZXproccesor
         // BYTE 0x00 y 0x01
         _myTZX.descriptor[currentBlock].pauseAfterThisBlock = getDWORD(mFile,currentOffset+14);
 
-        Serial.println("");
-        Serial.println("Pause after block: " + String(_myTZX.descriptor[currentBlock].pauseAfterThisBlock));
+        SerialHW.println("");
+        SerialHW.println("Pause after block: " + String(_myTZX.descriptor[currentBlock].pauseAfterThisBlock));
         // Obtenemos el "tamaño de los datos"
         // BYTE 0x02 y 0x03
         _myTZX.descriptor[currentBlock].lengthOfData = getNBYTE(mFile,currentOffset+16,3);
 
-        Serial.println("");
-        Serial.println("Length of data: ");
-        Serial.print(String(_myTZX.descriptor[currentBlock].lengthOfData));
+        SerialHW.println("");
+        SerialHW.println("Length of data: ");
+        SerialHW.print(String(_myTZX.descriptor[currentBlock].lengthOfData));
 
         // Los datos (TAP) empiezan en 0x04. Posición del bloque de datos.
         _myTZX.descriptor[currentBlock].offsetData = currentOffset + 19;
 
-        Serial.println("");
-        Serial.println("Offset of data: ");
-        Serial.print(_myTZX.descriptor[currentBlock].offsetData,HEX);
+        SerialHW.println("");
+        SerialHW.println("Offset of data: ");
+        SerialHW.print(_myTZX.descriptor[currentBlock].offsetData,HEX);
 
         // Vamos a verificar el flagByte
 
@@ -663,8 +663,8 @@ class TZXproccesor
 
         sizeBlock = getDWORD(mFile,currentOffset+1);
 
-        //Serial.println("");
-        //Serial.println("ID48 - TextSize: " + String(sizeTextInformation));
+        //SerialHW.println("");
+        //SerialHW.println("ID48 - TextSize: " + String(sizeTextInformation));
         
         // El tamaño del bloque es "1 byte de longitud de texto + TAMAÑO_TEXTO"
         // el bloque comienza en el offset del ID y acaba en
@@ -683,8 +683,8 @@ class TZXproccesor
 
         sizeTextInformation = getBYTE(mFile,currentOffset+1);
 
-        Serial.println("");
-        Serial.println("ID48 - TextSize: " + String(sizeTextInformation));
+        SerialHW.println("");
+        SerialHW.println("ID48 - TextSize: " + String(sizeTextInformation));
         
         // El tamaño del bloque es "1 byte de longitud de texto + TAMAÑO_TEXTO"
         // el bloque comienza en el offset del ID y acaba en
@@ -703,8 +703,8 @@ class TZXproccesor
 
         sizeTextInformation = getBYTE(mFile,currentOffset+1);
 
-        Serial.println("");
-        Serial.println("ID33 - TextSize: " + String(sizeTextInformation));
+        SerialHW.println("");
+        SerialHW.println("ID33 - TextSize: " + String(sizeTextInformation));
         
         // El tamaño del bloque es "1 byte de longitud de texto + TAMAÑO_TEXTO"
         // el bloque comienza en el offset del ID y acaba en
@@ -759,13 +759,13 @@ class TZXproccesor
               // El objetivo es ENCONTRAR IDs y ultimo byte, y analizar el bloque completo para el descriptor.
               currentID = getID(mFile, currentOffset);
               
-              Serial.println("");
-              Serial.println("-----------------------------------------------");
-              Serial.println("TZX ID ");
-              Serial.print(currentID, HEX);
-              Serial.println("");
-              Serial.println("block: " + String(currentBlock));
-              Serial.println("");
+              SerialHW.println("");
+              SerialHW.println("-----------------------------------------------");
+              SerialHW.println("TZX ID ");
+              SerialHW.print(currentID, HEX);
+              SerialHW.println("");
+              SerialHW.println("block: " + String(currentBlock));
+              SerialHW.println("");
 
               // Ahora dependiendo del ID analizamos. Los ID están en HEX
               // y la rutina devolverá la posición del siguiente ID, así hasta
@@ -786,8 +786,8 @@ class TZXproccesor
                   }
                   else
                   {
-                      Serial.println("");
-                      Serial.println("Error: Not allocation memory for block ID 0x10");
+                      SerialHW.println("");
+                      SerialHW.println("Error: Not allocation memory for block ID 0x10");
                       endTZX = true;
                       endWithErrors = true;
                   }
@@ -809,8 +809,8 @@ class TZXproccesor
                   }
                   else
                   {
-                      Serial.println("");
-                      Serial.println("Error: Not allocation memory for block ID 0x11");
+                      SerialHW.println("");
+                      SerialHW.println("Error: Not allocation memory for block ID 0x11");
                       endTZX = true;
                       endWithErrors = true;
                   }
@@ -830,8 +830,8 @@ class TZXproccesor
                   }
                   else
                   {
-                      Serial.println("");
-                      Serial.println("Error: Not allocation memory for block ID 0x12");
+                      SerialHW.println("");
+                      SerialHW.println("Error: Not allocation memory for block ID 0x12");
                       endTZX = true;
                       endWithErrors = true;
                   }
@@ -881,8 +881,8 @@ class TZXproccesor
                   }
                   else
                   {
-                      Serial.println("");
-                      Serial.println("Error: Not allocation memory for block ID 0x20");
+                      SerialHW.println("");
+                      SerialHW.println("Error: Not allocation memory for block ID 0x20");
                       endTZX = true;
                       endWithErrors = true;
                   }
@@ -901,8 +901,8 @@ class TZXproccesor
                   }
                   else
                   {
-                      Serial.println("");
-                      Serial.println("Error: Not allocation memory for block ID 0x21");
+                      SerialHW.println("");
+                      SerialHW.println("Error: Not allocation memory for block ID 0x21");
                       endTZX = true;
                       endWithErrors = true;
                   }
@@ -922,8 +922,8 @@ class TZXproccesor
                   }
                   else
                   {
-                      Serial.println("");
-                      Serial.println("Error: Not allocation memory for block ID 0x22");
+                      SerialHW.println("");
+                      SerialHW.println("Error: Not allocation memory for block ID 0x22");
                       endTZX = true;
                       endWithErrors = true;
                   }
@@ -992,8 +992,8 @@ class TZXproccesor
                   }
                   else
                   {
-                      Serial.println("");
-                      Serial.println("Error: Not allocation memory for block ID 0x10");
+                      SerialHW.println("");
+                      SerialHW.println("Error: Not allocation memory for block ID 0x10");
                       endTZX = true;
                       endWithErrors = true;
                   }                  
@@ -1020,8 +1020,8 @@ class TZXproccesor
                   }
                   else
                   {
-                      Serial.println("");
-                      Serial.println("Error: Not allocation memory for block ID 0x10");
+                      SerialHW.println("");
+                      SerialHW.println("Error: Not allocation memory for block ID 0x10");
                       endTZX = true;
                       endWithErrors = true;
                   }                  
@@ -1046,15 +1046,15 @@ class TZXproccesor
                   break;
 
                 default:
-                  Serial.println("");
-                  Serial.println("ID unknow " + currentID);
+                  SerialHW.println("");
+                  SerialHW.println("ID unknow " + currentID);
                   //analyzeBlockUnknow(currentID,currentOffset, currentBlock);
                   break;
           }
 
-              Serial.println("");
-              Serial.println("Next ID offset: ");
-              Serial.print(nextIDoffset, HEX);
+              SerialHW.println("");
+              SerialHW.println("Next ID offset: ");
+              SerialHW.print(nextIDoffset, HEX);
               
               //_myTZX.descriptor = (tTZXBlockDescriptor*)realloc(_myTZX.descriptor,currentBlock + 1); 
 
@@ -1072,15 +1072,15 @@ class TZXproccesor
               TOTAL_BLOCKS = currentBlock;
               _hmi.updateInformationMainPage();
 
-              Serial.println("");
-              Serial.println("+++++++++++++++++++++++++++++++++++++++++++++++");
-              Serial.println("");
+              SerialHW.println("");
+              SerialHW.println("+++++++++++++++++++++++++++++++++++++++++++++++");
+              SerialHW.println("");
 
           }
           // El siguiente bloque será
           // currentOffset + blockSize (que obtenemos del descriptor)
-          Serial.println("");
-          Serial.println("End: Total blocks " + String(currentBlock));
+          SerialHW.println("");
+          SerialHW.println("End: Total blocks " + String(currentBlock));
 
           _myTZX.numBlocks = currentBlock;
           _myTZX.size = sizeTZX;
@@ -1096,16 +1096,16 @@ class TZXproccesor
     void proccess_tzx(File32 tzxFileName)
     {
           // Procesamos el fichero
-          Serial.println("");
-          Serial.println("Getting total blocks...");     
+          SerialHW.println("");
+          SerialHW.println("Getting total blocks...");     
 
         if (isFileTZX(tzxFileName))
         {
-            Serial.println();
-            Serial.println("Is TZX file");
+            SerialHW.println();
+            SerialHW.println("Is TZX file");
 
-            Serial.println();
-            Serial.println("Size: " + String(_sizeTZX));
+            SerialHW.println();
+            SerialHW.println("Size: " + String(_sizeTZX));
 
             getBlockDescriptor(_mFile,_sizeTZX);
         }      
@@ -1155,13 +1155,13 @@ class TZXproccesor
 
     void showBufferPlay(byte* buffer, int size)
     {
-        Serial.println("Listing bufferplay.");
+        SerialHW.println("Listing bufferplay.");
         for (int n=0;n<size;n++)
         {
-            Serial.print(buffer[n],HEX);
-            Serial.print(",");
+            SerialHW.print(buffer[n],HEX);
+            SerialHW.print(",");
         }
-        Serial.println("");
+        SerialHW.println("");
     }
 
     public:
@@ -1174,7 +1174,7 @@ class TZXproccesor
 
                 // Definimos el buffer del PLAYER igual al tamaño del bloque
                 #if LOG==3
-                  Serial.println("> PROGRAM HEADER");
+                  SerialHW.println("> PROGRAM HEADER");
                 #endif
                 LAST_TYPE = &LASTYPE0[0];
                 break;
@@ -1183,8 +1183,8 @@ class TZXproccesor
 
                 // Definimos el buffer del PLAYER igual al tamaño del bloque
                 #if LOG==3
-                  Serial.println("");
-                  Serial.println("> BYTE HEADER");
+                  SerialHW.println("");
+                  SerialHW.println("> BYTE HEADER");
                 #endif
                 LAST_TYPE = &LASTYPE1[0];
                 break;
@@ -1193,8 +1193,8 @@ class TZXproccesor
 
                 // Definimos el buffer del PLAYER igual al tamaño del bloque
                 #if LOG==3
-                  Serial.println("");
-                  Serial.println("> SCREEN HEADER");
+                  SerialHW.println("");
+                  SerialHW.println("> SCREEN HEADER");
                 #endif
                 LAST_TYPE = &LASTYPE7[0];
                 break;
@@ -1202,8 +1202,8 @@ class TZXproccesor
             case 2:
                 // Definimos el buffer del PLAYER igual al tamaño del bloque
                 #if LOG==3
-                  Serial.println("");
-                  Serial.println("> BASIC PROGRAM");
+                  SerialHW.println("");
+                  SerialHW.println("> BASIC PROGRAM");
                 #endif
                 LAST_TYPE = &LASTYPE2[0];
                 break;
@@ -1211,8 +1211,8 @@ class TZXproccesor
             case 3:
                 // Definimos el buffer del PLAYER igual al tamaño del bloque
                 #if LOG==3
-                  Serial.println("");
-                  Serial.println("> SCREEN");
+                  SerialHW.println("");
+                  SerialHW.println("> SCREEN");
                 #endif
                 LAST_TYPE = &LASTYPE3[0];
                 break;
@@ -1220,8 +1220,8 @@ class TZXproccesor
             case 4:
                 // Definimos el buffer del PLAYER igual al tamaño del bloque
                 #if LOG==3
-                  Serial.println("");
-                  Serial.println("> BYTE CODE");
+                  SerialHW.println("");
+                  SerialHW.println("> BYTE CODE");
                 #endif
                 if (LAST_SIZE != 6914)
                 {
@@ -1236,8 +1236,8 @@ class TZXproccesor
             case 5:
                 // Definimos el buffer del PLAYER igual al tamaño del bloque
                 #if LOG==3
-                  Serial.println("");
-                  Serial.println("> ARRAY.NUM");
+                  SerialHW.println("");
+                  SerialHW.println("> ARRAY.NUM");
                 #endif
                 LAST_TYPE = &LASTYPE5[0];
                 break;
@@ -1245,8 +1245,8 @@ class TZXproccesor
             case 6:
                 // Definimos el buffer del PLAYER igual al tamaño del bloque
                 #if LOG==3
-                  Serial.println("");
-                  Serial.println("> ARRAY.CHR");
+                  SerialHW.println("");
+                  SerialHW.println("> ARRAY.CHR");
                 #endif
                 LAST_TYPE = &LASTYPE6[0];
                 break;
@@ -1297,8 +1297,8 @@ class TZXproccesor
       set_file(tzxFile, _rlen);
       proccess_tzx(tzxFile);
       
-      Serial.println("");
-      Serial.println("END PROCCESING TZX: ");
+      SerialHW.println("");
+      SerialHW.println("END PROCCESING TZX: ");
     
     }
 
@@ -1350,20 +1350,20 @@ class TZXproccesor
               for (int i = m; i < _myTZX.numBlocks; i++) 
               {
                 
-                Serial.println("");
-                Serial.println("");
-                Serial.println("");
-                Serial.println("");
-                Serial.println("++++++++++++++++++++++++++++++++++++++++++++");
-                Serial.println("> BLOCK " + String(i));
-                Serial.print("> ID ");
-                Serial.print(_myTZX.descriptor[i].ID,HEX);
-                Serial.print("> Offset: ");
-                Serial.print(_myTZX.descriptor[i].offset,HEX);
-                Serial.print("> Pause after block: ");
-                Serial.print(_myTZX.descriptor[i].pauseAfterThisBlock,HEX);
-                Serial.println("");
-                Serial.println("");
+                // SerialHW.println("");
+                // SerialHW.println("");
+                // SerialHW.println("");
+                // SerialHW.println("");
+                // SerialHW.println("++++++++++++++++++++++++++++++++++++++++++++");
+                // SerialHW.println("> BLOCK " + String(i));
+                // SerialHW.print("> ID ");
+                // SerialHW.print(_myTZX.descriptor[i].ID,HEX);
+                // SerialHW.print("> Offset: ");
+                // SerialHW.print(_myTZX.descriptor[i].offset,HEX);
+                // SerialHW.print("> Pause after block: ");
+                // SerialHW.print(_myTZX.descriptor[i].pauseAfterThisBlock,HEX);
+                // SerialHW.println("");
+                // SerialHW.println("");
 
                 if (_myTZX.descriptor[i].ID == 18)
                 {
@@ -1412,11 +1412,11 @@ class TZXproccesor
                       LAST_NAME = _myTZX.descriptor[i].name;
                       LAST_SIZE = _myTZX.descriptor[i].size;
 
-                      Serial.println("");
-                      Serial.println("");
-                      Serial.println("Playing TZX");
-                      Serial.println("+ Name: " + String(LAST_NAME));
-                      Serial.println("+ Size: " + String(LAST_SIZE));
+                      // SerialHW.println("");
+                      // SerialHW.println("");
+                      // SerialHW.println("Playing TZX");
+                      // SerialHW.println("+ Name: " + String(LAST_NAME));
+                      // SerialHW.println("+ Size: " + String(LAST_SIZE));
 
                       // Almacenmas el bloque en curso para un posible PAUSE
                       if (LOADING_STATE != 2) {
@@ -1460,15 +1460,15 @@ class TZXproccesor
 
                         }
 
-                        Serial.println("");
-                        Serial.println("Head 1" + _myTZX.descriptor[i].ID);
-                        Serial.println("");
+                        // SerialHW.println("");
+                        // SerialHW.println("Head 1" + _myTZX.descriptor[i].ID);
+                        // SerialHW.println("");
 
                         bufferPlay = (byte*)calloc(_myTZX.descriptor[i].size, sizeof(byte));
 
                         bufferPlay = sdm.readFileRange32(_mFile, _myTZX.descriptor[i].offsetData, _myTZX.descriptor[i].size, false);
 
-                        showBufferPlay(bufferPlay,_myTZX.descriptor[i].size);
+                        //showBufferPlay(bufferPlay,_myTZX.descriptor[i].size);
                         verifyChecksum(_mFile,_myTZX.descriptor[i].offsetData,_myTZX.descriptor[i].size);
 
 
@@ -1501,15 +1501,15 @@ class TZXproccesor
                             bufferPlay=NULL;
                         }      
 
-                        Serial.println("");
-                        Serial.println("Head 2" + _myTZX.descriptor[i].ID);
-                        Serial.println("");
+                        // SerialHW.println("");
+                        // SerialHW.println("Head 2" + _myTZX.descriptor[i].ID);
+                        // SerialHW.println("");
 
                         bufferPlay = (byte*)calloc(_myTZX.descriptor[i].size, sizeof(byte));
 
                         bufferPlay = sdm.readFileRange32(_mFile, _myTZX.descriptor[i].offsetData, _myTZX.descriptor[i].size, false);
 
-                        showBufferPlay(bufferPlay,_myTZX.descriptor[i].size);
+                        //showBufferPlay(bufferPlay,_myTZX.descriptor[i].size);
                         verifyChecksum(_mFile,_myTZX.descriptor[i].offsetData,_myTZX.descriptor[i].size);
 
 
@@ -1547,18 +1547,18 @@ class TZXproccesor
                         bufferPlay = sdm.readFileRange32(_mFile, _myTZX.descriptor[i].offsetData, _myTZX.descriptor[i].size, true);
 
 
-                        Serial.println("");
-                        Serial.println("Data ");
-                        Serial.println("");
+                        // SerialHW.println("");
+                        // SerialHW.println("Data ");
+                        // SerialHW.println("");
 
-                        showBufferPlay(bufferPlay,_myTZX.descriptor[i].size);
+                        //showBufferPlay(bufferPlay,_myTZX.descriptor[i].size);
                         verifyChecksum(_mFile,_myTZX.descriptor[i].offsetData,_myTZX.descriptor[i].size);
 
 
-                        Serial.println("");
-                        Serial.println("ID:");
-                        Serial.println(_myTZX.descriptor[i].ID,HEX);
-                        Serial.println("");
+                        // SerialHW.println("");
+                        // SerialHW.println("ID:");
+                        // SerialHW.println(_myTZX.descriptor[i].ID,HEX);
+                        // SerialHW.println("");
 
                         switch (_myTZX.descriptor[i].ID)
                         {
@@ -1574,34 +1574,34 @@ class TZXproccesor
                             break;
                         }
                                                
-                        Serial.println("");
-                        Serial.println("PILOT TONE:");
-                        Serial.println(String(_myTZX.descriptor[i].timming.pilot_tone));
+                        // SerialHW.println("");
+                        // SerialHW.println("PILOT TONE:");
+                        // SerialHW.println(String(_myTZX.descriptor[i].timming.pilot_tone));
 
 
-                        Serial.println("");
-                        Serial.println("PULSE PILOT:");
-                        Serial.println(String(_myTZX.descriptor[i].timming.pulse_pilot));
+                        // SerialHW.println("");
+                        // SerialHW.println("PULSE PILOT:");
+                        // SerialHW.println(String(_myTZX.descriptor[i].timming.pulse_pilot));
 
-                        Serial.println("");
+                        // SerialHW.println("");
 
                         // Bloque de datos BYTE
                         zxp.playData(bufferPlay, _myTZX.descriptor[i].size,_myTZX.descriptor[i].timming.pilot_tone * _myTZX.descriptor[i].timming.pulse_pilot);
                       }                  
                 }
 
-                Serial.println("");
-                Serial.println("--------------------------------------------");
-                Serial.println("");
-                Serial.println("");
-                Serial.println("");
-                Serial.println("");
-                Serial.println("");
+              //   SerialHW.println("");
+              //   SerialHW.println("--------------------------------------------");
+              //   SerialHW.println("");
+              //   SerialHW.println("");
+              //   SerialHW.println("");
+              //   SerialHW.println("");
+              //   SerialHW.println("");
                 
               }
 
-              Serial.println("");
-              Serial.println("Playing was finish.");
+              // SerialHW.println("");
+              // SerialHW.println("Playing was finish.");
               // En el caso de no haber parado manualmente, es por finalizar
               // la reproducción
               if (LOADING_STATE == 1) {
@@ -1628,7 +1628,7 @@ class TZXproccesor
                 bufferPlay=NULL;
               }
               
-              Serial.flush();
+              SerialHW.flush();
 
               // Ahora ya podemos tocar el HMI panel otra vez
               sendStatus(READY_ST, 1);

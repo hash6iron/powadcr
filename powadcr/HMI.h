@@ -110,8 +110,8 @@ class HMI
           }
       
           // FILE_TOTAL_FILES = countFiles(FILE_LAST_DIR);
-          // Serial.println("");
-          // Serial.println("Files to load - " + String(FILE_TOTAL_FILES));
+          // SerialHW.println("");
+          // SerialHW.println("Files to load - " + String(FILE_TOTAL_FILES));
 
           FILE_TOTAL_FILES = MAX_FILES_TO_LOAD;
           
@@ -121,8 +121,8 @@ class HMI
           
           if (!sdm.dir.open(FILE_LAST_DIR)) 
           {
-              Serial.println("");
-              Serial.println("dir.open failed - " + String(FILE_LAST_DIR));
+              SerialHW.println("");
+              SerialHW.println("dir.open failed - " + String(FILE_LAST_DIR));
               FILE_DIR_OPEN_FAILED = true;
           }
           else
@@ -130,8 +130,8 @@ class HMI
               sdm.dir.rewindDirectory();
               sdm.file.rewind();
       
-              Serial.println("");
-              Serial.println("dir.open OK");
+              SerialHW.println("");
+              SerialHW.println("dir.open OK");
       
               FILE_DIR_OPEN_FAILED = false;
       
@@ -236,9 +236,9 @@ class HMI
           sdm.dir.close();
           sdm.file.close();
 
-          Serial.println("");
-          Serial.println("");
-          Serial.println("TOTAL FILES READ: " + String(FILE_TOTAL_FILES-1));
+          SerialHW.println("");
+          SerialHW.println("");
+          SerialHW.println("TOTAL FILES READ: " + String(FILE_TOTAL_FILES-1));
       }
 
 
@@ -540,9 +540,9 @@ class HMI
               String fileRead = "";
               int j = 1;
       
-              Serial.println();
-              Serial.println();
-              Serial.println(FILE_TXT_TO_SEARCH);
+              SerialHW.println();
+              SerialHW.println();
+              SerialHW.println(FILE_TXT_TO_SEARCH);
       
               for (int i=1;i<FILE_TOTAL_FILES;i++)
               {
@@ -562,7 +562,7 @@ class HMI
                           FILES_FOUND_BUFF[j].type = FILES_BUFF[i].type;
                           FILES_FOUND_BUFF[j].isDir = FILES_BUFF[i].isDir;
                           
-                          Serial.println(fileRead);
+                          SerialHW.println(fileRead);
                           
                           j++;
                       }
@@ -623,11 +623,11 @@ class HMI
             // Con este comando nos indica la pantalla que 
             // está en modo FILEBROWSER
             FILE_BROWSER_SEARCHING = true;
-            Serial.println("");
-            Serial.println("");
-            Serial.println(" ---------- Buscando ficheros");
+            SerialHW.println("");
+            SerialHW.println("");
+            SerialHW.println(" ---------- Buscando ficheros");
             findTheTextInFiles();
-            Serial.println(" ----------------------------");
+            SerialHW.println(" ----------------------------");
       
         }
       
@@ -649,9 +649,9 @@ class HMI
             if (sdm.dir.isOpen())
             {
                 sdm.dir.close();
-                Serial.println("");
-                Serial.println("");
-                Serial.println(" Closing file before new browsing.");                
+                SerialHW.println("");
+                SerialHW.println("");
+                SerialHW.println(" Closing file before new browsing.");                
             }
 
             getFilesFromSD();
@@ -840,9 +840,9 @@ class HMI
             {
                 FILE_TO_LOAD = FILE_LAST_DIR + FILES_BUFF[FILE_IDX_SELECTED + FILE_PTR_POS].path;     
       
-                Serial.println();
-                Serial.println();
-                Serial.println("File to load: " + FILE_TO_LOAD);    
+                SerialHW.println();
+                SerialHW.println();
+                SerialHW.println("File to load: " + FILE_TO_LOAD);    
       
                 // Ya no me hace falta. Lo libero
                 if (FILES_BUFF!=NULL)
@@ -856,9 +856,9 @@ class HMI
             {
                 FILE_TO_LOAD = FILE_LAST_DIR + FILES_FOUND_BUFF[FILE_IDX_SELECTED + FILE_PTR_POS].path;     
       
-                Serial.println();
-                Serial.println();
-                Serial.println("File to load: " + FILE_TO_LOAD); 
+                SerialHW.println();
+                SerialHW.println();
+                SerialHW.println("File to load: " + FILE_TO_LOAD); 
       
                 // Ya no me hace falta. Lo libero
                 if(FILES_FOUND_BUFF!=NULL)
@@ -1016,18 +1016,18 @@ class HMI
         }
       }
 
-      void serialSendData(String data) 
+      void SerialHWSendData(String data) 
       {
       
-        if (Serial.available() + data.length() < 64) 
+        if (SerialHW.available() + data.length() < 64) 
         {
           // Lo envio
-          Serial.println(data);
+          SerialHW.println(data);
         } 
         else 
         {
           // Lo descarto
-          //Serial.flush();
+          //SerialHW.flush();
         }
       }            
 
@@ -1036,23 +1036,23 @@ class HMI
       void writeString(String stringData) 
       {
       
-          //Serial.flush();
+          //SerialHW.flush();
       
-          Serial.write(0xff);
-          Serial.write(0xff);
-          Serial.write(0xff);
+          SerialHW.write(0xff);
+          SerialHW.write(0xff);
+          SerialHW.write(0xff);
       
           for (int i = 0; i < stringData.length(); i++) 
           {
             // Enviamos los datos
-            Serial.write(stringData[i]);
+            SerialHW.write(stringData[i]);
           }
       
           // Indicamos a la pantalla que ya hemos enviado todos
           // los datos, con este triple byte 0xFF
-          Serial.write(0xff);
-          Serial.write(0xff);
-          Serial.write(0xff);
+          SerialHW.write(0xff);
+          SerialHW.write(0xff);
+          SerialHW.write(0xff);
       
           if(FILE_BROWSER_OPEN)
           {
@@ -1072,9 +1072,9 @@ class HMI
       void updateInformationMainPage() 
       {
 
-        // Serial.println ();
-        // Serial.println ();
-        // Serial.println ("Updating Main Page");
+        // SerialHW.println ();
+        // SerialHW.println ();
+        // SerialHW.println ("Updating Main Page");
         
         if (TOTAL_BLOCKS != 0) 
         {
@@ -1096,9 +1096,9 @@ class HMI
           String cmpTypeStr = String(LAST_NAME);
           cmpTypeStr.trim();
 
-          // Serial.println("");
-          // Serial.println("");
-          // Serial.println(">" + cmpTypeStr + "<");
+          // SerialHW.println("");
+          // SerialHW.println("");
+          // SerialHW.println(">" + cmpTypeStr + "<");
 
           if (cmpTypeStr != "")
           {
@@ -1128,12 +1128,15 @@ class HMI
 
       void readUART() 
       {
-        if (Serial.available() > 0) 
+        if (SerialHW.available() >= 1) 
         {
           // get the new byte:
-          String strCmd = Serial.readString();
-          verifyCommand(strCmd);
-          //Serial.flush();
+          while (SerialHW.available())
+          {
+            String strCmd = SerialHW.readString();
+            verifyCommand(strCmd);
+          }
+          SerialHW.flush();
         }
       }
 

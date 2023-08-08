@@ -50,7 +50,7 @@ void button1Action()
 {
     // PLAY / PAUSE
     // DOWN
-    Serial.print(" Button 1 pressed ");
+    SerialHW.print(" Button 1 pressed ");
     if (menuOn)
     {
         DOWN = true;
@@ -68,7 +68,7 @@ void button2Action()
     // FFWIND
     // UP
 
-    Serial.print(" Button 2 pressed ");
+    SerialHW.print(" Button 2 pressed ");
     if (menuOn)
     {
         UP = true;
@@ -86,7 +86,7 @@ void button3Action()
     // RWIND
     // LEFT
 
-    Serial.print(" Button 3 pressed ");
+    SerialHW.print(" Button 3 pressed ");
     if (menuOn)
     {
         LEFT = true;
@@ -105,7 +105,7 @@ void button4Action()
     //STOP
     //RIGHT
 
-    Serial.print(" Button 4 pressed ");
+    SerialHW.print(" Button 4 pressed ");
     if (menuOn)
     {
         RIGHT = true;
@@ -120,7 +120,7 @@ void button5Action()
     // REC
     // ENTER
 
-    Serial.print(" Button 5 pressed ");
+    SerialHW.print(" Button 5 pressed ");
     if (menuOn)
     {
         ENTER = true;
@@ -135,7 +135,7 @@ void button6Action()
 {
     // MENU
 
-    Serial.print(" Button 6 pressed ");
+    SerialHW.print(" Button 6 pressed ");
     if (menuOn)
     {
         // Acción sobre el MENU

@@ -49,6 +49,12 @@
 
 // Librerias (mantener este orden)
 //   -- En esta se encuentran las variables globales a todo el proyecto
+#define SerialHWDataBits 921600
+
+#include <HardwareSerial.h>
+HardwareSerial SerialHW(0);
+
+
 #include "config.h"
 
 #include "SdFat.h"
@@ -184,13 +190,13 @@ void setSDFrequency(int SD_Speed)
       
       sdFile32.close();
 
-      Serial.println("");
-      Serial.println("");
-      Serial.println("SD card error!");
+      SerialHW.println("");
+      SerialHW.println("");
+      SerialHW.println("SD card error!");
 
-      Serial.println("");
-      Serial.println("");
-      Serial.println("SD downgrade at " + String(SD_Speed) + "MHz");
+      SerialHW.println("");
+      SerialHW.println("");
+      SerialHW.println("SD downgrade at " + String(SD_Speed) + "MHz");
 
       hmi.writeString("statusLCD.txt=\"SD FREQ. AT " + String(SD_Speed) + " MHz\"" );
 
@@ -210,9 +216,9 @@ void setSDFrequency(int SD_Speed)
           {
               // Error fatal
               // La SD no es accesible. Entonces no es problema de la frecuencia de acceso.
-              Serial.println("");
-              Serial.println("");
-              Serial.println("Fatal error. SD card not compatible. Change SD");      
+              SerialHW.println("");
+              SerialHW.println("");
+              SerialHW.println("Fatal error. SD card not compatible. Change SD");      
               
               // loop infinito
               while(true)
@@ -228,9 +234,9 @@ void setSDFrequency(int SD_Speed)
     else 
     {
         // La SD ha aceptado la frecuencia de acceso
-        Serial.println("");
-        Serial.println("");
-        Serial.println("SD card initialized at " + String(SD_Speed) + " MHz");
+        SerialHW.println("");
+        SerialHW.println("");
+        SerialHW.println("SD card initialized at " + String(SD_Speed) + " MHz");
 
         hmi.writeString("statusLCD.txt=\"SD DETECTED AT " + String(SD_Speed) + " MHz\"" );
 
@@ -241,9 +247,9 @@ void setSDFrequency(int SD_Speed)
             SD_ok = false;
             lastStatus = false;
 
-            Serial.println("");
-            Serial.println("");
-            Serial.println("Listing files. Error!");
+            SerialHW.println("");
+            SerialHW.println("");
+            SerialHW.println("Listing files. Error!");
 
             // loop infinito
             while(true)
@@ -272,16 +278,16 @@ void test()
     // Si queremos activar el test que hay en memoria, para chequear con el ordenador
     #ifdef MACHINE_ZX
       //ZX Spectrum
-      Serial.println();
-      Serial.println();
-      Serial.println("----- TEST ACTIVE ------");
+      SerialHW.println();
+      SerialHW.println();
+      SerialHW.println("----- TEST ACTIVE ------");
 
       zxp.playBlock(testHeader, 19, testData, 154, DPILOT_HEADER,DPILOT_DATA);
       zxp.playBlock(testScreenHeader, 19, testScreenData, 6914, DPILOT_HEADER,DPILOT_DATA);
 
-      Serial.println();
-      Serial.println();
-      Serial.println("------ END TEST -------");
+      SerialHW.println();
+      SerialHW.println();
+      SerialHW.println("------ END TEST -------");
     #endif
 }
 
@@ -304,9 +310,9 @@ void waitForHMI(bool waitAndNotForze)
 
       LCD_ON = true;
 
-      Serial.println("");
-      Serial.println("LCD READY");
-      Serial.println("");
+      SerialHW.println("");
+      SerialHW.println("LCD READY");
+      SerialHW.println("");
 
       sendStatus(ACK_LCD, 1);  
     }
@@ -314,8 +320,8 @@ void waitForHMI(bool waitAndNotForze)
 
 void setup() {
   // Configuramos el nivel de log
-  //Serial.begin(115200);
-  Serial.begin(921600);
+  //SerialHW.begin(115200);
+  SerialHW.begin(921600);
   delay(250);
 
   // Forzamos un reinicio de la pantalla
@@ -329,7 +335,7 @@ void setup() {
   hmi.writeString("statusLCD.txt=\"POWADCR " + String(VERSION) + "\"" );
   delay(2000);
 
-  Serial.println("Setting Audiokit.");
+  SerialHW.println("Setting Audiokit.");
 
   // Configuramos los pulsadores
   //configureButtons();
@@ -340,14 +346,14 @@ void setup() {
   // Configuracion de las librerias del AudioKit
   auto cfg = ESP32kit.defaultConfig(AudioOutput);
 
-  Serial.println("Initialized Audiokit.");
+  SerialHW.println("Initialized Audiokit.");
 
   ESP32kit.begin(cfg);
   ESP32kit.setVolume(MAIN_VOL);
 
-  Serial.println("Done!");
+  SerialHW.println("Done!");
 
-  Serial.println("Initializing SD SLOT.");
+  SerialHW.println("Initializing SD SLOT.");
   
   // Configuramos acceso a la SD
   hmi.writeString("statusLCD.txt=\"WAITING FOR SD CARD\"" );
@@ -356,12 +362,12 @@ void setup() {
   int SD_Speed = SD_FRQ_MHZ_INITIAL;  // Velocidad en MHz (config.h)
   setSDFrequency(SD_Speed);
 
-  Serial.println("Done!");
+  SerialHW.println("Done!");
 
   // Esperamos finalmente a la pantalla
-  Serial.println("");
-  Serial.println("Waiting for LCD.");
-  Serial.println("");
+  SerialHW.println("");
+  SerialHW.println("Waiting for LCD.");
+  SerialHW.println("");
 
   hmi.writeString("statusLCD.txt=\"WAITING FOR HMI\"" );
   
@@ -409,9 +415,9 @@ void setup() {
   LAST_MESSAGE = "Press EJECT to select a file.";
 
   #ifdef TESTDEV
-      Serial.println("");
-      Serial.println("");
-      Serial.println("Testing readFileRange32(..)"); 
+      SerialHW.println("");
+      SerialHW.println("");
+      SerialHW.println("Testing readFileRange32(..)"); 
 
       byte* buffer = (byte*)calloc(11,sizeof(byte));
       char* fileTest = "/Correcaminos - Nifty Lifty (1984)(Visions Software Factory).tzx";
@@ -420,12 +426,12 @@ void setup() {
       free(buffer);
       buffer = NULL;
 
-      Serial.println("");
-      Serial.println("");
-      Serial.println("Test OK");  
+      SerialHW.println("");
+      SerialHW.println("");
+      SerialHW.println("Test OK");  
   #endif
 
-  getMemFree();
+  //getMemFree();
 
 }
 
@@ -474,14 +480,14 @@ void loop() {
               // Lo procesamos
               proccesingTAP(file_ch);            
               TYPE_FILE_LOAD = "TAP";
-              getMemFree();
+              //getMemFree();
           }
           else if (FILE_TO_LOAD.indexOf(".TZX") != -1)    
           {
               // Lo procesamos
               proccesingTZX(file_ch);
               TYPE_FILE_LOAD = "TZX";            
-              getMemFree();              
+              //getMemFree();              
           }   
         }
       }
@@ -503,12 +509,12 @@ void loop() {
           // Reproducimos el fichero
           if (TYPE_FILE_LOAD == "TAP")
           {
-              getMemFree();
+              //getMemFree();
               pTAP.play();
           }
           else if (TYPE_FILE_LOAD = "TZX")
           {
-              getMemFree();
+              //getMemFree();
               pTZX.play();
           }
   
@@ -519,12 +525,12 @@ void loop() {
           
           if (TYPE_FILE_LOAD == "TAP")
           {
-              getMemFree();
+              //getMemFree();
               pTAP.initialize();
           }
           else if (TYPE_FILE_LOAD = "TZX")
           {
-              getMemFree();
+              //getMemFree();
               pTZX.initialize();
           }
 

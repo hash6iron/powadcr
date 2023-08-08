@@ -72,25 +72,25 @@ class TAPproccesor
       {
           if (tapFileName != 0)
           {
-                Serial.println("");
-                Serial.println("");
-                Serial.println("Begin isHeaderTAP");
+                SerialHW.println("");
+                SerialHW.println("");
+                SerialHW.println("Begin isHeaderTAP");
 
                 // La cabecera son 10 bytes
                 byte* bBlock = (byte*)calloc(19+1,sizeof(byte));
                 bBlock = sdm.readFileRange32(tapFileName,0,19,true);
 
-                Serial.println("");
-                Serial.println("");
-                Serial.println("Got bBlock");
+                SerialHW.println("");
+                SerialHW.println("");
+                SerialHW.println("Got bBlock");
 
                 // Obtenemos la firma del TZX
                 char* signTZXHeader = (char*)calloc(3+1,sizeof(char));
                 signTZXHeader = &INITCHAR[0];
 
-                Serial.println("");
-                Serial.println("");
-                Serial.println("Initialized signTAP Header");
+                SerialHW.println("");
+                SerialHW.println("");
+                SerialHW.println("Initialized signTAP Header");
 
                 // Analizamos la cabecera
                 // Extraemos el nombre del programa
@@ -98,16 +98,16 @@ class TAPproccesor
                 {   
                     signTZXHeader[n] = (byte)bBlock[n];
                     
-                    Serial.println("");
-                    Serial.println("");
-                    Serial.println((int)signTZXHeader[n]);                  
+                    SerialHW.println("");
+                    SerialHW.println("");
+                    SerialHW.println((int)signTZXHeader[n]);                  
                 }
 
                 if (signTZXHeader[0] == 19 && signTZXHeader[1] == 0 && signTZXHeader[2] == 0)
                 {
-                    Serial.println("");
-                    Serial.println("");
-                    Serial.println("is TAP ok");                
+                    SerialHW.println("");
+                    SerialHW.println("");
+                    SerialHW.println("is TAP ok");                
                     return true;
                 }
                 else
@@ -159,9 +159,9 @@ class TAPproccesor
           byte newChk = 0;
 
           #if LOG>3
-            Serial.println("");
-            Serial.println("Block len: ");
-            Serial.print(sizeof(bBlock)/sizeof(byte*));
+            SerialHW.println("");
+            SerialHW.println("Block len: ");
+            SerialHW.print(sizeof(bBlock)/sizeof(byte*));
           #endif
 
           // Calculamos el checksum (no se contabiliza el ultimo numero que es precisamente el checksum)
@@ -172,8 +172,8 @@ class TAPproccesor
           }
 
           #if LOG>3
-            Serial.println("");
-            Serial.println("Checksum: " + String(newChk));
+            SerialHW.println("");
+            SerialHW.println("Checksum: " + String(newChk));
           #endif
 
           return newChk;
@@ -304,8 +304,8 @@ class TAPproccesor
               // Es una cabecera PROGRAM 
               // el nombre está en los bytes del 4 al 13 (empezando en 0)
               #if LOG==3
-                Serial.println("");
-                Serial.println("Name detected ");
+                SerialHW.println("");
+                SerialHW.println("Name detected ");
               #endif
 
               // Extraemos el nombre del programa
@@ -368,11 +368,11 @@ class TAPproccesor
 
           //Entonces recorremos el TAP. 
           // La primera cabecera SIEMPRE debe darse.
-          Serial.println("");
-          Serial.println("Analyzing TAP file. Please wait ...");
+          SerialHW.println("");
+          SerialHW.println("Analyzing TAP file. Please wait ...");
           
-          Serial.println("");
-          Serial.println("SIZE TAP: " + String(sizeTAP));
+          SerialHW.println("");
+          SerialHW.println("SIZE TAP: " + String(sizeTAP));
 
           // Los dos primeros bytes son el tamaño a contar
           sizeB = (256*sdm.readFileRange32(_mFile,startBlock+1,1,false)[0]) + sdm.readFileRange32(_mFile,startBlock,1,false)[0];
@@ -381,7 +381,7 @@ class TAPproccesor
           while(reachEndByte==false)
           {
 
-              //Serial.println("START LOOP AGAIN: ");  
+              //SerialHW.println("START LOOP AGAIN: ");  
               byte* tmpRng = (byte*)calloc(sizeB,sizeof(byte));
               tmpRng = sdm.readFileRange32(_mFile,startBlock,sizeB-1,false);
               chk = calculateChecksum(tmpRng,0,sizeB-1);
@@ -458,15 +458,15 @@ class TAPproccesor
                   sizeB = newSizeB;
                   startBlock = startBlock + 2;
 
-                  Serial.println("");
-                  Serial.println("OFFSET: " + String(startBlock));
-                  Serial.println("SIZE:   " + String(newSizeB));
+                  SerialHW.println("");
+                  SerialHW.println("OFFSET: " + String(startBlock));
+                  SerialHW.println("SIZE:   " + String(newSizeB));
 
               }
               else
               {
                   reachEndByte = true;
-                  Serial.println("Error in checksum. Block --> " + String(numBlocks) + " - offset: " + String(lastStartBlock));
+                  SerialHW.println("Error in checksum. Block --> " + String(numBlocks) + " - offset: " + String(lastStartBlock));
 
                   // Abortamos
                   FILE_CORRUPTED = true;
@@ -477,8 +477,8 @@ class TAPproccesor
               {
                   reachEndByte = true;
                   //break;
-                  Serial.println("");
-                  Serial.println("Success. End: ");
+                  SerialHW.println("");
+                  SerialHW.println("Success. End: ");
               }
 
           }
@@ -494,9 +494,9 @@ class TAPproccesor
          
           if (!FILE_CORRUPTED)
           {
-              Serial.println("");
-              Serial.println("Num. de bloques: " + String(numBlks));
-              Serial.println("");
+              SerialHW.println("");
+              SerialHW.println("Num. de bloques: " + String(numBlks));
+              SerialHW.println("");
 
               //tBlockDescriptor* bDscr = (tBlockDescriptor*)calloc(numBlks,sizeof(tBlockDescriptor));
               
@@ -533,8 +533,8 @@ class TAPproccesor
 
               //Entonces recorremos el TAP. 
               // La primera cabecera SIEMPRE debe darse.
-              Serial.println("");
-              Serial.println("Analyzing TAP file. Please wait ...");
+              SerialHW.println("");
+              SerialHW.println("Analyzing TAP file. Please wait ...");
               
               // Los dos primeros bytes son el tamaño a contar
               sizeB = (256*sdm.readFileRange32(_mFile,startBlock+1,1,false)[0]) + sdm.readFileRange32(_mFile,startBlock,1,false)[0];
@@ -549,7 +549,7 @@ class TAPproccesor
 
                   blockNameDetected = false;
                   
-                  //Serial.println("START LOOP AGAIN: ");  
+                  //SerialHW.println("START LOOP AGAIN: ");  
                   byte* tmpRng = (byte*)calloc(sizeB,sizeof(byte));
                   tmpRng = sdm.readFileRange32(_mFile,startBlock,sizeB-1,false);
                   chk = calculateChecksum(tmpRng,0,sizeB-1);
@@ -560,10 +560,10 @@ class TAPproccesor
                       tmpRng=NULL;
                   }
 
-                  //Serial.println("MARK CHK: ");
+                  //SerialHW.println("MARK CHK: ");
                   
                   blockChk = sdm.readFileRange32(_mFile,startBlock+sizeB-1,1,false)[0];
-                  //Serial.println("MARK BLOCK CHK: ");            
+                  //SerialHW.println("MARK BLOCK CHK: ");            
 
                   if (blockChk == chk)
                   {
@@ -712,7 +712,7 @@ class TAPproccesor
                   else
                   {
                       reachEndByte = true;
-                      Serial.println("Error in checksum. Block --> " + String(numBlocks) + " - offset: " + String(lastStartBlock));
+                      SerialHW.println("Error in checksum. Block --> " + String(numBlocks) + " - offset: " + String(lastStartBlock));
                   }
 
                   // ¿Hemos llegado al ultimo byte
@@ -720,8 +720,8 @@ class TAPproccesor
                   {
                       reachEndByte = true;
                       //break;
-                      Serial.println("");
-                      Serial.println("Success. End: ");
+                      SerialHW.println("");
+                      SerialHW.println("Success. End: ");
                   }
 
               }
@@ -746,15 +746,15 @@ class TAPproccesor
 
       void showDescriptorTable()
       {
-          Serial.println("");
-          Serial.println("");
-          Serial.println("++++++++++++++++++++++++++++++ Block Descriptor +++++++++++++++++++++++++++++++++++++++");
+          SerialHW.println("");
+          SerialHW.println("");
+          SerialHW.println("++++++++++++++++++++++++++++++ Block Descriptor +++++++++++++++++++++++++++++++++++++++");
 
           int totalBlocks = _myTAP.numBlocks;
 
           for (int n=0;n<totalBlocks;n++)
           {
-              Serial.print("[" + String(n) + "]" + " - Offset: " + String(_myTAP.descriptor[n].offset) + " - Size: " + String(_myTAP.descriptor[n].size));
+              SerialHW.print("[" + String(n) + "]" + " - Offset: " + String(_myTAP.descriptor[n].offset) + " - Size: " + String(_myTAP.descriptor[n].size));
               char* strType = &INITCHAR[0];
               
               switch(_myTAP.descriptor[n].type)
@@ -789,18 +789,18 @@ class TAPproccesor
 
               if (_myTAP.descriptor[n].nameDetected)
               {
-                  Serial.println("");
-                  //Serial.print("[" + String(n) + "]" + " - Name: " + (String(bDscr[n].name)).substring(0,10) + " - (" + strType + ")");
-                  Serial.print("[" + String(n) + "]" + " - Name: " + _myTAP.descriptor[n].name + " - (" + strType + ")");
+                  SerialHW.println("");
+                  //SerialHW.print("[" + String(n) + "]" + " - Name: " + (String(bDscr[n].name)).substring(0,10) + " - (" + strType + ")");
+                  SerialHW.print("[" + String(n) + "]" + " - Name: " + _myTAP.descriptor[n].name + " - (" + strType + ")");
               }
               else
               { 
-                  Serial.println("");
-                  Serial.print("[" + String(n) + "] - " + strType + " ");
+                  SerialHW.println("");
+                  SerialHW.print("[" + String(n) + "] - " + strType + " ");
               }
 
-              Serial.println("");
-              Serial.println("");
+              SerialHW.println("");
+              SerialHW.println("");
 
           }      
       }
@@ -841,7 +841,7 @@ class TAPproccesor
 
                   // Definimos el buffer del PLAYER igual al tamaño del bloque
                   #if LOG==3
-                    Serial.println("> PROGRAM HEADER");
+                    SerialHW.println("> PROGRAM HEADER");
                   #endif
                   LAST_TYPE = &LASTYPE0[0];
                   break;
@@ -850,8 +850,8 @@ class TAPproccesor
 
                   // Definimos el buffer del PLAYER igual al tamaño del bloque
                   #if LOG==3
-                    Serial.println("");
-                    Serial.println("> BYTE HEADER");
+                    SerialHW.println("");
+                    SerialHW.println("> BYTE HEADER");
                   #endif
                   LAST_TYPE = &LASTYPE1[0];
                   break;
@@ -860,8 +860,8 @@ class TAPproccesor
 
                   // Definimos el buffer del PLAYER igual al tamaño del bloque
                   #if LOG==3
-                    Serial.println("");
-                    Serial.println("> SCREEN HEADER");
+                    SerialHW.println("");
+                    SerialHW.println("> SCREEN HEADER");
                   #endif
                   LAST_TYPE = &LASTYPE7[0];
                   break;
@@ -869,8 +869,8 @@ class TAPproccesor
               case 2:
                   // Definimos el buffer del PLAYER igual al tamaño del bloque
                   #if LOG==3
-                    Serial.println("");
-                    Serial.println("> BASIC PROGRAM");
+                    SerialHW.println("");
+                    SerialHW.println("> BASIC PROGRAM");
                   #endif
                   LAST_TYPE = &LASTYPE2[0];
                   break;
@@ -878,8 +878,8 @@ class TAPproccesor
               case 3:
                   // Definimos el buffer del PLAYER igual al tamaño del bloque
                   #if LOG==3
-                    Serial.println("");
-                    Serial.println("> SCREEN");
+                    SerialHW.println("");
+                    SerialHW.println("> SCREEN");
                   #endif
                   LAST_TYPE = &LASTYPE3[0];
                   break;
@@ -887,8 +887,8 @@ class TAPproccesor
               case 4:
                   // Definimos el buffer del PLAYER igual al tamaño del bloque
                   #if LOG==3
-                    Serial.println("");
-                    Serial.println("> BYTE CODE");
+                    SerialHW.println("");
+                    SerialHW.println("> BYTE CODE");
                   #endif
                   if (LAST_SIZE != 6914)
                   {
@@ -903,8 +903,8 @@ class TAPproccesor
               case 5:
                   // Definimos el buffer del PLAYER igual al tamaño del bloque
                   #if LOG==3
-                    Serial.println("");
-                    Serial.println("> ARRAY.NUM");
+                    SerialHW.println("");
+                    SerialHW.println("> ARRAY.NUM");
                   #endif
                   LAST_TYPE = &LASTYPE5[0];
                   break;
@@ -912,8 +912,8 @@ class TAPproccesor
               case 6:
                   // Definimos el buffer del PLAYER igual al tamaño del bloque
                   #if LOG==3
-                    Serial.println("");
-                    Serial.println("> ARRAY.CHR");
+                    SerialHW.println("");
+                    SerialHW.println("> ARRAY.CHR");
                   #endif
                   LAST_TYPE = &LASTYPE6[0];
                   break;
@@ -1022,8 +1022,8 @@ class TAPproccesor
       void proccess_tap(File32 tapFileName)
       {
           // Procesamos el fichero
-          Serial.println("");
-          Serial.println("Getting total blocks...");
+          SerialHW.println("");
+          SerialHW.println("Getting total blocks...");
 
           if (isFileTAP(tapFileName))
           {
@@ -1054,9 +1054,9 @@ class TAPproccesor
         set_file(tapFile, _rlen);
         proccess_tap(tapFile);
         
-        Serial.println("");
-        Serial.println("");
-        Serial.println("END PROCCESING TAP: ");
+        SerialHW.println("");
+        SerialHW.println("");
+        SerialHW.println("END PROCCESING TAP: ");
       
         if (_myTAP.descriptor != NULL)
         {
@@ -1065,10 +1065,10 @@ class TAPproccesor
             TOTAL_BLOCKS = get_tap_numBlocks();
             LAST_NAME = &INITCHAR2[0];
       
-            Serial.println("");
-            Serial.println("");
-            Serial.println("PROGRAM_NAME: " + PROGRAM_NAME);
-            Serial.println("TOTAL_BLOCKS: " + String(TOTAL_BLOCKS));
+            SerialHW.println("");
+            SerialHW.println("");
+            SerialHW.println("PROGRAM_NAME: " + PROGRAM_NAME);
+            SerialHW.println("TOTAL_BLOCKS: " + String(TOTAL_BLOCKS));
       
             // Pasamos el descriptor           
             _hmi.setBasicFileInformation(_myTAP.descriptor[BLOCK_SELECTED].name,_myTAP.descriptor[BLOCK_SELECTED].typeName,_myTAP.descriptor[BLOCK_SELECTED].size);
@@ -1194,7 +1194,7 @@ class TAPproccesor
                     int blockPlaySize = 0;
                     int offsetPlay = 0;
 
-                    //Serial.println("   > Splitted block. Size [" + String(blockSize) + "]");
+                    //SerialHW.println("   > Splitted block. Size [" + String(blockSize) + "]");
 
                     for (int j = 0; j < 2; j++) {
                       if (j == 0) {
@@ -1246,8 +1246,8 @@ class TAPproccesor
                 }
               }
 
-              Serial.println("");
-              Serial.println("Playing was finish.");
+              SerialHW.println("");
+              SerialHW.println("Playing was finish.");
               // En el caso de no haber parado manualmente, es por finalizar
               // la reproducción
               if (LOADING_STATE == 1) {
@@ -1274,7 +1274,7 @@ class TAPproccesor
                 bufferPlay=NULL;
               }
               
-              Serial.flush();
+              SerialHW.flush();
 
               // Ahora ya podemos tocar el HMI panel otra vez
               sendStatus(READY_ST, 1);
