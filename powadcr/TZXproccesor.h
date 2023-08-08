@@ -1065,7 +1065,10 @@ class TZXproccesor
           _myTZX.name = "TZX";
           
           // Actualizamos una vez mas el HMI
-          _hmi.updateInformationMainPage();
+          if (currentBlock % 10 == 0)
+          {
+              _hmi.updateInformationMainPage();
+          }
     }
    
     void proccess_tzx(File32 tzxFileName)
@@ -1356,7 +1359,7 @@ class TZXproccesor
                     else
                     {
                         // En otro caso. Delay
-                        delay(dly);
+                        zxp.silence(dly);
                     }                    
                 }
 
@@ -1456,7 +1459,8 @@ class TZXproccesor
                         }
 
                         // Llamamos a la clase de reproducción
-                        zxp.playHeaderProgram(bufferPlay, _myTZX.descriptor[i].size,_myTZX.descriptor[i].timming.pilot_tone * _myTZX.descriptor[i].timming.pulse_pilot);
+                        // Cabecera PROGRAM
+                        zxp.playData(bufferPlay, _myTZX.descriptor[i].size,_myTZX.descriptor[i].timming.pilot_tone * _myTZX.descriptor[i].timming.pulse_pilot);
 
                       } 
                       else if (_myTZX.descriptor[i].type == 1 || _myTZX.descriptor[i].type == 7) 
@@ -1496,7 +1500,8 @@ class TZXproccesor
                             break;
                         }
                         
-                        zxp.playHeader(bufferPlay, _myTZX.descriptor[i].size,_myTZX.descriptor[i].timming.pilot_tone * _myTZX.descriptor[i].timming.pulse_pilot);
+                        // Cabecera BYTE
+                        zxp.playData(bufferPlay, _myTZX.descriptor[i].size,_myTZX.descriptor[i].timming.pilot_tone * _myTZX.descriptor[i].timming.pulse_pilot);
                       } 
                       else 
                       {
@@ -1552,6 +1557,7 @@ class TZXproccesor
 
                         Serial.println("");
 
+                        // Bloque de datos BYTE
                         zxp.playData(bufferPlay, _myTZX.descriptor[i].size,_myTZX.descriptor[i].timming.pilot_tone * _myTZX.descriptor[i].timming.pulse_pilot);
                       }                  
                 }

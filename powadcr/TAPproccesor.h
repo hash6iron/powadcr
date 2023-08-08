@@ -1164,7 +1164,8 @@ class TAPproccesor
                   bufferPlay = sdm.readFileRange32(_mFile, _myTAP.descriptor[i].offset, _myTAP.descriptor[i].size, false);
 
                   // Llamamos a la clase de reproducción
-                  zxp.playHeaderProgram(bufferPlay, _myTAP.descriptor[i].size,DPILOT_HEADER * DPULSE_PILOT);
+                  // Cabecera PROGRAM
+                  zxp.playData(bufferPlay, _myTAP.descriptor[i].size,DPILOT_HEADER * DPULSE_PILOT);
 
                 } else if (_myTAP.descriptor[i].type == 1 || _myTAP.descriptor[i].type == 7) {
                   
@@ -1178,7 +1179,8 @@ class TAPproccesor
                   bufferPlay = (byte*)calloc(_myTAP.descriptor[i].size, sizeof(byte));
                   bufferPlay = sdm.readFileRange32(_mFile, _myTAP.descriptor[i].offset, _myTAP.descriptor[i].size, false);
 
-                  zxp.playHeader(bufferPlay, _myTAP.descriptor[i].size,DPILOT_HEADER * DPULSE_PILOT);
+                  // Cabecera BYTE
+                  zxp.playData(bufferPlay, _myTAP.descriptor[i].size,DPILOT_HEADER * DPULSE_PILOT);
                 } else {
                   // DATA
                   int blockSize = _myTAP.descriptor[i].size;
