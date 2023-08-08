@@ -445,7 +445,7 @@ class ZXProccesor
               if (!TEST_RUNNING)
               {
 
-                    if (i % 8==0)
+                    if (i % 32==0)
                     {
                         // Progreso de cada bloque.
                         // Con este metodo reducimos el consumo de datos
@@ -459,11 +459,11 @@ class ZXProccesor
 
                         //_hmi.writeString("");
                         _hmi.writeString("progressTotal.val=" + String((int)((BYTES_LOADED*100)/(BYTES_TOBE_LOAD))));
-                    }
 
-                    if (i % 32==0)
-                    {
                         _hmi.updateInformationMainPage();                    
+
+                        //buttonsControl();
+                        _hmi.readUART();
                     }
 
                     if (i == (size-1))
@@ -481,8 +481,7 @@ class ZXProccesor
                         _hmi.writeString("progressTotal.val=" + String((int)((BYTES_LOADED*100)/(BYTES_TOBE_LOAD))));
                     }
 
-                    //buttonsControl();
-                    _hmi.readUART();
+
 
                     if (LOADING_STATE == 1)
                     {

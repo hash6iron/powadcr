@@ -1065,7 +1065,7 @@ class TZXproccesor
           _myTZX.name = "TZX";
           
           // Actualizamos una vez mas el HMI
-          if (currentBlock % 10 == 0)
+          if (currentBlock % 100 == 0)
           {
               _hmi.updateInformationMainPage();
           }

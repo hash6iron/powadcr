@@ -35,20 +35,24 @@
 // ********************************************************************
 //
 #ifdef MACHINE_ZX
+  // Timming estandar de la ROM
+  // Frecuencia de la CPU
+  float DfreqCPU = 3500000.0;
+
   const int DPILOT_HEADER = 8063;
   const int DPILOT_DATA = 3223;
-  
-  // Timming estandar de la ROM
-  float DfreqCPU = 3500000.0;
+  // Señales de sincronismo
   int DSYNC1 = 667;
   int DSYNC2 = 735;
+  // Bits 0 y 1
   int DBIT_0 = 855;
   int DBIT_1 = 1710;
+  // Pulsos guia
   int DPULSE_PILOT = 2168;
   int DPILOT_TONE = DPILOT_HEADER;
   
   // Definición del silencio entre bloques en ms
-  int DSILENT = 1500;
+  int DSILENT = 1000;
 #endif
 
 // Inicializadores para los char*
