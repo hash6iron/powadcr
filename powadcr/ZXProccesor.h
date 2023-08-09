@@ -116,21 +116,21 @@ class ZXProccesor
     //     return result;
     // }
 
-    size_t silenceWave(uint8_t *buffer, size_t bytes)
+    size_t silenceWave(uint8_t *buffer, size_t samples)
     {
         int chn = channels;
         size_t result = 0;
         int16_t *ptr = (int16_t*)buffer;
 
-        for (int j=0;j<bytes/(2*chn);j++){
-
+        for (int j=0;j<(samples/2);j++)
+        {
             int16_t sample = (m_amplitude/2);
             *ptr++ = sample;
             if (chn>1)
             {
               *ptr++ = sample;
-            }
-            result+=2*chn;
+            }            
+            result+=2;
         }
 
         return result;      
@@ -382,25 +382,43 @@ class ZXProccesor
     void silence(float duration)
     {
      
-        Serial.println("");
-        Serial.println("");
-        Serial.println("Silencio: " + String(duration));
-        Serial.println("");
-        Serial.println("");
-
         // Obtenemos el periodo de muestreo
         // Tsr = 1 / samplingRate
+        float Td = 4*(duration / 1000);
         float Tsr = (1.0 / samplingRate);
-        int bytes = int((1.0 / ((812 / 4.0))) / Tsr);
-        int numPulses = numPulses = 4 * int(((2*duration)/1000) / (bytes*Tsr));;
+        int samples = int(Td / Tsr);
 
-        uint8_t buffer[(bytes+2)];      
+        // Inicializamos con un tamaño de bloque de 1024 muestras cada vez
+        int stepSize = 1024;
+        // Calculamos cuantos bloques tenemos que concatenar. Si el valor de
+        // samples es menor, saldrá 0
+        int steps = samples / stepSize;
 
-        for (int m=0;m < numPulses;m++)
+        // Si es cero, entonces el buffer será igual de grande que el 
+        // numero de samples a rellenar para formar la onda
+        if (steps == 0)
         {
-            // Rellenamos
-            m_kit.write(buffer, silenceWave(buffer, bytes));
-        } 
+            stepSize = samples;
+            steps = 1;
+        }
+
+        uint8_t buffer[stepSize]; 
+
+        SerialHW.println("");
+        SerialHW.println("");
+        SerialHW.println("Silencio: " + String(duration));
+        SerialHW.println("Samples : " + String(samples));
+        SerialHW.println("StepSize: " + String(stepSize));
+        SerialHW.println("Steps   : " + String(steps));
+        SerialHW.println("");
+        SerialHW.println("");
+    
+        // Rellenamos repitiendo el patron varias veces
+        // porque el buffer es limitado
+        for (int n=0;n<steps;n++)
+        {
+            m_kit.write(buffer, silenceWave(buffer, stepSize));
+        }
     }
 
     void pilotTone(float duration)
