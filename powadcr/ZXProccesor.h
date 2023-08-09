@@ -381,7 +381,10 @@ class ZXProccesor
     }
     void silence(float duration)
     {
-     
+        // Esta onda se genera como el resto sumando trozos de onda
+        // esto es debido al limite del buffer
+        // no podemos hacer un buffer muy grande, peta el ESP32
+
         // Obtenemos el periodo de muestreo
         // Tsr = 1 / samplingRate
         float Td = 4*(duration / 1000);
@@ -389,26 +392,26 @@ class ZXProccesor
         int samples = int(Td / Tsr);
 
         // Inicializamos con un tamaño de bloque de 1024 muestras cada vez
-        int stepSize = 1024;
+        int bufferSize = 4096;
         // Calculamos cuantos bloques tenemos que concatenar. Si el valor de
         // samples es menor, saldrá 0
-        int steps = samples / stepSize;
+        int steps = samples / bufferSize;
 
         // Si es cero, entonces el buffer será igual de grande que el 
         // numero de samples a rellenar para formar la onda
         if (steps == 0)
         {
-            stepSize = samples;
+            bufferSize = samples;
             steps = 1;
         }
 
-        uint8_t buffer[stepSize]; 
+        uint8_t buffer[bufferSize]; 
 
         SerialHW.println("");
         SerialHW.println("");
         SerialHW.println("Silencio: " + String(duration));
         SerialHW.println("Samples : " + String(samples));
-        SerialHW.println("StepSize: " + String(stepSize));
+        SerialHW.println("bufferSize: " + String(bufferSize));
         SerialHW.println("Steps   : " + String(steps));
         SerialHW.println("");
         SerialHW.println("");
@@ -417,7 +420,7 @@ class ZXProccesor
         // porque el buffer es limitado
         for (int n=0;n<steps;n++)
         {
-            m_kit.write(buffer, silenceWave(buffer, stepSize));
+            m_kit.write(buffer, silenceWave(buffer, bufferSize));
         }
     }
 
