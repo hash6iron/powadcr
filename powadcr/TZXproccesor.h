@@ -283,16 +283,18 @@ class TZXproccesor
         // Vamos a verificar que el bloque cumple con el checksum
         // Cogemos el checksum del bloque
         byte chk = getBYTE(mFile,offset+size-1);
-        // SerialHW.println("");
-        // SerialHW.println("Original checksum:");
-        // SerialHW.print(chk,HEX);
+
+         SerialHW.println("");
+         SerialHW.println("Original checksum:");
+         SerialHW.print(chk,HEX);
 
         byte* block = getBlock(mFile,offset,size-1);
         byte calcChk = calculateChecksum(block,0,size-1);
-        // SerialHW.println("");
-        // SerialHW.println("Calculated checksum:");
-        // SerialHW.print(calcChk,HEX);
-        // SerialHW.println("");
+
+         SerialHW.println("");
+         SerialHW.println("Calculated checksum:");
+         SerialHW.print(calcChk,HEX);
+         SerialHW.println("");
 
         if (chk == calcChk)
         {
@@ -337,6 +339,9 @@ class TZXproccesor
         _myTZX.descriptor[currentBlock].playeable = true;
         _myTZX.descriptor[currentBlock].offset = currentOffset;
 
+        SerialHW.println("");
+        SerialHW.println("Offset begin: ");
+        SerialHW.print(currentOffset,HEX);
 
         //SYNC1
         // zxp.SYNC1 = DSYNC1;
@@ -379,10 +384,11 @@ class TZXproccesor
         SerialHW.print(_myTZX.descriptor[currentBlock].offsetData,HEX);
 
         // Vamos a verificar el flagByte
-
         int flagByte = getBYTE(mFile,_myTZX.descriptor[currentBlock].offsetData);
+        // Y cogemos para ver el tipo de cabecera
         int typeBlock = getBYTE(mFile,_myTZX.descriptor[currentBlock].offsetData+1);
 
+        // Si el flagbyte es menor a 0x80
         if (flagByte < 128)
         {
             // Es una cabecera
@@ -393,8 +399,12 @@ class TZXproccesor
               SerialHW.println("TYPEBLOCK: 0 - Header");
               SerialHW.println("");
 
-                _myTZX.descriptor[currentBlock].header = true;
-                _myTZX.descriptor[currentBlock].type = 0;
+              SerialHW.println("");
+              SerialHW.println("TYPE: 0");
+              SerialHW.println("");
+
+              _myTZX.descriptor[currentBlock].header = true;
+              _myTZX.descriptor[currentBlock].type = 0;
 
             }
             else if (typeBlock == 1)
@@ -404,6 +414,11 @@ class TZXproccesor
               SerialHW.println("TYPEBLOCK: 1 - Header");
               SerialHW.println("");
 
+			  SerialHW.println("");
+			  SerialHW.println("TYPE: 0");
+			  SerialHW.println("");
+
+
                 _myTZX.descriptor[currentBlock].header = true;
                 _myTZX.descriptor[currentBlock].type = 0;
             }
@@ -412,6 +427,11 @@ class TZXproccesor
                 SerialHW.println("");
                 SerialHW.println("TYPEBLOCK: 2 - Header");
                 SerialHW.println("");
+
+				  SerialHW.println("");
+				  SerialHW.println("TYPE: 0");
+				  SerialHW.println("");
+
 
                 _myTZX.descriptor[currentBlock].header = true;
                 _myTZX.descriptor[currentBlock].type = 0;
@@ -425,20 +445,25 @@ class TZXproccesor
 
               if (_myTZX.descriptor[currentBlock].lengthOfData == 6914)
               {
+				  SerialHW.println("");
+				  SerialHW.println("TYPE: 7");
+				  SerialHW.println("");
+
                   _myTZX.descriptor[currentBlock].screen = true;
                   _myTZX.descriptor[currentBlock].type = 7;
               }
               else
               {
-                  // Es un bloque BYTE
+                // Es un bloque BYTE
+				  SerialHW.println("");
+				  SerialHW.println("TYPE: 1");
+				  SerialHW.println("");
                   _myTZX.descriptor[currentBlock].type = 1;                
               }
             }
         }
         else
         {
-
-
             if (typeBlock == 3)
             {
               SerialHW.println("");
@@ -447,18 +472,27 @@ class TZXproccesor
 
               if (_myTZX.descriptor[currentBlock].lengthOfData == 6914)
               {
+				  SerialHW.println("");
+				  SerialHW.println("TYPE: 3");
+				  SerialHW.println("");
                   _myTZX.descriptor[currentBlock].screen = true;
                   _myTZX.descriptor[currentBlock].type = 3;
               }
               else
               {
                   // Es un bloque BYTE
+				  SerialHW.println("");
+				  SerialHW.println("TYPE: 4");
+				  SerialHW.println("");
                   _myTZX.descriptor[currentBlock].type = 4;                
               }
             }
             else
             {
                 // Es un bloque BYTE
+				  SerialHW.println("");
+				  SerialHW.println("TYPE: 4");
+				  SerialHW.println("");
                 _myTZX.descriptor[currentBlock].type = 4;
             }            
         } 
@@ -471,6 +505,10 @@ class TZXproccesor
         
         // NOTA: Sumamos 2 bytes que son la DWORD que indica el dataTAPsize
         _myTZX.descriptor[currentBlock].size = _myTZX.descriptor[currentBlock].lengthOfData; 
+
+        // Por defecto en ID10 no afecta, pero lo inicializamos 
+        // para evitar problemas con el ID11
+        zxp.set_maskLastByte(8);
     }
     
     void analyzeID17(File32 mFile, int currentOffset, int currentBlock)
@@ -1460,15 +1498,16 @@ class TZXproccesor
 
                         }
 
-                        // SerialHW.println("");
-                        // SerialHW.println("Head 1" + _myTZX.descriptor[i].ID);
-                        // SerialHW.println("");
+                        SerialHW.println("");
+                        SerialHW.println("Head 1" + _myTZX.descriptor[i].ID);
+                        SerialHW.println("");
 
                         bufferPlay = (byte*)calloc(_myTZX.descriptor[i].size, sizeof(byte));
 
                         bufferPlay = sdm.readFileRange32(_mFile, _myTZX.descriptor[i].offsetData, _myTZX.descriptor[i].size, false);
 
-                        //showBufferPlay(bufferPlay,_myTZX.descriptor[i].size);
+                        showBufferPlay(bufferPlay,_myTZX.descriptor[i].size);
+
                         verifyChecksum(_mFile,_myTZX.descriptor[i].offsetData,_myTZX.descriptor[i].size);
 
 

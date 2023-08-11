@@ -125,6 +125,7 @@ class ZXProccesor
         for (int j=0;j<(samples/2);j++)
         {
             int16_t sample = (m_amplitude/2);
+            //int16_t sample = 0;
             *ptr++ = sample;
             if (chn>1)
             {
@@ -210,14 +211,21 @@ class ZXProccesor
         return result;
     }
 
-    size_t readPulse(uint8_t *buffer, size_t bytes, int slope){
+    size_t readPulse(uint8_t *buffer, size_t bytes, int slope, bool end){
 
         // Procedimiento para genera un pulso 
         int chn = channels;
         size_t result = 0;
         int16_t *ptr = (int16_t*)buffer;
         for (int j=0;j<bytes/(2*chn);j++){
-            int16_t sample = m_amplitude * slope;
+
+            int16_t sample = 0;
+            sample = maxAmplitude * slope;
+
+            if (end)
+            {
+                sample = (maxAmplitude/2) + (maxAmplitude/4);
+            }
             
             *ptr++ = sample;
             
@@ -239,7 +247,7 @@ class ZXProccesor
         return result;          
     }
 
-    void generatePulse(float freq, int samplingRate, int slope)
+    void generatePulse(float freq, int samplingRate, int slope, bool end)
     {
 
         if (TURBOMODE)
@@ -257,7 +265,7 @@ class ZXProccesor
         for (int m=0;m < 1;m++)
         {
           // Escribimos el tren de pulsos en el procesador de Audio
-          m_kit.write(buffer, readPulse(buffer, bytes, slope));
+          m_kit.write(buffer, readPulse(buffer, bytes, slope, end));
         } 
     }
 
@@ -276,7 +284,7 @@ class ZXProccesor
 
         //SerialHW.println("****** BUFFER SIZE --> " + String(bytes));
 
-        uint8_t buffer[bytes+2];
+        uint8_t buffer[bytes];
 
 
         for (int m=0;m < numPulses;m++)
@@ -298,7 +306,7 @@ class ZXProccesor
 
         float Tsr = (1.0 / samplingRate);
         int bytes = int(round((1.0 / ((freq / 4.0))) / Tsr));
-        uint8_t buffer[bytes+2];
+        uint8_t buffer[bytes];
 
         m_kit.write(buffer, createWave(buffer, bytes));
                 
@@ -328,7 +336,7 @@ class ZXProccesor
         int bytes = int((1.0 / ((freq / 4.0))) / Tsr);
         int numPulses = 4 * int(duration / (bytes*Tsr));
 
-        uint8_t buffer[bytes+2];      
+        uint8_t buffer[bytes];      
 
         for (int m=0;m < numPulses;m++)
         {
@@ -408,14 +416,14 @@ class ZXProccesor
         }
 
 
-        SerialHW.println("");
-        SerialHW.println("");
-        SerialHW.println("Silencio: " + String(duration));
-        SerialHW.println("Samples : " + String(samples));
-        SerialHW.println("bufferSize: " + String(bufferSize));
-        SerialHW.println("Frames   : " + String(frames));
-        SerialHW.println("");
-        SerialHW.println("");
+        // SerialHW.println("");
+        // SerialHW.println("");
+        // SerialHW.println("Silencio: " + String(duration));
+        // SerialHW.println("Samples : " + String(samples));
+        // SerialHW.println("bufferSize: " + String(bufferSize));
+        // SerialHW.println("Frames   : " + String(frames));
+        // SerialHW.println("");
+        // SerialHW.println("");
     
         // Rellenamos repitiendo el patron varias veces
         // porque el buffer es limitado
@@ -428,7 +436,7 @@ class ZXProccesor
             if (n == (frames-1))
             {
                 bufferSize = bufferSize + delta;
-                SerialHW.println("bufferSize + delta: " + String(bufferSize));
+                //SerialHW.println("bufferSize + delta: " + String(bufferSize));
             }
   
             // Aplicamos la reserva de buffer
@@ -468,7 +476,7 @@ class ZXProccesor
         // El ZX Spectrum tiene dos tipo de sincronismo, uno al finalizar el tono piloto
         // y otro al final de la recepción de los datos, que serán SYNC1 y SYNC2 respectivamente.
         float freq = (1 / (nTStates * tState));    
-        generatePulse(freq, samplingRate,slope);
+        generatePulse(freq, samplingRate,slope, false);
 
         //int width = 200;
         //// Metemos un pulso de cambio de estado
@@ -643,7 +651,7 @@ class ZXProccesor
             // Metemos un pulso de cambio de estado
             // para asegurar el cambio de flanco alto->bajo, del ultimo bit
             float freq = (1 / (width * tState))/2;    
-            generatePulse(freq, samplingRate,1);
+            generatePulse(freq, samplingRate,1,true);
 
         }
     }
@@ -660,7 +668,7 @@ class ZXProccesor
             float duration = tState * pulse_pilot_duration;
             // Put now code block
             // syncronize with short leader tone
-            clear(duration);
+            //clear(duration);
             pilotTone(duration);
 
             // syncronization for end short leader tone
