@@ -379,6 +379,7 @@ class ZXProccesor
         // }    
         //m_kit.write()  
     }
+
     void silence(float duration)
     {
         // Esta onda se genera como el resto sumando trozos de onda
@@ -392,34 +393,46 @@ class ZXProccesor
         int samples = int(Td / Tsr);
 
         // Inicializamos con un tamaño de bloque de 1024 muestras cada vez
-        int bufferSize = 4096;
+        int bufferSize = 2048;
         // Calculamos cuantos bloques tenemos que concatenar. Si el valor de
         // samples es menor, saldrá 0
-        int steps = samples / bufferSize;
+        int frames = samples / bufferSize;
+        int delta = abs(samples - (bufferSize * frames));
 
         // Si es cero, entonces el buffer será igual de grande que el 
         // numero de samples a rellenar para formar la onda
-        if (steps == 0)
+        if (frames == 0)
         {
             bufferSize = samples;
-            steps = 1;
+            frames = 1;
         }
 
-        uint8_t buffer[bufferSize]; 
 
         SerialHW.println("");
         SerialHW.println("");
         SerialHW.println("Silencio: " + String(duration));
         SerialHW.println("Samples : " + String(samples));
         SerialHW.println("bufferSize: " + String(bufferSize));
-        SerialHW.println("Steps   : " + String(steps));
+        SerialHW.println("Frames   : " + String(frames));
         SerialHW.println("");
         SerialHW.println("");
     
         // Rellenamos repitiendo el patron varias veces
         // porque el buffer es limitado
-        for (int n=0;n<steps;n++)
+        for (int n=0;n<frames;n++)
         {
+            // El ultimo frame que compone la señal tendrá el restante
+            // ya que el ancho de la señal no siempre será multiplo exacto
+            // del bufferSize, por lo tanto el ultimo tendrá ese restante 
+            // (delta)
+            if (n == (frames-1))
+            {
+                bufferSize = bufferSize + delta;
+                SerialHW.println("bufferSize + delta: " + String(bufferSize));
+            }
+  
+            // Aplicamos la reserva de buffer
+            uint8_t buffer[bufferSize]; 
             m_kit.write(buffer, silenceWave(buffer, bufferSize));
         }
     }
