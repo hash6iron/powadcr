@@ -116,6 +116,36 @@ class ZXProccesor
     //     return result;
     // }
 
+    // void get_amplitude()
+    // {
+    //     // Establecemos la amplitud máxima.
+    //     // Leemos el valor del vol.val
+      
+    //     int cvalue = myNex.readNumber("menu.vol.val");
+
+    //     if (cvalue != 777777)
+    //     {
+    //       if (cvalue == 0)
+    //       {
+    //           cvalue = 90;
+    //           MAIN_VOL = cvalue;              
+    //       }
+
+    //       if (cvalue != LAST_MAIN_VOL)
+    //       {
+    //           MAIN_VOL = cvalue;
+
+    //           SerialHW.println("");
+    //           SerialHW.println("");
+    //           SerialHW.println("Valor leido: " + String(cvalue));
+
+    //           LAST_MAIN_VOL = MAIN_VOL;
+    //       }
+    //     }
+
+
+    // }
+
     size_t silenceWave(uint8_t *buffer, size_t samples)
     {
         int chn = channels;
@@ -159,6 +189,12 @@ class ZXProccesor
 
     size_t readSin(uint8_t *buffer, size_t bytes, float freq)
     {
+
+        // Antes de iniciar la reproducción ajustamos el volumen de carga.
+        //ESP32kit.setVolume(MAIN_VOL);
+        //get_amplitude();
+        m_amplitude = MAIN_VOL * 32767 / 100;
+
         float double_Pi = PI * 2.0;
         float angle = double_Pi * freq * m_time + 0;
         int16_t result = m_amplitude * sin(angle);
@@ -170,6 +206,11 @@ class ZXProccesor
     size_t createWave(uint8_t *buffer, size_t bytes){
         
         // Procedimiento para generar un tren de pulsos cuadrados completo
+        // Antes de iniciar la reproducción ajustamos el volumen de carga.
+        //ESP32kit.setVolume(MAIN_VOL);
+
+
+        //get_amplitude();
 
         int chn = channels;
         size_t result = 0;
@@ -177,6 +218,8 @@ class ZXProccesor
 
         // Pulso alto (mitad del periodo)
         for (int j=0;j<bytes/(4*chn);j++){
+
+            m_amplitude = MAIN_VOL * 32767 / 100;
 
             int16_t sample = m_amplitude;
             *ptr++ = sample;
@@ -213,18 +256,25 @@ class ZXProccesor
 
     size_t readPulse(uint8_t *buffer, size_t bytes, int slope, bool end){
 
+        // Antes de iniciar la reproducción ajustamos el volumen de carga.
+        //ESP32kit.setVolume(MAIN_VOL);
+
+        //get_amplitude();            
+
         // Procedimiento para genera un pulso 
         int chn = channels;
         size_t result = 0;
         int16_t *ptr = (int16_t*)buffer;
         for (int j=0;j<bytes/(2*chn);j++){
 
+            m_amplitude = MAIN_VOL * 32767 / 100;
+
             int16_t sample = 0;
-            sample = maxAmplitude * slope;
+            sample = m_amplitude * slope;
 
             if (end)
             {
-                sample = (maxAmplitude/2) + (maxAmplitude/4);
+                sample = (m_amplitude/2) + (m_amplitude/4);
             }
             
             *ptr++ = sample;
@@ -250,11 +300,6 @@ class ZXProccesor
     void generatePulse(float freq, int samplingRate, int slope, bool end)
     {
 
-        if (TURBOMODE)
-        {
-            freq=freq*2;
-        }
-
         // Obtenemos el periodo de muestreo
         // Tsr = 1 / samplingRate
         float Tsr = (1.0 / samplingRate);
@@ -271,11 +316,6 @@ class ZXProccesor
 
     void generateWavePulses(float freq, int numPulses, int samplingRate)
     {
-
-        if (TURBOMODE)
-        {
-            freq=freq*2;
-        }
 
         // Obtenemos el periodo de muestreo
         // Tsr = 1 / samplingRate
@@ -299,10 +339,6 @@ class ZXProccesor
     {
         // Obtenemos el periodo de muestreo
         // Tsr = 1 / samplingRate
-        if (TURBOMODE)
-        {
-            freq=freq*2;
-        }
 
         float Tsr = (1.0 / samplingRate);
         int bytes = int(round((1.0 / ((freq / 4.0))) / Tsr));
@@ -310,7 +346,7 @@ class ZXProccesor
 
         m_kit.write(buffer, createWave(buffer, bytes));
                 
-        _hmi.readUART();
+        //_hmi.readUART();
 
         if (LOADING_STATE == 1)
         {
@@ -342,7 +378,7 @@ class ZXProccesor
         {
             
             //buttonsControl();
-            _hmi.readUART();
+            //_hmi.readUART();
 
             if (LOADING_STATE == 1)
             {
@@ -522,6 +558,8 @@ class ZXProccesor
               if (!TEST_RUNNING)
               {
 
+                    //_hmi.readUART();
+
                     if (i % 32==0)
                     {
                         // Progreso de cada bloque.
@@ -540,7 +578,6 @@ class ZXProccesor
                         _hmi.updateInformationMainPage();                    
 
                         //buttonsControl();
-                        _hmi.readUART();
                     }
 
                     if (i == (size-1))
@@ -665,7 +702,9 @@ class ZXProccesor
 
         void playData(byte* bBlock, int lenBlock, int pulse_pilot_duration)
         {
+
             float duration = tState * pulse_pilot_duration;
+
             // Put now code block
             // syncronize with short leader tone
             //clear(duration);

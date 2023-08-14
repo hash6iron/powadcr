@@ -49,11 +49,15 @@
 
 // Librerias (mantener este orden)
 //   -- En esta se encuentran las variables globales a todo el proyecto
+TaskHandle_t Task1;
+
 #define SerialHWDataBits 921600
 
 #include <HardwareSerial.h>
 HardwareSerial SerialHW(0);
 
+// #include "EasyNextionLibrary.h"
+// EasyNex myNex(SerialHW);
 
 #include "config.h"
 
@@ -64,8 +68,6 @@ HardwareSerial SerialHW(0);
 #include "AudioKitHAL.h"
 AudioKit ESP32kit;
 
-#include "interface.h"
-
 // Estos includes deben ir en este orden por dependencias
 #include "SDmanager.h"
 
@@ -73,18 +75,24 @@ AudioKit ESP32kit;
 SDmanager sdm;
 
 #include "HMI.h"
+HMI hmi;
+
+#include "interface.h"
 #include "ZXProccesor.h"
+
 // ZX Spectrum
 #ifdef MACHINE_ZX
 ZXProccesor zxp;
 #endif
-
 
 #include "TZXproccesor.h"
 #include "TAPproccesor.h"
 
 
 #include "test.h"
+
+
+
 //
 // #include <ESP32TimerInterrupt.h>
 // #include <ESP32TimerInterrupt.hpp>
@@ -97,7 +105,6 @@ File32 sdFile32;
 
 
 
-HMI hmi;
 
 
 TZXproccesor pTZX(ESP32kit);
@@ -319,10 +326,14 @@ void waitForHMI(bool waitAndNotForze)
 }
 
 void setup() {
+
   // Configuramos el nivel de log
-  //SerialHW.begin(115200);
+  SerialHW.setRxBufferSize(2048);
+
   SerialHW.begin(921600);
   delay(250);
+
+  //myNex.begin(921600);
 
   // Forzamos un reinicio de la pantalla
   hmi.writeString("rest");
@@ -338,7 +349,7 @@ void setup() {
   SerialHW.println("Setting Audiokit.");
 
   // Configuramos los pulsadores
-  //configureButtons();
+  configureButtons();
 
   // Configuramos el ESP32kit
   LOGLEVEL_AUDIOKIT = AudioKitError;
@@ -382,6 +393,7 @@ void setup() {
   pTZX.set_SDM(sdm);
 
   zxp.set_ESP32kit(ESP32kit);
+  ESP32kit.setVolume(MAX_MAIN_VOL);
 
 // Si es test está activo. Lo lanzamos
 #ifdef TEST
@@ -432,17 +444,16 @@ void setup() {
   #endif
 
   //getMemFree();
-
+  // Control del TAPE
+  //xTaskCreatePinnedToCore(Task2code, "Task2", 10000, NULL, 1, NULL,  1);
+  //delay(500)  ;
+  // Control de la UART - HMI
+  xTaskCreatePinnedToCore(Task1code, "Task1", 10000, NULL, 1, &Task1,  0);
+  delay(500);
 }
 
-
-void loop() {
-
-  // Procedimiento principal
-
-  //buttonsControl();
-  hmi.readUART();
-
+void tapeControl()
+{
   if (!FILE_BROWSER_OPEN)
   {
       if (STOP == true && LOADING_STATE != 0) {
@@ -537,5 +548,40 @@ void loop() {
           hmi.updateInformationMainPage();
         }
       }
+  }  
+}
+
+//
+//
+// Gestión de nucleos del procesador
+//
+//
+
+bool headPhoneDetection()
+{
+  return !gpio_get_level((gpio_num_t)HEADPHONE_DETECT);
+}
+
+void Task1code( void * pvParameters )
+{
+  // Core 0 - Para el HMI
+  while(true)
+  {
+      hmi.readUART();
+      // Hay que dejar un delay porque si no, salta el WDT
+      if (!headPhoneDetection())
+      {
+        hmi.writeString("click btnPause,1");
+      }
+      // Control por botones
+      buttonsControl();
+      delay(125);
   }
+}
+
+
+void loop() 
+{
+  // Core 1 - Para el control de reproducción y procesado
+  tapeControl();  
 }

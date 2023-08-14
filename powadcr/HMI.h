@@ -32,13 +32,16 @@
     To Contact the dev team you can write to hash6iron@gmail.com
  +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
 
+
 #pragma once
 
 class HMI
 {
 
       private:
-      
+
+      //ZXProccesor _zxp;
+
       int countFiles(char* path)
       {
           int fileC = -1;
@@ -596,9 +599,29 @@ class HMI
           }
       }
       
+      void SerialHWSendData(String data) 
+      {
+      
+        if (SerialHW.available() + data.length() < 64) 
+        {
+          // Lo envio
+          SerialHW.println(data);
+        } 
+        else 
+        {
+          // Lo descarto
+          //SerialHW.flush();
+        }
+      }            
+
+      public:
+
       void verifyCommand(String strCmd) 
       {
-         
+        
+        // Reiniciamos
+        LAST_COMMAND = "";
+
         if (strCmd.indexOf("BKX=") != -1) 
         {
             // Con este procedimiento capturamos el bloque seleccionado
@@ -990,7 +1013,35 @@ class HMI
           MAIN_VOL = valVol;
           
           // Ajustamos el volumen
-          ESP32kit.setVolume(MAIN_VOL);
+          //ESP32kit.setVolume(MAIN_VOL);
+          //ESP32kit.maxAmplitude = 
+          //_zxp.set_amplitude(MAIN_VOL * 32767 / 100);
+        }
+
+        if (strCmd.indexOf("VOLUP") != -1) 
+        {
+          MAIN_VOL += 1;
+          
+          if (MAIN_VOL >100)
+          {
+            MAIN_VOL = 100;
+          }
+          SerialHW.println("");
+          SerialHW.println("VOL UP");
+          SerialHW.println("");
+        }
+
+        if (strCmd.indexOf("VOLDW") != -1) 
+        {
+          MAIN_VOL -= 1;
+          
+          if (MAIN_VOL < 30)
+          {
+            MAIN_VOL = 30;
+          }
+          SerialHW.println("");
+          SerialHW.println("VOL DOWN");
+          SerialHW.println("");
         }
       
         if (strCmd.indexOf("TXTF=") != -1) 
@@ -1014,25 +1065,8 @@ class HMI
           FILE_BROWSER_SEARCHING = true;
           findTheTextInFiles();
         }
-      }
+      }        
 
-      void SerialHWSendData(String data) 
-      {
-      
-        if (SerialHW.available() + data.length() < 64) 
-        {
-          // Lo envio
-          SerialHW.println(data);
-        } 
-        else 
-        {
-          // Lo descarto
-          //SerialHW.flush();
-        }
-      }            
-
-      public:
-        
       void writeString(String stringData) 
       {
       
@@ -1136,7 +1170,7 @@ class HMI
             String strCmd = SerialHW.readString();
             verifyCommand(strCmd);
           }
-          SerialHW.flush();
+          //SerialHW.flush();
         }
       }
 

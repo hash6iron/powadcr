@@ -49,7 +49,7 @@
 // 2 - Error
 // 3 - Warning
 // 4 - Info     / Full trace info
-#define LOG 0
+#define LOGPW 0
 
 // Inserta codigo de trazabilidad para desarrollo
 #define TESTDEV 

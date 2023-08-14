@@ -1421,7 +1421,7 @@ class TZXproccesor
                     }
                     else
                     {
-                        // En otro caso. Delay
+                        // En otro caso. delay
                         zxp.silence(dly);
                     }                    
                 }

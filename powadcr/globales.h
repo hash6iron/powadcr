@@ -177,6 +177,7 @@ int FILE_LENGTH = 0;
 // Turbo mode
 // 0 - No
 // 1 - Yes
+String LAST_COMMAND = "";
 bool TURBOMODE = false;
 bool TIMMING_STABLISHED = false;
 // Variables para intercambio de información con el HMI
@@ -252,42 +253,13 @@ const int ACK_LCD = 5;
 const int RESET = 6;
 //
 int MAIN_VOL = 90;
+int LAST_MAIN_VOL = 90;
+int MAX_MAIN_VOL = 100;
 
 // Gestion de menú
 bool MENU = false;
 bool menuOn = false;
 int nMENU = 0;
-
-// Variables locals
-const int button1_GPIO = 36;
-const int button2_GPIO = 13;
-const int button3_GPIO = 19;
-const int button4_GPIO = 23;
-const int button5_GPIO = 18;
-const int button6_GPIO = 5;
-
-// Control de los botones
-int button1 = 0;
-int button2 = 0;
-int button3 = 0;
-int button4 = 0;
-int button5 = 0;
-int button6 = 0;
-
-// Button state
-bool button1_down = false;
-bool button2_down = false;
-bool button3_down = false;
-bool button4_down = false;
-bool button5_down = false;
-bool button6_down = false;
-
-bool button1_pressed = false;
-bool button2_pressed = false;
-bool button3_pressed = false;
-bool button4_pressed = false;
-bool button5_pressed = false;
-bool button6_pressed = false;
 
 void getMemFree()
 {
@@ -301,3 +273,4 @@ void getMemFree()
     SerialHW.println("Total PSRAM: " + String(ESP.getPsramSize() / 1024 / 1024) + "MB");
     SerialHW.println("Free PSRAM: " + String (ESP.getFreePsram() / 1024 / 1024) + "MB");  
 }
+

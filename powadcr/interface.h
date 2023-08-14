@@ -33,6 +33,30 @@
     To Contact the dev team you can write to hash6iron@gmail.com
  +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
 
+// Variables locals
+const int button1_GPIO = 36;
+const int button2_GPIO = 13;
+const int button3_GPIO = 19;
+const int button4_GPIO = 23;
+const int button5_GPIO = 18;
+const int button6_GPIO = 5;
+
+// Control de los botones
+int button1 = 0;
+int button2 = 0;
+int button3 = 0;
+int button4 = 0;
+int button5 = 0;
+int button6 = 0;
+
+// Button state
+bool button1_down = false;
+bool button2_down = false;
+bool button3_down = false;
+bool button4_down = false;
+bool button5_down = false;
+bool button6_down = false;
+
 void configureButtons()
 {
     pinMode(button1_GPIO, INPUT);
@@ -48,103 +72,40 @@ void showMenu(int nMenu)
 
 void button1Action()
 {
-    // PLAY / PAUSE
-    // DOWN
-    SerialHW.print(" Button 1 pressed ");
-    if (menuOn)
-    {
-        DOWN = true;
-    }
-    else
-    {
-        PLAY = true;
-        PAUSE = false;
-        STOP = false;
-    }
+    // PLAY
+    hmi.writeString("click btnPlay,1");
 }
 
 void button2Action()
 {
-    // FFWIND
-    // UP
+    // RWIND
+    hmi.writeString("click btnRWD,1");
 
-    SerialHW.print(" Button 2 pressed ");
-    if (menuOn)
-    {
-        UP = true;
-    }
-    else
-    {
-        PLAY = false;
-        PAUSE = true;
-        STOP = false;
-    }
 }
 
 void button3Action()
 {
-    // RWIND
-    // LEFT
-
-    SerialHW.print(" Button 3 pressed ");
-    if (menuOn)
-    {
-        LEFT = true;
-    }
-    else
-    {
-        PLAY = false;
-        PAUSE = false;
-        STOP = true;
-    }
+    // FFWIND
+    hmi.writeString("click btnFFWD,1");
 
 }
 
 void button4Action()
 {
-    //STOP
-    //RIGHT
-
-    SerialHW.print(" Button 4 pressed ");
-    if (menuOn)
-    {
-        RIGHT = true;
-    }
-    else
-    {
-    }
+    // PAUSE
+    hmi.writeString("click btnPause,1");
 }
 
 void button5Action()
 {
-    // REC
-    // ENTER
-
-    SerialHW.print(" Button 5 pressed ");
-    if (menuOn)
-    {
-        ENTER = true;
-    }
-    else
-    {
-
-    }
+    // STOP
+    hmi.writeString("click btnStop,1");
 }
 
 void button6Action()
 {
-    // MENU
-
-    SerialHW.print(" Button 6 pressed ");
-    if (menuOn)
-    {
-        // Acción sobre el MENU
-        MENU = true;
-    }
-    else
-    {
-
-    }
+    // REC
+    hmi.writeString("click btnRec,1");
 }
 
 void buttonsControl()
@@ -156,49 +117,83 @@ void buttonsControl()
     button5 = digitalRead(button5_GPIO);
     button6 = digitalRead(button6_GPIO);
 
-    if (button1 == HIGH)
+    // PLAY
+    if (button1 == 0 && !button1_down)
     {
+        //Presiono
         button1_down = true;
-        button1_pressed = true;
-
-        // Pulsacion prolongada
-        delay(100);
     }
-    else
-    {
-        if (button1_pressed)
-        {
-            // Pulsacion corta
-            button1_pressed = false;
-            button1Action();
-        }
-        //
+    else if (button1 == 1 && button1_down)
+    {     
+        // Suelto 
+        button1Action();
         button1_down = false;
     }
 
-    if (button2 == LOW)
+    //RWD
+    if (button2 == 0 && !button2_down)
     {
+        //Presiono
+        button2_down = true;
+    }
+    else if (button2 == 1 && button2_down)
+    {     
+        // Suelto 
         button2Action();
+        button2_down = false;
     }
 
-    if (button3 == LOW)
+    // FFWD
+    if (button3 == 0 && !button3_down)
     {
+        //Presiono
+        button3_down = true;
+    }
+    else if (button3 == 1 && button3_down)
+    {     
+        // Suelto 
         button3Action();
-    }
+        button3_down = false;
+    }    
 
-    if (button4 == HIGH)
+    // PAUSE
+    if (button4 == 0 && !button4_down)
     {
+        //Presiono
+        button4_down = true;
+    }
+    else if (button4 == 1 && button4_down)
+    {     
+        // Suelto 
         button4Action();
-    }
+        button4_down = false;
+    }    
 
-    if (button5 == HIGH)
+    // STOP
+    if (button5 == 0 && !button5_down)
     {
+        //Presiono
+        button5_down = true;
+    }
+    else if (button5 == 1 && button5_down)
+    {     
+        // Suelto 
         button5Action();
-    }
+        button5_down = false;
+    } 
 
-    if (button6 == HIGH)
+    // REC
+    if (button6 == 0 && !button6_down)
     {
-        button6Action();
+        //Presiono
+        button6_down = true;
     }
+    else if (button6 == 1 && button6_down)
+    {     
+        // Suelto 
+        button6Action();
+        button6_down = false;
+    } 
+
 
 }
