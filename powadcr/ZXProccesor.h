@@ -219,7 +219,10 @@ class ZXProccesor
         // Pulso alto (mitad del periodo)
         for (int j=0;j<bytes/(4*chn);j++){
 
-            m_amplitude = MAIN_VOL * 32767 / 100;
+            if (j % 32 == 0)
+            {
+              m_amplitude = MAIN_VOL * 32767 / 100;
+            }
 
             int16_t sample = m_amplitude;
             *ptr++ = sample;
@@ -267,7 +270,10 @@ class ZXProccesor
         int16_t *ptr = (int16_t*)buffer;
         for (int j=0;j<bytes/(2*chn);j++){
 
-            m_amplitude = MAIN_VOL * 32767 / 100;
+            if (j % 32 ==0)
+            {
+              m_amplitude = MAIN_VOL * 32767 / 100;
+            }
 
             int16_t sample = 0;
             sample = m_amplitude * slope;

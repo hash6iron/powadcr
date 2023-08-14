@@ -78,28 +78,28 @@ void button1Action()
 
 void button2Action()
 {
-    // RWIND
-    //hmi.writeString("click btnRWD,1");
+
     // PAUSE
     hmi.writeString("click btnPause,1");    
 }
 
 void button3Action()
 {
-    // FFWIND
-    //hmi.writeString("click btnFFWD,1");
+
     // STOP
     hmi.writeString("click btnStop,1");    
 }
 
 void button4Action()
 {
-
+    // RWIND
+    hmi.writeString("click btnRWD,1");
 }
 
 void button5Action()
 {
-
+    // FFWIND
+    hmi.writeString("click btnFFWD,1");
 }
 
 void button6Action()

@@ -569,13 +569,13 @@ void Task1code( void * pvParameters )
   {
       hmi.readUART();
       // Hay que dejar un delay porque si no, salta el WDT
-      if (!headPhoneDetection())
-      {
-        hmi.writeString("click btnPause,1");
-      }
+      // if (!headPhoneDetection())
+      // {
+      //   hmi.writeString("click btnPause,1");
+      // }
       // Control por botones
       buttonsControl();
-      delay(125);
+      delay(250);
   }
 }
 
