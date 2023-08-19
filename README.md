@@ -118,3 +118,8 @@ Required libraries:
 **What PowaDCR beta version is able to do?**
 (in progress)
 
+If you enjoy with this device and you want to colaborate, please.
+
+https://www.paypal.com/donate/?hosted_button_id=BAWGJFZGXE5GE
+
+thxs.
