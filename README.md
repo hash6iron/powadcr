@@ -120,6 +120,6 @@ Required libraries:
 
 If you enjoy with this device and you want to colaborate, please.
 
-https://www.paypal.com/donate/?hosted_button_id=BAWGJFZGXE5GE
+https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=BAWGJFZGXE5GE&source=url
 
 thxs.
