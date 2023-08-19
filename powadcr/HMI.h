@@ -1081,7 +1081,7 @@ class HMI
           PAUSE = true;
           STOP = false;
       
-          LAST_MESSAGE = "Tape paused. Press play to continue load.";
+          LAST_MESSAGE = "Tape paused. Press play to continue load or select block.";
           updateInformationMainPage();
         }
       
