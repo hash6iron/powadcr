@@ -943,6 +943,7 @@ class HMI
             char* dir_ch = (char*)calloc(FILE_DIR_TO_CHANGE.length()+1,sizeof(char));
             FILE_DIR_TO_CHANGE.toCharArray(dir_ch,FILE_DIR_TO_CHANGE.length()+1);
             FILE_LAST_DIR = dir_ch;
+            FILE_LAST_DIR_LAST = FILE_LAST_DIR;
       
             if (FILE_DIR_TO_CHANGE.length() == 1)
             {
@@ -958,18 +959,13 @@ class HMI
             //
             //
             FILE_PTR_POS = 0;
-            clearFilesInScreen();
-      
-            //writeString("statusFILE.txt=\"GETTING FILES\"");
-            
+            clearFilesInScreen();            
             getFilesFromSD();
             
             if (!FILE_DIR_OPEN_FAILED)
             {
                 putFilesInScreen();
             }
-      
-            //writeString("statusFILE.txt=\"\"");
       
         }
       
