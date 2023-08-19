@@ -1,5 +1,8 @@
 # POWADCR
 TAP/TZX Digital cassette recorder for 8-bit machines
+
+<a href="https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=BAWGJFZGXE5GE&source=url"><img src="/doc/paypal_boton.png" /></a>
+
 -----
 ![plot](./doc/powadcr_sp.jpg)
 This project pretend to implement a Digital Cassette Recorder (for TAP/TZX/SNA files playing and recording) for 8-bit machines on ESP32 Audio kit development board and using HMI over touch 3.5" screen.
