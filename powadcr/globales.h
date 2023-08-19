@@ -209,8 +209,10 @@ char* FILE_PATH = &INITCHAR[0];         // Ruta del archivo seleccionado
 int FILE_LAST_DIR_LEVEL = 0;  // Nivel de profundida de directorio
 char* FILE_LAST_DIR = &INITFILEPATH[0];
 char* FILE_PREVIOUS_DIR = &INITFILEPATH[0];
+char* FILE_LAST_DIR_LAST = &INITCHAR[0];
 int FILE_LAST_INDEX = 0;
 int FILE_IDX_SELECTED = -1;
+bool FILE_PREPARED = false;
 
 tFileBuffer* FILES_BUFF = NULL;
 tFileBuffer* FILES_FOUND_BUFF = NULL;
@@ -252,8 +254,8 @@ const int END_ST = 4;
 const int ACK_LCD = 5;
 const int RESET = 6;
 //
-int MAIN_VOL = 90;
-int LAST_MAIN_VOL = 90;
+int MAIN_VOL = 95;
+int LAST_MAIN_VOL = 95;
 int MAX_MAIN_VOL = 100;
 
 // Gestion de menú

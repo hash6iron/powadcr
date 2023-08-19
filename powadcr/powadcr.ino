@@ -49,9 +49,12 @@
 
 // Librerias (mantener este orden)
 //   -- En esta se encuentran las variables globales a todo el proyecto
+TaskHandle_t Task0;
 TaskHandle_t Task1;
 
 #define SerialHWDataBits 921600
+
+#include <esp_task_wdt.h>
 
 #include <HardwareSerial.h>
 HardwareSerial SerialHW(0);
@@ -122,12 +125,14 @@ void proccesingTAP(char* file_ch)
       LAST_MESSAGE = "Press PLAY to enjoy!";
       delay(125);
       hmi.updateInformationMainPage();
+      FILE_PREPARED = true;
     }
     else
     {
       LAST_MESSAGE = "ERROR! Selected file is CORRUPTED.";
       delay(125);
       hmi.updateInformationMainPage();
+      FILE_PREPARED = false;
     }
 
     FILE_NOTIFIED = true;
@@ -144,6 +149,7 @@ void proccesingTZX(char* file_ch)
     hmi.updateInformationMainPage();
 
     FILE_NOTIFIED = true;  
+    FILE_PREPARED = true;
 }
 
 void sendStatus(int action, int value) {
@@ -327,6 +333,9 @@ void waitForHMI(bool waitAndNotForze)
 
 void setup() {
 
+    //rtc_wdt_protect_off();    // Turns off the automatic wdt service
+    // rtc_wdt_enable();         // Turn it on manually
+    // rtc_wdt_set_time(RTC_WDT_STAGE0, 20000);  // Define how long you desire to let dog wait.
   // Configuramos el nivel de log
   SerialHW.setRxBufferSize(2048);
 
@@ -447,15 +456,29 @@ void setup() {
   // Control del TAPE
   //xTaskCreatePinnedToCore(Task2code, "Task2", 10000, NULL, 1, NULL,  1);
   //delay(500)  ;
+
   // Control de la UART - HMI
-  xTaskCreatePinnedToCore(Task1code, "Task1", 10000, NULL, 1, &Task1,  0);
+  xTaskCreatePinnedToCore(Task0code, "TaskCORE0", 4096, NULL, 5, &Task0,  0);
   delay(500);
+
+  // Control del TAPE
+  //xTaskCreatePinnedToCore(Task1code, "TaskCORE1", 4096, NULL, 1, &Task1,  1);
+  //delay(500);
+
+  // Hacemos esto para que el WDT no nos mate los procesos
+  //esp_task_wdt_init(10,false);
+
+  // Deshabilitamos el WDT en cada core
+  disableCore0WDT();
+  disableCore1WDT();
 }
 
 void tapeControl()
 {
+
   if (!FILE_BROWSER_OPEN)
   {
+      
       if (STOP == true && LOADING_STATE != 0) {
         LOADING_STATE = 0;
         BLOCK_SELECTED = 0;
@@ -503,7 +526,7 @@ void tapeControl()
         }
       }
 
-      if (PLAY == true && LOADING_STATE == 0) 
+      if (PLAY && LOADING_STATE == 0 && FILE_PREPARED) 
       {
 
         ESP32kit.setVolume(MAIN_VOL);
@@ -562,26 +585,23 @@ bool headPhoneDetection()
   return !gpio_get_level((gpio_num_t)HEADPHONE_DETECT);
 }
 
-void Task1code( void * pvParameters )
+void Task0code( void * pvParameters )
 {
   // Core 0 - Para el HMI
   while(true)
   {
       hmi.readUART();
-      // Hay que dejar un delay porque si no, salta el WDT
-      // if (!headPhoneDetection())
-      // {
-      //   hmi.writeString("click btnPause,1");
-      // }
+
       // Control por botones
-      buttonsControl();
-      delay(250);
+      //buttonsControl();
+      delay(50);
   }
 }
 
-
 void loop() 
 {
-  // Core 1 - Para el control de reproducción y procesado
-  tapeControl();  
+    // CORE1
+    tapeControl();
+    //vTaskDelay(10);
+    delay(125);
 }

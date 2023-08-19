@@ -63,7 +63,7 @@
 // Browser
 // --------------------------------------------------------------
 // Numero máximo de ficheros que se listan por directorio.
-#define MAX_FILES_TO_LOAD 15000
+#define MAX_FILES_TO_LOAD 2001
 // Cada n ficheros refresca el marcador. Por defecto 5
 #define EACH_FILES_REFRESH 5
 

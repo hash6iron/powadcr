@@ -111,11 +111,7 @@ class HMI
               free(FILES_BUFF);
               FILES_BUFF = NULL;
           }
-      
-          // FILE_TOTAL_FILES = countFiles(FILE_LAST_DIR);
-          // SerialHW.println("");
-          // SerialHW.println("Files to load - " + String(FILE_TOTAL_FILES));
-
+    
           FILE_TOTAL_FILES = MAX_FILES_TO_LOAD;
           
           FILES_BUFF = (tFileBuffer*)calloc(FILE_TOTAL_FILES+1,sizeof(tFileBuffer));
@@ -221,15 +217,14 @@ class HMI
                   if ((j % EACH_FILES_REFRESH) == 0)
                   {
                       writeString("statusFILE.txt=\"FILES " + String(j) +"\"");
-
                   }
-                        
+                       
               }
       
               FILE_TOTAL_FILES = j;
               sdm.dir.close();
 
-              getMemFree();
+              //getMemFree();
           }
 
           writeString("statusFILE.txt=\"FILES " + String(FILE_TOTAL_FILES-1) +"\"");
@@ -461,9 +456,9 @@ class HMI
             color = 2016;  // Verde
             szName = String("..     ") + szName;
             
-            //writeString("");
+            writeString("");
             writeString("prevDir.txt=\"" + String(szName) + "\"");
-            //writeString("");
+            writeString("");
             writeString("prevDir.pco=" + String(color));
             
             // Descartamos la posición cero del buffer porque es una posición especial
@@ -503,6 +498,7 @@ class HMI
       void putInHome()
       {
           FILE_BROWSER_SEARCHING = false;  
+          FILE_LAST_DIR_LAST = &INITFILEPATH[0];
           FILE_LAST_DIR=&INITFILEPATH[0];
           FILE_PREVIOUS_DIR=&INITFILEPATH[0];
           // Open root directory
@@ -658,7 +654,12 @@ class HMI
         {
             // Con este comando nos indica la pantalla que 
             // está en modo FILEBROWSER
-            FILE_BROWSER_OPEN = false;
+            if (!FILE_SELECTED)
+            {
+                //FILE_LAST_DIR = &INITFILEPATH[0];
+                //FILE_LAST_DIR_LAST =  &INITCHAR[0];
+                FILE_BROWSER_OPEN = false;
+            }
         }
       
         if (strCmd.indexOf("GFIL") != -1) 
@@ -668,44 +669,80 @@ class HMI
       
             //writeString("statusFILE.txt=\"GETTING FILES\"");
             //delay(125);
-      
-            if (sdm.dir.isOpen())
-            {
-                sdm.dir.close();
-                SerialHW.println("");
-                SerialHW.println("");
-                SerialHW.println(" Closing file before new browsing.");                
-            }
+            FILE_PREPARED = false;
+            FILE_SELECTED = false;
+            
+            SerialHW.println("");
+            SerialHW.println("");
+            SerialHW.println("file last dir: ");
+            SerialHW.println(FILE_LAST_DIR_LAST);
+            SerialHW.println(FILE_LAST_DIR);
 
-            getFilesFromSD();
-      
+            if (FILE_LAST_DIR_LAST != FILE_LAST_DIR)
+            {
+
+                if (sdm.dir.isOpen())
+                {
+                    sdm.dir.close();
+                    SerialHW.println("");
+                    SerialHW.println("");
+                    SerialHW.println(" Closing file before new browsing.");                
+                }
+
+                getFilesFromSD();
+            }
+            // else
+            // {
+            //     if (!FILE_BROWSER_SEARCHING)
+            //     {
+            //         clearFilesInScreen();
+            //         putFilesInScreen(); 
+            //     }
+            //     else
+            //     {
+            //         clearFilesInScreen();
+            //         putFilesFoundInScreen(); 
+            //     }
+            //     // Actualizamos el total del ficheros leidos anteriormente.
+            //     writeString("statusFILE.txt=\"FILES " + String(FILE_TOTAL_FILES) +"\"");          
+            // }
+
             if (!FILE_DIR_OPEN_FAILED)
             {
+
+                SerialHW.println("");
+                SerialHW.println("");
+                SerialHW.println("I'm here");
+
                 clearFilesInScreen();
                 putFilesInScreen();
                 FILE_STATUS = 1;
                 // El GFIL desconecta el filtro de busqueda
                 FILE_BROWSER_SEARCHING = false;
-            }        
+
+                // Actualizamos el total del ficheros leidos anteriormente.
+                writeString("statusFILE.txt=\"FILES " + String(FILE_TOTAL_FILES) +"\"");                    
+            }      
+       
           
             //writeString("statusFILE.txt=\"\"");
-            delay(125);
+            //delay(125);
       
         }
 
         if (strCmd.indexOf("RFSH") != -1) 
         {
             // Refrescamos el listado de ficheros visualizado
-              if (!FILE_BROWSER_SEARCHING)
-              {
-                  clearFilesInScreen();
-                  putFilesInScreen(); 
-              }
-              else
-              {
-                  clearFilesInScreen();
-                  putFilesFoundInScreen(); 
-              }            
+            if (!FILE_BROWSER_SEARCHING)
+            {
+                clearFilesInScreen();
+                putFilesInScreen(); 
+            }
+            else
+            {
+                clearFilesInScreen();
+                putFilesFoundInScreen(); 
+            }            
         }
 
       
@@ -782,12 +819,14 @@ class HMI
             FILE_IDX_SELECTED = num.toInt();
       
             //Cogemos el directorio
+
             FILE_DIR_TO_CHANGE = FILE_LAST_DIR + FILES_BUFF[FILE_IDX_SELECTED + FILE_PTR_POS].path + "/";    
       
             char* dir_ch = (char*)calloc(FILE_DIR_TO_CHANGE.length()+1,sizeof(char));
             FILE_DIR_TO_CHANGE.toCharArray(dir_ch,FILE_DIR_TO_CHANGE.length()+1);
             FILE_PREVIOUS_DIR = FILE_LAST_DIR;
             FILE_LAST_DIR = dir_ch;
+            FILE_LAST_DIR_LAST = FILE_LAST_DIR;
       
             FILE_PTR_POS = 0;
             clearFilesInScreen();
@@ -857,6 +896,7 @@ class HMI
             String num = String(buff[4]+buff[5]+buff[6]+buff[7]);
       
             FILE_IDX_SELECTED = num.toInt();
+            FILE_SELECTED = false;
       
             //Cogemos el fichero
             if (!FILE_BROWSER_SEARCHING)
@@ -868,11 +908,11 @@ class HMI
                 SerialHW.println("File to load: " + FILE_TO_LOAD);    
       
                 // Ya no me hace falta. Lo libero
-                if (FILES_BUFF!=NULL)
-                {
-                    free(FILES_BUFF);
-                    FILES_BUFF=NULL;
-                }
+                // if (FILES_BUFF!=NULL)
+                // {
+                //     free(FILES_BUFF);
+                //     FILES_BUFF=NULL;
+                // }
                 
             }
             else
@@ -898,10 +938,7 @@ class HMI
             {
                 FILE_SELECTED = true;
             }
-            else
-            {
-                FILE_SELECTED = false;
-            }
+
       
             FILE_STATUS = 0;
             FILE_NOTIFIED = false;
