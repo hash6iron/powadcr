@@ -120,6 +120,6 @@ Required libraries:
 
 If you enjoy with this device and you want to colaborate, please.
 
-<a href="https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=BAWGJFZGXE5GE&source=url"</a><button type="button"><img src="/doc/paypal_boton.png" /></button>
+<a href="https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=BAWGJFZGXE5GE&source=url"<img src="/doc/paypal_boton.png" /></a>
 
 thxs.
