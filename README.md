@@ -3,7 +3,7 @@ TAP/TZX Digital cassette recorder for 8-bit machines
 -----
 <a href="https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=BAWGJFZGXE5GE&source=url"><img src="/doc/paypal_boton.png" /></a>
 
-<a href="https://www.buymeacoffee.com/atamairon"><img src="/doc/paypal_boton.png" /></a>
+<a href="https://www.buymeacoffee.com/atamairon"><img src="/doc/coffe.jpg" /></a>
 
 
 ![plot](./doc/powadcr_sp.jpg)
@@ -127,6 +127,6 @@ If you enjoy with this device and you want to colaborate, please.
 
 <a href="https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=BAWGJFZGXE5GE&source=url"><img src="/doc/paypal_boton.png" /></a>
 
-<a href="https://www.buymeacoffee.com/atamairon"><img src="/doc/paypal_boton.png" /></a>
+<a href="https://www.buymeacoffee.com/atamairon"><img src="/doc/coffe.jpg" /></a>
 
 thxs.
