@@ -36,7 +36,7 @@
 // 0 for ZX Spectrum
 // 1 for AMSTRAD
 
-#define VERSION "v1.0.0"
+#define VERSION "v1.1.0"
 #define MACHINE_ZX
 //#define MACHINE_AMSTRAD
 
@@ -66,6 +66,8 @@
 #define MAX_FILES_TO_LOAD 2001
 // Cada n ficheros refresca el marcador. Por defecto 5
 #define EACH_FILES_REFRESH 5
+// Numero total de lineas de una pagina del file browser
+#define TOTAL_FILES_IN_BROWSER_PAGE 13
 
 // Player / SD
 // -------------------------------------------------------------------

@@ -120,8 +120,8 @@ class HMI
           
           if (!sdm.dir.open(FILE_LAST_DIR)) 
           {
-              SerialHW.println("");
-              SerialHW.println("dir.open failed - " + String(FILE_LAST_DIR));
+              // SerialHW.println("");
+              // SerialHW.println("dir.open failed - " + String(FILE_LAST_DIR));
               FILE_DIR_OPEN_FAILED = true;
           }
           else
@@ -129,8 +129,8 @@ class HMI
               sdm.dir.rewindDirectory();
               sdm.file.rewind();
       
-              SerialHW.println("");
-              SerialHW.println("dir.open OK");
+              // SerialHW.println("");
+              // SerialHW.println("dir.open OK");
       
               FILE_DIR_OPEN_FAILED = false;
       
@@ -234,9 +234,9 @@ class HMI
           sdm.dir.close();
           sdm.file.close();
 
-          SerialHW.println("");
-          SerialHW.println("");
-          SerialHW.println("TOTAL FILES READ: " + String(FILE_TOTAL_FILES-1));
+          // SerialHW.println("");
+          // SerialHW.println("");
+          // SerialHW.println("TOTAL FILES READ: " + String(FILE_TOTAL_FILES-1));
       }
 
 
@@ -368,7 +368,7 @@ class HMI
         int color = 65535;
         int pos_in_HMI_file = 0;
       
-        for (int i=0;i<=13;i++)
+        for (int i=0;i<=TOTAL_FILES_IN_BROWSER_PAGE;i++)
         {
             printFileRows(pos_in_HMI_file, color, szName);
             delay(5);
@@ -376,6 +376,30 @@ class HMI
             pos_in_HMI_file++;
         }
       
+      }
+
+      void showInformationAboutFiles()
+      {
+          // Limpiamos el path, para evitar cargar un fichero no seleccionado.
+          writeString("path.txt=\"\"");  
+          // Indicamos el path actual
+          writeString("currentDir.txt=\"" + String(FILE_LAST_DIR_LAST) + "\"");
+          // Actualizamos el total del ficheros leidos anteriormente.
+          writeString("statusFILE.txt=\"FILES " + String(FILE_TOTAL_FILES - 1) +"\"");         
+          
+          // Obtenemos la pagina mostrada del listado de ficheros
+          int totalPages = (FILE_TOTAL_FILES / TOTAL_FILES_IN_BROWSER_PAGE);
+          
+          if (FILE_TOTAL_FILES % TOTAL_FILES_IN_BROWSER_PAGE != 0)
+          {
+              totalPages+=1;
+          }
+
+          int currentPage = (FILE_PTR_POS / TOTAL_FILES_IN_BROWSER_PAGE) + 1;
+
+          // Actualizamos el total del ficheros leidos anteriormente.
+          //writeString("tPage.txt=\"" + String(totalPages) +"\"");
+          writeString("cPage.txt=\"" + String(currentPage) +" - " + String(totalPages) + "\"");
       }
       
       void putFilesFoundInScreen()
@@ -388,8 +412,8 @@ class HMI
         String szName = "";
         String type="";
       
-        int color = 65535; //60868
-        
+        int color = 65535; //60868    
+
         if (FILE_PTR_POS==0)
         {
             // Esto es solo para el parent dir, para que siempre salga arriba
@@ -435,6 +459,8 @@ class HMI
 
               pos_in_HMI_file++;
         }
+
+        showInformationAboutFiles(); 
       }
       
       void putFilesInScreen()
@@ -492,6 +518,8 @@ class HMI
               //printFileRows(pos_in_HMI_file, color, szName);
               pos_in_HMI_file++;
         }
+
+        showInformationAboutFiles();        
       
       }
       
@@ -539,9 +567,9 @@ class HMI
               String fileRead = "";
               int j = 1;
       
-              SerialHW.println();
-              SerialHW.println();
-              SerialHW.println(FILE_TXT_TO_SEARCH);
+              // SerialHW.println();
+              // SerialHW.println();
+              // SerialHW.println(FILE_TXT_TO_SEARCH);
       
               for (int i=1;i<FILE_TOTAL_FILES;i++)
               {
@@ -561,7 +589,7 @@ class HMI
                           FILES_FOUND_BUFF[j].type = FILES_BUFF[i].type;
                           FILES_FOUND_BUFF[j].isDir = FILES_BUFF[i].isDir;
                           
-                          SerialHW.println(fileRead);
+                          //SerialHW.println(fileRead);
                           
                           j++;
                       }
@@ -578,20 +606,28 @@ class HMI
                   // No hay resultados
                   writeString("statusFILE.txt=\"NO FILES FOUND\"");
                   delay(125);
+                  // Indicamos que ya no estamos en searching para que se pueda
+                  // hacer refresco sin problemas
+                  FILE_BROWSER_SEARCHING = false;
+                  FILE_BROWSER_OPEN = true;
+                  // Borramos todo 
+                  clearFilesInScreen();                  
               }
               else
               {
                   // Limpiamos el mensaje
-                  writeString("statusFILE.txt=\"\"");
+                  writeString("statusFILE.txt=\"FILES " + String(j) + "\"");
                   delay(125);
+
+                  FILE_TOTAL_FILES = j;       
+                  FILE_PTR_POS=0;     
+          
+                  // Representamos ahora   
+                  clearFilesInScreen();
+                  putFilesFoundInScreen();                  
               }
       
-              FILE_TOTAL_FILES = j;       
-              FILE_PTR_POS=0;     
-      
-              // Representamos ahora   
-              clearFilesInScreen();
-              putFilesFoundInScreen();
+
           }
       }
       
@@ -629,7 +665,48 @@ class HMI
       
             updateInformationMainPage();
         }
-      
+
+        if (strCmd.indexOf("PAG=") != -1) 
+        {
+            // Con este procedimiento capturamos el bloque seleccionado
+            // desde la pantalla.
+            byte* buff = (byte*)calloc(8,sizeof(byte));
+            strCmd.getBytes(buff, 7);
+            String num = String(buff[4]+buff[5]+buff[6]+buff[7]);
+            
+            int pageSelected = num.toInt();
+            int totalPages = (FILE_TOTAL_FILES / TOTAL_FILES_IN_BROWSER_PAGE);
+            if (FILE_TOTAL_FILES % TOTAL_FILES_IN_BROWSER_PAGE != 0)
+            {
+                totalPages+=1;
+            }            
+
+            // SerialHW.println("");
+            // SerialHW.println("Pagina seleccionada");
+            // SerialHW.print(String(pageSelected));
+            // SerialHW.print("/");
+            // SerialHW.print(String(totalPages));
+
+            if (pageSelected <= totalPages)
+            {
+                // Cogemos el primer item y refrescamos
+                FILE_PTR_POS = (pageSelected * TOTAL_FILES_IN_BROWSER_PAGE) + 1;
+
+                // Refrescamos el listado de ficheros visualizado
+                if (!FILE_BROWSER_SEARCHING)
+                {
+                    clearFilesInScreen();
+                    putFilesInScreen(); 
+                }
+                else
+                {
+                    clearFilesInScreen();
+                    putFilesFoundInScreen(); 
+                } 
+            }
+            
+        }      
+
         if (strCmd.indexOf("INFB") != -1) 
         {
             // Con este comando nos indica la pantalla que 
@@ -642,11 +719,11 @@ class HMI
             // Con este comando nos indica la pantalla que 
             // está en modo FILEBROWSER
             FILE_BROWSER_SEARCHING = true;
-            SerialHW.println("");
-            SerialHW.println("");
-            SerialHW.println(" ---------- Buscando ficheros");
+            // SerialHW.println("");
+            // SerialHW.println("");
+            // SerialHW.println(" ---------- Buscando ficheros");
             findTheTextInFiles();
-            SerialHW.println(" ----------------------------");
+            // SerialHW.println(" ----------------------------");
       
         }
       
@@ -659,6 +736,10 @@ class HMI
                 //FILE_LAST_DIR = &INITFILEPATH[0];
                 //FILE_LAST_DIR_LAST =  &INITCHAR[0];
                 FILE_BROWSER_OPEN = false;
+
+                // SerialHW.println("");
+                // SerialHW.println("");
+                // SerialHW.println("No file was SELECTED: ");
             }
         }
       
@@ -672,11 +753,11 @@ class HMI
             FILE_PREPARED = false;
             FILE_SELECTED = false;
             
-            SerialHW.println("");
-            SerialHW.println("");
-            SerialHW.println("file last dir: ");
-            SerialHW.println(FILE_LAST_DIR_LAST);
-            SerialHW.println(FILE_LAST_DIR);
+            // SerialHW.println("");
+            // SerialHW.println("");
+            // SerialHW.println("file last dir: ");
+            // SerialHW.println(FILE_LAST_DIR_LAST);
+            // SerialHW.println(FILE_LAST_DIR);
 
             if (FILE_LAST_DIR_LAST != FILE_LAST_DIR)
             {
@@ -684,9 +765,9 @@ class HMI
                 if (sdm.dir.isOpen())
                 {
                     sdm.dir.close();
-                    SerialHW.println("");
-                    SerialHW.println("");
-                    SerialHW.println(" Closing file before new browsing.");                
+                    // SerialHW.println("");
+                    // SerialHW.println("");
+                    // SerialHW.println(" Closing file before new browsing.");                
                 }
 
                 getFilesFromSD();
@@ -710,18 +791,15 @@ class HMI
             if (!FILE_DIR_OPEN_FAILED)
             {
 
-                SerialHW.println("");
-                SerialHW.println("");
-                SerialHW.println("I'm here");
+                // SerialHW.println("");
+                // SerialHW.println("");
+                // SerialHW.println("I'm here");
 
                 clearFilesInScreen();
                 putFilesInScreen();
                 FILE_STATUS = 1;
                 // El GFIL desconecta el filtro de busqueda
-                FILE_BROWSER_SEARCHING = false;
-
-                // Actualizamos el total del ficheros leidos anteriormente.
-                writeString("statusFILE.txt=\"FILES " + String(FILE_TOTAL_FILES) +"\"");                    
+                FILE_BROWSER_SEARCHING = false;                   
             }      
        
           
@@ -750,7 +828,7 @@ class HMI
         {
             // Con este comando nos indica la pantalla que quiere
             // le devolvamos ficheros en la posición actual del puntero
-            FILE_PTR_POS = FILE_PTR_POS - 13;
+            FILE_PTR_POS = FILE_PTR_POS - TOTAL_FILES_IN_BROWSER_PAGE;
       
             if (FILE_PTR_POS < 0)
             {
@@ -773,24 +851,32 @@ class HMI
         {
             // Con este comando nos indica la pantalla que quiere
             // le devolvamos ficheros en la posición actual del puntero
-            if(FILE_TOTAL_FILES > 13)
+            if(FILE_TOTAL_FILES > TOTAL_FILES_IN_BROWSER_PAGE)
             {
-                FILE_PTR_POS = FILE_PTR_POS + 13;
+                FILE_PTR_POS = FILE_PTR_POS + TOTAL_FILES_IN_BROWSER_PAGE;
       
-                if (FILE_PTR_POS > (FILE_TOTAL_FILES-13))
+                if (FILE_PTR_POS > FILE_TOTAL_FILES)
                 {
-                    FILE_PTR_POS = FILE_TOTAL_FILES-13;
+                    FILE_PTR_POS -= TOTAL_FILES_IN_BROWSER_PAGE;
                 }
       
                 if (!FILE_BROWSER_SEARCHING)
                 {
                     clearFilesInScreen();
                     putFilesInScreen(); 
+
+                    // SerialHW.println("");
+                    // SerialHW.println("");
+                    // SerialHW.println("I'm in BROWSER mode yet.");
                 }
                 else
                 {
                     clearFilesInScreen();
                     putFilesFoundInScreen(); 
+
+                    // SerialHW.println("");
+                    // SerialHW.println("");
+                    // SerialHW.println("I'm in SEARCH mode yet.");
                 }
             }
         }
@@ -827,7 +913,7 @@ class HMI
             FILE_PREVIOUS_DIR = FILE_LAST_DIR;
             FILE_LAST_DIR = dir_ch;
             FILE_LAST_DIR_LAST = FILE_LAST_DIR;
-      
+     
             FILE_PTR_POS = 0;
             clearFilesInScreen();
       
@@ -903,9 +989,9 @@ class HMI
             {
                 FILE_TO_LOAD = FILE_LAST_DIR + FILES_BUFF[FILE_IDX_SELECTED + FILE_PTR_POS].path;     
       
-                SerialHW.println();
-                SerialHW.println();
-                SerialHW.println("File to load: " + FILE_TO_LOAD);    
+                // SerialHW.println();
+                // SerialHW.println();
+                // SerialHW.println("File to load: " + FILE_TO_LOAD);    
       
                 // Ya no me hace falta. Lo libero
                 // if (FILES_BUFF!=NULL)
@@ -919,9 +1005,9 @@ class HMI
             {
                 FILE_TO_LOAD = FILE_LAST_DIR + FILES_FOUND_BUFF[FILE_IDX_SELECTED + FILE_PTR_POS].path;     
       
-                SerialHW.println();
-                SerialHW.println();
-                SerialHW.println("File to load: " + FILE_TO_LOAD); 
+                // SerialHW.println();
+                // SerialHW.println();
+                // SerialHW.println("File to load: " + FILE_TO_LOAD); 
       
                 // Ya no me hace falta. Lo libero
                 if(FILES_FOUND_BUFF!=NULL)
@@ -1063,9 +1149,9 @@ class HMI
           {
             MAIN_VOL = 100;
           }
-          SerialHW.println("");
-          SerialHW.println("VOL UP");
-          SerialHW.println("");
+          // SerialHW.println("");
+          // SerialHW.println("VOL UP");
+          // SerialHW.println("");
         }
 
         if (strCmd.indexOf("VOLDW") != -1) 
@@ -1076,9 +1162,9 @@ class HMI
           {
             MAIN_VOL = 30;
           }
-          SerialHW.println("");
-          SerialHW.println("VOL DOWN");
-          SerialHW.println("");
+          // SerialHW.println("");
+          // SerialHW.println("VOL DOWN");
+          // SerialHW.println("");
         }
       
         if (strCmd.indexOf("TXTF=") != -1) 
