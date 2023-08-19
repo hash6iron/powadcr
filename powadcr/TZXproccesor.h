@@ -1415,19 +1415,22 @@ class TZXproccesor
                     int dly = _myTZX.descriptor[i].pauseAfterThisBlock;
                     if (dly == 0)
                     {
+                        // SerialHW.println("");
+                        // SerialHW.println("");
+                        // SerialHW.println("Esperando a STOP AUTO");
+                        
                         // En el caso de cero. Paramos el TAPE (PAUSA, porque esto es para poder cargar bloques después)
                         //i = _myTZX.numBlocks;
                         // PAUSE
                         //Pausamos la reproducción a través
                         //del HMI 
                         hmi.writeString("click btnPause,1"); 
-                      
-                        break;
+                        //break;
                     }
                     else
                     {
                         // En otro caso. delay
-                        zxp.silence(dly);
+                        zxp.silence(dly);                        
                     }                    
                 }
 
