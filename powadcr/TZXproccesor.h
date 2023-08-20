@@ -102,6 +102,12 @@ class TZXproccesor
 
       // }
 
+      char* get_tzx_name()
+      {
+          // Devolvemos el nombre del TAP
+          return _myTZX.name;
+      }
+
      byte* getBlockRange(byte* bBlock, int byteStart, int byteEnd)
      {
 
@@ -820,6 +826,8 @@ class TZXproccesor
 
                       nextIDoffset = currentOffset + _myTZX.descriptor[currentBlock].size + 5;
                       
+                      _myTZX.descriptor[currentBlock].typeName = "ID 10 - Standard block";
+
                       currentBlock++;
                   }
                   else
@@ -843,6 +851,8 @@ class TZXproccesor
 
                       nextIDoffset = currentOffset + _myTZX.descriptor[currentBlock].size + 19;
                       
+                      _myTZX.descriptor[currentBlock].typeName = "ID 11 - Speed block";
+
                       currentBlock++;
                   }
                   else
@@ -864,6 +874,8 @@ class TZXproccesor
 
                       nextIDoffset = currentOffset + _myTZX.descriptor[currentBlock].size + 4;
                       
+                      _myTZX.descriptor[currentBlock].typeName = "ID 12 - Pure tone";
+
                       currentBlock++;
                   }
                   else
@@ -878,30 +890,34 @@ class TZXproccesor
                 // ID 13 - Pulse sequence
                 case 19:
                   analyzeBlockUnknow(currentID,currentOffset, currentBlock);
+                  _myTZX.descriptor[currentBlock].typeName = "ID 13 - Pulse seq.";
                   currentBlock++;
                   break;
 
                 // ID 14 - Pure Data Block
                 case 20:
                   analyzeBlockUnknow(currentID,currentOffset, currentBlock);
+                  _myTZX.descriptor[currentBlock].typeName = "ID 14 - Pure Data block";
                   currentBlock++;
                   break;
 
                 // ID 15 - Direct Recording
                 case 21:
                   analyzeBlockUnknow(currentID,currentOffset, currentBlock);
+                  _myTZX.descriptor[currentBlock].typeName = "ID 15 - Direct REC";
                   currentBlock++;
                   break;
 
                 // ID 18 - CSW Recording
                 case 24:
                   analyzeBlockUnknow(currentID,currentOffset, currentBlock);
-                  currentBlock++;
+                  _myTZX.descriptor[currentBlock].typeName = "ID 18 - CSW Rec";currentBlock++;
                   break;
 
                 // ID 19 - Generalized Data Block
                 case 25:
                   analyzeBlockUnknow(currentID,currentOffset, currentBlock);
+                  _myTZX.descriptor[currentBlock].typeName = "ID 19 - General Data block";
                   currentBlock++;
                   break;
 
@@ -914,7 +930,7 @@ class TZXproccesor
                       analyzeID32(mFile,currentOffset, currentBlock);
 
                       nextIDoffset = currentOffset + _myTZX.descriptor[currentBlock].size + 3;
-                      
+                      _myTZX.descriptor[currentBlock].typeName = "ID 20 - Pause TAPE";    
                       currentBlock++;
                   }
                   else
@@ -934,7 +950,7 @@ class TZXproccesor
                       analyzeID33(mFile,currentOffset, currentBlock);
 
                       nextIDoffset = currentOffset + 2 + _myTZX.descriptor[currentBlock].size;
-                      
+                      _myTZX.descriptor[currentBlock].typeName = "ID 21 - Group start";
                       currentBlock++;
                   }
                   else
@@ -956,6 +972,7 @@ class TZXproccesor
                       _myTZX.descriptor[currentBlock].offset = currentOffset;
 
                       nextIDoffset = currentOffset + 1;                      
+                      _myTZX.descriptor[currentBlock].typeName = "ID 22 - Group end";
                       currentBlock++;
                   }
                   else
@@ -970,48 +987,56 @@ class TZXproccesor
                 // ID 23 - Jump to block
                 case 35:
                   analyzeBlockUnknow(currentID,currentOffset, currentBlock);
+                  _myTZX.descriptor[currentBlock].typeName = "ID 23 - Jump to block";
                   currentBlock++;
                   break;
 
                 // ID 24 - Loop start
                 case 36:
                   analyzeBlockUnknow(currentID,currentOffset, currentBlock);
+                  _myTZX.descriptor[currentBlock].typeName = "ID 24 - Loop start";
                   currentBlock++;
                   break;
 
                 // ID 25 - Loop end
                 case 37:
                   analyzeBlockUnknow(currentID,currentOffset, currentBlock);
+                  _myTZX.descriptor[currentBlock].typeName = "ID 25 - Loop end";
                   currentBlock++;
                   break;
 
                 // ID 26 - Call sequence
                 case 38:
                   analyzeBlockUnknow(currentID,currentOffset, currentBlock);
+                  _myTZX.descriptor[currentBlock].typeName = "ID 26 - Call seq.";
                   currentBlock++;
                   break;
 
                 // ID 27 - Return from sequence
                 case 39:
                   analyzeBlockUnknow(currentID,currentOffset, currentBlock);
+                  _myTZX.descriptor[currentBlock].typeName = "ID 27 - Return from seq.";
                   currentBlock++;
                   break;
 
                 // ID 28 - Select block
                 case 40:
                   analyzeBlockUnknow(currentID,currentOffset, currentBlock);
+                  _myTZX.descriptor[currentBlock].typeName = "ID 28 - Select block";
                   currentBlock++;
                   break;
 
                 // ID 2A - Stop the tape if in 48K mode
                 case 42:
                   analyzeBlockUnknow(currentID,currentOffset, currentBlock);
+                  _myTZX.descriptor[currentBlock].typeName = "ID 2A - Stop TAPE (48k mode)";
                   currentBlock++;
                   break;
 
                 // ID 2B - Set signal level
                 case 43:
                   analyzeBlockUnknow(currentID,currentOffset, currentBlock);
+                  _myTZX.descriptor[currentBlock].typeName = "ID 2B - Set signal level";
                   currentBlock++;
                   break;
 
@@ -1025,6 +1050,8 @@ class TZXproccesor
 
                       // Siguiente ID
                       nextIDoffset = currentOffset + _myTZX.descriptor[currentBlock].size + 1;
+
+                      _myTZX.descriptor[currentBlock].typeName = "ID 30 - Information";
 
                       currentBlock++;
                   }
@@ -1040,6 +1067,7 @@ class TZXproccesor
                 // ID 31 - Message block
                 case 49:
                   analyzeBlockUnknow(currentID,currentOffset, currentBlock);
+                  _myTZX.descriptor[currentBlock].typeName = "ID 31 - Message block";
                   currentBlock++;
                   break;
 
@@ -1053,7 +1081,7 @@ class TZXproccesor
 
                       // Siguiente ID
                       nextIDoffset = currentOffset + 3 + _myTZX.descriptor[currentBlock].size;
-
+                      _myTZX.descriptor[currentBlock].typeName = "ID 32 - Archive info";
                       currentBlock++;
                   }
                   else
@@ -1068,25 +1096,29 @@ class TZXproccesor
                 // ID 33 - Hardware type
                 case 51:
                   analyzeBlockUnknow(currentID,currentOffset, currentBlock);
+                  _myTZX.descriptor[currentBlock].typeName = "ID 33 - HW type";
                   currentBlock++;
                   break;
 
                 // ID 35 - Custom info block
                 case 53:
                   analyzeBlockUnknow(currentID,currentOffset, currentBlock);
+                  _myTZX.descriptor[currentBlock].typeName = "ID 35 - Custom info block";
                   currentBlock++;
                   break;
 
                 // ID 5A - "Glue" block (90 dec, ASCII Letter 'Z')
                 case 90:
                   analyzeBlockUnknow(currentID,currentOffset, currentBlock);
+                  _myTZX.descriptor[currentBlock].typeName = "ID 5A - Glue block";
                   currentBlock++;
                   break;
 
                 default:
                   SerialHW.println("");
                   SerialHW.println("ID unknow " + currentID);
-                  //analyzeBlockUnknow(currentID,currentOffset, currentBlock);
+                  analyzeBlockUnknow(currentID,currentOffset, currentBlock);
+                  _myTZX.descriptor[currentBlock].typeName = "Unknown block";
                   break;
           }
 
@@ -1206,91 +1238,89 @@ class TZXproccesor
 
     void showInfoBlockInProgress(int nBlock)
     {
-        switch(nBlock)
-        {
-            case 0:
+        // switch(nBlock)
+        // {
+        //     case 0:
 
-                // Definimos el buffer del PLAYER igual al tamaño del bloque
-                #if LOG==3
-                  SerialHW.println("> PROGRAM HEADER");
-                #endif
-                LAST_TYPE = &LASTYPE0[0];
-                break;
+        //         // Definimos el buffer del PLAYER igual al tamaño del bloque
+        //         #if LOG==3
+        //           SerialHW.println("> PROGRAM HEADER");
+        //         #endif
+        //         LAST_TYPE = &LASTYPE0[0];
+        //         break;
 
-            case 1:
+        //     case 1:
 
-                // Definimos el buffer del PLAYER igual al tamaño del bloque
-                #if LOG==3
-                  SerialHW.println("");
-                  SerialHW.println("> BYTE HEADER");
-                #endif
-                LAST_TYPE = &LASTYPE1[0];
-                break;
+        //         // Definimos el buffer del PLAYER igual al tamaño del bloque
+        //         #if LOG==3
+        //           SerialHW.println("");
+        //           SerialHW.println("> BYTE HEADER");
+        //         #endif
+        //         LAST_TYPE = &LASTYPE1[0];
+        //         break;
 
-            case 7:
+        //     case 7:
 
-                // Definimos el buffer del PLAYER igual al tamaño del bloque
-                #if LOG==3
-                  SerialHW.println("");
-                  SerialHW.println("> SCREEN HEADER");
-                #endif
-                LAST_TYPE = &LASTYPE7[0];
-                break;
+        //         // Definimos el buffer del PLAYER igual al tamaño del bloque
+        //         #if LOG==3
+        //           SerialHW.println("");
+        //           SerialHW.println("> SCREEN HEADER");
+        //         #endif
+        //         LAST_TYPE = &LASTYPE7[0];
+        //         break;
 
-            case 2:
-                // Definimos el buffer del PLAYER igual al tamaño del bloque
-                #if LOG==3
-                  SerialHW.println("");
-                  SerialHW.println("> BASIC PROGRAM");
-                #endif
-                LAST_TYPE = &LASTYPE2[0];
-                break;
+        //     case 2:
+        //         // Definimos el buffer del PLAYER igual al tamaño del bloque
+        //         #if LOG==3
+        //           SerialHW.println("");
+        //           SerialHW.println("> BASIC PROGRAM");
+        //         #endif
+        //         LAST_TYPE = &LASTYPE2[0];
+        //         break;
 
-            case 3:
-                // Definimos el buffer del PLAYER igual al tamaño del bloque
-                #if LOG==3
-                  SerialHW.println("");
-                  SerialHW.println("> SCREEN");
-                #endif
-                LAST_TYPE = &LASTYPE3[0];
-                break;
+        //     case 3:
+        //         // Definimos el buffer del PLAYER igual al tamaño del bloque
+        //         #if LOG==3
+        //           SerialHW.println("");
+        //           SerialHW.println("> SCREEN");
+        //         #endif
+        //         LAST_TYPE = &LASTYPE3[0];
+        //         break;
 
-            case 4:
-                // Definimos el buffer del PLAYER igual al tamaño del bloque
-                #if LOG==3
-                  SerialHW.println("");
-                  SerialHW.println("> BYTE CODE");
-                #endif
-                if (LAST_SIZE != 6914)
-                {
-                    LAST_TYPE = &LASTYPE4_1[0];
-                }
-                else
-                {
-                    LAST_TYPE = &LASTYPE4_2[0];
-                }
-                break;
+        //     case 4:
+        //         // Definimos el buffer del PLAYER igual al tamaño del bloque
+        //         #if LOG==3
+        //           SerialHW.println("");
+        //           SerialHW.println("> BYTE CODE");
+        //         #endif
+        //         if (LAST_SIZE != 6914)
+        //         {
+        //             LAST_TYPE = &LASTYPE4_1[0];
+        //         }
+        //         else
+        //         {
+        //             LAST_TYPE = &LASTYPE4_2[0];
+        //         }
+        //         break;
 
-            case 5:
-                // Definimos el buffer del PLAYER igual al tamaño del bloque
-                #if LOG==3
-                  SerialHW.println("");
-                  SerialHW.println("> ARRAY.NUM");
-                #endif
-                LAST_TYPE = &LASTYPE5[0];
-                break;
+        //     case 5:
+        //         // Definimos el buffer del PLAYER igual al tamaño del bloque
+        //         #if LOG==3
+        //           SerialHW.println("");
+        //           SerialHW.println("> ARRAY.NUM");
+        //         #endif
+        //         LAST_TYPE = &LASTYPE5[0];
+        //         break;
 
-            case 6:
-                // Definimos el buffer del PLAYER igual al tamaño del bloque
-                #if LOG==3
-                  SerialHW.println("");
-                  SerialHW.println("> ARRAY.CHR");
-                #endif
-                LAST_TYPE = &LASTYPE6[0];
-                break;
-
-
-        }        
+        //     case 6:
+        //         // Definimos el buffer del PLAYER igual al tamaño del bloque
+        //         #if LOG==3
+        //           SerialHW.println("");
+        //           SerialHW.println("> ARRAY.CHR");
+        //         #endif
+        //         LAST_TYPE = &LASTYPE6[0];
+        //         break;
+        // }
     }
 
     void set_SDM(SDmanager sdmTmp)
@@ -1337,6 +1367,23 @@ class TZXproccesor
       
       SerialHW.println("");
       SerialHW.println("END PROCCESING TZX: ");
+
+      if (_myTZX.descriptor != NULL)
+      {
+          // Entregamos información por consola
+          PROGRAM_NAME = get_tzx_name();
+          LAST_NAME = &INITCHAR2[0];
+    
+          SerialHW.println("");
+          SerialHW.println("TZX");
+          SerialHW.println("PROGRAM_NAME: " + PROGRAM_NAME);
+          SerialHW.println("TOTAL_BLOCKS: " + String(TOTAL_BLOCKS));
+    
+          // Pasamos el descriptor           
+          _hmi.setBasicFileInformation(_myTZX.descriptor[BLOCK_SELECTED].name,_myTZX.descriptor[BLOCK_SELECTED].typeName,_myTZX.descriptor[BLOCK_SELECTED].size);
+
+          _hmi.updateInformationMainPage();
+      }
     
     }
 
@@ -1434,6 +1481,17 @@ class TZXproccesor
                     }                    
                 }
 
+                if (_myTZX.descriptor[i].ID == 33)
+                {
+                  // Comienza multigrupo
+                  
+                  LAST_TZX_GROUP = "[G: " + String(i) + "]";
+                }
+                
+                if (_myTZX.descriptor[i].ID == 34)
+                {
+                  LAST_TZX_GROUP = &INITCHAR[0];
+                }
 
                 if (_myTZX.descriptor[i].playeable)
                 {
@@ -1457,6 +1515,7 @@ class TZXproccesor
                       // Obtenemos el nombre del bloque
                       LAST_NAME = _myTZX.descriptor[i].name;
                       LAST_SIZE = _myTZX.descriptor[i].size;
+                      LAST_TYPE = _myTZX.descriptor[i].typeName;
 
                       // SerialHW.println("");
                       // SerialHW.println("");
@@ -1490,7 +1549,7 @@ class TZXproccesor
                       showInfoBlockInProgress(_myTZX.descriptor[i].type);
 
                       // Actualizamos HMI
-                      _hmi.setBasicFileInformation(_myTZX.descriptor[BLOCK_SELECTED].name,_myTZX.descriptor[BLOCK_SELECTED].typeName,_myTZX.descriptor[BLOCK_SELECTED].size);
+                      _hmi.setBasicFileInformation(_myTZX.descriptor[i].name,_myTZX.descriptor[i].typeName,_myTZX.descriptor[i].size);
 
                       _hmi.updateInformationMainPage();
 

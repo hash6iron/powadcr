@@ -189,6 +189,7 @@ int BLOCK_SELECTED = 0;
 String TYPE_FILE_LOAD = "";
 char* LAST_NAME = &INITCHAR[0];
 char* LAST_TYPE = &INITCHAR[0];
+String LAST_TZX_GROUP = &INITCHAR[0];
 String LAST_MESSAGE = "";
 String PROGRAM_NAME = "";
 int LAST_SIZE = 0;

@@ -506,6 +506,9 @@ void tapeControl()
         // Si no está vacio
         if (FILE_TO_LOAD != "") {
           
+          // Limpiamos los campos del TAPE
+          hmi.clearInformationFile();
+
           // Convierto a mayusculas
           FILE_TO_LOAD.toUpperCase();
 
@@ -518,10 +521,16 @@ void tapeControl()
           }
           else if (FILE_TO_LOAD.indexOf(".TZX") != -1)    
           {
-              // Lo procesamos
+              // Lo procesamos. Para ZX Spectrum
               proccesingTZX(file_ch);
               TYPE_FILE_LOAD = "TZX";            
               //getMemFree();              
+          }
+          else if (FILE_TO_LOAD.indexOf(".TSX") != -1)
+          {
+              // Lo procesamos. Para MSX
+              proccesingTZX(file_ch);
+              TYPE_FILE_LOAD = "TSX";            
           }   
         }
       }
@@ -594,7 +603,7 @@ void Task0code( void * pvParameters )
 
       // Control por botones
       //buttonsControl();
-      delay(50);
+      //delay(50);
   }
 }
 
@@ -603,5 +612,5 @@ void loop()
     // CORE1
     tapeControl();
     //vTaskDelay(10);
-    delay(125);
+    //delay(50);
 }

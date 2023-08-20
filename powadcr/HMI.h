@@ -186,6 +186,12 @@ class HMI
                               FILES_BUFF[j].path = String(szName);
                               j++;
                           }
+                          else if (strstr(substr, ".tsx")) 
+                          {
+                              FILES_BUFF[j].type = "TSX";
+                              FILES_BUFF[j].path = String(szName);
+                              j++;
+                          }                          
                           else if (strstr(substr, ".sna")) 
                           {
                               FILES_BUFF[j].type = "SNA";
@@ -442,7 +448,7 @@ class HMI
                   color = 60868;  // Amarillo
                   szName = String("<DIR>  ") + szName;
               }     
-              else if (type == "TAP" || type == "TZX")
+              else if (type == "TAP" || type == "TZX" || type == "TSX")
               {
                   //Fichero
                   color = 65535;   // Blanco
@@ -503,7 +509,7 @@ class HMI
                   color = 60868;  // Amarillo
                   szName = String("<DIR>  ") + szName;
               }     
-              else if (type == "TAP" || type == "TZX")
+              else if (type == "TAP" || type == "TZX" || type == "TSX")
               {
                   //Fichero
                   color = 65535;   // Blanco
@@ -1222,6 +1228,16 @@ class HMI
           LAST_TYPE = typeName;
       }
 
+      void clearInformationFile()
+      {
+          PROGRAM_NAME = "";
+          LAST_SIZE = 0;
+          LAST_TYPE = &INITCHAR[0];
+          LAST_NAME = &INITCHAR[0];
+
+          updateInformationMainPage();
+      }
+
       void updateInformationMainPage() 
       {
 
@@ -1253,15 +1269,25 @@ class HMI
           // SerialHW.println("");
           // SerialHW.println(">" + cmpTypeStr + "<");
 
-          if (cmpTypeStr != "")
+          if (TYPE_FILE_LOAD == "TZX")
           {
-              writeString("type.txt=\"" + String(LAST_TYPE) + ": " + String(LAST_NAME) + "\"");            
+              writeString("type.txt=\"" + String(LAST_TYPE) + " " + LAST_TZX_GROUP + "\"");
+              //writeString("type.txt=\"" + String(LAST_TYPE) + "\"");
           }
           else
           {
-              writeString("type.txt=\"" + String(LAST_TYPE) + " " + String(LAST_NAME) + "\"");            
+              if (cmpTypeStr != "")
+              {
+                  writeString("type.txt=\"" + String(LAST_TYPE) + ": " + String(LAST_NAME) + "\"");            
+              }
+              else
+              {
+                  writeString("type.txt=\"" + String(LAST_TYPE) + " " + String(LAST_NAME) + "\"");            
+              }
           }
-
+          // SerialHW.println("");
+          // SerialHW.println("");
+          // SerialHW.println(String(LAST_TYPE));
 
           //writeString("screen2.type.txt=\"" + String(LAST_TYPE) + ": " + String(LAST_NAME) + "\"");
       
