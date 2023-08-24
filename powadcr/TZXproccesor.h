@@ -734,6 +734,30 @@ class TZXproccesor
         _myTZX.descriptor[currentBlock].size = sizeBlock;         
     }    
 
+    void analyzeID51(File32 mFile, int currentOffset, int currentBlock)
+    {
+        // Hardware Information block
+        int sizeBlock = 0;
+
+        _myTZX.descriptor[currentBlock].ID = 51;
+        _myTZX.descriptor[currentBlock].playeable = false;
+        // Los dos primeros bytes del bloque no se cuentan para
+        // el tamaño total
+        _myTZX.descriptor[currentBlock].offset = currentOffset;
+
+        // El bloque completo mide, el numero de maquinas a listar
+        // multiplicado por 3 byte por maquina listada
+        sizeBlock = getBYTE(mFile,currentOffset+1) * 3;
+
+        //SerialHW.println("");
+        //SerialHW.println("ID48 - TextSize: " + String(sizeTextInformation));
+        
+        // El tamaño del bloque es "1 byte de longitud de texto + TAMAÑO_TEXTO"
+        // el bloque comienza en el offset del ID y acaba en
+        // offset[ID] + tamaño_bloque
+        _myTZX.descriptor[currentBlock].size = sizeBlock-1;         
+    }
+
     void analyzeID48(File32 mFile, int currentOffset, int currentBlock)
     {
         // Information block
@@ -1076,7 +1100,7 @@ class TZXproccesor
                   else
                   {
                       SerialHW.println("");
-                      SerialHW.println("Error: Not allocation memory for block ID 0x10");
+                      SerialHW.println("Error: Not allocation memory for block ID 0x30");
                       endTZX = true;
                       endWithErrors = true;
                   }                  
@@ -1105,7 +1129,7 @@ class TZXproccesor
                   else
                   {
                       SerialHW.println("");
-                      SerialHW.println("Error: Not allocation memory for block ID 0x10");
+                      SerialHW.println("Error: Not allocation memory for block ID 0x32");
                       endTZX = true;
                       endWithErrors = true;
                   }                  
@@ -1113,9 +1137,24 @@ class TZXproccesor
 
                 // ID 33 - Hardware type
                 case 51:
-                  analyzeBlockUnknow(currentID,currentOffset, currentBlock);
-                  _myTZX.descriptor[currentBlock].typeName = "ID 33 - HW type";
-                  currentBlock++;
+                  // No hacemos nada solamente coger el siguiente offset
+                  if (_myTZX.descriptor != NULL)
+                  {
+                      // Obtenemos la dirección del siguiente offset
+                      analyzeID51(mFile,currentOffset,currentBlock);
+
+                      // Siguiente ID
+                      nextIDoffset = currentOffset + 3 + _myTZX.descriptor[currentBlock].size;
+                      _myTZX.descriptor[currentBlock].typeName = "ID 33- Hardware type";
+                      currentBlock++;
+                  }
+                  else
+                  {
+                      SerialHW.println("");
+                      SerialHW.println("Error: Not allocation memory for block ID 0x33");
+                      endTZX = true;
+                      endWithErrors = true;
+                  }                  
                   break;
 
                 // ID 35 - Custom info block
