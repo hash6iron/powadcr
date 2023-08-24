@@ -192,6 +192,7 @@ char* LAST_TYPE = &INITCHAR[0];
 String LAST_TZX_GROUP = &INITCHAR[0];
 String LAST_MESSAGE = "";
 String PROGRAM_NAME = "";
+String PROGRAM_NAME_2 = "";
 int LAST_SIZE = 0;
 int BYTES_LOADED = 0;
 int BYTES_TOBE_LOAD = 0;
@@ -214,6 +215,7 @@ char* FILE_LAST_DIR_LAST = &INITCHAR[0];
 int FILE_LAST_INDEX = 0;
 int FILE_IDX_SELECTED = -1;
 bool FILE_PREPARED = false;
+bool PROGRAM_NAME_DETECTED = false;
 
 tFileBuffer* FILES_BUFF = NULL;
 tFileBuffer* FILES_FOUND_BUFF = NULL;

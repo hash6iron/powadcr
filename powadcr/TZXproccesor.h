@@ -72,40 +72,33 @@ class TZXproccesor
          return newChk;
      }      
 
-      // char* getNameFromHeader(byte* header, int startByte)
-      // {
-      //     // Obtenemos el nombre del bloque cabecera
-      //     char* prgName = (char*)calloc(10+1,sizeof(char));
+    char* getNameFromStandardBlock(byte* header)
+    {
+        // Obtenemos el nombre del bloque cabecera
+        char* prgName = (char*)calloc(10+1,sizeof(char));
 
-      //     if (isCorrectHeader(header,startByte))
-      //     {
-      //         // Es una cabecera PROGRAM 
-      //         // el nombre está en los bytes del 4 al 13 (empezando en 0)
-      //         #if LOG==3
-      //           SerialHW.println("");
-      //           SerialHW.println("Name detected ");
-      //         #endif
+        // Extraemos el nombre del programa desde un ID10 - Standard block
+        for (int n=2;n<12;n++)
+        {   
+            if (header[n] < 32)
+            {
+              // Los caracteres por debajo del espacio 0x20 se sustituyen
+              // por " " ó podemos poner ? como hacía el Spectrum.
+              prgName[n-2] = ' ';
+            }
+            else
+            {
+              prgName[n-2] = (char)header[n];
+            }
+            
 
-      //         // Extraemos el nombre del programa
-      //         for (int n=4;n<14;n++)
-      //         {   
-      //             prgName[n-4] = (char)header[n];
-      //         }
-      //     }
-      //     else
-      //     {
-      //         prgName = &INITCHAR[0];
-      //     }
+            SerialHW.println("");
+            SerialHW.print(String(prgName[n-2]));
+        }
 
-      //     // Pasamos la cadena de caracteres
-      //     return prgName;
+        // Pasamos la cadena de caracteres
+        return prgName;
 
-      // }
-
-      char* get_tzx_name()
-      {
-          // Devolvemos el nombre del TAP
-          return _myTZX.name;
       }
 
      byte* getBlockRange(byte* bBlock, int byteStart, int byteEnd)
@@ -412,18 +405,35 @@ class TZXproccesor
               _myTZX.descriptor[currentBlock].header = true;
               _myTZX.descriptor[currentBlock].type = 0;
 
+              //_myTZX.name = "TZX";
+              if (!PROGRAM_NAME_DETECTED)
+              {
+                  PROGRAM_NAME = String(getNameFromStandardBlock(getBlock(mFile,_myTZX.descriptor[currentBlock].offsetData,19)));
+
+                  SerialHW.println("");
+                  SerialHW.println("");
+                  SerialHW.println("PROGRAM NAME: " + PROGRAM_NAME);
+
+                  PROGRAM_NAME_DETECTED = true;  
+              }
+
+
+              // Almacenamos el nombre del bloque
+              _myTZX.descriptor[currentBlock].name = _myTZX.name;
+
+              // SerialHW.println("");
+              // SerialHW.println("Nombre detectado: " + String(_myTZX.name));
+
             }
             else if (typeBlock == 1)
             {
+                SerialHW.println("");
+                SerialHW.println("TYPEBLOCK: 1 - Header");
+                SerialHW.println("");
 
-              SerialHW.println("");
-              SerialHW.println("TYPEBLOCK: 1 - Header");
-              SerialHW.println("");
-
-			  SerialHW.println("");
-			  SerialHW.println("TYPE: 0");
-			  SerialHW.println("");
-
+                SerialHW.println("");
+                SerialHW.println("TYPE: 0");
+                SerialHW.println("");
 
                 _myTZX.descriptor[currentBlock].header = true;
                 _myTZX.descriptor[currentBlock].type = 0;
@@ -434,10 +444,9 @@ class TZXproccesor
                 SerialHW.println("TYPEBLOCK: 2 - Header");
                 SerialHW.println("");
 
-				  SerialHW.println("");
-				  SerialHW.println("TYPE: 0");
-				  SerialHW.println("");
-
+                SerialHW.println("");
+                SerialHW.println("TYPE: 0");
+                SerialHW.println("");
 
                 _myTZX.descriptor[currentBlock].header = true;
                 _myTZX.descriptor[currentBlock].type = 0;
@@ -451,20 +460,26 @@ class TZXproccesor
 
               if (_myTZX.descriptor[currentBlock].lengthOfData == 6914)
               {
-				  SerialHW.println("");
-				  SerialHW.println("TYPE: 7");
-				  SerialHW.println("");
+                  SerialHW.println("");
+                  SerialHW.println("TYPE: 7");
+                  SerialHW.println("");
 
                   _myTZX.descriptor[currentBlock].screen = true;
                   _myTZX.descriptor[currentBlock].type = 7;
+
+                  // Almacenamos el nombre del bloque
+                  _myTZX.descriptor[currentBlock].name = getNameFromStandardBlock(getBlock(mFile,_myTZX.descriptor[currentBlock].offsetData,19));
               }
               else
               {
                 // Es un bloque BYTE
-				  SerialHW.println("");
-				  SerialHW.println("TYPE: 1");
-				  SerialHW.println("");
-                  _myTZX.descriptor[currentBlock].type = 1;                
+                SerialHW.println("");
+                SerialHW.println("TYPE: 1");
+                SerialHW.println("");
+                _myTZX.descriptor[currentBlock].type = 1;     
+
+                // Almacenamos el nombre del bloque
+                _myTZX.descriptor[currentBlock].name = getNameFromStandardBlock(getBlock(mFile,_myTZX.descriptor[currentBlock].offsetData,19));                         
               }
             }
         }
@@ -478,27 +493,27 @@ class TZXproccesor
 
               if (_myTZX.descriptor[currentBlock].lengthOfData == 6914)
               {
-				  SerialHW.println("");
-				  SerialHW.println("TYPE: 3");
-				  SerialHW.println("");
+                  SerialHW.println("");
+                  SerialHW.println("TYPE: 3");
+                  SerialHW.println("");
                   _myTZX.descriptor[currentBlock].screen = true;
                   _myTZX.descriptor[currentBlock].type = 3;
               }
               else
               {
                   // Es un bloque BYTE
-				  SerialHW.println("");
-				  SerialHW.println("TYPE: 4");
-				  SerialHW.println("");
+                  SerialHW.println("");
+                  SerialHW.println("TYPE: 4");
+                  SerialHW.println("");
                   _myTZX.descriptor[currentBlock].type = 4;                
               }
             }
             else
             {
                 // Es un bloque BYTE
-				  SerialHW.println("");
-				  SerialHW.println("TYPE: 4");
-				  SerialHW.println("");
+                SerialHW.println("");
+                SerialHW.println("TYPE: 4");
+                SerialHW.println("");
                 _myTZX.descriptor[currentBlock].type = 4;
             }            
         } 
@@ -605,6 +620,9 @@ class TZXproccesor
 
         // Los datos (TAP) empiezan en 0x04. Posición del bloque de datos.
         _myTZX.descriptor[currentBlock].offsetData = currentOffset + 19;
+
+        // Almacenamos el nombre del bloque
+        _myTZX.descriptor[currentBlock].name = getNameFromStandardBlock(getBlock(mFile,_myTZX.descriptor[currentBlock].offsetData,19));
 
         SerialHW.println("");
         SerialHW.println("Offset of data: ");
@@ -1154,7 +1172,7 @@ class TZXproccesor
 
           _myTZX.numBlocks = currentBlock;
           _myTZX.size = sizeTZX;
-          _myTZX.name = "TZX";
+          //_myTZX.name = "TZX";
           
           // Actualizamos una vez mas el HMI
           if (currentBlock % 100 == 0)
@@ -1350,6 +1368,10 @@ class TZXproccesor
     {
       
       File32 tzxFile;
+      
+      PROGRAM_NAME_DETECTED = false;
+      PROGRAM_NAME = "";
+      PROGRAM_NAME_2 = "";
 
       LAST_MESSAGE = "Analyzing file";
       _hmi.updateInformationMainPage();
@@ -1371,7 +1393,7 @@ class TZXproccesor
       if (_myTZX.descriptor != NULL)
       {
           // Entregamos información por consola
-          PROGRAM_NAME = get_tzx_name();
+          //PROGRAM_NAME = _myTZX.name;
           LAST_NAME = &INITCHAR2[0];
     
           SerialHW.println("");
@@ -1414,7 +1436,7 @@ class TZXproccesor
               byte* bufferPlay = NULL;
 
               // Entregamos información por consola
-              PROGRAM_NAME = _myTZX.name;
+              //PROGRAM_NAME = _myTZX.name;
               TOTAL_BLOCKS = _myTZX.numBlocks;
               LAST_NAME = &INITCHAR2[0];
 
@@ -1435,6 +1457,8 @@ class TZXproccesor
               for (int i = m; i < _myTZX.numBlocks; i++) 
               {
                 
+                // Ahora lo voy actualizando a medida que van avanzando los bloques.
+                PROGRAM_NAME_2 = _myTZX.descriptor[BLOCK_SELECTED].name;
                 // SerialHW.println("");
                 // SerialHW.println("");
                 // SerialHW.println("");

@@ -1254,8 +1254,16 @@ class HMI
           // LAST_TYPE = globalTAP.descriptor[BLOCK_SELECTED].typeName;
 
           // Enviamos información al HMI
-          writeString("name.txt=\"" + PROGRAM_NAME + "\"");
-
+          if (TYPE_FILE_LOAD == "TZX")
+          {
+              writeString("name.txt=\"" + PROGRAM_NAME + " : " + PROGRAM_NAME_2 + "\"");
+          }
+          else
+          {
+              writeString("name.txt=\"" + PROGRAM_NAME + "\"");
+          }
+          
+          
           //writeString("screen2.name.txt=\"" + PROGRAM_NAME + "\"");
 
           writeString("size.txt=\"" + String(LAST_SIZE) + " bytes\"");
@@ -1276,14 +1284,9 @@ class HMI
           }
           else
           {
-              if (cmpTypeStr != "")
-              {
-                  writeString("type.txt=\"" + String(LAST_TYPE) + ": " + String(LAST_NAME) + "\"");            
-              }
-              else
-              {
-                  writeString("type.txt=\"" + String(LAST_TYPE) + " " + String(LAST_NAME) + "\"");            
-              }
+              writeString("type.txt=\"" + String(LAST_TYPE) + "\"");
+                   
+              writeString("name.txt=\"" + PROGRAM_NAME + " : " + String(LAST_NAME) + "\"");           
           }
           // SerialHW.println("");
           // SerialHW.println("");
