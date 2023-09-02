@@ -58,9 +58,15 @@ int pilotPulseCount = 0;
 // Contamos los pulsos del sync1
 long silenceCount = 0;
 long lastSilenceCount = 0;
+bool isSilence = false;
+
 int bitCount = 0;
+int byteCount = 0;
+int blockCount = 0;
 String bitString = "";
-char* bitChStr = (char*)buffer;
+char* bitChStr;
+byte* datablock;
+byte checksum = 0;
 
 // Estado flanco de la senal, HIGH or LOW
 bool pulseHigh = false;
@@ -86,14 +92,29 @@ tPulse pulse;
 
 // Calculamos las muestras que tiene cada pulso
 // segun el tiempo de muestreo
-long getSamples(int signalTStates, float tState, int samplingRate)
-{
-    float tSampling = 1/samplingRate;
-    float tPeriod = signalTStates * tState;
-    long samples = tPeriod / tSampling;
+// long getSamples(int signalTStates, float tState, int samplingRate)
+// {
+//     float tSampling = 1/samplingRate;
+//     float tPeriod = signalTStates * tState;
+//     long samples = tPeriod / tSampling;
 
-    return samples; 
-}
+//     return samples; 
+// }
+
+byte calculateChecksum(byte* bBlock, int startByte, int numBytes)
+      {
+          // Calculamos el checksum de un bloque de bytes
+          byte newChk = 0;
+
+          // Calculamos el checksum (no se contabiliza el ultimo numero que es precisamente el checksum)
+          
+          for (int n=startByte;n<(startByte+numBytes);n++)
+          {
+              newChk = newChk ^ bBlock[n];
+          }
+
+          return newChk;
+      }
 
 int16_t prepareSignal(int16_t value, int threshold)
 {
@@ -146,56 +167,81 @@ bool detectedSilencePulse(int16_t value, int threshold)
 
 bool measurePulse(int16_t value)
 {
+    // Comenzamos por detectar un cambio de XX --> HIGH
     if (pulseState == 0 && value == high)
     {
+        // Pasamos a modo medidas en HIGH
+        // contamos ya esta muestra
+        isSilence = false;
+ 
         samplesCount_H=1;
+        // Cambiamos de estado
         pulseState = 1;
         return false;
     }
     else if (pulseState == 0 && value == low)
     {
-        // Espero al flanco positivo
+        // Error. Tengo que esperar al flanco positivo        
         pulseState = 0;
         silenceCount = 0;
+        Serial.println("Error. Waiting HIGH EDGE");
         return false;
     }
     else if (pulseState == 0 && value == 0)
     {
-        // Espero al flanco positivo
+        // Error. Finalizo
         pulseState = 0;
-        silenceCount++;
-        return false;
+        //silenceCount++;
+        Serial.println("Sequency cut. Error.");
+        return true;
     }
     else if (pulseState == 1 && value == high)
     {
+        // Estado de medida en HIGH
         samplesCount_H++;
-        // Guardo el silencio
-        lastSilenceCount = silenceCount;
-        silenceCount = 0;
         return false;
     }
     else if (pulseState == 1 && value == low)
     {
+        // Cambio de HIGH --> LOW
+        // finaliza el pulso HIGH y comienza el LOW
+        // cuento esta muestra
         samplesCount_L=1;
+        // Paso al estado de medida en LOW
         pulseState = 2;
         return false;
     }
     else if (pulseState == 2 && value == low)
     {
+        // Estado de medida en LOW
         samplesCount_L++;
         return false;
     }
-    else if (pulseState == 2 && value == high)
+    else if (pulseState == 2 && (value == high || value == 0))
     {
-        // Ha finalizado el pulso
+        // Ha finalizado el pulso. Pasa de LOW --> HIGH
         pulse.high_edge = samplesCount_H;
         pulse.low_edge = samplesCount_L;
+        //Serial.println("PW: " + String(pulse.high_edge) + " - " + String(pulse.low_edge));
 
         // Leemos esta muestra que es HIGH para no perderla
         samplesCount_H = 1;
+        // Pongo a cero las muestras en LOW
         samplesCount_L = 0;
         // Comenzamos otra vez
         pulseState = 1;
+
+        // Si llegamos aquí por un silencio es entonces fin de bloque
+        if (value == 0)
+        {
+          isSilence = true;
+          Serial.println("Silence active:");          
+        }
+        else
+        {
+          isSilence = false;
+        }
+        
         return true;
     }
 }
@@ -342,13 +388,30 @@ void readBuffer(int len)
                   bitCount=0;
                   // Valor leido del DATA
                   int value = strtol(bitChStr, (char**) NULL, 2);
+                  //
+                  checksum = checksum ^ value;
                   // Lo representamos
                   Serial.print(bitString + " - ");
                   Serial.print(value,HEX);
                   Serial.println("");
+                  //datablock[byteCount] = value;
+                  byteCount++;
                   bitString = "";
                 }
             }
+        }
+        else
+        {
+            // Hay silencio, pero ¿Es silencio despues de bloque?
+            if (isSilence)
+            {
+              isSilence = false;
+
+              Serial.println("Checksum: " + String(checksum));              Serial.println("Block read: " + String(blockCount));
+              checksum = 0;
+              state = 0;
+            }
+
         }
         // Ahora medimos el pulso detectado
 
@@ -360,7 +423,7 @@ void readBuffer(int len)
 }
 
 void setup() {
-  Serial.begin(115200);
+  Serial.begin(921600);
   // open in read mode
   auto cfg = kit.defaultConfig(AudioInput);
   //cfg.codec_mode = AUDIO_HAL_CODEC_MODE_LINE_IN;
@@ -374,6 +437,7 @@ void setup() {
 
   // Inicializo bit string
   bitChStr = (char*)calloc(8, sizeof(char));
+  datablock = (byte*)calloc(1, sizeof(byte));
 }
 
 void loop() 
