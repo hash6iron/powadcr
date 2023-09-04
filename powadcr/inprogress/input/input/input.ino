@@ -455,6 +455,22 @@ void readBuffer(int len)
               Serial.println("Block read: " + String(blockCount));
               checksum = 0;
               state = 0;
+
+              if (byteCount !=0)
+              {
+                  Serial.println("");
+                  Serial.println("Block data recording was successful!");
+                  Serial.println("");
+              }
+              else
+              {
+                  Serial.println("");
+                  Serial.println("Error in block data recording!");
+                  Serial.println("");
+              }
+
+              byteCount = 0;
+
             }
 
         // Ahora medimos el pulso detectado
