@@ -253,7 +253,7 @@ bool measurePulse(int16_t value)
     }
 
     // Si llegamos aquí por un silencio es entonces fin de bloque
-    if (value == 0 && blockEnd == true && silenceSample > 2000)
+    if (value == 0 && blockEnd == true && silenceSample > 500)
     {
       isSilence = true;
       Serial.println("");
@@ -290,9 +290,9 @@ bool isGuidePulse(tPulse p)
 
 bool isSync(tPulse p)
 {
-    if (p.high_edge >= 8 && p.high_edge <= 9)
+    if (p.high_edge >= 7 && p.high_edge <= 10)
     {
-        if (p.low_edge >= 8 && p.low_edge <= 9)
+        if (p.low_edge >= 7 && p.low_edge <= 10)
         {
             //
             return true;
@@ -449,7 +449,10 @@ void readBuffer(int len)
               blockEnd = false;
               blockCount++;
               Serial.println("");
-              Serial.println("Checksum: " + String(lastChk));              Serial.println("Block read: " + String(blockCount));
+              Serial.print("Checksum: ");
+              Serial.print(lastChk,HEX);
+              Serial.println("");
+              Serial.println("Block read: " + String(blockCount));
               checksum = 0;
               state = 0;
             }
