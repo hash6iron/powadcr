@@ -70,6 +70,7 @@ String bitString = "";
 char* bitChStr;
 byte* datablock;
 byte checksum = 0;
+byte lastChk = 0;
 
 // Estado flanco de la senal, HIGH or LOW
 bool pulseHigh = false;
@@ -255,7 +256,9 @@ bool measurePulse(int16_t value)
     if (value == 0 && blockEnd == true && silenceSample > 2000)
     {
       isSilence = true;
-      Serial.println("Silence active:");          
+      Serial.println("");
+      Serial.println("** Silence active **");          
+      Serial.println("");
       return true;
     }
     else
@@ -406,24 +409,34 @@ void readBuffer(int len)
                   bitCount=0;
                   // Valor leido del DATA
                   byte value = strtol(bitChStr, (char**) NULL, 2);
-                  byte lastChk = checksum;
+                  lastChk = checksum;
                   //
                   checksum = checksum ^ value;
-                  if (checksum == value)
+                  //
+                  if (checksum == 0 && value == lastChk)
                   {
-                    // Es el ultimo byte
-                    checksum = lastChk;
+                    // Es el ultimo byte. Es el checksum
+                    // si se hace XOR sobre este da 0
                     Serial.println("");
-                    Serial.println("Last byte: CHK");
+                    Serial.println("Last byte: CHK OK");
                     Serial.println("");
+
+                    // Lo representamos
+                    Serial.print(bitString + " - ");
+                    Serial.print(value,HEX);
+                    Serial.println("");                    
+                  }            
+                  else
+                  {
+                    // Lo representamos
+                    Serial.print(bitString + " - ");
+                    Serial.print(value,HEX);
+                    Serial.print(" - chk: ");
+                    Serial.print(checksum,HEX);
+                    Serial.println("");                    
                   }
 
-                  // Lo representamos
-                  Serial.print(bitString + " - ");
-                  Serial.print(value,HEX);
-                  Serial.print(" - ch: ");
-                  Serial.print(checksum,HEX);
-                  Serial.println("");
+
                   //datablock[byteCount] = value;
                   byteCount++;
                   bitString = "";
