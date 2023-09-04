@@ -412,30 +412,14 @@ void readBuffer(int len)
                   lastChk = checksum;
                   //
                   checksum = checksum ^ value;
-                  //
-                  if (checksum == 0 && value == lastChk && blockEnd == true)
-                  {
-                    // Es el ultimo byte. Es el checksum
-                    // si se hace XOR sobre este da 0
-                    Serial.println("");
-                    Serial.println("Last byte: CHK OK");
-                    // Lo representamos
-                    Serial.print(" > ");
-                    Serial.print(bitString + " - ");
-                    Serial.print(value,HEX);
-                    Serial.println("");                    
-                  }            
-                  else
-                  {
-                    // Lo representamos
-                    Serial.print(bitString + " - ");
-                    Serial.print(value,HEX);
-                    Serial.print(" - chk: ");
-                    Serial.print(checksum,HEX);
-                    Serial.println("");                    
-                  }
 
-
+                  // Lo representamos
+                  Serial.print(bitString + " - ");
+                  Serial.print(value,HEX);
+                  Serial.print(" - chk: ");
+                  Serial.print(lastChk,HEX);
+                  Serial.println("");                    
+                  
                   //datablock[byteCount] = value;
                   byteCount++;
                   bitString = "";
@@ -448,6 +432,14 @@ void readBuffer(int len)
               isSilence = false;
               blockEnd = false;
               blockCount++;
+
+              if (checksum == 0)
+              {
+                // Es el ultimo byte. Es el checksum
+                // si se hace XOR sobre este da 0
+                Serial.println("");
+                Serial.println("Last byte: CHK OK");                 
+              }            
               Serial.println("");
               Serial.print("Checksum: ");
               Serial.print(lastChk,HEX);
