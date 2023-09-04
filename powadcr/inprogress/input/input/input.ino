@@ -459,13 +459,13 @@ void readBuffer(int len)
               if (byteCount !=0)
               {
                   Serial.println("");
-                  Serial.println("Block data recording was successful!");
+                  Serial.println("Block data was recorded successful");
                   Serial.println("");
               }
               else
               {
                   Serial.println("");
-                  Serial.println("Error in block data recording!");
+                  Serial.println("Error in block data recording process!");
                   Serial.println("");
               }
 
