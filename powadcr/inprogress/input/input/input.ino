@@ -59,6 +59,9 @@ int pilotPulseCount = 0;
 long silenceCount = 0;
 long lastSilenceCount = 0;
 bool isSilence = false;
+bool blockEnd = false;
+long silenceSample = 0;
+
 
 int bitCount = 0;
 int byteCount = 0;
@@ -173,6 +176,8 @@ bool measurePulse(int16_t value)
         // Pasamos a modo medidas en HIGH
         // contamos ya esta muestra
         isSilence = false;
+        silenceSample = 0;
+
  
         samplesCount_H=1;
         // Cambiamos de estado
@@ -184,7 +189,7 @@ bool measurePulse(int16_t value)
         // Error. Tengo que esperar al flanco positivo        
         pulseState = 0;
         silenceCount = 0;
-        Serial.println("Error. Waiting HIGH EDGE");
+        //Serial.println("Error. Waiting HIGH EDGE");
         return false;
     }
     else if (pulseState == 0 && value == 0)
@@ -192,12 +197,14 @@ bool measurePulse(int16_t value)
         // Error. Finalizo
         pulseState = 0;
         //silenceCount++;
-        Serial.println("Sequency cut. Error.");
-        return true;
+        //Serial.println("Sequency cut. Error.");
+        return false;
     }
     else if (pulseState == 1 && value == high)
     {
         // Estado de medida en HIGH
+        silenceSample = 0;
+        blockEnd = false;
         samplesCount_H++;
         return false;
     }
@@ -224,25 +231,37 @@ bool measurePulse(int16_t value)
         pulse.low_edge = samplesCount_L;
         //Serial.println("PW: " + String(pulse.high_edge) + " - " + String(pulse.low_edge));
 
-        // Leemos esta muestra que es HIGH para no perderla
-        samplesCount_H = 1;
-        // Pongo a cero las muestras en LOW
-        samplesCount_L = 0;
-        // Comenzamos otra vez
-        pulseState = 1;
-
-        // Si llegamos aquí por un silencio es entonces fin de bloque
         if (value == 0)
         {
-          isSilence = true;
-          Serial.println("Silence active:");          
+          blockEnd = true;
+          // Reiniciamos HIGH
+          samplesCount_H = 0;
+          // Pongo a cero las muestras en LOW
+          samplesCount_L = 0;
         }
         else
         {
-          isSilence = false;
+          // Leemos esta muestra que es HIGH para no perderla
+          samplesCount_H = 1;
+          // Pongo a cero las muestras en LOW
+          samplesCount_L = 0;
         }
-        
+        // Comenzamos otra vez
+        pulseState = 1;        
         return true;
+    }
+
+    // Si llegamos aquí por un silencio es entonces fin de bloque
+    if (value == 0 && blockEnd == true && silenceSample > 2000)
+    {
+      isSilence = true;
+      Serial.println("Silence active:");          
+      return true;
+    }
+    else
+    {
+      silenceSample++;
+      return false;
     }
 }
 
@@ -339,8 +358,7 @@ void readBuffer(int len)
         finalValue = prepareSignal(oneValue,threshold);
         //
         
-        if (finalValue != silence)
-        {
+
             if (measurePulse(finalValue))
             {
                 // Ya se ha medido
@@ -387,7 +405,7 @@ void readBuffer(int len)
                 {
                   bitCount=0;
                   // Valor leido del DATA
-                  int value = strtol(bitChStr, (char**) NULL, 2);
+                  byte value = strtol(bitChStr, (char**) NULL, 2);
                   //
                   checksum = checksum ^ value;
                   // Lo representamos
@@ -399,20 +417,19 @@ void readBuffer(int len)
                   bitString = "";
                 }
             }
-        }
-        else
-        {
+
             // Hay silencio, pero ¿Es silencio despues de bloque?
-            if (isSilence)
+            if (isSilence == true && blockEnd == true)
             {
               isSilence = false;
-
+              blockEnd = false;
+              blockCount++;
+              Serial.println("");
               Serial.println("Checksum: " + String(checksum));              Serial.println("Block read: " + String(blockCount));
               checksum = 0;
               state = 0;
             }
 
-        }
         // Ahora medimos el pulso detectado
 
         // Leemos el siguiente valor
