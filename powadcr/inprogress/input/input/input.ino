@@ -413,7 +413,7 @@ void readBuffer(int len)
                   //
                   checksum = checksum ^ value;
                   //
-                  if (checksum == 0 && value == lastChk)
+                  if (checksum == 0 && value == lastChk && blockEnd == true)
                   {
                     // Es el ultimo byte. Es el checksum
                     // si se hace XOR sobre este da 0
