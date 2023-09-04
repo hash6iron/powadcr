@@ -406,11 +406,23 @@ void readBuffer(int len)
                   bitCount=0;
                   // Valor leido del DATA
                   byte value = strtol(bitChStr, (char**) NULL, 2);
+                  byte lastChk = checksum;
                   //
                   checksum = checksum ^ value;
+                  if (checksum == value)
+                  {
+                    // Es el ultimo byte
+                    checksum = lastChk;
+                    Serial.println("");
+                    Serial.println("Last byte: CHK");
+                    Serial.println("");
+                  }
+
                   // Lo representamos
                   Serial.print(bitString + " - ");
                   Serial.print(value,HEX);
+                  Serial.print(" - ch: ");
+                  Serial.print(checksum,HEX);
                   Serial.println("");
                   //datablock[byteCount] = value;
                   byteCount++;
