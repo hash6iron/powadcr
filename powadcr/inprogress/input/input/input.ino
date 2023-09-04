@@ -419,9 +419,8 @@ void readBuffer(int len)
                     // si se hace XOR sobre este da 0
                     Serial.println("");
                     Serial.println("Last byte: CHK OK");
-                    Serial.println("");
-
                     // Lo representamos
+                    Serial.print(" > ");
                     Serial.print(bitString + " - ");
                     Serial.print(value,HEX);
                     Serial.println("");                    
@@ -450,7 +449,7 @@ void readBuffer(int len)
               blockEnd = false;
               blockCount++;
               Serial.println("");
-              Serial.println("Checksum: " + String(checksum));              Serial.println("Block read: " + String(blockCount));
+              Serial.println("Checksum: " + String(lastChk));              Serial.println("Block read: " + String(blockCount));
               checksum = 0;
               state = 0;
             }
