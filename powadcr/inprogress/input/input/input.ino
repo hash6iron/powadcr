@@ -417,7 +417,7 @@ void readBuffer(int len)
                   Serial.print(bitString + " - ");
                   Serial.print(value,HEX);
                   Serial.print(" - chk: ");
-                  Serial.print(lastChk,HEX);
+                  Serial.print(checksum,HEX);
                   Serial.println("");                    
                   
                   //datablock[byteCount] = value;
