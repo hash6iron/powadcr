@@ -71,6 +71,7 @@ char* bitChStr;
 byte* datablock;
 byte checksum = 0;
 byte lastChk = 0;
+byte byteRead = 0;
 
 // Estado flanco de la senal, HIGH or LOW
 bool pulseHigh = false;
@@ -93,6 +94,14 @@ struct tPulse
 
 tPulse pulse;
 
+struct tHeader
+{
+    int type;
+    char name[11];
+    int length;
+};
+
+tHeader header;
 
 // Calculamos las muestras que tiene cada pulso
 // segun el tiempo de muestreo
@@ -348,6 +357,30 @@ bool isBit1(tPulse p)
     }
 }
 
+void getInfoByte()
+{
+    // Almacenamos el tipo de cabecera
+    if (byteCount == 2)
+    {
+        header.type = byteRead;
+    }
+
+    if (byteCount > 1 && byteCount < 12)
+    {
+        // Almacenamos el nombre
+        if (byteRead > 20)
+        {
+          header.name[byteCount-2] = (char)byteRead;
+        }
+        else
+        {
+          int valueTmp = 32;
+          header.name[byteCount-2] = (char)valueTmp;
+        }
+        
+    }
+}
+
 void readBuffer(int len)
 {
 
@@ -409,6 +442,7 @@ void readBuffer(int len)
                   bitCount=0;
                   // Valor leido del DATA
                   byte value = strtol(bitChStr, (char**) NULL, 2);
+                  byteRead = value;
                   lastChk = checksum;
                   //
                   checksum = checksum ^ value;
@@ -420,6 +454,8 @@ void readBuffer(int len)
                   Serial.print(checksum,HEX);
                   Serial.println("");                    
                   
+                  getInfoByte();                  
+
                   //datablock[byteCount] = value;
                   byteCount++;
                   bitString = "";
@@ -448,11 +484,41 @@ void readBuffer(int len)
               checksum = 0;
               state = 0;
 
+
               if (byteCount !=0)
               {
                   Serial.println("");
                   Serial.println("Block data was recorded successful");
                   Serial.println("");
+                  Serial.println("Total bytes: " + String(byteCount));
+                  Serial.println("");
+
+                  // Si el conjunto leido es de 19 bytes. Es una cabecera.
+                  if (byteCount == 19)
+                  {
+                      Serial.print("PROGRAM: ");
+                      for (int n=0;n<10;n++)
+                      {
+                        Serial.print(header.name[n]);
+                      }
+
+                      Serial.println("");
+                      Serial.println("");
+                  }
+                  else if (byteCount > 19)
+                  {
+                      if (byteCount ==  6914)
+                      {
+                        Serial.println("SCREEN");
+                      }
+                      else
+                      {
+                        Serial.println("DATA");
+                      }
+                      
+
+
+                  }
               }
               else
               {
@@ -490,6 +556,13 @@ void setup() {
   // Inicializo bit string
   bitChStr = (char*)calloc(8, sizeof(char));
   datablock = (byte*)calloc(1, sizeof(byte));
+  
+  // Inicializamos el array de nombre del header
+  for (int i=0;i<10;i++)
+  {
+    header.name[i] = ' ';
+  }
+  
 }
 
 void loop() 
