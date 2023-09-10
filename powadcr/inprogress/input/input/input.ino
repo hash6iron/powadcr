@@ -31,6 +31,7 @@
     
     To Contact the dev team you can write to hash6iron@gmail.com
  +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
+ 
 #include "AudioKitHAL.h"
 
 
@@ -98,7 +99,8 @@ struct tHeader
 {
     int type;
     char name[11];
-    int length;
+    byte sizeL;
+    byte sizeH;
 };
 
 tHeader header;
@@ -362,6 +364,10 @@ void getInfoByte()
     // Almacenamos el tipo de cabecera
     if (byteCount == 2)
     {
+        // 0 - program
+        // 1 - Number array
+        // 2 - Char array
+        // 3 - Code file
         header.type = byteRead;
     }
 
@@ -377,8 +383,20 @@ void getInfoByte()
           int valueTmp = 32;
           header.name[byteCount-2] = (char)valueTmp;
         }
-        
     }
+
+    if (byteCount == 12)
+    {
+        // Almacenamos el LSB del tamaño
+        header.sizeL = byteRead;
+    }
+
+    if (byteCount == 13)
+    {
+        // Almacenamos el MSB del tamaño
+        header.sizeH = byteRead;
+    }
+
 }
 
 void readBuffer(int len)
@@ -496,12 +514,17 @@ void readBuffer(int len)
                   // Si el conjunto leido es de 19 bytes. Es una cabecera.
                   if (byteCount == 19)
                   {
+                      int size = 0;
+                      size = header.sizeL + header.sizeH*256;
+
                       Serial.print("PROGRAM: ");
+
                       for (int n=0;n<10;n++)
                       {
                         Serial.print(header.name[n]);
                       }
-
+                      Serial.println("");
+                      Serial.println("Block size: " + String(size) + " bytes");
                       Serial.println("");
                       Serial.println("");
                   }
