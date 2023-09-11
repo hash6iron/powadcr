@@ -1076,16 +1076,29 @@ class HMI
           PLAY = true;
           PAUSE = false;
           STOP = false;
+          REC = false;
       
           LAST_MESSAGE = "Loading in progress. Please wait.";
           updateInformationMainPage();
         }
       
+        if (strCmd.indexOf("REC") != -1) 
+        {
+          PLAY = false;
+          PAUSE = false;
+          STOP = false;
+          REC = true;
+      
+          LAST_MESSAGE = "Recording - Listening.";
+          updateInformationMainPage();
+        }
+
         if (strCmd.indexOf("PAUSE") != -1) 
         {
           PLAY = false;
           PAUSE = true;
           STOP = false;
+          REC = false;
       
           LAST_MESSAGE = "Tape paused. Press play to continue load or select block.";
           updateInformationMainPage();
@@ -1096,6 +1109,7 @@ class HMI
           PLAY = false;
           PAUSE = false;
           STOP = true;
+          REC = false;
           BLOCK_SELECTED = 0;
           BYTES_LOADED = 0;
       
@@ -1114,6 +1128,7 @@ class HMI
           PLAY = false;
           PAUSE = false;
           STOP = true;
+          REC = false;
           BLOCK_SELECTED = 0;
           BYTES_LOADED = 0;
       

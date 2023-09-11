@@ -233,6 +233,7 @@ bool FILE_BROWSER_OPEN = false;
 bool FILE_BROWSER_SEARCHING = false;
 bool FILE_CORRUPTED = false;
 String FILE_TXT_TO_SEARCH = "";
+bool waitingRecMessageShown = false;
 
 // Variables de control de la reproducción
 bool PLAY = false;
@@ -252,6 +253,7 @@ bool LCD_ON = false;
 const int PLAY_ST = 0;
 const int STOP_ST = 1;
 const int PAUSE_ST = 2;
+const int REC_ST = 7;
 const int READY_ST = 3;
 const int END_ST = 4;
 const int ACK_LCD = 5;

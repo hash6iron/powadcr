@@ -35,6 +35,9 @@ class TZXproccesor
 
     private:
 
+    // Procesador de audio output
+    ZXProccesor _zxp;
+
     HMI _hmi;
 
     // Definicion de un TZX
@@ -46,31 +49,31 @@ class TZXproccesor
 
     int CURRENT_LOADING_BLOCK = 0;
 
-     byte calculateChecksum(byte* bBlock, int startByte, int numBytes)
-     {
-         // Calculamos el checksum de un bloque de bytes
-         byte newChk = 0;
+    byte calculateChecksum(byte* bBlock, int startByte, int numBytes)
+    {
+        // Calculamos el checksum de un bloque de bytes
+        byte newChk = 0;
 
-         #if LOG>3
-           SerialHW.println("");
-           SerialHW.println("Block len: ");
-           SerialHW.print(sizeof(bBlock)/sizeof(byte*));
-         #endif
+        #if LOG>3
+          SerialHW.println("");
+          SerialHW.println("Block len: ");
+          SerialHW.print(sizeof(bBlock)/sizeof(byte*));
+        #endif
 
-         // Calculamos el checksum (no se contabiliza el ultimo numero que es precisamente el checksum)
-         
-         for (int n=startByte;n<(startByte+numBytes);n++)
-         {
-             newChk = newChk ^ bBlock[n];
-         }
+        // Calculamos el checksum (no se contabiliza el ultimo numero que es precisamente el checksum)
+        
+        for (int n=startByte;n<(startByte+numBytes);n++)
+        {
+            newChk = newChk ^ bBlock[n];
+        }
 
-         #if LOG>3
-           SerialHW.println("");
-           SerialHW.println("Checksum: " + String(newChk));
-         #endif
+        #if LOG>3
+          SerialHW.println("");
+          SerialHW.println("Checksum: " + String(newChk));
+        #endif
 
-         return newChk;
-     }      
+        return newChk;
+    }      
 
     char* getNameFromStandardBlock(byte* header)
     {

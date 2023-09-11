@@ -83,22 +83,14 @@ HMI hmi;
 #include "interface.h"
 #include "ZXProccesor.h"
 
-// ZX Spectrum
-#ifdef MACHINE_ZX
+// ZX Spectrum. Procesador de audio output
 ZXProccesor zxp;
-#endif
 
+// Procesadores de cinta
 #include "TZXproccesor.h"
 #include "TAPproccesor.h"
 
-
 #include "test.h"
-
-
-
-//
-// #include <ESP32TimerInterrupt.h>
-// #include <ESP32TimerInterrupt.hpp>
 
 // Declaraciones para SdFat
 SdFat sd;
@@ -106,14 +98,13 @@ SdFat32 sdf;
 SdFile sdFile;
 File32 sdFile32;
 
-
-
-
-
+// Creamos los distintos objetos
 TZXproccesor pTZX(ESP32kit);
 TAPproccesor pTAP(ESP32kit);
 
-
+// Procesador de audio input
+#include "TAPrecorder.h"
+TAPrecorder taprec;
 
 void proccesingTAP(char* file_ch)
 {
@@ -173,6 +164,10 @@ void sendStatus(int action, int value) {
     case END_ST:
       //hmi.writeString("");
       hmi.writeString("ENDst.val=" + String(value));
+      break;
+
+    case REC_ST:
+      hmi.writeString("RECst.val=" + String(value));
       break;
 
     case READY_ST:
@@ -331,6 +326,29 @@ void waitForHMI(bool waitAndNotForze)
     }
 }
 
+void setAudioOutput()
+{
+  auto cfg = ESP32kit.defaultConfig(AudioOutput);
+
+  //SerialHW.println("Initialized Audiokit. Output - Playing");
+
+  ESP32kit.begin(cfg);
+  ESP32kit.setVolume(MAIN_VOL);
+  ESP32kit.setVolume(MAX_MAIN_VOL);   
+}
+
+void setAudioInput()
+{
+  auto cfg = ESP32kit.defaultConfig(AudioInput);
+
+  cfg.adc_input = AUDIO_HAL_ADC_INPUT_LINE2; // microphone?
+  cfg.sample_rate = AUDIO_HAL_44K_SAMPLES;
+
+  //SerialHW.println("Initialized Audiokit. Input - Recording");
+
+  ESP32kit.begin(cfg);
+}
+
 void setup() {
 
     //rtc_wdt_protect_off();    // Turns off the automatic wdt service
@@ -364,12 +382,7 @@ void setup() {
   LOGLEVEL_AUDIOKIT = AudioKitError;
 
   // Configuracion de las librerias del AudioKit
-  auto cfg = ESP32kit.defaultConfig(AudioOutput);
-
-  SerialHW.println("Initialized Audiokit.");
-
-  ESP32kit.begin(cfg);
-  ESP32kit.setVolume(MAIN_VOL);
+  setAudioOutput();
 
   SerialHW.println("Done!");
 
@@ -402,7 +415,7 @@ void setup() {
   pTZX.set_SDM(sdm);
 
   zxp.set_ESP32kit(ESP32kit);
-  ESP32kit.setVolume(MAX_MAIN_VOL);
+  
 
 // Si es test está activo. Lo lanzamos
 #ifdef TEST
@@ -432,6 +445,8 @@ void setup() {
   sendStatus(PAUSE_ST, 0);
   sendStatus(READY_ST, 1);
   sendStatus(END_ST, 0);
+  sendStatus(REC_ST, 0);
+
 
   LAST_MESSAGE = "Press EJECT to select a file.";
 
@@ -471,6 +486,8 @@ void setup() {
   // Deshabilitamos el WDT en cada core
   disableCore0WDT();
   disableCore1WDT();
+
+  // Inicializamos el modulo de recording
 }
 
 void tapeControl()
@@ -479,7 +496,8 @@ void tapeControl()
   if (!FILE_BROWSER_OPEN)
   {
       
-      if (STOP == true && LOADING_STATE != 0) {
+      if (STOP == true && LOADING_STATE != 0) 
+      {
         LOADING_STATE = 0;
         BLOCK_SELECTED = 0;
         
@@ -488,12 +506,14 @@ void tapeControl()
         STOP = false;
         PLAY = false;
         PAUSE = false;
+        REC = false;
 
         sendStatus(STOP_ST, 0);
         sendStatus(PLAY_ST, 0);
         sendStatus(PAUSE_ST, 0);
         sendStatus(READY_ST, 1);
         sendStatus(END_ST, 0);
+        sendStatus(REC_ST, 0);        
       }
 
       if (FILE_SELECTED && !FILE_NOTIFIED) 
@@ -537,7 +557,7 @@ void tapeControl()
 
       if (PLAY && LOADING_STATE == 0 && FILE_PREPARED) 
       {
-
+        setAudioOutput();
         ESP32kit.setVolume(MAIN_VOL);
 
         if (FILE_SELECTED) 
@@ -548,6 +568,7 @@ void tapeControl()
           sendStatus(STOP_ST, 0);
           sendStatus(PAUSE_ST, 0);
           sendStatus(END_ST, 0);
+          sendStatus(REC_ST, 0);
 
           // Reproducimos el fichero
           if (TYPE_FILE_LOAD == "TAP")
@@ -578,6 +599,41 @@ void tapeControl()
           }
 
           hmi.updateInformationMainPage();
+        }
+      }
+
+      if (REC == true && LOADING_STATE == 0)
+      {
+        // Preparamos para recording
+        if (!waitingRecMessageShown)
+        {
+          SerialHW.println("");
+          SerialHW.println("REC. Waiting for guide tone");
+          SerialHW.println("");        
+          // Inicializamos audio
+          setAudioInput();
+          taprec.set_kit(ESP32kit);
+          taprec.initialize();          
+          waitingRecMessageShown = true;
+        }
+        
+        if (taprec.recording())
+        {
+            //taprec.initialized();
+            taprec.terminate(); 
+            waitingRecMessageShown = false;
+            //REC = false;
+            //STOP = true;
+            
+            // sendStatus(STOP_ST, 1);
+            // sendStatus(PLAY_ST, 0);
+            // sendStatus(PAUSE_ST, 0);
+            // sendStatus(END_ST, 0);
+            // sendStatus(REC_ST, 0); 
+
+            SerialHW.println("");        
+            SerialHW.println("Recording procces finish.");
+            SerialHW.println("");        
         }
       }
   }  

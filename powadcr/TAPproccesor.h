@@ -50,9 +50,9 @@ class TAPproccesor
 
       private:
 
-      // Procesador de audio
+      // Procesador de audio output
+      ZXProccesor _zxp;     
 
-      
       // Gestor de SD
       HMI _hmi;
 
