@@ -633,7 +633,8 @@ class TAPrecorder
       void initialize()
       {
 
-          if (!_mFile.open("test3.tap", O_WRITE | O_CREAT)) 
+          // Se va añadiendo al final
+          if (!_mFile.open("test4.tap", O_WRITE | O_CREAT | O_APPEND)) 
           {
             SerialHW.println("File for REC failed!");
           }
