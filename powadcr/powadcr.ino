@@ -488,6 +488,8 @@ void setup() {
   disableCore1WDT();
 
   // Inicializamos el modulo de recording
+  taprec.set_HMI(hmi);
+  taprec.set_SdFat32(sdf);
 }
 
 void tapeControl()
@@ -622,7 +624,7 @@ void tapeControl()
             //taprec.initialized();
             taprec.terminate(); 
             waitingRecMessageShown = false;
-            //REC = false;
+            REC = false;
             //STOP = true;
             
             // sendStatus(STOP_ST, 1);

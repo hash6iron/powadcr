@@ -40,6 +40,11 @@ class TAPrecorder
 
       AudioKit _kit;
 
+      HMI _hmi;
+      SdFat32 _sdf32;
+      tTZX _myTZX;
+      File32 _mFile;
+
       const int BUFFER_SIZE = 2048;
       uint8_t* buffer;
 
@@ -107,8 +112,8 @@ class TAPrecorder
       {
           int type;
           char name[11];
-          byte sizeL;
-          byte sizeH;
+          byte sizeLSB;
+          byte sizeMSB;
       };
 
       tHeader header;
@@ -398,13 +403,13 @@ class TAPrecorder
           if (byteCount == 12)
           {
               // Almacenamos el LSB del tamaño
-              header.sizeL = byteRead;
+              header.sizeLSB = byteRead;
           }
 
           if (byteCount == 13)
           {
               // Almacenamos el MSB del tamaño
-              header.sizeH = byteRead;
+              header.sizeMSB = byteRead;
           }
 
       }
@@ -472,16 +477,21 @@ class TAPrecorder
                         // Valor leido del DATA
                         byte value = strtol(bitChStr, (char**) NULL, 2);
                         byteRead = value;
+                        uint8_t valueToBeWritten = value;
+                        
+                        // Escribimos en fichero
+                        _mFile.write(valueToBeWritten);
+
                         lastChk = checksum;
                         //
                         checksum = checksum ^ value;
 
                         // Lo representamos
-                        SerialHW.print(bitString + " - ");
-                        SerialHW.print(value,HEX);
-                        SerialHW.print(" - chk: ");
-                        SerialHW.print(checksum,HEX);
-                        SerialHW.println("");                    
+                        //SerialHW.print(bitString + " - ");
+                        //SerialHW.print(value,HEX);
+                        //SerialHW.print(" - chk: ");
+                        //SerialHW.print(checksum,HEX);
+                        //SerialHW.println("");                    
                         
                         getInfoByte();                  
 
@@ -526,7 +536,15 @@ class TAPrecorder
                         if (byteCount == 19)
                         {
                             int size = 0;
-                            size = header.sizeL + header.sizeH*256;
+                            size = header.sizeLSB + header.sizeMSB*256;
+
+                            int size2 = size + 2;
+                            uint8_t LSB = size2;
+                            uint8_t MSB = size2 >> 8;
+
+                            // Antes del siguiente bloque metemos el size
+                            _mFile.write(LSB);
+                            _mFile.write(MSB);
 
                             //redimensionamos
                             fileData = (byte*)realloc(fileData,25+size+2);
@@ -582,6 +600,16 @@ class TAPrecorder
 
     public:
 
+      void set_SdFat32(SdFat32 sdf32)
+      {
+          _sdf32 = sdf32;
+      }
+
+      void set_HMI(HMI hmi)
+      {
+          _hmi = hmi;
+      }
+
       void set_kit(AudioKit kit)
       {
         _kit = kit;
@@ -604,6 +632,22 @@ class TAPrecorder
 
       void initialize()
       {
+
+          if (!_mFile.open("test3.tap", O_WRITE | O_CREAT)) 
+          {
+            SerialHW.println("File for REC failed!");
+          }
+          else
+          {
+            SerialHW.println("File for REC prepared.");
+          }
+
+          // Escribimos los primeros bytes
+          uint8_t firstByte = 19;
+          uint8_t secondByte = 0;
+          _mFile.write(firstByte);
+          _mFile.write(secondByte);
+
           // Inicializo bit string
           bitChStr = (char*)calloc(8, sizeof(char));
           datablock = (byte*)calloc(1, sizeof(byte));
@@ -625,6 +669,8 @@ class TAPrecorder
           free(buffer);
           free(datablock);
           free(bitChStr);
+
+          _mFile.close();
       }
 
       TAPrecorder()
