@@ -35,7 +35,11 @@
 
 class TAPrecorder
 {
+    public:
 
+      bool recordingFinish = false;
+      bool errorInDataRecording = false;
+      
     private:
 
       AudioKit _kit;
@@ -47,8 +51,6 @@ class TAPrecorder
 
       const int BUFFER_SIZE = 2048;
       uint8_t* buffer;
-
-      bool recordingFinish = false;
 
       // Estamos suponiendo que el ZX Spectrum genera signal para grabar
       // con timming estandar entonces
@@ -73,6 +75,8 @@ class TAPrecorder
       bool isSilence = false;
       bool blockEnd = false;
       long silenceSample = 0;
+
+
 
       char* bitChStr;
       byte* datablock;
@@ -508,7 +512,7 @@ class TAPrecorder
                     blockEnd = false;
                     blockCount++;
 
-                    if (checksum == 0)
+                    if (checksum == 0 && byteCount !=0)
                     {
                       // Es el ultimo byte. Es el checksum
                       // si se hace XOR sobre este da 0
@@ -574,15 +578,20 @@ class TAPrecorder
               
                             // Guardamos ahora en fichero
                             recordingFinish = true;
+                            errorInDataRecording = false;
                             // Liberamos
                             free(fileData);
                         }
                     }
-                    else
+                    else if (byteCount != 0 && checksum != 0)
                     {
                         SerialHW.println("");
-                        SerialHW.println("Error in block data recording process!");
+                        SerialHW.println("Corrupt data detected. Error.");
                         SerialHW.println("");
+                        // Guardamos ahora en fichero
+                        recordingFinish = true;
+                        errorInDataRecording = true;
+                        blockCount = 0;
                     }
 
                     byteCount = 0;
@@ -620,7 +629,7 @@ class TAPrecorder
           size_t len = _kit.read(buffer, BUFFER_SIZE);
           readBuffer(len);   
 
-          if (recordingFinish)     
+          if (recordingFinish)
           {
             return true;
           }
@@ -634,7 +643,7 @@ class TAPrecorder
       {
 
           // Se va añadiendo al final
-          if (!_mFile.open("test4.tap", O_WRITE | O_CREAT | O_APPEND)) 
+          if (!_mFile.open("test5.tap", O_WRITE | O_CREAT)) 
           {
             SerialHW.println("File for REC failed!");
           }
@@ -663,15 +672,26 @@ class TAPrecorder
           buffer = (uint8_t*)calloc(BUFFER_SIZE,sizeof(uint8_t));
 
           recordingFinish = false;
+          errorInDataRecording = false;
       }
 
-      void terminate()
+      void terminate(bool removeFile)
       {
+          
           free(buffer);
           free(datablock);
           free(bitChStr);
 
-          _mFile.close();
+          if (!removeFile)
+          {
+            _mFile.close();
+          }
+          else
+          {
+            _mFile.close();
+            _mFile.remove();
+          }
+          
       }
 
       TAPrecorder()

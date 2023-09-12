@@ -349,6 +349,48 @@ void setAudioInput()
   ESP32kit.begin(cfg);
 }
 
+void pauseRecording()
+{
+    // Desconectamos la entrada para evitar interferencias
+    setAudioOutput();
+    waitingRecMessageShown = false;
+    REC = false;
+
+    LAST_MESSAGE = "Recording paused.";
+    hmi.updateInformationMainPage();
+
+    SerialHW.println("");
+    SerialHW.println("REC. Procces paused.");
+    SerialHW.println("");
+}
+
+void stopRecording()
+{
+    // Desconectamos la entrada para evitar interferencias
+    setAudioOutput();
+
+    if (!taprec.errorInDataRecording)
+    {
+      taprec.terminate(false);
+    }
+    else
+    {
+      // Paramos la grabación
+      // Borramos el fichero generado
+      taprec.terminate(true);
+    }
+
+    waitingRecMessageShown = false;
+    REC = false;
+
+    LAST_MESSAGE = "Recording stop.";
+    hmi.updateInformationMainPage();
+
+    SerialHW.println("");        
+    SerialHW.println("Recording procces finish.");
+    SerialHW.println("");    
+}
+
 void setup() {
 
     //rtc_wdt_protect_off();    // Turns off the automatic wdt service
@@ -497,7 +539,11 @@ void tapeControl()
 
   if (!FILE_BROWSER_OPEN)
   {
-      
+      if (PAUSE == true && REC == true)
+      {
+          //pauseRecording();
+      }
+
       if (STOP == true && LOADING_STATE != 0) 
       {
         LOADING_STATE = 0;
@@ -515,7 +561,7 @@ void tapeControl()
         sendStatus(PAUSE_ST, 0);
         sendStatus(READY_ST, 1);
         sendStatus(END_ST, 0);
-        sendStatus(REC_ST, 0);        
+        sendStatus(REC_ST, 0);     
       }
 
       if (FILE_SELECTED && !FILE_NOTIFIED) 
@@ -612,30 +658,20 @@ void tapeControl()
           SerialHW.println("");
           SerialHW.println("REC. Waiting for guide tone");
           SerialHW.println("");        
-          // Inicializamos audio
+          
+          // Inicializamos audio input
           setAudioInput();
           taprec.set_kit(ESP32kit);
           taprec.initialize();          
           waitingRecMessageShown = true;
         }
         
+        // Iniciamos la grabación
         if (taprec.recording())
         {
-            //taprec.initialized();
-            taprec.terminate(); 
-            waitingRecMessageShown = false;
-            REC = false;
-            //STOP = true;
-            
-            // sendStatus(STOP_ST, 1);
-            // sendStatus(PLAY_ST, 0);
-            // sendStatus(PAUSE_ST, 0);
-            // sendStatus(END_ST, 0);
-            // sendStatus(REC_ST, 0); 
+            // Ha finalizado la grabación
+            stopRecording(); 
 
-            SerialHW.println("");        
-            SerialHW.println("Recording procces finish.");
-            SerialHW.println("");        
         }
       }
   }  
