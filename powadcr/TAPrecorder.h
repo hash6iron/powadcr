@@ -439,8 +439,8 @@ class TAPrecorder
       {
         if (_mFile.rename(fileNameRename))
         {
-            SerialHW.println("File renamed --> " + String(fileNameRename));
-            wasRenamed = true;
+          SerialHW.println("File renamed --> " + String(fileNameRename));
+          wasRenamed = true;
         }
       }
 
@@ -635,11 +635,9 @@ class TAPrecorder
                                 }
                               }
 
-                              fileNameRename[i+1]='.';
-                              fileNameRename[i+2]='t';
-                              fileNameRename[i+3]='a';
-                              fileNameRename[i+4]='p'; 
-
+                              char* extFile = ".tap\0";
+                              strcat(fileNameRename,extFile);
+                              
                               nameFileRead = true;                             
                             }
 
@@ -775,8 +773,6 @@ class TAPrecorder
       void terminate(bool removeFile)
       {
           
-          renameFile();
-
           if (buffer != NULL)
           {free(buffer);}
 
@@ -818,12 +814,21 @@ class TAPrecorder
 
           if (!removeFile)
           {
+            
+            if (_mFile.isOpen())
+            {
+              renameFile();
+
+              SerialHW.println("");
+              SerialHW.println("File rename.");
+              SerialHW.println("");              
+            }          
+
             _mFile.close();
 
-          SerialHW.println("");
-          SerialHW.println("File closed and saved.");
-          SerialHW.println("");          
-
+            SerialHW.println("");
+            SerialHW.println("File closed and saved.");
+            SerialHW.println("");     
           }
           else
           {
