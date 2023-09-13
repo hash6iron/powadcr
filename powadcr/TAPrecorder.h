@@ -41,8 +41,7 @@ class TAPrecorder
       bool errorInDataRecording = false;
       bool wasRenamed = false;
       bool nameFileRead = false;
-      char* fileName;
-      char* fileNameRename;
+
       
     private:
 
@@ -55,6 +54,10 @@ class TAPrecorder
 
       const int BUFFER_SIZE = 2048;
       uint8_t* buffer;
+
+      // Comunes
+      char* fileName;
+      char* fileNameRename;      
 
       // Estamos suponiendo que el ZX Spectrum genera signal para grabar
       // con timming estandar entonces
@@ -437,9 +440,29 @@ class TAPrecorder
 
       void renameFile()
       {
+        char cPath[] = "/";
+        char f[25];
+        strcpy(f,fileNameRename);
+        strcat(cPath,f);
+
+        SerialHW.println("");
+        SerialHW.println("File searching? " + String(cPath));
+        SerialHW.println("");
+
+        if (_sdf32.exists(cPath))
+        {
+          _sdf32.remove(cPath);
+          SerialHW.println("");
+          SerialHW.println("File removed --> " + String(cPath));
+          SerialHW.println("");
+        }
+
         if (_mFile.rename(fileNameRename))
         {
+          SerialHW.println("");
           SerialHW.println("File renamed --> " + String(fileNameRename));
+          SerialHW.println("");
+          
           wasRenamed = true;
         }
       }
@@ -596,6 +619,7 @@ class TAPrecorder
                             int size = 0;
                             size = header.sizeLSB + header.sizeMSB*256;
                             header.blockSize = size;
+
                             LAST_SIZE = size;
 
                             int size2 = size + 2;
@@ -610,8 +634,11 @@ class TAPrecorder
                             //fileData = (byte*)realloc(fileData,25+size+2);
 
                             SerialHW.print("PROGRAM: ");
+
                             // Mostramos el nombre del programa en el display
                             showProgramName();
+
+                            _hmi.updateInformationMainPage();
 
                             if (!nameFileRead)
                             {
@@ -733,7 +760,7 @@ class TAPrecorder
           }
 
           fileName = (char*)calloc(20,sizeof(char));
-          fileName = "record2.tap\0";
+          fileName = "_record\0";
 
           // Se va añadiendo al final
           if (!_mFile.open(fileName, O_WRITE | O_CREAT | O_TRUNC)) 
