@@ -449,9 +449,9 @@ class TAPrecorder
         SerialHW.println("File searching? " + String(cPath));
         SerialHW.println("");
 
-        if (_sdf32.exists(cPath))
+        if (_sdf32.exists(fileNameRename))
         {
-          _sdf32.remove(cPath);
+          _sdf32.remove(fileNameRename);
           SerialHW.println("");
           SerialHW.println("File removed --> " + String(cPath));
           SerialHW.println("");
