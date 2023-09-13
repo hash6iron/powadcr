@@ -39,6 +39,10 @@ class TAPrecorder
 
       bool recordingFinish = false;
       bool errorInDataRecording = false;
+      bool wasRenamed = false;
+      bool nameFileRead = false;
+      char* fileName;
+      char* fileNameRename;
       
     private:
 
@@ -76,11 +80,9 @@ class TAPrecorder
       bool blockEnd = false;
       long silenceSample = 0;
 
-
-
       char* bitChStr;
       byte* datablock;
-      byte* fileData;
+      //byte* fileData;
 
       int bitCount = 0;
       int byteCount = 0;
@@ -93,6 +95,8 @@ class TAPrecorder
 
       // Estado flanco de la senal, HIGH or LOW
       bool pulseHigh = false;
+      bool waitingHead = true;
+
       // Contador de bloques
       int bl = 0;
       // Umbral para rechazo de ruido
@@ -118,6 +122,7 @@ class TAPrecorder
           char name[11];
           byte sizeLSB;
           byte sizeMSB;
+          int blockSize = 19;
       };
 
       tHeader header;
@@ -418,6 +423,27 @@ class TAPrecorder
 
       }
 
+      void showProgramName()
+      {
+        String prgName = "";
+        for (int n=0;n<10;n++)
+        {
+          SerialHW.print(header.name[n]);
+          prgName += header.name[n];
+        }
+
+        PROGRAM_NAME = prgName;
+      }
+
+      void renameFile()
+      {
+        if (_mFile.rename(fileNameRename))
+        {
+            SerialHW.println("File renamed --> " + String(fileNameRename));
+            wasRenamed = true;
+        }
+      }
+
       void readBuffer(int len)
       {
 
@@ -434,6 +460,7 @@ class TAPrecorder
 
                   if (measurePulse(finalValue))
                   {
+
                       // Ya se ha medido
                       if (state == 0  && pilotPulseCount <= 800)
                       {
@@ -453,6 +480,23 @@ class TAPrecorder
                           pilotPulseCount = 0;
                           SerialHW.println("");                                  
                           SerialHW.println("REC. Wait for SYNC");
+                          SerialHW.println("");
+
+                          // Escribimos los primeros bytes
+                          if (waitingHead)
+                          {
+                              uint8_t firstByte = 19;
+                              uint8_t secondByte = 0;
+                              _mFile.write(firstByte);
+                              _mFile.write(secondByte);
+                              waitingHead = false; 
+
+                              SerialHW.println("");
+                              SerialHW.println("Writting first bytes.");
+                              SerialHW.println("");
+                          }
+
+
                       }
                       else if (state == 1 && isSync(pulse))
                       {
@@ -500,6 +544,9 @@ class TAPrecorder
                         getInfoByte();                  
 
                         //datablock[byteCount] = value;
+                        // Mostramos el progreso de grabación del bloque
+                        _hmi.writeString("progression.val=" + String((int)((byteCount*100)/(header.blockSize-1))));                        
+
                         byteCount++;
                         bitString = "";
                       }
@@ -536,11 +583,20 @@ class TAPrecorder
                         SerialHW.println("Total bytes: " + String(byteCount));
                         SerialHW.println("");
 
+                        _hmi.updateInformationMainPage();
+
+                        // Inicializamos para el siguiente bloque
+                        header.blockSize = 19;
+
+                        BLOCK_SELECTED = blockCount;
+
                         // Si el conjunto leido es de 19 bytes. Es una cabecera.
                         if (byteCount == 19)
                         {
                             int size = 0;
                             size = header.sizeLSB + header.sizeMSB*256;
+                            header.blockSize = size;
+                            LAST_SIZE = size;
 
                             int size2 = size + 2;
                             uint8_t LSB = size2;
@@ -551,14 +607,42 @@ class TAPrecorder
                             _mFile.write(MSB);
 
                             //redimensionamos
-                            fileData = (byte*)realloc(fileData,25+size+2);
+                            //fileData = (byte*)realloc(fileData,25+size+2);
 
                             SerialHW.print("PROGRAM: ");
+                            // Mostramos el nombre del programa en el display
+                            showProgramName();
 
-                            for (int n=0;n<10;n++)
+                            if (!nameFileRead)
                             {
-                              SerialHW.print(header.name[n]);
+                              if (fileNameRename != NULL)
+                              {
+                                free(fileNameRename);
+                              }
+
+                              // Proporcionamos espacio en memoria para el
+                              // nuevo filename
+
+                              fileNameRename = (char*)calloc(20,sizeof(char));
+
+                              int i=0;
+                              for (int n=0;n<10;n++)
+                              {
+                                if (header.name[n] != ' ')
+                                {
+                                    fileNameRename[i] = header.name[n];
+                                    i++;
+                                }
+                              }
+
+                              fileNameRename[i+1]='.';
+                              fileNameRename[i+2]='t';
+                              fileNameRename[i+3]='a';
+                              fileNameRename[i+4]='p'; 
+
+                              nameFileRead = true;                             
                             }
+
                             SerialHW.println("");
                             SerialHW.println("Block size: " + String(size) + " bytes");
                             SerialHW.println("");
@@ -579,8 +663,12 @@ class TAPrecorder
                             // Guardamos ahora en fichero
                             recordingFinish = true;
                             errorInDataRecording = false;
+                            waitingHead = true;
+
                             // Liberamos
-                            free(fileData);
+                            // if (fileData != NULL)
+                            // {free(fileData);}
+                            
                         }
                     }
                     else if (byteCount != 0 && checksum != 0)
@@ -641,9 +729,16 @@ class TAPrecorder
 
       void initialize()
       {
+          if (fileName != NULL)
+          {
+              free(fileName);
+          }
+
+          fileName = (char*)calloc(20,sizeof(char));
+          fileName = "record2.tap\0";
 
           // Se va añadiendo al final
-          if (!_mFile.open("test5.tap", O_WRITE | O_CREAT)) 
+          if (!_mFile.open(fileName, O_WRITE | O_CREAT | O_TRUNC)) 
           {
             SerialHW.println("File for REC failed!");
           }
@@ -652,11 +747,11 @@ class TAPrecorder
             SerialHW.println("File for REC prepared.");
           }
 
-          // Escribimos los primeros bytes
-          uint8_t firstByte = 19;
-          uint8_t secondByte = 0;
-          _mFile.write(firstByte);
-          _mFile.write(secondByte);
+          // // Escribimos los primeros bytes
+          // uint8_t firstByte = 19;
+          // uint8_t secondByte = 0;
+          // _mFile.write(firstByte);
+          // _mFile.write(secondByte);
 
           // Inicializo bit string
           bitChStr = (char*)calloc(8, sizeof(char));
@@ -668,29 +763,84 @@ class TAPrecorder
             header.name[i] = ' ';
           }
 
-          fileData = (byte*)calloc(25,sizeof(byte));  
+          //fileData = (byte*)calloc(25,sizeof(byte));  
           buffer = (uint8_t*)calloc(BUFFER_SIZE,sizeof(uint8_t));
 
           recordingFinish = false;
           errorInDataRecording = false;
+          nameFileRead = false;
+          wasRenamed = false;
       }
 
       void terminate(bool removeFile)
       {
           
-          free(buffer);
-          free(datablock);
-          free(bitChStr);
+          renameFile();
+
+          if (buffer != NULL)
+          {free(buffer);}
+
+          SerialHW.println("");
+          SerialHW.println("Ok free - buffer.");
+          SerialHW.println("");          
+          
+          if (datablock != NULL)
+          {free(datablock);}
+
+          SerialHW.println("");
+          SerialHW.println("Ok free - datablock.");
+          SerialHW.println("");          
+
+
+          if (bitChStr != NULL)
+          {free(bitChStr);}
+
+          SerialHW.println("");
+          SerialHW.println("Ok free - bitChSrt.");
+          SerialHW.println("");          
+
+
+          // if (fileName != NULL)
+          // {free(fileName);}
+
+
+          // SerialHW.println("");
+          // SerialHW.println("Ok free - fileName.");
+          // SerialHW.println("");          
+
+          // if (fileNameRename != NULL)
+          // {free(fileNameRename);}
+
+          // SerialHW.println("");
+          // SerialHW.println("Ok free - fileNameRename.");
+          // SerialHW.println("");          
+
 
           if (!removeFile)
           {
             _mFile.close();
+
+          SerialHW.println("");
+          SerialHW.println("File closed and saved.");
+          SerialHW.println("");          
+
           }
           else
           {
             _mFile.close();
             _mFile.remove();
+
+          SerialHW.println("");
+          SerialHW.println("File closed and removed.");
+          SerialHW.println("");          
+
           }
+
+          wasRenamed = false;
+          nameFileRead = false;
+
+          _hmi.writeString("progression.val=0");     
+          _hmi.updateInformationMainPage();     
           
       }
 

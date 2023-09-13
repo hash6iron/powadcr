@@ -372,17 +372,26 @@ void stopRecording()
     if (!taprec.errorInDataRecording)
     {
       taprec.terminate(false);
+
+      SerialHW.println("");
+      SerialHW.println("End recording proccess. File saved.");
+
     }
     else
     {
       // Paramos la grabación
       // Borramos el fichero generado
       taprec.terminate(true);
+      
+      SerialHW.println("");
+      SerialHW.println("Error in recording proccess. File not saved.");
     }
 
+    // Inicializamos variables de control
     waitingRecMessageShown = false;
     REC = false;
 
+    // Actualizamos mensaje en HMI
     LAST_MESSAGE = "Recording stop.";
     hmi.updateInformationMainPage();
 
@@ -539,16 +548,30 @@ void tapeControl()
 
   if (!FILE_BROWSER_OPEN)
   {
-      if (PAUSE == true && REC == true)
+      if (PAUSE && REC)
       {
           //pauseRecording();
       }
 
-      if (STOP == true && LOADING_STATE != 0) 
+      if (STOP && (LOADING_STATE != 0 || REC)) 
       {
         LOADING_STATE = 0;
         BLOCK_SELECTED = 0;
-        
+
+        if (REC)
+        {
+            SerialHW.println("REC is TRUE");
+        }
+        else
+        {
+            SerialHW.println("REC is FALSE");
+        }
+
+        if (REC == true)
+        {
+          stopRecording();
+        }
+
         hmi.updateInformationMainPage();
 
         STOP = false;
@@ -561,10 +584,11 @@ void tapeControl()
         sendStatus(PAUSE_ST, 0);
         sendStatus(READY_ST, 1);
         sendStatus(END_ST, 0);
-        sendStatus(REC_ST, 0);     
+        sendStatus(REC_ST, 0);  
+
       }
 
-      if (FILE_SELECTED && !FILE_NOTIFIED) 
+      if (FILE_SELECTED && !FILE_NOTIFIED && !REC) 
       {
 
         // Cogemos el fichero seleccionado y lo cargamos              
@@ -603,7 +627,7 @@ void tapeControl()
         }
       }
 
-      if (PLAY && LOADING_STATE == 0 && FILE_PREPARED) 
+      if (PLAY && LOADING_STATE == 0 && FILE_PREPARED && !REC) 
       {
         setAudioOutput();
         ESP32kit.setVolume(MAIN_VOL);
@@ -629,7 +653,6 @@ void tapeControl()
               //getMemFree();
               pTZX.play();
           }
-  
         } 
         else 
         {
@@ -650,7 +673,7 @@ void tapeControl()
         }
       }
 
-      if (REC == true && LOADING_STATE == 0)
+      if (REC && LOADING_STATE == 0)
       {
         // Preparamos para recording
         if (!waitingRecMessageShown)
@@ -669,9 +692,9 @@ void tapeControl()
         // Iniciamos la grabación
         if (taprec.recording())
         {
-            // Ha finalizado la grabación
-            stopRecording(); 
-
+            // Ha finalizado la grabación de un bloque
+            //  
+            
         }
       }
   }  

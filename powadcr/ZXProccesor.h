@@ -411,25 +411,6 @@ class ZXProccesor
 
     public:
 
-    void clear(float duration)
-    {
-
-        // // Obtenemos el periodo de muestreo
-        // // Tsr = 1 / samplingRate
-        // float Tsr = (1.0 / samplingRate);
-        // int bytes = int((1.0 / ((812 / 4.0))) / Tsr);
-        // int numPulses = 4 * int((duration/1000) / (bytes*Tsr));
-
-        // uint8_t buffer[bytes];      
-
-        // for (int m=0;m < numPulses;m++)
-        // {
-        //     // Rellenamos
-        //     m_kit.write(buffer, clearBuffer(buffer, bytes));
-        // }    
-        //m_kit.write()  
-    }
-
     void silence(float duration)
     {
         // Esta onda se genera como el resto sumando trozos de onda

@@ -1076,7 +1076,6 @@ class HMI
           PLAY = true;
           PAUSE = false;
           STOP = false;
-          REC = false;
       
           LAST_MESSAGE = "Loading in progress. Please wait.";
           updateInformationMainPage();
@@ -1098,7 +1097,6 @@ class HMI
           PLAY = false;
           PAUSE = true;
           STOP = false;
-          REC = false;
       
           LAST_MESSAGE = "Tape paused. Press play to continue load or select block.";
           updateInformationMainPage();
@@ -1109,7 +1107,7 @@ class HMI
           PLAY = false;
           PAUSE = false;
           STOP = true;
-          REC = false;
+
           BLOCK_SELECTED = 0;
           BYTES_LOADED = 0;
       
@@ -1128,7 +1126,7 @@ class HMI
           PLAY = false;
           PAUSE = false;
           STOP = true;
-          REC = false;
+
           BLOCK_SELECTED = 0;
           BYTES_LOADED = 0;
       
@@ -1260,7 +1258,7 @@ class HMI
         // SerialHW.println ();
         // SerialHW.println ("Updating Main Page");
         
-        if (TOTAL_BLOCKS != 0) 
+        if (TOTAL_BLOCKS != 0 || REC) 
         {
       
           // Cargamos la información
