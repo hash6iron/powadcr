@@ -768,7 +768,7 @@ class TAPrecorder
         LAST_NAME = "";
         LAST_TYPE = "";
 
-        updateInformationMainPage();
+        _hmi.updateInformationMainPage();
 
         // Reservamos memoria
         fileName = (char*)calloc(20,sizeof(char));
