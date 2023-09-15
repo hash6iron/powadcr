@@ -668,8 +668,6 @@ class TAPrecorder
 
                         // Inicializamos para el siguiente bloque
                         header.blockSize = 19;
-                        LAST_SIZE = header.blockSize;  
-
 
                         if (byteCount == 19)
                         {                         
@@ -677,7 +675,6 @@ class TAPrecorder
                             int size = 0;
                             size = header.sizeLSB + header.sizeMSB*256;
                             header.blockSize = size;
-                            LAST_SIZE = header.blockSize;  
                             
                             int size2 = size + 2;
                             uint8_t LSB = size2;
@@ -698,7 +695,6 @@ class TAPrecorder
                             // nombre del programa ya fue leido y mostrado
                             // que todo lo que venga despues es PROGRAM_NAME_2
                             showProgramName();
-                            _hmi.updateInformationMainPage();
 
                             if (!nameFileRead)
                             {
@@ -736,7 +732,7 @@ class TAPrecorder
                         else if (byteCount > 19)
                         {
               
-                            LAST_SIZE = header.blockSize; 
+                            //LAST_SIZE = header.blockSize; 
 
                             // Guardamos ahora en fichero
                             recordingFinish = true;
@@ -744,6 +740,9 @@ class TAPrecorder
                             waitingHead = true;
                             
                         }
+
+                        LAST_SIZE = header.blockSize;  
+                        _hmi.updateInformationMainPage();
                     }
                     else if (byteCount != 0 && checksum != 0)
                     {
@@ -814,6 +813,7 @@ class TAPrecorder
         LAST_NAME = "";
         LAST_TYPE = "";
 
+        LAST_SIZE = 19;  
         _hmi.updateInformationMainPage();
 
         // Reservamos memoria
