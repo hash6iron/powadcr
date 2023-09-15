@@ -576,7 +576,7 @@ class TAPrecorder
                   }
 
                   // Hay silencio, pero ¿Es silencio despues de bloque?
-                  if (isSilence == true && blockEnd == true)
+                  if (isSilence == true && blockEnd == true && byteCount != 0)
                   {
                     isSilence = false;
                     blockEnd = false;
@@ -621,6 +621,7 @@ class TAPrecorder
                             header.blockSize = size;
 
                             LAST_SIZE = size;
+                            LAST_TYPE = "PROGRAM";
 
                             int size2 = size + 2;
                             uint8_t LSB = size2;
@@ -677,10 +678,12 @@ class TAPrecorder
                         {
                             if (byteCount ==  6914)
                             {
+                              LAST_TYPE = "SCREEN";
                               SerialHW.println("SCREEN");
                             }
                             else
                             {
+                              LAST_TYPE = "BYTE";
                               SerialHW.println("DATA");
                             }
 
@@ -754,47 +757,50 @@ class TAPrecorder
 
       void initialize()
       {
-          // if (fileName != NULL)
-          // {
-          //     free(fileName);
-          // }
 
-          fileName = (char*)calloc(20,sizeof(char));
-          fileName = "_record\0";
+        // Inicializamos variables del HMI
+        BLOCK_SELECTED = 1;
+        TOTAL_BLOCKS = 0;
+        PROGRAM_NAME = "";
+        PROGRAM_NAME_2 = "";
+        TYPE_FILE_LOAD = "";
+        LAST_SIZE = 0;
+        LAST_NAME = "";
+        LAST_TYPE = "";
 
-          // Se va añadiendo al final
-          if (!_mFile.open(fileName, O_WRITE | O_CREAT | O_TRUNC)) 
-          {
-            SerialHW.println("File for REC failed!");
-          }
-          else
-          {
-            SerialHW.println("File for REC prepared.");
-          }
+        updateInformationMainPage();
 
-          // // Escribimos los primeros bytes
-          // uint8_t firstByte = 19;
-          // uint8_t secondByte = 0;
-          // _mFile.write(firstByte);
-          // _mFile.write(secondByte);
+        // Reservamos memoria
+        fileName = (char*)calloc(20,sizeof(char));
+        fileName = "_record\0";
 
-          // Inicializo bit string
-          bitChStr = (char*)calloc(8, sizeof(char));
-          datablock = (byte*)calloc(1, sizeof(byte));
-          
-          // Inicializamos el array de nombre del header
-          for (int i=0;i<10;i++)
-          {
-            header.name[i] = ' ';
-          }
+        // Se crea un nuevo fichero temporal
+        if (!_mFile.open(fileName, O_WRITE | O_CREAT | O_TRUNC)) 
+        {
+          SerialHW.println("File for REC failed!");
+        }
+        else
+        {
+          SerialHW.println("File for REC prepared.");
+        }
 
-          //fileData = (byte*)calloc(25,sizeof(byte));  
-          buffer = (uint8_t*)calloc(BUFFER_SIZE,sizeof(uint8_t));
+        // Inicializo bit string
+        bitChStr = (char*)calloc(8, sizeof(char));
+        datablock = (byte*)calloc(1, sizeof(byte));
+        
+        // Inicializamos el array de nombre del header
+        for (int i=0;i<10;i++)
+        {
+          header.name[i] = ' ';
+        }
 
-          recordingFinish = false;
-          errorInDataRecording = false;
-          nameFileRead = false;
-          wasRenamed = false;
+        //fileData = (byte*)calloc(25,sizeof(byte));  
+        buffer = (uint8_t*)calloc(BUFFER_SIZE,sizeof(uint8_t));
+
+        recordingFinish = false;
+        errorInDataRecording = false;
+        nameFileRead = false;
+        wasRenamed = false;
       }
 
       void terminate(bool removeFile)
