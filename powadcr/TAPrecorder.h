@@ -754,10 +754,10 @@ class TAPrecorder
 
       void initialize()
       {
-          if (fileName != NULL)
-          {
-              free(fileName);
-          }
+          // if (fileName != NULL)
+          // {
+          //     free(fileName);
+          // }
 
           fileName = (char*)calloc(20,sizeof(char));
           fileName = "_record\0";
