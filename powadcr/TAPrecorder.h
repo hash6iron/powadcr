@@ -291,7 +291,7 @@ class TAPrecorder
           }
 
           // Si llegamos aquí por un silencio es entonces fin de bloque
-          if (value == 0 && blockEnd == true && silenceSample > 500)
+          if (value == 0 && blockEnd == true && silenceSample > 500 && isSilence != true)
           {
             isSilence = true;
             SerialHW.println("");
@@ -576,18 +576,19 @@ class TAPrecorder
                   }
 
                   // Hay silencio, pero ¿Es silencio despues de bloque?
-                  if (isSilence == true && blockEnd == true && byteCount != 0)
+                  if (isSilence == true && blockEnd == true)
                   {
                     isSilence = false;
                     blockEnd = false;
-                    blockCount++;
+
 
                     if (checksum == 0 && byteCount !=0)
                     {
                       // Es el ultimo byte. Es el checksum
                       // si se hace XOR sobre este da 0
                       SerialHW.println("");
-                      SerialHW.println("Last byte: CHK OK");                 
+                      SerialHW.println("Last byte: CHK OK");  
+                      blockCount++;               
                     }            
                     SerialHW.println("");
                     SerialHW.print("Checksum: ");
