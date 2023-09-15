@@ -435,7 +435,62 @@ class TAPrecorder
           prgName += header.name[n];
         }
 
-        PROGRAM_NAME = prgName;
+        if (!nameFileRead)
+        {
+          PROGRAM_NAME = prgName;
+        }
+        else
+        {
+          PROGRAM_NAME_2 = prgName;
+        }
+        
+      }
+
+      void showInfoHMI()
+      {
+          BLOCK_SELECTED = blockCount;
+
+          // Si el conjunto leido es de 19 bytes. Es una cabecera.
+
+          if (header.blockSize ==  6912)
+          {
+            LAST_TYPE = "SCREEN.DATA";
+            SerialHW.println("SCREEN");
+          }
+          else if (header.blockSize == 19)
+          {
+            if (header.type == 0)
+            {
+              LAST_TYPE = "PROGRAM.HEAD";
+            }
+            else if (header.type == 1)
+            {
+              LAST_TYPE = "NUMBER_ARRAY.HEAD";
+            }
+            else if (header.type == 2)
+            {
+              LAST_TYPE = "CHAR_ARRAY.HEAD";
+            }
+            else if (header.type == 3)
+            {
+              LAST_TYPE = "BYTE.HEAD";
+            }            
+          }
+          else if (header.blockSize != 0)
+          {
+            if (header.type != 0)
+            {
+                // Es un bloque de datos BYTE
+                LAST_TYPE = "BYTE.DATA";
+                SerialHW.println("BYTE.DATA");
+            }
+            else if (header.type == 0)
+            {
+                // Es un bloque BASIC
+                LAST_TYPE = "BASIC.DATA";
+                SerialHW.println("BASIC.DATA");
+            }
+          }        
       }
 
       void renameFile()
@@ -564,7 +619,7 @@ class TAPrecorder
                         //SerialHW.print(checksum,HEX);
                         //SerialHW.println("");                    
                         
-                        getInfoByte();                  
+                        getInfoByte();   
 
                         //datablock[byteCount] = value;
                         // Mostramos el progreso de grabación del bloque
@@ -572,6 +627,8 @@ class TAPrecorder
 
                         byteCount++;
                         bitString = "";
+
+                        showInfoHMI();                                    
                       }
                   }
 
@@ -589,6 +646,9 @@ class TAPrecorder
                       SerialHW.println("");
                       SerialHW.println("Last byte: CHK OK");  
                       blockCount++;               
+                      
+                      _hmi.updateInformationMainPage(); 
+
                     }            
                     SerialHW.println("");
                     SerialHW.print("Checksum: ");
@@ -598,7 +658,6 @@ class TAPrecorder
                     checksum = 0;
                     state = 0;
 
-
                     if (byteCount !=0)
                     {
                         SerialHW.println("");
@@ -607,23 +666,19 @@ class TAPrecorder
                         SerialHW.println("Total bytes: " + String(byteCount));
                         SerialHW.println("");
 
-                        _hmi.updateInformationMainPage();
-
                         // Inicializamos para el siguiente bloque
                         header.blockSize = 19;
+                        LAST_SIZE = header.blockSize;  
 
-                        BLOCK_SELECTED = blockCount;
 
-                        // Si el conjunto leido es de 19 bytes. Es una cabecera.
                         if (byteCount == 19)
-                        {
+                        {                         
+
                             int size = 0;
                             size = header.sizeLSB + header.sizeMSB*256;
                             header.blockSize = size;
-
-                            LAST_SIZE = size;
-                            LAST_TYPE = "PROGRAM";
-
+                            LAST_SIZE = header.blockSize;  
+                            
                             int size2 = size + 2;
                             uint8_t LSB = size2;
                             uint8_t MSB = size2 >> 8;
@@ -638,8 +693,11 @@ class TAPrecorder
                             SerialHW.print("PROGRAM: ");
 
                             // Mostramos el nombre del programa en el display
+                            // ojo que el marcador "nameFileRead" debe estar
+                            // despues de esta función, para indicar que el
+                            // nombre del programa ya fue leido y mostrado
+                            // que todo lo que venga despues es PROGRAM_NAME_2
                             showProgramName();
-
                             _hmi.updateInformationMainPage();
 
                             if (!nameFileRead)
@@ -677,26 +735,13 @@ class TAPrecorder
                         }
                         else if (byteCount > 19)
                         {
-                            if (byteCount ==  6914)
-                            {
-                              LAST_TYPE = "SCREEN";
-                              SerialHW.println("SCREEN");
-                            }
-                            else
-                            {
-                              LAST_TYPE = "BYTE";
-                              SerialHW.println("DATA");
-                            }
-
               
+                            LAST_SIZE = header.blockSize; 
+
                             // Guardamos ahora en fichero
                             recordingFinish = true;
                             errorInDataRecording = false;
                             waitingHead = true;
-
-                            // Liberamos
-                            // if (fileData != NULL)
-                            // {free(fileData);}
                             
                         }
                     }
@@ -760,7 +805,7 @@ class TAPrecorder
       {
 
         // Inicializamos variables del HMI
-        BLOCK_SELECTED = 1;
+        BLOCK_SELECTED = 0;
         TOTAL_BLOCKS = 0;
         PROGRAM_NAME = "";
         PROGRAM_NAME_2 = "";
