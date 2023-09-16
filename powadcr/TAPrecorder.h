@@ -390,16 +390,24 @@ class TAPrecorder
           }
       }
 
-      void getInfoByte()
+      void proccesByteData()
       {
           // Almacenamos el tipo de cabecera
-          if (byteCount == 2)
+          if (byteCount == 1)
           {
               // 0 - program
               // 1 - Number array
               // 2 - Char array
               // 3 - Code file
               header.type = byteRead;
+              
+              SerialHW.println("");              
+              SerialHW.println("HEADER TYPE");              
+              SerialHW.println(String(header.type));
+              SerialHW.println("");      
+
+              proccesInfoBlockType();
+
           }
 
           if (byteCount > 1 && byteCount < 12)
@@ -450,18 +458,11 @@ class TAPrecorder
         
       }
 
-      void showInfoHMI()
+      void proccesInfoBlockType()
       {
-          BLOCK_SELECTED = blockCount;
 
           // Si el conjunto leido es de 19 bytes. Es una cabecera.
-
-          if (header.blockSize ==  6912)
-          {
-            LAST_TYPE = "SCREEN.DATA";
-            SerialHW.println("SCREEN");
-          }
-          else if (header.blockSize == 19)
+          if (header.blockSize == 19)
           {
             if (header.type == 0)
             {
@@ -480,19 +481,28 @@ class TAPrecorder
               LAST_TYPE = "BYTE.HEAD";
             }            
           }
-          else if (header.blockSize != 0)
+          else if (header.blockSize > 19)
           {
-            if (header.type != 0)
+
+            if (header.blockSize ==  6912)
             {
-                // Es un bloque de datos BYTE
-                LAST_TYPE = "BYTE.DATA";
-                SerialHW.println("BYTE.DATA");
+              LAST_TYPE = "SCREEN.DATA";
+              SerialHW.println("SCREEN");
             }
-            else if (header.type == 0)
+            else
             {
-                // Es un bloque BASIC
-                LAST_TYPE = "BASIC.DATA";
-                SerialHW.println("BASIC.DATA");
+              if (header.type != 0)
+              {
+                  // Es un bloque de datos BYTE
+                  LAST_TYPE = "BYTE.DATA";
+                  SerialHW.println("BYTE.DATA");
+              }
+              else if (header.type == 0)
+              {
+                  // Es un bloque BASIC
+                  LAST_TYPE = "BASIC.DATA";
+                  SerialHW.println("BASIC.DATA");
+              }
             }
           }        
       }
@@ -526,7 +536,37 @@ class TAPrecorder
         }
       }
 
-      void getInfoBlock()
+      void getFileName()
+      {
+        if (!nameFileRead)
+        {
+          if (fileNameRename != NULL)
+          {
+            free(fileNameRename);
+          }
+
+          // Proporcionamos espacio en memoria para el
+          // nuevo filename
+          fileNameRename = (char*)calloc(20,sizeof(char));
+
+          int i=0;
+          for (int n=0;n<10;n++)
+          {
+            if (header.name[n] != ' ')
+            {
+                fileNameRename[i] = header.name[n];
+                i++;
+            }
+          }
+
+          char* extFile = ".tap\0";
+          strcat(fileNameRename,extFile);
+          
+          nameFileRead = true;                             
+        }        
+      }
+
+      void proccessInfoBlock()
       {
 
         SerialHW.println("");
@@ -548,13 +588,23 @@ class TAPrecorder
             // Inicializamos para el siguiente bloque
             header.blockSize = 19;
 
+            // Si es una cabecera. Cogemos el tamaño del bloque data a
+            // salvar.
             if (byteCount == 19)
             {                         
+                // BLOQUE CABECERA
 
+                // La información del tamaño del bloque siguiente
+                // se ha tomado en tiempo real y está almacenada
+                // en headar.sizeLSB y header.sizeMSB
                 int size = 0;
                 size = header.sizeLSB + header.sizeMSB*256;
+                
+                // Guardamos el valor ya convertido en int
                 header.blockSize = size;
                 
+                // Hay que añadir este valor sumando 2, en la cabecera
+                // antes del siguiente bloque
                 int size2 = size + 2;
                 uint8_t LSB = size2;
                 uint8_t MSB = size2 >> 8;
@@ -562,9 +612,6 @@ class TAPrecorder
                 // Antes del siguiente bloque metemos el size
                 _mFile.write(LSB);
                 _mFile.write(MSB);
-
-                //redimensionamos
-                //fileData = (byte*)realloc(fileData,25+size+2);
 
                 SerialHW.print("PROGRAM: ");
 
@@ -575,33 +622,8 @@ class TAPrecorder
                 // que todo lo que venga despues es PROGRAM_NAME_2
                 showProgramName();
 
-                if (!nameFileRead)
-                {
-                  if (fileNameRename != NULL)
-                  {
-                    free(fileNameRename);
-                  }
-
-                  // Proporcionamos espacio en memoria para el
-                  // nuevo filename
-
-                  fileNameRename = (char*)calloc(20,sizeof(char));
-
-                  int i=0;
-                  for (int n=0;n<10;n++)
-                  {
-                    if (header.name[n] != ' ')
-                    {
-                        fileNameRename[i] = header.name[n];
-                        i++;
-                    }
-                  }
-
-                  char* extFile = ".tap\0";
-                  strcat(fileNameRename,extFile);
-                  
-                  nameFileRead = true;                             
-                }
+                // Obtenemos el nombre que se le pondrá al .TAP
+                getFileName();
 
                 SerialHW.println("");
                 SerialHW.println("Block size: " + String(size) + " bytes");
@@ -610,8 +632,7 @@ class TAPrecorder
             }
             else if (byteCount > 19)
             {
-  
-                //LAST_SIZE = header.blockSize; 
+                // BLOQUE DATA
 
                 // Guardamos ahora en fichero
                 recordingFinish = true;
@@ -623,7 +644,7 @@ class TAPrecorder
             //LAST_SIZE = header.blockSize;  
             //_hmi.updateInformationMainPage();
         }
-        byteCount = 0;
+        
 
       }
 
@@ -638,21 +659,6 @@ class TAPrecorder
           for (int j=0;j<len/4;j++)
           {  
               finalValue = prepareSignal(oneValue,threshold);
-
-              //
-              // if (finalValue !=0 && !notAudioInNotified)
-              // {
-              //   notAudioInNotified = true;
-              //   LAST_MESSAGE = "Recording - Listening : Capturing audio :";
-              //   _hmi.updateInformationMainPage();              
-              // }
-              // else
-              // {
-              //   notAudioInNotified = true;
-              //   LAST_MESSAGE = "Recording - Listening : Silence :";
-              //   _hmi.updateInformationMainPage();              
-              // }
-
 
                   if (measurePulse(finalValue))
                   {
@@ -746,7 +752,7 @@ class TAPrecorder
                         //SerialHW.print(checksum,HEX);
                         //SerialHW.println("");                    
                         
-                        getInfoByte();   
+                        proccesByteData();   
 
                         // Mostramos el progreso de grabación del bloque
                         _hmi.writeString("progression.val=" + String((int)((byteCount*100)/(header.blockSize-1))));                        
@@ -756,8 +762,6 @@ class TAPrecorder
                         // Reiniciamos la cadena de bits
                         bitString = "";
 
-                        // Mostramos info en el HMI
-                        //showInfoHMI();                                    
                       }
                   }
 
@@ -781,27 +785,41 @@ class TAPrecorder
                       SerialHW.println("");
                       SerialHW.println("Block red correctly.");
 
+                      // Informamos de los bytes salvados
+                      LAST_SIZE = header.blockSize; 
+                      // Informamos del bloque en curso
+                      BLOCK_SELECTED = blockCount;
+
+                      // Procesamos información del bloque
+                      proccessInfoBlock();
+                      // Actualizamos el HMI.
+                      _hmi.updateInformationMainPage(); 
+
                       // Incrementamos un bloque  
                       blockCount++;               
                       
-                      getInfoBlock();
-
-                      // Comenzamos otra vez
-                      state = 0;
-
-                      // Actualizamos el HMI.
-                      _hmi.updateInformationMainPage(); 
                     } 
                     else if (byteCount != 0 && checksum !=0)
                     {
                       SerialHW.println("");
                       SerialHW.println("Corrupt data detected. Error.");
                       SerialHW.println("");
+
+                      LAST_MESSAGE = "Corrupt data detected. Error.";
+
                       // Guardamos ahora en fichero
                       recordingFinish = true;
                       errorInDataRecording = true;
                       blockCount = 0;
-                    }                               
+                    } 
+                    else
+                    {}
+
+
+
+                    // Comenzamos otra vez
+                    state = 0;
+                    byteCount = 0;                              
                   }
 
               // Ahora medimos el pulso detectado

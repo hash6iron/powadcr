@@ -1267,7 +1267,7 @@ class HMI
           // LAST_TYPE = globalTAP.descriptor[BLOCK_SELECTED].typeName;
 
           // Enviamos información al HMI
-          if (TYPE_FILE_LOAD == "TZX")
+          if (TYPE_FILE_LOAD == "TZX" || REC)
           {
               writeString("name.txt=\"" + PROGRAM_NAME + " : " + PROGRAM_NAME_2 + "\"");
           }
