@@ -41,6 +41,7 @@ class TAPrecorder
       bool errorInDataRecording = false;
       bool wasRenamed = false;
       bool nameFileRead = false;
+      bool notAudioInNotified = false;
 
       
     private:
@@ -297,6 +298,9 @@ class TAPrecorder
             SerialHW.println("");
             SerialHW.println("** Silence active **");          
             SerialHW.println("");
+            
+            //notAudioInNotified = false;
+            
             return true;
           }
           else
@@ -533,8 +537,21 @@ class TAPrecorder
           for (int j=0;j<len/4;j++)
           {  
               finalValue = prepareSignal(oneValue,threshold);
+
               //
-              
+              // if (finalValue !=0 && !notAudioInNotified)
+              // {
+              //   notAudioInNotified = true;
+              //   LAST_MESSAGE = "Recording - Listening : Capturing audio :";
+              //   _hmi.updateInformationMainPage();              
+              // }
+              // else
+              // {
+              //   notAudioInNotified = true;
+              //   LAST_MESSAGE = "Recording - Listening : Silence :";
+              //   _hmi.updateInformationMainPage();              
+              // }
+
 
                   if (measurePulse(finalValue))
                   {
@@ -647,7 +664,7 @@ class TAPrecorder
                       SerialHW.println("Last byte: CHK OK");  
                       blockCount++;               
                       
-                      _hmi.updateInformationMainPage(); 
+                      //_hmi.updateInformationMainPage(); 
 
                     }            
                     SerialHW.println("");
@@ -741,8 +758,8 @@ class TAPrecorder
                             
                         }
 
-                        LAST_SIZE = header.blockSize;  
-                        _hmi.updateInformationMainPage();
+                        //LAST_SIZE = header.blockSize;  
+                        //_hmi.updateInformationMainPage();
                     }
                     else if (byteCount != 0 && checksum != 0)
                     {
@@ -812,9 +829,6 @@ class TAPrecorder
         LAST_SIZE = 0;
         LAST_NAME = "";
         LAST_TYPE = "";
-
-        LAST_SIZE = 19;  
-        _hmi.updateInformationMainPage();
 
         // Reservamos memoria
         fileName = (char*)calloc(20,sizeof(char));
