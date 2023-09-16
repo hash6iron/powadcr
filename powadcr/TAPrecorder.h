@@ -932,24 +932,7 @@ class TAPrecorder
 
           SerialHW.println("");
           SerialHW.println("Ok free - bitChSrt.");
-          SerialHW.println("");          
-
-
-          // if (fileName != NULL)
-          // {free(fileName);}
-
-
-          // SerialHW.println("");
-          // SerialHW.println("Ok free - fileName.");
-          // SerialHW.println("");          
-
-          // if (fileNameRename != NULL)
-          // {free(fileNameRename);}
-
-          // SerialHW.println("");
-          // SerialHW.println("Ok free - fileNameRename.");
-          // SerialHW.println("");          
-
+          SerialHW.println("");               
 
           if (!removeFile)
           {

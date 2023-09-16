@@ -1253,19 +1253,10 @@ class HMI
 
       void updateInformationMainPage() 
       {
-
-        // SerialHW.println ();
-        // SerialHW.println ();
-        // SerialHW.println ("Updating Main Page");
         
         if (TOTAL_BLOCKS != 0 || REC) 
         {
       
-          // Cargamos la información
-          // LAST_NAME = globalTAP.descriptor[BLOCK_SELECTED].name;
-          // LAST_SIZE = globalTAP.descriptor[BLOCK_SELECTED].size;
-          // LAST_TYPE = globalTAP.descriptor[BLOCK_SELECTED].typeName;
-
           // Enviamos información al HMI
           if (TYPE_FILE_LOAD == "TZX" || REC)
           {
@@ -1276,24 +1267,15 @@ class HMI
               writeString("name.txt=\"" + PROGRAM_NAME + "\"");
           }
           
-          
-          //writeString("screen2.name.txt=\"" + PROGRAM_NAME + "\"");
-
           writeString("size.txt=\"" + String(LAST_SIZE) + " bytes\"");
-
-          //writeString("screen2.size.txt=\"" + String(LAST_SIZE - 2) + " bytes\"");
 
           String cmpTypeStr = String(LAST_NAME);
           cmpTypeStr.trim();
 
-          // SerialHW.println("");
-          // SerialHW.println("");
-          // SerialHW.println(">" + cmpTypeStr + "<");
 
-          if (TYPE_FILE_LOAD == "TZX")
+          if (TYPE_FILE_LOAD == "TZX" || REC)
           {
               writeString("type.txt=\"" + String(LAST_TYPE) + " " + LAST_TZX_GROUP + "\"");
-              //writeString("type.txt=\"" + String(LAST_TYPE) + "\"");
           }
           else
           {
@@ -1301,22 +1283,11 @@ class HMI
                    
               writeString("name.txt=\"" + PROGRAM_NAME + " : " + String(LAST_NAME) + "\"");           
           }
-          // SerialHW.println("");
-          // SerialHW.println("");
-          // SerialHW.println(String(LAST_TYPE));
-
-          //writeString("screen2.type.txt=\"" + String(LAST_TYPE) + ": " + String(LAST_NAME) + "\"");
       
           writeString("totalBlocks.val=" + String(TOTAL_BLOCKS));
-
-          //writeString("screen2.totalBlocks.val=" + String(TOTAL_BLOCKS));
-
           writeString("currentBlock.val=" + String(BLOCK_SELECTED + 1));
-
-          //writeString("screen2.currentBlock.val=" + String(BLOCK_SELECTED + 1));
         }
       
-        //writeString("");
         writeString("g0.txt=\"" + LAST_MESSAGE + "\"");
       }
       
