@@ -42,7 +42,7 @@ class TAPrecorder
       bool wasRenamed = false;
       bool nameFileRead = false;
       bool notAudioInNotified = false;
-
+      
       
     private:
 
@@ -526,6 +526,107 @@ class TAPrecorder
         }
       }
 
+      void getInfoBlock()
+      {
+
+        SerialHW.println("");
+        SerialHW.print("Checksum: ");
+        SerialHW.print(lastChk,HEX);
+        SerialHW.println("");
+        SerialHW.println("Block read: " + String(blockCount));
+
+        checksum = 0;
+
+        if (byteCount !=0)
+        {
+            SerialHW.println("");
+            SerialHW.println("Block data was recorded successful");
+            SerialHW.println("");
+            SerialHW.println("Total bytes: " + String(byteCount));
+            SerialHW.println("");
+
+            // Inicializamos para el siguiente bloque
+            header.blockSize = 19;
+
+            if (byteCount == 19)
+            {                         
+
+                int size = 0;
+                size = header.sizeLSB + header.sizeMSB*256;
+                header.blockSize = size;
+                
+                int size2 = size + 2;
+                uint8_t LSB = size2;
+                uint8_t MSB = size2 >> 8;
+
+                // Antes del siguiente bloque metemos el size
+                _mFile.write(LSB);
+                _mFile.write(MSB);
+
+                //redimensionamos
+                //fileData = (byte*)realloc(fileData,25+size+2);
+
+                SerialHW.print("PROGRAM: ");
+
+                // Mostramos el nombre del programa en el display
+                // ojo que el marcador "nameFileRead" debe estar
+                // despues de esta función, para indicar que el
+                // nombre del programa ya fue leido y mostrado
+                // que todo lo que venga despues es PROGRAM_NAME_2
+                showProgramName();
+
+                if (!nameFileRead)
+                {
+                  if (fileNameRename != NULL)
+                  {
+                    free(fileNameRename);
+                  }
+
+                  // Proporcionamos espacio en memoria para el
+                  // nuevo filename
+
+                  fileNameRename = (char*)calloc(20,sizeof(char));
+
+                  int i=0;
+                  for (int n=0;n<10;n++)
+                  {
+                    if (header.name[n] != ' ')
+                    {
+                        fileNameRename[i] = header.name[n];
+                        i++;
+                    }
+                  }
+
+                  char* extFile = ".tap\0";
+                  strcat(fileNameRename,extFile);
+                  
+                  nameFileRead = true;                             
+                }
+
+                SerialHW.println("");
+                SerialHW.println("Block size: " + String(size) + " bytes");
+                SerialHW.println("");
+                SerialHW.println("");
+            }
+            else if (byteCount > 19)
+            {
+  
+                //LAST_SIZE = header.blockSize; 
+
+                // Guardamos ahora en fichero
+                recordingFinish = true;
+                errorInDataRecording = false;
+                waitingHead = true;
+                
+            }
+
+            //LAST_SIZE = header.blockSize;  
+            //_hmi.updateInformationMainPage();
+        }
+        byteCount = 0;
+
+      }
+
       void readBuffer(int len)
       {
 
@@ -556,7 +657,9 @@ class TAPrecorder
                   if (measurePulse(finalValue))
                   {
 
-                      // Ya se ha medido
+                      //
+                      // Control del estado de señal
+                      //
                       if (state == 0  && pilotPulseCount <= 800)
                       {
                           if (isGuidePulse(pulse))
@@ -584,6 +687,7 @@ class TAPrecorder
                               uint8_t secondByte = 0;
                               _mFile.write(firstByte);
                               _mFile.write(secondByte);
+
                               waitingHead = false; 
 
                               SerialHW.println("");
@@ -614,19 +718,25 @@ class TAPrecorder
                           bitCount++;
                       }
 
+                      //
+                      // Conversión de bits a bytes
+                      //
                       if (bitCount > 7)
                       {
+                        // Reiniciamos el contador de bits
                         bitCount=0;
-                        // Valor leido del DATA
+
+                        // Convertimos a byte el valor leido del DATA
                         byte value = strtol(bitChStr, (char**) NULL, 2);
                         byteRead = value;
                         uint8_t valueToBeWritten = value;
                         
-                        // Escribimos en fichero
+                        // Escribimos en fichero el dato
                         _mFile.write(valueToBeWritten);
 
+                        // Guardamos el checksum generado
                         lastChk = checksum;
-                        //
+                        // Calculamos el nuevo checksum
                         checksum = checksum ^ value;
 
                         // Lo representamos
@@ -638,142 +748,60 @@ class TAPrecorder
                         
                         getInfoByte();   
 
-                        //datablock[byteCount] = value;
                         // Mostramos el progreso de grabación del bloque
                         _hmi.writeString("progression.val=" + String((int)((byteCount*100)/(header.blockSize-1))));                        
 
+                        // Contabilizamos bytes
                         byteCount++;
+                        // Reiniciamos la cadena de bits
                         bitString = "";
 
-                        showInfoHMI();                                    
+                        // Mostramos info en el HMI
+                        //showInfoHMI();                                    
                       }
                   }
 
                   // Hay silencio, pero ¿Es silencio despues de bloque?
                   if (isSilence == true && blockEnd == true)
                   {
+                    // Si lo es. Reiniciamos los marcadores
                     isSilence = false;
                     blockEnd = false;
 
 
                     if (checksum == 0 && byteCount !=0)
                     {
-                      // Es el ultimo byte. Es el checksum
-                      // si se hace XOR sobre este da 0
+                      // Si el checksum final es 0, y contiene
+                      // El bloque es correcto.
+
+                      // NOTA: El ultimo byte es el checksum
+                      // si se hace XOR sobre este mismo da 0
+                      // e indica que todo es correcto
+
                       SerialHW.println("");
-                      SerialHW.println("Last byte: CHK OK");  
+                      SerialHW.println("Block red correctly.");
+
+                      // Incrementamos un bloque  
                       blockCount++;               
                       
-                      //_hmi.updateInformationMainPage(); 
+                      getInfoBlock();
 
-                    }            
-                    SerialHW.println("");
-                    SerialHW.print("Checksum: ");
-                    SerialHW.print(lastChk,HEX);
-                    SerialHW.println("");
-                    SerialHW.println("Block read: " + String(blockCount));
-                    checksum = 0;
-                    state = 0;
+                      // Comenzamos otra vez
+                      state = 0;
 
-                    if (byteCount !=0)
+                      // Actualizamos el HMI.
+                      _hmi.updateInformationMainPage(); 
+                    } 
+                    else if (byteCount != 0 && checksum !=0)
                     {
-                        SerialHW.println("");
-                        SerialHW.println("Block data was recorded successful");
-                        SerialHW.println("");
-                        SerialHW.println("Total bytes: " + String(byteCount));
-                        SerialHW.println("");
-
-                        // Inicializamos para el siguiente bloque
-                        header.blockSize = 19;
-
-                        if (byteCount == 19)
-                        {                         
-
-                            int size = 0;
-                            size = header.sizeLSB + header.sizeMSB*256;
-                            header.blockSize = size;
-                            
-                            int size2 = size + 2;
-                            uint8_t LSB = size2;
-                            uint8_t MSB = size2 >> 8;
-
-                            // Antes del siguiente bloque metemos el size
-                            _mFile.write(LSB);
-                            _mFile.write(MSB);
-
-                            //redimensionamos
-                            //fileData = (byte*)realloc(fileData,25+size+2);
-
-                            SerialHW.print("PROGRAM: ");
-
-                            // Mostramos el nombre del programa en el display
-                            // ojo que el marcador "nameFileRead" debe estar
-                            // despues de esta función, para indicar que el
-                            // nombre del programa ya fue leido y mostrado
-                            // que todo lo que venga despues es PROGRAM_NAME_2
-                            showProgramName();
-
-                            if (!nameFileRead)
-                            {
-                              if (fileNameRename != NULL)
-                              {
-                                free(fileNameRename);
-                              }
-
-                              // Proporcionamos espacio en memoria para el
-                              // nuevo filename
-
-                              fileNameRename = (char*)calloc(20,sizeof(char));
-
-                              int i=0;
-                              for (int n=0;n<10;n++)
-                              {
-                                if (header.name[n] != ' ')
-                                {
-                                    fileNameRename[i] = header.name[n];
-                                    i++;
-                                }
-                              }
-
-                              char* extFile = ".tap\0";
-                              strcat(fileNameRename,extFile);
-                              
-                              nameFileRead = true;                             
-                            }
-
-                            SerialHW.println("");
-                            SerialHW.println("Block size: " + String(size) + " bytes");
-                            SerialHW.println("");
-                            SerialHW.println("");
-                        }
-                        else if (byteCount > 19)
-                        {
-              
-                            //LAST_SIZE = header.blockSize; 
-
-                            // Guardamos ahora en fichero
-                            recordingFinish = true;
-                            errorInDataRecording = false;
-                            waitingHead = true;
-                            
-                        }
-
-                        //LAST_SIZE = header.blockSize;  
-                        //_hmi.updateInformationMainPage();
-                    }
-                    else if (byteCount != 0 && checksum != 0)
-                    {
-                        SerialHW.println("");
-                        SerialHW.println("Corrupt data detected. Error.");
-                        SerialHW.println("");
-                        // Guardamos ahora en fichero
-                        recordingFinish = true;
-                        errorInDataRecording = true;
-                        blockCount = 0;
-                    }
-
-                    byteCount = 0;
-                    
+                      SerialHW.println("");
+                      SerialHW.println("Corrupt data detected. Error.");
+                      SerialHW.println("");
+                      // Guardamos ahora en fichero
+                      recordingFinish = true;
+                      errorInDataRecording = true;
+                      blockCount = 0;
+                    }                               
                   }
 
               // Ahora medimos el pulso detectado
