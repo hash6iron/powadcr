@@ -269,6 +269,41 @@ class TAPrecorder
               // Ha finalizado el pulso. Pasa de LOW --> HIGH
               pulse.high_edge = samplesCount_H;
               pulse.low_edge = samplesCount_L;
+
+              // Correcciones
+              if (pulse.high_edge >= 10 && pulse.high_edge <= 11)
+              {
+                if (pulse.low_edge < 10)
+                {
+                    pulse.high_edge = 10;
+                    pulse.low_edge = 10;
+                }
+              }
+              else if (pulse.low_edge >= 10 && pulse.low_edge <= 11)
+              {
+                if (pulse.high_edge < 10)
+                {
+                    pulse.high_edge = 10;
+                    pulse.low_edge = 10;
+                }
+              }
+              else if (pulse.high_edge >= 19 && pulse.high_edge <= 22)
+              {
+                if (pulse.low_edge < 19)
+                {
+                    pulse.high_edge = 20;
+                    pulse.low_edge = 20;
+                }
+              }
+              else if (pulse.low_edge >= 19 && pulse.low_edge <= 22)
+              {
+                if (pulse.high_edge < 19)
+                {
+                    pulse.high_edge = 20;
+                    pulse.low_edge = 20;
+                }
+              }
+
               //SerialHW.println("PW: " + String(pulse.high_edge) + " - " + String(pulse.low_edge));
 
               if (value == 0)
