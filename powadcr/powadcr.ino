@@ -682,6 +682,20 @@ void tapeControl()
           taprec.set_kit(ESP32kit);
           taprec.initialize();          
           waitingRecMessageShown = true;
+          
+          // Por si había algo abierto. Lo cerramos
+          if (TYPE_FILE_LOAD == "TAP")
+          {
+              //getMemFree();
+              pTAP.initialize();
+          }
+          else if (TYPE_FILE_LOAD = "TZX")
+          {
+              //getMemFree();
+              pTZX.initialize();
+          }
+          hmi.updateInformationMainPage();
+          
         }
         
         // Iniciamos la grabación

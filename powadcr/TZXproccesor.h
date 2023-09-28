@@ -1455,8 +1455,8 @@ class TZXproccesor
     {
         if (_myTZX.descriptor != NULL)
         {
-          free(_myTZX.descriptor);
-          free(_myTZX.name);
+          //free(_myTZX.descriptor);
+          //free(_myTZX.name);
           _myTZX.descriptor = NULL;
           _myTZX.name = "\0";
           _myTZX.numBlocks = 0;

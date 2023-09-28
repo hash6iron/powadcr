@@ -1019,7 +1019,7 @@ class TAPproccesor
           }          
       }
 
-      void proccess_tap(File32 tapFileName)
+      bool proccess_tap(File32 tapFileName)
       {
           // Procesamos el fichero
           SerialHW.println("");
@@ -1032,6 +1032,11 @@ class TAPproccesor
               {
                 showDescriptorTable();
               }
+              return true;
+          }
+          else
+          {
+            return false;
           }
       }
 
@@ -1052,28 +1057,34 @@ class TAPproccesor
       
         // creamos un objeto TAPproccesor
         set_file(tapFile, _rlen);
-        proccess_tap(tapFile);
-        
-        SerialHW.println("");
-        SerialHW.println("");
-        SerialHW.println("END PROCCESING TAP: ");
-      
-        if (_myTAP.descriptor != NULL)
-        {
-            // Entregamos información por consola
-            PROGRAM_NAME = get_tap_name();
-            TOTAL_BLOCKS = get_tap_numBlocks();
-            LAST_NAME = &INITCHAR2[0];
-      
-            SerialHW.println("");
-            SerialHW.println("");
-            SerialHW.println("PROGRAM_NAME: " + PROGRAM_NAME);
-            SerialHW.println("TOTAL_BLOCKS: " + String(TOTAL_BLOCKS));
-      
-            // Pasamos el descriptor           
-            _hmi.setBasicFileInformation(_myTAP.descriptor[BLOCK_SELECTED].name,_myTAP.descriptor[BLOCK_SELECTED].typeName,_myTAP.descriptor[BLOCK_SELECTED].size);
 
-            _hmi.updateInformationMainPage();
+        if (proccess_tap(tapFile))
+        {
+            SerialHW.println("");
+            SerialHW.println("");
+            SerialHW.println("END PROCCESING TAP: ");
+          
+            if (_myTAP.descriptor != NULL)
+            {
+                // Entregamos información por consola
+                PROGRAM_NAME = get_tap_name();
+                TOTAL_BLOCKS = get_tap_numBlocks();
+                LAST_NAME = &INITCHAR2[0];
+          
+                SerialHW.println("");
+                SerialHW.println("");
+                SerialHW.println("PROGRAM_NAME: " + PROGRAM_NAME);
+                SerialHW.println("TOTAL_BLOCKS: " + String(TOTAL_BLOCKS));
+          
+                // Pasamos el descriptor           
+                _hmi.setBasicFileInformation(_myTAP.descriptor[BLOCK_SELECTED].name,_myTAP.descriptor[BLOCK_SELECTED].typeName,_myTAP.descriptor[BLOCK_SELECTED].size);
+
+                _hmi.updateInformationMainPage();
+            }          
+        }
+        else
+        {
+          FILE_CORRUPTED = true;
         }
       }
 
