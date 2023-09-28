@@ -38,7 +38,7 @@ class TAPrecorder
     public:
 
       bool recordingFinish = false;
-      bool errorInDataRecording = false;
+      bool errorInDataRecording = true;
       bool wasRenamed = false;
       bool nameFileRead = false;
       bool notAudioInNotified = false;
@@ -70,7 +70,7 @@ class TAPrecorder
       int bit1 = 1710;
 
       const int high = 32767;
-      const int low = -32767;
+      const int low = -32768;
       const int silence = 0;
 
       // Controlamos el estado del TAP
@@ -103,8 +103,10 @@ class TAPrecorder
 
       // Contador de bloques
       int bl = 0;
+
       // Umbral para rechazo de ruido
-      int threshold = 20000; 
+      int threshold_high = 20000; 
+      int threshold_low = -20000; 
       //
       bool errorInSemiPulseDetection = false;
       //
@@ -159,17 +161,17 @@ class TAPrecorder
                 return newChk;
             }
 
-      int16_t prepareSignal(int16_t value, int threshold)
+      int16_t prepareSignal(int16_t value, int thresholdH, int thresholdL)
       {
           int16_t returnValue = 0;
 
-          if (value > threshold)
+          if (value >= thresholdH)
           {
-            returnValue = 32767;
+            returnValue = high;
           }
-          else if (value < -threshold)
+          else if (value <= thresholdL)
           {
-              returnValue = -32767;
+              returnValue = low;
           }
           else
           {
@@ -217,8 +219,6 @@ class TAPrecorder
               // contamos ya esta muestra
               isSilence = false;
               silenceSample = 0;
-
-      
               samplesCount_H=1;
               // Cambiamos de estado
               pulseState = 1;
@@ -248,7 +248,7 @@ class TAPrecorder
               samplesCount_H++;
               return false;
           }
-          else if (pulseState == 1 && value == low)
+          else if (pulseState == 1 && value == low && samplesCount_H >= 7)
           {
               // Cambio de HIGH --> LOW
               // finaliza el pulso HIGH y comienza el LOW
@@ -258,51 +258,91 @@ class TAPrecorder
               pulseState = 2;
               return false;
           }
+          // else if (pulseState == 1 && value == 0 && samplesCount_H < 7)
+          // {
+          //     // Error pico de señal sin sentido
+          //     silenceSample = 0;
+          //     blockEnd = false;
+          //     samplesCount_H=0;
+          //     samplesCount_L=0;
+          //     pulseState = 0;
+          //     return false;
+          // }          
           else if (pulseState == 2 && value == low)
           {
               // Estado de medida en LOW
               samplesCount_L++;
               return false;
           }
-          else if (pulseState == 2 && (value == high || value == 0))
+          else if (pulseState == 2 && (value == high || value == 0) && samplesCount_L >= 7)
           {
               // Ha finalizado el pulso. Pasa de LOW --> HIGH
               pulse.high_edge = samplesCount_H;
               pulse.low_edge = samplesCount_L;
 
               // Correcciones
-              if (pulse.high_edge >= 10 && pulse.high_edge <= 11)
-              {
-                if (pulse.low_edge < 10)
-                {
-                    pulse.high_edge = 10;
-                    pulse.low_edge = 10;
-                }
-              }
-              else if (pulse.low_edge >= 10 && pulse.low_edge <= 11)
-              {
-                if (pulse.high_edge < 10)
-                {
-                    pulse.high_edge = 10;
-                    pulse.low_edge = 10;
-                }
-              }
-              else if (pulse.high_edge >= 19 && pulse.high_edge <= 22)
-              {
-                if (pulse.low_edge < 19)
-                {
-                    pulse.high_edge = 20;
-                    pulse.low_edge = 20;
-                }
-              }
-              else if (pulse.low_edge >= 19 && pulse.low_edge <= 22)
-              {
-                if (pulse.high_edge < 19)
-                {
-                    pulse.high_edge = 20;
-                    pulse.low_edge = 20;
-                }
-              }
+              // if (pulse.high_edge >= 9 && pulse.high_edge <= 11 && pulse.low_edge <= 5)
+              // {   
+              //   pulse.high_edge = 10;
+              //   pulse.low_edge = 10;
+              // }
+              // else if (pulse.low_edge >= 9 && pulse.low_edge <= 11 && pulse.high_edge <= 5)
+              // {        
+              //     pulse.high_edge = 10;
+              //     pulse.low_edge = 10;
+              // }
+              // else if (pulse.high_edge >= 10 && pulse.high_edge <= 11)
+              // {
+              //   if (pulse.low_edge < 10)
+              //   {
+              //       pulse.high_edge = 10;
+              //       pulse.low_edge = 10;
+              //   }
+              //   else if (pulse.low_edge > 20)
+              //   {
+              //       pulse.high_edge = 10;
+              //       pulse.low_edge = 10;
+              //   }
+              // }
+              // else if (pulse.low_edge >= 10 && pulse.low_edge <= 11)
+              // {
+              //   if (pulse.high_edge < 10)
+              //   {
+              //       pulse.high_edge = 10;
+              //       pulse.low_edge = 10;
+              //   }
+              //   else if (pulse.high_edge > 20)
+              //   {
+              //       pulse.high_edge = 10;
+              //       pulse.low_edge = 10;
+              //   }
+              // }
+              // else if (pulse.high_edge >= 13 && pulse.high_edge <= 22)
+              // {
+              //   if (pulse.low_edge < 20)
+              //   {
+              //       pulse.high_edge = 20;
+              //       pulse.low_edge = 20;
+              //   }
+              //   else if (pulse.low_edge > 25)
+              //   {
+              //       pulse.high_edge = 20;
+              //       pulse.low_edge = 20;
+              //   }
+              // }
+              // else if (pulse.low_edge >= 13 && pulse.low_edge <= 22)
+              // {
+              //   if (pulse.high_edge < 20)
+              //   {
+              //       pulse.high_edge = 20;
+              //       pulse.low_edge = 20;
+              //   }
+              //   else if (pulse.high_edge > 25)
+              //   {
+              //       pulse.high_edge = 20;
+              //       pulse.low_edge = 20;
+              //   }
+              // }
 
               //SerialHW.println("PW: " + String(pulse.high_edge) + " - " + String(pulse.low_edge));
 
@@ -330,9 +370,9 @@ class TAPrecorder
           if (value == 0 && blockEnd == true && silenceSample > 500 && isSilence != true)
           {
             isSilence = true;
-            SerialHW.println("");
-            SerialHW.println("** Silence active **");          
-            SerialHW.println("");
+            // SerialHW.println("");
+            // SerialHW.println("** Silence active **");          
+            // SerialHW.println("");
             
             //notAudioInNotified = false;
             
@@ -367,9 +407,29 @@ class TAPrecorder
 
       bool isSync(tPulse p)
       {
-          if (p.high_edge >= 7 && p.high_edge <= 10)
+          if (p.high_edge >= 7 && p.high_edge <= 9)
           {
-              if (p.low_edge >= 7 && p.low_edge <= 10)
+              if (p.low_edge >= 7 && p.low_edge <= 9)
+              {
+                  //
+                  return true;
+              }
+              else
+              {
+                  return false;
+              }
+          }
+          else
+          {
+              return false;
+          }
+      }
+
+      bool isSync2B(tPulse p)
+      {
+          if (p.high_edge >= 26 && p.high_edge <= 27)
+          {
+              if (p.low_edge >= 7 && p.low_edge <= 9)
               {
                   //
                   return true;
@@ -693,169 +753,172 @@ class TAPrecorder
 
           for (int j=0;j<len/4;j++)
           {  
-              finalValue = prepareSignal(oneValue,threshold);
+              finalValue = prepareSignal(oneValue,threshold_high,threshold_low);
 
-                  if (measurePulse(finalValue))
+              //SerialHW.println(String(oneValue));
+              //SerialHW.println(String(finalValue));
+
+              if (measurePulse(finalValue))
+              {
+
+                  //
+                  // Control del estado de señal
+                  //
+                  if (state == 0  && pilotPulseCount <= 800)
                   {
-
-                      //
-                      // Control del estado de señal
-                      //
-                      if (state == 0  && pilotPulseCount <= 800)
+                      if (isGuidePulse(pulse))
                       {
-                          if (isGuidePulse(pulse))
-                          {
-                              pilotPulseCount++;
-                          }
-                          else
-                          {
-                              pilotPulseCount = 0;
-                          }
+                          pilotPulseCount++;
                       }
-                      else if (state == 0 && pilotPulseCount > 800)
+                      else
                       {
-                          // Saltamos a la espera de SYNC1 y 2
-                          state = 1;
                           pilotPulseCount = 0;
-                          SerialHW.println("");                                  
-                          SerialHW.println("REC. Wait for SYNC");
-                          SerialHW.println("");
-
-                          // Escribimos los primeros bytes
-                          if (waitingHead)
-                          {
-                              uint8_t firstByte = 19;
-                              uint8_t secondByte = 0;
-                              _mFile.write(firstByte);
-                              _mFile.write(secondByte);
-
-                              waitingHead = false; 
-
-                              SerialHW.println("");
-                              SerialHW.println("Writting first bytes.");
-                              SerialHW.println("");
-                          }
-
-
-                      }
-                      else if (state == 1 && isSync(pulse))
-                      {
-                          state = 2;
-                          SerialHW.println("REC. Wait for DATA");
-                          SerialHW.println("");
-                      }
-                      else if (state == 2 && isBit0(pulse))
-                      {
-                          state = 2;
-                          bitString += "0";
-                          bitChStr[bitCount] = '0';
-                          bitCount++;
-                      }
-                      else if (state == 2 && isBit1(pulse))
-                      {
-                          state = 2;
-                          bitString += "1";
-                          bitChStr[bitCount] = '1';
-                          bitCount++;
-                      }
-
-                      //
-                      // Conversión de bits a bytes
-                      //
-                      if (bitCount > 7)
-                      {
-                        // Reiniciamos el contador de bits
-                        bitCount=0;
-
-                        // Convertimos a byte el valor leido del DATA
-                        byte value = strtol(bitChStr, (char**) NULL, 2);
-                        byteRead = value;
-                        uint8_t valueToBeWritten = value;
-                        
-                        // Escribimos en fichero el dato
-                        _mFile.write(valueToBeWritten);
-
-                        // Guardamos el checksum generado
-                        lastChk = checksum;
-                        // Calculamos el nuevo checksum
-                        checksum = checksum ^ value;
-
-                        // Lo representamos
-                        //SerialHW.print(bitString + " - ");
-                        //SerialHW.print(value,HEX);
-                        //SerialHW.print(" - chk: ");
-                        //SerialHW.print(checksum,HEX);
-                        //SerialHW.println("");                    
-                        
-                        proccesByteData();   
-
-                        // Mostramos el progreso de grabación del bloque
-                        _hmi.writeString("progression.val=" + String((int)((byteCount*100)/(header.blockSize-1))));                        
-
-                        // Contabilizamos bytes
-                        byteCount++;
-                        // Reiniciamos la cadena de bits
-                        bitString = "";
-
                       }
                   }
-
-                  // Hay silencio, pero ¿Es silencio despues de bloque?
-                  if (isSilence == true && blockEnd == true)
+                  else if (state == 0 && pilotPulseCount > 800)
                   {
-                    // Si lo es. Reiniciamos los marcadores
-                    isSilence = false;
-                    blockEnd = false;
-
-
-                    if (checksum == 0 && byteCount !=0)
-                    {
-                      // Si el checksum final es 0, y contiene
-                      // El bloque es correcto.
-
-                      // NOTA: El ultimo byte es el checksum
-                      // si se hace XOR sobre este mismo da 0
-                      // e indica que todo es correcto
-
-                      SerialHW.println("");
-                      SerialHW.println("Block red correctly.");
-
-                      // Informamos de los bytes salvados
-                      LAST_SIZE = header.blockSize; 
-                      // Informamos del bloque en curso
-                      BLOCK_SELECTED = blockCount;
-
-                      // Procesamos información del bloque
-                      proccessInfoBlock();
-                      // Actualizamos el HMI.
-                      _hmi.updateInformationMainPage(); 
-
-                      // Incrementamos un bloque  
-                      blockCount++;               
-                      
-                    } 
-                    else if (byteCount != 0 && checksum !=0)
-                    {
-                      SerialHW.println("");
-                      SerialHW.println("Corrupt data detected. Error.");
+                      // Saltamos a la espera de SYNC1 y 2
+                      state = 1;
+                      pilotPulseCount = 0;
+                      SerialHW.println("");                                  
+                      SerialHW.println("REC. Wait for SYNC");
                       SerialHW.println("");
 
-                      LAST_MESSAGE = "Corrupt data detected. Error.";
+                      // Escribimos los primeros bytes
+                      if (waitingHead)
+                      {
+                          uint8_t firstByte = 19;
+                          uint8_t secondByte = 0;
+                          _mFile.write(firstByte);
+                          _mFile.write(secondByte);
 
-                      // Guardamos ahora en fichero
-                      recordingFinish = true;
-                      errorInDataRecording = true;
-                      blockCount = 0;
-                    } 
-                    else
-                    {}
+                          waitingHead = false; 
+
+                          SerialHW.println("");
+                          SerialHW.println("Writting first bytes.");
+                          SerialHW.println("");
+                      }
 
 
-
-                    // Comenzamos otra vez
-                    state = 0;
-                    byteCount = 0;                              
                   }
+                  else if (state == 1 && (isSync(pulse) || isSync2B(pulse)))
+                  {
+                      state = 2;
+                      SerialHW.println("REC. Wait for DATA");
+                      SerialHW.println("");
+                  }
+                  else if (state == 2 && isBit0(pulse))
+                  {
+                      state = 2;
+                      bitString += "0";
+                      bitChStr[bitCount] = '0';
+                      bitCount++;
+                  }
+                  else if (state == 2 && isBit1(pulse))
+                  {
+                      state = 2;
+                      bitString += "1";
+                      bitChStr[bitCount] = '1';
+                      bitCount++;
+                  }
+
+                  //
+                  // Conversión de bits a bytes
+                  //
+                  if (bitCount > 7)
+                  {
+                    // Reiniciamos el contador de bits
+                    bitCount=0;
+
+                    // Convertimos a byte el valor leido del DATA
+                    byte value = strtol(bitChStr, (char**) NULL, 2);
+                    byteRead = value;
+                    uint8_t valueToBeWritten = value;
+                    
+                    // Escribimos en fichero el dato
+                    _mFile.write(valueToBeWritten);
+
+                    // Guardamos el checksum generado
+                    lastChk = checksum;
+                    // Calculamos el nuevo checksum
+                    checksum = checksum ^ value;
+
+                    // Lo representamos
+                    // SerialHW.print(bitString + " - ");
+                    // SerialHW.print(value,HEX);
+                    // SerialHW.print(" - str: ");
+                    // SerialHW.print((char)value);
+                    // SerialHW.print(" - chk: ");
+                    // SerialHW.print(checksum,HEX);
+                    // SerialHW.println("");                    
+                    
+                    proccesByteData();   
+
+                    // Mostramos el progreso de grabación del bloque
+                    _hmi.writeString("progression.val=" + String((int)((byteCount*100)/(header.blockSize-1))));                        
+
+                    // Contabilizamos bytes
+                    byteCount++;
+                    // Reiniciamos la cadena de bits
+                    bitString = "";
+
+                  }
+              }
+
+              // Hay silencio, pero ¿Es silencio despues de bloque?
+              if (isSilence == true && blockEnd == true)
+              {
+                // Si lo es. Reiniciamos los marcadores
+                isSilence = false;
+                blockEnd = false;
+
+
+                if (checksum == 0 && byteCount !=0)
+                {
+                  // Si el checksum final es 0, y contiene
+                  // El bloque es correcto.
+
+                  // NOTA: El ultimo byte es el checksum
+                  // si se hace XOR sobre este mismo da 0
+                  // e indica que todo es correcto
+
+                  SerialHW.println("");
+                  SerialHW.println("Block red correctly.");
+
+                  // Informamos de los bytes salvados
+                  LAST_SIZE = header.blockSize; 
+                  // Informamos del bloque en curso
+                  BLOCK_SELECTED = blockCount;
+
+                  // Procesamos información del bloque
+                  proccessInfoBlock();
+                  // Actualizamos el HMI.
+                  _hmi.updateInformationMainPage(); 
+
+                  // Incrementamos un bloque  
+                  blockCount++;               
+                  
+                } 
+                else if (byteCount != 0 && checksum !=0)
+                {
+                  SerialHW.println("");
+                  SerialHW.println("Corrupt data detected. Error.");
+                  SerialHW.println("");
+
+                  LAST_MESSAGE = "Corrupt data detected. Error.";
+
+                  // Guardamos ahora en fichero
+                  recordingFinish = true;
+                  errorInDataRecording = true;
+                  blockCount = 0;
+                } 
+                else
+                {}
+
+                // Comenzamos otra vez
+                state = 0;
+                byteCount = 0;                              
+              }
 
               // Ahora medimos el pulso detectado
 
@@ -939,7 +1002,8 @@ class TAPrecorder
         buffer = (uint8_t*)calloc(BUFFER_SIZE,sizeof(uint8_t));
 
         recordingFinish = false;
-        errorInDataRecording = false;
+        // Suponemos que hay error
+        errorInDataRecording = true;
         nameFileRead = false;
         wasRenamed = false;
       }

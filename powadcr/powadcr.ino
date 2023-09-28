@@ -326,6 +326,7 @@ void waitForHMI(bool waitAndNotForze)
     }
 }
 
+
 void setAudioOutput()
 {
   auto cfg = ESP32kit.defaultConfig(AudioOutput);
@@ -446,6 +447,9 @@ void setup() {
   int SD_Speed = SD_FRQ_MHZ_INITIAL;  // Velocidad en MHz (config.h)
   setSDFrequency(SD_Speed);
 
+  // Forzamos a 26MHz
+  sdf.begin(ESP32kit.pinSpiCs(), SD_SCK_MHZ(26));
+
   SerialHW.println("Done!");
 
   // Esperamos finalmente a la pantalla
@@ -557,15 +561,6 @@ void tapeControl()
       {
         LOADING_STATE = 0;
         BLOCK_SELECTED = 0;
-
-        if (REC)
-        {
-            SerialHW.println("REC is TRUE");
-        }
-        else
-        {
-            SerialHW.println("REC is FALSE");
-        }
 
         if (REC == true)
         {
@@ -721,6 +716,24 @@ void Task0code( void * pvParameters )
       // Control por botones
       //buttonsControl();
       //delay(50);
+      // if (headPhoneDetection && !wasHeadphoneDetected)
+      // {
+      //     // Ponemos el volumen al 95%
+      //     MAIN_VOL = 95;
+      //     wasHeadphoneDetected = true;
+      //     wasHeadphoneAmpDetected = false;
+      //     SerialHW.println("");
+      //     SerialHW.println("Volumen at 95%");
+      // }
+      // else if (!headPhoneDetection && !wasHeadphoneAmpDetected)
+      // {
+      //     // Bajamos el volumen al 40%
+      //     MAIN_VOL = 40;
+      //     wasHeadphoneDetected = false;
+      //     wasHeadphoneAmpDetected = true;
+      //     SerialHW.println("");
+      //     SerialHW.println("Volumen at 40%");
+      // }
   }
 }
 
