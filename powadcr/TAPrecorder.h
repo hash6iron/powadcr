@@ -105,13 +105,14 @@ class TAPrecorder
       int bl = 0;
 
       // Umbral para rechazo de ruido
-      //int threshold_high = 20000; 
-      //int threshold_low = -20000; 
+      int threshold_high = 20000; 
+      int threshold_low = -20000; 
 
       // Para los clásicos
-      int threshold_high = 6000; 
-      int threshold_low = -6000;       
+      //int threshold_high = 6000; 
+      //int threshold_low = -6000;       
       //
+      
       bool errorInSemiPulseDetection = false;
       //
       int pulseState = 0;
