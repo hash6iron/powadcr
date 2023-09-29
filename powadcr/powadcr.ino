@@ -370,7 +370,7 @@ void stopRecording()
     // Desconectamos la entrada para evitar interferencias
     setAudioOutput();
 
-    if (!taprec.errorInDataRecording && taprec.errorsCountInRec != 0)
+    if (!taprec.errorInDataRecording && taprec.errorsCountInRec==0)
     {
       taprec.terminate(false);
 
