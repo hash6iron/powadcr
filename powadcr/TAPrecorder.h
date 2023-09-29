@@ -112,7 +112,7 @@ class TAPrecorder
       //int threshold_high = 6000; 
       //int threshold_low = -6000;       
       //
-      
+
       bool errorInSemiPulseDetection = false;
       //
       int pulseState = 0;
@@ -976,7 +976,7 @@ class TAPrecorder
         TYPE_FILE_LOAD = "";
         LAST_SIZE = 0;
         LAST_NAME = "";
-        LAST_TYPE = "";        
+        LAST_TYPE = "";    
       }
 
       void initialize()
@@ -1016,6 +1016,7 @@ class TAPrecorder
         errorInDataRecording = true;
         nameFileRead = false;
         wasRenamed = false;
+        blockCount = 0;
       }
 
       void terminate(bool removeFile)
