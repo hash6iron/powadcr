@@ -370,7 +370,7 @@ void stopRecording()
     // Desconectamos la entrada para evitar interferencias
     setAudioOutput();
 
-    if (!taprec.errorInDataRecording)
+    if (!taprec.errorInDataRecording && taprec.errorsCountInRec != 0)
     {
       taprec.terminate(false);
 
@@ -698,9 +698,10 @@ void tapeControl()
               pTZX.initialize();
           }
           hmi.updateInformationMainPage();
-
         }
         
+        taprec.selectThreshold();
+
         // Iniciamos la grabación
         if (taprec.recording())
         {

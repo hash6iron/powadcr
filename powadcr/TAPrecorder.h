@@ -39,9 +39,11 @@ class TAPrecorder
 
       bool recordingFinish = false;
       bool errorInDataRecording = true;
+      int errorsCountInRec = 0;
       bool wasRenamed = false;
       bool nameFileRead = false;
       bool notAudioInNotified = false;
+      bool wasSelectedThreshold = false;
       
       
     private:
@@ -112,6 +114,8 @@ class TAPrecorder
       //int threshold_high = 6000; 
       //int threshold_low = -6000;       
       //
+
+      int averageThreshold = 0;
 
       bool errorInSemiPulseDetection = false;
       //
@@ -748,6 +752,41 @@ class TAPrecorder
 
       }
 
+      void analyzeSamplesForThreshold(int len)
+      {
+
+        int16_t *value_ptr = (int16_t*) buffer;
+        int16_t oneValue = *value_ptr++;
+        int16_t oneValue2 = *value_ptr++;
+        long average = 0;
+        int averageSamples = 0;
+
+        for (int j=0;j<len/4;j++)
+        {  
+            if (oneValue >= 0 && oneValue <= 20000)
+            {
+              // Lo contabilizo para la media
+              average = average + oneValue;
+              averageSamples++;
+            }
+
+            // Leemos el siguiente valor
+            oneValue = *value_ptr++;
+            // Este solo es para desecharlo
+            oneValue2 = *value_ptr++;  
+        }
+
+        // Calculamos la media
+        if (averageSamples==0)
+        {averageSamples = 1;}
+
+        averageThreshold += (average / averageSamples);
+
+        SerialHW.println("Media: ");
+        SerialHW.println(String(averageThreshold));
+
+      }
+
       void readBuffer(int len)
       {
 
@@ -916,6 +955,7 @@ class TAPrecorder
                   recordingFinish = true;
                   errorInDataRecording = true;
                   blockCount = 0;
+                  errorsCountInRec++;
                 } 
                 else
                 {}
@@ -951,9 +991,58 @@ class TAPrecorder
         _kit = kit;
       }
 
+      void selectThreshold()
+      {
+          if (!wasSelectedThreshold)
+          {
+              int totalSamplesForTh = 20;
+              averageThreshold = 0;
+
+              for (int i = 0;i<totalSamplesForTh;i++)
+              {
+                size_t len = _kit.read(buffer, BUFFER_SIZE);
+                analyzeSamplesForThreshold(len);
+              }
+
+              // Entregamos la media del ruido
+              averageThreshold = averageThreshold / totalSamplesForTh;
+
+              //
+              SerialHW.println("Average threshold: ");
+              SerialHW.println(String(averageThreshold));
+
+              if (averageThreshold <= 700)
+              {
+                // N-Go
+                SerialHW.println("");
+                SerialHW.println("Threshold for N-Go");
+                threshold_high = 20000;
+                threshold_low = -20000;
+                
+                LAST_MESSAGE = LAST_MESSAGE + " [ Next / N-Go ] " + String(averageThreshold);
+                _hmi.updateInformationMainPage();  
+              }
+              else
+              {
+                // Classic versions
+                SerialHW.println("");
+                SerialHW.println("Threshold for classic versions");
+                threshold_high = 6000;
+                threshold_low = -6000;
+
+                LAST_MESSAGE = LAST_MESSAGE + " [ Classic ] " + String(averageThreshold);
+                _hmi.updateInformationMainPage();  
+
+              }
+
+              wasSelectedThreshold = true;              
+          }        
+      }
+
       bool recording()
       {
           size_t len = _kit.read(buffer, BUFFER_SIZE);
+
           readBuffer(len);   
 
           if (recordingFinish)
@@ -1014,9 +1103,11 @@ class TAPrecorder
         recordingFinish = false;
         // Suponemos que hay error
         errorInDataRecording = true;
+        errorsCountInRec = 0;
         nameFileRead = false;
         wasRenamed = false;
         blockCount = 0;
+        wasSelectedThreshold = false;
       }
 
       void terminate(bool removeFile)
