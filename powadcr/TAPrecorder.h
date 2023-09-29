@@ -995,7 +995,7 @@ class TAPrecorder
       {
           if (!wasSelectedThreshold)
           {
-              int totalSamplesForTh = 20;
+              int totalSamplesForTh = 50;
               averageThreshold = 0;
 
               for (int i = 0;i<totalSamplesForTh;i++)
@@ -1011,14 +1011,15 @@ class TAPrecorder
               SerialHW.println("Average threshold: ");
               SerialHW.println(String(averageThreshold));
 
-              if (averageThreshold <= 700)
+              if (averageThreshold <= 1000)
               {
                 // N-Go
                 SerialHW.println("");
                 SerialHW.println("Threshold for N-Go");
                 threshold_high = 20000;
                 threshold_low = -20000;
-                
+
+                LAST_MESSAGE = "Recording:";                
                 LAST_MESSAGE = LAST_MESSAGE + " [ Next / N-Go ] " + String(averageThreshold);
                 _hmi.updateInformationMainPage();  
               }
@@ -1030,6 +1031,7 @@ class TAPrecorder
                 threshold_high = 6000;
                 threshold_low = -6000;
 
+                LAST_MESSAGE = "Recording:";                
                 LAST_MESSAGE = LAST_MESSAGE + " [ Classic ] " + String(averageThreshold);
                 _hmi.updateInformationMainPage();  
 

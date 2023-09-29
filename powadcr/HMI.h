@@ -1087,9 +1087,6 @@ class HMI
           PAUSE = false;
           STOP = false;
           REC = true;
-      
-          LAST_MESSAGE = "Recording - Listening.";
-          updateInformationMainPage();
         }
 
         if (strCmd.indexOf("PAUSE") != -1) 
