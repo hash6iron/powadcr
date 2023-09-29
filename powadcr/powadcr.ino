@@ -394,11 +394,14 @@ void stopRecording()
 
     // Actualizamos mensaje en HMI
     LAST_MESSAGE = "Recording stop.";
+    taprec.prepareHMI();
+
     hmi.updateInformationMainPage();
 
     SerialHW.println("");        
     SerialHW.println("Recording procces finish.");
     SerialHW.println("");    
+
 }
 
 void setup() {
@@ -567,8 +570,6 @@ void tapeControl()
           stopRecording();
         }
 
-        hmi.updateInformationMainPage();
-
         STOP = false;
         PLAY = false;
         PAUSE = false;
@@ -580,6 +581,8 @@ void tapeControl()
         sendStatus(READY_ST, 1);
         sendStatus(END_ST, 0);
         sendStatus(REC_ST, 0);  
+
+        hmi.updateInformationMainPage();
 
       }
 
@@ -695,7 +698,7 @@ void tapeControl()
               pTZX.initialize();
           }
           hmi.updateInformationMainPage();
-          
+
         }
         
         // Iniciamos la grabación

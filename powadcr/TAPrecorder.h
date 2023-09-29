@@ -105,8 +105,12 @@ class TAPrecorder
       int bl = 0;
 
       // Umbral para rechazo de ruido
-      int threshold_high = 20000; 
-      int threshold_low = -20000; 
+      //int threshold_high = 20000; 
+      //int threshold_low = -20000; 
+
+      // Para los clásicos
+      int threshold_high = 6000; 
+      int threshold_low = -6000;       
       //
       bool errorInSemiPulseDetection = false;
       //
@@ -961,9 +965,8 @@ class TAPrecorder
           }
       }
 
-      void initialize()
+      void prepareHMI()
       {
-
         // Inicializamos variables del HMI
         BLOCK_SELECTED = 0;
         TOTAL_BLOCKS = 0;
@@ -972,7 +975,13 @@ class TAPrecorder
         TYPE_FILE_LOAD = "";
         LAST_SIZE = 0;
         LAST_NAME = "";
-        LAST_TYPE = "";
+        LAST_TYPE = "";        
+      }
+
+      void initialize()
+      {
+
+        prepareHMI();
 
         // Reservamos memoria
         fileName = (char*)calloc(20,sizeof(char));
