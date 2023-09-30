@@ -716,7 +716,7 @@ void tapeControl()
         {
             // Ha finalizado la grabación de un bloque
             //  
-            if (taprec.wasFileNotCreate)   
+            if (taprec.wasFileNotCreated)   
             {
                 // Si no se crea el fichero no se puede seguir grabando
                 LAST_MESSAGE = "Error in filesystem or SD.";
