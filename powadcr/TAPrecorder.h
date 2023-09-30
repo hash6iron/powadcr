@@ -1042,10 +1042,17 @@ class TAPrecorder
           }        
       }
 
+      void initializeBuffer()
+      {
+        for (int i=0;i<BUFFER_SIZE;i++)
+        {
+          buffer[i]=0;
+        }
+      }
+
       bool recording()
       {
           size_t len = _kit.read(buffer, BUFFER_SIZE);
-
           readBuffer(len);   
 
           if (recordingFinish || wasFileNotCreated)
@@ -1073,6 +1080,8 @@ class TAPrecorder
 
       void initialize()
       {
+
+        initializeBuffer();
 
         prepareHMI();
 
