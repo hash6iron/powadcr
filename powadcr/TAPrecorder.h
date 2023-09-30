@@ -1148,35 +1148,41 @@ class TAPrecorder
           SerialHW.println("Ok free - bitChSrt.");
           SerialHW.println("");               
 
-          if (!removeFile)
+          if (!wasFileNotCreated)
           {
-            
-            if (_mFile.isOpen())
-            {
-              renameFile();
+              if (!removeFile)
+              {
+                
+                if (_mFile.isOpen())
+                {
+                  renameFile();
+
+                  SerialHW.println("");
+                  SerialHW.println("File rename.");
+                  SerialHW.println("");              
+                }          
+
+                _mFile.close();
+
+                SerialHW.println("");
+                SerialHW.println("File closed and saved.");
+                SerialHW.println("");     
+              }
+              else
+              {
+                _mFile.close();
+                _mFile.remove();
 
               SerialHW.println("");
-              SerialHW.println("File rename.");
-              SerialHW.println("");              
-            }          
+              SerialHW.println("File closed and removed.");
+              SerialHW.println("");          
 
-            _mFile.close();
-
-            SerialHW.println("");
-            SerialHW.println("File closed and saved.");
-            SerialHW.println("");     
+              }
           }
           else
           {
             _mFile.close();
-            _mFile.remove();
-
-          SerialHW.println("");
-          SerialHW.println("File closed and removed.");
-          SerialHW.println("");          
-
           }
-
           wasRenamed = false;
           nameFileRead = false;
 
