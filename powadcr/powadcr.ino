@@ -389,8 +389,15 @@ void stopRecording()
       SerialHW.println("");
       SerialHW.println("Error in recording proccess. File not saved.");
 
-      LAST_MESSAGE = "Recording STOP. Error in recording proccess. File not saved.";
-
+      if (taprec.wasFileNotCreated)
+      {
+        // Si no se crea el fichero no se puede seguir grabando
+        LAST_MESSAGE = "Error in filesystem or SD.";
+      }
+      else
+      {
+        LAST_MESSAGE = "Recording STOP. Error in recording proccess. File not saved.";
+      }
     }
 
     // Inicializamos variables de control
@@ -718,10 +725,6 @@ void tapeControl()
             //  
             if (taprec.wasFileNotCreated)   
             {
-                // Si no se crea el fichero no se puede seguir grabando
-                LAST_MESSAGE = "Error in filesystem or SD.";
-                hmi.updateInformationMainPage();
-
                 stopRecording();
                 setSTOP();
             }
