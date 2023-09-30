@@ -377,6 +377,8 @@ void stopRecording()
       SerialHW.println("");
       SerialHW.println("End recording proccess. File saved.");
 
+      LAST_MESSAGE = "Recording STOP. File succesfully saved.";
+
     }
     else
     {
@@ -386,6 +388,9 @@ void stopRecording()
       
       SerialHW.println("");
       SerialHW.println("Error in recording proccess. File not saved.");
+
+      LAST_MESSAGE = "Recording STOP. Error in recording proccess. File not saved.";
+
     }
 
     // Inicializamos variables de control
@@ -393,9 +398,8 @@ void stopRecording()
     REC = false;
 
     // Actualizamos mensaje en HMI
-    LAST_MESSAGE = "Recording stop.";
     taprec.prepareHMI();
-
+    // Actualizamos la pantalla
     hmi.updateInformationMainPage();
 
     SerialHW.println("");        
@@ -451,7 +455,7 @@ void setup() {
   setSDFrequency(SD_Speed);
 
   // Forzamos a 26MHz
-  sdf.begin(ESP32kit.pinSpiCs(), SD_SCK_MHZ(26));
+  //sdf.begin(ESP32kit.pinSpiCs(), SD_SCK_MHZ(26));
 
   SerialHW.println("Done!");
 
@@ -550,6 +554,23 @@ void setup() {
   taprec.set_SdFat32(sdf);
 }
 
+void setSTOP()
+{
+  STOP = false;
+  PLAY = false;
+  PAUSE = false;
+  REC = false;
+
+  sendStatus(STOP_ST, 0);
+  sendStatus(PLAY_ST, 0);
+  sendStatus(PAUSE_ST, 0);
+  sendStatus(READY_ST, 1);
+  sendStatus(END_ST, 0);
+  sendStatus(REC_ST, 0);  
+
+  hmi.updateInformationMainPage();
+}
+
 void tapeControl()
 {
 
@@ -570,19 +591,7 @@ void tapeControl()
           stopRecording();
         }
 
-        STOP = false;
-        PLAY = false;
-        PAUSE = false;
-        REC = false;
-
-        sendStatus(STOP_ST, 0);
-        sendStatus(PLAY_ST, 0);
-        sendStatus(PAUSE_ST, 0);
-        sendStatus(READY_ST, 1);
-        sendStatus(END_ST, 0);
-        sendStatus(REC_ST, 0);  
-
-        hmi.updateInformationMainPage();
+        setSTOP();
 
       }
 
@@ -707,7 +716,15 @@ void tapeControl()
         {
             // Ha finalizado la grabación de un bloque
             //  
-            
+            if (taprec.wasFileNotCreate)   
+            {
+                // Si no se crea el fichero no se puede seguir grabando
+                LAST_MESSAGE = "Error in filesystem or SD.";
+                hmi.updateInformationMainPage();
+
+                stopRecording();
+                setSTOP();
+            }
         }
       }
   }  

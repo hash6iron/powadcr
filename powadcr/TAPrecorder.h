@@ -44,6 +44,7 @@ class TAPrecorder
       bool nameFileRead = false;
       bool notAudioInNotified = false;
       bool wasSelectedThreshold = false;
+      bool wasFileNotCreated = true;
       
       
     private:
@@ -1047,7 +1048,7 @@ class TAPrecorder
 
           readBuffer(len);   
 
-          if (recordingFinish)
+          if (recordingFinish || wasFileNotCreated)
           {
             return true;
           }
@@ -1083,10 +1084,12 @@ class TAPrecorder
         if (!_mFile.open(fileName, O_WRITE | O_CREAT | O_TRUNC)) 
         {
           SerialHW.println("File for REC failed!");
+          wasFileNotCreated = true;
         }
         else
         {
           SerialHW.println("File for REC prepared.");
+          wasFileNotCreated = false;
         }
 
         // Inicializo bit string
