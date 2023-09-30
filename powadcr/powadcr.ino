@@ -271,9 +271,35 @@ void setSDFrequency(int SD_Speed)
         else
         {
             sdm.dir.close();
-            SD_ok = true;
-            lastStatus = true;
+
+            // Probamos a crear un fichero.
+            if (!sdFile32.open("_test", O_WRITE | O_CREAT | O_TRUNC)) 
+            {
+                SD_ok = false;
+                lastStatus = false;
+
+                SerialHW.println("");
+                SerialHW.println("");
+                SerialHW.println("File creation. Error!");
+
+                // loop infinito
+                while(true)
+                {
+                  hmi.writeString("statusLCD.txt=\"SD CORRUPTED\"" );
+                  delay(1500);
+                  hmi.writeString("statusLCD.txt=\"FORMAT OR CHANGE SD\"" );
+                  delay(1500);
+                }
+            }
+            else
+            {
+              sdFile32.close();
+              SD_ok = true;
+              lastStatus = true;
+            }
         }
+
+
 
     }
   }
@@ -396,6 +422,7 @@ void stopRecording()
       }
       else
       {
+        // Errores encontrados en el proceso de grabación
         LAST_MESSAGE = "Recording STOP. Error in recording proccess. File not saved.";
       }
     }
