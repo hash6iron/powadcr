@@ -1081,8 +1081,6 @@ class TAPrecorder
       void initialize()
       {
 
-        initializeBuffer();
-
         prepareHMI();
 
         // Reservamos memoria
@@ -1113,6 +1111,7 @@ class TAPrecorder
 
         //fileData = (byte*)calloc(25,sizeof(byte));  
         buffer = (uint8_t*)calloc(BUFFER_SIZE,sizeof(uint8_t));
+        initializeBuffer();
 
         recordingFinish = false;
         // Suponemos que hay error
