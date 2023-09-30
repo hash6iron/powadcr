@@ -1052,6 +1052,7 @@ class TAPrecorder
 
       bool recording()
       {
+          
           size_t len = _kit.read(buffer, BUFFER_SIZE);
           readBuffer(len);   
 
@@ -1109,7 +1110,6 @@ class TAPrecorder
           header.name[i] = ' ';
         }
 
-        //fileData = (byte*)calloc(25,sizeof(byte));  
         buffer = (uint8_t*)calloc(BUFFER_SIZE,sizeof(uint8_t));
         initializeBuffer();
 
