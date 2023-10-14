@@ -1269,7 +1269,11 @@ class TAPrecorder
                             // Saltamos a la espera de SYNC1 y 2
                             state = 1;
                             pilotPulseCount = 0;
-                            SerialHW.println("");                                  
+                            SerialHW.println("Listening");                                  
+
+                            LAST_MESSAGE = "Recorder listening.";
+                            _hmi.updateInformationMainPage();  
+
                             // SerialHW.println("REC. Wait for SYNC1");
                             // SerialHW.println("");
 
@@ -1390,40 +1394,40 @@ class TAPrecorder
                           // Calculamos el nuevo checksum
                           checksum = checksum ^ byteRead;
 
-                          // Lo representamos
-                          //SerialHW.print(bitString + " - ");
-                          if (byteRead < 16)
-                          {
-                            SerialHW.print("0");
-                            SerialHW.print(byteRead,HEX);
-                          }
-                          else
-                          {
-                            SerialHW.print(byteRead,HEX);
-                          }
-                          SerialHW.print(" ");
-                          // SerialHW.print(" - str: ");
-                          // if (value > 32)
+                          // // Lo representamos
+                          // //SerialHW.print(bitString + " - ");
+                          // if (byteRead < 16)
                           // {
-                          //   SerialHW.print((char)value);
+                          //   SerialHW.print("0");
+                          //   SerialHW.print(byteRead,HEX);
                           // }
                           // else
                           // {
-                          //   SerialHW.print("?");
+                          //   SerialHW.print(byteRead,HEX);
                           // }
-                          //SerialHW.print(" - chk: ");
-                          //SerialHW.print(checksum,HEX);
-                          bytesXlinea++;
-                          if (bytesXlinea>15)
-                          {
-                            bytesXlinea =0;
-                            SerialHW.println("");                    
-                          }
+                          // SerialHW.print(" ");
+                          // // SerialHW.print(" - str: ");
+                          // // if (value > 32)
+                          // // {
+                          // //   SerialHW.print((char)value);
+                          // // }
+                          // // else
+                          // // {
+                          // //   SerialHW.print("?");
+                          // // }
+                          // //SerialHW.print(" - chk: ");
+                          // //SerialHW.print(checksum,HEX);
+                          // bytesXlinea++;
+                          // if (bytesXlinea>15)
+                          // {
+                          //   bytesXlinea =0;
+                          //   SerialHW.println("");                    
+                          // }
                           
                           proccesByteData();   
 
                           // Mostramos el progreso de grabación del bloque
-                          //_hmi.writeString("progression.val=" + String((int)((byteCount*100)/(header.blockSize-1))));                        
+                          _hmi.writeString("progression.val=" + String((int)((byteCount*100)/(header.blockSize-1))));                        
 
                           // Contabilizamos bytes
                           byteCount++;
@@ -1499,7 +1503,7 @@ class TAPrecorder
                   SerialHW.println("Bytes transfered: " + String(byteCount));
                   SerialHW.println("");
 
-                  delay(5);
+                  delay(25);
                   
                   // Comenzamos otra vez
                   state = 0;
@@ -1596,7 +1600,7 @@ class TAPrecorder
                 //LAST_MESSAGE = LAST_MESSAGE + " [ Classic ] " + String(averageThreshold);
               }
 
-              LAST_MESSAGE = "Recorder ready. Listening!";
+              LAST_MESSAGE = "Recorder ready. Play source data.";
               _hmi.updateInformationMainPage();  
               wasSelectedThreshold = true;
           }        
