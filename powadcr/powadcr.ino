@@ -298,9 +298,6 @@ void setSDFrequency(int SD_Speed)
               lastStatus = true;
             }
         }
-
-
-
     }
   }
 
@@ -461,10 +458,10 @@ void setup() {
 
   // Indicamos que estamos haciendo reset
   sendStatus(RESET, 1);
-  delay(1250);
+  delay(750);
 
   hmi.writeString("statusLCD.txt=\"POWADCR " + String(VERSION) + "\"" );
-  delay(2000);
+  delay(1250);
 
   SerialHW.println("Setting Audiokit.");
 
@@ -483,7 +480,7 @@ void setup() {
   
   // Configuramos acceso a la SD
   hmi.writeString("statusLCD.txt=\"WAITING FOR SD CARD\"" );
-  delay(1250);
+  delay(750);
 
   int SD_Speed = SD_FRQ_MHZ_INITIAL;  // Velocidad en MHz (config.h)
   setSDFrequency(SD_Speed);
@@ -780,7 +777,7 @@ void Task0code( void * pvParameters )
 
       // Control por botones
       //buttonsControl();
-      //delay(50);
+      delay(50);
       // if (headPhoneDetection && !wasHeadphoneDetected)
       // {
       //     // Ponemos el volumen al 95%
