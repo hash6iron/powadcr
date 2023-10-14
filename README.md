@@ -1,15 +1,11 @@
 # POWADCR
 TAP/TZX Digital cassette recorder for 8-bit machines
 -----
-<a href="https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=BAWGJFZGXE5GE&source=url"><img src="/doc/paypal_boton.png" /></a>
-
-<a href="https://www.buymeacoffee.com/atamairon"><img src="/doc/coffe.jpg" /></a>
-
 
 ![plot](./doc/powadcr_sp.jpg)
 This project pretend to implement a Digital Cassette Recorder (for TAP/TZX/SNA files playing and recording) for 8-bit machines on ESP32 Audio kit development board and using HMI over touch 3.5" screen.
 
-The launcher was this board below, ESP32 Audio Kit equipped with ESP32 microcontroller and ES8388 Audio proccesor 
+The launcher was this board below, ESP32 Audio Kit equipped with ESP32 v3 microcontroller and ES8388 Audio proccesor 
 made by AI-Thinker Technology.
 
 ![plot](./doc/audiokit.png)
@@ -102,10 +98,20 @@ In this section we are going to describe parts to be needed to assemble the Powa
 + HMI Chinesse editor version https://unofficialnextion.com/t/tjc-usart-hmi-editor-1-64-1/1511
 + Arduino IDE 2.0
 
-**How PowaDCR parts are connected?**
+Hacking the Audiokit board.
+-----
+This board is build from the same design from AC101 audio chip version, but with ES8388 chip. In this case both mic and line-in are mixed. Not possible to select by independ way mic or line-in then the environment noise come in when the ZX Spectrum signal is capturing.
+So, it shall be removed both integrated microphones.
+
+![image](https://github.com/hash6iron/powadcr/assets/118267564/f47c2810-d573-4a8b-9608-7015e7462f15)
+
+
+How PowaDCR parts are connected?
+-----
 (in progress)
 
-**How firmware is loaded in ESP32 Audiokit?**
+How firmware is loaded in ESP32 Audiokit?
+-----
 1. Install Arduino IDE 2.0
 2. Apply this BOARD repository to Arduino IDE preferences.
    - https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json
@@ -117,10 +123,12 @@ Required libraries:
 - SdFat (https://github.com/greiman/SdFat)
 - arduino-audiokit (https://github.com/pschatzmann/arduino-audiokit/tree/main)
 
-**How firmware is loaded in TJC LCD?**
+How firmware is loaded in TJC LCD?
+-----
 (in progress)
 
-**What PowaDCR beta version is able to do?**
+What PowaDCR beta version is able to do?
+-----
 (in progress)
 
 If you enjoy with this device and you want to colaborate, please.
