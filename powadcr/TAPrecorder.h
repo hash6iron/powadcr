@@ -1278,29 +1278,8 @@ class TAPrecorder
           //readBuffer(len,true);
           readBuffer(len);
         
-        // Despreciamos ahora algunas muestras para trabajar el buffer
-          // if (!stabilizationPhaseFinish)
-          // {
-          //   if (countStabilizationSteps>=10)
-          //   {
-          //       stabilizationPhaseFinish = true;
-          //       countStabilizationSteps = 0; 
-          //       LAST_MESSAGE = "Recorder ready. Listening.";
-          //       _hmi.updateInformationMainPage(); 
-          //   }
-          //   else
-          //   {
-          //     // Las muestras se descartan
-          //     readBuffer(len,false);
-          //     countStabilizationSteps++;
-          //   }
-          // }
-          // else
-          // {
-          //   // Ahora las muestras pasan por el analizdor
-          //   readBuffer(len,true);
-          // }
-          if (recordingFinish || wasFileNotCreated)
+          // Despreciamos ahora algunas muestras para trabajar el buffer
+          if (recordingFinish || wasFileNotCreated || stopRecordingProccess)
           {
             // Paramos el recorder
             return true;

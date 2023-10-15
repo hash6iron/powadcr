@@ -753,12 +753,7 @@ void tapeControl()
         {
             // Ha finalizado la grabación de un bloque
             //  
-            if (taprec.wasFileNotCreated)   
-            {
-                stopRecording();
-                setSTOP();
-            }
-            else if (taprec.stopRecordingProccess)
+            if (taprec.wasFileNotCreated || taprec.stopRecordingProccess)   
             {
                 stopRecording();
                 setSTOP();
