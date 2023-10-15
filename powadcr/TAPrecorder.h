@@ -46,6 +46,7 @@ class TAPrecorder
       bool notAudioInNotified = false;
       bool wasSelectedThreshold = false;
       bool wasFileNotCreated = true;
+      bool stopRecordingProccess = false;
       
       
     private:
@@ -150,6 +151,11 @@ class TAPrecorder
       // Umbral para rechazo de ruido
       int threshold_high = 20000; 
       int threshold_low = -20000; 
+      //
+      int totalSamplesToTest = 0;
+      int countNoiseSamples = 0;
+      bool resetSchmitt = false;
+      int lastColorSchmittIndicator = 0;
 
       // Para los clásicos
       //int threshold_high = 6000; 
@@ -508,9 +514,7 @@ class TAPrecorder
 
             //LAST_SIZE = header.blockSize;  
             //_hmi.updateInformationMainPage();
-        }
-        
-
+        }  
       }
 
       void analyzeSamplesForThreshold(int len)
@@ -718,10 +722,16 @@ class TAPrecorder
         return zeroCrossing;    
       }
 
-      int16_t schmittDetector(int16_t value, int16_t thH, int16_t thL)
+      int16_t schmittDetector(int16_t value, int16_t thH, int16_t thL, bool reset)
       {
 
         int16_t switchStatus = lastSwitchStatus;
+
+        if (reset)
+        {
+          detectStateSchmitt = 0;
+          switchStatus=0;
+        }
 
         switch (detectStateSchmitt)
         {
@@ -783,437 +793,7 @@ class TAPrecorder
         return switchStatus;
       }
 
-      // void readBuffer(int len, bool getSamples)
-      // {
-
-      //   int16_t *value_ptr = (int16_t*) buffer;
-      //   int16_t oneValue = *value_ptr++;
-      //   int16_t oneValue2 = *value_ptr++;
-      //   int16_t finalValue = 0;
-
-      //   bool testRecorder = false;
-
-      //   for (int j=0;j<len/4;j++)
-      //   {  
-      //       finalValue = prepareSignal(oneValue,threshold_high,threshold_low);
-            
-      //       if (testRecorder)
-      //       {
-      //         SerialHW.println(String(finalValue));
-      //       }
-
-      //       if (getSamples && !testRecorder)
-      //       {
-      //         switch (state)
-      //         {
-                
-      //           case 0:
-      //             // -------------------------------------------------
-      //             // LD-START
-      //             // -------------------------------------------------
-      //             // Buscamos un pulso al menos en 14000 T-States (4000 us)
-      //             // El timer una vez cargado no se vuelve a recargar
-      //             // hasta que no se hace un resetTimer()
-      //             setTimer(4000);
-      //             if (!timeOut())
-      //             {
-      //               if (detectZeroCrossing(finalValue))
-      //               {
-      //                   stopTimer();
-      //                   resetTimer();                      
-      //                   // LD-WAIT
-      //                   //SerialHW.println("LD-WAIT - phase 1");
-      //                   state = 10;
-      //               }
-      //               else
-      //               {
-      //                 // Seguimos              
-      //                 state = 0;
-      //               }
-      //             }
-      //             else
-      //             {
-      //               // Time out
-      //               stopTimer();
-      //               resetTimer();
-      //               // LD-START
-      //               state = 0;
-      //             }
-      //             break;
-
-      //           case 10:
-      //             // -------------------------------------------------
-      //             // LD-WAIT
-      //             // -------------------------------------------------
-      //             // Buscamos dos pulso al menos en 1s de tiempo (1000000us)
-      //             // El timer una vez cargado no se vuelve a recargar
-      //             // hasta que no se hace un resetTimer()                break;
-      //             setTimer(1000000);
-      //             if (!timeOut())
-      //             {
-      //               if (detectZeroCrossing(finalValue))
-      //               {
-      //                   // Buscamos ahora el segundo
-      //                   //SerialHW.println(" --> LD-WAIT - phase 2");
-      //                   state = 11;
-      //               }
-      //               else
-      //               {
-      //                 // Continuamos hasta el time-out              
-      //                 state = 10;
-      //               }
-      //             }
-      //             else
-      //             {
-      //               // Time out
-      //               stopTimer();
-      //               resetTimer();
-      //               // LD-START
-      //               state = 0;
-      //             }
-      //           case 11:
-      //             // LD-WAIT - segundo edge
-      //             if (!timeOut())
-      //             {
-      //               if (detectZeroCrossing(finalValue))
-      //               {
-      //                   // Si dos pulsos fueraon encontrados en el intervalo 
-      //                   // de tiempo, indicará que posiblemente estemos en el
-      //                   // tren de pulsos del tono guía.
-      //                   stopTimer();
-      //                   resetTimer();
-      //                   // LD-LEADER
-      //                   //SerialHW.println(" --> LD-LEADER - phase 1");
-      //                   state = 1;
-      //               }
-      //               else
-      //               {
-      //                 // Continuamos hasta el time-out
-      //                 state = 11;
-      //               }
-      //             }
-      //             else
-      //             {
-      //               // Time out
-      //               stopTimer();
-      //               resetTimer();
-      //               // LD-START
-      //               state = 0;
-      //             }
-      //             break;
-
-      //           case 1:
-      //             //
-      //             // -------------------------------------------------
-      //             // LD-LEADER
-      //             // -------------------------------------------------
-      //             //
-      //             // El timer una vez cargado no se vuelve a recargar
-      //             // hasta que no se hace un resetTimer()              
-      //             setTimer(timeForLead);
-      //             if (!timeOut())
-      //             {
-      //               if (detectZeroCrossing(finalValue))
-      //               {
-      //                 timeToEdge1 = readTimer();
-      //                 //SerialHW.println(" --> LD-LEADER - phase 2");
-      //                 state = 2;
-      //               }
-      //               else
-      //               {
-      //                 // Continuamos hasta el time-out
-      //                 state = 1;
-      //               }
-      //             }
-      //             else
-      //             {
-      //                 // Time out
-      //                 stopTimer();
-      //                 resetTimer();
-      //                 pulseCount = 0;                    
-      //                 // LD-START
-      //                 state = 0;                  
-      //             }
-      //             break;
-                
-      //           case 2:
-      //             // LD-LEADER segundo edge
-      //             if (!timeOut())
-      //             {
-      //               if (detectZeroCrossing(finalValue))
-      //               {
-      //                 timeToEdge2 = readTimer();
-      //                 float delta = timeToEdge1 - timeToEdge2;
-      //                 // Tenemos que encontrarlos con una distancia mínima
-      //                 // de 3000 T-States
-      //                 //SerialHW.println(" --T1: " + String(timeToEdge1));                    
-      //                 //SerialHW.println(" --T2: " + String(timeToEdge2)); 
-      //                 //SerialHW.println(" --delta: " + String(delta)); 
-
-      //                 if (delta >= timeLeadSeparation)
-      //                 {
-      //                   // Si el pulso está dentro
-      //                   pulseCount++;
-      //                   //SerialHW.println(" --pulseCount: " + String(pulseCount));
-
-      //                   stopTimer();
-      //                   resetTimer();
-
-      //                   // Contamos 256 pulsos seguidos, esto nos indica
-      //                   // que estamos en medio del tono guía
-      //                   if (pulseCount >= 256)
-      //                   {
-      //                     // paso al estado de espera de SYNC1
-      //                     pulseCount=0;
-      //                     //
-      //                     //SerialHW.println("Wait for SYNC 1");
-      //                     // LD-SYNC
-      //                     state = 3;
-      //                   }
-      //                   else
-      //                   {
-      //                     // LD-LEADER
-      //                     // Seguimos buscando pulsos
-      //                     state = 1;
-      //                   }
-      //                 }
-      //               }
-      //               else
-      //               {
-      //                 // Continuamos hasta el time-out
-      //                 state = 2;
-      //               }
-      //             }
-      //             else
-      //             {
-      //                 // Time out
-      //                 stopTimer();
-      //                 resetTimer();
-      //                 pulseCount = 0;                    
-      //                 state = 0;
-      //             }
-      //             break;
-
-      //           case 3:
-
-      //             // ------------------------------------------------
-      //             // LD-SYNC
-      //             // ------------------------------------------------
-      //             // El timer una vez cargado no se vuelve a recargar
-      //             // hasta que no se hace un resetTimer()              
-      //             setTimer(timeForSync);
-      //             if (!timeOut())
-      //             {
-      //               if (detectZeroCrossing(finalValue))
-      //               {
-      //                 // Si lo encontramos antes de hacer time-out es SYNC1
-      //                 // Ahora hay que encontrar otro que esté pegado a este
-      //                 timeToEdge1 = readTimer();
-      //                 //SerialHW.println("Wait for SYNC 1 - Phase 1 - Detected - " + String(timeToEdge1));                      
-      //                 state = 4;
-      //               }
-      //               else
-      //               {
-      //                 // Continuamos hasta el time-out
-      //                 state = 3;
-      //               }
-      //             }
-      //             else
-      //             {
-      //                 // Time out
-      //                 stopTimer();
-      //                 resetTimer();
-      //                 state = 3;                  
-      //             }                
-      //             break;
-
-      //           case 4:            
-      //             // LD-SYNC phase 2
-      //             if (!timeOut())
-      //             {
-      //               if (detectZeroCrossing(finalValue))
-      //               {                    
-      //                 timeToEdge2 = readTimer();
-      //                 float delta = timeToEdge1 - timeToEdge2;
-
-      //                 //SerialHW.println("Delta: " + String(delta));
-
-      //                 if (delta >= timeSyncSeparation)
-      //                 {
-
-      //                   //SerialHW.println("Delta: " + String(delta));
-      //                   //SerialHW.println("Wait for DATA");
-
-      //                   LAST_MESSAGE = "OK SYNC";                
-      //                   _hmi.updateInformationMainPage();                        
-
-      //                   // LD-BITS
-      //                   stopTimer();
-      //                   resetTimer();
-      //                   state=5;
-      //                 }
-      //                 else
-      //                 {
-      //                   // Si es demasiado corto. No es SYNC1
-      //                   // Sigo buscando antes de que se me acabe el tiempo
-      //                   stopTimer();
-      //                   resetTimer();
-      //                   state=3;
-      //                 }
-      //               }
-      //               else
-      //               {
-      //                 // Continuamos hasta el time-out
-      //                 state = 4;
-      //               }
-      //             } 
-      //             else
-      //             {
-      //               // Time out
-      //               // Si es demasiado largo no es el SYNC
-      //               // lo sigo buscando.
-      //               stopTimer();
-      //               resetTimer();
-      //               //
-      //               state=3;
-      //             }             
-      //             break;
-
-      //           case 5:
-      //             //
-      //             // LD-BITS
-      //             //
-      //             // Detección de bit0 ó bit1
-      //             // Buscamos un bit 0, pero si se excede el time out, 
-      //             // es entonces un bit 1
-      //             setTimer(timeForBit1);
-      //             if (!timeOut())
-      //             {
-      //                 if (detectZeroCrossing(finalValue))
-      //                 {                    
-      //                   timeToEdge1 = readTimer();
-      //                   // Es posiblemente un BIT0
-      //                   state=6;
-      //                 }
-      //                 else
-      //                 {
-      //                   // Sigo buscando antes de que se me acabe el tiempo
-      //                   state=5;
-      //                 }
-      //             }
-      //             else
-      //             {
-      //               // Empezamos otra vez en el LOOP
-      //               stopTimer();
-      //               resetTimer();
-
-      //               state = 5;
-      //             }
-      //            break;
-
-      //           case 6:
-      //             if (!timeOut())
-      //             {
-      //                 if (detectZeroCrossing(finalValue))
-      //                 {                    
-      //                   timeToEdge2 = readTimer();
-      //                   float delta = timeToEdge1 - timeToEdge2;
-      //                   // Es un BIT1
-      //                   if (delta >= timeBit1Separation)
-      //                   {
-      //                       // Es un BIT1
-      //                       bitString += "1";
-      //                       bitChStr[bitCount] = '1';
-      //                       bitCount++;
-      //                   }
-      //                   else if ((delta >= timeBit0Separation) && (delta < timeBit1Separation))
-      //                   {
-      //                       // Es un BIT0
-      //                       bitString += "0";
-      //                       bitChStr[bitCount] = '0';
-      //                       bitCount++;
-      //                   }
-
-      //                   // ************************************************
-      //                   // Conversión de bits a bytes
-      //                   // ************************************************
-      //                   if (bitCount > 7)
-      //                   {
-      //                     // Reiniciamos el contador de bits
-      //                     bitCount=0;
-
-      //                     // Convertimos a byte el valor leido del DATA
-      //                     byte value = strtol(bitChStr, (char**) NULL, 2);
-      //                     byteRead = value;
-      //                     uint8_t valueToBeWritten = value;
-                          
-      //                     // Escribimos en fichero el dato
-      //                     _mFile.write(valueToBeWritten);
-
-      //                     // Guardamos el checksum generado
-      //                     lastChk = checksum;
-      //                     // Calculamos el nuevo checksum
-      //                     checksum = checksum ^ value;
-
-      //                     // Lo representamos
-      //                     // SerialHW.print(bitString + " - ");
-      //                     // SerialHW.print(value,HEX);
-      //                     // SerialHW.print(" - str: ");
-      //                     // SerialHW.print((char)value);
-      //                     // SerialHW.print(" - chk: ");
-      //                     // SerialHW.print(checksum,HEX);
-      //                     // SerialHW.println("");                    
-                        
-      //                     proccesByteData();   
-
-      //                     // Mostramos el progreso de grabación del bloque
-      //                     //_hmi.writeString("progression.val=" + String((int)((byteCount*100)/(header.blockSize-1))));                        
-
-      //                     // Contabilizamos bytes
-      //                     byteCount++;
-      //                     // Reiniciamos la cadena de bits
-      //                     bitString = "";
-      //                   }
-
-      //                   //
-      //                   // *****************************************************
-      //                   //
-      //                   stopTimer();
-      //                   resetTimer();
-      //                   state=5;
-      //                 }
-      //                 else
-      //                 {
-      //                   // Sigo buscando antes de que se me acabe el tiempo
-      //                   state=6;
-      //                 }
-      //             }
-      //             else
-      //             {
-      //               // Empezamos otra vez en el LOOP
-      //               stopTimer();
-      //               resetTimer();
-      //               //
-      //               state = 5;
-      //             }
-      //            break;
-
-      //         }
-
-      //         // Contamos el tiempo de una muestra que son aprox. 22.4us
-      //         // ya que el contenido de las muestras se temporizan en diferido
-      //         // al estar todas en un buffer
-      //         countTime();
-      //       }
-
-      //       // Leemos el siguiente valor del buffer canal R
-      //       oneValue = *value_ptr++;
-      //       // Leemos el siguiente valor del buffer canal L
-      //       oneValue2 = *value_ptr++; 
-      //   }
-      // }
-
-      void readBuffer_old(int len)
+      void readBuffer(int len)
       {
 
         int16_t *value_ptr = (int16_t*) buffer;
@@ -1221,19 +801,60 @@ class TAPrecorder
         int16_t oneValue2 = *value_ptr++;
         int16_t finalValue = 0;
 
+        // Para modo debug.
+        // Esto es para modo depuración. 
+        //
+        // Para usar el SCOPE
+        //   debugActive = TRUE
+        //   showDataDebug = FALSE
+        //
+        // Para ver el DATA
+        //   debugActive = TRUE
+        //   showDataDebug = TRUE
+ 
+        bool debugActive = false;
+        bool showDataDebug = false;
+        
+
           for (int j=0;j<len/4;j++)
           {  
-              // threshold_high = 20000;
-              // threshold_low = -20000;
+              if (EN_SCHMITT_CHANGE)
+              {
+                threshold_high = (SCHMITT_THR * 32767)/100;
+                threshold_low = (-1)*((SCHMITT_THR * 32768)/100); 
 
-              finalValue = schmittDetector(oneValue,threshold_high,threshold_low);
-              
+                if (LAST_SCHMITT_THR != SCHMITT_THR)   
+                {
+                  SerialHW.println("Thr modified: " + String(threshold_high));
+                  LAST_SCHMITT_THR = SCHMITT_THR;
+                }
+              }
 
-              // Esto es para modo depuración. 
-              // TRUE  -> No depura
-              // FALSE -> Si depura. Para conectar el serial plotter de arduino.
+              finalValue = schmittDetector(oneValue,threshold_high,threshold_low,false);              
 
-              if (true)
+              if (state==0 && pilotPulseCount <= 10)
+              {
+                  if (finalValue==high)
+                  {
+                    // Indicador de noise activo
+                    if (lastColorSchmittIndicator!=34815)
+                    {
+                      _hmi.writeString("schTrigger.bco=34815");
+                      lastColorSchmittIndicator=34815;
+                      //resetSchmitt=true;                        
+                    }
+                  }
+                  else
+                  {
+                    if (lastColorSchmittIndicator!=520)
+                    {
+                      _hmi.writeString("schTrigger.bco=520");                        
+                      lastColorSchmittIndicator=520;              
+                    }
+                  }
+              }
+
+              if (!debugActive)
               {
                 if (detectZeroCrossing(finalValue))
                 {
@@ -1270,7 +891,6 @@ class TAPrecorder
                             state = 1;
                             pilotPulseCount = 0;
                             SerialHW.println("Listening");                                  
-
                             LAST_MESSAGE = "Recorder listening.";
                             _hmi.updateInformationMainPage();  
 
@@ -1294,7 +914,7 @@ class TAPrecorder
                                 // SerialHW.println("Writting first bytes.");
                                 // SerialHW.println("");
                             }
-                        }                      
+                        }               
                         break;
 
                       case 1:
@@ -1363,12 +983,18 @@ class TAPrecorder
                         {
                           if (delta > 100)
                           {
-                            SerialHW.println("");
-                            SerialHW.println("-- Silence -- " + String(delta * 0.0224) + " ms");
+                            if (!debugActive)
+                            {
+                              SerialHW.println("");
+                              SerialHW.println("-- Silence -- " + String(delta * 0.0224) + " ms");
+                            }
                           }
                           else
                           {
-                            SerialHW.println("[ Bit error: " + String(delta) + " ]");                            
+                            if (!debugActive)
+                            {
+                              SerialHW.println("[ Bit error: " + String(delta) + " ]");                            
+                            }
                           }
                           state = 21;
                         }
@@ -1394,40 +1020,49 @@ class TAPrecorder
                           // Calculamos el nuevo checksum
                           checksum = checksum ^ byteRead;
 
-                          // // Lo representamos
-                          // //SerialHW.print(bitString + " - ");
-                          // if (byteRead < 16)
+                          // Lo representamos
+                          //SerialHW.print(bitString + " - ");
+                          if (debugActive && showDataDebug)
+                          {
+                            if (byteRead < 16)
+                            {
+                              SerialHW.print("0");
+                              SerialHW.print(byteRead,HEX);
+                            }
+                            else
+                            {
+                              SerialHW.print(byteRead,HEX);
+                            }
+                            SerialHW.print(" ");
+
+                            bytesXlinea++;
+                            if (bytesXlinea>15)
+                            {
+                              bytesXlinea =0;
+                              SerialHW.println("");                    
+                            }
+                          }
+                          // SerialHW.print(" - str: ");
+                          // if (value > 32)
                           // {
-                          //   SerialHW.print("0");
-                          //   SerialHW.print(byteRead,HEX);
+                          //   SerialHW.print((char)value);
                           // }
                           // else
                           // {
-                          //   SerialHW.print(byteRead,HEX);
+                          //   SerialHW.print("?");
                           // }
-                          // SerialHW.print(" ");
-                          // // SerialHW.print(" - str: ");
-                          // // if (value > 32)
-                          // // {
-                          // //   SerialHW.print((char)value);
-                          // // }
-                          // // else
-                          // // {
-                          // //   SerialHW.print("?");
-                          // // }
-                          // //SerialHW.print(" - chk: ");
-                          // //SerialHW.print(checksum,HEX);
-                          // bytesXlinea++;
-                          // if (bytesXlinea>15)
-                          // {
-                          //   bytesXlinea =0;
-                          //   SerialHW.println("");                    
-                          // }
+                          //SerialHW.print(" - chk: ");
+                          //SerialHW.print(checksum,HEX);
+
                           
-                          proccesByteData();   
 
                           // Mostramos el progreso de grabación del bloque
-                          _hmi.writeString("progression.val=" + String((int)((byteCount*100)/(header.blockSize-1))));                        
+                          if (!debugActive)
+                          {
+                            proccesByteData();   
+
+                            _hmi.writeString("progression.val=" + String((int)((byteCount*100)/(header.blockSize-1))));                        
+                          }
 
                           // Contabilizamos bytes
                           byteCount++;
@@ -1479,21 +1114,24 @@ class TAPrecorder
                     //initializeBuffer();                                
                     
                   } 
-                  else if (byteCount != 0 && checksum !=0)
+                  else if (byteCount !=0 && checksum !=0)
                   {
                     SerialHW.println("");
                     SerialHW.println("Corrupted data detected. Error.");
                     SerialHW.println("");
 
                     LAST_MESSAGE = "Error. Corrupted data.";
+                    // Actualizamos el HMI.
+                    _hmi.updateInformationMainPage();
 
-                    // Guardamos ahora en fichero
+                    // Aplicamos FLAGs de error.
                     recordingFinish = true;
                     errorInDataRecording = true;
                     blockCount = 0;
                     errorsCountInRec++;
-                    // Actualizamos el HMI.
-                    _hmi.updateInformationMainPage(); 
+                    
+                    // Forzamos a parar. No seguimos.
+                    stopRecordingProccess = true;
 
                   } 
                   else
@@ -1531,7 +1169,7 @@ class TAPrecorder
               }
               else
               {
-                  bool st = detectZeroCrossing(finalValue);                
+                  //bool st = detectZeroCrossing(finalValue);                
               }
               // Leemos el siguiente valor del buffer canal R
               oneValue = *value_ptr++;
@@ -1559,51 +1197,70 @@ class TAPrecorder
 
       void selectThreshold()
       {
-          if (!wasSelectedThreshold)
+          if (!EN_SCHMITT_CHANGE)
           {
-              int totalSamplesForTh = 15000;
-              averageThreshold = 0;
+            if (!wasSelectedThreshold)
+            {
+                int totalSamplesForTh = 15000;
+                averageThreshold = 0;
 
-              for (int i = 0;i<totalSamplesForTh;i++)
-              {
-                size_t len = _kit.read(buffer, BUFFER_SIZE);
-                analyzeSamplesForThreshold(len);
-              }
+                for (int i = 0;i<totalSamplesForTh;i++)
+                {
+                  size_t len = _kit.read(buffer, BUFFER_SIZE);
+                  analyzeSamplesForThreshold(len);
+                }
 
-              // Entregamos la media del ruido
-              averageThreshold = averageThreshold / totalSamplesForTh;
+                // Entregamos la media del ruido
+                averageThreshold = averageThreshold / totalSamplesForTh;
 
-              //
-              SerialHW.println("Average threshold: ");
-              SerialHW.println(String(averageThreshold));
+                //
+                SerialHW.println("Average threshold: ");
+                SerialHW.println(String(averageThreshold));
 
-              if (averageThreshold <= 700)
-              {
-                // N-Go
-                SerialHW.println("");
-                SerialHW.println("Threshold for N-Go");
-                threshold_high = 20000;
-                threshold_low = -20000;
+                if (averageThreshold <= 700)
+                {
+                  // N-Go
+                  SerialHW.println("");
+                  SerialHW.println("Threshold for N-Go");
+                  threshold_high = 20000;
+                  threshold_low = -20000;
+                }
+                else
+                {
+                  // Classic versions
+                  SerialHW.println("");
+                  SerialHW.println("Threshold for classic versions");
+                  threshold_high = 6000;
+                  threshold_low = -6000;
+                }
 
-                //LAST_MESSAGE = "Setting filter. Please wait.";                
-                //LAST_MESSAGE = LAST_MESSAGE + " [ Next / N-Go ] " + String(averageThreshold);
-              }
-              else
-              {
-                // Classic versions
-                SerialHW.println("");
-                SerialHW.println("Threshold for classic versions");
-                threshold_high = 6000;
-                threshold_low = -6000;
+                // Enviamos el valor a la barra de control de Schmitt Trigger
+                int valuePer = (100*threshold_high) / 32767;
+                _hmi.writeString("menu.thr.val=" + String(valuePer)); 
 
-                //LAST_MESSAGE = "Setting filter. Please wait.";                
-                //LAST_MESSAGE = LAST_MESSAGE + " [ Classic ] " + String(averageThreshold);
-              }
+                LAST_MESSAGE = "Recorder ready. Play source data.";
+                _hmi.updateInformationMainPage();  
+                wasSelectedThreshold = true;
+            }               
+          }
+          else
+          {
+            if (!wasSelectedThreshold)
+            {
+              SerialHW.println("");
+              SerialHW.println("Fixed threshold from HMI");
+              
+              threshold_high = (SCHMITT_THR * 32767)/100;
+              threshold_low = (-1)*(SCHMITT_THR * 32768)/100;            
+
+              SerialHW.println("TH+ = " + String(threshold_high));
+              SerialHW.println("TH- = " + String(threshold_low));
 
               LAST_MESSAGE = "Recorder ready. Play source data.";
               _hmi.updateInformationMainPage();  
-              wasSelectedThreshold = true;
-          }        
+              wasSelectedThreshold = true;                 
+            }       
+          }
       }
 
       void initializeBuffer()
@@ -1619,7 +1276,7 @@ class TAPrecorder
           
           size_t len = _kit.read(buffer, BUFFER_SIZE);
           //readBuffer(len,true);
-          readBuffer_old(len);
+          readBuffer(len);
         
         // Despreciamos ahora algunas muestras para trabajar el buffer
           // if (!stabilizationPhaseFinish)
@@ -1643,8 +1300,6 @@ class TAPrecorder
           //   // Ahora las muestras pasan por el analizdor
           //   readBuffer(len,true);
           // }
-
-
           if (recordingFinish || wasFileNotCreated)
           {
             // Paramos el recorder
@@ -1725,7 +1380,8 @@ class TAPrecorder
         detectState = 0;
         detectStateSchmitt = 0;   
         samplesCrossing = 0;
-        pulseWidth = 0;             
+        pulseWidth = 0;      
+        stopRecordingProccess = false;       
       }
 
       void terminate(bool removeFile)

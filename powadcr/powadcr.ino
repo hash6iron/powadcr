@@ -368,8 +368,6 @@ void setAudioInput()
   cfg.adc_input = AUDIO_HAL_ADC_INPUT_LINE2; // microphone?
   cfg.sample_rate = AUDIO_HAL_44K_SAMPLES;
 
-  //SerialHW.println("Initialized Audiokit. Input - Recording");
-
   ESP32kit.begin(cfg);
 }
 
@@ -410,7 +408,7 @@ void stopRecording()
       taprec.terminate(true);
       
       SerialHW.println("");
-      SerialHW.println("Error in recording proccess. File not saved.");
+      SerialHW.println("Error in recording proccess. No file saved.");
 
       if (taprec.wasFileNotCreated)
       {
@@ -419,8 +417,16 @@ void stopRecording()
       }
       else
       {
-        // Errores encontrados en el proceso de grabación
-        LAST_MESSAGE = "Recording STOP. Error in recording proccess. File not saved.";
+        if (!taprec.errorInDataRecording)
+        {
+          // Recording STOP
+          LAST_MESSAGE = "Recording STOP. No file saved.";          
+        }
+        else
+        {
+          // Errores encontrados en el proceso de grabación
+          LAST_MESSAGE = "Recording STOP. Error in recording proccess. No file saved.";          
+        }
       }
     }
 
@@ -486,7 +492,7 @@ void setup() {
   setSDFrequency(SD_Speed);
 
   // Forzamos a 26MHz
-  //sdf.begin(ESP32kit.pinSpiCs(), SD_SCK_MHZ(26));
+  sdf.begin(ESP32kit.pinSpiCs(), SD_SCK_MHZ(26));
 
   SerialHW.println("Done!");
 
@@ -748,6 +754,11 @@ void tapeControl()
             // Ha finalizado la grabación de un bloque
             //  
             if (taprec.wasFileNotCreated)   
+            {
+                stopRecording();
+                setSTOP();
+            }
+            else if (taprec.stopRecordingProccess)
             {
                 stopRecording();
                 setSTOP();

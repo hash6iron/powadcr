@@ -1153,6 +1153,42 @@ class HMI
           //_zxp.set_amplitude(MAIN_VOL * 32767 / 100);
         }
 
+        if (strCmd.indexOf("THR=") != -1) 
+        {
+          //Cogemos el valor
+          byte buff[8];
+          strCmd.getBytes(buff, 7);
+          int valThr = (int)buff[4];
+          SCHMITT_THR = valThr;
+          SerialHW.println("Threshold value=" + String(SCHMITT_THR));
+          
+          // value = byte1+byte2*256+byte3*65536+byte4*16777216
+
+          // for (int i = 0;i<totalSamplesForTh;i++)
+          // {
+          //   size_t len = _kit.read(buffer, BUFFER_SIZE);
+          //   analyzeSamplesForThreshold(len);
+          // }
+        }
+
+        if (strCmd.indexOf("ESH=") != -1) 
+        {
+          //Cogemos el valor
+          byte buff[8];
+          strCmd.getBytes(buff, 7);
+          int valEn = (int)buff[4];
+          //
+          if (valEn==1)
+          {
+              EN_SCHMITT_CHANGE = true;
+          }
+          else
+          {
+              EN_SCHMITT_CHANGE = false;
+          }
+          SerialHW.println("Threshold enable=" + String(EN_SCHMITT_CHANGE));
+        }
+
         if (strCmd.indexOf("VOLUP") != -1) 
         {
           MAIN_VOL += 1;
@@ -1298,6 +1334,8 @@ class HMI
           {
             String strCmd = SerialHW.readString();
             verifyCommand(strCmd);
+            //ECHO
+            //SerialHW.println(strCmd);
           }
           //SerialHW.flush();
         }

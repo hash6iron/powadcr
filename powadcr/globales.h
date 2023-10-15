@@ -174,9 +174,12 @@ struct tFileBuffer
 // Tamaño del fichero abierto
 int FILE_LENGTH = 0;
 
-// Turbo mode
-// 0 - No
-// 1 - Yes
+// Schmitt trigger
+int SCHMITT_THR = 18;
+int LAST_SCHMITT_THR = 0;
+bool EN_SCHMITT_CHANGE = false;
+
+//
 String LAST_COMMAND = "";
 bool TURBOMODE = false;
 bool TIMMING_STABLISHED = false;
