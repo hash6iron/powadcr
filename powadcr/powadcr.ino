@@ -492,7 +492,7 @@ void setup() {
   setSDFrequency(SD_Speed);
 
   // Forzamos a 26MHz
-  sdf.begin(ESP32kit.pinSpiCs(), SD_SCK_MHZ(26));
+  //sdf.begin(ESP32kit.pinSpiCs(), SD_SCK_MHZ(26));
 
   SerialHW.println("Done!");
 
