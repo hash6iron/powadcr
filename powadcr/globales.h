@@ -179,6 +179,17 @@ int SCHMITT_THR = 18;
 int LAST_SCHMITT_THR = 0;
 bool EN_SCHMITT_CHANGE = false;
 
+// Pulses width
+int MIN_SYNC = 14;
+int MAX_SYNC = 20;
+int MIN_BIT0 = 1;
+int MAX_BIT0 = 39;
+int MIN_BIT1 = 40;
+int MAX_BIT1 = 65;
+int MIN_LEAD = 50;
+int MAX_LEAD = 56;
+int MAX_PULSES_LEAD = 800;
+
 //
 String LAST_COMMAND = "";
 bool TURBOMODE = false;

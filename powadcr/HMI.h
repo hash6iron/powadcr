@@ -1189,6 +1189,83 @@ class HMI
           SerialHW.println("Threshold enable=" + String(EN_SCHMITT_CHANGE));
         }
 
+        // // Pulses width
+        // int MIN_SYNC = 14;
+        // int MAX_SYNC = 20;
+        // int MIN_BIT0 = 1;
+        // int MAX_BIT0 = 39;
+        // int MIN_BIT1 = 40;
+        // int MAX_BIT1 = 65;
+        // int MIN_LEAD = 50;
+        // int MAX_LEAD = 56;
+        // int MAX_PULSES_LEAD = 800;        
+
+        if (strCmd.indexOf("MP1=") != -1) 
+        {
+          //minSync1
+          byte buff[8];
+          strCmd.getBytes(buff, 7);
+          int val = (int)buff[4];
+          //
+          MIN_SYNC=val;
+          SerialHW.println("MP1=" + String(MIN_SYNC));
+        }
+
+        if (strCmd.indexOf("MP2=") != -1) 
+        {
+          //maxSync1
+          byte buff[8];
+          strCmd.getBytes(buff, 7);
+          int val = (int)buff[4];
+          //
+          MAX_SYNC=val;
+          SerialHW.println("MP2=" + String(MAX_SYNC));
+        }
+
+        if (strCmd.indexOf("MP3=") != -1) 
+        {
+          //minBit0
+          byte buff[8];
+          strCmd.getBytes(buff, 7);
+          int val = (int)buff[4];
+          //
+          MIN_BIT0=val;
+          SerialHW.println("MP3=" + String(MIN_BIT0));
+        }
+
+        if (strCmd.indexOf("MP4=") != -1) 
+        {
+          //maxBit0
+          byte buff[8];
+          strCmd.getBytes(buff, 7);
+          int val = (int)buff[4];
+          //
+          MAX_BIT0=val;
+          SerialHW.println("MP4=" + String(MAX_BIT0));
+        }
+
+        if (strCmd.indexOf("MP5=") != -1) 
+        {
+          //minBit1
+          byte buff[8];
+          strCmd.getBytes(buff, 7);
+          int val = (int)buff[4];
+          //
+          MIN_BIT1=val;
+          SerialHW.println("MP5=" + String(MIN_BIT1));
+        }
+
+        if (strCmd.indexOf("MP6=") != -1) 
+        {
+          //maxBit1
+          byte buff[8];
+          strCmd.getBytes(buff, 7);
+          int val = (int)buff[4];
+          //
+          MAX_BIT1=val;
+          SerialHW.println("MP6=" + String(MAX_BIT1));
+        }
+
         if (strCmd.indexOf("VOLUP") != -1) 
         {
           MAIN_VOL += 1;
@@ -1201,6 +1278,52 @@ class HMI
           // SerialHW.println("VOL UP");
           // SerialHW.println("");
         }
+
+        if (strCmd.indexOf("MP7=") != -1) 
+        {
+          //max pulses lead
+          byte buff[8];
+          strCmd.getBytes(buff, 7);
+          long val = buff[4] + (256*buff[5]) + (65536*buff[6]) + (16777216*buff[7]);
+          //
+          MAX_PULSES_LEAD=val;
+          SerialHW.println("MP7=" + String(MAX_PULSES_LEAD));
+        }
+
+        if (strCmd.indexOf("MP8=") != -1) 
+        {
+          //minLead
+          byte buff[8];
+          strCmd.getBytes(buff, 7);
+          int val = (int)buff[4];
+          //
+          MIN_LEAD=val;
+          SerialHW.println("MP8=" + String(MIN_LEAD));
+        }
+
+        if (strCmd.indexOf("MP9=") != -1) 
+        {
+          //maxLead
+          byte buff[8];
+          strCmd.getBytes(buff, 7);
+          int val = buff[4];
+          //
+          MAX_LEAD=val;
+          SerialHW.println("MP9=" + String(MAX_LEAD));
+        }
+
+        if (strCmd.indexOf("VOLUP") != -1) 
+        {
+          MAIN_VOL += 1;
+          
+          if (MAIN_VOL >100)
+          {
+            MAIN_VOL = 100;
+          }
+          // SerialHW.println("");
+          // SerialHW.println("VOL UP");
+          // SerialHW.println("");
+        }        
 
         if (strCmd.indexOf("VOLDW") != -1) 
         {
