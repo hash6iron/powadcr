@@ -1204,7 +1204,7 @@ class HMI
           {
               SHOW_DATA_DEBUG = false;
           }
-          SerialHW.println("SHOW_DATA_DEBUG enable=" + String(EN_SCHMITT_CHANGE));
+          SerialHW.println("SHOW_DATA_DEBUG enable=" + String(SHOW_DATA_DEBUG));
         }
 
         // // Pulses width
