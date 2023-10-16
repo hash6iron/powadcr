@@ -819,7 +819,7 @@ class TAPrecorder
         // Para modo debug.
         // Esto es para modo depuración. 
         //
-        bool showDataDebug = false;
+        bool showDataDebug = SHOW_DATA_DEBUG;
         
         // Ajuste del detector de señal
         // Muestras del tono guia leidas
@@ -961,8 +961,8 @@ class TAPrecorder
                         }
                         else
                         {
-                          pilotPulseCount=0;
-                          state=0;
+                          //pilotPulseCount=0;
+                          //state=0;
                         }
                     }
                     else
@@ -972,7 +972,7 @@ class TAPrecorder
                     break;
 
                   case 1:
-                    if (pulseWidth < minLead)
+                    if (pulseWidth < (minLead/2))
                     {
                         pwSync1 = pulseWidth;
                         state = 20;
@@ -986,7 +986,7 @@ class TAPrecorder
                     break;
 
                   case 20:
-                    if ((pulseWidth < minLead))
+                    if ((pulseWidth < (minLead/2)))
                     {
                         pwSync2 = pulseWidth;
                         int delta = pwSync1 + pwSync2;
@@ -1010,7 +1010,7 @@ class TAPrecorder
                   
                   case 21:
                     // Cojo el primer pulseWidth
-                    if ((pulseWidth < minLead))
+                    if ((pulseWidth < (minLead/2)))
                     {
                         pwBit0_1 = pulseWidth;
                         state = 2;

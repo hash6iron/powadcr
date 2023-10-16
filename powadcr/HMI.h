@@ -1189,6 +1189,24 @@ class HMI
           SerialHW.println("Threshold enable=" + String(EN_SCHMITT_CHANGE));
         }
 
+        if (strCmd.indexOf("SDD=") != -1) 
+        {
+          //Cogemos el valor
+          byte buff[8];
+          strCmd.getBytes(buff, 7);
+          int valEn = (int)buff[4];
+          //
+          if (valEn==1)
+          {
+              SHOW_DATA_DEBUG = true;
+          }
+          else
+          {
+              SHOW_DATA_DEBUG = false;
+          }
+          SerialHW.println("SHOW_DATA_DEBUG enable=" + String(EN_SCHMITT_CHANGE));
+        }
+
         // // Pulses width
         // int MIN_SYNC = 14;
         // int MAX_SYNC = 20;

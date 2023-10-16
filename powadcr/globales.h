@@ -189,6 +189,7 @@ int MAX_BIT1 = 65;
 int MIN_LEAD = 50;
 int MAX_LEAD = 56;
 int MAX_PULSES_LEAD = 800;
+bool SHOW_DATA_DEBUG = false;
 
 //
 String LAST_COMMAND = "";
