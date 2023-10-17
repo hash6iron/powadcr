@@ -494,6 +494,9 @@ void setup() {
   // Forzamos a 26MHz
   //sdf.begin(ESP32kit.pinSpiCs(), SD_SCK_MHZ(26));
 
+  // Le pasamos al HMI el gestor de SD
+  hmi.set_sdf(sdf);
+
   SerialHW.println("Done!");
 
   // Esperamos finalmente a la pantalla

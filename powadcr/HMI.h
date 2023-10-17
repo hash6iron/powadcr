@@ -38,6 +38,9 @@
 class HMI
 {
 
+      SDmanager _sdm;
+      SdFat32 _sdf;
+      
       private:
 
       //ZXProccesor _zxp;
@@ -120,8 +123,8 @@ class HMI
           
           if (!sdm.dir.open(FILE_LAST_DIR)) 
           {
-              // SerialHW.println("");
-              // SerialHW.println("dir.open failed - " + String(FILE_LAST_DIR));
+              SerialHW.println("");
+              SerialHW.println("dir.open failed - " + String(FILE_LAST_DIR));
               FILE_DIR_OPEN_FAILED = true;
           }
           else
@@ -814,7 +817,7 @@ class HMI
       
         }
 
-        if (strCmd.indexOf("RFSH") != -1) 
+        void refreshFiles()
         {
             // Refrescamos el listado de ficheros visualizado
             if (!FILE_BROWSER_SEARCHING)
@@ -826,7 +829,12 @@ class HMI
             {
                 clearFilesInScreen();
                 putFilesFoundInScreen(); 
-            }            
+            }           
+        }
+
+        if (strCmd.indexOf("RFSH") != -1) 
+        {
+            refreshFiles();           
         }
 
       
@@ -1016,19 +1024,19 @@ class HMI
             if (FILE_SELECTED_DELETE)
             {
               // Lo Borramos
-              if (!sdm.sdf.remove(FILE_TO_DELETE))
-              {
-                SerialHW.println("Error to remove file. " + FILE_TO_DELETE);
-              }
-              else
-              {
-                FILE_SELECTED_DELETE = false;
-                SerialHW.println("File remove. " + FILE_TO_DELETE);
-              }
+                if (!_sdf.remove(FILE_TO_DELETE))
+                {
+                  SerialHW.println("Error to remove file. " + FILE_TO_DELETE);
+                }
+                else
+                {
+                  FILE_SELECTED_DELETE = false;
+                  SerialHW.println("File remove. " + FILE_TO_DELETE);
+                  getFilesFromSD();       
+                  refreshFiles();
+                }
             }
 
-            getFilesFromSD();            
-      
         }      
 
         if (strCmd.indexOf("LFI=") != -1) 
@@ -1561,9 +1569,14 @@ class HMI
 
       void set_SDM(SDmanager sdm)
       {
-        //_sdm = sdm;
+        _sdm = sdm;
       }
       
+      void set_sdf(SdFat32 sdf)
+      {
+        _sdf = sdf;
+      }      
+
       // Constructor
       HMI()
       {}
