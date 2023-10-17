@@ -655,6 +655,21 @@ class HMI
         }
       }            
 
+      void refreshFiles()
+      {
+          // Refrescamos el listado de ficheros visualizado
+          if (!FILE_BROWSER_SEARCHING)
+          {
+              clearFilesInScreen();
+              putFilesInScreen(); 
+          }
+          else
+          {
+              clearFilesInScreen();
+              putFilesFoundInScreen(); 
+          }           
+      }
+
       public:
 
       void verifyCommand(String strCmd) 
@@ -817,21 +832,6 @@ class HMI
       
         }
 
-        void refreshFiles()
-        {
-            // Refrescamos el listado de ficheros visualizado
-            if (!FILE_BROWSER_SEARCHING)
-            {
-                clearFilesInScreen();
-                putFilesInScreen(); 
-            }
-            else
-            {
-                clearFilesInScreen();
-                putFilesFoundInScreen(); 
-            }           
-        }
-
         if (strCmd.indexOf("RFSH") != -1) 
         {
             refreshFiles();           
@@ -946,7 +946,7 @@ class HMI
             //writeString("statusFILE.txt=\"\"");
         }
         
-          if (strCmd.indexOf("PAR=") != -1) 
+        if (strCmd.indexOf("PAR=") != -1) 
         {
             // Con este comando capturamos el directorio padre
       
@@ -1036,7 +1036,6 @@ class HMI
                   refreshFiles();
                 }
             }
-
         }      
 
         if (strCmd.indexOf("LFI=") != -1) 
