@@ -180,8 +180,8 @@ int LAST_SCHMITT_THR = 0;
 bool EN_SCHMITT_CHANGE = false;
 
 // Pulses width
-int MIN_SYNC = 14;
-int MAX_SYNC = 20;
+int MIN_SYNC = 13;
+int MAX_SYNC = 19;
 int MIN_BIT0 = 1;
 int MAX_BIT0 = 39;
 int MIN_BIT1 = 40;
@@ -190,6 +190,9 @@ int MIN_LEAD = 50;
 int MAX_LEAD = 56;
 int MAX_PULSES_LEAD = 800;
 bool SHOW_DATA_DEBUG = false;
+// Seleccion del canal para grabación izquierdo. Por defecto es el derecho
+bool LEFT_MIC_CHANNEL = false;
+bool LEFT_EAR_CHANNEL = false;
 
 //
 String LAST_COMMAND = "";
@@ -236,6 +239,8 @@ tFileBuffer* FILES_BUFF = NULL;
 tFileBuffer* FILES_FOUND_BUFF = NULL;
 
 String FILE_TO_LOAD = "";
+String FILE_TO_DELETE = "";
+bool FILE_SELECTED_DELETE = false;
 String FILE_DIR_TO_CHANGE = "";
 int FILE_PTR_POS = 0;
 int FILE_TOTAL_FILES = 0;

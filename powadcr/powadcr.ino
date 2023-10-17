@@ -760,7 +760,11 @@ void tapeControl()
             }
         }
       }
-  }  
+  }
+  else
+  {
+
+  }
 }
 
 //

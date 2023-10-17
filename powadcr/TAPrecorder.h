@@ -855,7 +855,16 @@ class TAPrecorder
               LAST_SCHMITT_THR = SCHMITT_THR;
             }
 
-            finalValue = schmittDetector(oneValue,threshold_high,threshold_low,false);              
+            // Elección del canal de escucha
+            if (!LEFT_MIC_CHANNEL)
+            {
+              finalValue = schmittDetector(oneValue,threshold_high,threshold_low,false);              
+            }
+            else
+            {
+              finalValue = schmittDetector(oneValue2,threshold_high,threshold_low,false);              
+            }
+
 
             // Indicador del Schmitt trigger con ruido.
             if (state==0 && pilotPulseCount <= 5 && !showDataDebug)

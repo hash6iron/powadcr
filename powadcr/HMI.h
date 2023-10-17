@@ -736,7 +736,7 @@ class HMI
         if (strCmd.indexOf("OUTFB") != -1) 
         {
             // Con este comando nos indica la pantalla que 
-            // está en modo FILEBROWSER
+            // está SALE del modo FILEBROWSER
             if (!FILE_SELECTED)
             {
                 //FILE_LAST_DIR = &INITFILEPATH[0];
@@ -975,6 +975,62 @@ class HMI
       
         }
       
+        if (strCmd.indexOf("TRS=") != -1) 
+        {
+            // Con este comando
+            // Borramos el fichero que se ha seleccionado en la pantalla
+            byte* buff = (byte*)calloc(8,sizeof(byte));
+            strCmd.getBytes(buff, 7);
+            String num = String(buff[4]+buff[5]+buff[6]+buff[7]);
+      
+            FILE_IDX_SELECTED = num.toInt();
+            FILE_SELECTED_DELETE = false;
+      
+            //Cogemos el fichero
+            if (!FILE_BROWSER_SEARCHING)
+            {
+                FILE_TO_DELETE = FILE_LAST_DIR + FILES_BUFF[FILE_IDX_SELECTED + FILE_PTR_POS].path;     
+      
+                SerialHW.println();
+                SerialHW.println();
+                SerialHW.println("File to delete: " + FILE_TO_DELETE);  
+                FILE_SELECTED_DELETE = true; 
+            }
+            else
+            {
+                FILE_TO_DELETE = FILE_LAST_DIR + FILES_FOUND_BUFF[FILE_IDX_SELECTED + FILE_PTR_POS].path;     
+      
+                SerialHW.println();
+                SerialHW.println();
+                SerialHW.println("File to delete in buffer: " + FILE_TO_DELETE); 
+                FILE_SELECTED_DELETE = true;  
+      
+                // Ya no me hace falta. Lo libero
+                if(FILES_FOUND_BUFF!=NULL)
+                {
+                    free(FILES_FOUND_BUFF);
+                    FILES_FOUND_BUFF = NULL;
+                }
+            }
+
+            if (FILE_SELECTED_DELETE)
+            {
+              // Lo Borramos
+              if (!sdm.sdf.remove(FILE_TO_DELETE))
+              {
+                SerialHW.println("Error to remove file. " + FILE_TO_DELETE);
+              }
+              else
+              {
+                FILE_SELECTED_DELETE = false;
+                SerialHW.println("File remove. " + FILE_TO_DELETE);
+              }
+            }
+
+            getFilesFromSD();            
+      
+        }      
+
         if (strCmd.indexOf("LFI=") != -1) 
         {
             // Con este comando
@@ -1171,6 +1227,7 @@ class HMI
           // }
         }
 
+        // Enable Schmitt Trigger threshold adjust
         if (strCmd.indexOf("ESH=") != -1) 
         {
           //Cogemos el valor
@@ -1189,6 +1246,26 @@ class HMI
           SerialHW.println("Threshold enable=" + String(EN_SCHMITT_CHANGE));
         }
 
+        // Enable MIC left channel - Option
+        if (strCmd.indexOf("EMI=") != -1) 
+        {
+          //Cogemos el valor
+          byte buff[8];
+          strCmd.getBytes(buff, 7);
+          int valEn = (int)buff[4];
+          //
+          if (valEn==1)
+          {
+              LEFT_MIC_CHANNEL = true;
+          }
+          else
+          {
+              LEFT_MIC_CHANNEL = false;
+          }
+          SerialHW.println("Threshold enable=" + String(EN_SCHMITT_CHANGE));
+        }
+
+        // Show data debug by serial console
         if (strCmd.indexOf("SDD=") != -1) 
         {
           //Cogemos el valor
@@ -1208,8 +1285,8 @@ class HMI
         }
 
         // // Pulses width
-        // int MIN_SYNC = 14;
-        // int MAX_SYNC = 20;
+        // int MIN_SYNC = 13;
+        // int MAX_SYNC = 19;
         // int MIN_BIT0 = 1;
         // int MAX_BIT0 = 39;
         // int MIN_BIT1 = 40;
