@@ -66,6 +66,7 @@ class TAPrecorder
       // Comunes
       char* fileName;
       char* fileNameRename;      
+      char* recDir;
 
       // Estamos suponiendo que el ZX Spectrum genera signal para grabar
       // con timming estandar entonces
@@ -380,27 +381,31 @@ class TAPrecorder
 
       void renameFile()
       {
-        char cPath[] = "/";
-        char f[25];
-        strcpy(f,fileNameRename);
-        strcat(cPath,f);
+        // Reservamos memoria             
+        char* cPath = (char*)calloc(55,sizeof(char));
+        String dirR = RECORDING_DIR + "/\0";
+        cPath = strcpy(cPath, dirR.c_str());
+
+        // Solo necesitamos el fichero final
+        // porque mFile contiene el original
+        strcat(cPath,fileNameRename);
 
         SerialHW.println("");
         SerialHW.println("File searching? " + String(cPath));
         SerialHW.println("");
 
-        if (_sdf32.exists(fileNameRename))
+        if (_sdf32.exists(cPath))
         {
-          _sdf32.remove(fileNameRename);
+          _sdf32.remove(cPath);
           SerialHW.println("");
           SerialHW.println("File removed --> " + String(cPath));
           SerialHW.println("");
         }
 
-        if (_mFile.rename(fileNameRename))
+        if (_mFile.rename(cPath))
         {
           SerialHW.println("");
-          SerialHW.println("File renamed --> " + String(fileNameRename));
+          SerialHW.println("File renamed --> " + String(cPath));
           SerialHW.println("");
           
           wasRenamed = true;
@@ -1361,10 +1366,28 @@ class TAPrecorder
         fileName = (char*)calloc(20,sizeof(char));
         fileName = "_record\0";
 
-        // Se crea un nuevo fichero temporal
-        if (!_mFile.open(fileName, O_WRITE | O_CREAT | O_TRUNC)) 
+        recDir = (char*)calloc(55,sizeof(char));
+        String dirR = RECORDING_DIR + "/\0";
+        recDir = strcpy(recDir, dirR.c_str());
+        
+
+        if (!_sdf32.mkdir(RECORDING_DIR))
         {
-          if (!_mFile.open(fileName, O_WRITE | O_CREAT)) 
+          SerialHW.println("Error. Recording dir wasn't create or exist.");
+        }
+
+        // if (!_sdf32.chdir(RECORDING_DIR))
+        // {
+        //   SerialHW.println("Error. It's not possible to open .REC dir. Using root dir");
+        // }
+
+        // Se crea un nuevo fichero temporal con la ruta del REC
+        strcat(recDir, fileName);
+        SerialHW.println("Dir for REC: " + String(recDir));
+
+        if (!_mFile.open(recDir, O_WRITE | O_CREAT | O_TRUNC)) 
+        {
+          if (!_mFile.open(recDir, O_WRITE | O_CREAT)) 
           {
             SerialHW.println("File for REC failed!");
             wasFileNotCreated = true;
@@ -1380,6 +1403,8 @@ class TAPrecorder
           SerialHW.println("File for REC prepared.");
           wasFileNotCreated = false;
         }
+
+
 
         // Inicializo bit string
         bitChStr = (char*)calloc(8, sizeof(char));
@@ -1409,7 +1434,9 @@ class TAPrecorder
         detectStateSchmitt = 0;   
         samplesCrossing = 0;
         pulseWidth = 0;      
-        stopRecordingProccess = false;       
+        stopRecordingProccess = false; 
+
+        //free(dirR);
       }
 
       void terminate(bool removeFile)

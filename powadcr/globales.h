@@ -193,6 +193,8 @@ bool SHOW_DATA_DEBUG = false;
 // Seleccion del canal para grabación izquierdo. Por defecto es el derecho
 bool LEFT_MIC_CHANNEL = false;
 bool LEFT_EAR_CHANNEL = false;
+//
+String RECORDING_DIR = "/REC";
 
 //
 String LAST_COMMAND = "";
