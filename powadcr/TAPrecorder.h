@@ -871,28 +871,28 @@ class TAPrecorder
             }
 
 
-            // Indicador del Schmitt trigger con ruido.
-            if (state==0 && pilotPulseCount <= 5 && !showDataDebug)
-            {
-                if (finalValue==high)
-                {
-                  // Indicador de noise activo
-                  if (lastColorSchmittIndicator!=34815)
-                  {
-                    _hmi.writeString("schTrigger.bco=34815");
-                    lastColorSchmittIndicator=34815;
-                    //resetSchmitt=true;                        
-                  }
-                }
-                else
-                {
-                  if (lastColorSchmittIndicator!=520)
-                  {
-                    _hmi.writeString("schTrigger.bco=520");                        
-                    lastColorSchmittIndicator=520;              
-                  }
-                }
-            }
+            // // Indicador del Schmitt trigger con ruido.
+            // if (state==0 && pilotPulseCount <= 5 && !showDataDebug)
+            // {
+            //     if (finalValue==high)
+            //     {
+            //       // Indicador de noise activo
+            //       if (lastColorSchmittIndicator!=34815)
+            //       {
+            //         _hmi.writeString("schTrigger.bco=34815");
+            //         lastColorSchmittIndicator=34815;
+            //         //resetSchmitt=true;                        
+            //       }
+            //     }
+            //     else
+            //     {
+            //       if (lastColorSchmittIndicator!=520)
+            //       {
+            //         _hmi.writeString("schTrigger.bco=520");                        
+            //         lastColorSchmittIndicator=520;              
+            //       }
+            //     }
+            // }
 
             if (detectZeroCrossing(finalValue))
             {

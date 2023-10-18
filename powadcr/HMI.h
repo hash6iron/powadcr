@@ -777,12 +777,6 @@ class HMI
             FILE_PREPARED = false;
             FILE_SELECTED = false;
             
-            // SerialHW.println("");
-            // SerialHW.println("");
-            // SerialHW.println("file last dir: ");
-            // SerialHW.println(FILE_LAST_DIR_LAST);
-            // SerialHW.println(FILE_LAST_DIR);
-
             if (FILE_LAST_DIR_LAST != FILE_LAST_DIR)
             {
 
@@ -796,21 +790,6 @@ class HMI
 
                 getFilesFromSD();
             }
-            // else
-            // {
-            //     if (!FILE_BROWSER_SEARCHING)
-            //     {
-            //         clearFilesInScreen();
-            //         putFilesInScreen(); 
-            //     }
-            //     else
-            //     {
-            //         clearFilesInScreen();
-            //         putFilesFoundInScreen(); 
-            //     }
-            //     // Actualizamos el total del ficheros leidos anteriormente.
-            //     writeString("statusFILE.txt=\"FILES " + String(FILE_TOTAL_FILES) +"\"");          
-            // }
 
             if (!FILE_DIR_OPEN_FAILED)
             {
@@ -834,7 +813,9 @@ class HMI
 
         if (strCmd.indexOf("RFSH") != -1) 
         {
-            refreshFiles();           
+            // Recarga el directorio
+            getFilesFromSD();       
+            refreshFiles();
         }
 
       
@@ -1027,6 +1008,9 @@ class HMI
                 if (!_sdf.remove(FILE_TO_DELETE))
                 {
                   SerialHW.println("Error to remove file. " + FILE_TO_DELETE);
+                  writeString("currentDir.txt=\">> Error. File not removed <<\"");
+                  delay(1500);
+                  writeString("currentDir.txt=\"" + String(FILE_LAST_DIR_LAST) + "\"");                  
                 }
                 else
                 {

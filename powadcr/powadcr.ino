@@ -389,6 +389,11 @@ void pauseRecording()
 void stopRecording()
 {
     // Desconectamos la entrada para evitar interferencias
+    
+    //Paramos la animación
+    hmi.writeString("tape.tmAnimation.en=0");    
+    
+    //
     setAudioOutput();
 
     if (!taprec.errorInDataRecording && taprec.errorsCountInRec==0)
@@ -442,6 +447,8 @@ void stopRecording()
     SerialHW.println("");        
     SerialHW.println("Recording procces finish.");
     SerialHW.println("");    
+
+
 
 }
 
