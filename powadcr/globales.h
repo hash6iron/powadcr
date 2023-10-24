@@ -286,6 +286,7 @@ int LAST_MAIN_VOL = 95;
 int MAX_MAIN_VOL = 100;
 bool wasHeadphoneDetected = false;
 bool wasHeadphoneAmpDetected = false;
+bool preparingTestInOut = false;
 
 // Gestion de menú
 bool MENU = false;

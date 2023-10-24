@@ -1370,7 +1370,17 @@ class HMI
           //max pulses lead
           byte buff[8];
           strCmd.getBytes(buff, 7);
-          long val = buff[4] + (256*buff[5]) + (65536*buff[6]) + (16777216*buff[7]);
+
+          SerialHW.println("0: " + String((char)buff[0]));
+          SerialHW.println("1: " + String((char)buff[1]));
+          SerialHW.println("2: " + String((char)buff[2]));
+          SerialHW.println("3: " + String((char)buff[3]));
+          SerialHW.println("4: " + String(buff[4]));
+          SerialHW.println("5: " + String(buff[5]));
+          SerialHW.println("6: " + String(buff[6]));
+          SerialHW.println("7: " + String(buff[7]));
+
+          long val = (long)((int)buff[4] + (256*(int)buff[5]) + (65536*(int)buff[6]));
           //
           MAX_PULSES_LEAD=val;
           SerialHW.println("MP7=" + String(MAX_PULSES_LEAD));
@@ -1534,6 +1544,42 @@ class HMI
       }
       
 
+      void getSeveralCommands(String strCmd)
+      {
+
+          SerialHW.println(">> " + strCmd);
+
+          // por cada comando lanza. Los comandos están
+          // separados por 0x0A y 0x0D
+          int cStart=0;
+          int cPos = strCmd.indexOf(";",cStart);
+          String str = "";
+          
+          SerialHW.println("Pos: " + String(cPos));
+
+          if (cPos==-1)
+          {
+            // Solo hay un comando
+            SerialHW.println("Only one command");
+            verifyCommand(strCmd);
+          }
+          else
+          {
+            // Hay varios
+            while(cPos < strCmd.length() && cPos!=0)
+            {
+              str=strCmd.substring(cStart,cPos-cStart-1);
+              SerialHW.println("Command: " + str);
+              verifyCommand(str);
+              cStart = cPos+3;
+              // Buscamos el siguiente
+              cPos = strCmd.indexOf(";",cStart);              
+            }
+          }
+          
+
+      }
+
       void readUART() 
       {
         if (SerialHW.available() >= 1) 
@@ -1542,9 +1588,10 @@ class HMI
           while (SerialHW.available())
           {
             String strCmd = SerialHW.readString();
-            verifyCommand(strCmd);
+
             //ECHO
             //SerialHW.println(strCmd);
+            getSeveralCommands(strCmd);
           }
           //SerialHW.flush();
         }

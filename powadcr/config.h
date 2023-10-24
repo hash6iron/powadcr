@@ -36,7 +36,7 @@
 // 0 for ZX Spectrum
 // 1 for AMSTRAD
 
-#define VERSION "v1.3.5 BETA"
+#define VERSION "v1.3.6 BETA"
 #define MACHINE_ZX
 //#define MACHINE_AMSTRAD
 
@@ -83,6 +83,9 @@
 // si superan el tamaño (en bytes) definido por SIZE_TO_ACTIVATE_SPLIT
 #define SPLIT_ENABLED 0
 #define SIZE_TO_ACTIVATE_SPLIT 20000
+
+// Configuracion del test in/out
+bool TEST_LINE_IN_OUT = false;
 
 
 

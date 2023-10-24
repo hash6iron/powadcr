@@ -371,6 +371,15 @@ void setAudioInput()
   ESP32kit.begin(cfg);
 }
 
+void setAudioInOut()
+{
+  auto cfg = ESP32kit.defaultConfig(AudioInputOutput);
+  cfg.adc_input = AUDIO_HAL_ADC_INPUT_LINE2; // microphone
+  cfg.sample_rate = AUDIO_HAL_44K_SAMPLES;
+  ESP32kit.begin(cfg);
+  ESP32kit.setVolume(MAX_MAIN_VOL);  
+}
+
 void pauseRecording()
 {
     // Desconectamos la entrada para evitar interferencias
@@ -499,7 +508,7 @@ void setup() {
   setSDFrequency(SD_Speed);
 
   // Forzamos a 26MHz
-  //sdf.begin(ESP32kit.pinSpiCs(), SD_SCK_MHZ(26));
+  sdf.begin(ESP32kit.pinSpiCs(), SD_SCK_MHZ(26));
 
   // Le pasamos al HMI el gestor de SD
   hmi.set_sdf(sdf);
@@ -759,15 +768,35 @@ void tapeControl()
         taprec.selectThreshold();
 
         // Iniciamos la grabación
-        if (taprec.recording())
+        if (!TEST_LINE_IN_OUT)
         {
-            // Ha finalizado la grabación de un bloque
-            //  
-            if (taprec.wasFileNotCreated || taprec.stopRecordingProccess)   
-            {
-                stopRecording();
-                setSTOP();
-            }
+          if (taprec.recording())
+          {
+              // Ha finalizado la grabación de un bloque
+              //  
+              if (taprec.wasFileNotCreated || taprec.stopRecordingProccess)   
+              {
+                  stopRecording();
+                  setSTOP();
+              }
+          }          
+        }
+        else
+        {
+          if (!preparingTestInOut)
+          {
+            setAudioInOut();
+            LAST_MESSAGE = "Test line in and line out. Preparing";
+            hmi.updateInformationMainPage();
+            delay(2000);
+            LAST_MESSAGE = "Listening.";
+            hmi.updateInformationMainPage();          
+            preparingTestInOut=true;
+          }
+          else
+          {
+            taprec.testOutput();
+          }
         }
       }
   }

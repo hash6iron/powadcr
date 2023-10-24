@@ -63,6 +63,11 @@ class TAPrecorder
       const int BUFFER_SIZE = 4;
       uint8_t* buffer;
 
+      // Test Line in/out
+      const int BUFFER_SIZE_IN_OUT = 1024;
+      uint8_t bufferIn[1024];
+      uint8_t bufferOut[1024];
+
       // Comunes
       char* fileName;
       char* fileNameRename;      
@@ -76,6 +81,10 @@ class TAPrecorder
       int sync2 = 735;
       int bit0 = 855;
       int bit1 = 1710;
+
+      int pSync = 0;
+      int pLead = 0;
+      int state2 = 0;
 
       // Tiempos de señal
       // Tono guia
@@ -155,6 +164,8 @@ class TAPrecorder
       int countNoiseSamples = 0;
       bool resetSchmitt = false;
       int lastColorSchmittIndicator = 0;
+      int nResponse=0;
+
 
       // Para los clásicos
       //int threshold_high = 6000; 
@@ -692,7 +703,8 @@ class TAPrecorder
             if (value==high)
             {
               detectState=2;
-              zeroCrossing = true;              
+              zeroCrossing = true;
+              //SerialHW.println("pw: " + String(samplesCrossing));                           
             }
             else if (value==low)
             {
@@ -718,7 +730,8 @@ class TAPrecorder
             else if (value==low)
             {
               detectState=1;
-              zeroCrossing = true;              
+              zeroCrossing = true;   
+              //SerialHW.println("pw: " + String(samplesCrossing));              
             }
             else
             {
@@ -732,9 +745,53 @@ class TAPrecorder
         // NOTA: lastValue se actualiza en readBuffer()
         if (zeroCrossing)
         {
-          //SerialHW.println("Measure: w: " + String(samplesCrossing));
+          // if (samplesCrossing > 25)
+          // {
+          //   if (state2==0)
+          //   {
+          //     pLead++;
+
+          //     if (pLead > 256)
+          //     {
+          //       state2=1;
+          //       pLead=0;
+          //     }
+          //   }
+          // }
+          // else if (samplesCrossing >= 7 && samplesCrossing <= 8)
+          // {
+          //   if (state2==1)
+          //   {
+          //     SerialHW.println("Sync " + String(samplesCrossing));
+          //     pSync++;
+
+          //     if (pSync==2)
+          //     {
+          //       state2=2;
+          //       pSync=0;
+          //     }
+          //   }
+          // }
+          // else if (samplesCrossing >= 9 && samplesCrossing <= 10)
+          // {
+          //   if (state2==2)
+          //   {
+          //     SerialHW.println("Bit 0 " + String(samplesCrossing));
+          //   }
+            
+          // }
+          // else if (samplesCrossing >= 20 && samplesCrossing <= 21)
+          // {
+          //   if (state2==2)
+          //   {
+          //     SerialHW.println("Bit 1 " + String(samplesCrossing));
+          //   }
+          // }
+          // else
+          // {
+          //   //SerialHW.println("w: " + String(samplesCrossing));
+          // }
           pulseWidth = samplesCrossing;
-          
           samplesCrossing=0;
         }
 
@@ -746,6 +803,9 @@ class TAPrecorder
       {
 
         int16_t switchStatus = lastSwitchStatus;
+        // Si hay un cambio, este no afecta hasta pasadas
+        // las responseSamples
+        const int responseSamples = 5;
 
         if (reset)
         {
@@ -757,6 +817,8 @@ class TAPrecorder
         {
           case 0:
             // Estado inicial
+            nResponse=0;
+
             if (value > thH)
             {
               // HIGH
@@ -777,12 +839,21 @@ class TAPrecorder
             // Estado en HIGH
             if (value < thL)
             {
-              switchStatus = low;
-              detectStateSchmitt = 2;              
+              if (nResponse>=responseSamples)
+              {
+                switchStatus = low;
+                detectStateSchmitt = 2;
+                nResponse=0;
+              }
+              else
+              {
+                nResponse++;
+              }
             }
             else if (value > thH)
-            {
-              detectStateSchmitt = 1;              
+            {              
+              detectStateSchmitt = 1;
+              nResponse=0;
             }
             else
             {
@@ -798,15 +869,23 @@ class TAPrecorder
             }
             else if (value > thH)
             {
-              switchStatus = high;
-              detectStateSchmitt = 1;              
+              if (nResponse>=responseSamples)
+              {
+                switchStatus = high;
+                detectStateSchmitt = 1;
+                nResponse=0;
+              }
+              else
+              {
+                nResponse++;
+              }
             }
             else
             {
               detectStateSchmitt = 2;
+              nResponse=0;
             }            
             break;
-
         }
         
         lastSwitchStatus = switchStatus;
@@ -870,359 +949,351 @@ class TAPrecorder
               finalValue = schmittDetector(oneValue2,threshold_high,threshold_low,false);              
             }
 
-
-            // // Indicador del Schmitt trigger con ruido.
-            // if (state==0 && pilotPulseCount <= 5 && !showDataDebug)
-            // {
-            //     if (finalValue==high)
-            //     {
-            //       // Indicador de noise activo
-            //       if (lastColorSchmittIndicator!=34815)
-            //       {
-            //         _hmi.writeString("schTrigger.bco=34815");
-            //         lastColorSchmittIndicator=34815;
-            //         //resetSchmitt=true;                        
-            //       }
-            //     }
-            //     else
-            //     {
-            //       if (lastColorSchmittIndicator!=520)
-            //       {
-            //         _hmi.writeString("schTrigger.bco=520");                        
-            //         lastColorSchmittIndicator=520;              
-            //       }
-            //     }
-            // }
-
-            if (detectZeroCrossing(finalValue))
+            if (true)
             {
-
-                //
-                // Control del estado de señal
-                //
-                // Detección de silencio
-                if (pulseWidth > 100 && byteCount > 0)
+                if (detectZeroCrossing(finalValue))
                 {
-                  // Si estamos capturando datos
-                  // y el width es grande entonces es silencio
-                  isSilence = true;
-                }
-                else
-                {
-                  isSilence = false;
-                }                    
-
-                switch (state)
-                {
-                  case 0:
-                    if (pulseWidth >= (minLead/2))
+                    //delay(1);
+                    //
+                    // Control del estado de señal
+                    //
+                    // Detección de silencio
+                    if (pulseWidth > 100 && byteCount > 0)
                     {
-                      //SerialHW.println("Pilot count: " + String(pilotPulseCount));
-                      pwLead1 = pulseWidth;
-                      state = 40;                    
+                      // Si estamos capturando datos
+                      // y el width es grande entonces es silencio
+                      isSilence = true;
+                      if (showDataDebug)
+                      {
+                        SerialHW.println("Silence");                            
+                      }                      
                     }
                     else
                     {
-                      state = 0;
-                    }
-                    break;
-                  case 40:
-                    if (pulseWidth >= (minLead/2))
+                      isSilence = false;
+                    }                    
+
+                    switch (state)
                     {
-                        pwLead2 = pulseWidth;
-                        int delta = pwLead1 + pwLead2;
-
-                        if (delta >= minLead && delta <= maxLead)
+                      case 0:
+                        if (pulseWidth >= (minLead/2))
                         {
-                            if (pilotPulseCount <= maxPilotPulseCount)
-                            {
-                              //SerialHW.println("Pilot count: " + String(pilotPulseCount));
-                              pilotPulseCount++;
-                            }
-                            else if (pilotPulseCount > maxPilotPulseCount)
-                            {
-                                // Saltamos a la espera de SYNC1 y 2
-                                state = 1;
-                                pilotPulseCount = 0;
-                                SerialHW.println("Listening");                                  
-                                LAST_MESSAGE = "Recorder listening.";
-                                _hmi.updateInformationMainPage();  
+                          
+                          if (showDataDebug)
+                          {
+                            SerialHW.println("Pilot count: " + String(pilotPulseCount));                            
+                          }
 
-                                if (showDataDebug)
-                                {
-                                  SerialHW.println("REC. Wait for SYNC1");
-                                  SerialHW.println("");
-                                }
-
-                                // Escribimos los primeros bytes
-                                if (waitingHead)
-                                {
-                                    uint8_t firstByte = 19;
-                                    uint8_t secondByte = 0;
-                                    _mFile.write(firstByte);
-                                    _mFile.write(secondByte);
-
-                                    waitingHead = false; 
-
-                                if (showDataDebug)
-                                {
-                                  SerialHW.println("");
-                                  SerialHW.println("Writting first bytes.");
-                                  SerialHW.println("");
-                                }
-                              }
-                            }                          
+                          pwLead1 = pulseWidth;
+                          state = 40;                    
                         }
                         else
                         {
-                          //pilotPulseCount=0;
-                          //state=0;
+                          state = 0;
                         }
-                    }
-                    else
-                    {
-                      state = 0;
-                    }            
-                    break;
-
-                  case 1:
-                    if (pulseWidth < (minLead/2))
-                    {
-                        pwSync1 = pulseWidth;
-                        state = 20;
-
-                        if (showDataDebug)
+                        break;
+                      case 40:
+                        if (pulseWidth >= (minLead/2))
                         {
-                          SerialHW.println("REC. Wait for SYNC2");
-                          SerialHW.println("");
-                        }
-                    }                      
-                    break;
+                            pwLead2 = pulseWidth;
+                            int delta = pwLead1 + pwLead2;
 
-                  case 20:
-                    if ((pulseWidth < (minLead/2)))
-                    {
-                        pwSync2 = pulseWidth;
-                        int delta = pwSync1 + pwSync2;
-                        if (delta > minSync && delta < maxSync)
+                            if (delta >= minLead && delta <= maxLead)
+                            {
+                                if (pilotPulseCount <= maxPilotPulseCount)
+                                {
+                                  //SerialHW.println("Pilot count: " + String(pilotPulseCount));
+                                  pilotPulseCount++;
+                                }
+                                else if (pilotPulseCount > maxPilotPulseCount)
+                                {
+                                    // Saltamos a la espera de SYNC1 y 2
+                                    state = 1;
+                                    pilotPulseCount = 0;
+                                    SerialHW.println("Listening");                                  
+                                    LAST_MESSAGE = "Recorder listening.";
+                                    _hmi.updateInformationMainPage();  
+
+                                    if (showDataDebug)
+                                    {
+                                      SerialHW.println("REC. Wait for SYNC1");
+                                      SerialHW.println("");
+                                    }
+
+                                    // Escribimos los primeros bytes
+                                    if (waitingHead)
+                                    {
+                                        uint8_t firstByte = 19;
+                                        uint8_t secondByte = 0;
+                                        _mFile.write(firstByte);
+                                        _mFile.write(secondByte);
+
+                                        waitingHead = false; 
+
+                                    if (showDataDebug)
+                                    {
+                                      SerialHW.println("");
+                                      SerialHW.println("Writting first bytes.");
+                                      SerialHW.println("");
+                                    }
+                                  }
+                                }                          
+                            }
+                            else
+                            {
+                              //pilotPulseCount=0;
+                              //state=0;
+                            }
+                        }
+                        else
+                        {
+                          state = 0;
+                        }            
+                        break;
+
+                      case 1:
+                        if (pulseWidth < (minLead/2))
+                        {
+                            pwSync1 = pulseWidth;
+                            state = 20;
+
+                            if (showDataDebug)
+                            {
+                              SerialHW.println("REC. Wait for SYNC2");
+                              SerialHW.println("");
+                            }
+                        }                      
+                        break;
+
+                      case 20:
+                        if ((pulseWidth < (minLead/2)))
+                        {
+                            pwSync2 = pulseWidth;
+                            int delta = pwSync1 + pwSync2;
+                            if (delta > minSync && delta < maxSync)
+                            {
+                              state = 21;
+
+                              if (showDataDebug)
+                              {
+                                SerialHW.println("REC. Wait for DATA");
+                                SerialHW.println("");
+                              }
+                            }
+                            else
+                            {
+                              // Buscamos otro SYNC
+                              state = 1;
+                            }
+                        }
+                        break;
+                      
+                      case 21:
+                        // Cojo el primer pulseWidth
+                        if ((pulseWidth < (minLead/2)))
+                        {
+                            pwBit0_1 = pulseWidth;
+                            state = 2;
+                        }
+                        else
                         {
                           state = 21;
+                        }
+
+                        break;    
+
+                      case 2:
+                        // Cojo el segundo pulseWidth
+                        pwBit0_2 = pulseWidth;
+                        int delta = pwBit0_1 + pwBit0_2;
+                        if (delta >= minBit0 && delta <= maxBit0)
+                        {
+                            state = 21;
+                            bitString += "0";
+                            bitChStr[bitCount] = '0';
+                            bitCount++;
+                        }
+                        else if (delta >= minBit1 && delta <= maxBit1)
+                        {
+                            state = 21;
+                            bitString += "1";
+                            bitChStr[bitCount] = '1';
+                            bitCount++;
+                        }
+                        else
+                        {
+                          if (delta > maxBit1)
+                          {
+                            // Es silencio
+                            SerialHW.println("");
+                            SerialHW.println("-- Silence -- " + String(delta * 0.0224) + " ms");
+                          }
+                          else
+                          {
+                            SerialHW.println("[ Bit, " + String(bitCount) + " from byte, " + String(byteCount) + " error. Delta: " + String(delta) + " ]");                            
+                          }
+                          state = 21;
+                        }
+
+                        //
+                        // Conversión de bits a bytes
+                        //
+                        if (bitCount > 7)
+                        {
+                          // Reiniciamos el contador de bits
+                          bitCount=0;
+
+                          // Convertimos a byte el valor leido del DATA
+                          byte value = strtol(bitChStr, (char**) NULL, 2);
+                          byteRead = value;
+                          uint8_t valueToBeWritten = byteRead;
+                          
+                          // Escribimos en fichero el dato
+                          _mFile.write(valueToBeWritten);
+
+                          // Guardamos el checksum generado
+                          lastChk = checksum;
+                          // Calculamos el nuevo checksum
+                          checksum = checksum ^ byteRead;
+
+                          // Lo representamos
+                          //SerialHW.print(bitString + " - ");
+                          if (showDataDebug)
+                          {
+                            if (byteRead < 16)
+                            {
+                              SerialHW.print("0");
+                              SerialHW.print(byteRead,HEX);
+                            }
+                            else
+                            {
+                              SerialHW.print(byteRead,HEX);
+                            }
+                            SerialHW.print(" ");
+
+                            bytesXlinea++;
+                            if (bytesXlinea>15)
+                            {
+                              bytesXlinea =0;
+                              SerialHW.println("");                    
+                            }
+                          }
 
                           if (showDataDebug)
                           {
-                            SerialHW.println("REC. Wait for DATA");
-                            SerialHW.println("");
+                            SerialHW.print(" [");
+                            SerialHW.print(checksum,HEX);
+                            SerialHW.print("] ");
                           }
+
+                          
+
+                          
+                          // Mostramos información de la cabecera
+                          proccesByteData();   
+
+                          // Mostramos el progreso de grabación del bloque
+                          if (!showDataDebug)
+                          {
+                            _hmi.writeString("progression.val=" + String((int)((byteCount*100)/(header.blockSize-1))));                        
+                          }
+
+                          // Contabilizamos bytes
+                          byteCount++;
+                          // Reiniciamos la cadena de bits
+                          bitString = "";
+                          byteRead = 0;
+
                         }
-                        else
-                        {
-                          // Buscamos otro SYNC
-                          state = 1;
-                        }
+                        break;
                     }
-                    break;
-                  
-                  case 21:
-                    // Cojo el primer pulseWidth
-                    if ((pulseWidth < (minLead/2)))
-                    {
-                        pwBit0_1 = pulseWidth;
-                        state = 2;
-                    }
-                    else
-                    {
-                      state = 21;
-                    }
-
-                    break;    
-
-                  case 2:
-                    // Cojo el segundo pulseWidth
-                    pwBit0_2 = pulseWidth;
-                    int delta = pwBit0_1 + pwBit0_2;
-                    if (delta >= minBit0 && delta <= maxBit0)
-                    {
-                        state = 21;
-                        bitString += "0";
-                        bitChStr[bitCount] = '0';
-                        bitCount++;
-                    }
-                    else if (delta >= minBit1 && delta <= maxBit1)
-                    {
-                        state = 21;
-                        bitString += "1";
-                        bitChStr[bitCount] = '1';
-                        bitCount++;
-                    }
-                    else
-                    {
-                      if (delta > maxBit1)
-                      {
-                        // Es silencio
-                        SerialHW.println("");
-                        SerialHW.println("-- Silence -- " + String(delta * 0.0224) + " ms");
-                      }
-                      else
-                      {
-                        SerialHW.println("[ Bit, " + String(bitCount) + " from byte, " + String(byteCount) + " error. Delta: " + String(delta) + " ]");                            
-                      }
-                      state = 21;
-                    }
-
-                    //
-                    // Conversión de bits a bytes
-                    //
-                    if (bitCount > 7)
-                    {
-                      // Reiniciamos el contador de bits
-                      bitCount=0;
-
-                      // Convertimos a byte el valor leido del DATA
-                      byte value = strtol(bitChStr, (char**) NULL, 2);
-                      byteRead = value;
-                      uint8_t valueToBeWritten = byteRead;
-                      
-                      // Escribimos en fichero el dato
-                      _mFile.write(valueToBeWritten);
-
-                      // Guardamos el checksum generado
-                      lastChk = checksum;
-                      // Calculamos el nuevo checksum
-                      checksum = checksum ^ byteRead;
-
-                      // Lo representamos
-                      //SerialHW.print(bitString + " - ");
-                      if (showDataDebug)
-                      {
-                        if (byteRead < 16)
-                        {
-                          SerialHW.print("0");
-                          SerialHW.print(byteRead,HEX);
-                        }
-                        else
-                        {
-                          SerialHW.print(byteRead,HEX);
-                        }
-                        SerialHW.print(" ");
-
-                        bytesXlinea++;
-                        if (bytesXlinea>15)
-                        {
-                          bytesXlinea =0;
-                          SerialHW.println("");                    
-                        }
-                      }
-
-                      if (showDataDebug)
-                      {
-                        SerialHW.print(" [");
-                        SerialHW.print(checksum,HEX);
-                        SerialHW.print("] ");
-                      }
-
-                      
-
-                      
-                      // Mostramos información de la cabecera
-                      proccesByteData();   
-
-                      // Mostramos el progreso de grabación del bloque
-                      if (!showDataDebug)
-                      {
-                        _hmi.writeString("progression.val=" + String((int)((byteCount*100)/(header.blockSize-1))));                        
-                      }
-
-                      // Contabilizamos bytes
-                      byteCount++;
-                      // Reiniciamos la cadena de bits
-                      bitString = "";
-                      byteRead = 0;
-
-                    }
-                    break;
+                    //SerialHW.println("Pulse width: " + String(pulseWidth));
                 }
-                //SerialHW.println("Pulse width: " + String(pulseWidth));
+
+                // Hay silencio, pero ¿Es silencio despues de bloque?
+                if (isSilence == true)
+                {
+                  // Si lo es. Reiniciamos los marcadores
+                  isSilence = false;
+
+                  //
+                  // Fin de bloque
+                  //
+                  if (checksum == 0 && byteCount !=0)
+                  {
+                    // Si el checksum final es 0, y contiene datos
+                    // El bloque es correcto.
+
+                    // NOTA: El ultimo byte es el checksum
+                    // si se hace XOR sobre este mismo da 0
+                    // e indica que todo es correcto
+
+                    SerialHW.println("");
+                    SerialHW.println("Block capture correctly.");
+
+                    // Informamos de los bytes salvados
+                    LAST_SIZE = header.blockSize; 
+                    // Informamos del bloque en curso
+                    BLOCK_SELECTED = blockCount;
+
+                    // Procesamos información del bloque
+                    proccessInfoBlock();
+                    // Actualizamos el HMI.
+                    _hmi.updateInformationMainPage(); 
+
+                    // Incrementamos un bloque  
+                    blockCount++;                             
+                  } 
+                  else if (byteCount !=0 && checksum !=0)
+                  {
+                    SerialHW.println("");
+                    SerialHW.println("Corrupted data detected. Error.");
+                    SerialHW.println("");
+
+                    LAST_MESSAGE = "Error. Corrupted data.";
+                    // Actualizamos el HMI.
+                    _hmi.updateInformationMainPage();
+
+                    // Aplicamos FLAGs de error.
+                    errorInDataRecording = true;
+                    blockCount = 0;
+                    errorsCountInRec++;
+                    
+                    // Forzamos a parar. No seguimos.
+                    stopRecordingProccess = true;
+                    recordingFinish = true;                
+                  } 
+                  else
+                  {}
+
+                  SerialHW.println("");
+                  SerialHW.println("Bytes transfered: " + String(byteCount));
+                  SerialHW.println("");
+
+                  // Hacemos una pausa para estabilizar buffer
+                  delay(25);
+                  
+                  // Comenzamos otra vez
+                  state = 0;
+                  byteCount = 0;      
+                  bytesXlinea = 0;
+                  
+                  // Hay que reiniciar para el disparador de Schmitt
+                  detectStateSchmitt=0;                                         
+                  // Reiniciamos el detector de paso por cero
+                  detectState=0;
+                  samplesCrossing = 0;
+                  
+                  // Otros que inicializamos
+                  pulseWidth = 0;
+                  checksum = 0; 
+                  bitCount = 0;
+                  bitString = "";
+                }
             }
-
-            // Hay silencio, pero ¿Es silencio despues de bloque?
-            if (isSilence == true)
+            else
             {
-              // Si lo es. Reiniciamos los marcadores
-              isSilence = false;
-
-              //
-              // Fin de bloque
-              //
-              if (checksum == 0 && byteCount !=0)
-              {
-                // Si el checksum final es 0, y contiene datos
-                // El bloque es correcto.
-
-                // NOTA: El ultimo byte es el checksum
-                // si se hace XOR sobre este mismo da 0
-                // e indica que todo es correcto
-
-                SerialHW.println("");
-                SerialHW.println("Block capture correctly.");
-
-                // Informamos de los bytes salvados
-                LAST_SIZE = header.blockSize; 
-                // Informamos del bloque en curso
-                BLOCK_SELECTED = blockCount;
-
-                // Procesamos información del bloque
-                proccessInfoBlock();
-                // Actualizamos el HMI.
-                _hmi.updateInformationMainPage(); 
-
-                // Incrementamos un bloque  
-                blockCount++;                             
-              } 
-              else if (byteCount !=0 && checksum !=0)
-              {
-                SerialHW.println("");
-                SerialHW.println("Corrupted data detected. Error.");
-                SerialHW.println("");
-
-                LAST_MESSAGE = "Error. Corrupted data.";
-                // Actualizamos el HMI.
-                _hmi.updateInformationMainPage();
-
-                // Aplicamos FLAGs de error.
-                errorInDataRecording = true;
-                blockCount = 0;
-                errorsCountInRec++;
-                
-                // Forzamos a parar. No seguimos.
-                stopRecordingProccess = true;
-                recordingFinish = true;                
-              } 
-              else
-              {}
-
-              SerialHW.println("");
-              SerialHW.println("Bytes transfered: " + String(byteCount));
-              SerialHW.println("");
-
-              // Hacemos una pausa para estabilizar buffer
-              delay(25);
-              
-              // Comenzamos otra vez
-              state = 0;
-              byteCount = 0;      
-              bytesXlinea = 0;
-              
-              // Hay que reiniciar para el disparador de Schmitt
-              detectStateSchmitt=0;                                         
-              // Reiniciamos el detector de paso por cero
-              detectState=0;
-              samplesCrossing = 0;
-              
-              // Otros que inicializamos
-              pulseWidth = 0;
-              checksum = 0; 
-              bitCount = 0;
-              bitString = "";
+              SerialHW.println(String(finalValue));              
             }
 
             // Leemos el siguiente valor del buffer canal R
@@ -1255,7 +1326,7 @@ class TAPrecorder
           {
             if (!wasSelectedThreshold)
             {
-                int totalSamplesForTh = 15000;
+                int totalSamplesForTh = 60000/BUFFER_SIZE;
                 averageThreshold = 0;
 
                 for (int i = 0;i<totalSamplesForTh;i++)
@@ -1345,6 +1416,54 @@ class TAPrecorder
           }
       }
 
+      void testOutput()
+      {
+          
+          size_t len = _kit.read(bufferIn, BUFFER_SIZE_IN_OUT);
+          //SerialHW.println("BufferIn len: " + String(len));
+
+
+          int16_t *value_ptr = (int16_t*)bufferIn;
+          int16_t *ptrOut = (int16_t*)bufferOut;
+          int16_t oneValue = *value_ptr++;
+          int16_t oneValue2 = *value_ptr++;
+         
+          int16_t sample = 0;
+          int16_t sample2 = 0;
+
+          for (int j=0;j<len/4;j++)
+          {
+            // Leemos el siguiente valor del buffer canal R
+            oneValue = *value_ptr++;
+            // Leemos el siguiente valor del buffer canal L
+            oneValue2 = *value_ptr++; 
+            // Almacenamos en el buffer de salida
+            sample = schmittDetector(oneValue,6000,-6000,false);
+
+            if (detectZeroCrossing(sample))
+            {
+              if (sample > 6000)
+              {
+                sample2 = 32767;
+              }
+              else if (sample < -6000)
+              {
+                sample2 = -32768;
+              }
+              else
+              {
+                sample2 = 0;
+              }
+            }
+
+            *ptrOut++=sample2;
+            *ptrOut++=oneValue2;
+          }
+          // Sacamos el buffer procesado
+          _kit.write(bufferOut, len);                     
+
+      }
+
       void prepareHMI()
       {
         // Inicializamos variables del HMI
@@ -1361,6 +1480,10 @@ class TAPrecorder
       void initialize()
       {
         prepareHMI();
+
+        pLead = 0;
+        pSync = 0;
+        state2 = 0;
 
         // Reservamos memoria
         fileName = (char*)calloc(20,sizeof(char));
