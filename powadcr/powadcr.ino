@@ -483,6 +483,8 @@ void setup() {
   delay(750);
 
   hmi.writeString("statusLCD.txt=\"POWADCR " + String(VERSION) + "\"" );
+  hmi.writeString("menu.verFirmware.txt=\" PowaDCR " + String(VERSION) + "\"");
+  
   delay(1250);
 
   SerialHW.println("Setting Audiokit.");
