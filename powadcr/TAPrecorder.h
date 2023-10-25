@@ -700,8 +700,10 @@ class TAPrecorder
 
           case 1:
             // Regimen estacionario en LOW
-            if (value==high)
+            if (value==high && samplesCrossing >= 5)
             {
+              // Nos aseguramos que el pulso es un pulso y no ruido
+              // para eso exigimos que tenga al menos un mínimo de ancho
               detectState=2;
               zeroCrossing = true;
               //SerialHW.println("pw: " + String(samplesCrossing));                           
@@ -727,8 +729,10 @@ class TAPrecorder
               samplesCrossing++;              
               zeroCrossing = false;              
             }
-            else if (value==low)
+            else if (value==low && samplesCrossing >= 5)
             {
+              // Nos aseguramos que el pulso es un pulso y no ruido
+              // para eso exigimos que tenga al menos un mínimo de ancho
               detectState=1;
               zeroCrossing = true;   
               //SerialHW.println("pw: " + String(samplesCrossing));              
@@ -1565,27 +1569,27 @@ class TAPrecorder
       void terminate(bool removeFile)
       {
           
-          if (buffer != NULL)
-          {free(buffer);}
+          // if (buffer != NULL)
+          // {free(buffer);}
 
-          SerialHW.println("");
-          SerialHW.println("Ok free - buffer.");
-          SerialHW.println("");          
+          // SerialHW.println("");
+          // SerialHW.println("Ok free - buffer.");
+          // SerialHW.println("");          
           
-          if (datablock != NULL)
-          {free(datablock);}
+          // if (datablock != NULL)
+          // {free(datablock);}
 
-          SerialHW.println("");
-          SerialHW.println("Ok free - datablock.");
-          SerialHW.println("");          
+          // SerialHW.println("");
+          // SerialHW.println("Ok free - datablock.");
+          // SerialHW.println("");          
 
 
-          if (bitChStr != NULL)
-          {free(bitChStr);}
+          // if (bitChStr != NULL)
+          // {free(bitChStr);}
 
-          SerialHW.println("");
-          SerialHW.println("Ok free - bitChSrt.");
-          SerialHW.println("");               
+          // SerialHW.println("");
+          // SerialHW.println("Ok free - bitChSrt.");
+          // SerialHW.println("");               
 
           if (!wasFileNotCreated)
           {

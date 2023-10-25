@@ -1371,14 +1371,14 @@ class HMI
           byte buff[8];
           strCmd.getBytes(buff, 7);
 
-          SerialHW.println("0: " + String((char)buff[0]));
-          SerialHW.println("1: " + String((char)buff[1]));
-          SerialHW.println("2: " + String((char)buff[2]));
-          SerialHW.println("3: " + String((char)buff[3]));
-          SerialHW.println("4: " + String(buff[4]));
-          SerialHW.println("5: " + String(buff[5]));
-          SerialHW.println("6: " + String(buff[6]));
-          SerialHW.println("7: " + String(buff[7]));
+          // SerialHW.println("0: " + String((char)buff[0]));
+          // SerialHW.println("1: " + String((char)buff[1]));
+          // SerialHW.println("2: " + String((char)buff[2]));
+          // SerialHW.println("3: " + String((char)buff[3]));
+          // SerialHW.println("4: " + String(buff[4]));
+          // SerialHW.println("5: " + String(buff[5]));
+          // SerialHW.println("6: " + String(buff[6]));
+          // SerialHW.println("7: " + String(buff[7]));
 
           long val = (long)((int)buff[4] + (256*(int)buff[5]) + (65536*(int)buff[6]));
           //
@@ -1543,41 +1543,60 @@ class HMI
         writeString("g0.txt=\"" + LAST_MESSAGE + "\"");
       }
       
+      int getCharPosition(String str,char chr,int start)
+      {
+        SerialHW.println(">> " + str);
+        int pos=-1;
+
+        for (int i = start; i < str.length(); i++) 
+        {
+          char cr = str[i];
+          //SerialHW.println(String(cr) + " - " + String(int(cr)) + " / " + String(int(chr)));
+          if(int(cr)==int(chr))
+          {
+            pos = i;
+            i=str.length();
+          }
+        }
+
+        //SerialHW.println("Pos: " + String(pos));
+        return pos;
+      }
 
       void getSeveralCommands(String strCmd)
       {
 
-          SerialHW.println(">> " + strCmd);
-
           // por cada comando lanza. Los comandos están
           // separados por 0x0A y 0x0D
-          int cStart=0;
-          int cPos = strCmd.indexOf(";",cStart);
           String str = "";
-          
-          SerialHW.println("Pos: " + String(cPos));
+          int cStart=0;
+          int lastcStart=0;
+          int cPos = getCharPosition(strCmd,';',cStart);          
 
           if (cPos==-1)
           {
             // Solo hay un comando
-            SerialHW.println("Only one command");
+            //SerialHW.println("Only one command");
             verifyCommand(strCmd);
           }
           else
           {
             // Hay varios
-            while(cPos < strCmd.length() && cPos!=0)
+            while(cPos < strCmd.length() && cPos!=-1)
             {
-              str=strCmd.substring(cStart,cPos-cStart-1);
+              //SerialHW.println("Start,pos,last: " + String(cStart) + "," + String(cPos) + "," + String(lastcStart));
+
+              str=strCmd.substring(cStart,cPos);
               SerialHW.println("Command: " + str);
+              // Verificamos el comando
               verifyCommand(str);
-              cStart = cPos+3;
+              // Adelantamos el puntero
+              lastcStart=cStart;
+              cStart = cPos+1;
               // Buscamos el siguiente
-              cPos = strCmd.indexOf(";",cStart);              
+              cPos = getCharPosition(strCmd,';',cStart);              
             }
           }
-          
-
       }
 
       void readUART() 
