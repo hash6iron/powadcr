@@ -180,6 +180,9 @@ void sendStatus(int action, int value) {
       hmi.writeString("tape.LCDACK.val=" + String(value));
       //hmi.writeString("");
       hmi.writeString("statusLCD.txt=\"READY. PRESS SCREEN\"");
+      // Enviamos la version del firmware del powaDCR
+      hmi.writeString("menu.verFirmware.txt=\" PowaDCR " + String(VERSION) + "\"");
+
       break;
     
     case RESET:
@@ -483,7 +486,6 @@ void setup() {
   delay(750);
 
   hmi.writeString("statusLCD.txt=\"POWADCR " + String(VERSION) + "\"" );
-  hmi.writeString("menu.verFirmware.txt=\" PowaDCR " + String(VERSION) + "\"");
   
   delay(1250);
 

@@ -1543,20 +1543,60 @@ class HMI
         writeString("g0.txt=\"" + LAST_MESSAGE + "\"");
       }
       
-      int getCharPosition(String str,char chr,int start)
+      int getEndCharPosition(String str,int start)
       {
         SerialHW.println(">> " + str);
         int pos=-1;
-
+        int stateCr=0;
         for (int i = start; i < str.length(); i++) 
         {
           char cr = str[i];
-          //SerialHW.println(String(cr) + " - " + String(int(cr)) + " / " + String(int(chr)));
-          if(int(cr)==int(chr))
+          //SerialHW.println(String(cr) + " - " + String(int(cr)));
+
+          // Buscamos 0xFF 0xFF 0xFF
+          switch(stateCr)
           {
-            pos = i;
-            i=str.length();
+            case 0:
+              // Es el primero
+              if(int(cr)==32)
+              {
+                stateCr=1;
+              }              
+              else
+              {
+                stateCr=0;
+                pos = -1;
+              }
+              break;
+
+            case 1:
+              // Es el segundo
+              if(int(cr)==32)
+              {
+                stateCr=2;
+              }              
+              else
+              {
+                stateCr=0;
+                pos = -1;
+              }
+              break;
+            
+            case 2:
+              // Es el separador
+              if(int(cr)==32)
+              {
+                pos = i;
+                i=str.length();
+              }
+              else
+              {
+                stateCr=0;
+                pos = -1;
+              }
+              break;
           }
+
         }
 
         //SerialHW.println("Pos: " + String(pos));
@@ -1571,7 +1611,10 @@ class HMI
           String str = "";
           int cStart=0;
           int lastcStart=0;
-          int cPos = getCharPosition(strCmd,';',cStart);          
+
+          // Buscamos el separador de comandos que es 
+          // 0xFF 0xFF 0xFF
+          int cPos = getEndCharPosition(strCmd,cStart);          
 
           if (cPos==-1)
           {
@@ -1586,15 +1629,14 @@ class HMI
             {
               //SerialHW.println("Start,pos,last: " + String(cStart) + "," + String(cPos) + "," + String(lastcStart));
 
-              str=strCmd.substring(cStart,cPos);
+              str=strCmd.substring(cStart,cPos-3);
               SerialHW.println("Command: " + str);
               // Verificamos el comando
               verifyCommand(str);
               // Adelantamos el puntero
-              lastcStart=cStart;
               cStart = cPos+1;
               // Buscamos el siguiente
-              cPos = getCharPosition(strCmd,';',cStart);              
+              cPos = getEndCharPosition(strCmd,cStart);              
             }
           }
       }
