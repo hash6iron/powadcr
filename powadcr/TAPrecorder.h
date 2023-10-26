@@ -700,7 +700,7 @@ class TAPrecorder
 
           case 1:
             // Regimen estacionario en LOW
-            if (value==high && samplesCrossing >= 5)
+            if (value==high)
             {
               // Nos aseguramos que el pulso es un pulso y no ruido
               // para eso exigimos que tenga al menos un mínimo de ancho
@@ -729,7 +729,7 @@ class TAPrecorder
               samplesCrossing++;              
               zeroCrossing = false;              
             }
-            else if (value==low && samplesCrossing >= 5)
+            else if (value==low)
             {
               // Nos aseguramos que el pulso es un pulso y no ruido
               // para eso exigimos que tenga al menos un mínimo de ancho
