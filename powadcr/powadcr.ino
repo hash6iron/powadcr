@@ -369,7 +369,7 @@ void setAudioInput()
   auto cfg = ESP32kit.defaultConfig(AudioInput);
 
   cfg.adc_input = AUDIO_HAL_ADC_INPUT_LINE2; // microphone?
-  cfg.sample_rate = AUDIO_HAL_44K_SAMPLES;
+  cfg.sample_rate = AUDIO_HAL_48K_SAMPLES;
 
   ESP32kit.begin(cfg);
 }
@@ -378,7 +378,7 @@ void setAudioInOut()
 {
   auto cfg = ESP32kit.defaultConfig(AudioInputOutput);
   cfg.adc_input = AUDIO_HAL_ADC_INPUT_LINE2; // microphone
-  cfg.sample_rate = AUDIO_HAL_44K_SAMPLES;
+  cfg.sample_rate = AUDIO_HAL_48K_SAMPLES;
   ESP32kit.begin(cfg);
   ESP32kit.setVolume(MAX_MAIN_VOL);  
 }
@@ -524,6 +524,16 @@ void setup() {
   SerialHW.println("Waiting for LCD.");
   SerialHW.println("");
 
+  if(psramInit()){
+    Serial.println("\nPSRAM is correctly initialized");
+    hmi.writeString("statusLCD.txt=\"PSRAM OK\"" );
+
+  }else{
+    Serial.println("PSRAM not available");
+    hmi.writeString("statusLCD.txt=\"PSRAM FAILED!\"" );
+  }    
+  delay(750);
+
   hmi.writeString("statusLCD.txt=\"WAITING FOR HMI\"" );
   
   // Si false --> No esperamos sincronización
@@ -577,7 +587,7 @@ void setup() {
       SerialHW.println("");
       SerialHW.println("Testing readFileRange32(..)"); 
 
-      byte* buffer = (byte*)calloc(11,sizeof(byte));
+      byte* buffer = (byte*)ps_calloc(11,sizeof(byte));
       char* fileTest = "/Correcaminos - Nifty Lifty (1984)(Visions Software Factory).tzx";
       sdFile32 = sdm.openFile32(sdFile32,fileTest);
       buffer = sdm.readFileRange32(sdFile32,0,10,true);
@@ -659,7 +669,7 @@ void tapeControl()
       {
 
         // Cogemos el fichero seleccionado y lo cargamos              
-        char* file_ch = (char*)calloc(FILE_TO_LOAD.length() + 1, sizeof(char));
+        char* file_ch = (char*)ps_calloc(FILE_TO_LOAD.length() + 1, sizeof(char));
         FILE_TO_LOAD.toCharArray(file_ch, FILE_TO_LOAD.length() + 1);
 
         // Si no está vacio
@@ -712,12 +722,12 @@ void tapeControl()
           // Reproducimos el fichero
           if (TYPE_FILE_LOAD == "TAP")
           {
-              //getMemFree();
+              getMemFree();
               pTAP.play();
           }
           else if (TYPE_FILE_LOAD = "TZX")
           {
-              //getMemFree();
+              getMemFree();
               pTZX.play();
           }
         } 
@@ -727,12 +737,12 @@ void tapeControl()
           
           if (TYPE_FILE_LOAD == "TAP")
           {
-              //getMemFree();
+              getMemFree();
               pTAP.initialize();
           }
           else if (TYPE_FILE_LOAD = "TZX")
           {
-              //getMemFree();
+              getMemFree();
               pTZX.initialize();
           }
 
@@ -758,12 +768,12 @@ void tapeControl()
           // Por si había algo abierto. Lo cerramos
           if (TYPE_FILE_LOAD == "TAP")
           {
-              //getMemFree();
+              getMemFree();
               pTAP.initialize();
           }
           else if (TYPE_FILE_LOAD = "TZX")
           {
-              //getMemFree();
+              getMemFree();
               pTZX.initialize();
           }
           hmi.updateInformationMainPage();
@@ -830,7 +840,7 @@ void Task0code( void * pvParameters )
 
       // Control por botones
       //buttonsControl();
-      delay(50);
+      //delay(50);
       // if (headPhoneDetection && !wasHeadphoneDetected)
       // {
       //     // Ponemos el volumen al 95%

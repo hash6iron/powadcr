@@ -77,7 +77,7 @@ class TAPproccesor
                 SerialHW.println("Begin isHeaderTAP");
 
                 // La cabecera son 10 bytes
-                byte* bBlock = (byte*)calloc(19+1,sizeof(byte));
+                byte* bBlock = (byte*)ps_calloc(19+1,sizeof(byte));
                 bBlock = sdm.readFileRange32(tapFileName,0,19,true);
 
                 SerialHW.println("");
@@ -85,7 +85,7 @@ class TAPproccesor
                 SerialHW.println("Got bBlock");
 
                 // Obtenemos la firma del TZX
-                char* signTZXHeader = (char*)calloc(3+1,sizeof(char));
+                char* signTZXHeader = (char*)ps_calloc(3+1,sizeof(char));
                 signTZXHeader = &INITCHAR[0];
 
                 SerialHW.println("");
@@ -123,7 +123,7 @@ class TAPproccesor
 
       bool isFileTAP(File32 tapFileName)
       {
-          char* szName = (char*)calloc(255,sizeof(char));
+          char* szName = (char*)ps_calloc(255,sizeof(char));
           tapFileName.getName(szName,254);
           
           String fileName = String(szName);
@@ -246,7 +246,7 @@ class TAPproccesor
 
       char* getTypeTAPBlock(int nBlock)
       {
-          char* typeName = (char*)calloc(10,sizeof(char));
+          char* typeName = (char*)ps_calloc(10,sizeof(char));
           typeName = &INITCHAR[0];
 
           switch(nBlock)
@@ -297,7 +297,7 @@ class TAPproccesor
       char* getNameFromHeader(byte* header, int startByte)
       {
           // Obtenemos el nombre del bloque cabecera
-          char* prgName = (char*)calloc(10+1,sizeof(char));
+          char* prgName = (char*)ps_calloc(10+1,sizeof(char));
 
           if (isCorrectHeader(header,startByte))
           {
@@ -321,7 +321,6 @@ class TAPproccesor
 
           // Pasamos la cadena de caracteres
           return prgName;
-
       }
 
       void getBlockName(char** prgName, byte* header, int startByte)
@@ -338,7 +337,7 @@ class TAPproccesor
 
           // Extraemos un bloque de bytes indicando el byte inicio y final
           //byte* blockExtracted = new byte[(byteEnd - byteStart)+1];
-          byte* blockExtracted = (byte*)calloc((byteEnd - byteStart)+1, sizeof(byte));
+          byte* blockExtracted = (byte*)ps_calloc((byteEnd - byteStart)+1, sizeof(byte));
 
           int i=0;
           for (int n=byteStart;n<(byteStart + (byteEnd - byteStart)+1);n++)
@@ -382,7 +381,7 @@ class TAPproccesor
           {
 
               //SerialHW.println("START LOOP AGAIN: ");  
-              byte* tmpRng = (byte*)calloc(sizeB,sizeof(byte));
+              byte* tmpRng = (byte*)ps_calloc(sizeB,sizeof(byte));
               tmpRng = sdm.readFileRange32(_mFile,startBlock,sizeB-1,false);
               chk = calculateChecksum(tmpRng,0,sizeB-1);
 
@@ -498,7 +497,7 @@ class TAPproccesor
               SerialHW.println("Num. de bloques: " + String(numBlks));
               SerialHW.println("");
 
-              //tBlockDescriptor* bDscr = (tBlockDescriptor*)calloc(numBlks,sizeof(tBlockDescriptor));
+              //tBlockDescriptor* bDscr = (tBlockDescriptor*)ps_calloc(numBlks,sizeof(tBlockDescriptor));
               
               if (_myTAP.descriptor != NULL)
               {
@@ -506,13 +505,13 @@ class TAPproccesor
                   _myTAP.descriptor = NULL;
               }
 
-              _myTAP.descriptor = (tBlockDescriptor*)calloc(numBlks+1,sizeof(tBlockDescriptor));
+              _myTAP.descriptor = (tBlockDescriptor*)ps_calloc(numBlks+1,sizeof(tBlockDescriptor));
               // Guardamos el numero total de bloques
               
-              char* nameTAP = (char*)calloc(10+1,sizeof(char));
+              char* nameTAP = (char*)ps_calloc(10+1,sizeof(char));
               nameTAP = &INITCHAR[0];
 
-              char* typeName = (char*)calloc(10+1,sizeof(char));
+              char* typeName = (char*)ps_calloc(10+1,sizeof(char));
               typeName = &INITCHAR[0];
 
               int startBlock = 0;
@@ -522,7 +521,7 @@ class TAPproccesor
               int chk = 0;
               int blockChk = 0;
               int numBlocks = 0;
-              char* blockName = (char*)calloc(10+1,sizeof(char));
+              char* blockName = (char*)ps_calloc(10+1,sizeof(char));
               blockName = &INITCHAR[0];
 
               bool blockNameDetected = false;
@@ -550,7 +549,7 @@ class TAPproccesor
                   blockNameDetected = false;
                   
                   //SerialHW.println("START LOOP AGAIN: ");  
-                  byte* tmpRng = (byte*)calloc(sizeB,sizeof(byte));
+                  byte* tmpRng = (byte*)ps_calloc(sizeB,sizeof(byte));
                   tmpRng = sdm.readFileRange32(_mFile,startBlock,sizeB-1,false);
                   chk = calculateChecksum(tmpRng,0,sizeB-1);
 
@@ -810,7 +809,7 @@ class TAPproccesor
           // Este procedimiento devuelve el total de bloques que contiene el fichero
           int nblocks = 0;
           //byte* bBlock = new byte[sizeTAP];
-          byte* bBlock = (byte*)calloc(sizeTAP,sizeof(byte));
+          byte* bBlock = (byte*)ps_calloc(sizeTAP,sizeof(byte));
           bBlock = fileTAP; 
           
           // Para ello buscamos la secuencia "0x13 0x00 0x00"
@@ -1171,7 +1170,7 @@ class TAPproccesor
 
                   }
 
-                  bufferPlay = (byte*)calloc(_myTAP.descriptor[i].size, sizeof(byte));
+                  bufferPlay = (byte*)ps_calloc(_myTAP.descriptor[i].size, sizeof(byte));
                   bufferPlay = sdm.readFileRange32(_mFile, _myTAP.descriptor[i].offset, _myTAP.descriptor[i].size, false);
 
                   // Llamamos a la clase de reproducción
@@ -1187,7 +1186,7 @@ class TAPproccesor
                       bufferPlay=NULL;
                   }      
 
-                  bufferPlay = (byte*)calloc(_myTAP.descriptor[i].size, sizeof(byte));
+                  bufferPlay = (byte*)ps_calloc(_myTAP.descriptor[i].size, sizeof(byte));
                   bufferPlay = sdm.readFileRange32(_mFile, _myTAP.descriptor[i].offset, _myTAP.descriptor[i].size, false);
 
                   // Cabecera BYTE
@@ -1218,7 +1217,7 @@ class TAPproccesor
                             bufferPlay=NULL;
                         }
 
-                        bufferPlay = (byte*)calloc(blockPlaySize, sizeof(byte));
+                        bufferPlay = (byte*)ps_calloc(blockPlaySize, sizeof(byte));
 
                         bufferPlay = sdm.readFileRange32(_mFile, offsetPlay, blockPlaySize, true);
                         zxp.playDataBegin(bufferPlay, blockPlaySize,DPILOT_DATA * DPULSE_PILOT);
@@ -1234,7 +1233,7 @@ class TAPproccesor
                             bufferPlay=NULL;
                         }
 
-                        bufferPlay = (byte*)calloc(blockPlaySize, sizeof(byte));
+                        bufferPlay = (byte*)ps_calloc(blockPlaySize, sizeof(byte));
                         bufferPlay = sdm.readFileRange32(_mFile, offsetPlay, blockPlaySize, true);
 
                         zxp.playDataEnd(bufferPlay, blockPlaySize,DPILOT_DATA * DPULSE_PILOT);
@@ -1249,7 +1248,7 @@ class TAPproccesor
                         bufferPlay=NULL;
                     }
 
-                    bufferPlay = (byte*)calloc(_myTAP.descriptor[i].size, sizeof(byte));
+                    bufferPlay = (byte*)ps_calloc(_myTAP.descriptor[i].size, sizeof(byte));
                     bufferPlay = sdm.readFileRange32(_mFile, _myTAP.descriptor[i].offset, _myTAP.descriptor[i].size, false);
                     
                     zxp.playData(bufferPlay, _myTAP.descriptor[i].size,DPILOT_DATA * DPULSE_PILOT);
@@ -1305,7 +1304,7 @@ class TAPproccesor
       // Constructor de la clase
       TAPproccesor(AudioKit kit)
       {
-          _myTAP.name = (char*)calloc(10+1,sizeof(char));
+          _myTAP.name = (char*)ps_calloc(10+1,sizeof(char));
           _myTAP.name = &INITCHAR[0];
           _myTAP.numBlocks = 0;
           _myTAP.descriptor = NULL;

@@ -31,7 +31,7 @@
     
     To Contact the dev team you can write to hash6iron@gmail.com
  +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
- 
+ #pragma once
 
 class TAPrecorder
 {
@@ -60,8 +60,8 @@ class TAPrecorder
       tTZX _myTZX;
       File32 _mFile;
 
-      const int BUFFER_SIZE = 4;
-      uint8_t* buffer;
+      const int BUFFER_SIZE_REC = 4;
+      uint8_t* bufferRec;
 
       // Test Line in/out
       const int BUFFER_SIZE_IN_OUT = 1024;
@@ -121,6 +121,7 @@ class TAPrecorder
 
       // Definimos el sampling rate real de la placa.
       const float samplingRate = 44099.988;
+      //const float samplingRate = 48000.0;
       // Calculamos el T sampling_rate en us
       const float TsamplingRate = (1 / samplingRate) * 1000 * 1000;
 
@@ -393,7 +394,7 @@ class TAPrecorder
       void renameFile()
       {
         // Reservamos memoria             
-        char* cPath = (char*)calloc(55,sizeof(char));
+        char* cPath = (char*)ps_calloc(55,sizeof(char));
         String dirR = RECORDING_DIR + "/\0";
         cPath = strcpy(cPath, dirR.c_str());
 
@@ -434,7 +435,7 @@ class TAPrecorder
 
           // Proporcionamos espacio en memoria para el
           // nuevo filename
-          fileNameRename = (char*)calloc(20,sizeof(char));
+          fileNameRename = (char*)ps_calloc(20,sizeof(char));
 
           int i=0;
           for (int n=0;n<10;n++)
@@ -551,7 +552,7 @@ class TAPrecorder
       void analyzeSamplesForThreshold(int len)
       {
 
-        int16_t *value_ptr = (int16_t*) buffer;
+        int16_t *value_ptr = (int16_t*) bufferRec;
         int16_t oneValue = *value_ptr++;
         int16_t oneValue2 = *value_ptr++;
         long average = 0;
@@ -700,7 +701,7 @@ class TAPrecorder
 
           case 1:
             // Regimen estacionario en LOW
-            if (value==high)
+            if (value==high && samplesCrossing > 5)
             {
               // Nos aseguramos que el pulso es un pulso y no ruido
               // para eso exigimos que tenga al menos un mínimo de ancho
@@ -729,7 +730,7 @@ class TAPrecorder
               samplesCrossing++;              
               zeroCrossing = false;              
             }
-            else if (value==low)
+            else if (value==low && samplesCrossing > 5)
             {
               // Nos aseguramos que el pulso es un pulso y no ruido
               // para eso exigimos que tenga al menos un mínimo de ancho
@@ -803,13 +804,103 @@ class TAPrecorder
         return zeroCrossing;    
       }
 
+      // int16_t schmittDetector(int16_t value, int16_t thH, int16_t thL, bool reset)
+      // {
+
+      //   int16_t switchStatus = lastSwitchStatus;
+      //   // Si hay un cambio, este no afecta hasta pasadas
+      //   // las responseSamples
+      //   const int responseSamples = 5;
+
+      //   if (reset)
+      //   {
+      //     detectStateSchmitt = 0;
+      //     switchStatus=0;
+      //   }
+
+      //   switch (detectStateSchmitt)
+      //   {
+      //     case 0:
+      //       // Estado inicial
+      //       nResponse=0;
+
+      //       if (value > thH)
+      //       {
+      //         // HIGH
+      //         detectStateSchmitt = 1;              
+      //       }
+      //       else if (value < thL)
+      //       {
+      //         // LOW
+      //         detectStateSchmitt = 2;              
+      //       }
+      //       else
+      //       {
+      //         detectStateSchmitt = 0;
+      //       }
+      //       break;
+
+      //     case 1:
+      //       // Estado en HIGH
+      //       if (value < thL)
+      //       {
+      //         if (nResponse>=responseSamples)
+      //         {
+      //           switchStatus = low;
+      //           detectStateSchmitt = 2;
+      //           nResponse=0;
+      //         }
+      //         else
+      //         {
+      //           nResponse++;
+      //         }
+      //       }
+      //       else if (value > thH)
+      //       {              
+      //         detectStateSchmitt = 1;
+      //         nResponse=0;
+      //       }
+      //       else
+      //       {
+      //         detectStateSchmitt = 1;
+      //       }
+      //       break;
+
+      //     case 2:
+      //       // Estado en LOW
+      //       if (value < thL)
+      //       {
+      //         detectStateSchmitt = 2;              
+      //       }
+      //       else if (value > thH)
+      //       {
+      //         if (nResponse>=responseSamples)
+      //         {
+      //           switchStatus = high;
+      //           detectStateSchmitt = 1;
+      //           nResponse=0;
+      //         }
+      //         else
+      //         {
+      //           nResponse++;
+      //         }
+      //       }
+      //       else
+      //       {
+      //         detectStateSchmitt = 2;
+      //         nResponse=0;
+      //       }            
+      //       break;
+      //   }
+        
+      //   lastSwitchStatus = switchStatus;
+      //   return switchStatus;
+      // }
+
       int16_t schmittDetector(int16_t value, int16_t thH, int16_t thL, bool reset)
       {
 
-        int16_t switchStatus = lastSwitchStatus;
-        // Si hay un cambio, este no afecta hasta pasadas
-        // las responseSamples
-        const int responseSamples = 5;
+      int16_t switchStatus = lastSwitchStatus;
 
         if (reset)
         {
@@ -821,8 +912,6 @@ class TAPrecorder
         {
           case 0:
             // Estado inicial
-            nResponse=0;
-
             if (value > thH)
             {
               // HIGH
@@ -843,21 +932,12 @@ class TAPrecorder
             // Estado en HIGH
             if (value < thL)
             {
-              if (nResponse>=responseSamples)
-              {
-                switchStatus = low;
-                detectStateSchmitt = 2;
-                nResponse=0;
-              }
-              else
-              {
-                nResponse++;
-              }
+              switchStatus = low;
+              detectStateSchmitt = 2;              
             }
             else if (value > thH)
-            {              
-              detectStateSchmitt = 1;
-              nResponse=0;
+            {
+              detectStateSchmitt = 1;              
             }
             else
             {
@@ -873,33 +953,27 @@ class TAPrecorder
             }
             else if (value > thH)
             {
-              if (nResponse>=responseSamples)
-              {
-                switchStatus = high;
-                detectStateSchmitt = 1;
-                nResponse=0;
-              }
-              else
-              {
-                nResponse++;
-              }
+              switchStatus = high;
+              detectStateSchmitt = 1;              
             }
             else
             {
               detectStateSchmitt = 2;
-              nResponse=0;
             }            
             break;
+
         }
         
         lastSwitchStatus = switchStatus;
         return switchStatus;
       }
 
+
+
       void readBuffer(int len)
       {
 
-        int16_t *value_ptr = (int16_t*) buffer;
+        int16_t *value_ptr = (int16_t*) bufferRec;
         int16_t oneValue = *value_ptr++;
         int16_t oneValue2 = *value_ptr++;
         int16_t finalValue = 0;
@@ -1330,12 +1404,12 @@ class TAPrecorder
           {
             if (!wasSelectedThreshold)
             {
-                int totalSamplesForTh = 60000/BUFFER_SIZE;
+                int totalSamplesForTh = 60000/BUFFER_SIZE_REC;
                 averageThreshold = 0;
 
                 for (int i = 0;i<totalSamplesForTh;i++)
                 {
-                  size_t len = _kit.read(buffer, BUFFER_SIZE);
+                  size_t len = _kit.read(bufferRec, BUFFER_SIZE_REC);
                   analyzeSamplesForThreshold(len);
                 }
 
@@ -1394,16 +1468,16 @@ class TAPrecorder
 
       void initializeBuffer()
       {
-        for (int i=0;i<BUFFER_SIZE;i++)
+        for (int i=0;i<BUFFER_SIZE_REC;i++)
         {
-          buffer[i]=0;
+          bufferRec[i]=0;
         }
       }
 
       bool recording()
       {
           
-          size_t len = _kit.read(buffer, BUFFER_SIZE);
+          size_t len = _kit.read(bufferRec, BUFFER_SIZE_REC);
           //readBuffer(len,true);
           readBuffer(len);
         
@@ -1490,10 +1564,10 @@ class TAPrecorder
         state2 = 0;
 
         // Reservamos memoria
-        fileName = (char*)calloc(20,sizeof(char));
+        fileName = (char*)ps_calloc(20,sizeof(char));
         fileName = "_record\0";
 
-        recDir = (char*)calloc(55,sizeof(char));
+        recDir = (char*)ps_calloc(55,sizeof(char));
         String dirR = RECORDING_DIR + "/\0";
         recDir = strcpy(recDir, dirR.c_str());
         
@@ -1534,8 +1608,8 @@ class TAPrecorder
 
 
         // Inicializo bit string
-        bitChStr = (char*)calloc(8, sizeof(char));
-        datablock = (byte*)calloc(1, sizeof(byte));
+        bitChStr = (char*)ps_calloc(8, sizeof(char));
+        datablock = (byte*)ps_calloc(1, sizeof(byte));
         
         // Inicializamos el array de nombre del header
         for (int i=0;i<10;i++)
@@ -1543,7 +1617,7 @@ class TAPrecorder
           header.name[i] = ' ';
         }
 
-        buffer = (uint8_t*)calloc(BUFFER_SIZE,sizeof(uint8_t));
+        bufferRec = (uint8_t*)ps_calloc(BUFFER_SIZE_REC,sizeof(uint8_t));
         initializeBuffer();
 
         recordingFinish = false;

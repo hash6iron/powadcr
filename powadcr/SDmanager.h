@@ -92,7 +92,7 @@ class SDmanager
             //SerialHW.print(String(rlen));
     
             //Redimensionamos el buffer al tamaño acordado del fichero
-            bufferFile = (byte*)calloc(rlen+1,sizeof(byte));
+            bufferFile = (byte*)ps_calloc(rlen+1,sizeof(byte));
             mFile.read(bufferFile,rlen);
             
             // int i=0;
@@ -114,7 +114,7 @@ class SDmanager
     {
         //Redimensionamos el buffer al tamaño acordado del rango
         byte* bufferFile = NULL;
-        bufferFile = (byte*)calloc(size+1,sizeof(byte));
+        bufferFile = (byte*)ps_calloc(size+1,sizeof(byte));
     
         // Ponemos a cero el puntero de lectura del fichero
         mFile.rewind();
@@ -164,7 +164,7 @@ class SDmanager
 
     String getFileName(File32 f)
     {
-          char* szName = (char*)calloc(255,sizeof(char));
+          char* szName = (char*)ps_calloc(255,sizeof(char));
           szName = &INITCHAR[0];
           f.getName(szName,255);
 

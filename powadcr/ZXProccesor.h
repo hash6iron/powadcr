@@ -50,6 +50,7 @@ class ZXProccesor
     
     // Parametrizado para el ES8388 a 44.1KHz
     const float samplingRate = 44099.988;
+    //const float samplingRate = 48000.0;
     const float sampleDuration = (1.0 / samplingRate); //0.0000002267; //
                                                               // segundos para 44.1HKz
     const float maxAmplitude = 32767.0;
@@ -203,7 +204,8 @@ class ZXProccesor
         return m_time;     
     }
 
-    size_t createWave(uint8_t *buffer, size_t bytes){
+    size_t createWave(uint8_t *buffer, size_t bytes)
+    {
         
         // Procedimiento para generar un tren de pulsos cuadrados completo
         // Antes de iniciar la reproducción ajustamos el volumen de carga.
@@ -211,10 +213,16 @@ class ZXProccesor
 
 
         //get_amplitude();
+        //SerialHW.println("BREAK 12");
 
         int chn = channels;
+        //SerialHW.println("BREAK 12.1");
+
         size_t result = 0;
+        //SerialHW.println("BREAK 12.2");
+
         int16_t *ptr = (int16_t*)buffer;
+        //SerialHW.println("BREAK 12.3");
 
         // Pulso alto (mitad del periodo)
         for (int j=0;j<bytes/(4*chn);j++){
@@ -225,12 +233,15 @@ class ZXProccesor
             }
 
             int16_t sample = m_amplitude;
+    
             *ptr++ = sample;
+            //SerialHW.println("BREAK 13. sample " + String(j));
+    
             if (chn>1)
             {
               *ptr++ = sample;
             }
-            result+=2*chn;
+            result +=2*chn;
         }
 
         // Pulso bajo (la otra mitad)
@@ -239,20 +250,14 @@ class ZXProccesor
             int16_t sample = 0;
             
             *ptr++ = sample;
+            //SerialHW.println("BREAK 14. sample " + String(j));
+
             if (chn>1)
             {
               *ptr++ = sample;
             }
-            result+=2*chn;
+            result +=2*chn;
         }
-
-        // Metemos un cero al final
-        // *ptr++ = 0;
-        // if (chn>1)
-        // {
-        //   *ptr++ = 0;
-        // }
-        // result+=2*chn;
 
         return result;
     }
@@ -380,6 +385,9 @@ class ZXProccesor
 
         uint8_t buffer[bytes];      
 
+        SerialHW.println("");
+        SerialHW.println("buffer: " + String(sizeof(buffer)));
+
         for (int m=0;m < numPulses;m++)
         {
             
@@ -416,6 +424,8 @@ class ZXProccesor
         // Esta onda se genera como el resto sumando trozos de onda
         // esto es debido al limite del buffer
         // no podemos hacer un buffer muy grande, peta el ESP32
+        SerialHW.println("");
+        SerialHW.println("ZX Proccesor: Generate silence: " + String(duration) + "ms");
 
         // Obtenemos el periodo de muestreo
         // Tsr = 1 / samplingRate
@@ -437,16 +447,6 @@ class ZXProccesor
             bufferSize = samples;
             frames = 1;
         }
-
-
-        // SerialHW.println("");
-        // SerialHW.println("");
-        // SerialHW.println("Silencio: " + String(duration));
-        // SerialHW.println("Samples : " + String(samples));
-        // SerialHW.println("bufferSize: " + String(bufferSize));
-        // SerialHW.println("Frames   : " + String(frames));
-        // SerialHW.println("");
-        // SerialHW.println("");
     
         // Rellenamos repitiendo el patron varias veces
         // porque el buffer es limitado
@@ -471,7 +471,13 @@ class ZXProccesor
     void pilotTone(float duration)
     {
         //SerialHW.println("****** BUFFER SIZE --> " + String(duration));
-        float freq = (1 / (PULSE_PILOT * tState)) / 2;    
+        // Calculamos la frecuencia del tono guía.
+        // Hay que tener en cuenta que los T-States dados son de un SEMI-PULSO
+        // es decir de la mitad del periodo. Entonces hay que calcular
+        // el periodo completo que es 2 * T
+        float freq = (1 / (PULSE_PILOT * tState)) / 2;   
+        // float T_semi_pulse = PULSE_PILOT * tState;
+        // float freq = (1 / (2 * T_semi_pulse));    
         //SerialHW.println("******* PILOT HEADER " + String(freq) + " Hz");
 
         generateWaveDuration(freq, duration, samplingRate);
@@ -480,14 +486,18 @@ class ZXProccesor
     void zeroTone()
     {
         // Procedimiento que genera un bit "0"
-        float freq = (1 / (BIT_0 * tState)) / 2;
+        // float T_semi_pulse = BIT_0 * tState;
+        // float freq = (1 / (2 * T_semi_pulse));
+        float freq = (1 / (BIT_0 * tState)) / 2;        
         generateOneWave(freq, samplingRate);
     }
 
     void oneTone()
     {
         // Procedimiento que genera un bit "1"
-        float freq = (1 / (BIT_1 * tState)) / 2;
+        // float T_semi_pulse = BIT_1 * tState;
+        // float freq = (1 / (2 * T_semi_pulse));
+        float freq = (1 / (BIT_1 * tState)) / 2;        
         generateOneWave(freq, samplingRate);
     }
 
@@ -499,13 +509,7 @@ class ZXProccesor
         // El ZX Spectrum tiene dos tipo de sincronismo, uno al finalizar el tono piloto
         // y otro al final de la recepción de los datos, que serán SYNC1 y SYNC2 respectivamente.
         float freq = (1 / (nTStates * tState));    
-        generatePulse(freq, samplingRate,slope, false);
-
-        //int width = 200;
-        //// Metemos un pulso de cambio de estado
-        //freq = (1 / (width * tState)) / 2;    
-        //generateOneWave(freq,samplingRate);  
-        
+        generatePulse(freq, samplingRate,slope, false);        
     }
 
     private:
@@ -690,11 +694,13 @@ class ZXProccesor
         void playData(byte* bBlock, int lenBlock, int pulse_pilot_duration)
         {
 
+            SerialHW.println("BREAK 9");
             float duration = tState * pulse_pilot_duration;
 
             // Put now code block
             // syncronize with short leader tone
             //clear(duration);
+            SerialHW.println("BREAK 10");
             pilotTone(duration);
 
             // syncronization for end short leader tone

@@ -70,7 +70,7 @@ class HMI
               while (sdm.file.openNext(&sdm.dir, O_READ)) //O_RDONLY
               {
 
-                  char* szName = (char*)calloc(255,sizeof(char));
+                  char* szName = (char*)ps_calloc(255,sizeof(char));
 
                   if (sdm.file.isDir())
                   {
@@ -102,12 +102,12 @@ class HMI
 
       void getFilesFromSD()
       {
-          char* szName = (char*)calloc(255,sizeof(char));
+          char* szName = (char*)ps_calloc(255,sizeof(char));
           //szName = "\0";
       
           int j = 0;
       
-          // Dimensionamos el array con calloc
+          // Dimensionamos el array con ps_calloc
           if (FILES_BUFF != NULL)
           {
               // Liberamos primero el espacio anterior
@@ -117,7 +117,7 @@ class HMI
     
           FILE_TOTAL_FILES = MAX_FILES_TO_LOAD;
           
-          FILES_BUFF = (tFileBuffer*)calloc(FILE_TOTAL_FILES+1,sizeof(tFileBuffer));
+          FILES_BUFF = (tFileBuffer*)ps_calloc(FILE_TOTAL_FILES+1,sizeof(tFileBuffer));
             
           FILE_DIR_OPEN_FAILED = false;
           
@@ -230,6 +230,9 @@ class HMI
                        
               }
       
+              // Sorting del array
+              //
+
               FILE_TOTAL_FILES = j;
               sdm.dir.close();
 
@@ -349,7 +352,7 @@ class HMI
       
       char* getPreviousDirFromPath(char* path)
       {
-          char* strTmp = (char*)calloc(2,sizeof(char));
+          char* strTmp = (char*)ps_calloc(2,sizeof(char));
           strTmp = &INITFILEPATH[0];
           
           int lpath = strlen(path);
@@ -362,7 +365,7 @@ class HMI
               {
                   //Copiamos ahora el trozo de cadena restante
                   //ponemos n-1 para que copie también la "/"
-                  strTmp = (char*)calloc(n+2,sizeof(char));
+                  strTmp = (char*)ps_calloc(n+2,sizeof(char));
                   strlcpy(strTmp,path,n+2);
                   break;
               }
@@ -558,7 +561,7 @@ class HMI
       
           const int maxResults = 500;
       
-          FILES_FOUND_BUFF = (tFileBuffer*)calloc(maxResults+1,sizeof(tFileBuffer));
+          FILES_FOUND_BUFF = (tFileBuffer*)ps_calloc(maxResults+1,sizeof(tFileBuffer));
       
           // Copiamos el primer registro que no cambia
           // porque es la ruta anterior.
@@ -682,7 +685,7 @@ class HMI
         {
             // Con este procedimiento capturamos el bloque seleccionado
             // desde la pantalla.
-            byte* buff = (byte*)calloc(8,sizeof(byte));
+            byte* buff = (byte*)ps_calloc(8,sizeof(byte));
             strCmd.getBytes(buff, 7);
             String num = String(buff[4]+buff[5]+buff[6]+buff[7]);
             BLOCK_SELECTED = num.toInt();
@@ -694,7 +697,7 @@ class HMI
         {
             // Con este procedimiento capturamos el bloque seleccionado
             // desde la pantalla.
-            byte* buff = (byte*)calloc(8,sizeof(byte));
+            byte* buff = (byte*)ps_calloc(8,sizeof(byte));
             strCmd.getBytes(buff, 7);
             String num = String(buff[4]+buff[5]+buff[6]+buff[7]);
             
@@ -893,7 +896,7 @@ class HMI
         if (strCmd.indexOf("CHD=") != -1) 
         {
             // Con este comando capturamos el directorio a cambiar
-            byte* buff = (byte*)calloc(8,sizeof(byte));
+            byte* buff = (byte*)ps_calloc(8,sizeof(byte));
             strCmd.getBytes(buff, 7);
             String num = String(buff[4]+buff[5]+buff[6]+buff[7]);
       
@@ -903,7 +906,7 @@ class HMI
 
             FILE_DIR_TO_CHANGE = FILE_LAST_DIR + FILES_BUFF[FILE_IDX_SELECTED + FILE_PTR_POS].path + "/";    
       
-            char* dir_ch = (char*)calloc(FILE_DIR_TO_CHANGE.length()+1,sizeof(char));
+            char* dir_ch = (char*)ps_calloc(FILE_DIR_TO_CHANGE.length()+1,sizeof(char));
             FILE_DIR_TO_CHANGE.toCharArray(dir_ch,FILE_DIR_TO_CHANGE.length()+1);
             FILE_PREVIOUS_DIR = FILE_LAST_DIR;
             FILE_LAST_DIR = dir_ch;
@@ -935,7 +938,7 @@ class HMI
             //no hay que calcular la posición
             FILE_DIR_TO_CHANGE = FILES_BUFF[0].path;    
       
-            char* dir_ch = (char*)calloc(FILE_DIR_TO_CHANGE.length()+1,sizeof(char));
+            char* dir_ch = (char*)ps_calloc(FILE_DIR_TO_CHANGE.length()+1,sizeof(char));
             FILE_DIR_TO_CHANGE.toCharArray(dir_ch,FILE_DIR_TO_CHANGE.length()+1);
             FILE_LAST_DIR = dir_ch;
             FILE_LAST_DIR_LAST = FILE_LAST_DIR;
@@ -948,7 +951,7 @@ class HMI
             else
             {
                 //Cogemos el directorio anterior de la cadena
-                FILE_PREVIOUS_DIR = (char*)calloc(FILE_DIR_TO_CHANGE.length(),sizeof(char));
+                FILE_PREVIOUS_DIR = (char*)ps_calloc(FILE_DIR_TO_CHANGE.length(),sizeof(char));
                 FILE_PREVIOUS_DIR = getPreviousDirFromPath(FILE_LAST_DIR);
             }
             //
@@ -968,7 +971,7 @@ class HMI
         {
             // Con este comando
             // Borramos el fichero que se ha seleccionado en la pantalla
-            byte* buff = (byte*)calloc(8,sizeof(byte));
+            byte* buff = (byte*)ps_calloc(8,sizeof(byte));
             strCmd.getBytes(buff, 7);
             String num = String(buff[4]+buff[5]+buff[6]+buff[7]);
       
@@ -1026,7 +1029,7 @@ class HMI
         {
             // Con este comando
             // devolvamos el fichero que se ha seleccionado en la pantalla
-            byte* buff = (byte*)calloc(8,sizeof(byte));
+            byte* buff = (byte*)ps_calloc(8,sizeof(byte));
             strCmd.getBytes(buff, 7);
             String num = String(buff[4]+buff[5]+buff[6]+buff[7]);
       
@@ -1630,7 +1633,7 @@ class HMI
               //SerialHW.println("Start,pos,last: " + String(cStart) + "," + String(cPos) + "," + String(lastcStart));
 
               str=strCmd.substring(cStart,cPos-3);
-              SerialHW.println("Command: " + str);
+              //SerialHW.println("Command: " + str);
               // Verificamos el comando
               verifyCommand(str);
               // Adelantamos el puntero

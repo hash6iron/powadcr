@@ -29,6 +29,7 @@
     
     To Contact the dev team you can write to hash6iron@gmail.com
  +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
+#pragma once
 
 class TZXproccesor
 {
@@ -48,6 +49,36 @@ class TZXproccesor
     int _rlen;
 
     int CURRENT_LOADING_BLOCK = 0;
+
+    static void tryAllocateSRamThenPSRam(tTZXBlockDescriptor*& ds,int size)
+    {
+        // Liberamos
+        if (ds != NULL)
+        {
+          free(ds);
+        }
+
+        // only try allocating in SRAM when there are 96K free at least
+        if (ESP.getFreeHeap() >= 256*1024)
+        {
+            ds = (tTZXBlockDescriptor*)calloc(size, sizeof(tTZXBlockDescriptor));
+            if (ds != NULL)
+            {
+                SerialHW.printf("Ds allocated into SRAM (fast)");
+                return;
+            }
+        }
+        
+        ds = (tTZXBlockDescriptor*)ps_calloc(size, sizeof(tTZXBlockDescriptor));
+        if (ds != NULL) 
+        {
+            SerialHW.printf("Ds allocated into PSRAM (slow)");
+            return;
+        }
+        //
+        SerialHW.printf("ERROR: unable to allocate ds");
+    }
+
 
     byte calculateChecksum(byte* bBlock, int startByte, int numBytes)
     {
@@ -78,7 +109,7 @@ class TZXproccesor
     char* getNameFromStandardBlock(byte* header)
     {
         // Obtenemos el nombre del bloque cabecera
-        char* prgName = (char*)calloc(10+1,sizeof(char));
+        char* prgName = (char*)ps_calloc(10+1,sizeof(char));
 
         // Extraemos el nombre del programa desde un ID10 - Standard block
         for (int n=2;n<12;n++)
@@ -109,7 +140,7 @@ class TZXproccesor
 
          // Extraemos un bloque de bytes indicando el byte inicio y final
          //byte* blockExtracted = new byte[(byteEnd - byteStart)+1];
-         byte* blockExtracted = (byte*)calloc((byteEnd - byteStart)+1, sizeof(byte));
+         byte* blockExtracted = (byte*)ps_calloc((byteEnd - byteStart)+1, sizeof(byte));
 
          int i=0;
          for (int n=byteStart;n<(byteStart + (byteEnd - byteStart)+1);n++)
@@ -131,11 +162,11 @@ class TZXproccesor
            // Capturamos la cabecera
 
            //byte* bBlock = NULL; 
-           byte* bBlock = (byte*)calloc(10+1,sizeof(byte));
+           byte* bBlock = (byte*)ps_calloc(10+1,sizeof(byte));
            bBlock = sdm.readFileRange32(tzxFile,0,10,false);
 
           // Obtenemos la firma del TZX
-          char* signTZXHeader = (char*)calloc(8+1,sizeof(char));
+          char* signTZXHeader = (char*)ps_calloc(8+1,sizeof(char));
 
           // Analizamos la cabecera
           // Extraemos el nombre del programa
@@ -173,7 +204,7 @@ class TZXproccesor
          {
 
             // Capturamos el nombre del fichero en szName
-            char* szName = (char*)calloc(255,sizeof(char));
+            char* szName = (char*)ps_calloc(255,sizeof(char));
             tzxFile.getName(szName,254);
             
             //String szNameStr = sdm.getFileName(tzxFileName);
@@ -270,7 +301,7 @@ class TZXproccesor
     {
         //Entonces recorremos el TZX. 
         // La primera cabecera SIEMPRE debe darse.
-        byte* bloque = (byte*)calloc(size+1,sizeof(byte));
+        byte* bloque = (byte*)ps_calloc(size+1,sizeof(byte));
         // Obtenemos el bloque
         if (bloque != NULL)
         {
@@ -805,7 +836,7 @@ class TZXproccesor
     {
         _myTZX.descriptor[currentBlock].ID = id_num;
         _myTZX.descriptor[currentBlock].playeable = false;
-        _myTZX.descriptor[currentBlock].offset = currentOffset;      
+        _myTZX.descriptor[currentBlock].offset = currentOffset;   
     }
 
     void getBlockDescriptor(File32 mFile, int sizeTZX)
@@ -826,6 +857,8 @@ class TZXproccesor
           bool endTZX = false;
           bool endWithErrors = false;
 
+          const int maxAllocationBlocks = 2000;
+
           currentOffset = startOffset;
 
           // Comenzamos a rastrear el fichero
@@ -839,7 +872,11 @@ class TZXproccesor
           // Reservamos espacio para el primer bloque y después iremos extendiendo
           // Vamos a ir usando realloc() para ir incrementando el espacio en memoria de manera dinámica.
 
-          _myTZX.descriptor = (tTZXBlockDescriptor*)calloc(3000,sizeof(tTZXBlockDescriptor));              
+          //_myTZX.descriptor = (tTZXBlockDescriptor*)ps_calloc(maxAllocationBlocks,sizeof(tTZXBlockDescriptor)); 
+
+          tryAllocateSRamThenPSRam(_myTZX.descriptor,maxAllocationBlocks);
+
+          //_myTZX.descriptor = (tTZXBlockDescriptor*)ps_malloc(maxAllocationBlocks * sizeof(tTZXBlockDescriptor));   
 
           TIMMING_STABLISHED = false;
 
@@ -911,7 +948,6 @@ class TZXproccesor
 
                 // ID 12 - Pure Tone
                 case 18:
-                  //analyzeBlockUnknow(currentID,currentOffset, currentBlock);
                   if (_myTZX.descriptor != NULL)
                   {
                       // Obtenemos la dirección del siguiente offset
@@ -935,6 +971,8 @@ class TZXproccesor
                 // ID 13 - Pulse sequence
                 case 19:
                   analyzeBlockUnknow(currentID,currentOffset, currentBlock);
+                  nextIDoffset = currentOffset + 1;            
+
                   _myTZX.descriptor[currentBlock].typeName = "ID 13 - Pulse seq.";
                   currentBlock++;
                   break;
@@ -942,6 +980,8 @@ class TZXproccesor
                 // ID 14 - Pure Data Block
                 case 20:
                   analyzeBlockUnknow(currentID,currentOffset, currentBlock);
+                  nextIDoffset = currentOffset + 1;            
+
                   _myTZX.descriptor[currentBlock].typeName = "ID 14 - Pure Data block";
                   currentBlock++;
                   break;
@@ -949,6 +989,8 @@ class TZXproccesor
                 // ID 15 - Direct Recording
                 case 21:
                   analyzeBlockUnknow(currentID,currentOffset, currentBlock);
+                  nextIDoffset = currentOffset + 1;            
+
                   _myTZX.descriptor[currentBlock].typeName = "ID 15 - Direct REC";
                   currentBlock++;
                   break;
@@ -956,19 +998,22 @@ class TZXproccesor
                 // ID 18 - CSW Recording
                 case 24:
                   analyzeBlockUnknow(currentID,currentOffset, currentBlock);
+                  nextIDoffset = currentOffset + 1;            
+
                   _myTZX.descriptor[currentBlock].typeName = "ID 18 - CSW Rec";currentBlock++;
                   break;
 
                 // ID 19 - Generalized Data Block
                 case 25:
                   analyzeBlockUnknow(currentID,currentOffset, currentBlock);
+                  nextIDoffset = currentOffset + 1;            
+
                   _myTZX.descriptor[currentBlock].typeName = "ID 19 - General Data block";
                   currentBlock++;
                   break;
 
                 // ID 20 - Pause and Stop Tape
                 case 32:
-                  //analyzeBlockUnknow(currentID,currentOffset, currentBlock);
                   if (_myTZX.descriptor != NULL)
                   {
                       // Obtenemos la dirección del siguiente offset
@@ -1032,6 +1077,8 @@ class TZXproccesor
                 // ID 23 - Jump to block
                 case 35:
                   analyzeBlockUnknow(currentID,currentOffset, currentBlock);
+                  nextIDoffset = currentOffset + 1;            
+
                   _myTZX.descriptor[currentBlock].typeName = "ID 23 - Jump to block";
                   currentBlock++;
                   break;
@@ -1039,6 +1086,8 @@ class TZXproccesor
                 // ID 24 - Loop start
                 case 36:
                   analyzeBlockUnknow(currentID,currentOffset, currentBlock);
+                  nextIDoffset = currentOffset + 1;            
+
                   _myTZX.descriptor[currentBlock].typeName = "ID 24 - Loop start";
                   currentBlock++;
                   break;
@@ -1046,6 +1095,8 @@ class TZXproccesor
                 // ID 25 - Loop end
                 case 37:
                   analyzeBlockUnknow(currentID,currentOffset, currentBlock);
+                  nextIDoffset = currentOffset + 1;            
+
                   _myTZX.descriptor[currentBlock].typeName = "ID 25 - Loop end";
                   currentBlock++;
                   break;
@@ -1053,6 +1104,8 @@ class TZXproccesor
                 // ID 26 - Call sequence
                 case 38:
                   analyzeBlockUnknow(currentID,currentOffset, currentBlock);
+                  nextIDoffset = currentOffset + 1;            
+
                   _myTZX.descriptor[currentBlock].typeName = "ID 26 - Call seq.";
                   currentBlock++;
                   break;
@@ -1060,6 +1113,8 @@ class TZXproccesor
                 // ID 27 - Return from sequence
                 case 39:
                   analyzeBlockUnknow(currentID,currentOffset, currentBlock);
+                  nextIDoffset = currentOffset + 1;            
+
                   _myTZX.descriptor[currentBlock].typeName = "ID 27 - Return from seq.";
                   currentBlock++;
                   break;
@@ -1067,6 +1122,8 @@ class TZXproccesor
                 // ID 28 - Select block
                 case 40:
                   analyzeBlockUnknow(currentID,currentOffset, currentBlock);
+                  nextIDoffset = currentOffset + 1;            
+
                   _myTZX.descriptor[currentBlock].typeName = "ID 28 - Select block";
                   currentBlock++;
                   break;
@@ -1074,6 +1131,8 @@ class TZXproccesor
                 // ID 2A - Stop the tape if in 48K mode
                 case 42:
                   analyzeBlockUnknow(currentID,currentOffset, currentBlock);
+                  nextIDoffset = currentOffset + 1;            
+
                   _myTZX.descriptor[currentBlock].typeName = "ID 2A - Stop TAPE (48k mode)";
                   currentBlock++;
                   break;
@@ -1081,6 +1140,8 @@ class TZXproccesor
                 // ID 2B - Set signal level
                 case 43:
                   analyzeBlockUnknow(currentID,currentOffset, currentBlock);
+                  nextIDoffset = currentOffset + 1;            
+
                   _myTZX.descriptor[currentBlock].typeName = "ID 2B - Set signal level";
                   currentBlock++;
                   break;
@@ -1112,6 +1173,8 @@ class TZXproccesor
                 // ID 31 - Message block
                 case 49:
                   analyzeBlockUnknow(currentID,currentOffset, currentBlock);
+                  nextIDoffset = currentOffset + 1;                  
+
                   _myTZX.descriptor[currentBlock].typeName = "ID 31 - Message block";
                   currentBlock++;
                   break;
@@ -1163,6 +1226,8 @@ class TZXproccesor
                 // ID 35 - Custom info block
                 case 53:
                   analyzeBlockUnknow(currentID,currentOffset, currentBlock);
+                  nextIDoffset = currentOffset + 1;            
+
                   _myTZX.descriptor[currentBlock].typeName = "ID 35 - Custom info block";
                   currentBlock++;
                   break;
@@ -1170,6 +1235,8 @@ class TZXproccesor
                 // ID 5A - "Glue" block (90 dec, ASCII Letter 'Z')
                 case 90:
                   analyzeBlockUnknow(currentID,currentOffset, currentBlock);
+                  nextIDoffset = currentOffset + 1;            
+
                   _myTZX.descriptor[currentBlock].typeName = "ID 5A - Glue block";
                   currentBlock++;
                   break;
@@ -1178,33 +1245,40 @@ class TZXproccesor
                   SerialHW.println("");
                   SerialHW.println("ID unknow " + currentID);
                   analyzeBlockUnknow(currentID,currentOffset, currentBlock);
+                  nextIDoffset = currentOffset + 1;            
+
                   _myTZX.descriptor[currentBlock].typeName = "Unknown block";
                   break;
-          }
+                }
 
-              SerialHW.println("");
-              SerialHW.println("Next ID offset: ");
-              SerialHW.print(nextIDoffset, HEX);
-              
-              //_myTZX.descriptor = (tTZXBlockDescriptor*)realloc(_myTZX.descriptor,currentBlock + 1); 
+                SerialHW.println("");
+                SerialHW.println("Next ID offset: ");
+                SerialHW.print(nextIDoffset, HEX);
+                
+                if(currentBlock > maxAllocationBlocks)
+                {
+                  SerialHW.println("Error. TZX not possible to allocate in memory");  
+                }
+                else
+                {}
 
-              if (nextIDoffset >= sizeTZX)
-              {
-                  // Finalizamos
-                  endTZX = true;
-              }
-              else
-              {
-                  currentOffset = nextIDoffset;
-              }
+                if (nextIDoffset >= sizeTZX)
+                {
+                    // Finalizamos
+                    endTZX = true;
+                }
+                else
+                {
+                    currentOffset = nextIDoffset;
+                }
 
-              //delay(2000);
-              TOTAL_BLOCKS = currentBlock;
-              _hmi.updateInformationMainPage();
+                //delay(2000);
+                TOTAL_BLOCKS = currentBlock;
+                _hmi.updateInformationMainPage();
 
-              SerialHW.println("");
-              SerialHW.println("+++++++++++++++++++++++++++++++++++++++++++++++");
-              SerialHW.println("");
+                SerialHW.println("");
+                SerialHW.println("+++++++++++++++++++++++++++++++++++++++++++++++");
+                SerialHW.println("");
 
           }
           // El siguiente bloque será
@@ -1455,8 +1529,8 @@ class TZXproccesor
     {
         if (_myTZX.descriptor != NULL)
         {
-          //free(_myTZX.descriptor);
-          //free(_myTZX.name);
+          free(_myTZX.descriptor);
+          free(_myTZX.name);
           _myTZX.descriptor = NULL;
           _myTZX.name = "\0";
           _myTZX.numBlocks = 0;
@@ -1528,9 +1602,8 @@ class TZXproccesor
                     int dly = _myTZX.descriptor[i].pauseAfterThisBlock;
                     if (dly == 0)
                     {
-                        // SerialHW.println("");
-                        // SerialHW.println("");
-                        // SerialHW.println("Esperando a STOP AUTO");
+                        SerialHW.println("");
+                        SerialHW.println("Esperando a STOP AUTO");
                         
                         // En el caso de cero. Paramos el TAPE (PAUSA, porque esto es para poder cargar bloques después)
                         //i = _myTZX.numBlocks;
@@ -1623,19 +1696,19 @@ class TZXproccesor
                       if (_myTZX.descriptor[i].type == 0) 
                       {
                         
-                        // CABECERAS
-                        if(bufferPlay!=NULL)
-                        {
-                            free(bufferPlay);
-                            bufferPlay=NULL;
+                        // // CABECERAS
+                        // if(bufferPlay!=NULL)
+                        // {
+                        //     free(bufferPlay);
+                        //     bufferPlay=NULL;
 
-                        }
+                        // }
 
                         SerialHW.println("");
                         SerialHW.println("Head 1" + _myTZX.descriptor[i].ID);
                         SerialHW.println("");
 
-                        bufferPlay = (byte*)calloc(_myTZX.descriptor[i].size, sizeof(byte));
+                        bufferPlay = (byte*)ps_calloc(_myTZX.descriptor[i].size, sizeof(byte));
 
                         bufferPlay = sdm.readFileRange32(_mFile, _myTZX.descriptor[i].offsetData, _myTZX.descriptor[i].size, false);
 
@@ -1660,24 +1733,27 @@ class TZXproccesor
 
                         // Llamamos a la clase de reproducción
                         // Cabecera PROGRAM
-                        zxp.playData(bufferPlay, _myTZX.descriptor[i].size,_myTZX.descriptor[i].timming.pilot_tone * _myTZX.descriptor[i].timming.pulse_pilot);
+                        int pt = _myTZX.descriptor[i].timming.pilot_tone;
+                        int pp = _myTZX.descriptor[i].timming.pulse_pilot;
+                        int si = _myTZX.descriptor[i].size;
+                        zxp.playData(bufferPlay, si, pt * pp);
 
                       } 
                       else if (_myTZX.descriptor[i].type == 1 || _myTZX.descriptor[i].type == 7) 
                       {
                         
-                        // CABECERAS
-                        if(bufferPlay!=NULL)
-                        {
-                            free(bufferPlay);
-                            bufferPlay=NULL;
-                        }      
+                        // // CABECERAS
+                        // if(bufferPlay!=NULL)
+                        // {
+                        //     free(bufferPlay);
+                        //     bufferPlay=NULL;
+                        // }      
 
                         // SerialHW.println("");
                         // SerialHW.println("Head 2" + _myTZX.descriptor[i].ID);
                         // SerialHW.println("");
 
-                        bufferPlay = (byte*)calloc(_myTZX.descriptor[i].size, sizeof(byte));
+                        bufferPlay = (byte*)ps_calloc(_myTZX.descriptor[i].size, sizeof(byte));
 
                         bufferPlay = sdm.readFileRange32(_mFile, _myTZX.descriptor[i].offsetData, _myTZX.descriptor[i].size, false);
 
@@ -1708,13 +1784,13 @@ class TZXproccesor
                         // DATA
                         int blockSize = _myTZX.descriptor[i].size;
 
-                        if(bufferPlay!=NULL)
-                        {
-                            free(bufferPlay);
-                            bufferPlay=NULL;
-                        }
+                        // if(bufferPlay!=NULL)
+                        // {
+                        //     free(bufferPlay);
+                        //     bufferPlay=NULL;
+                        // }
 
-                        bufferPlay = (byte*)calloc(_myTZX.descriptor[i].size, sizeof(byte));
+                        bufferPlay = (byte*)ps_calloc(_myTZX.descriptor[i].size, sizeof(byte));
 
                         bufferPlay = sdm.readFileRange32(_mFile, _myTZX.descriptor[i].offsetData, _myTZX.descriptor[i].size, true);
 
@@ -1761,19 +1837,9 @@ class TZXproccesor
                         zxp.playData(bufferPlay, _myTZX.descriptor[i].size,_myTZX.descriptor[i].timming.pilot_tone * _myTZX.descriptor[i].timming.pulse_pilot);
                       }                  
                 }
-
-              //   SerialHW.println("");
-              //   SerialHW.println("--------------------------------------------");
-              //   SerialHW.println("");
-              //   SerialHW.println("");
-              //   SerialHW.println("");
-              //   SerialHW.println("");
-              //   SerialHW.println("");
                 
               }
 
-              // SerialHW.println("");
-              // SerialHW.println("Playing was finish.");
               // En el caso de no haber parado manualmente, es por finalizar
               // la reproducción
               if (LOADING_STATE == 1) {
@@ -1794,13 +1860,15 @@ class TZXproccesor
               // Cerrando
               LOADING_STATE = 0;
 
-              if(bufferPlay!=NULL)
-              {
-                free(bufferPlay);
-                bufferPlay=NULL;
-              }
+              // if(bufferPlay!=NULL)
+              // {
+              //   free(bufferPlay);
+              //   bufferPlay=NULL;
+              // }
+              SerialHW.println("")              ;
+              SerialHW.println("I'm here");
               
-              SerialHW.flush();
+              //SerialHW.flush();
 
               // Ahora ya podemos tocar el HMI panel otra vez
               sendStatus(READY_ST, 1);
@@ -1819,7 +1887,7 @@ class TZXproccesor
     TZXproccesor(AudioKit kit)
     {
         // Constructor de la clase
-        _myTZX.name = (char*)calloc(10+1,sizeof(char));
+        _myTZX.name = (char*)ps_calloc(10+1,sizeof(char));
         _myTZX.name = &INITCHAR[0];
         _myTZX.numBlocks = 0;
         _myTZX.descriptor = NULL;
@@ -1827,6 +1895,6 @@ class TZXproccesor
 
         //zxp.set_ESP32kit(kit);      
     } 
-
-
 };
+
+
