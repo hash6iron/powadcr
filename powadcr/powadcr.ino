@@ -776,11 +776,10 @@ void tapeControl()
               getMemFree();
               pTZX.initialize();
           }
-          hmi.updateInformationMainPage();
+          LAST_MESSAGE = "Recorder ready. Play source data.";
+          hmi.updateInformationMainPage();           
         }
-        
-        LAST_MESSAGE = "Recorder ready. Play source data.";
-        hmi.updateInformationMainPage();  
+         
 
         //taprec.selectThreshold();
 
