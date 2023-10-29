@@ -701,7 +701,7 @@ class TAPrecorder
 
           case 1:
             // Regimen estacionario en LOW
-            if (value==high && samplesCrossing > 5)
+            if (value==high)
             {
               // Nos aseguramos que el pulso es un pulso y no ruido
               // para eso exigimos que tenga al menos un mínimo de ancho
@@ -730,7 +730,7 @@ class TAPrecorder
               samplesCrossing++;              
               zeroCrossing = false;              
             }
-            else if (value==low && samplesCrossing > 5)
+            else if (value==low)
             {
               // Nos aseguramos que el pulso es un pulso y no ruido
               // para eso exigimos que tenga al menos un mínimo de ancho
@@ -750,52 +750,6 @@ class TAPrecorder
         // NOTA: lastValue se actualiza en readBuffer()
         if (zeroCrossing)
         {
-          // if (samplesCrossing > 25)
-          // {
-          //   if (state2==0)
-          //   {
-          //     pLead++;
-
-          //     if (pLead > 256)
-          //     {
-          //       state2=1;
-          //       pLead=0;
-          //     }
-          //   }
-          // }
-          // else if (samplesCrossing >= 7 && samplesCrossing <= 8)
-          // {
-          //   if (state2==1)
-          //   {
-          //     SerialHW.println("Sync " + String(samplesCrossing));
-          //     pSync++;
-
-          //     if (pSync==2)
-          //     {
-          //       state2=2;
-          //       pSync=0;
-          //     }
-          //   }
-          // }
-          // else if (samplesCrossing >= 9 && samplesCrossing <= 10)
-          // {
-          //   if (state2==2)
-          //   {
-          //     SerialHW.println("Bit 0 " + String(samplesCrossing));
-          //   }
-            
-          // }
-          // else if (samplesCrossing >= 20 && samplesCrossing <= 21)
-          // {
-          //   if (state2==2)
-          //   {
-          //     SerialHW.println("Bit 1 " + String(samplesCrossing));
-          //   }
-          // }
-          // else
-          // {
-          //   //SerialHW.println("w: " + String(samplesCrossing));
-          // }
           pulseWidth = samplesCrossing;
           samplesCrossing=0;
         }
@@ -804,103 +758,13 @@ class TAPrecorder
         return zeroCrossing;    
       }
 
-      // int16_t schmittDetector(int16_t value, int16_t thH, int16_t thL, bool reset)
-      // {
-
-      //   int16_t switchStatus = lastSwitchStatus;
-      //   // Si hay un cambio, este no afecta hasta pasadas
-      //   // las responseSamples
-      //   const int responseSamples = 5;
-
-      //   if (reset)
-      //   {
-      //     detectStateSchmitt = 0;
-      //     switchStatus=0;
-      //   }
-
-      //   switch (detectStateSchmitt)
-      //   {
-      //     case 0:
-      //       // Estado inicial
-      //       nResponse=0;
-
-      //       if (value > thH)
-      //       {
-      //         // HIGH
-      //         detectStateSchmitt = 1;              
-      //       }
-      //       else if (value < thL)
-      //       {
-      //         // LOW
-      //         detectStateSchmitt = 2;              
-      //       }
-      //       else
-      //       {
-      //         detectStateSchmitt = 0;
-      //       }
-      //       break;
-
-      //     case 1:
-      //       // Estado en HIGH
-      //       if (value < thL)
-      //       {
-      //         if (nResponse>=responseSamples)
-      //         {
-      //           switchStatus = low;
-      //           detectStateSchmitt = 2;
-      //           nResponse=0;
-      //         }
-      //         else
-      //         {
-      //           nResponse++;
-      //         }
-      //       }
-      //       else if (value > thH)
-      //       {              
-      //         detectStateSchmitt = 1;
-      //         nResponse=0;
-      //       }
-      //       else
-      //       {
-      //         detectStateSchmitt = 1;
-      //       }
-      //       break;
-
-      //     case 2:
-      //       // Estado en LOW
-      //       if (value < thL)
-      //       {
-      //         detectStateSchmitt = 2;              
-      //       }
-      //       else if (value > thH)
-      //       {
-      //         if (nResponse>=responseSamples)
-      //         {
-      //           switchStatus = high;
-      //           detectStateSchmitt = 1;
-      //           nResponse=0;
-      //         }
-      //         else
-      //         {
-      //           nResponse++;
-      //         }
-      //       }
-      //       else
-      //       {
-      //         detectStateSchmitt = 2;
-      //         nResponse=0;
-      //       }            
-      //       break;
-      //   }
-        
-      //   lastSwitchStatus = switchStatus;
-      //   return switchStatus;
-      // }
-
       int16_t schmittDetector(int16_t value, int16_t thH, int16_t thL, bool reset)
       {
 
-      int16_t switchStatus = lastSwitchStatus;
+        int16_t switchStatus = lastSwitchStatus;
+        // Si hay un cambio, este no afecta hasta pasadas
+        // las responseSamples
+        const int responseSamples = 5;
 
         if (reset)
         {
@@ -912,6 +776,8 @@ class TAPrecorder
         {
           case 0:
             // Estado inicial
+            nResponse=0;
+
             if (value > thH)
             {
               // HIGH
@@ -932,12 +798,21 @@ class TAPrecorder
             // Estado en HIGH
             if (value < thL)
             {
-              switchStatus = low;
-              detectStateSchmitt = 2;              
+              if (nResponse>=responseSamples)
+              {
+                switchStatus = low;
+                detectStateSchmitt = 2;
+                nResponse=0;
+              }
+              else
+              {
+                nResponse++;
+              }
             }
             else if (value > thH)
-            {
-              detectStateSchmitt = 1;              
+            {              
+              detectStateSchmitt = 1;
+              nResponse=0;
             }
             else
             {
@@ -953,20 +828,99 @@ class TAPrecorder
             }
             else if (value > thH)
             {
-              switchStatus = high;
-              detectStateSchmitt = 1;              
+              if (nResponse>=responseSamples)
+              {
+                switchStatus = high;
+                detectStateSchmitt = 1;
+                nResponse=0;
+              }
+              else
+              {
+                nResponse++;
+              }
             }
             else
             {
               detectStateSchmitt = 2;
+              nResponse=0;
             }            
             break;
-
         }
         
         lastSwitchStatus = switchStatus;
         return switchStatus;
       }
+
+      // int16_t schmittDetector(int16_t value, int16_t thH, int16_t thL, bool reset)
+      // {
+
+      //   int16_t switchStatus = lastSwitchStatus;
+
+      //   if (reset)
+      //   {
+      //     detectStateSchmitt = 0;
+      //     switchStatus=0;
+      //   }
+
+      //   switch (detectStateSchmitt)
+      //   {
+      //     case 0:
+      //       // Estado inicial
+      //       if (value > thH)
+      //       {
+      //         // HIGH
+      //         detectStateSchmitt = 1;              
+      //       }
+      //       else if (value < thL)
+      //       {
+      //         // LOW
+      //         detectStateSchmitt = 2;              
+      //       }
+      //       else
+      //       {
+      //         detectStateSchmitt = 0;
+      //       }
+      //       break;
+
+      //     case 1:
+      //       // Estado en HIGH
+      //       if (value < thL)
+      //       {
+      //         switchStatus = low;
+      //         detectStateSchmitt = 2;              
+      //       }
+      //       else if (value > thH)
+      //       {
+      //         detectStateSchmitt = 1;              
+      //       }
+      //       else
+      //       {
+      //         detectStateSchmitt = 1;
+      //       }
+      //       break;
+
+      //     case 2:
+      //       // Estado en LOW
+      //       if (value < thL)
+      //       {
+      //         detectStateSchmitt = 2;              
+      //       }
+      //       else if (value > thH)
+      //       {
+      //         switchStatus = high;
+      //         detectStateSchmitt = 1;              
+      //       }
+      //       else
+      //       {
+      //         detectStateSchmitt = 2;
+      //       }            
+      //       break;
+
+      //   }
+        
+      //   lastSwitchStatus = switchStatus;
+      //   return switchStatus;
+      // }
 
 
 
@@ -1080,7 +1034,6 @@ class TAPrecorder
                             {
                                 if (pilotPulseCount <= maxPilotPulseCount)
                                 {
-                                  //SerialHW.println("Pilot count: " + String(pilotPulseCount));
                                   pilotPulseCount++;
                                 }
                                 else if (pilotPulseCount > maxPilotPulseCount)
@@ -1088,7 +1041,7 @@ class TAPrecorder
                                     // Saltamos a la espera de SYNC1 y 2
                                     state = 1;
                                     pilotPulseCount = 0;
-                                    SerialHW.println("Listening");                                  
+                               
                                     LAST_MESSAGE = "Recorder listening.";
                                     _hmi.updateInformationMainPage();  
 
@@ -1203,12 +1156,18 @@ class TAPrecorder
                           if (delta > maxBit1)
                           {
                             // Es silencio
-                            SerialHW.println("");
-                            SerialHW.println("-- Silence -- " + String(delta * 0.0224) + " ms");
+                            if (showDataDebug)
+                            {
+                              SerialHW.println("");
+                              SerialHW.println("-- Silence -- " + String(delta * 0.0224) + " ms");
+                            }
                           }
                           else
                           {
-                            SerialHW.println("[ Bit, " + String(bitCount) + " from byte, " + String(byteCount) + " error. Delta: " + String(delta) + " ]");                            
+                            if (showDataDebug)
+                            { 
+                              SerialHW.println("[ Bit, " + String(bitCount) + " from byte, " + String(byteCount) + " error. Delta: " + String(delta) + " ]");                            
+                            }
                           }
                           state = 21;
                         }

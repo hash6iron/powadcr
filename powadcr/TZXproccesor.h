@@ -857,26 +857,13 @@ class TZXproccesor
           bool endTZX = false;
           bool endWithErrors = false;
 
-          const int maxAllocationBlocks = 2000;
+          const int maxAllocationBlocks = 4000;
 
           currentOffset = startOffset;
 
-          // Comenzamos a rastrear el fichero
-          
-          if (_myTZX.descriptor != NULL)
-          {
-              free(_myTZX.descriptor);
-              _myTZX.descriptor = NULL;
-          }
-
-          // Reservamos espacio para el primer bloque y después iremos extendiendo
-          // Vamos a ir usando realloc() para ir incrementando el espacio en memoria de manera dinámica.
-
-          //_myTZX.descriptor = (tTZXBlockDescriptor*)ps_calloc(maxAllocationBlocks,sizeof(tTZXBlockDescriptor)); 
+          // Hacemos allocation in memory
 
           tryAllocateSRamThenPSRam(_myTZX.descriptor,maxAllocationBlocks);
-
-          //_myTZX.descriptor = (tTZXBlockDescriptor*)ps_malloc(maxAllocationBlocks * sizeof(tTZXBlockDescriptor));   
 
           TIMMING_STABLISHED = false;
 
@@ -1538,6 +1525,12 @@ class TZXproccesor
         }          
     }
 
+    void terminate()
+    {
+      free(_myTZX.descriptor);
+      _myTZX.descriptor = NULL;
+    }
+
     void play()
     {
         //_hmi.writeString("");
@@ -1695,14 +1688,6 @@ class TZXproccesor
                       // Reproducimos el fichero
                       if (_myTZX.descriptor[i].type == 0) 
                       {
-                        
-                        // // CABECERAS
-                        // if(bufferPlay!=NULL)
-                        // {
-                        //     free(bufferPlay);
-                        //     bufferPlay=NULL;
-
-                        // }
 
                         SerialHW.println("");
                         SerialHW.println("Head 1" + _myTZX.descriptor[i].ID);
@@ -1736,22 +1721,13 @@ class TZXproccesor
                         int pt = _myTZX.descriptor[i].timming.pilot_tone;
                         int pp = _myTZX.descriptor[i].timming.pulse_pilot;
                         int si = _myTZX.descriptor[i].size;
+                        
+                        // Reproducimos el bloque - PLAY
                         zxp.playData(bufferPlay, si, pt * pp);
 
                       } 
                       else if (_myTZX.descriptor[i].type == 1 || _myTZX.descriptor[i].type == 7) 
                       {
-                        
-                        // // CABECERAS
-                        // if(bufferPlay!=NULL)
-                        // {
-                        //     free(bufferPlay);
-                        //     bufferPlay=NULL;
-                        // }      
-
-                        // SerialHW.println("");
-                        // SerialHW.println("Head 2" + _myTZX.descriptor[i].ID);
-                        // SerialHW.println("");
 
                         bufferPlay = (byte*)ps_calloc(_myTZX.descriptor[i].size, sizeof(byte));
 
@@ -1784,29 +1760,13 @@ class TZXproccesor
                         // DATA
                         int blockSize = _myTZX.descriptor[i].size;
 
-                        // if(bufferPlay!=NULL)
-                        // {
-                        //     free(bufferPlay);
-                        //     bufferPlay=NULL;
-                        // }
-
                         bufferPlay = (byte*)ps_calloc(_myTZX.descriptor[i].size, sizeof(byte));
 
                         bufferPlay = sdm.readFileRange32(_mFile, _myTZX.descriptor[i].offsetData, _myTZX.descriptor[i].size, true);
 
-
-                        // SerialHW.println("");
-                        // SerialHW.println("Data ");
-                        // SerialHW.println("");
-
                         //showBufferPlay(bufferPlay,_myTZX.descriptor[i].size);
                         verifyChecksum(_mFile,_myTZX.descriptor[i].offsetData,_myTZX.descriptor[i].size);
 
-
-                        // SerialHW.println("");
-                        // SerialHW.println("ID:");
-                        // SerialHW.println(_myTZX.descriptor[i].ID,HEX);
-                        // SerialHW.println("");
 
                         switch (_myTZX.descriptor[i].ID)
                         {
@@ -1821,17 +1781,6 @@ class TZXproccesor
                             zxp.PILOT_TONE = _myTZX.descriptor[i].timming.pilot_tone;
                             break;
                         }
-                                               
-                        // SerialHW.println("");
-                        // SerialHW.println("PILOT TONE:");
-                        // SerialHW.println(String(_myTZX.descriptor[i].timming.pilot_tone));
-
-
-                        // SerialHW.println("");
-                        // SerialHW.println("PULSE PILOT:");
-                        // SerialHW.println(String(_myTZX.descriptor[i].timming.pulse_pilot));
-
-                        // SerialHW.println("");
 
                         // Bloque de datos BYTE
                         zxp.playData(bufferPlay, _myTZX.descriptor[i].size,_myTZX.descriptor[i].timming.pilot_tone * _myTZX.descriptor[i].timming.pulse_pilot);
@@ -1859,20 +1808,14 @@ class TZXproccesor
 
               // Cerrando
               LOADING_STATE = 0;
-
-              // if(bufferPlay!=NULL)
-              // {
-              //   free(bufferPlay);
-              //   bufferPlay=NULL;
-              // }
-              SerialHW.println("")              ;
-              SerialHW.println("I'm here");
-              
+             
               //SerialHW.flush();
 
               // Ahora ya podemos tocar el HMI panel otra vez
               sendStatus(READY_ST, 1);
 
+              // Liberamos el descriptor
+              free(_myTZX.descriptor);
         }
         else
         {

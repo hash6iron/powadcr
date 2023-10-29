@@ -1284,6 +1284,14 @@ class TAPproccesor
                 bufferPlay=NULL;
               }
               
+              // Liberamos el TAP descriptor
+              if(_myTAP.descriptor!=NULL)
+              {
+                free(_myTAP.descriptor);
+                _myTAP.descriptor=NULL;
+              }              
+
+              // Limpiamos el buffer del puerto serie
               SerialHW.flush();
 
               // Ahora ya podemos tocar el HMI panel otra vez

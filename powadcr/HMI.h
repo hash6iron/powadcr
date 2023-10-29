@@ -687,7 +687,8 @@ class HMI
             // desde la pantalla.
             byte* buff = (byte*)ps_calloc(8,sizeof(byte));
             strCmd.getBytes(buff, 7);
-            String num = String(buff[4]+buff[5]+buff[6]+buff[7]);
+            long val = (long)((int)buff[4] + (256*(int)buff[5]) + (65536*(int)buff[6]));
+            String num = String(val);
             BLOCK_SELECTED = num.toInt();
       
             updateInformationMainPage();
@@ -699,8 +700,11 @@ class HMI
             // desde la pantalla.
             byte* buff = (byte*)ps_calloc(8,sizeof(byte));
             strCmd.getBytes(buff, 7);
-            String num = String(buff[4]+buff[5]+buff[6]+buff[7]);
             
+            long val = (long)((int)buff[4] + (256*(int)buff[5]) + (65536*(int)buff[6]));
+            
+            String num = String(val);
+
             int pageSelected = num.toInt();
             int totalPages = (FILE_TOTAL_FILES / TOTAL_FILES_IN_BROWSER_PAGE);
             if (FILE_TOTAL_FILES % TOTAL_FILES_IN_BROWSER_PAGE != 0)
@@ -898,7 +902,10 @@ class HMI
             // Con este comando capturamos el directorio a cambiar
             byte* buff = (byte*)ps_calloc(8,sizeof(byte));
             strCmd.getBytes(buff, 7);
-            String num = String(buff[4]+buff[5]+buff[6]+buff[7]);
+            
+            long val = (long)((int)buff[4] + (256*(int)buff[5]) + (65536*(int)buff[6]));
+
+            String num = String(val);
       
             FILE_IDX_SELECTED = num.toInt();
       
@@ -973,7 +980,9 @@ class HMI
             // Borramos el fichero que se ha seleccionado en la pantalla
             byte* buff = (byte*)ps_calloc(8,sizeof(byte));
             strCmd.getBytes(buff, 7);
-            String num = String(buff[4]+buff[5]+buff[6]+buff[7]);
+
+            long val = (long)((int)buff[4] + (256*(int)buff[5]) + (65536*(int)buff[6]));
+            String num = String(val);
       
             FILE_IDX_SELECTED = num.toInt();
             FILE_SELECTED_DELETE = false;
@@ -1031,7 +1040,8 @@ class HMI
             // devolvamos el fichero que se ha seleccionado en la pantalla
             byte* buff = (byte*)ps_calloc(8,sizeof(byte));
             strCmd.getBytes(buff, 7);
-            String num = String(buff[4]+buff[5]+buff[6]+buff[7]);
+            long val = (long)((int)buff[4] + (256*(int)buff[5]) + (65536*(int)buff[6]));
+            String num = String(val);
       
             FILE_IDX_SELECTED = num.toInt();
             FILE_SELECTED = false;
@@ -1548,7 +1558,7 @@ class HMI
       
       int getEndCharPosition(String str,int start)
       {
-        SerialHW.println(">> " + str);
+        //SerialHW.println(">> " + str);
         int pos=-1;
         int stateCr=0;
         for (int i = start; i < str.length(); i++) 

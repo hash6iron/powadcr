@@ -81,73 +81,7 @@ class ZXProccesor
 
     AudioKit m_kit;
 
-    // size_t createWave(uint8_t *buffer, size_t bytes){
-        
-    //     // Procedimiento para generar un tren de pulsos cuadrados completo
-
-    //     int chn = channels;
-    //     size_t result = 0;
-    //     int16_t *ptr = (int16_t*)buffer;
-
-    //     // Pulso alto (mitad del periodo)
-    //     for (int j=0;j<bytes/2;j++){
-
-    //         int16_t sample = m_amplitude;
-    //         *ptr++ = sample;
-    //         if (chn>1)
-    //         {
-    //           *ptr++ = sample;
-    //         }
-    //         result+=2*chn;
-    //     }
-
-    //     // Pulso bajo (la otra mitad)
-    //     for (int j=bytes/2;j<bytes;j++){
-            
-    //         int16_t sample = 0;
-            
-    //         *ptr++ = sample;
-    //         if (chn>1)
-    //         {
-    //           *ptr++ = sample;
-    //         }
-    //         result+=2*chn;
-    //     }
-
-    //     return result;
-    // }
-
-    // void get_amplitude()
-    // {
-    //     // Establecemos la amplitud máxima.
-    //     // Leemos el valor del vol.val
-      
-    //     int cvalue = myNex.readNumber("menu.vol.val");
-
-    //     if (cvalue != 777777)
-    //     {
-    //       if (cvalue == 0)
-    //       {
-    //           cvalue = 90;
-    //           MAIN_VOL = cvalue;              
-    //       }
-
-    //       if (cvalue != LAST_MAIN_VOL)
-    //       {
-    //           MAIN_VOL = cvalue;
-
-    //           SerialHW.println("");
-    //           SerialHW.println("");
-    //           SerialHW.println("Valor leido: " + String(cvalue));
-
-    //           LAST_MAIN_VOL = MAIN_VOL;
-    //       }
-    //     }
-
-
-    // }
-
-    size_t silenceWave(uint8_t *buffer, size_t samples)
+        size_t silenceWave(uint8_t *buffer, size_t samples)
     {
         int chn = channels;
         size_t result = 0;
@@ -192,8 +126,6 @@ class ZXProccesor
     {
 
         // Antes de iniciar la reproducción ajustamos el volumen de carga.
-        //ESP32kit.setVolume(MAIN_VOL);
-        //get_amplitude();
         m_amplitude = MAIN_VOL * 32767 / 100;
 
         float double_Pi = PI * 2.0;
@@ -209,20 +141,10 @@ class ZXProccesor
         
         // Procedimiento para generar un tren de pulsos cuadrados completo
         // Antes de iniciar la reproducción ajustamos el volumen de carga.
-        //ESP32kit.setVolume(MAIN_VOL);
-
-
-        //get_amplitude();
-        //SerialHW.println("BREAK 12");
 
         int chn = channels;
-        //SerialHW.println("BREAK 12.1");
-
         size_t result = 0;
-        //SerialHW.println("BREAK 12.2");
-
         int16_t *ptr = (int16_t*)buffer;
-        //SerialHW.println("BREAK 12.3");
 
         // Pulso alto (mitad del periodo)
         for (int j=0;j<bytes/(4*chn);j++){
@@ -235,7 +157,6 @@ class ZXProccesor
             int16_t sample = m_amplitude;
     
             *ptr++ = sample;
-            //SerialHW.println("BREAK 13. sample " + String(j));
     
             if (chn>1)
             {
@@ -250,7 +171,6 @@ class ZXProccesor
             int16_t sample = 0;
             
             *ptr++ = sample;
-            //SerialHW.println("BREAK 14. sample " + String(j));
 
             if (chn>1)
             {
@@ -264,12 +184,8 @@ class ZXProccesor
 
     size_t readPulse(uint8_t *buffer, size_t bytes, int slope, bool end){
 
-        // Antes de iniciar la reproducción ajustamos el volumen de carga.
-        //ESP32kit.setVolume(MAIN_VOL);
-
-        //get_amplitude();            
-
         // Procedimiento para genera un pulso 
+
         int chn = channels;
         size_t result = 0;
         int16_t *ptr = (int16_t*)buffer;
@@ -296,14 +212,6 @@ class ZXProccesor
             }
             result+=2*chn;
         }
-
-        // Metemos un cero al final
-        // *ptr++ = 0;
-        // if (chn>1)
-        // {
-        //   *ptr++ = 0;
-        // }
-        // result+=2*chn;
 
         return result;          
     }
@@ -333,8 +241,6 @@ class ZXProccesor
         float Tsr = (1.0 / samplingRate);
         int bytes = int(round((1.0 / ((freq / 4.0))) / Tsr));
 
-        //SerialHW.println("****** BUFFER SIZE --> " + String(bytes));
-
         uint8_t buffer[bytes];
 
 
@@ -357,19 +263,15 @@ class ZXProccesor
 
         m_kit.write(buffer, createWave(buffer, bytes));
                 
-        //_hmi.readUART();
-
         if (LOADING_STATE == 1)
         {
             if (STOP==true)
             {
                 LOADING_STATE = 2; // Parada del bloque actual
-                //stopTape();
             }
             else if (PAUSE==true)
             {
                 LOADING_STATE = 2; // Parada del bloque actual
-                //pauseTape();
             }
         }
     }
@@ -385,33 +287,23 @@ class ZXProccesor
 
         uint8_t buffer[bytes];      
 
-        SerialHW.println("");
-        SerialHW.println("buffer: " + String(sizeof(buffer)));
-
         for (int m=0;m < numPulses;m++)
         {
             
-            //buttonsControl();
-            //_hmi.readUART();
-
             if (LOADING_STATE == 1)
             {
                 if (STOP==true)
                 {
                     LOADING_STATE = 2; // Parada del bloque actual
-                    //stopTape();
                     break;
                 }
                 else if (PAUSE==true)
                 {
                     LOADING_STATE = 2; // Parada del bloque actual
-                    //pauseTape();
                     break;
                 }
             }
 
-            // Limpiamos el buffer
-            //m_kit.write(buffer, clearBuffer(buffer,bytes));
             // Rellenamos
             m_kit.write(buffer, createWave(buffer, bytes));
         } 
@@ -424,8 +316,6 @@ class ZXProccesor
         // Esta onda se genera como el resto sumando trozos de onda
         // esto es debido al limite del buffer
         // no podemos hacer un buffer muy grande, peta el ESP32
-        SerialHW.println("");
-        SerialHW.println("ZX Proccesor: Generate silence: " + String(duration) + "ms");
 
         // Obtenemos el periodo de muestreo
         // Tsr = 1 / samplingRate
@@ -459,7 +349,6 @@ class ZXProccesor
             if (n == (frames-1))
             {
                 bufferSize = bufferSize + delta;
-                //SerialHW.println("bufferSize + delta: " + String(bufferSize));
             }
   
             // Aplicamos la reserva de buffer
@@ -470,24 +359,17 @@ class ZXProccesor
 
     void pilotTone(float duration)
     {
-        //SerialHW.println("****** BUFFER SIZE --> " + String(duration));
         // Calculamos la frecuencia del tono guía.
         // Hay que tener en cuenta que los T-States dados son de un SEMI-PULSO
         // es decir de la mitad del periodo. Entonces hay que calcular
         // el periodo completo que es 2 * T
         float freq = (1 / (PULSE_PILOT * tState)) / 2;   
-        // float T_semi_pulse = PULSE_PILOT * tState;
-        // float freq = (1 / (2 * T_semi_pulse));    
-        //SerialHW.println("******* PILOT HEADER " + String(freq) + " Hz");
-
         generateWaveDuration(freq, duration, samplingRate);
     }
 
     void zeroTone()
     {
         // Procedimiento que genera un bit "0"
-        // float T_semi_pulse = BIT_0 * tState;
-        // float freq = (1 / (2 * T_semi_pulse));
         float freq = (1 / (BIT_0 * tState)) / 2;        
         generateOneWave(freq, samplingRate);
     }
@@ -495,8 +377,6 @@ class ZXProccesor
     void oneTone()
     {
         // Procedimiento que genera un bit "1"
-        // float T_semi_pulse = BIT_1 * tState;
-        // float freq = (1 / (2 * T_semi_pulse));
         float freq = (1 / (BIT_1 * tState)) / 2;        
         generateOneWave(freq, samplingRate);
     }
@@ -549,13 +429,10 @@ class ZXProccesor
               if (!TEST_RUNNING)
               {
 
-                    //_hmi.readUART();
-
                     if (i % 32==0)
                     {
                         // Progreso de cada bloque.
                         // Con este metodo reducimos el consumo de datos
-                        //_hmi.writeString("");
                         _hmi.writeString("progression.val=" + String((int)((i*100)/(size-1))));
 
                         if (BYTES_LOADED > BYTES_TOBE_LOAD)
@@ -563,18 +440,15 @@ class ZXProccesor
                             BYTES_LOADED = BYTES_TOBE_LOAD;
                         }
 
-                        //_hmi.writeString("");
                         _hmi.writeString("progressTotal.val=" + String((int)((BYTES_LOADED*100)/(BYTES_TOBE_LOAD))));
 
                         _hmi.updateInformationMainPage();                    
 
-                        //buttonsControl();
                     }
 
                     if (i == (size-1))
                     {
                         // Esto lo hacemos para asegurarnos que la barra se llena entera
-                        //_hmi.writeString("");
                         _hmi.writeString("progression.val=" + String((int)((i*100)/(size-1))));
 
                         if (BYTES_LOADED > BYTES_TOBE_LOAD)
@@ -582,7 +456,6 @@ class ZXProccesor
                             BYTES_LOADED = BYTES_TOBE_LOAD;
                         }
 
-                        //_hmi.writeString("");
                         _hmi.writeString("progressTotal.val=" + String((int)((BYTES_LOADED*100)/(BYTES_TOBE_LOAD))));
                     }
 
@@ -593,16 +466,12 @@ class ZXProccesor
                         if (STOP==true)
                         {
                             LOADING_STATE = 2; // Parada del bloque actual
-                            //stopTape();
                             i=size;
-                            //break;
                         }
                         else if (PAUSE==true)
                         {
                             LOADING_STATE = 2; // Parada del bloque actual
-                            //pauseTape();
                             i=size;
-                            //break;
                         }
 
                     }
@@ -694,13 +563,10 @@ class ZXProccesor
         void playData(byte* bBlock, int lenBlock, int pulse_pilot_duration)
         {
 
-            SerialHW.println("BREAK 9");
             float duration = tState * pulse_pilot_duration;
 
             // Put now code block
             // syncronize with short leader tone
-            //clear(duration);
-            SerialHW.println("BREAK 10");
             pilotTone(duration);
 
             // syncronization for end short leader tone
@@ -716,7 +582,7 @@ class ZXProccesor
 
         void playDataBegin(byte* bBlock, int lenBlock, int pulse_pilot_duration)
         {
-                    // PROGRAM
+            // PROGRAM
             float duration = tState * pulse_pilot_duration;
             // Put now code block
             // syncronize with short leader tone
@@ -735,10 +601,7 @@ class ZXProccesor
 
             float duration = tState * pulse_pilot_duration;
             // Send data
-            sendDataArray(bBlock, lenBlock);
-            
-            // syncronization for end data block          
-            //syncTone(SYNC2,0);
+            sendDataArray(bBlock, lenBlock);        
             
             // Silent tone
             silence(silent);
@@ -761,7 +624,6 @@ class ZXProccesor
             pilotTone(durationHeader);
             // SYNC TONE
             syncTone(SYNC1,1);
-            // Launch header
             syncTone(SYNC2,0);
 
             sendDataArray(header, len_header);
@@ -781,9 +643,7 @@ class ZXProccesor
             syncTone(SYNC2,0);
 
             // Send data
-            sendDataArray(data, len_data);
-            
-            // syncronization for end data block          
+            sendDataArray(data, len_data);       
             
             // Silent tone
             silence(silent);
@@ -799,7 +659,6 @@ class ZXProccesor
             pilotTone(duration);
             // SYNC TONE
             syncTone(SYNC1,1);
-            // Launch header
             syncTone(SYNC2,0);
 
             sendDataArray(header, len_header);
@@ -822,7 +681,6 @@ class ZXProccesor
         ZXProccesor()
         {
           // Constructor de la clase
-          //m_kit = kit;
         }
 
 };
