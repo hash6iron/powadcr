@@ -413,7 +413,7 @@ void stopRecording()
       taprec.terminate(false);
 
       SerialHW.println("");
-      SerialHW.println("End recording proccess. File saved.");
+      SerialHW.println("End REC proccess. File saved.");
 
       LAST_MESSAGE = "Recording STOP. File succesfully saved.";
 
@@ -425,7 +425,7 @@ void stopRecording()
       taprec.terminate(true);
       
       SerialHW.println("");
-      SerialHW.println("Error in recording proccess. No file saved.");
+      SerialHW.println("Error in REC proccess. No file saved.");
 
       if (taprec.wasFileNotCreated)
       {
@@ -442,7 +442,7 @@ void stopRecording()
         else
         {
           // Errores encontrados en el proceso de grabación
-          LAST_MESSAGE = "Recording STOP. Error in recording proccess. No file saved.";          
+          LAST_MESSAGE = "Error in REC proccess. No file saved.";          
         }
       }
     }
