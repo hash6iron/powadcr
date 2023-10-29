@@ -779,7 +779,10 @@ void tapeControl()
           hmi.updateInformationMainPage();
         }
         
-        taprec.selectThreshold();
+        LAST_MESSAGE = "Recorder ready. Play source data.";
+        hmi.updateInformationMainPage();  
+
+        //taprec.selectThreshold();
 
         // Iniciamos la grabación
         if (!TEST_LINE_IN_OUT)

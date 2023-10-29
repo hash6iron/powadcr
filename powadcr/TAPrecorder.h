@@ -974,7 +974,7 @@ class TAPrecorder
             {
               // Fijamos threshold en 18%
               threshold_high = 6000;
-              threshold_low = -6000
+              threshold_low = -6000;
             }
 
             // Elección del canal de escucha
@@ -1378,10 +1378,13 @@ class TAPrecorder
             SerialHW.println("TH+ = " + String(threshold_high));
             SerialHW.println("TH- = " + String(threshold_low));
 
-            LAST_MESSAGE = "Recorder ready. Play source data.";
-            _hmi.updateInformationMainPage();  
             wasSelectedThreshold = true;                 
           }       
+        }
+        else
+        {
+          threshold_high = 6000;
+          threshold_low = -6000; 
         }
       }
 
