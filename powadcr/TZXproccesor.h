@@ -53,10 +53,10 @@ class TZXproccesor
     static void tryAllocateSRamThenPSRam(tTZXBlockDescriptor*& ds,int size)
     {
         // Liberamos
-        if (ds != NULL)
-        {
-          free(ds);
-        }
+        // if (ds != NULL)
+        // {
+        //   free(ds);
+        // }
 
         // only try allocating in SRAM when there are 96K free at least
         if (ESP.getFreeHeap() >= 256*1024)
@@ -855,6 +855,7 @@ class TZXproccesor
           int lenghtDataBlock = 0;
           int currentBlock = 1;
           bool endTZX = false;
+          bool forzeEnd = false;
           bool endWithErrors = false;
 
           const int maxAllocationBlocks = 4000;
@@ -867,8 +868,17 @@ class TZXproccesor
 
           TIMMING_STABLISHED = false;
 
-          while (!endTZX)
+          while (!endTZX && !forzeEnd)
           {
+             
+              if (STOP==true)
+              {
+                  forzeEnd = true;
+                  endWithErrors = true;
+                  LAST_MESSAGE = "Aborting. No proccess complete.";
+                  _hmi.updateInformationMainPage();
+              }
+
               // El objetivo es ENCONTRAR IDs y ultimo byte, y analizar el bloque completo para el descriptor.
               currentID = getID(mFile, currentOffset);
               
@@ -1297,6 +1307,9 @@ class TZXproccesor
 
             SerialHW.println();
             SerialHW.println("Size: " + String(_sizeTZX));
+
+            // Esto lo hacemos para poder abortar
+            STOP=false;
 
             getBlockDescriptor(_mFile,_sizeTZX);
         }      
