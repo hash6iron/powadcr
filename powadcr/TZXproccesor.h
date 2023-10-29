@@ -1514,15 +1514,17 @@ class TZXproccesor
 
     void initialize()
     {
-        if (_myTZX.descriptor != NULL)
-        {
-          free(_myTZX.descriptor);
-          free(_myTZX.name);
-          _myTZX.descriptor = NULL;
-          _myTZX.name = "\0";
-          _myTZX.numBlocks = 0;
-          _myTZX.size = 0;
-        }          
+        // if (_myTZX.descriptor != NULL)
+        // {
+        //   //free(_myTZX.descriptor);
+        //   //free(_myTZX.name);
+        //   //_myTZX.descriptor = NULL;
+
+        // }          
+
+        _myTZX.name = "\0";
+        _myTZX.numBlocks = 0;
+        _myTZX.size = 0;
     }
 
     void terminate()

@@ -656,25 +656,26 @@ void tapeControl()
         LOADING_STATE = 0;
         BLOCK_SELECTED = 0;
 
-        if (REC == true)
+        if (REC)
         {
           stopRecording();
         }
-
-        // Reproducimos el fichero
-        if (TYPE_FILE_LOAD == "TAP")
+        else
         {
-            setSTOP();
-            pTAP.terminate();
-            getMemFree();
-        }
-        else if (TYPE_FILE_LOAD = "TZX")
-        {
-            setSTOP();
-            pTZX.terminate();
-            getMemFree();
+            // Terminamos los players
+            if (TYPE_FILE_LOAD == "TAP")
+            {
+                pTAP.terminate();
+                getMemFree();
+            }
+            else if (TYPE_FILE_LOAD = "TZX")
+            {
+                pTZX.terminate();
+                getMemFree();
+            }
         }
 
+        setSTOP();
 
       }
 
@@ -778,7 +779,7 @@ void tapeControl()
           taprec.initialize();          
           waitingRecMessageShown = true;
           getMemFree();
-          
+
           // Por si había algo abierto. Lo cerramos
           // if (TYPE_FILE_LOAD == "TAP")
           // {
