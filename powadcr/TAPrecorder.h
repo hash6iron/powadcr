@@ -970,6 +970,12 @@ class TAPrecorder
               // Actualizamos el ultimo cambio
               LAST_SCHMITT_THR = SCHMITT_THR;
             }
+            else
+            {
+              // Fijamos threshold en 18%
+              threshold_high = 6000;
+              threshold_low = -6000
+            }
 
             // Elección del canal de escucha
             if (!LEFT_MIC_CHANNEL)
@@ -1359,70 +1365,24 @@ class TAPrecorder
 
       void selectThreshold()
       {
-          if (!EN_SCHMITT_CHANGE)
+        if (EN_SCHMITT_CHANGE)
+        {
+          if (!wasSelectedThreshold)
           {
-            if (!wasSelectedThreshold)
-            {
-                int totalSamplesForTh = 60000/BUFFER_SIZE_REC;
-                averageThreshold = 0;
+            SerialHW.println("");
+            SerialHW.println("Fixed threshold from HMI");
+            
+            threshold_high = (SCHMITT_THR * 32767)/100;
+            threshold_low = (-1)*(SCHMITT_THR * 32768)/100;            
 
-                for (int i = 0;i<totalSamplesForTh;i++)
-                {
-                  size_t len = _kit.read(bufferRec, BUFFER_SIZE_REC);
-                  analyzeSamplesForThreshold(len);
-                }
+            SerialHW.println("TH+ = " + String(threshold_high));
+            SerialHW.println("TH- = " + String(threshold_low));
 
-                // Entregamos la media del ruido
-                averageThreshold = averageThreshold / totalSamplesForTh;
-
-                //
-                SerialHW.println("Average threshold: ");
-                SerialHW.println(String(averageThreshold));
-
-                if (averageThreshold <= 700)
-                {
-                  // N-Go
-                  SerialHW.println("");
-                  SerialHW.println("Threshold for N-Go");
-                  threshold_high = 20000;
-                  threshold_low = -20000;
-                }
-                else
-                {
-                  // Classic versions
-                  SerialHW.println("");
-                  SerialHW.println("Threshold for classic versions");
-                  threshold_high = 6000;
-                  threshold_low = -6000;
-                }
-
-                // Enviamos el valor a la barra de control de Schmitt Trigger
-                int valuePer = (100*threshold_high) / 32767;
-                _hmi.writeString("menu.thr.val=" + String(valuePer)); 
-
-                LAST_MESSAGE = "Recorder ready. Play source data.";
-                _hmi.updateInformationMainPage();  
-                wasSelectedThreshold = true;
-            }               
-          }
-          else
-          {
-            if (!wasSelectedThreshold)
-            {
-              SerialHW.println("");
-              SerialHW.println("Fixed threshold from HMI");
-              
-              threshold_high = (SCHMITT_THR * 32767)/100;
-              threshold_low = (-1)*(SCHMITT_THR * 32768)/100;            
-
-              SerialHW.println("TH+ = " + String(threshold_high));
-              SerialHW.println("TH- = " + String(threshold_low));
-
-              LAST_MESSAGE = "Recorder ready. Play source data.";
-              _hmi.updateInformationMainPage();  
-              wasSelectedThreshold = true;                 
-            }       
-          }
+            LAST_MESSAGE = "Recorder ready. Play source data.";
+            _hmi.updateInformationMainPage();  
+            wasSelectedThreshold = true;                 
+          }       
+        }
       }
 
       void initializeBuffer()
