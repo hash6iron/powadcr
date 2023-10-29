@@ -661,7 +661,20 @@ void tapeControl()
           stopRecording();
         }
 
-        setSTOP();
+        // Reproducimos el fichero
+        if (TYPE_FILE_LOAD == "TAP")
+        {
+            setSTOP();
+            pTAP.terminate();
+            getMemFree();
+        }
+        else if (TYPE_FILE_LOAD = "TZX")
+        {
+            setSTOP();
+            pTZX.terminate();
+            getMemFree();
+        }
+
 
       }
 
@@ -764,18 +777,19 @@ void tapeControl()
           taprec.set_kit(ESP32kit);
           taprec.initialize();          
           waitingRecMessageShown = true;
+          getMemFree();
           
           // Por si había algo abierto. Lo cerramos
-          if (TYPE_FILE_LOAD == "TAP")
-          {
-              getMemFree();
-              pTAP.initialize();
-          }
-          else if (TYPE_FILE_LOAD = "TZX")
-          {
-              getMemFree();
-              pTZX.initialize();
-          }
+          // if (TYPE_FILE_LOAD == "TAP")
+          // {
+          //     getMemFree();
+          //     pTAP.initialize();
+          // }
+          // else if (TYPE_FILE_LOAD = "TZX")
+          // {
+          //     getMemFree();
+          //     pTZX.initialize();
+          // }
           LAST_MESSAGE = "Recorder ready. Play source data.";
           hmi.updateInformationMainPage();           
         }

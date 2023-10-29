@@ -1018,6 +1018,12 @@ class TAPproccesor
           }          
       }
 
+      void terminate()
+      {
+        free(_myTAP.descriptor);
+        _myTAP.descriptor = NULL;
+      }
+
       bool proccess_tap(File32 tapFileName)
       {
           // Procesamos el fichero
