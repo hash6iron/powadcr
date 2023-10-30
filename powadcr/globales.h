@@ -185,9 +185,9 @@ int MAX_SYNC = 19;
 int MIN_BIT0 = 1;
 int MAX_BIT0 = 31;
 int MIN_BIT1 = 32;
-int MAX_BIT1 = 65;
-int MIN_LEAD = 38;
-int MAX_LEAD = 60;
+int MAX_BIT1 = 48;
+int MIN_LEAD = 54;
+int MAX_LEAD = 62;
 int MAX_PULSES_LEAD = 255;
 
 bool SHOW_DATA_DEBUG = false;

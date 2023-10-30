@@ -1136,6 +1136,7 @@ class HMI
           PLAY = true;
           PAUSE = false;
           STOP = false;
+          ABORT = false;
         }
       
         if (strCmd.indexOf("REC") != -1) 
@@ -1144,6 +1145,8 @@ class HMI
           PAUSE = false;
           STOP = false;
           REC = true;
+          ABORT = false;
+
         }
 
         if (strCmd.indexOf("PAUSE") != -1) 
@@ -1151,6 +1154,7 @@ class HMI
           PLAY = false;
           PAUSE = true;
           STOP = false;
+          ABORT = false;
       
           LAST_MESSAGE = "Tape paused. Press play to continue load or select block.";
           updateInformationMainPage();
@@ -1180,6 +1184,8 @@ class HMI
           PLAY = false;
           PAUSE = false;
           STOP = true;
+          ABORT = false;
+          REC = false;
 
           BLOCK_SELECTED = 0;
           BYTES_LOADED = 0;
