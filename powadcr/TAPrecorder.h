@@ -31,6 +31,7 @@
     
     To Contact the dev team you can write to hash6iron@gmail.com
  +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
+ 
  #pragma once
 
 class TAPrecorder
@@ -703,8 +704,6 @@ class TAPrecorder
             // Regimen estacionario en LOW
             if (value==high)
             {
-              // Nos aseguramos que el pulso es un pulso y no ruido
-              // para eso exigimos que tenga al menos un mínimo de ancho
               detectState=2;
               zeroCrossing = true;
               //SerialHW.println("pw: " + String(samplesCrossing));                           
@@ -758,103 +757,13 @@ class TAPrecorder
         return zeroCrossing;    
       }
 
-      int16_t schmittDetector(int16_t value, int16_t thH, int16_t thL, bool reset)
-      {
-
-        int16_t switchStatus = lastSwitchStatus;
-        // Si hay un cambio, este no afecta hasta pasadas
-        // las responseSamples
-        const int responseSamples = 5;
-
-        if (reset)
-        {
-          detectStateSchmitt = 0;
-          switchStatus=0;
-        }
-
-        switch (detectStateSchmitt)
-        {
-          case 0:
-            // Estado inicial
-            nResponse=0;
-
-            if (value > thH)
-            {
-              // HIGH
-              detectStateSchmitt = 1;              
-            }
-            else if (value < thL)
-            {
-              // LOW
-              detectStateSchmitt = 2;              
-            }
-            else
-            {
-              detectStateSchmitt = 0;
-            }
-            break;
-
-          case 1:
-            // Estado en HIGH
-            if (value < thL)
-            {
-              if (nResponse>=responseSamples)
-              {
-                switchStatus = low;
-                detectStateSchmitt = 2;
-                nResponse=0;
-              }
-              else
-              {
-                nResponse++;
-              }
-            }
-            else if (value > thH)
-            {              
-              detectStateSchmitt = 1;
-              nResponse=0;
-            }
-            else
-            {
-              detectStateSchmitt = 1;
-            }
-            break;
-
-          case 2:
-            // Estado en LOW
-            if (value < thL)
-            {
-              detectStateSchmitt = 2;              
-            }
-            else if (value > thH)
-            {
-              if (nResponse>=responseSamples)
-              {
-                switchStatus = high;
-                detectStateSchmitt = 1;
-                nResponse=0;
-              }
-              else
-              {
-                nResponse++;
-              }
-            }
-            else
-            {
-              detectStateSchmitt = 2;
-              nResponse=0;
-            }            
-            break;
-        }
-        
-        lastSwitchStatus = switchStatus;
-        return switchStatus;
-      }
-
       // int16_t schmittDetector(int16_t value, int16_t thH, int16_t thL, bool reset)
       // {
 
       //   int16_t switchStatus = lastSwitchStatus;
+      //   // Si hay un cambio, este no afecta hasta pasadas
+      //   // las responseSamples
+      //   const int responseSamples = 5;
 
       //   if (reset)
       //   {
@@ -866,6 +775,8 @@ class TAPrecorder
       //   {
       //     case 0:
       //       // Estado inicial
+      //       nResponse=0;
+
       //       if (value > thH)
       //       {
       //         // HIGH
@@ -886,12 +797,21 @@ class TAPrecorder
       //       // Estado en HIGH
       //       if (value < thL)
       //       {
-      //         switchStatus = low;
-      //         detectStateSchmitt = 2;              
+      //         if (nResponse>=responseSamples)
+      //         {
+      //           switchStatus = low;
+      //           detectStateSchmitt = 2;
+      //           nResponse=0;
+      //         }
+      //         else
+      //         {
+      //           nResponse++;
+      //         }
       //       }
       //       else if (value > thH)
-      //       {
-      //         detectStateSchmitt = 1;              
+      //       {              
+      //         detectStateSchmitt = 1;
+      //         nResponse=0;
       //       }
       //       else
       //       {
@@ -907,20 +827,99 @@ class TAPrecorder
       //       }
       //       else if (value > thH)
       //       {
-      //         switchStatus = high;
-      //         detectStateSchmitt = 1;              
+      //         if (nResponse>=responseSamples)
+      //         {
+      //           switchStatus = high;
+      //           detectStateSchmitt = 1;
+      //           nResponse=0;
+      //         }
+      //         else
+      //         {
+      //           nResponse++;
+      //         }
       //       }
       //       else
       //       {
       //         detectStateSchmitt = 2;
+      //         nResponse=0;
       //       }            
       //       break;
-
       //   }
         
       //   lastSwitchStatus = switchStatus;
       //   return switchStatus;
       // }
+
+      int16_t schmittDetector(int16_t value, int16_t thH, int16_t thL, bool reset)
+      {
+
+        int16_t switchStatus = lastSwitchStatus;
+
+        if (reset)
+        {
+          detectStateSchmitt = 0;
+          switchStatus=0;
+        }
+
+        switch (detectStateSchmitt)
+        {
+          case 0:
+            // Estado inicial
+            if (value > thH)
+            {
+              // HIGH
+              detectStateSchmitt = 1;              
+            }
+            else if (value < thL)
+            {
+              // LOW
+              detectStateSchmitt = 2;              
+            }
+            else
+            {
+              detectStateSchmitt = 0;
+            }
+            break;
+
+          case 1:
+            // Estado en HIGH
+            if (value < thL)
+            {
+              switchStatus = low;
+              detectStateSchmitt = 2;              
+            }
+            else if (value > thH)
+            {
+              detectStateSchmitt = 1;              
+            }
+            else
+            {
+              detectStateSchmitt = 1;
+            }
+            break;
+
+          case 2:
+            // Estado en LOW
+            if (value < thL)
+            {
+              detectStateSchmitt = 2;              
+            }
+            else if (value > thH)
+            {
+              switchStatus = high;
+              detectStateSchmitt = 1;              
+            }
+            else
+            {
+              detectStateSchmitt = 2;
+            }            
+            break;
+
+        }
+        
+        lastSwitchStatus = switchStatus;
+        return switchStatus;
+      }
 
 
 

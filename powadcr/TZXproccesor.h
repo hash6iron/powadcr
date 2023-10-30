@@ -871,7 +871,7 @@ class TZXproccesor
           while (!endTZX && !forzeEnd)
           {
              
-              if (STOP==true)
+              if (ABORT==true)
               {
                   forzeEnd = true;
                   endWithErrors = true;
@@ -1309,7 +1309,7 @@ class TZXproccesor
             SerialHW.println("Size: " + String(_sizeTZX));
 
             // Esto lo hacemos para poder abortar
-            STOP=false;
+            ABORT=false;
 
             getBlockDescriptor(_mFile,_sizeTZX);
         }      
@@ -1583,20 +1583,6 @@ class TZXproccesor
                 
                 // Ahora lo voy actualizando a medida que van avanzando los bloques.
                 PROGRAM_NAME_2 = _myTZX.descriptor[BLOCK_SELECTED].name;
-                // SerialHW.println("");
-                // SerialHW.println("");
-                // SerialHW.println("");
-                // SerialHW.println("");
-                // SerialHW.println("++++++++++++++++++++++++++++++++++++++++++++");
-                // SerialHW.println("> BLOCK " + String(i));
-                // SerialHW.print("> ID ");
-                // SerialHW.print(_myTZX.descriptor[i].ID,HEX);
-                // SerialHW.print("> Offset: ");
-                // SerialHW.print(_myTZX.descriptor[i].offset,HEX);
-                // SerialHW.print("> Pause after block: ");
-                // SerialHW.print(_myTZX.descriptor[i].pauseAfterThisBlock,HEX);
-                // SerialHW.println("");
-                // SerialHW.println("");
 
                 if (_myTZX.descriptor[i].ID == 18)
                 {
@@ -1645,8 +1631,6 @@ class TZXproccesor
                       //Silent
                       zxp.silent = _myTZX.descriptor[i].pauseAfterThisBlock;        
 
-
-
                       //SYNC1
                       zxp.SYNC1 = _myTZX.descriptor[i].timming.sync_1;
                       //SYNC2
@@ -1663,12 +1647,6 @@ class TZXproccesor
                       LAST_NAME = _myTZX.descriptor[i].name;
                       LAST_SIZE = _myTZX.descriptor[i].size;
                       LAST_TYPE = _myTZX.descriptor[i].typeName;
-
-                      // SerialHW.println("");
-                      // SerialHW.println("");
-                      // SerialHW.println("Playing TZX");
-                      // SerialHW.println("+ Name: " + String(LAST_NAME));
-                      // SerialHW.println("+ Size: " + String(LAST_SIZE));
 
                       // Almacenmas el bloque en curso para un posible PAUSE
                       if (LOADING_STATE != 2) {
@@ -1830,7 +1808,7 @@ class TZXproccesor
               sendStatus(READY_ST, 1);
 
               // Liberamos el descriptor
-              free(_myTZX.descriptor);
+              //free(_myTZX.descriptor);
         }
         else
         {

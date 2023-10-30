@@ -111,12 +111,20 @@ void proccesingTAP(char* file_ch)
     //pTAP.set_SdFat32(sdf);
     pTAP.getInfoFileTAP(file_ch);
 
-    if (!FILE_CORRUPTED)
+    if (!FILE_CORRUPTED && !ABORT)
     {
       LAST_MESSAGE = "Press PLAY to enjoy!";
       delay(125);
       hmi.updateInformationMainPage();
       FILE_PREPARED = true;
+    }
+    else if (ABORT)
+    {
+      LAST_MESSAGE = "Aborting proccess.";
+      delay(125);
+      hmi.updateInformationMainPage();
+      FILE_PREPARED = false;      
+      ABORT=false;
     }
     else
     {
@@ -132,15 +140,26 @@ void proccesingTAP(char* file_ch)
 
 void proccesingTZX(char* file_ch)
 {
-    //pTZX.set_SdFat32(sdf);
     pTZX.getInfoFileTZX(file_ch);
 
-    LAST_MESSAGE = "Press PLAY to enjoy!";
-    delay(125);
-    hmi.updateInformationMainPage();
+    if (ABORT)
+    {
+      LAST_MESSAGE = "Aborting proccess.";
+      delay(125);
+      hmi.updateInformationMainPage();
+      FILE_PREPARED = false;      
+      ABORT=false;
+    }
+    else
+    {
+      LAST_MESSAGE = "Press PLAY to enjoy!";
+      delay(125);
+      hmi.updateInformationMainPage();
+      FILE_PREPARED = true;
+    }
 
     FILE_NOTIFIED = true;  
-    FILE_PREPARED = true;
+
 }
 
 void sendStatus(int action, int value) {
@@ -442,7 +461,7 @@ void stopRecording()
         else
         {
           // Errores encontrados en el proceso de grabación
-          LAST_MESSAGE = "Error in REC proccess. No file saved.";          
+          //LAST_MESSAGE = "Error in REC proccess. No file saved.";          
         }
       }
     }
@@ -734,6 +753,10 @@ void tapeControl()
           sendStatus(REC_ST, 0);
 
           // Reproducimos el fichero
+          LAST_MESSAGE = "Loading in progress. Please wait.";
+          hmi.updateInformationMainPage();
+          delay(125);
+
           if (TYPE_FILE_LOAD == "TAP")
           {
               getMemFree();
@@ -799,36 +822,16 @@ void tapeControl()
         //taprec.selectThreshold();
 
         // Iniciamos la grabación
-        if (!TEST_LINE_IN_OUT)
+        if (taprec.recording())
         {
-          if (taprec.recording())
-          {
-              // Ha finalizado la grabación de un bloque
-              //  
-              if (taprec.wasFileNotCreated || taprec.stopRecordingProccess)   
-              {
-                  stopRecording();
-                  setSTOP();
-              }
-          }          
-        }
-        else
-        {
-          if (!preparingTestInOut)
-          {
-            setAudioInOut();
-            LAST_MESSAGE = "Test line in and line out. Preparing";
-            hmi.updateInformationMainPage();
-            delay(2000);
-            LAST_MESSAGE = "Listening.";
-            hmi.updateInformationMainPage();          
-            preparingTestInOut=true;
-          }
-          else
-          {
-            taprec.testOutput();
-          }
-        }
+            // Ha finalizado la grabación de un bloque
+            //  
+            if (taprec.wasFileNotCreated || taprec.stopRecordingProccess)   
+            {
+                stopRecording();
+                setSTOP();
+            }
+        }          
       }
   }
   else

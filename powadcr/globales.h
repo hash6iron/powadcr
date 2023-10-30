@@ -180,15 +180,16 @@ int LAST_SCHMITT_THR = 0;
 bool EN_SCHMITT_CHANGE = false;
 
 // Pulses width
-int MIN_SYNC = 13;
+int MIN_SYNC = 6;
 int MAX_SYNC = 19;
 int MIN_BIT0 = 1;
-int MAX_BIT0 = 39;
-int MIN_BIT1 = 40;
+int MAX_BIT0 = 31;
+int MIN_BIT1 = 32;
 int MAX_BIT1 = 65;
-int MIN_LEAD = 50;
-int MAX_LEAD = 56;
-int MAX_PULSES_LEAD = 800;
+int MIN_LEAD = 38;
+int MAX_LEAD = 60;
+int MAX_PULSES_LEAD = 255;
+
 bool SHOW_DATA_DEBUG = false;
 // Seleccion del canal para grabación izquierdo. Por defecto es el derecho
 bool LEFT_MIC_CHANNEL = false;
@@ -270,6 +271,7 @@ bool LEFT = false;
 bool RIGHT = false;
 bool ENTER = false;
 bool LCD_ON = false;
+bool ABORT = false;
 
 //Estado de acciones de reproducción
 const int PLAY_ST = 0;

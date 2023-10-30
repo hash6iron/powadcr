@@ -1136,9 +1136,6 @@ class HMI
           PLAY = true;
           PAUSE = false;
           STOP = false;
-      
-          LAST_MESSAGE = "Loading in progress. Please wait.";
-          updateInformationMainPage();
         }
       
         if (strCmd.indexOf("REC") != -1) 
@@ -1198,7 +1195,11 @@ class HMI
           //getFilesFromSD();
         }
       
-      
+        if (strCmd.indexOf("ABORT") != -1) 
+        {
+            ABORT=true;
+        }
+
         if (strCmd.indexOf("VOL=") != -1) 
         {
           //Cogemos el valor
