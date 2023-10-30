@@ -10,6 +10,8 @@
       - Guillermo
       - Mario J
       - Pedro Pelaez
+      - Jose [Xosmar]
+      - Kike Martín
     
     Descripción:
     Programa principal del firmware del powadcr - Powa Digital Cassette Recording
@@ -531,7 +533,7 @@ void setup() {
   setSDFrequency(SD_Speed);
 
   // Forzamos a 26MHz
-  sdf.begin(ESP32kit.pinSpiCs(), SD_SCK_MHZ(26));
+  //sdf.begin(ESP32kit.pinSpiCs(), SD_SCK_MHZ(26));
 
   // Le pasamos al HMI el gestor de SD
   hmi.set_sdf(sdf);
