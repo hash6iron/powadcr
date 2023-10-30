@@ -55,8 +55,11 @@ class ZXProccesor
                                                               // segundos para 44.1HKz
     const float maxAmplitude = 32767.0;
     float m_amplitude = maxAmplitude; 
+
+    // Al poner 2 canales - Falla.
     const int channels = 1;  
-    
+    const float speakerOutPower = 0.002;
+
     public:
     // Parametrizado para el ZX Spectrum - Timming de la ROM
     float freqCPU = DfreqCPU;
@@ -94,9 +97,9 @@ class ZXProccesor
             *ptr++ = sample;
             if (chn>1)
             {
-              *ptr++ = sample;
+              *ptr++ = sample*speakerOutPower;
             }            
-            result+=2;
+            result+=2*chn;
         }
 
         return result;      
@@ -114,7 +117,7 @@ class ZXProccesor
             *ptr++ = sample;
             if (chn>1)
             {
-              *ptr++ = sample;
+              *ptr++ = sample*speakerOutPower;
             }
             result+=2*chn;
         }
@@ -160,7 +163,7 @@ class ZXProccesor
     
             if (chn>1)
             {
-              *ptr++ = sample;
+              *ptr++ = sample*speakerOutPower;
             }
             result +=2*chn;
         }
@@ -174,7 +177,7 @@ class ZXProccesor
 
             if (chn>1)
             {
-              *ptr++ = sample;
+              *ptr++ = sample*speakerOutPower;
             }
             result +=2*chn;
         }
@@ -208,7 +211,7 @@ class ZXProccesor
             
             if (chn>1)
             {
-              *ptr++ = sample;
+              *ptr++ = sample*speakerOutPower;
             }
             result+=2*chn;
         }

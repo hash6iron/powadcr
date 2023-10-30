@@ -385,11 +385,11 @@ class TAPproccesor
               tmpRng = sdm.readFileRange32(_mFile,startBlock,sizeB-1,false);
               chk = calculateChecksum(tmpRng,0,sizeB-1);
 
-              if (tmpRng!=NULL)
-              {
-                  free(tmpRng);
-                  tmpRng=NULL;
-              }
+              // if (tmpRng!=NULL)
+              // {
+              //     free(tmpRng);
+              //     tmpRng=NULL;
+              // }
                            
               blockChk = sdm.readFileRange32(_mFile,startBlock+sizeB-1,1,false)[0];
           
@@ -499,11 +499,11 @@ class TAPproccesor
 
               //tBlockDescriptor* bDscr = (tBlockDescriptor*)ps_calloc(numBlks,sizeof(tBlockDescriptor));
               
-              if (_myTAP.descriptor != NULL)
-              {
-                  free(_myTAP.descriptor);
-                  _myTAP.descriptor = NULL;
-              }
+              // if (_myTAP.descriptor != NULL)
+              // {
+              //     free(_myTAP.descriptor);
+              //     _myTAP.descriptor = NULL;
+              // }
 
               _myTAP.descriptor = (tBlockDescriptor*)ps_calloc(numBlks+1,sizeof(tBlockDescriptor));
               // Guardamos el numero total de bloques
@@ -553,11 +553,11 @@ class TAPproccesor
                   tmpRng = sdm.readFileRange32(_mFile,startBlock,sizeB-1,false);
                   chk = calculateChecksum(tmpRng,0,sizeB-1);
 
-                  if (tmpRng!=NULL)
-                  {
-                      free(tmpRng);
-                      tmpRng=NULL;
-                  }
+                  // if (tmpRng!=NULL)
+                  // {
+                  //     free(tmpRng);
+                  //     tmpRng=NULL;
+                  // }
 
                   //SerialHW.println("MARK CHK: ");
                   
@@ -1169,12 +1169,11 @@ class TAPproccesor
                 if (_myTAP.descriptor[i].type == 0) {
                   
                   // CABECERAS
-                  if(bufferPlay!=NULL)
-                  {
-                      free(bufferPlay);
-                      bufferPlay=NULL;
-
-                  }
+                  // if(bufferPlay!=NULL)
+                  // {
+                  //     free(bufferPlay);
+                  //     bufferPlay=NULL;
+                  // }
 
                   bufferPlay = (byte*)ps_calloc(_myTAP.descriptor[i].size, sizeof(byte));
                   bufferPlay = sdm.readFileRange32(_mFile, _myTAP.descriptor[i].offset, _myTAP.descriptor[i].size, false);
@@ -1186,11 +1185,11 @@ class TAPproccesor
                 } else if (_myTAP.descriptor[i].type == 1 || _myTAP.descriptor[i].type == 7) {
                   
                   // CABECERAS
-                  if(bufferPlay!=NULL)
-                  {
-                      free(bufferPlay);
-                      bufferPlay=NULL;
-                  }      
+                  // if(bufferPlay!=NULL)
+                  // {
+                  //     free(bufferPlay);
+                  //     bufferPlay=NULL;
+                  // }      
 
                   bufferPlay = (byte*)ps_calloc(_myTAP.descriptor[i].size, sizeof(byte));
                   bufferPlay = sdm.readFileRange32(_mFile, _myTAP.descriptor[i].offset, _myTAP.descriptor[i].size, false);
@@ -1217,11 +1216,11 @@ class TAPproccesor
                         blockPlaySize = bl1;
                         offsetPlay = _myTAP.descriptor[i].offset;
 
-                        if(bufferPlay!=NULL)
-                        {
-                            free(bufferPlay);
-                            bufferPlay=NULL;
-                        }
+                        // if(bufferPlay!=NULL)
+                        // {
+                        //     free(bufferPlay);
+                        //     bufferPlay=NULL;
+                        // }
 
                         bufferPlay = (byte*)ps_calloc(blockPlaySize, sizeof(byte));
 
@@ -1233,11 +1232,11 @@ class TAPproccesor
                         blockPlaySize = bl2;
                         offsetPlay = offsetPlay + bl1;
 
-                        if(bufferPlay!=NULL)
-                        {
-                            free(bufferPlay);
-                            bufferPlay=NULL;
-                        }
+                        // if(bufferPlay!=NULL)
+                        // {
+                        //     free(bufferPlay);
+                        //     bufferPlay=NULL;
+                        // }
 
                         bufferPlay = (byte*)ps_calloc(blockPlaySize, sizeof(byte));
                         bufferPlay = sdm.readFileRange32(_mFile, offsetPlay, blockPlaySize, true);
@@ -1248,11 +1247,11 @@ class TAPproccesor
                   } else {
                     // En el caso de NO USAR SPLIT o el bloque es menor de 20K
 
-                    if(bufferPlay!=NULL)
-                    {
-                        free(bufferPlay);
-                        bufferPlay=NULL;
-                    }
+                    // if(bufferPlay!=NULL)
+                    // {
+                    //     free(bufferPlay);
+                    //     bufferPlay=NULL;
+                    // }
 
                     bufferPlay = (byte*)ps_calloc(_myTAP.descriptor[i].size, sizeof(byte));
                     bufferPlay = sdm.readFileRange32(_mFile, _myTAP.descriptor[i].offset, _myTAP.descriptor[i].size, false);
@@ -1291,11 +1290,11 @@ class TAPproccesor
               }
               
               // Liberamos el TAP descriptor
-              if(_myTAP.descriptor!=NULL)
-              {
-                free(_myTAP.descriptor);
-                _myTAP.descriptor=NULL;
-              }              
+              // if(_myTAP.descriptor!=NULL)
+              // {
+              //   free(_myTAP.descriptor);
+              //   _myTAP.descriptor=NULL;
+              // }              
 
               // Limpiamos el buffer del puerto serie
               SerialHW.flush();
