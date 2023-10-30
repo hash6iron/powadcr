@@ -1,17 +1,23 @@
-/* +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+/*++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     Nombre: powadcr.ino
     
     Creado por:
-      Copyright (c) Antonio Tamairón. 2023  / https://github.com/hash6iron/powadcr
-      @hash6iron / https://powagames.itch.io/
+      Copyright (c) Antonio Tamairón. 2023 [@hash6iron]
+      https://github.com/hash6iron/powadcr
+      https://powagames.itch.io/
 
-    Colaboradores en el proyecto:
-      - Fernando Mosquera
-      - Guillermo
-      - Mario J
-      - Pedro Pelaez
+    Agradecimientos:
+      - Kike Martín [kyv]
       - Jose [Xosmar]
-      - Kike Martín
+      - Mario J
+      - Isra
+      - Fernando Mosquera
+      - Victor [Eremus]
+      - Juan Antonio Rubio
+      - Guillermo
+      - Pedro Pelaez
+      - Carlos Palmero [shaeon]
+    
     
     Descripción:
     Programa principal del firmware del powadcr - Powa Digital Cassette Recording
@@ -20,8 +26,7 @@
 
     Historico de versiones
     v.0.1 - Version de pruebas. En desarrollo
-    v.1.0.0 - Primera versión optimizada, comentada y preparada con el procesador de TAP y generador de señal de audio.
-    v.1.0.1 - Mejorada la rutina de inicializado de SD Card. Cambios relativos a las nuevas clases generadas. Corregido bug con el modo TEST
+    
 
     Configuración en ARDUINO IDE
     ----------------------------
@@ -47,7 +52,25 @@
     
     To Contact the dev team you can write to hash6iron@gmail.com
 
- +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
+*%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+*%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%@%%%%%%%%%%%%%%%%
+*%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%@,@&%%%%%%%%%%%%%%%%
+*%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%@,,,&%%%%%%%%%%%%%%%%%%
+*%%%%%%%%%%%%%%%%%%%%&%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%@,,,@&%%%%%%%%%%%%%%%%%%%
+*%%%%%%%%%%%%%%%%%%%%&%&%%%%********#*************#*@,,,,,@&%%%%%%%%%%%%%%%%%%%%
+*%%%%%%%%%%%%%%%%%%%%@@%%%%%**@@@@@@@@@@@@@@@@@@@@@,,,,,,,@%%%%%%%%%%%%%%%%%%%%%
+*%%%%%%%%%%%%%%%%%%%%&%&%%%%**@@@@@@%%%&@@@@@@@@%%%@@@,,,,,,,@%%%%%%%%%%%%%%%%%%
+*%%%%%%%%%%%%%%%%%%%%&&&%%%%**@@@@%%%,,%%%@@@@%%,,,%%%@#,,,,,,&%%%%%%%%%%%%%%%%%
+*%%%%%%%%%%%%%%%%%%%%& &%%%%**#@@@%%%,,%%%@@@@%%%,,%%&@,,,,,&&%%%%%%%%%%%%%%%%%%
+*%%%%%%%%%%%%%%%%%%%%  &%%%%**//##%%%%%%%%%%%%%%%%%%%@,,,,#&%%%%%%%%%%%%%%%%%%%%
+*%%%%%%%%%%%%%(@%&#@%  %%%%%**(((/##@@@@@@@@@@@@@@@@@,,,@@*%%%%%%%%%%%%%%%%%%%%%
+*%%%%%%%%%%%%%@(@@(@%  %%%%%***********************@,,@(***%%%%%%%%%%%%%%%%%%%%%
+*%%%%%%%%%%%%%(@%%@@%&%&%%%%%%%%%%%%%%%%%%%%%%%%%%%,@&%%%%%%%%%%%%%%%%%%%%%%%%%%
+*%%%%%%%%%%%%%(%&(@@%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%@&%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+*%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+*%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+ +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
 
 // Librerias (mantener este orden)
 //   -- En esta se encuentran las variables globales a todo el proyecto
