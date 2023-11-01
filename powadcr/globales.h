@@ -192,8 +192,8 @@ int MAX_PULSES_LEAD = 255;
 
 bool SHOW_DATA_DEBUG = false;
 // Seleccion del canal para grabación izquierdo. Por defecto es el derecho
-bool LEFT_MIC_CHANNEL = false;
-bool LEFT_EAR_CHANNEL = false;
+bool SWAP_MIC_CHANNEL = false;
+bool SWAP_EAR_CHANNEL = false;
 //
 String RECORDING_DIR = "/REC";
 
@@ -286,6 +286,8 @@ const int RESET = 6;
 int MAIN_VOL = 95;
 int LAST_MAIN_VOL = 95;
 int MAX_MAIN_VOL = 100;
+int EN_MUTE = 0;
+int EN_MUTE_2 = 0;
 bool wasHeadphoneDetected = false;
 bool wasHeadphoneAmpDetected = false;
 bool preparingTestInOut = false;

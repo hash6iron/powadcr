@@ -1257,6 +1257,20 @@ class HMI
           SerialHW.println("Threshold enable=" + String(EN_SCHMITT_CHANGE));
         }
 
+        // Enable Schmitt Trigger threshold adjust
+        if (strCmd.indexOf("MUT=") != -1) 
+        {
+          //Cogemos el valor
+          byte buff[8];
+          strCmd.getBytes(buff, 7);
+          int valEn = (int)buff[4];
+          //
+          EN_MUTE = valEn;
+
+          SerialHW.println("Mute enable=" + String(EN_MUTE));
+        }
+
+
         // Enable MIC left channel - Option
         if (strCmd.indexOf("EMI=") != -1) 
         {
@@ -1267,13 +1281,32 @@ class HMI
           //
           if (valEn==1)
           {
-              LEFT_MIC_CHANNEL = true;
+              SWAP_MIC_CHANNEL = true;
           }
           else
           {
-              LEFT_MIC_CHANNEL = false;
+              SWAP_MIC_CHANNEL = false;
           }
-          SerialHW.println("Threshold enable=" + String(EN_SCHMITT_CHANGE));
+          SerialHW.println("MIC LEFT enable=" + String(SWAP_MIC_CHANNEL));
+        }
+
+        // Enable MIC left channel - Option
+        if (strCmd.indexOf("EAR=") != -1) 
+        {
+          //Cogemos el valor
+          byte buff[8];
+          strCmd.getBytes(buff, 7);
+          int valEn = (int)buff[4];
+          //
+          if (valEn==1)
+          {
+              SWAP_EAR_CHANNEL = true;
+          }
+          else
+          {
+              SWAP_EAR_CHANNEL = false;
+          }
+          SerialHW.println("EAR LEFT enable=" + String(SWAP_EAR_CHANNEL));
         }
 
         // Show data debug by serial console

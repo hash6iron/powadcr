@@ -56,8 +56,8 @@ class ZXProccesor
     const float maxAmplitude = 32767.0;
     float m_amplitude = maxAmplitude; 
 
-    // Al poner 2 canales - Falla.
-    const int channels = 1;  
+    // Al poner 2 canales - Falla. Solucionar
+    const int channels = 2;  
     const float speakerOutPower = 0.002;
 
     public:
@@ -93,12 +93,23 @@ class ZXProccesor
         for (int j=0;j<(samples/2);j++)
         {
             int16_t sample = (m_amplitude/2);
-            //int16_t sample = 0;
-            *ptr++ = sample;
-            if (chn>1)
+
+            if (!SWAP_EAR_CHANNEL)
             {
-              *ptr++ = sample*speakerOutPower;
-            }            
+              //L-OUT
+              *ptr++ = sample * (1-EN_MUTE);
+              //R-OUT
+              *ptr++ = sample*speakerOutPower * (EN_MUTE) * (1-EN_MUTE_2);
+            }
+            else
+            {
+              //R-OUT
+              *ptr++ = sample*speakerOutPower * (EN_MUTE) * (1-EN_MUTE_2);
+              //L-OUT
+              *ptr++ = sample * (1-EN_MUTE);
+            }
+
+
             result+=2*chn;
         }
 
@@ -114,11 +125,23 @@ class ZXProccesor
         for (int j=0;j<bytes/(2*chn);j++){
 
             int16_t sample = 0;
-            *ptr++ = sample;
-            if (chn>1)
+
+            if (!SWAP_EAR_CHANNEL)
             {
-              *ptr++ = sample*speakerOutPower;
+              //L-OUT
+              *ptr++ = sample * (1-EN_MUTE);
+              //R-OUT
+              *ptr++ = sample * EN_MUTE;
             }
+            else
+            {
+              //R-OUT
+              *ptr++ = sample * EN_MUTE;
+              //L-OUT
+              *ptr++ = sample * (1-EN_MUTE);
+            }
+
+
             result+=2*chn;
         }
 
@@ -158,27 +181,46 @@ class ZXProccesor
             }
 
             int16_t sample = m_amplitude;
-    
-            *ptr++ = sample;
-    
-            if (chn>1)
+
+            if (!SWAP_EAR_CHANNEL)
             {
-              *ptr++ = sample*speakerOutPower;
+              //L-OUT
+              *ptr++ = sample * (1-EN_MUTE);
+              //R-OUT
+              *ptr++ = sample * EN_MUTE;
             }
+            else
+            {
+              //R-OUT
+              *ptr++ = sample * EN_MUTE;
+              //L-OUT
+              *ptr++ = sample * (1-EN_MUTE);
+            }
+
             result +=2*chn;
         }
 
         // Pulso bajo (la otra mitad)
         for (int j=bytes/(4*chn);j<bytes/(2*chn);j++){
             
-            int16_t sample = 0;
-            
-            *ptr++ = sample;
+            int16_t sample = 0;          
 
-            if (chn>1)
+            if (!SWAP_EAR_CHANNEL)
             {
-              *ptr++ = sample*speakerOutPower;
+              //L-OUT
+              *ptr++ = sample * (1-EN_MUTE);
+              //R-OUT
+              *ptr++ = sample* EN_MUTE;
             }
+            else
+            {
+              //R-OUT
+              *ptr++ = sample* EN_MUTE;
+              //L-OUT
+              *ptr++ = sample * (1-EN_MUTE);
+            }
+
+
             result +=2*chn;
         }
 
@@ -206,13 +248,23 @@ class ZXProccesor
             {
                 sample = (m_amplitude/2) + (m_amplitude/4);
             }
-            
-            *ptr++ = sample;
-            
-            if (chn>1)
+                       
+            if (!SWAP_EAR_CHANNEL)
             {
-              *ptr++ = sample*speakerOutPower;
+              //L-OUT
+              *ptr++ = sample * (1-EN_MUTE);
+              //R-OUT
+              *ptr++ = sample* EN_MUTE;
             }
+            else
+            {
+              //R-OUT
+              *ptr++ = sample* EN_MUTE;
+              //L-OUT
+              *ptr++ = sample * (1-EN_MUTE);
+            }
+
+
             result+=2*chn;
         }
 
@@ -227,7 +279,7 @@ class ZXProccesor
         float Tsr = (1.0 / samplingRate);
         int bytes = int(round((1.0 / ((freq / 4.0))) / Tsr));
 
-        uint8_t buffer[bytes+2];
+        uint8_t buffer[bytes*channels];
 
         for (int m=0;m < 1;m++)
         {
@@ -244,7 +296,7 @@ class ZXProccesor
         float Tsr = (1.0 / samplingRate);
         int bytes = int(round((1.0 / ((freq / 4.0))) / Tsr));
 
-        uint8_t buffer[bytes];
+        uint8_t buffer[bytes*channels];
 
 
         for (int m=0;m < numPulses;m++)
@@ -262,7 +314,7 @@ class ZXProccesor
 
         float Tsr = (1.0 / samplingRate);
         int bytes = int(round((1.0 / ((freq / 4.0))) / Tsr));
-        uint8_t buffer[bytes];
+        uint8_t buffer[bytes*channels];
 
         m_kit.write(buffer, createWave(buffer, bytes));
                 
@@ -288,7 +340,7 @@ class ZXProccesor
         int bytes = int((1.0 / ((freq / 4.0))) / Tsr);
         int numPulses = 4 * int(duration / (bytes*Tsr));
 
-        uint8_t buffer[bytes];      
+        uint8_t buffer[bytes*channels];      
 
         for (int m=0;m < numPulses;m++)
         {
@@ -330,8 +382,8 @@ class ZXProccesor
         int bufferSize = 2048;
         // Calculamos cuantos bloques tenemos que concatenar. Si el valor de
         // samples es menor, saldrá 0
-        int frames = samples / bufferSize;
-        int delta = abs(samples - (bufferSize * frames));
+        int frames = samples / (bufferSize * channels);
+        int delta = abs(samples - (bufferSize * frames * channels));
 
         // Si es cero, entonces el buffer será igual de grande que el 
         // numero de samples a rellenar para formar la onda
@@ -355,7 +407,7 @@ class ZXProccesor
             }
   
             // Aplicamos la reserva de buffer
-            uint8_t buffer[bufferSize]; 
+            uint8_t buffer[bufferSize*channels]; 
             m_kit.write(buffer, silenceWave(buffer, bufferSize));
         }
     }

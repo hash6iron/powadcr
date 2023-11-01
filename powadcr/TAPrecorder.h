@@ -429,10 +429,10 @@ class TAPrecorder
       {
         if (!nameFileRead)
         {
-          if (fileNameRename != NULL)
-          {
-            free(fileNameRename);
-          }
+          // if (fileNameRename != NULL)
+          // {
+          //   free(fileNameRename);
+          // }
 
           // Proporcionamos espacio en memoria para el
           // nuevo filename
@@ -977,7 +977,7 @@ class TAPrecorder
             }
 
             // Elección del canal de escucha
-            if (!LEFT_MIC_CHANNEL)
+            if (SWAP_MIC_CHANNEL)
             {
               finalValue = schmittDetector(oneValue,threshold_high,threshold_low,false);              
             }
@@ -1564,27 +1564,37 @@ class TAPrecorder
       void terminate(bool removeFile)
       {
           
-          // if (buffer != NULL)
-          // {free(buffer);}
+           if (bufferRec != NULL)
+           {free(bufferRec);}
 
-          // SerialHW.println("");
-          // SerialHW.println("Ok free - buffer.");
-          // SerialHW.println("");          
+           SerialHW.println("");
+           SerialHW.println("Ok free - buffer.");
+           SerialHW.println("");          
           
-          // if (datablock != NULL)
-          // {free(datablock);}
+           if (datablock != NULL)
+           {free(datablock);}
 
-          // SerialHW.println("");
-          // SerialHW.println("Ok free - datablock.");
-          // SerialHW.println("");          
+           SerialHW.println("");
+           SerialHW.println("Ok free - datablock.");
+           SerialHW.println("");          
 
 
-          // if (bitChStr != NULL)
-          // {free(bitChStr);}
+           if (bitChStr != NULL)
+           {free(bitChStr);}
 
-          // SerialHW.println("");
-          // SerialHW.println("Ok free - bitChSrt.");
-          // SerialHW.println("");               
+           SerialHW.println("");
+           SerialHW.println("Ok free - bitChSrt.");
+           SerialHW.println("");               
+
+          if (fileNameRename != NULL)
+          {
+            free(fileNameRename);
+          }
+
+           SerialHW.println("");
+           SerialHW.println("Ok free - fileNameRename.");
+           SerialHW.println("");               
+
 
           if (!wasFileNotCreated)
           {

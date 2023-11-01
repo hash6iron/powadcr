@@ -113,6 +113,8 @@ TAPproccesor pTAP(ESP32kit);
 #include "TAPrecorder.h"
 TAPrecorder taprec;
 
+bool last_headPhoneDetection = false;
+
 void proccesingTAP(char* file_ch)
 {
     //pTAP.set_SdFat32(sdf);
@@ -869,24 +871,24 @@ void Task0code( void * pvParameters )
       // Control por botones
       //buttonsControl();
       //delay(50);
-      // if (headPhoneDetection && !wasHeadphoneDetected)
-      // {
-      //     // Ponemos el volumen al 95%
-      //     MAIN_VOL = 95;
-      //     wasHeadphoneDetected = true;
-      //     wasHeadphoneAmpDetected = false;
-      //     SerialHW.println("");
-      //     SerialHW.println("Volumen at 95%");
-      // }
-      // else if (!headPhoneDetection && !wasHeadphoneAmpDetected)
-      // {
-      //     // Bajamos el volumen al 40%
-      //     MAIN_VOL = 40;
-      //     wasHeadphoneDetected = false;
-      //     wasHeadphoneAmpDetected = true;
-      //     SerialHW.println("");
-      //     SerialHW.println("Volumen at 40%");
-      // }
+      bool headphoneDetected = headPhoneDetection();
+      if (headphoneDetected != last_headPhoneDetection)
+      {
+          if (headphoneDetected)
+          {
+            last_headPhoneDetection = true;
+            //EN_MUTE_2 = 0;
+            SerialHW.println("");
+            SerialHW.println("Headphone detected.");
+          }
+          else
+          {
+            last_headPhoneDetection = false;
+            //EN_MUTE_2 = 1;
+            SerialHW.println("");
+            SerialHW.println("Headphone unpluged.");
+          }
+      }
   }
 }
 
