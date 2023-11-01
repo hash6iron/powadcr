@@ -980,17 +980,15 @@ class TAPrecorder
             }
 
             // Elección del canal de escucha
-            // if (SWAP_MIC_CHANNEL)
-            // {
-            //   finalValue = schmittDetector(oneValue,threshold_high,threshold_low,false);              
-            // }
-            // else
-            // {
-
-            // Cogemos el canal LEFT
-            finalValue = schmittDetector(oneValue2,threshold_high,threshold_low,false);              
-
-            // }
+            if (SWAP_MIC_CHANNEL)
+            {
+              finalValue = schmittDetector(oneValue,threshold_high,threshold_low,false);              
+            }
+            else
+            {
+              // Cogemos el canal LEFT
+              finalValue = schmittDetector(oneValue2,threshold_high,threshold_low,false);              
+            }
 
             if (true)
             {
@@ -1622,6 +1620,7 @@ class TAPrecorder
                 }          
 
                 _mFile.close();
+                delay(125);
 
                 SerialHW.println("");
                 SerialHW.println("File closed and saved.");
@@ -1630,6 +1629,7 @@ class TAPrecorder
               else
               {
                 _mFile.close();
+                delay(125);
                 _mFile.remove();
 
               SerialHW.println("");
@@ -1641,6 +1641,7 @@ class TAPrecorder
           else
           {
             _mFile.close();
+            delay(125);
           }
           wasRenamed = false;
           nameFileRead = false;
