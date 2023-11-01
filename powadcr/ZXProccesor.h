@@ -350,12 +350,12 @@ class ZXProccesor
                 if (STOP==true)
                 {
                     LOADING_STATE = 2; // Parada del bloque actual
-                    break;
+                    return;
                 }
                 else if (PAUSE==true)
                 {
                     LOADING_STATE = 2; // Parada del bloque actual
-                    break;
+                    return;
                 }
             }
 
@@ -522,11 +522,13 @@ class ZXProccesor
                         {
                             LOADING_STATE = 2; // Parada del bloque actual
                             i=size;
+                            return;
                         }
                         else if (PAUSE==true)
                         {
                             LOADING_STATE = 2; // Parada del bloque actual
                             i=size;
+                            return;
                         }
 
                     }
