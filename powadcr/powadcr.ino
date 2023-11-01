@@ -871,24 +871,24 @@ void Task0code( void * pvParameters )
       // Control por botones
       //buttonsControl();
       //delay(50);
-      bool headphoneDetected = headPhoneDetection();
-      if (headphoneDetected != last_headPhoneDetection)
-      {
-          if (headphoneDetected)
-          {
-            last_headPhoneDetection = true;
-            //EN_MUTE_2 = 0;
-            SerialHW.println("");
-            SerialHW.println("Headphone detected.");
-          }
-          else
-          {
-            last_headPhoneDetection = false;
-            //EN_MUTE_2 = 1;
-            SerialHW.println("");
-            SerialHW.println("Headphone unpluged.");
-          }
-      }
+      // bool headphoneDetected = headPhoneDetection();
+      // if (headphoneDetected != last_headPhoneDetection)
+      // {
+      //     if (headphoneDetected)
+      //     {
+      //       last_headPhoneDetection = true;
+      //       //EN_MUTE_2 = 0;
+      //       SerialHW.println("");
+      //       SerialHW.println("Headphone detected.");
+      //     }
+      //     else
+      //     {
+      //       last_headPhoneDetection = false;
+      //       //EN_MUTE_2 = 1;
+      //       SerialHW.println("");
+      //       SerialHW.println("Headphone unpluged.");
+      //     }
+      // }
   }
 }
 

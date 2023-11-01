@@ -317,17 +317,17 @@ class TZXproccesor
         // Cogemos el checksum del bloque
         byte chk = getBYTE(mFile,offset+size-1);
 
-         SerialHW.println("");
-         SerialHW.println("Original checksum:");
-         SerialHW.print(chk,HEX);
+        //  SerialHW.println("");
+        //  SerialHW.println("Original checksum:");
+        //  SerialHW.print(chk,HEX);
 
         byte* block = getBlock(mFile,offset,size-1);
         byte calcChk = calculateChecksum(block,0,size-1);
 
-         SerialHW.println("");
-         SerialHW.println("Calculated checksum:");
-         SerialHW.print(calcChk,HEX);
-         SerialHW.println("");
+        //  SerialHW.println("");
+        //  SerialHW.println("Calculated checksum:");
+        //  SerialHW.print(calcChk,HEX);
+        //  SerialHW.println("");
 
         if (chk == calcChk)
         {
@@ -372,9 +372,9 @@ class TZXproccesor
         _myTZX.descriptor[currentBlock].playeable = true;
         _myTZX.descriptor[currentBlock].offset = currentOffset;
 
-        SerialHW.println("");
-        SerialHW.println("Offset begin: ");
-        SerialHW.print(currentOffset,HEX);
+        // SerialHW.println("");
+        // SerialHW.println("Offset begin: ");
+        // SerialHW.print(currentOffset,HEX);
 
         //SYNC1
         // zxp.SYNC1 = DSYNC1;
