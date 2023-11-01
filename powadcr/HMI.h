@@ -1215,6 +1215,8 @@ class HMI
           MAIN_VOL = valVol;
           
           // Ajustamos el volumen
+          SerialHW.println("Main volume value=" + String(MAIN_VOL));
+
           //ESP32kit.setVolume(MAIN_VOL);
           //ESP32kit.maxAmplitude = 
           //_zxp.set_amplitude(MAIN_VOL * 32767 / 100);

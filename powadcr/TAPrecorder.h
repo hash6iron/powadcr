@@ -65,9 +65,9 @@ class TAPrecorder
       uint8_t* bufferRec;
 
       // Test Line in/out
-      const int BUFFER_SIZE_IN_OUT = 1024;
-      uint8_t bufferIn[1024];
-      uint8_t bufferOut[1024];
+      // const int BUFFER_SIZE_IN_OUT = 1024;
+      // uint8_t bufferIn[1024];
+      // uint8_t bufferOut[1024];
 
       // Comunes
       char* fileName;
@@ -158,9 +158,12 @@ class TAPrecorder
       // Contador de bloques
       int bl = 0;
 
-      // Umbral para rechazo de ruido
-      int threshold_high = 20000; 
-      int threshold_low = -20000; 
+      // Umbral para rechazo de ruido al 20%
+      const int defaultThH = 6554;
+      const int defaultThL = -6554;
+      //
+      int threshold_high = defaultThH; 
+      int threshold_low = defaultThL; 
       //
       int totalSamplesToTest = 0;
       int countNoiseSamples = 0;
@@ -170,8 +173,8 @@ class TAPrecorder
 
 
       // Para los clásicos
-      //int threshold_high = 6000; 
-      //int threshold_low = -6000;       
+      //int threshold_high = defaultThH; 
+      //int threshold_low = defaultThL;       
       //
 
       // LOAD routine
@@ -971,9 +974,9 @@ class TAPrecorder
             }
             else
             {
-              // Fijamos threshold en 18%
-              threshold_high = 6000;
-              threshold_low = -6000;
+              // Fijamos threshold en 20%
+              threshold_high = defaultThH;
+              threshold_low = defaultThL;
             }
 
             // Elección del canal de escucha
@@ -1382,8 +1385,8 @@ class TAPrecorder
         }
         else
         {
-          threshold_high = 6000;
-          threshold_low = -6000; 
+          threshold_high = defaultThH;
+          threshold_low = defaultThL; 
         }
       }
 
@@ -1415,53 +1418,53 @@ class TAPrecorder
           }
       }
 
-      void testOutput()
-      {
+      // void testOutput()
+      // {
           
-          size_t len = _kit.read(bufferIn, BUFFER_SIZE_IN_OUT);
-          //SerialHW.println("BufferIn len: " + String(len));
+      //     size_t len = _kit.read(bufferIn, BUFFER_SIZE_IN_OUT);
+      //     //SerialHW.println("BufferIn len: " + String(len));
 
 
-          int16_t *value_ptr = (int16_t*)bufferIn;
-          int16_t *ptrOut = (int16_t*)bufferOut;
-          int16_t oneValue = *value_ptr++;
-          int16_t oneValue2 = *value_ptr++;
+      //     int16_t *value_ptr = (int16_t*)bufferIn;
+      //     int16_t *ptrOut = (int16_t*)bufferOut;
+      //     int16_t oneValue = *value_ptr++;
+      //     int16_t oneValue2 = *value_ptr++;
          
-          int16_t sample = 0;
-          int16_t sample2 = 0;
+      //     int16_t sample = 0;
+      //     int16_t sample2 = 0;
 
-          for (int j=0;j<len/4;j++)
-          {
-            // Leemos el siguiente valor del buffer canal R
-            oneValue = *value_ptr++;
-            // Leemos el siguiente valor del buffer canal L
-            oneValue2 = *value_ptr++; 
-            // Almacenamos en el buffer de salida
-            sample = schmittDetector(oneValue,6000,-6000,false);
+      //     for (int j=0;j<len/4;j++)
+      //     {
+      //       // Leemos el siguiente valor del buffer canal R
+      //       oneValue = *value_ptr++;
+      //       // Leemos el siguiente valor del buffer canal L
+      //       oneValue2 = *value_ptr++; 
+      //       // Almacenamos en el buffer de salida
+      //       sample = schmittDetector(oneValue,defaultThH,defaultThL,false);
 
-            if (detectZeroCrossing(sample))
-            {
-              if (sample > 6000)
-              {
-                sample2 = 32767;
-              }
-              else if (sample < -6000)
-              {
-                sample2 = -32768;
-              }
-              else
-              {
-                sample2 = 0;
-              }
-            }
+      //       if (detectZeroCrossing(sample))
+      //       {
+      //         if (sample > defaultThH)
+      //         {
+      //           sample2 = 32767;
+      //         }
+      //         else if (sample < defaultThL)
+      //         {
+      //           sample2 = -32768;
+      //         }
+      //         else
+      //         {
+      //           sample2 = 0;
+      //         }
+      //       }
 
-            *ptrOut++=sample2;
-            *ptrOut++=oneValue2;
-          }
-          // Sacamos el buffer procesado
-          _kit.write(bufferOut, len);                     
+      //       *ptrOut++=sample2;
+      //       *ptrOut++=oneValue2;
+      //     }
+      //     // Sacamos el buffer procesado
+      //     _kit.write(bufferOut, len);                     
 
-      }
+      // }
 
       void prepareHMI()
       {
