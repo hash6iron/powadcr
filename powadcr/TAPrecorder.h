@@ -980,14 +980,17 @@ class TAPrecorder
             }
 
             // Elección del canal de escucha
-            if (SWAP_MIC_CHANNEL)
-            {
-              finalValue = schmittDetector(oneValue,threshold_high,threshold_low,false);              
-            }
-            else
-            {
-              finalValue = schmittDetector(oneValue2,threshold_high,threshold_low,false);              
-            }
+            // if (SWAP_MIC_CHANNEL)
+            // {
+            //   finalValue = schmittDetector(oneValue,threshold_high,threshold_low,false);              
+            // }
+            // else
+            // {
+
+            // Cogemos el canal LEFT
+            finalValue = schmittDetector(oneValue2,threshold_high,threshold_low,false);              
+
+            // }
 
             if (true)
             {
@@ -1232,8 +1235,6 @@ class TAPrecorder
                           }
 
                           
-
-                          
                           // Mostramos información de la cabecera
                           proccesByteData();   
 
@@ -1322,18 +1323,17 @@ class TAPrecorder
                   state = 0;
                   byteCount = 0;      
                   bytesXlinea = 0;
-                  
+                  checksum = 0; 
+                  bitCount = 0;
+                  bitString = "";
+
                   // Hay que reiniciar para el disparador de Schmitt
                   detectStateSchmitt=0;                                         
                   // Reiniciamos el detector de paso por cero
                   detectState=0;
                   samplesCrossing = 0;
-                  
                   // Otros que inicializamos
                   pulseWidth = 0;
-                  checksum = 0; 
-                  bitCount = 0;
-                  bitString = "";
                 }
             }
             else
@@ -1567,36 +1567,44 @@ class TAPrecorder
       void terminate(bool removeFile)
       {
           
-           if (bufferRec != NULL)
-           {free(bufferRec);}
+          //  if (bufferRec != NULL)
+          //  {free(bufferRec);}
 
-           SerialHW.println("");
-           SerialHW.println("Ok free - buffer.");
-           SerialHW.println("");          
+          //  SerialHW.println("");
+          //  SerialHW.println("Ok free - buffer.");
+          //  SerialHW.println("");          
           
-           if (datablock != NULL)
-           {free(datablock);}
+          //  if (datablock != NULL)
+          //  {free(datablock);}
 
-           SerialHW.println("");
-           SerialHW.println("Ok free - datablock.");
-           SerialHW.println("");          
+          //  SerialHW.println("");
+          //  SerialHW.println("Ok free - datablock.");
+          //  SerialHW.println("");          
 
 
-           if (bitChStr != NULL)
-           {free(bitChStr);}
+          //  if (bitChStr != NULL)
+          //  {free(bitChStr);}
 
-           SerialHW.println("");
-           SerialHW.println("Ok free - bitChSrt.");
-           SerialHW.println("");               
+          //  SerialHW.println("");
+          //  SerialHW.println("Ok free - bitChSrt.");
+          //  SerialHW.println("");               
 
-          if (fileNameRename != NULL)
-          {
-            free(fileNameRename);
-          }
+          // if (fileNameRename != NULL)
+          // {
+          //   free(fileNameRename);
+          // }
 
-           SerialHW.println("");
-           SerialHW.println("Ok free - fileNameRename.");
-           SerialHW.println("");               
+          //  SerialHW.println("");
+          //  SerialHW.println("Ok free - fileNameRename.");
+          //  SerialHW.println("");               
+
+          // Hay que reiniciar para el disparador de Schmitt
+          detectStateSchmitt=0;                                         
+          // Reiniciamos el detector de paso por cero
+          detectState=0;
+          samplesCrossing = 0;
+          // Otros que inicializamos
+          pulseWidth = 0;
 
 
           if (!wasFileNotCreated)
