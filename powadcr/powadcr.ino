@@ -123,14 +123,12 @@ void proccesingTAP(char* file_ch)
     if (!FILE_CORRUPTED && !ABORT)
     {
       LAST_MESSAGE = "Press PLAY to enjoy!";
-      delay(125);
       hmi.updateInformationMainPage();
       FILE_PREPARED = true;
     }
     else if (ABORT)
     {
       LAST_MESSAGE = "Aborting proccess.";
-      delay(125);
       hmi.updateInformationMainPage();
       FILE_PREPARED = false;      
       ABORT=false;
@@ -138,7 +136,6 @@ void proccesingTAP(char* file_ch)
     else
     {
       LAST_MESSAGE = "ERROR! Selected file is CORRUPTED.";
-      delay(125);
       hmi.updateInformationMainPage();
       FILE_PREPARED = false;
     }
@@ -154,7 +151,6 @@ void proccesingTZX(char* file_ch)
     if (ABORT)
     {
       LAST_MESSAGE = "Aborting proccess.";
-      delay(125);
       hmi.updateInformationMainPage();
       FILE_PREPARED = false;      
       ABORT=false;
@@ -162,7 +158,6 @@ void proccesingTZX(char* file_ch)
     else
     {
       LAST_MESSAGE = "Press PLAY to enjoy!";
-      delay(125);
       hmi.updateInformationMainPage();
       FILE_PREPARED = true;
     }
@@ -434,46 +429,56 @@ void stopRecording()
     //Paramos la animación
     hmi.writeString("tape.tmAnimation.en=0");    
     
-    //
+    //Configuramos ya en modo reproductor.
     setAudioOutput();
 
-    if (!taprec.errorInDataRecording && taprec.errorsCountInRec==0)
+    // Verificamos cual fue el motivo de la parada
+    if (!taprec.errorInDataRecording && !taprec.wasFileNotCreated)
     {
-      taprec.terminate(false);
-
-      SerialHW.println("");
-      SerialHW.println("End REC proccess. File saved.");
-
-      LAST_MESSAGE = "Recording STOP. File succesfully saved.";
-
-    }
-    else
-    {
-      // Paramos la grabación
-      // Borramos el fichero generado
-      taprec.terminate(true);
+      // La grabación fue parada pero no hubo errores
+      // entonces salvamos el fichero sin borrarlo
       
-      SerialHW.println("");
-      SerialHW.println("Error in REC proccess. No file saved.");
+      // SerialHW.println("");
+      // SerialHW.println("Total block transfered: " + String(taprec.totalBlockTransfered));
 
-      if (taprec.wasFileNotCreated)
+      // No quitar esto, permite leer la variable totalBlockTransfered
+      int tbt = taprec.totalBlockTransfered;
+      
+      if (tbt != 0)
       {
-        // Si no se crea el fichero no se puede seguir grabando
-        LAST_MESSAGE = "Error in filesystem or SD.";
+        taprec.terminate(false);
+        LAST_MESSAGE = "Recording STOP. File succesfully saved.";
+        hmi.updateInformationMainPage();
+        delay(1000);
       }
       else
       {
-        if (!taprec.errorInDataRecording)
-        {
-          // Recording STOP
-          LAST_MESSAGE = "Recording STOP. No file saved.";          
-        }
-        else
-        {
-          // Errores encontrados en el proceso de grabación
-          //LAST_MESSAGE = "Error in REC proccess. No file saved.";          
-        }
+        taprec.terminate(true);
+        LAST_MESSAGE = "Recording STOP. No file saved";
+        hmi.updateInformationMainPage();      
+        delay(1000);
       }
+    }
+    else if (taprec.errorInDataRecording)
+    {
+      // La grabación fue parada porque hubo errores
+      // entonces NO salvamos el fichero, lo borramos
+      // Recording STOP
+      //
+      taprec.terminate(true);
+      LAST_MESSAGE = "Recording STOP. No file saved."; 
+      // Actualizamos la pantalla
+      hmi.updateInformationMainPage();      
+      delay(1000);
+    }
+    else if (taprec.wasFileNotCreated)
+    {
+        // Si no se crea el fichero no se puede seguir grabando
+        taprec.terminate(false);
+        LAST_MESSAGE = "Error in filesystem or SD.";
+        // Actualizamos la pantalla
+        hmi.updateInformationMainPage();        
+        delay(1000);
     }
 
     // Inicializamos variables de control
@@ -481,15 +486,11 @@ void stopRecording()
     REC = false;
 
     // Actualizamos mensaje en HMI
-    taprec.prepareHMI();
-    // Actualizamos la pantalla
-    hmi.updateInformationMainPage();
+    //taprec.prepareHMI();
 
     SerialHW.println("");        
     SerialHW.println("Recording procces finish.");
     SerialHW.println("");    
-
-
 
 }
 
@@ -660,14 +661,25 @@ void setSTOP()
   PAUSE = false;
   REC = false;
 
+  BLOCK_SELECTED = 0;
+
+  LAST_MESSAGE = "Tape stop.";
+  hmi.updateInformationMainPage();
+  
+  SerialHW.println("");
+  SerialHW.println("Tape stop.");
+
+  hmi.writeString("currentBlock.val=1");
+  hmi.writeString("progressTotal.val=0");
+  hmi.writeString("progression.val=0");
+  
   sendStatus(STOP_ST, 0);
   sendStatus(PLAY_ST, 0);
   sendStatus(PAUSE_ST, 0);
-  sendStatus(READY_ST, 1);
-  sendStatus(END_ST, 0);
   sendStatus(REC_ST, 0);  
 
-  hmi.updateInformationMainPage();
+  sendStatus(END_ST, 1);
+  sendStatus(READY_ST, 1);
 }
 
 void tapeControl()
@@ -682,12 +694,19 @@ void tapeControl()
 
       if (STOP && (LOADING_STATE != 0 || REC)) 
       {
+        
         LOADING_STATE = 0;
-        BLOCK_SELECTED = 0;
 
+        SerialHW.println("");
+        SerialHW.println("STOPPPPP!!!!");
+        
         if (REC)
         {
           stopRecording();
+
+          SerialHW.println("");
+          SerialHW.println("STOP 1 - REC");
+
         }
         else
         {
@@ -705,6 +724,7 @@ void tapeControl()
         }
 
         setSTOP();
+
 
       }
 
@@ -765,7 +785,6 @@ void tapeControl()
           // Reproducimos el fichero
           LAST_MESSAGE = "Loading in progress. Please wait.";
           hmi.updateInformationMainPage();
-          delay(125);
 
           if (TYPE_FILE_LOAD == "TAP")
           {
@@ -809,39 +828,57 @@ void tapeControl()
           // Inicializamos audio input
           setAudioInput();
           taprec.set_kit(ESP32kit);
-          taprec.initialize();          
-          waitingRecMessageShown = true;
-          getMemFree();
+          
+          taprec.initialize(); 
 
-          // Por si había algo abierto. Lo cerramos
-          // if (TYPE_FILE_LOAD == "TAP")
-          // {
-          //     getMemFree();
-          //     pTAP.initialize();
-          // }
-          // else if (TYPE_FILE_LOAD = "TZX")
-          // {
-          //     getMemFree();
-          //     pTZX.initialize();
-          // }
-          LAST_MESSAGE = "Recorder ready. Play source data.";
-          hmi.updateInformationMainPage();           
+          if (!taprec.createTempTAPfile())
+          {
+            LAST_MESSAGE = "Recorder not prepared.";
+            hmi.updateInformationMainPage();
+            waitingRecMessageShown = false;
+          }
+          else
+          {
+            waitingRecMessageShown = true;
+
+            //writeString("");
+            hmi.writeString("currentBlock.val=1");
+            //writeString("");
+            hmi.writeString("progressTotal.val=0");
+            //writeString("");
+            hmi.writeString("progression.val=0");
+          }
+          
+          getMemFree();
+           
+        }
+        else
+        {
+            // Iniciamos la grabación
+            if (taprec.recording())
+            {
+                // Ha finalizado la grabación de un bloque
+                // ahora estudiamos la causa
+                if (taprec.stopRecordingProccess)   
+                {
+                    // Hay tres casos
+                    // - El fichero para grabar el TAP no fue creado
+                    // - La grabación fue parada pero fue correcta (no hay errores)
+                    // - La grabación fue parada pero fue incorrecta (hay errores)
+                    SerialHW.println("");
+                    SerialHW.println("STOP 2 - REC");
+
+                    stopRecording();
+                    setSTOP();
+                    //waitingRecMessageShown = false;
+                }
+            }            
         }
          
 
         //taprec.selectThreshold();
 
-        // Iniciamos la grabación
-        if (taprec.recording())
-        {
-            // Ha finalizado la grabación de un bloque
-            //  
-            if (taprec.wasFileNotCreated || taprec.stopRecordingProccess)   
-            {
-                stopRecording();
-                setSTOP();
-            }
-        }          
+        
       }
   }
   else

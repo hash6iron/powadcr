@@ -1168,15 +1168,6 @@ class HMI
 
           BLOCK_SELECTED = 0;
           BYTES_LOADED = 0;
-      
-          LAST_MESSAGE = "Tape stop. Press play to start again.";
-          //writeString("");
-          writeString("currentBlock.val=1");
-          //writeString("");
-          writeString("progressTotal.val=0");
-          //writeString("");
-          writeString("progression.val=0");
-          updateInformationMainPage();
         }
       
         if (strCmd.indexOf("EJECT") != -1) 

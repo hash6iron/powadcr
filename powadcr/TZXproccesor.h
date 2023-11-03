@@ -1542,8 +1542,8 @@ class TZXproccesor
 
     void terminate()
     {
-      free(_myTZX.descriptor);
-      _myTZX.descriptor = NULL;
+      // free(_myTZX.descriptor);
+      // _myTZX.descriptor = NULL;
     }
 
     void play()
@@ -1663,9 +1663,11 @@ class TZXproccesor
                       //Paramos la reproducción.
                       if (LOADING_STATE == 2) {
                         PAUSE = false;
-                        STOP = false;
+                        STOP = true;
                         PLAY = false;
-                        LOADING_STATE = 0;
+                        //LOADING_STATE = 0;
+                        SerialHW.println("");
+                        SerialHW.println("LOADING_STATE 2");                        
                         break;
                       }
 

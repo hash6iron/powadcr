@@ -39,15 +39,16 @@ class TAPrecorder
 
     public:
 
-      bool recordingFinish = false;
-      bool errorInDataRecording = true;
-      int errorsCountInRec = 0;
+      bool errorInDataRecording = false;
+      bool wasFileNotCreated = false;
+      bool stopRecordingProccess = false;
+      //int errorsCountInRec = 0;
+
       bool wasRenamed = false;
       bool nameFileRead = false;
       bool notAudioInNotified = false;
       bool wasSelectedThreshold = false;
-      bool wasFileNotCreated = true;
-      bool stopRecordingProccess = false;
+      int totalBlockTransfered = 0;
       
       
     private:
@@ -185,6 +186,7 @@ class TAPrecorder
       int statusEdgeOnDetection = 0;
       int statusEdgeOffDetection = 0;
       int saveStatus = 0;
+
       // Timming
       unsigned long startTime = 0;
       float timeBuffer = 0;
@@ -231,6 +233,9 @@ class TAPrecorder
       // Notifications
       bool noSignalWasNotified = false;
       bool guideDetectionWasNotified = false;
+
+      // Info block
+      int headState = 0;
 
       struct tPulse
       {
@@ -471,22 +476,10 @@ class TAPrecorder
 
         if (byteCount !=0)
         {
-            if (byteCount >= 19)
-            { 
-              SerialHW.println("");
-              SerialHW.println("Block data was recorded successful");
-              SerialHW.println("");
-              SerialHW.println("Total bytes: " + String(byteCount));
-              SerialHW.println("");
-
-              // Inicializamos para el siguiente bloque
-              header.blockSize = 19;
-            }
-
 
             // Si es una cabecera. Cogemos el tamaño del bloque data a
             // salvar.
-            if (byteCount == 19)
+            if (byteCount == 19 && headState==0)
             {                         
                 // BLOQUE CABECERA
 
@@ -525,15 +518,21 @@ class TAPrecorder
                 SerialHW.println("Block size: " + String(size) + " bytes");
                 SerialHW.println("");
                 SerialHW.println("");
+
+                headState = 1;
             }
-            else if (byteCount > 19)
+            else if (byteCount != 0 && headState==1)
             {
                 // BLOQUE DATA
 
                 // Guardamos ahora en fichero
-                recordingFinish = true;
                 errorInDataRecording = false;
                 waitingHead = true;
+                stopRecordingProccess = false;
+
+                // Inicializamos para el siguiente bloque
+                header.blockSize = 19;  
+                headState = 0;              
                 
             }
             else
@@ -543,13 +542,28 @@ class TAPrecorder
                 SerialHW.println("");
 
                 // Marcamos el error de cabecera
-                recordingFinish = true;
                 errorInDataRecording = true;
-                waitingHead = true;              
+                stopRecordingProccess = true;
+                waitingHead = true;
+
+                // Inicializamos para el siguiente bloque
+                headState = 0;
+                header.blockSize = 19;                
             }
+
+            SerialHW.println("");
+            SerialHW.println("Block data ------------------------");
+            SerialHW.println("");
+            SerialHW.println("Total bytes: " + String(byteCount));
+            SerialHW.println("");
 
             //LAST_SIZE = header.blockSize;  
             //_hmi.updateInformationMainPage();
+        }
+        else
+        {
+          SerialHW.println("");
+          SerialHW.println("Unknow error in proccess info block");
         }  
       }
 
@@ -957,6 +971,12 @@ class TAPrecorder
         int maxBit1 = MAX_BIT1;//65;
         //
   
+        if (!WasfirstStepInTheRecordingProccess)
+        {
+          LAST_MESSAGE = "Recorder ready. Play source data.";
+          _hmi.updateInformationMainPage(); 
+          WasfirstStepInTheRecordingProccess=true;         
+        }
 
         for (int j=0;j<len/4;j++)
         {  
@@ -1254,16 +1274,24 @@ class TAPrecorder
                     //SerialHW.println("Pulse width: " + String(pulseWidth));
                 }
 
-                // Hay silencio, pero ¿Es silencio despues de bloque?
+                // ***********************************************************
+                //
+                //        Hay silencio, entonces ha finalizado un bloque.
+                //
+                // ***********************************************************
+
                 if (isSilence == true)
                 {
-                  // Si lo es. Reiniciamos los marcadores
+                  // Si lo es. Reiniciamos el flag de silencio
                   isSilence = false;
 
                   //
                   // Fin de bloque
                   //
-                  if (checksum == 0 && byteCount !=0)
+
+                  int blkSize = header.blockSize;
+                  
+                  if (checksum==0 && byteCount==blkSize)
                   {
                     // Si el checksum final es 0, y contiene datos
                     // El bloque es correcto.
@@ -1276,7 +1304,7 @@ class TAPrecorder
                     SerialHW.println("Block capture correctly.");
 
                     // Informamos de los bytes salvados
-                    LAST_SIZE = header.blockSize; 
+                    LAST_SIZE = blkSize; 
                     // Informamos del bloque en curso
                     BLOCK_SELECTED = blockCount;
 
@@ -1286,9 +1314,9 @@ class TAPrecorder
                     _hmi.updateInformationMainPage(); 
 
                     // Incrementamos un bloque  
-                    blockCount++;                             
+                    blockCount++;      
                   } 
-                  else if (byteCount !=0 && checksum !=0)
+                  else if ((byteCount!=0 && byteCount!=blkSize && checksum !=0) || (byteCount==blkSize && checksum !=0))
                   {
                     SerialHW.println("");
                     SerialHW.println("Corrupted data detected. Error.");
@@ -1297,18 +1325,71 @@ class TAPrecorder
                     LAST_MESSAGE = "Error. Corrupted data.";
                     // Actualizamos el HMI.
                     _hmi.updateInformationMainPage();
+                    delay(1000);
 
-                    // Aplicamos FLAGs de error.
-                    errorInDataRecording = true;
+                    // Reiniciamos todo
+                    state = 0;
+                    byteCount = 0;      
+                    bytesXlinea = 0;
+                    checksum = 0; 
+                    bitCount = 0;
+                    bitString = "";
+                    // Cero bloques capturados correctos
                     blockCount = 0;
-                    errorsCountInRec++;
+                    waitingHead = true;
+                    totalBlockTransfered = 0;
+
+                    // Hay que reiniciar para el disparador de Schmitt
+                    detectStateSchmitt=0;                                         
+                    // Reiniciamos el detector de paso por cero
+                    detectState=0;
+                    samplesCrossing = 0;
+                    // Otros que inicializamos
+                    pulseWidth = 0;
                     
                     // Forzamos a parar. No seguimos.
+                    // ------------------------------
+                    errorInDataRecording = true;
                     stopRecordingProccess = true;
-                    recordingFinish = true;                
+                    //
+                    // Finalizamos
+                    return;
                   } 
                   else
-                  {}
+                  {
+                    // Reiniciamos todo
+                    state = 0;
+                    byteCount = 0;      
+                    bytesXlinea = 0;
+                    checksum = 0; 
+                    bitCount = 0;
+                    bitString = "";
+                    // Cero bloques capturados correctos
+                    blockCount = 0;
+                    totalBlockTransfered = 0;
+                    waitingHead = true;
+
+                    // Hay que reiniciar para el disparador de Schmitt
+                    detectStateSchmitt=0;                                         
+                    // Reiniciamos el detector de paso por cero
+                    detectState=0;
+                    samplesCrossing = 0;
+                    // Otros que inicializamos
+                    pulseWidth = 0;
+                    
+                    // Forzamos a parar. No seguimos.
+                    // ------------------------------
+                    errorInDataRecording = true;
+                    stopRecordingProccess = true;
+
+                    LAST_MESSAGE = "Unknow  error.";
+                    // Actualizamos el HMI.
+                    _hmi.updateInformationMainPage();  
+                    delay(1000);
+
+                    // Finalizamos
+                    return;                  
+                  }
 
                   SerialHW.println("");
                   SerialHW.println("Bytes transfered: " + String(byteCount));
@@ -1317,13 +1398,21 @@ class TAPrecorder
                   // Hacemos una pausa para estabilizar buffer
                   delay(25);
                   
+                  // --------------------------------------------------------
+                  //
+                  // TODO OK - Continuamos con mas bloques si no hay STOP
+                  // --------------------------------------------------------
                   // Comenzamos otra vez
+                  // --------------------------------------------------------
                   state = 0;
                   byteCount = 0;      
                   bytesXlinea = 0;
                   checksum = 0; 
                   bitCount = 0;
                   bitString = "";
+
+                  // Guardamos los bloques transferidos
+                  totalBlockTransfered = blockCount;
 
                   // Hay que reiniciar para el disparador de Schmitt
                   detectStateSchmitt=0;                                         
@@ -1404,7 +1493,7 @@ class TAPrecorder
           readBuffer(len);
         
           // Despreciamos ahora algunas muestras para trabajar el buffer
-          if (recordingFinish || wasFileNotCreated || stopRecordingProccess)
+          if (stopRecordingProccess)
           {
             // Paramos el recorder
             return true;
@@ -1493,41 +1582,14 @@ class TAPrecorder
         String dirR = RECORDING_DIR + "/\0";
         recDir = strcpy(recDir, dirR.c_str());
         
-
         if (!_sdf32.mkdir(RECORDING_DIR))
         {
           SerialHW.println("Error. Recording dir wasn't create or exist.");
         }
 
-        // if (!_sdf32.chdir(RECORDING_DIR))
-        // {
-        //   SerialHW.println("Error. It's not possible to open .REC dir. Using root dir");
-        // }
-
         // Se crea un nuevo fichero temporal con la ruta del REC
         strcat(recDir, fileName);
         SerialHW.println("Dir for REC: " + String(recDir));
-
-        if (!_mFile.open(recDir, O_WRITE | O_CREAT | O_TRUNC)) 
-        {
-          if (!_mFile.open(recDir, O_WRITE | O_CREAT)) 
-          {
-            SerialHW.println("File for REC failed!");
-            wasFileNotCreated = true;
-          }
-          else
-          {
-            SerialHW.println("File for REC prepared.");
-            wasFileNotCreated = false;
-          }          
-        }
-        else
-        {
-          SerialHW.println("File for REC prepared.");
-          wasFileNotCreated = false;
-        }
-
-
 
         // Inicializo bit string
         bitChStr = (char*)ps_calloc(8, sizeof(char));
@@ -1542,13 +1604,11 @@ class TAPrecorder
         bufferRec = (uint8_t*)ps_calloc(BUFFER_SIZE_REC,sizeof(uint8_t));
         initializeBuffer();
 
-        recordingFinish = false;
-        // Suponemos que hay error
-        errorInDataRecording = true;
-        errorsCountInRec = 0;
+        errorInDataRecording = false;
         nameFileRead = false;
         wasRenamed = false;
         blockCount = 0;
+        waitingHead = true;
         wasSelectedThreshold = false;
         stabilizationPhaseFinish = false;
         countStabilizationSteps=0;        
@@ -1558,88 +1618,90 @@ class TAPrecorder
         samplesCrossing = 0;
         pulseWidth = 0;      
         stopRecordingProccess = false; 
+        //
+        headState = 0;
+      }
 
-        //free(dirR);
+      bool createTempTAPfile()
+      {
+        if (!_mFile.open(recDir, O_WRITE | O_CREAT | O_TRUNC)) 
+        {
+          if (!_mFile.isOpen())
+          {
+            // Pruebo otra vez. Pero con otros parámetros
+            if (!_mFile.open(recDir, O_WRITE | O_CREAT)) 
+            {
+              // El fichero no fue creado. Entonces no está abierto
+              SerialHW.println("Error in file for REC.");
+              wasFileNotCreated = true;
+              stopRecordingProccess = true;
+              return false;
+            }
+            else
+            {
+              // El fichero fue creado. Entonces está abierto
+              SerialHW.println("File for REC prepared.");
+              wasFileNotCreated = false;
+              stopRecordingProccess = false;
+              return true;
+            }             
+          }
+          else
+          {
+            // ESTE CASO ES RARO y NO DEBERÍA DARSE NUNCA
+            // pero lo controlamos por si acaso.
+
+            // El fichero fue creado. Entonces está abierto
+            SerialHW.println("File for REC prepared.");
+            wasFileNotCreated = false;            
+            stopRecordingProccess = false;
+            return true;
+          }  
+        }
+        else
+        {
+          // El fichero fue creado. Entonces está abierto
+          SerialHW.println("File for REC prepared.");
+          wasFileNotCreated = false;
+          stopRecordingProccess = false;
+          return true;
+        }        
       }
 
       void terminate(bool removeFile)
       {
           
-          //  if (bufferRec != NULL)
-          //  {free(bufferRec);}
-
-          //  SerialHW.println("");
-          //  SerialHW.println("Ok free - buffer.");
-          //  SerialHW.println("");          
-          
-          //  if (datablock != NULL)
-          //  {free(datablock);}
-
-          //  SerialHW.println("");
-          //  SerialHW.println("Ok free - datablock.");
-          //  SerialHW.println("");          
-
-
-          //  if (bitChStr != NULL)
-          //  {free(bitChStr);}
-
-          //  SerialHW.println("");
-          //  SerialHW.println("Ok free - bitChSrt.");
-          //  SerialHW.println("");               
-
-          // if (fileNameRename != NULL)
-          // {
-          //   free(fileNameRename);
-          // }
-
-          //  SerialHW.println("");
-          //  SerialHW.println("Ok free - fileNameRename.");
-          //  SerialHW.println("");               
-
-          // Hay que reiniciar para el disparador de Schmitt
-          detectStateSchmitt=0;                                         
-          // Reiniciamos el detector de paso por cero
-          detectState=0;
-          samplesCrossing = 0;
-          // Otros que inicializamos
-          pulseWidth = 0;
-
-
           if (!wasFileNotCreated)
           {
+              // El fichero inicialmente fue creado con exito
+              // en la SD, pero ...
               if (!removeFile)
               {
-                
+                // Finalmente se graba el contenido  
                 if (_mFile.isOpen())
                 {
-                  renameFile();
-
-                  SerialHW.println("");
-                  SerialHW.println("File rename.");
-                  SerialHW.println("");              
+                  // Lo renombramos con el nombre del BASIC
+                  renameFile();         
                 }          
 
+                // Lo cerramos
                 _mFile.close();
                 delay(125);
 
-                SerialHW.println("");
-                SerialHW.println("File closed and saved.");
-                SerialHW.println("");     
               }
               else
               {
+                // SE ELIMINA
+                // No se renombra porque es erroneo
                 _mFile.close();
                 delay(125);
+                // Se elimina
                 _mFile.remove();
-
-              SerialHW.println("");
-              SerialHW.println("File closed and removed.");
-              SerialHW.println("");          
-
               }
           }
           else
           {
+            // El fichero no fue creado
             _mFile.close();
             delay(125);
           }
@@ -1649,6 +1711,21 @@ class TAPrecorder
           _hmi.writeString("progression.val=0");     
           _hmi.updateInformationMainPage();     
           
+          // Reiniciamos flags
+          // Hay que reiniciar para el disparador de Schmitt
+          detectStateSchmitt=0;                                         
+          // Reiniciamos el detector de paso por cero
+          detectState=0;
+          samplesCrossing = 0;
+          // Otros que inicializamos
+          pulseWidth = 0;
+
+          // Para el mensaje de READY listening
+          WasfirstStepInTheRecordingProccess = false;
+          // Reiniciamos flags de recording errors
+          errorInDataRecording = false;
+          stopRecordingProccess = false;
+          wasFileNotCreated = true;
       }
 
       TAPrecorder()
