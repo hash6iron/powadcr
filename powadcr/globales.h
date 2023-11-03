@@ -257,6 +257,7 @@ bool FILE_BROWSER_SEARCHING = false;
 bool FILE_CORRUPTED = false;
 String FILE_TXT_TO_SEARCH = "";
 bool waitingRecMessageShown = false;
+bool WasfirstStepInTheRecordingProccess = false;
 
 // Variables de control de la reproducción
 bool PLAY = false;

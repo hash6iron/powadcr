@@ -1154,7 +1154,7 @@ class HMI
           PLAY = false;
           PAUSE = true;
           STOP = false;
-          ABORT = false;
+          ABORT = true;
       
           LAST_MESSAGE = "Tape paused. Press play to continue load or select block.";
           updateInformationMainPage();
@@ -1165,18 +1165,10 @@ class HMI
           PLAY = false;
           PAUSE = false;
           STOP = true;
+          ABORT = true;
 
           BLOCK_SELECTED = 0;
           BYTES_LOADED = 0;
-      
-          LAST_MESSAGE = "Tape stop. Press play to start again.";
-          //writeString("");
-          writeString("currentBlock.val=1");
-          //writeString("");
-          writeString("progressTotal.val=0");
-          //writeString("");
-          writeString("progression.val=0");
-          updateInformationMainPage();
         }
       
         if (strCmd.indexOf("EJECT") != -1) 

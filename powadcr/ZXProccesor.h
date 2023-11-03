@@ -278,8 +278,9 @@ class ZXProccesor
         // Tsr = 1 / samplingRate
         float Tsr = (1.0 / samplingRate);
         int bytes = int(round((1.0 / ((freq / 4.0))) / Tsr));
+        int chn = channels;
 
-        uint8_t buffer[bytes*channels];
+        uint8_t buffer[bytes*chn];
 
         for (int m=0;m < 1;m++)
         {
@@ -295,8 +296,9 @@ class ZXProccesor
         // Tsr = 1 / samplingRate
         float Tsr = (1.0 / samplingRate);
         int bytes = int(round((1.0 / ((freq / 4.0))) / Tsr));
+        int chn = channels;
 
-        uint8_t buffer[bytes*channels];
+        uint8_t buffer[bytes*chn];
 
 
         for (int m=0;m < numPulses;m++)
@@ -314,7 +316,9 @@ class ZXProccesor
 
         float Tsr = (1.0 / samplingRate);
         int bytes = int(round((1.0 / ((freq / 4.0))) / Tsr));
-        uint8_t buffer[bytes*channels];
+        int chn = channels;
+
+        uint8_t buffer[bytes*chn];
 
         m_kit.write(buffer, createWave(buffer, bytes));
                 
@@ -323,10 +327,12 @@ class ZXProccesor
             if (STOP==true)
             {
                 LOADING_STATE = 2; // Parada del bloque actual
+                return;
             }
             else if (PAUSE==true)
             {
                 LOADING_STATE = 2; // Parada del bloque actual
+                return;
             }
         }
     }
@@ -339,8 +345,9 @@ class ZXProccesor
         float Tsr = (1.0 / samplingRate);
         int bytes = int((1.0 / ((freq / 4.0))) / Tsr);
         int numPulses = 4 * int(duration / (bytes*Tsr));
+        int chn = channels;
 
-        uint8_t buffer[bytes*channels];      
+        uint8_t buffer[bytes*chn];      
 
         for (int m=0;m < numPulses;m++)
         {
@@ -377,13 +384,16 @@ class ZXProccesor
         float Td = 4*(duration / 1000);
         float Tsr = (1.0 / samplingRate);
         int samples = int(Td / Tsr);
+        int chn = channels;
 
-        // Inicializamos con un tamaño de bloque de 1024 muestras cada vez
-        int bufferSize = 2048;
+        // Inicializamos con un tamaño de bloque de 256 muestras cada vez
+        // NOTA: Si esto es muy grande PETA EL ESP32
+        int bufferSize = 256;
+
         // Calculamos cuantos bloques tenemos que concatenar. Si el valor de
         // samples es menor, saldrá 0
-        int frames = samples / (bufferSize * channels);
-        int delta = abs(samples - (bufferSize * frames * channels));
+        int frames = samples / (bufferSize * chn);
+        int delta = abs(samples - (bufferSize * frames * chn));
 
         // Si es cero, entonces el buffer será igual de grande que el 
         // numero de samples a rellenar para formar la onda
@@ -407,7 +417,7 @@ class ZXProccesor
             }
   
             // Aplicamos la reserva de buffer
-            uint8_t buffer[bufferSize*channels]; 
+            uint8_t buffer[bufferSize*chn]; 
             m_kit.write(buffer, silenceWave(buffer, bufferSize));
         }
     }
@@ -619,22 +629,38 @@ class ZXProccesor
 
         void playData(byte* bBlock, int lenBlock, int pulse_pilot_duration)
         {
-
             float duration = tState * pulse_pilot_duration;
 
             // Put now code block
             // syncronize with short leader tone
             pilotTone(duration);
 
+            if (LOADING_STATE == 2)
+            {return;}
+
             // syncronization for end short leader tone
             syncTone(SYNC1,1);
+
+            if (LOADING_STATE == 2)
+            {return;}
+
             syncTone(SYNC2,0);
+
+            if (LOADING_STATE == 2)
+            {return;}
 
             // Send data
             sendDataArray(bBlock, lenBlock);
+
+            if (LOADING_STATE == 2)
+            {return;}
                         
             // Silent tone
             silence(silent);
+
+            if (LOADING_STATE == 2)
+            {return;}
+
         }
 
         void playDataBegin(byte* bBlock, int lenBlock, int pulse_pilot_duration)

@@ -1315,47 +1315,47 @@ class TZXproccesor
         }      
     }
 
-    void sendStatus(int action, int value) 
-    {
+    // void sendStatus(int action, int value) 
+    // {
 
-        switch (action) {
-          case PLAY_ST:
-            //_hmi.writeString("");
-            _hmi.writeString("PLAYst.val=" + String(value));
-            break;
+    //     switch (action) {
+    //       case PLAY_ST:
+    //         //_hmi.writeString("");
+    //         _hmi.writeString("PLAYst.val=" + String(value));
+    //         break;
 
-          case STOP_ST:
-            //_hmi.writeString("");
-            _hmi.writeString("STOPst.val=" + String(value));
-            break;
+    //       case STOP_ST:
+    //         //_hmi.writeString("");
+    //         _hmi.writeString("STOPst.val=" + String(value));
+    //         break;
 
-          case PAUSE_ST:
-            //_hmi.writeString("");
-            _hmi.writeString("PAUSEst.val=" + String(value));
-            break;
+    //       case PAUSE_ST:
+    //         //_hmi.writeString("");
+    //         _hmi.writeString("PAUSEst.val=" + String(value));
+    //         break;
 
-          case END_ST:
-            //_hmi.writeString("");
-            _hmi.writeString("ENDst.val=" + String(value));
-            break;
+    //       case END_ST:
+    //         //_hmi.writeString("");
+    //         _hmi.writeString("ENDst.val=" + String(value));
+    //         break;
 
-          case READY_ST:
-            //_hmi.writeString("");
-            _hmi.writeString("READYst.val=" + String(value));
-            break;
+    //       case READY_ST:
+    //         //_hmi.writeString("");
+    //         _hmi.writeString("READYst.val=" + String(value));
+    //         break;
 
-          case ACK_LCD:
-            //_hmi.writeString("");
-            _hmi.writeString("tape.LCDACK.val=" + String(value));
-            //_hmi.writeString("");
-            _hmi.writeString("statusLCD.txt=\"READY. PRESS SCREEN\"");
-            break;
+    //       case ACK_LCD:
+    //         //_hmi.writeString("");
+    //         _hmi.writeString("tape.LCDACK.val=" + String(value));
+    //         //_hmi.writeString("");
+    //         _hmi.writeString("statusLCD.txt=\"READY. PRESS SCREEN\"");
+    //         break;
           
-          case RESET:
-            //_hmi.writeString("");
-            _hmi.writeString("statusLCD.txt=\"SYSTEM REBOOT\"");
-        }
-    }
+    //       case RESET:
+    //         //_hmi.writeString("");
+    //         _hmi.writeString("statusLCD.txt=\"SYSTEM REBOOT\"");
+    //     }
+    // }
 
     void showBufferPlay(byte* buffer, int size)
     {
@@ -1519,7 +1519,6 @@ class TZXproccesor
     
           // Pasamos el descriptor           
           _hmi.setBasicFileInformation(_myTZX.descriptor[BLOCK_SELECTED].name,_myTZX.descriptor[BLOCK_SELECTED].typeName,_myTZX.descriptor[BLOCK_SELECTED].size);
-
           _hmi.updateInformationMainPage();
       }
     
@@ -1542,17 +1541,17 @@ class TZXproccesor
 
     void terminate()
     {
-      free(_myTZX.descriptor);
-      _myTZX.descriptor = NULL;
+      // free(_myTZX.descriptor);
+      // _myTZX.descriptor = NULL;
     }
 
     void play()
     {
         //_hmi.writeString("");
-        _hmi.writeString("READYst.val=0");
+        // _hmi.writeString("READYst.val=0");
 
-        //_hmi.writeString("");
-        _hmi.writeString("ENDst.val=0");
+        // //_hmi.writeString("");
+        // _hmi.writeString("ENDst.val=0");
 
         if (_myTZX.descriptor != NULL)
         {         
@@ -1610,6 +1609,7 @@ class TZXproccesor
                     else
                     {
                         // En otro caso. delay
+
                         zxp.silence(dly);                        
                     }                    
                 }
@@ -1661,12 +1661,18 @@ class TZXproccesor
                       }
 
                       //Paramos la reproducción.
-                      if (LOADING_STATE == 2) {
+                      if (LOADING_STATE == 2) 
+                      {
                         PAUSE = false;
-                        STOP = false;
+                        STOP = true;
                         PLAY = false;
-                        LOADING_STATE = 0;
-                        break;
+
+                        i = _myTZX.numBlocks+1;
+
+                        SerialHW.println("");
+                        SerialHW.println("LOADING_STATE 2"); 
+
+                        return;
                       }
 
                       //Ahora vamos lanzando bloques dependiendo de su tipo
@@ -1784,31 +1790,20 @@ class TZXproccesor
 
               // En el caso de no haber parado manualmente, es por finalizar
               // la reproducción
-              if (LOADING_STATE == 1) {
+              if (LOADING_STATE == 1) 
+              {
                 PLAY = false;
                 STOP = true;
                 PAUSE = false;
-                BLOCK_SELECTED = 0;
+
                 LAST_MESSAGE = "Playing end. Automatic STOP.";
 
                 _hmi.setBasicFileInformation(_myTZX.descriptor[BLOCK_SELECTED].name,_myTZX.descriptor[BLOCK_SELECTED].typeName,_myTZX.descriptor[BLOCK_SELECTED].size);
-
                 _hmi.updateInformationMainPage();
 
-                // Ahora ya podemos tocar el HMI panel otra vez
-                sendStatus(END_ST, 1);
               }
 
               // Cerrando
-              LOADING_STATE = 0;
-             
-              //SerialHW.flush();
-
-              // Ahora ya podemos tocar el HMI panel otra vez
-              sendStatus(READY_ST, 1);
-
-              // Liberamos el descriptor
-              //free(_myTZX.descriptor);
         }
         else
         {
