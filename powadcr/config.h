@@ -35,7 +35,7 @@
 //
 // 0 for ZX Spectrum
 
-#define VERSION "v0.3.12"
+#define VERSION "v0.3.13"
 #define MACHINE_ZX
 //#define MACHINE_AMSTRAD
 
