@@ -84,7 +84,7 @@ class ZXProccesor
 
     AudioKit m_kit;
 
-        size_t silenceWave(uint8_t *buffer, size_t samples)
+    size_t silenceWave(uint8_t *buffer, size_t samples)
     {
         int chn = channels;
         size_t result = 0;
@@ -113,7 +113,7 @@ class ZXProccesor
             result+=2*chn;
         }
 
-        return result;      
+        return result;
     }
 
     size_t clearBuffer(uint8_t *buffer, size_t bytes)
@@ -175,7 +175,7 @@ class ZXProccesor
         // Pulso alto (mitad del periodo)
         for (int j=0;j<bytes/(4*chn);j++){
 
-            if (j % 32 == 0)
+            if (j % 256 == 0)
             {
               m_amplitude = MAIN_VOL * 32767 / 100;
             }
@@ -227,7 +227,8 @@ class ZXProccesor
         return result;
     }
 
-    size_t readPulse(uint8_t *buffer, size_t bytes, int slope, bool end){
+    size_t readPulse(uint8_t *buffer, size_t bytes, int slope, bool end)
+    {
 
         // Procedimiento para genera un pulso 
 
@@ -236,12 +237,13 @@ class ZXProccesor
         int16_t *ptr = (int16_t*)buffer;
         for (int j=0;j<bytes/(2*chn);j++){
 
-            if (j % 32 ==0)
+            if (j % 256 ==0)
             {
               m_amplitude = MAIN_VOL * 32767 / 100;
             }
 
             int16_t sample = 0;
+            // slope tomará los valores 1 o -1
             sample = m_amplitude * slope;
 
             if (end)
@@ -371,6 +373,39 @@ class ZXProccesor
         } 
     }
 
+    // void generateWavePulses(float freq, int pulses, int samplingRate)
+    // {
+
+    //     // Obtenemos el periodo de muestreo
+    //     // Tsr = 1 / samplingRate
+    //     float Tsr = (1.0 / samplingRate);
+    //     int bytes = int((1.0 / ((freq / 4.0))) / Tsr);
+    //     int numPulses = pulses;
+    //     int chn = channels;
+
+    //     uint8_t buffer[bytes*chn];      
+
+    //     for (int m=0;m < numPulses;m++)
+    //     {
+            
+    //         if (LOADING_STATE == 1)
+    //         {
+    //             if (STOP==true)
+    //             {
+    //                 LOADING_STATE = 2; // Parada del bloque actual
+    //                 return;
+    //             }
+    //             else if (PAUSE==true)
+    //             {
+    //                 LOADING_STATE = 2; // Parada del bloque actual
+    //                 return;
+    //             }
+    //         }
+
+    //         // Rellenamos
+    //         m_kit.write(buffer, createWave(buffer, bytes));
+    //     } 
+    // }
     public:
 
     void silence(float duration)
@@ -381,7 +416,8 @@ class ZXProccesor
 
         // Obtenemos el periodo de muestreo
         // Tsr = 1 / samplingRate
-        float Td = 4*(duration / 1000);
+        //float Td = 4 * (duration / 1000);
+        float Td = 4 * (duration / 1000);
         float Tsr = (1.0 / samplingRate);
         int samples = int(Td / Tsr);
         int chn = channels;
@@ -422,6 +458,17 @@ class ZXProccesor
         }
     }
 
+    void customPilotTone(int lenPulse, int numPulses)
+    {
+        // Calculamos la frecuencia del tono guía.
+        // Hay que tener en cuenta que los T-States dados son de un SEMI-PULSO
+        // es decir de la mitad del periodo. Entonces hay que calcular
+        // el periodo completo que es 2 * T
+        float freq = (1 / (lenPulse * tState)) / 2;   
+        generateWavePulses(freq, numPulses, samplingRate);
+    }
+
+
     void pilotTone(float duration)
     {
         // Calculamos la frecuencia del tono guía.
@@ -455,6 +502,40 @@ class ZXProccesor
         // y otro al final de la recepción de los datos, que serán SYNC1 y SYNC2 respectivamente.
         float freq = (1 / (nTStates * tState));    
         generatePulse(freq, samplingRate,slope, false);        
+    }
+
+    void playCustomPulses(int* data, int numPulses)
+    {
+        // Reproduce una secuencia de pulsos totalmente customizada
+        // cada pulso tiene su timming y viene dado en un array (data)
+        int slope = 0;
+        for (int i = 0; i < numPulses;i++)
+        {
+            // Cambiamos slope de 0 a 1, para indicar si es 
+            // pulso alto o bajo
+            slope = 1 - (i % 2);
+            syncTone(data[i],slope);            
+        }
+
+        // Metemos un pulso de cambio de estado
+        // para asegurar el cambio de flanco alto->bajo, del elemento de la secuencia
+
+        // if (slope == 1)
+        // {
+        //     float freq = (1 / (100 * tState))/2;    
+        //     generatePulse(freq, samplingRate,0,true);
+        // }
+        // else
+        // {
+        //     float freq = (1 / (100 * tState))/2;    
+        //     generatePulse(freq, samplingRate,1,true);
+        // }
+    }
+
+    void customPulse(int lenPulse)
+    {
+        float freq = (1 / (lenPulse * tState)) / 2;        
+        generateOneWave(freq, samplingRate);      
     }
 
     private:
@@ -494,7 +575,7 @@ class ZXProccesor
               if (!TEST_RUNNING)
               {
 
-                    if (i % 32==0)
+                    if (i % 256==0)
                     {
                         // Progreso de cada bloque.
                         // Con este metodo reducimos el consumo de datos
@@ -662,6 +743,22 @@ class ZXProccesor
             {return;}
 
         }
+
+        void playPureTone(int lenPulse, int numPulses)
+        {
+            // Put now code block
+            // syncronize with short leader tone
+            customPilotTone(lenPulse, numPulses);          
+        }
+
+        void playPureData(byte* bBlock, int lenBlock)
+        {
+            // Send data
+            sendDataArray(bBlock, lenBlock);
+
+            if (LOADING_STATE == 2)
+            {return;}
+        }        
 
         void playDataBegin(byte* bBlock, int lenBlock, int pulse_pilot_duration)
         {

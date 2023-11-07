@@ -120,6 +120,10 @@ struct tTimming
   int pilot_data = 3223;
   int sync_1 = 667;
   int sync_2 = 735;
+  int pure_tone_len = 0;
+  int pure_tone_num_pulses = 0;
+  int pulse_seq_num_pulses = 0;
+  int* pulse_seq_array = NULL;
 };
 
 struct tTZXBlockDescriptor 
@@ -171,6 +175,7 @@ struct tFileBuffer
     String type = "";
 };
 
+bool ID_NOT_IMPLEMENTED = false;
 // Tamaño del fichero abierto
 int FILE_LENGTH = 0;
 
@@ -200,7 +205,7 @@ String RECORDING_DIR = "/REC";
 //
 String LAST_COMMAND = "";
 bool TURBOMODE = false;
-bool TIMMING_STABLISHED = false;
+//bool TIMMING_STABLISHED = false;
 // Variables para intercambio de información con el HMI
 
 bool TEST_RUNNING = false;
