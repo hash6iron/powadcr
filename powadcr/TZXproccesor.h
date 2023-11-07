@@ -1191,28 +1191,32 @@ class TZXproccesor
 
                 // ID 15 - Direct Recording
                 case 21:
-                  analyzeBlockUnknow(currentID,currentOffset, currentBlock);
-                  nextIDoffset = currentOffset + 1;            
+                  ID_NOT_IMPLEMENTED = true;
+                  // analyzeBlockUnknow(currentID,currentOffset, currentBlock);
+                  // nextIDoffset = currentOffset + 1;            
 
-                  _myTZX.descriptor[currentBlock].typeName = "ID 15 - Direct REC";
-                  currentBlock++;
+                  // _myTZX.descriptor[currentBlock].typeName = "ID 15 - Direct REC";
+                  // currentBlock++;
                   break;
 
                 // ID 18 - CSW Recording
                 case 24:
-                  analyzeBlockUnknow(currentID,currentOffset, currentBlock);
-                  nextIDoffset = currentOffset + 1;            
+                  ID_NOT_IMPLEMENTED = true;
+                  // analyzeBlockUnknow(currentID,currentOffset, currentBlock);
+                  // nextIDoffset = currentOffset + 1;            
 
-                  _myTZX.descriptor[currentBlock].typeName = "ID 18 - CSW Rec";currentBlock++;
+                  // _myTZX.descriptor[currentBlock].typeName = "ID 18 - CSW Rec";
+                  // currentBlock++;
                   break;
 
                 // ID 19 - Generalized Data Block
                 case 25:
-                  analyzeBlockUnknow(currentID,currentOffset, currentBlock);
-                  nextIDoffset = currentOffset + 1;            
+                  ID_NOT_IMPLEMENTED = true;
+                  // analyzeBlockUnknow(currentID,currentOffset, currentBlock);
+                  // nextIDoffset = currentOffset + 1;            
 
-                  _myTZX.descriptor[currentBlock].typeName = "ID 19 - General Data block";
-                  currentBlock++;
+                  // _myTZX.descriptor[currentBlock].typeName = "ID 19 - General Data block";
+                  // currentBlock++;
                   break;
 
                 // ID 20 - Pause and Stop Tape
@@ -1248,7 +1252,7 @@ class TZXproccesor
 
                       nextIDoffset = currentOffset + 2 + _myTZX.descriptor[currentBlock].size;
                       _myTZX.descriptor[currentBlock].typeName = "ID 21 - Group start";
-                      currentBlock++;
+                      //currentBlock++;
                   }
                   else
                   {
@@ -1270,7 +1274,7 @@ class TZXproccesor
 
                       nextIDoffset = currentOffset + 1;                      
                       _myTZX.descriptor[currentBlock].typeName = "ID 22 - Group end";
-                      currentBlock++;
+                      //currentBlock++;
                   }
                   else
                   {
@@ -1283,47 +1287,52 @@ class TZXproccesor
 
                 // ID 23 - Jump to block
                 case 35:
-                  analyzeBlockUnknow(currentID,currentOffset, currentBlock);
-                  nextIDoffset = currentOffset + 1;            
+                  ID_NOT_IMPLEMENTED = true;
+                  // analyzeBlockUnknow(currentID,currentOffset, currentBlock);
+                  // nextIDoffset = currentOffset + 1;            
 
-                  _myTZX.descriptor[currentBlock].typeName = "ID 23 - Jump to block";
-                  currentBlock++;
+                  // _myTZX.descriptor[currentBlock].typeName = "ID 23 - Jump to block";
+                  // currentBlock++;
                   break;
 
                 // ID 24 - Loop start
                 case 36:
-                  analyzeBlockUnknow(currentID,currentOffset, currentBlock);
-                  nextIDoffset = currentOffset + 1;            
+                  ID_NOT_IMPLEMENTED = true;
+                  // analyzeBlockUnknow(currentID,currentOffset, currentBlock);
+                  // nextIDoffset = currentOffset + 1;            
 
-                  _myTZX.descriptor[currentBlock].typeName = "ID 24 - Loop start";
-                  currentBlock++;
+                  // _myTZX.descriptor[currentBlock].typeName = "ID 24 - Loop start";
+                  // currentBlock++;
                   break;
 
                 // ID 25 - Loop end
                 case 37:
-                  analyzeBlockUnknow(currentID,currentOffset, currentBlock);
-                  nextIDoffset = currentOffset + 1;            
+                  ID_NOT_IMPLEMENTED = true;
+                  // analyzeBlockUnknow(currentID,currentOffset, currentBlock);
+                  // nextIDoffset = currentOffset + 1;            
 
-                  _myTZX.descriptor[currentBlock].typeName = "ID 25 - Loop end";
-                  currentBlock++;
+                  // _myTZX.descriptor[currentBlock].typeName = "ID 25 - Loop end";
+                  // currentBlock++;
                   break;
 
                 // ID 26 - Call sequence
                 case 38:
-                  analyzeBlockUnknow(currentID,currentOffset, currentBlock);
-                  nextIDoffset = currentOffset + 1;            
+                  ID_NOT_IMPLEMENTED = true;
+                  // analyzeBlockUnknow(currentID,currentOffset, currentBlock);
+                  // nextIDoffset = currentOffset + 1;            
 
-                  _myTZX.descriptor[currentBlock].typeName = "ID 26 - Call seq.";
-                  currentBlock++;
+                  // _myTZX.descriptor[currentBlock].typeName = "ID 26 - Call seq.";
+                  // currentBlock++;
                   break;
 
                 // ID 27 - Return from sequence
                 case 39:
-                  analyzeBlockUnknow(currentID,currentOffset, currentBlock);
-                  nextIDoffset = currentOffset + 1;            
+                  ID_NOT_IMPLEMENTED = true;
+                  // analyzeBlockUnknow(currentID,currentOffset, currentBlock);
+                  // nextIDoffset = currentOffset + 1;            
 
-                  _myTZX.descriptor[currentBlock].typeName = "ID 27 - Return from seq.";
-                  currentBlock++;
+                  // _myTZX.descriptor[currentBlock].typeName = "ID 27 - Return from seq.";
+                  // currentBlock++;
                   break;
 
                 // ID 28 - Select block
@@ -1347,11 +1356,12 @@ class TZXproccesor
 
                 // ID 2B - Set signal level
                 case 43:
-                  analyzeBlockUnknow(currentID,currentOffset, currentBlock);
-                  nextIDoffset = currentOffset + 1;            
+                  ID_NOT_IMPLEMENTED = true;
+                  // analyzeBlockUnknow(currentID,currentOffset, currentBlock);
+                  // nextIDoffset = currentOffset + 1;            
 
-                  _myTZX.descriptor[currentBlock].typeName = "ID 2B - Set signal level";
-                  currentBlock++;
+                  // _myTZX.descriptor[currentBlock].typeName = "ID 2B - Set signal level";
+                  // currentBlock++;
                   break;
 
                 // ID 30 - Information
@@ -1361,13 +1371,11 @@ class TZXproccesor
                   {
                       // Obtenemos la dirección del siguiente offset
                       analyzeID48(mFile,currentOffset,currentBlock);
-
                       // Siguiente ID
                       nextIDoffset = currentOffset + _myTZX.descriptor[currentBlock].size + 1;
-
                       _myTZX.descriptor[currentBlock].typeName = "ID 30 - Information";
 
-                      currentBlock++;
+                      //currentBlock++;
                   }
                   else
                   {
@@ -1384,7 +1392,7 @@ class TZXproccesor
                   nextIDoffset = currentOffset + 1;                  
 
                   _myTZX.descriptor[currentBlock].typeName = "ID 31 - Message block";
-                  currentBlock++;
+                  //currentBlock++;
                   break;
 
                 // ID 32 - Archive info
@@ -1398,7 +1406,7 @@ class TZXproccesor
                       // Siguiente ID
                       nextIDoffset = currentOffset + 3 + _myTZX.descriptor[currentBlock].size;
                       _myTZX.descriptor[currentBlock].typeName = "ID 32 - Archive info";
-                      currentBlock++;
+                      //currentBlock++;
                   }
                   else
                   {
@@ -1420,7 +1428,7 @@ class TZXproccesor
                       // Siguiente ID
                       nextIDoffset = currentOffset + 3 + _myTZX.descriptor[currentBlock].size;
                       _myTZX.descriptor[currentBlock].typeName = "ID 33- Hardware type";
-                      currentBlock++;
+                      //currentBlock++;
                   }
                   else
                   {
@@ -1437,7 +1445,7 @@ class TZXproccesor
                   nextIDoffset = currentOffset + 1;            
 
                   _myTZX.descriptor[currentBlock].typeName = "ID 35 - Custom info block";
-                  currentBlock++;
+                  //currentBlock++;
                   break;
 
                 // ID 5A - "Glue" block (90 dec, ASCII Letter 'Z')
@@ -1452,10 +1460,11 @@ class TZXproccesor
                 default:
                   SerialHW.println("");
                   SerialHW.println("ID unknow " + currentID);
-                  analyzeBlockUnknow(currentID,currentOffset, currentBlock);
-                  nextIDoffset = currentOffset + 1;            
+                  ID_NOT_IMPLEMENTED = true;
+                  // analyzeBlockUnknow(currentID,currentOffset, currentBlock);
+                  // nextIDoffset = currentOffset + 1;            
 
-                  _myTZX.descriptor[currentBlock].typeName = "Unknown block";
+                  // _myTZX.descriptor[currentBlock].typeName = "Unknown block";
                   break;
                 }
 
@@ -1776,6 +1785,7 @@ class TZXproccesor
                         // PAUSE
                         //Pausamos la reproducción a través
                         //del HMI 
+
                         hmi.writeString("click btnPause,1"); 
                         PLAY = false;
                         STOP = false;
@@ -1783,8 +1793,20 @@ class TZXproccesor
 
                         LAST_MESSAGE = "Playing PAUSE.";
 
+                        // Dejamos preparado el sieguiente bloque
+                        CURRENT_BLOCK_IN_PROGRESS++;
+                        BLOCK_SELECTED++;
+
+                        if (BLOCK_SELECTED >= _myTZX.numBlocks)
+                        {
+                            // Reiniciamos
+                            CURRENT_BLOCK_IN_PROGRESS = 1;
+                            BLOCK_SELECTED = 1;
+                        }
+
                         _hmi.setBasicFileInformation(_myTZX.descriptor[BLOCK_SELECTED].name,_myTZX.descriptor[BLOCK_SELECTED].typeName,_myTZX.descriptor[BLOCK_SELECTED].size);
                         _hmi.updateInformationMainPage();                        
+                        
                         return;
                     }
                     else

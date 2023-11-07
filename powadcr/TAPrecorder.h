@@ -1687,27 +1687,42 @@ class TAPrecorder
           {
               // El fichero inicialmente fue creado con exito
               // en la SD, pero ...
-              if (!removeFile)
+              //
+              // 
+              if (_mFile.size() !=0)
               {
-                // Finalmente se graba el contenido  
-                if (_mFile.isOpen())
-                {
-                  // Lo renombramos con el nombre del BASIC
-                  renameFile();         
-                }          
+                  if (!removeFile)
+                  {
+                    // Finalmente se graba el contenido  
+                    if (_mFile.isOpen())
+                    {
+                      // Lo renombramos con el nombre del BASIC
+                      renameFile();         
+                    }          
 
-                // Lo cerramos
-                _mFile.close();
-                delay(125);
+                    // Lo cerramos
+                    _mFile.close();
+                    delay(125);
 
+                  }
+                  else
+                  {
+                    // SE ELIMINA
+                    // No se renombra porque es erroneo
+                    _mFile.close();
+                    delay(125);
+                    // Se elimina
+                    _mFile.remove();
+                  }
               }
               else
               {
-                // SE ELIMINA
-                // No se renombra porque es erroneo
+                // Tiene 0 bytes. Meto algo y lo cierro
+                // es un error
+                SerialHW.println("");
+                SerialHW.println("Error. 0 byte file");
+                _mFile.write(0xFF);
                 _mFile.close();
-                delay(125);
-                // Se elimina
                 _mFile.remove();
               }
           }

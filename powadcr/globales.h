@@ -176,6 +176,7 @@ struct tFileBuffer
 };
 
 bool ID_NOT_IMPLEMENTED = false;
+int LAST_EDGE_IS = 0;
 // Tamaño del fichero abierto
 int FILE_LENGTH = 0;
 
@@ -289,8 +290,8 @@ const int END_ST = 4;
 const int ACK_LCD = 5;
 const int RESET = 6;
 //
-int MAIN_VOL = 95;
-int LAST_MAIN_VOL = 95;
+int MAIN_VOL = 97;
+int LAST_MAIN_VOL = 97;
 int MAX_MAIN_VOL = 100;
 int EN_MUTE = 0;
 int EN_MUTE_2 = 0;

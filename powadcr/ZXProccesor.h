@@ -180,6 +180,7 @@ class ZXProccesor
               m_amplitude = MAIN_VOL * 32767 / 100;
             }
 
+            //int16_t sample = m_amplitude * (1 - LAST_EDGE_IS);
             int16_t sample = m_amplitude;
 
             if (!SWAP_EAR_CHANNEL)
@@ -203,6 +204,7 @@ class ZXProccesor
         // Pulso bajo (la otra mitad)
         for (int j=bytes/(4*chn);j<bytes/(2*chn);j++){
             
+            //int16_t sample = m_amplitude * LAST_EDGE_IS;          
             int16_t sample = 0;          
 
             if (!SWAP_EAR_CHANNEL)
@@ -509,6 +511,7 @@ class ZXProccesor
         // Reproduce una secuencia de pulsos totalmente customizada
         // cada pulso tiene su timming y viene dado en un array (data)
         int slope = 0;
+
         for (int i = 0; i < numPulses;i++)
         {
             // Cambiamos slope de 0 a 1, para indicar si es 
@@ -522,13 +525,15 @@ class ZXProccesor
 
         // if (slope == 1)
         // {
-        //     float freq = (1 / (100 * tState))/2;    
-        //     generatePulse(freq, samplingRate,0,true);
+        //     SerialHW.println("");
+        //     SerialHW.println("End edge: HIGH");
+        //     LAST_EDGE_IS = 1;
         // }
         // else
         // {
-        //     float freq = (1 / (100 * tState))/2;    
-        //     generatePulse(freq, samplingRate,1,true);
+        //     SerialHW.println("");
+        //     SerialHW.println("End edge: LOW");
+        //     LAST_EDGE_IS = 0;
         // }
     }
 
@@ -575,37 +580,20 @@ class ZXProccesor
               if (!TEST_RUNNING)
               {
 
-                    if (i % 256==0)
+                    if (i % 512==0)
                     {
+                        SerialHW.flush();
                         // Progreso de cada bloque.
                         // Con este metodo reducimos el consumo de datos
-                        _hmi.writeString("progression.val=" + String((int)((i*100)/(size-1))));
+                        _hmi.writeString("progression.val=" + String((int)(((i+1)*100)/(size))));
 
                         if (BYTES_LOADED > BYTES_TOBE_LOAD)
-                        {
-                            BYTES_LOADED = BYTES_TOBE_LOAD;
-                        }
+                        {BYTES_LOADED = BYTES_TOBE_LOAD;}
 
                         _hmi.writeString("progressTotal.val=" + String((int)((BYTES_LOADED*100)/(BYTES_TOBE_LOAD))));
-
                         _hmi.updateInformationMainPage();                    
 
                     }
-
-                    if (i == (size-1))
-                    {
-                        // Esto lo hacemos para asegurarnos que la barra se llena entera
-                        _hmi.writeString("progression.val=" + String((int)((i*100)/(size-1))));
-
-                        if (BYTES_LOADED > BYTES_TOBE_LOAD)
-                        {
-                            BYTES_LOADED = BYTES_TOBE_LOAD;
-                        }
-
-                        _hmi.writeString("progressTotal.val=" + String((int)((BYTES_LOADED*100)/(BYTES_TOBE_LOAD))));
-                    }
-
-
 
                     if (LOADING_STATE == 1)
                     {
@@ -674,7 +662,17 @@ class ZXProccesor
               {
                 break;
               }
+
             }
+
+            // Esto lo hacemos para asegurarnos que la barra se llena entera
+            // _hmi.writeString("progression.val=100");
+
+            // if (BYTES_LOADED > BYTES_TOBE_LOAD)
+            // {BYTES_LOADED = BYTES_TOBE_LOAD;}
+
+            // _hmi.writeString("progressTotal.val=" + String((int)((BYTES_LOADED*100)/(BYTES_TOBE_LOAD))));
+            // _hmi.updateInformationMainPage();                    
 
             int width = 0;
             // Leemos el ultimo bit (del ultimo byte), y dependiendo de como sea
@@ -691,7 +689,6 @@ class ZXProccesor
             {
                 width = BIT_0 / 2;
             }
-
             
             // Metemos un pulso de cambio de estado
             // para asegurar el cambio de flanco alto->bajo, del ultimo bit
@@ -764,7 +761,6 @@ class ZXProccesor
         {
             // PROGRAM
             float duration = tState * pulse_pilot_duration;
-            // Put now code block
             // syncronize with short leader tone
             pilotTone(duration);
             // syncronization for end short leader tone
@@ -797,7 +793,6 @@ class ZXProccesor
 
             float durationHeader = tState * pulse_pilot_duration_header;
             float durationData = tState * pulse_pilot_duration_data;
-
 
             // PROGRAM
             //HEADER PILOT TONE
@@ -833,7 +828,7 @@ class ZXProccesor
         {           
 
             float duration = tState * pulse_pilot_duration;
-
+            //
             // PROGRAM
             //HEADER PILOT TONE
             pilotTone(duration);
