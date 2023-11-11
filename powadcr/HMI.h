@@ -1178,6 +1178,7 @@ class HMI
           STOP = true;
           ABORT = false;
           REC = false;
+          EJECT = true;
 
           BLOCK_SELECTED = 0;
           BYTES_LOADED = 0;
@@ -1713,7 +1714,30 @@ class HMI
       void set_sdf(SdFat32 sdf)
       {
         _sdf = sdf;
-      }      
+      } 
+
+      void getMemFree()
+      {
+          SerialHW.println("");
+          SerialHW.println("");
+          SerialHW.println("> MEM REPORT");
+          SerialHW.println("------------------------------------------------------------");
+          SerialHW.println("");
+          SerialHW.println("Total heap: " + String(ESP.getHeapSize() / 1024) + "KB");
+          SerialHW.println("Free heap: " + String(ESP.getFreeHeap() / 1024) + "KB");
+          SerialHW.println("Total PSRAM: " + String(ESP.getPsramSize() / 1024 / 1024) + "MB");
+          SerialHW.println("Free PSRAM: " + String (ESP.getFreePsram() / 1024 / 1024) + "MB");  
+          SerialHW.println("");
+          SerialHW.println("------------------------------------------------------------");
+          //
+          updateMem();
+      }           
+
+      void updateMem()
+      {
+          writeString("menu.totalPSRAM.txt=\""+ String(ESP.getPsramSize() / 1024) + " KB\"");
+          writeString("menu.freePSRAM.txt=\"" + String(ESP.getFreePsram() / 1024) + " KB\"");
+      }
 
       // Constructor
       HMI()

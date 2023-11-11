@@ -1499,6 +1499,9 @@ class TZXproccesor
                 SerialHW.println("");
 
           }
+
+          _hmi.getMemFree();
+
           // El siguiente bloque será
           // currentOffset + blockSize (que obtenemos del descriptor)
           SerialHW.println("");
@@ -1705,7 +1708,7 @@ class TZXproccesor
         LAST_MESSAGE = "Error in TZX or ID not supported";
         _hmi.updateInformationMainPage();
       }
-    
+
     }
 
     void initialize()
@@ -1721,12 +1724,18 @@ class TZXproccesor
         _myTZX.name = "\0";
         _myTZX.numBlocks = 0;
         _myTZX.size = 0;
+
+        CURRENT_BLOCK_IN_PROGRESS = 1;
+        BLOCK_SELECTED = 1;
+        _hmi.writeString("currentBlock.val=" + String(BLOCK_SELECTED));
+        _hmi.writeString("progression.val=" + String(0));  
     }
 
     void terminate()
     {
-      // free(_myTZX.descriptor);
-      // _myTZX.descriptor = NULL;
+      //free(_myTZX.descriptor);
+      //_myTZX.descriptor = NULL;
+      //free(_myTZX.name);      
     }
 
     void play()
@@ -1921,6 +1930,7 @@ class TZXproccesor
                             
                             // Reproducimos el bloque - PLAY
                             zxp.playData(bufferPlay, si, pt * pp);
+                            free(bufferPlay);
                             break;
 
                           case 17:
@@ -1934,6 +1944,7 @@ class TZXproccesor
                             
                             // Reproducimos el bloque - PLAY
                             zxp.playData(bufferPlay, si, pt * pp);
+                            free(bufferPlay);
                             break;
                         }
 
@@ -1959,16 +1970,24 @@ class TZXproccesor
                             _myTZX.descriptor[i].timming.pilot_tone = DPILOT_HEADER;
                             zxp.PILOT_TONE = _myTZX.descriptor[i].timming.pilot_tone;
                             zxp.playData(bufferPlay, _myTZX.descriptor[i].size,_myTZX.descriptor[i].timming.pilot_tone * _myTZX.descriptor[i].timming.pulse_pilot);
+                            free(bufferPlay);
                             break;
 
                           case 17:
                             //PULSE PILOT
                             zxp.PILOT_TONE = _myTZX.descriptor[i].timming.pilot_tone;
                             zxp.playData(bufferPlay, _myTZX.descriptor[i].size,_myTZX.descriptor[i].timming.pilot_tone * _myTZX.descriptor[i].timming.pulse_pilot);
+                            free(bufferPlay);
                             break;
 
                           case 20:
+                            // BTI 0
+                            zxp.BIT_0 = _myTZX.descriptor[i].timming.bit_0;
+                            // BIT1                                          
+                            zxp.BIT_1 = _myTZX.descriptor[i].timming.bit_1;
+                            //                          
                             zxp.playPureData(bufferPlay, _myTZX.descriptor[i].size);
+                            free(bufferPlay);
                             break;
                         }
                                                 
@@ -2005,6 +2024,7 @@ class TZXproccesor
                             zxp.PILOT_TONE = _myTZX.descriptor[i].timming.pilot_tone;
                             // Bloque de datos BYTE
                             zxp.playData(bufferPlay, _myTZX.descriptor[i].size,_myTZX.descriptor[i].timming.pilot_tone * _myTZX.descriptor[i].timming.pulse_pilot);
+                            free(bufferPlay);
                             break;
 
                           case 17:
@@ -2012,10 +2032,17 @@ class TZXproccesor
                             zxp.PILOT_TONE = _myTZX.descriptor[i].timming.pilot_tone;
                             // Bloque de datos BYTE
                             zxp.playData(bufferPlay, _myTZX.descriptor[i].size,_myTZX.descriptor[i].timming.pilot_tone * _myTZX.descriptor[i].timming.pulse_pilot);
+                            free(bufferPlay);
                             break;
 
                           case 20:
+                            // BTI 0
+                            zxp.BIT_0 = _myTZX.descriptor[i].timming.bit_0;
+                            // BIT1                                          
+                            zxp.BIT_1 = _myTZX.descriptor[i].timming.bit_1;
+                            //
                             zxp.playPureData(bufferPlay, _myTZX.descriptor[i].size);
+                            free(bufferPlay);
                             break;
                         }
 

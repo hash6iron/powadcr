@@ -580,7 +580,7 @@ class ZXProccesor
               if (!TEST_RUNNING)
               {
 
-                    if (i % 512==0)
+                    if (i % 32==0)
                     {
                         SerialHW.flush();
                         // Progreso de cada bloque.
@@ -683,16 +683,16 @@ class ZXProccesor
             // Vemos como es el último bit MSB es la posición 0, el ultimo bit
             if (bitRead(bRead, 0) == 1)
             {
-                width = BIT_1 / 2;
+                width = BIT_1;
             }
             else
             {
-                width = BIT_0 / 2;
+                width = BIT_0;
             }
             
             // Metemos un pulso de cambio de estado
             // para asegurar el cambio de flanco alto->bajo, del ultimo bit
-            float freq = (1 / (width * tState))/2;    
+            float freq = (1 / (width * tState));    
             generatePulse(freq, samplingRate,1,true);
 
         }

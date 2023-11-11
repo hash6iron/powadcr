@@ -31,6 +31,101 @@
     To Contact the dev team you can write to hash6iron@gmail.com
  +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
 
+
+// ************************************************************
+//
+// Estructura de datos
+//
+// ************************************************************
+
+// Estructura de un bloque
+struct tBlock 
+{
+  int index = 0;            // Numero del bloque
+  int offset = 0;           // Byte donde empieza
+  byte* header;      // Cabecera del bloque
+  byte* data;        // Datos del bloque
+};
+
+// Descriptor de bloque de un TAP
+struct tBlockDescriptor 
+{
+  int offset = 0;
+  int size = 0;
+  int chk = 0;
+  char* name;
+  bool nameDetected = false;
+  bool header = false;
+  bool screen = false;
+  int type = 0;
+  char* typeName;
+};
+
+struct tTimming
+{
+  int bit_0 = 855;
+  int bit_1 = 1710;
+  int pulse_pilot = 2168;
+  int pilot_tone = 8063;
+  int pilot_header = 8063;
+  int pilot_data = 3223;
+  int sync_1 = 667;
+  int sync_2 = 735;
+  int pure_tone_len = 0;
+  int pure_tone_num_pulses = 0;
+  int pulse_seq_num_pulses = 0;
+  int* pulse_seq_array;
+};
+
+struct tTZXBlockDescriptor 
+{
+  uint ID = 0;
+  uint offset = 0;
+  uint size = 0;
+  uint chk = 0;
+  uint pauseAfterThisBlock = 1000;   //ms
+  uint lengthOfData = 0;
+  uint offsetData = 0;
+  char* name;
+  bool nameDetected = false;
+  bool header = false;
+  bool screen = false;
+  uint type = 0;
+  bool playeable = false;
+  bool forSetting = false;
+  int delay = 1000;
+  int silent;
+  byte maskLastByte = 8;
+  tTimming timming;
+  char* typeName;
+};
+
+// Estructura tipo TAP
+struct tTAP 
+{
+  char* name;                               // Nombre del TAP
+  int size = 0;                             // Tamaño
+  int numBlocks = 0;                        // Numero de bloques
+  tBlockDescriptor* descriptor;             // Descriptor
+};
+
+// Estructura tipo TZX
+struct tTZX
+{
+  char* name;                               // Nombre del TZX
+  int size = 0;                             // Tamaño
+  int numBlocks = 0;                        // Numero de bloques
+  tTZXBlockDescriptor* descriptor;          // Descriptor
+};
+
+// Estructura para el HMI
+struct tFileBuffer
+{
+    bool isDir = false;
+    String path = "";
+    String type = "";
+};
+
 // ZX Proccesor config
 // ********************************************************************
 //
@@ -77,103 +172,7 @@ char LASTYPE7[] = "SCREEN.H\0";
 char LASTYPE5[] = "ARRAY.NUM\0";
 char LASTYPE6[] = "ARRAY.CHR\0";
 
-// Estructura de un bloque
-struct tBlock 
-{
-  int index = 0;            // Numero del bloque
-  int offset = 0;           // Byte donde empieza
-  byte* header = NULL;      // Cabecera del bloque
-  byte* data = NULL;        // Datos del bloque
-};
 
-// Descriptor de bloque de un TAP
-struct tBlockDescriptor 
-{
-  int offset = 0;
-  int size = 0;
-  int chk = 0;
-  char* name = &INITCHAR[0];
-  bool nameDetected = false;
-  bool header = false;
-  bool screen = false;
-  int type = 0;
-  char* typeName = &INITCHAR[0];
-};
-
-// Descriptor de bloque de un TZX
-    // Timming de la ROM
-    // SYNC1 = 667;
-    // SYNC2 = 735;
-    // BIT_0 = 855;
-    // BIT_1 = 1710;
-    // PULSE_PILOT = 2168;
-    // PULSE_PILOT_HEADER = PULSE_PILOT * 8063;
-    // PULSE_PILOT_DATA = PULSE_PILOT * 3223;
-
-struct tTimming
-{
-  int bit_0 = 855;
-  int bit_1 = 1710;
-  int pulse_pilot = 2168;
-  int pilot_tone = 8063;
-  int pilot_header = 8063;
-  int pilot_data = 3223;
-  int sync_1 = 667;
-  int sync_2 = 735;
-  int pure_tone_len = 0;
-  int pure_tone_num_pulses = 0;
-  int pulse_seq_num_pulses = 0;
-  int* pulse_seq_array = NULL;
-};
-
-struct tTZXBlockDescriptor 
-{
-  uint ID = 0;
-  uint offset = 0;
-  uint size = 0;
-  uint chk = 0;
-  uint pauseAfterThisBlock = 1000;   //ms
-  uint lengthOfData = 0;
-  uint offsetData = 0;
-  char* name = &INITCHAR[0];
-  bool nameDetected = false;
-  bool header = false;
-  bool screen = false;
-  uint type = 0;
-  bool playeable = false;
-  bool forSetting = false;
-  int delay = 1000;
-  int silent;
-  byte maskLastByte = 8;
-  tTimming timming;
-  char* typeName = &INITCHAR[0];
-};
-
-// Estructura tipo TAP
-struct tTAP 
-{
-  char* name = &INITCHAR[0];                // Nombre del TAP
-  int size = 0;                             // Tamaño
-  int numBlocks = 0;                        // Numero de bloques
-  tBlockDescriptor* descriptor = NULL;      // Descriptor
-};
-
-// Estructura tipo TZX
-struct tTZX
-{
-  char* name = &INITCHAR[0];                // Nombre del TZX
-  int size = 0;                             // Tamaño
-  int numBlocks = 0;                        // Numero de bloques
-  tTZXBlockDescriptor* descriptor = NULL;   // Descriptor
-};
-
-// Estructura para el HMI
-struct tFileBuffer
-{
-    bool isDir = false;
-    String path = "";
-    String type = "";
-};
 
 bool ID_NOT_IMPLEMENTED = false;
 int LAST_EDGE_IS = 0;
@@ -272,6 +271,7 @@ bool REC = false;
 bool STOP = false;
 bool FFWIND = false;
 bool RWIND = false;
+bool EJECT = false;
 bool UP = false;
 bool DOWN = false;
 bool LEFT = false;
@@ -304,17 +304,24 @@ bool MENU = false;
 bool menuOn = false;
 int nMENU = 0;
 
-void getMemFree()
+
+void log(String txt)
 {
-    SerialHW.println("");
-    SerialHW.println("");
-    SerialHW.println("> MEM REPORT");
-    SerialHW.println("------------------------------------------------------------");
-    SerialHW.println("");
-    SerialHW.println("Total heap: " + String(ESP.getHeapSize() / 1024) + "KB");
-    SerialHW.println("Free heap: " + String(ESP.getFreeHeap() / 1024) + "KB");
-    SerialHW.println("Total PSRAM: " + String(ESP.getPsramSize() / 1024 / 1024) + "MB");
-    SerialHW.println("Free PSRAM: " + String (ESP.getFreePsram() / 1024 / 1024) + "MB");  
+  SerialHW.println("");
+  SerialHW.println(txt);
 }
 
+void deallocate(void* ptr)
+{
+  //liberamos memoria
+  if(ptr != NULL)
+  {
+    free(ptr);
+  }
+}
 
+void* allocate(void* ptr, int size)
+{
+  // Reservamos memoria con ps_calloc
+  return((typeof(ptr)*)ps_calloc(size,sizeof(typeof(ptr))));
+}

@@ -482,7 +482,8 @@ void stopRecording()
 
 }
 
-void setup() {
+void setup() 
+{
 
     //rtc_wdt_protect_off();    // Turns off the automatic wdt service
     // rtc_wdt_enable();         // Turn it on manually
@@ -543,11 +544,11 @@ void setup() {
   SerialHW.println("");
 
   if(psramInit()){
-    Serial.println("\nPSRAM is correctly initialized");
+    SerialHW.println("\nPSRAM is correctly initialized");
     hmi.writeString("statusLCD.txt=\"PSRAM OK\"" );
 
   }else{
-    Serial.println("PSRAM not available");
+    SerialHW.println("PSRAM not available");
     hmi.writeString("statusLCD.txt=\"PSRAM FAILED!\"" );
   }    
   delay(750);
@@ -618,7 +619,7 @@ void setup() {
       SerialHW.println("Test OK");  
   #endif
 
-  //getMemFree();
+  //hmi.getMemFree();
   // Control del TAPE
   //xTaskCreatePinnedToCore(Task2code, "Task2", 10000, NULL, 1, NULL,  1);
   //delay(500)  ;
@@ -641,6 +642,8 @@ void setup() {
   // Inicializamos el modulo de recording
   taprec.set_HMI(hmi);
   taprec.set_SdFat32(sdf);
+  
+  hmi.getMemFree();
 }
 
 void setSTOP()
@@ -706,17 +709,7 @@ void tapeControl()
         }
         else
         {
-            // Terminamos los players
-            if (TYPE_FILE_LOAD == "TAP")
-            {
-                pTAP.terminate();
-                getMemFree();
-            }
-            else if (TYPE_FILE_LOAD = "TZX")
-            {
-                pTZX.terminate();
-                getMemFree();
-            }
+
         }
 
         setSTOP();
@@ -745,14 +738,14 @@ void tapeControl()
               // Lo procesamos
               proccesingTAP(file_ch);            
               TYPE_FILE_LOAD = "TAP";
-              //getMemFree();
+              //hmi.getMemFree();
           }
           else if (FILE_TO_LOAD.indexOf(".TZX") != -1)    
           {
               // Lo procesamos. Para ZX Spectrum
               proccesingTZX(file_ch);
               TYPE_FILE_LOAD = "TZX";
-              //getMemFree();              
+              //hmi.getMemFree();              
           }
           else if (FILE_TO_LOAD.indexOf(".TSX") != -1)
           {
@@ -787,14 +780,14 @@ void tapeControl()
 
           if (TYPE_FILE_LOAD == "TAP")
           {
-              getMemFree();
+              hmi.getMemFree();
               pTAP.play();
               //Paramos la animación
               hmi.writeString("tape.tmAnimation.en=0"); 
           }
           else if (TYPE_FILE_LOAD = "TZX")
           {
-              getMemFree();
+              hmi.getMemFree();
               pTZX.play();
               //Paramos la animación
               hmi.writeString("tape.tmAnimation.en=0"); 
@@ -806,16 +799,37 @@ void tapeControl()
           
           if (TYPE_FILE_LOAD == "TAP")
           {
-              getMemFree();
+              hmi.getMemFree();
               pTAP.initialize();
           }
           else if (TYPE_FILE_LOAD = "TZX")
           {
-              getMemFree();
+              hmi.getMemFree();
               pTZX.initialize();
           }
 
           hmi.updateInformationMainPage();
+        }
+      }
+
+      if (EJECT && FILE_PREPARED && !REC)
+      {
+        if (FILE_SELECTED) 
+        {
+          // Pasamos a estado de reproducción
+          EJECT = false;
+
+          // Terminamos los players
+          if (TYPE_FILE_LOAD == "TAP")
+          {
+              pTAP.terminate();
+              hmi.getMemFree();
+          }
+          else if (TYPE_FILE_LOAD = "TZX")
+          {
+              pTZX.terminate();
+              hmi.getMemFree();
+          }
         }
       }
 
@@ -855,7 +869,7 @@ void tapeControl()
             hmi.writeString("progression.val=0");
           }
           
-          getMemFree();
+          hmi.getMemFree();
            
         }
         else
