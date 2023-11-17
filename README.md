@@ -119,10 +119,12 @@ From my compiled .bin
      And press "OK" button
      
      Show image below.
+     
      ![image](https://github.com/hash6iron/powadcr_IO/assets/118267564/e9348bcb-2879-4872-8998-7e14c02b6f82)
 
    
 4. Select
+   - Select .bin file or write the path of it (see below lastest stable version)
    - Select all parameters exactly at the image below.
    - Connect ESP32-A1S Audiokit board from UART microUSB port (not power microUSB PORT) at PC USB port.
    - Select the available COM for this connection in COM: field on ESP32 Flash Downloading Tool.
