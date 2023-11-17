@@ -110,7 +110,7 @@ How PowaDCR parts are connected?
 -----
 (in progress)
 
-From my compiled .bin
+How .bin firmware is uploaded in ESP32-A1S Audiokit? 
 -----
 1. Download ESP32 Flash Downloading Tool - https://www.espressif.com/en/support/download/other-tools?keys=&field_type_tid%5B%5D=13
 2. Unzip file and execute - flash_download_tool_x.x.x.exe file
@@ -151,7 +151,7 @@ From my compiled .bin
 
 
 
-How firmware is loaded in ESP32 Audiokit? (For custom firmware)
+How custom firmware is uploaded in ESP32-A1S Audiokit? 
 -----
 1. Install Arduino IDE 2.0
 2. Apply this BOARD repository to Arduino IDE preferences.
