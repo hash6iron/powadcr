@@ -110,7 +110,31 @@ How PowaDCR parts are connected?
 -----
 (in progress)
 
-How firmware is loaded in ESP32 Audiokit?
+From my compiled .bin
+-----
+1. Download ESP32 Flash Downloading Tool -
+2. Select
+   - ESP32
+   - Develop
+     And press "OK" button
+     
+     Show image below.
+     ![image](https://github.com/hash6iron/powadcr_IO/assets/118267564/e9348bcb-2879-4872-8998-7e14c02b6f82)
+
+   
+4. Select
+   - Select all parameters exactly at the image below.
+   - Connect ESP32-A1S Audiokit board to UART port and PC USB port. Select the available COM for this connection.
+   - Disconnect the Touch Screen cable in order to release serial port (Audiokit sharing USB and UART communications)
+   - Press START. Then downloading proccess begin, and wait for FINISH message. Enjoy!
+
+     lastest version: powaDCR-ESP32A1S-v0.3.15.bin
+   
+   Show image below.
+   ![image](https://github.com/hash6iron/powadcr_IO/assets/118267564/42b3d92f-7e50-4688-926c-a69723284253)
+
+
+How firmware is loaded in ESP32 Audiokit? (For custom firmware)
 -----
 1. Install Arduino IDE 2.0
 2. Apply this BOARD repository to Arduino IDE preferences.
