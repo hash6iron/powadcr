@@ -1,9 +1,9 @@
 # POWADCR
-TAP/TZX Digital cassette recorder for ZX Spectrum machines (classic, Next and clones)
+TAP/TZX Digital cassette recorder for 8-bit machines
 -----
 
 ![plot](./doc/powadcr_sp.jpg)
-This project pretend to implement a Digital Cassette Recorder (for TAP/TZX/SNA files playing and recording) for 8-bit machines on ESP32 Audio kit development board and using HMI over touch 3.5" screen.
+This project pretend to implement a Digital Cassette Recorder (for TAP/TZX/SNA files playing and recording) for ZX Spectrum machines on ESP32 Audio kit development board and using HMI over touch 3.5" screen.
 
 The launcher was this board below, ESP32 Audio Kit equipped with ESP32 v3 microcontroller and ES8388 Audio proccesor 
 made by AI-Thinker Technology.
@@ -110,7 +110,48 @@ How PowaDCR parts are connected?
 -----
 (in progress)
 
-How firmware is loaded in ESP32 Audiokit?
+How .bin firmware is uploaded in ESP32-A1S Audiokit? 
+-----
+1. Download ESP32 Flash Downloading Tool - https://www.espressif.com/en/support/download/other-tools?keys=&field_type_tid%5B%5D=13
+2. Unzip file and execute - flash_download_tool_x.x.x.exe file
+
+   See example image below.
+
+   ![image](https://github.com/hash6iron/powadcr_IO/assets/118267564/e7158518-4af8-4e6e-b4ab-eff6b9693307)
+
+   
+4. Select ESP32 model.
+   - ESP32
+   - Develop
+     And press "OK" button
+     
+     Show image below.
+     
+     ![image](https://github.com/hash6iron/powadcr_IO/assets/118267564/e9348bcb-2879-4872-8998-7e14c02b6f82)
+
+   
+5. Setting and begin the flash proccess.
+   - Select .bin file or write the path of it (see below lastest stable version)
+   - Select all parameters exactly at the image below.
+   - Connect ESP32-A1S Audiokit board from UART microUSB port (not power microUSB PORT) at PC USB port.
+   - Select the available COM for this connection in COM: field on ESP32 Flash Downloading Tool.
+   - Select BAUD: speed at 921600
+   - Disconnect the Touch Screen cable in order to release serial port (Audiokit sharing USB and UART communications)
+   - Press START button in ESP32 Flash Downloading Tool. Then downloading proccess begin, and wait for FINISH message. Enjoy!
+  
+     NOTES: If the proccess fail.
+      - Try to download again.
+      - Try to ERASE before START proccess.
+
+     lastest version: <a href="https://github.com/hash6iron/powadcr_IO/blob/main/powaDCR-ESP32-A1S-v0.3.15.bin">powaDCR-ESP32A1S-v0.3.15.bin</a>
+   
+   Show image below.
+   
+   ![image](https://github.com/hash6iron/powadcr_IO/assets/118267564/a595ea33-a1df-406e-b2af-a1d72680fb59)
+
+
+
+How custom firmware is uploaded in ESP32-A1S Audiokit? 
 -----
 1. Install Arduino IDE 2.0
 2. Apply this BOARD repository to Arduino IDE preferences.
