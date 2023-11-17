@@ -128,7 +128,7 @@ From my compiled .bin
    - Disconnect the Touch Screen cable in order to release serial port (Audiokit sharing USB and UART communications)
    - Press START. Then downloading proccess begin, and wait for FINISH message. Enjoy!
 
-     lastest version: powaDCR-ESP32A1S-v0.3.15.bin
+     lastest version: <a href="https://github.com/hash6iron/powadcr_IO/blob/main/powaDCR-ESP32-A1S-v0.3.15.bin">powaDCR-ESP32A1S-v0.3.15.bin</a>
    
    Show image below.
    ![image](https://github.com/hash6iron/powadcr_IO/assets/118267564/42b3d92f-7e50-4688-926c-a69723284253)
