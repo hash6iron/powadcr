@@ -112,8 +112,15 @@ How PowaDCR parts are connected?
 
 From my compiled .bin
 -----
-1. Download ESP32 Flash Downloading Tool -
-2. Select
+1. Download ESP32 Flash Downloading Tool - https://www.espressif.com/en/support/download/other-tools?keys=&field_type_tid%5B%5D=13
+2. Unzip file and execute - flash_download_tool_x.x.x.exe file
+
+   See example image below.
+
+   ![image](https://github.com/hash6iron/powadcr_IO/assets/118267564/e7158518-4af8-4e6e-b4ab-eff6b9693307)
+
+   
+4. Select
    - ESP32
    - Develop
      And press "OK" button
@@ -123,7 +130,7 @@ From my compiled .bin
      ![image](https://github.com/hash6iron/powadcr_IO/assets/118267564/e9348bcb-2879-4872-8998-7e14c02b6f82)
 
    
-4. Select
+5. Select
    - Select .bin file or write the path of it (see below lastest stable version)
    - Select all parameters exactly at the image below.
    - Connect ESP32-A1S Audiokit board from UART microUSB port (not power microUSB PORT) at PC USB port.
