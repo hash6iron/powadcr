@@ -124,14 +124,21 @@ From my compiled .bin
    
 4. Select
    - Select all parameters exactly at the image below.
-   - Connect ESP32-A1S Audiokit board to UART port and PC USB port. Select the available COM for this connection.
+   - Connect ESP32-A1S Audiokit board from UART microUSB port (not power microUSB PORT) at PC USB port.
+   - Select the available COM for this connection in COM: field on ESP32 Flash Downloading Tool.
+   - Select BAUD: speed at 921600
    - Disconnect the Touch Screen cable in order to release serial port (Audiokit sharing USB and UART communications)
-   - Press START. Then downloading proccess begin, and wait for FINISH message. Enjoy!
+   - Press START button in ESP32 Flash Downloading Tool. Then downloading proccess begin, and wait for FINISH message. Enjoy!
+  
+     NOTES: If the proccess fail.
+      - Try to download again.
+      - Try to ERASE before START proccess.
 
      lastest version: <a href="https://github.com/hash6iron/powadcr_IO/blob/main/powaDCR-ESP32-A1S-v0.3.15.bin">powaDCR-ESP32A1S-v0.3.15.bin</a>
    
    Show image below.
-   ![image](https://github.com/hash6iron/powadcr_IO/assets/118267564/42b3d92f-7e50-4688-926c-a69723284253)
+   ![image](https://github.com/hash6iron/powadcr_IO/assets/118267564/a595ea33-a1df-406e-b2af-a1d72680fb59)
+
 
 
 How firmware is loaded in ESP32 Audiokit? (For custom firmware)
