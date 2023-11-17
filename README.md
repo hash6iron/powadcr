@@ -1,5 +1,5 @@
 # POWADCR
-TAP/TZX Digital cassette recorder for 8-bit machines
+TAP/TZX Digital cassette recorder for ZX Spectrum machines (classic, Next and clones)
 -----
 
 ![plot](./doc/powadcr_sp.jpg)
