@@ -446,7 +446,7 @@ class TZXproccesor
 
 
               // Almacenamos el nombre del bloque
-              _myTZX.descriptor[currentBlock].name = _myTZX.name;
+              strncpy(_myTZX.descriptor[currentBlock].name,_myTZX.name,10);
 
               // SerialHW.println("");
               // SerialHW.println("Nombre detectado: " + String(_myTZX.name));
@@ -495,7 +495,7 @@ class TZXproccesor
                   _myTZX.descriptor[currentBlock].type = 7;
 
                   // Almacenamos el nombre del bloque
-                  _myTZX.descriptor[currentBlock].name = getNameFromStandardBlock(getBlock(mFile,_myTZX.descriptor[currentBlock].offsetData,19));
+                  strncpy(_myTZX.descriptor[currentBlock].name,getNameFromStandardBlock(getBlock(mFile,_myTZX.descriptor[currentBlock].offsetData,19)),10);
               }
               else
               {
@@ -506,7 +506,7 @@ class TZXproccesor
                 _myTZX.descriptor[currentBlock].type = 1;     
 
                 // Almacenamos el nombre del bloque
-                _myTZX.descriptor[currentBlock].name = getNameFromStandardBlock(getBlock(mFile,_myTZX.descriptor[currentBlock].offsetData,19));                         
+                strncpy(_myTZX.descriptor[currentBlock].name,getNameFromStandardBlock(getBlock(mFile,_myTZX.descriptor[currentBlock].offsetData,19)),10);
               }
             }
         }
@@ -667,7 +667,8 @@ class TZXproccesor
         if (flagByte < 128)
         {
             // Es una cabecera
-            _myTZX.descriptor[currentBlock].name = getNameFromStandardBlock(getBlock(mFile,_myTZX.descriptor[currentBlock].offsetData,19));
+            strncpy(_myTZX.descriptor[currentBlock].name,getNameFromStandardBlock(getBlock(mFile,_myTZX.descriptor[currentBlock].offsetData,19)),10);
+
             if (typeBlock == 0)
             {
                 // Es una cabecera BASIC
@@ -702,7 +703,7 @@ class TZXproccesor
         else
         {
             // Es un bloque BYTE
-            _myTZX.descriptor[currentBlock].name = &INITCHAR[0];
+            strncpy(_myTZX.descriptor[currentBlock].name,&INITCHAR[0],1);
             _myTZX.descriptor[currentBlock].type = 4;
         }
 
@@ -858,58 +859,9 @@ class TZXproccesor
         int flagByte = getBYTE(mFile,_myTZX.descriptor[currentBlock].offsetData);
         int typeBlock = getBYTE(mFile,_myTZX.descriptor[currentBlock].offsetData+1);
         //
-        _myTZX.descriptor[currentBlock].name = &INITCHAR[0];
+        strncpy(_myTZX.descriptor[currentBlock].name,&INITCHAR[0],1);
         _myTZX.descriptor[currentBlock].type = 4;
         _myTZX.descriptor[currentBlock].header = false;
-        // if (flagByte < 128)
-        // {
-        //     // Almacenamos el nombre del bloque
-        //     _myTZX.descriptor[currentBlock].name = getNameFromStandardBlock(getBlock(mFile,_myTZX.descriptor[currentBlock].offsetData,19));
-        //     // Es una cabecera
-        //     if (typeBlock == 0)
-        //     {
-        //         // Es una cabecera BASIC
-        //         _myTZX.descriptor[currentBlock].header = true;
-        //         _myTZX.descriptor[currentBlock].type = 0;
-
-        //     }
-        //     else if (typeBlock == 1)
-        //     {
-        //         _myTZX.descriptor[currentBlock].header = true;
-        //         _myTZX.descriptor[currentBlock].type = 0;
-        //     }
-        //     else if (typeBlock == 2)
-        //     {
-        //         _myTZX.descriptor[currentBlock].header = true;
-        //         _myTZX.descriptor[currentBlock].type = 0;
-        //     }
-        //     else if (typeBlock == 3)
-        //     {
-        //       if (_myTZX.descriptor[currentBlock].lengthOfData == 6914)
-        //       {
-        //           _myTZX.descriptor[currentBlock].screen = true;
-        //           _myTZX.descriptor[currentBlock].type = 7;
-        //       }
-        //       else
-        //       {
-        //           // Es un bloque BYTE
-        //           _myTZX.descriptor[currentBlock].type = 1;                
-        //       }
-        //     }
-        // }
-        // else
-        // {
-            // Es un bloque BYTE
-            // Almacenamos el nombre del bloque
-            // _myTZX.descriptor[currentBlock].name = &INITCHAR[0];
-            // _myTZX.descriptor[currentBlock].type = 4;
-        // }
-
-        // No contamos el ID
-        // La cabecera tiene 4 bytes de parametros y N bytes de datos
-        // pero para saber el total de bytes de datos hay que analizar el TAP
-        // int positionOfTAPblock = currentOffset + 4;
-        // dataTAPsize = getDWORD(mFile,positionOfTAPblock + headerTAPsize + 1);
         
         // NOTA: Sumamos 2 bytes que son la DWORD que indica el dataTAPsize
         _myTZX.descriptor[currentBlock].size = _myTZX.descriptor[currentBlock].lengthOfData;        
@@ -1090,9 +1042,7 @@ class TZXproccesor
                       analyzeID16(mFile,currentOffset, currentBlock);
 
                       nextIDoffset = currentOffset + _myTZX.descriptor[currentBlock].size + 5;
-                      
-                      _myTZX.descriptor[currentBlock].typeName = "ID 10 - Standard block";
-
+                      strncpy(_myTZX.descriptor[currentBlock].typeName,"ID 10 - Standard block",sizeof("ID 10 - Standard block"));
                       currentBlock++;
                   }
                   else
@@ -1114,7 +1064,8 @@ class TZXproccesor
                       // Obtenemos la dirección del siguiente offset
                       analyzeID17(mFile,currentOffset, currentBlock);
                       nextIDoffset = currentOffset + _myTZX.descriptor[currentBlock].size + 19;
-                      _myTZX.descriptor[currentBlock].typeName = "ID 11 - Speed block";
+                      strncpy(_myTZX.descriptor[currentBlock].typeName,"ID 11 - Speed block",sizeof("ID 11 - Speed block"));
+
                       currentBlock++;
                   }
                   else
@@ -1133,7 +1084,8 @@ class TZXproccesor
                       // Obtenemos la dirección del siguiente offset
                       analyzeID18(mFile,currentOffset, currentBlock);
                       nextIDoffset = currentOffset + _myTZX.descriptor[currentBlock].size + 1;
-                      _myTZX.descriptor[currentBlock].typeName = "ID 12 - Pure tone";
+                      strncpy(_myTZX.descriptor[currentBlock].typeName,"ID 12 - Pure tone",sizeof("ID 12 - Pure tone"));
+                      
                       currentBlock++;
                   }
                   else
@@ -1152,7 +1104,7 @@ class TZXproccesor
                       // Obtenemos la dirección del siguiente offset
                       analyzeID19(mFile,currentOffset, currentBlock);
                       nextIDoffset = currentOffset + _myTZX.descriptor[currentBlock].size + 1;
-                      _myTZX.descriptor[currentBlock].typeName = "ID 13 - Pulse seq.";
+                      strncpy(_myTZX.descriptor[currentBlock].typeName,"ID 13 - Pulse seq.",sizeof("ID 13 - Pulse seq."));                      
                       currentBlock++;
                   }
                   else
@@ -1173,10 +1125,8 @@ class TZXproccesor
                   {
                       // Obtenemos la dirección del siguiente offset
                       analyzeID20(mFile,currentOffset, currentBlock);
-
                       nextIDoffset = currentOffset + _myTZX.descriptor[currentBlock].size + 10 + 1;
-                      
-                      _myTZX.descriptor[currentBlock].typeName = "ID 14 - Pure Data block";
+                      strncpy(_myTZX.descriptor[currentBlock].typeName,"ID 14 - Pure Data block",sizeof("ID 14 - Pure Data block"));                      
 
                       currentBlock++;
                   }
@@ -1225,9 +1175,8 @@ class TZXproccesor
                   {
                       // Obtenemos la dirección del siguiente offset
                       analyzeID32(mFile,currentOffset, currentBlock);
-
                       nextIDoffset = currentOffset + _myTZX.descriptor[currentBlock].size + 3;
-                      _myTZX.descriptor[currentBlock].typeName = "ID 20 - Pause TAPE";   
+                      strncpy(_myTZX.descriptor[currentBlock].typeName,"ID 20 - Pause TAPE",sizeof("ID 20 - Pause TAPE"));                      
 
                       SerialHW.println("");
                       SerialHW.println("--> PAUSE / STOP TAPE");
@@ -1249,9 +1198,8 @@ class TZXproccesor
                   {
                       // Obtenemos la dirección del siguiente offset
                       analyzeID33(mFile,currentOffset, currentBlock);
-
                       nextIDoffset = currentOffset + 2 + _myTZX.descriptor[currentBlock].size;
-                      _myTZX.descriptor[currentBlock].typeName = "ID 21 - Group start";
+                      strncpy(_myTZX.descriptor[currentBlock].typeName,"ID 21 - Group start",sizeof("ID 21 - Group start"));                      
                       //currentBlock++;
                   }
                   else
@@ -1273,7 +1221,7 @@ class TZXproccesor
                       _myTZX.descriptor[currentBlock].offset = currentOffset;
 
                       nextIDoffset = currentOffset + 1;                      
-                      _myTZX.descriptor[currentBlock].typeName = "ID 22 - Group end";
+                      strncpy(_myTZX.descriptor[currentBlock].typeName,"ID 22 - Group end",sizeof("ID 22 - Group end"));                      
                       //currentBlock++;
                   }
                   else
@@ -1349,8 +1297,7 @@ class TZXproccesor
                 case 42:
                   analyzeBlockUnknow(currentID,currentOffset, currentBlock);
                   nextIDoffset = currentOffset + 1;            
-
-                  _myTZX.descriptor[currentBlock].typeName = "ID 2A - Stop TAPE (48k mode)";
+                  strncpy(_myTZX.descriptor[currentBlock].typeName,"ID 2A - Stop TAPE (48k mode)",sizeof("ID 2A - Stop TAPE (48k mode)"));                      
                   currentBlock++;
                   break;
 
@@ -1373,7 +1320,7 @@ class TZXproccesor
                       analyzeID48(mFile,currentOffset,currentBlock);
                       // Siguiente ID
                       nextIDoffset = currentOffset + _myTZX.descriptor[currentBlock].size + 1;
-                      _myTZX.descriptor[currentBlock].typeName = "ID 30 - Information";
+                      strncpy(_myTZX.descriptor[currentBlock].typeName,"ID 30 - Information",sizeof("ID 30 - Information"));                      
 
                       //currentBlock++;
                   }
@@ -1390,8 +1337,7 @@ class TZXproccesor
                 case 49:
                   analyzeBlockUnknow(currentID,currentOffset, currentBlock);
                   nextIDoffset = currentOffset + 1;                  
-
-                  _myTZX.descriptor[currentBlock].typeName = "ID 31 - Message block";
+                  strncpy(_myTZX.descriptor[currentBlock].typeName,"ID 31 - Message block",sizeof("ID 31 - Message block"));                          
                   //currentBlock++;
                   break;
 
@@ -1405,7 +1351,7 @@ class TZXproccesor
 
                       // Siguiente ID
                       nextIDoffset = currentOffset + 3 + _myTZX.descriptor[currentBlock].size;
-                      _myTZX.descriptor[currentBlock].typeName = "ID 32 - Archive info";
+                      strncpy(_myTZX.descriptor[currentBlock].typeName,"ID 32 - Archive info",sizeof("ID 32 - Archive info"));                      
                       //currentBlock++;
                   }
                   else
@@ -1427,7 +1373,8 @@ class TZXproccesor
 
                       // Siguiente ID
                       nextIDoffset = currentOffset + 3 + _myTZX.descriptor[currentBlock].size;
-                      _myTZX.descriptor[currentBlock].typeName = "ID 33- Hardware type";
+                      strncpy(_myTZX.descriptor[currentBlock].typeName,"ID 33- Hardware type",sizeof("ID 33- Hardware type"));                      
+
                       //currentBlock++;
                   }
                   else
@@ -1443,8 +1390,8 @@ class TZXproccesor
                 case 53:
                   analyzeBlockUnknow(currentID,currentOffset, currentBlock);
                   nextIDoffset = currentOffset + 1;            
+                  strncpy(_myTZX.descriptor[currentBlock].typeName,"ID 35 - Custom info block",sizeof("ID 35 - Custom info block"));                      
 
-                  _myTZX.descriptor[currentBlock].typeName = "ID 35 - Custom info block";
                   //currentBlock++;
                   break;
 
@@ -1452,19 +1399,16 @@ class TZXproccesor
                 case 90:
                   analyzeBlockUnknow(currentID,currentOffset, currentBlock);
                   nextIDoffset = currentOffset + 1;            
-
-                  _myTZX.descriptor[currentBlock].typeName = "ID 5A - Glue block";
+                  strncpy(_myTZX.descriptor[currentBlock].typeName,"ID 5A - Glue block",sizeof("ID 5A - Glue block"));                      
                   currentBlock++;
+
                   break;
 
                 default:
                   SerialHW.println("");
                   SerialHW.println("ID unknow " + currentID);
                   ID_NOT_IMPLEMENTED = true;
-                  // analyzeBlockUnknow(currentID,currentOffset, currentBlock);
-                  // nextIDoffset = currentOffset + 1;            
 
-                  // _myTZX.descriptor[currentBlock].typeName = "Unknown block";
                   break;
                 }
 
@@ -1692,7 +1636,7 @@ class TZXproccesor
       {
           // Entregamos información por consola
           //PROGRAM_NAME = _myTZX.name;
-          LAST_NAME = &INITCHAR2[0];
+          strncpy(LAST_NAME,"",1);
     
           SerialHW.println("");
           SerialHW.println("TZX");
@@ -1712,16 +1656,8 @@ class TZXproccesor
     }
 
     void initialize()
-    {
-        // if (_myTZX.descriptor != NULL)
-        // {
-        //   //free(_myTZX.descriptor);
-        //   //free(_myTZX.name);
-        //   //_myTZX.descriptor = NULL;
-
-        // }          
-
-        _myTZX.name = "\0";
+    {       
+        strncpy(_myTZX.name,"",1);
         _myTZX.numBlocks = 0;
         _myTZX.size = 0;
 
@@ -1754,7 +1690,7 @@ class TZXproccesor
               // Entregamos información por consola
               //PROGRAM_NAME = _myTZX.name;
               TOTAL_BLOCKS = _myTZX.numBlocks;
-              LAST_NAME = &INITCHAR2[0];
+              strncpy(LAST_NAME,"",1);
 
               // Ahora reproducimos todos los bloques desde el seleccionado (para cuando se quiera uno concreto)
               int m = BLOCK_SELECTED;
@@ -1854,9 +1790,9 @@ class TZXproccesor
 
                       //LAST_NAME = bDscr[i].name;
                       // Obtenemos el nombre del bloque
-                      LAST_NAME = _myTZX.descriptor[i].name;
                       LAST_SIZE = _myTZX.descriptor[i].size;
-                      LAST_TYPE = _myTZX.descriptor[i].typeName;
+                      strncpy(LAST_NAME,_myTZX.descriptor[i].name,sizeof(_myTZX.descriptor[i].name));
+                      strncpy(LAST_TYPE,_myTZX.descriptor[i].typeName,sizeof(_myTZX.descriptor[i].typeName));
 
                       // Almacenmas el bloque en curso para un posible PAUSE
                       if (LOADING_STATE != 2) {
@@ -2081,11 +2017,11 @@ class TZXproccesor
     TZXproccesor(AudioKit kit)
     {
         // Constructor de la clase
-        _myTZX.name = (char*)ps_calloc(10+1,sizeof(char));
-        _myTZX.name = &INITCHAR[0];
-        _myTZX.numBlocks = 0;
-        _myTZX.descriptor = NULL;
-        _myTZX.size = 0;
+        // _myTZX.name = (char*)ps_calloc(10+1,sizeof(char));
+        // _myTZX.name = &INITCHAR[0];
+        // _myTZX.numBlocks = 0;
+        // _myTZX.descriptor = NULL;
+        // _myTZX.size = 0;
 
         //zxp.set_ESP32kit(kit);      
     } 

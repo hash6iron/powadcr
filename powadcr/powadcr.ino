@@ -607,33 +607,21 @@ void setup()
       SerialHW.println("");
       SerialHW.println("Testing readFileRange32(..)"); 
 
-      byte* buffer = (byte*)ps_calloc(11,sizeof(byte));
-      char* fileTest = "/Correcaminos - Nifty Lifty (1984)(Visions Software Factory).tzx";
+      byte* buffer = (byte*)calloc(11,sizeof(byte));
+      char fileTest[65];
+      strncpy(fileTest,"/Correcaminos - Nifty Lifty (1984)(Visions Software Factory).tzx",64);
       sdFile32 = sdm.openFile32(sdFile32,fileTest);
       buffer = sdm.readFileRange32(sdFile32,0,10,true);
       free(buffer);
-      buffer = NULL;
 
       SerialHW.println("");
       SerialHW.println("");
       SerialHW.println("Test OK");  
   #endif
 
-  //hmi.getMemFree();
-  // Control del TAPE
-  //xTaskCreatePinnedToCore(Task2code, "Task2", 10000, NULL, 1, NULL,  1);
-  //delay(500)  ;
-
   // Control de la UART - HMI
   xTaskCreatePinnedToCore(Task0code, "TaskCORE0", 4096, NULL, 5, &Task0,  0);
   delay(500);
-
-  // Control del TAPE
-  //xTaskCreatePinnedToCore(Task1code, "TaskCORE1", 4096, NULL, 1, &Task1,  1);
-  //delay(500);
-
-  // Hacemos esto para que el WDT no nos mate los procesos
-  //esp_task_wdt_init(10,false);
 
   // Deshabilitamos el WDT en cada core
   disableCore0WDT();
@@ -691,7 +679,6 @@ void tapeControl()
 
       if (STOP && (LOADING_STATE != 0 || REC)) 
       {
-        
         LOADING_STATE = 0;
         //Paramos la animación
         hmi.writeString("tape.tmAnimation.en=0"); 
@@ -708,13 +695,9 @@ void tapeControl()
 
         }
         else
-        {
-
-        }
+        {}
 
         setSTOP();
-
-
       }
 
       if (FILE_SELECTED && !FILE_NOTIFIED && !REC) 
@@ -736,7 +719,9 @@ void tapeControl()
           if (FILE_TO_LOAD.indexOf(".TAP") != -1)
           {
               // Lo procesamos
-              proccesingTAP(file_ch);            
+              proccesingTAP(file_ch);
+              free(file_ch);
+
               TYPE_FILE_LOAD = "TAP";
               //hmi.getMemFree();
           }
@@ -744,6 +729,8 @@ void tapeControl()
           {
               // Lo procesamos. Para ZX Spectrum
               proccesingTZX(file_ch);
+              free(file_ch);
+
               TYPE_FILE_LOAD = "TZX";
               //hmi.getMemFree();              
           }
@@ -751,6 +738,8 @@ void tapeControl()
           {
               // Lo procesamos. Para MSX
               proccesingTZX(file_ch);
+              free(file_ch);
+
               TYPE_FILE_LOAD = "TSX";
           }   
         }
@@ -814,10 +803,16 @@ void tapeControl()
 
       if (EJECT && FILE_PREPARED && !REC)
       {
+
+        
+        log("Eject, pressed");
+
         if (FILE_SELECTED) 
         {
           // Pasamos a estado de reproducción
           EJECT = false;
+          
+          log("Eject executing");
 
           // Terminamos los players
           if (TYPE_FILE_LOAD == "TAP")

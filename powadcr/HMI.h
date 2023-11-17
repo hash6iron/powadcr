@@ -43,7 +43,16 @@ class HMI
       
       private:
 
-      //ZXProccesor _zxp;
+      void clearFileBuffer()
+      {
+        // Borramos todos los registros
+        for (int i;i<MAX_FILES_TO_LOAD;i++)
+        {
+          FILES_BUFF[i].isDir = false;
+          FILES_BUFF[i].path = "";
+          FILES_BUFF[i].type = "";
+        }
+      }
 
       int countFiles(char* path)
       {
@@ -70,7 +79,7 @@ class HMI
               while (sdm.file.openNext(&sdm.dir, O_READ)) //O_RDONLY
               {
 
-                  char* szName = (char*)ps_calloc(255,sizeof(char));
+                  char szName[255];
 
                   if (sdm.file.isDir())
                   {
@@ -84,13 +93,8 @@ class HMI
                       sdm.file.getName(szName,254);
                       sdm.file.close();
                   }
+                  //
                   fileC++;
-
-                  if (szName != NULL)
-                  {
-                    free(szName);
-                    szName = NULL;
-                  }
               }
           }
       
@@ -102,23 +106,14 @@ class HMI
 
       void getFilesFromSD()
       {
-          char* szName = (char*)ps_calloc(255,sizeof(char));
-          //szName = "\0";
-      
+       
+          // Cadena para un filePath
+          char szName[255];
           int j = 0;
-      
-          // Dimensionamos el array con ps_calloc
-          if (FILES_BUFF != NULL)
-          {
-              // Liberamos primero el espacio anterior
-              free(FILES_BUFF);
-              FILES_BUFF = NULL;
-          }
-    
+
+          clearFileBuffer();
+
           FILE_TOTAL_FILES = MAX_FILES_TO_LOAD;
-          
-          FILES_BUFF = (tFileBuffer*)ps_calloc(FILE_TOTAL_FILES+1,sizeof(tFileBuffer));
-            
           FILE_DIR_OPEN_FAILED = false;
           
           if (!sdm.dir.open(FILE_LAST_DIR)) 
@@ -210,9 +205,6 @@ class HMI
                           else
                           {
                               // No se guarda
-                              //FILES_BUFF[j].type = "";
-                              //FILES_BUFF[j].isDir = false;
-                              //FILES_BUFF[j].path = "";
                           }
                       }
                       else
@@ -229,14 +221,15 @@ class HMI
                   }
                        
               }
-      
+
               // Sorting del array
               //
 
               FILE_TOTAL_FILES = j;
               sdm.dir.close();
 
-              //getMemFree();
+              getMemFree();
+              updateMem();
           }
 
           writeString("statusFILE.txt=\"FILES " + String(FILE_TOTAL_FILES-1) +"\"");
@@ -245,10 +238,6 @@ class HMI
           // Cerramos todos los ficheros (añadido el 25/07/2023)
           sdm.dir.close();
           sdm.file.close();
-
-          // SerialHW.println("");
-          // SerialHW.println("");
-          // SerialHW.println("TOTAL FILES READ: " + String(FILE_TOTAL_FILES-1));
       }
 
 
@@ -352,8 +341,8 @@ class HMI
       
       char* getPreviousDirFromPath(char* path)
       {
-          char* strTmp = (char*)ps_calloc(2,sizeof(char));
-          strTmp = &INITFILEPATH[0];
+          char* strTmp = (char*)ps_calloc(3,sizeof(char));
+          strncpy(strTmp,&INITFILEPATH[0],2);
           
           int lpath = strlen(path);
           
@@ -365,7 +354,6 @@ class HMI
               {
                   //Copiamos ahora el trozo de cadena restante
                   //ponemos n-1 para que copie también la "/"
-                  strTmp = (char*)ps_calloc(n+2,sizeof(char));
                   strlcpy(strTmp,path,n+2);
                   break;
               }
@@ -534,9 +522,10 @@ class HMI
         showInformationAboutFiles();        
       
       }
-      
+
       void putInHome()
       {
+          // Dimensionamos el array con ps_calloc
           FILE_BROWSER_SEARCHING = false;  
           FILE_LAST_DIR_LAST = &INITFILEPATH[0];
           FILE_LAST_DIR=&INITFILEPATH[0];
@@ -551,17 +540,8 @@ class HMI
       void findTheTextInFiles()
       {
       
-          //bool filesFound = false;
-      
-          if(FILES_FOUND_BUFF!=NULL)
-          {
-              free(FILES_FOUND_BUFF);
-              FILES_FOUND_BUFF=NULL;
-          }
-      
-          const int maxResults = 500;
-      
-          FILES_FOUND_BUFF = (tFileBuffer*)ps_calloc(maxResults+1,sizeof(tFileBuffer));
+          //bool filesFound = false;     
+          const int maxResults = MAX_FILES_FOUND_BUFF;
       
           // Copiamos el primer registro que no cambia
           // porque es la ruta anterior.
@@ -673,6 +653,37 @@ class HMI
           }           
       }
 
+      void proccesingEject()
+      {
+          PLAY = false;
+          PAUSE = false;
+          STOP = true;
+          ABORT = false;
+          REC = false;
+
+          if (FILE_PREPARED)
+          {
+            log("EJECT command");
+            EJECT = true;
+          }
+          else
+          {
+            EJECT = false;
+          }
+          
+          BLOCK_SELECTED = 0;
+          BYTES_LOADED = 0;
+      
+          LAST_MESSAGE = "Tape stop. Press play to start again.";
+          //writeString("");
+          writeString("currentBlock.val=1");
+          //writeString("");
+          writeString("progressTotal.val=0");
+          //writeString("");
+          writeString("progression.val=0");
+          updateInformationMainPage();        
+      }
+
       public:
 
       void verifyCommand(String strCmd) 
@@ -685,7 +696,8 @@ class HMI
         {
             // Con este procedimiento capturamos el bloque seleccionado
             // desde la pantalla.
-            byte* buff = (byte*)ps_calloc(8,sizeof(byte));
+            byte buff[8];
+
             strCmd.getBytes(buff, 7);
             long val = (long)((int)buff[4] + (256*(int)buff[5]) + (65536*(int)buff[6]));
             String num = String(val);
@@ -698,7 +710,7 @@ class HMI
         {
             // Con este procedimiento capturamos el bloque seleccionado
             // desde la pantalla.
-            byte* buff = (byte*)ps_calloc(8,sizeof(byte));
+            byte buff[8];
             strCmd.getBytes(buff, 7);
             
             long val = (long)((int)buff[4] + (256*(int)buff[5]) + (65536*(int)buff[6]));
@@ -742,6 +754,7 @@ class HMI
         {
             // Con este comando nos indica la pantalla que 
             // está en modo FILEBROWSER
+            proccesingEject();            
             FILE_BROWSER_OPEN = true;
         }
       
@@ -793,7 +806,7 @@ class HMI
                     // SerialHW.println("");
                     // SerialHW.println("");
                     // SerialHW.println(" Closing file before new browsing.");                
-                }
+                }              
 
                 getFilesFromSD();
             }
@@ -900,7 +913,7 @@ class HMI
         if (strCmd.indexOf("CHD=") != -1) 
         {
             // Con este comando capturamos el directorio a cambiar
-            byte* buff = (byte*)ps_calloc(8,sizeof(byte));
+            byte buff[8];
             strCmd.getBytes(buff, 7);
             
             long val = (long)((int)buff[4] + (256*(int)buff[5]) + (65536*(int)buff[6]));
@@ -978,7 +991,7 @@ class HMI
         {
             // Con este comando
             // Borramos el fichero que se ha seleccionado en la pantalla
-            byte* buff = (byte*)ps_calloc(8,sizeof(byte));
+            byte buff[8];
             strCmd.getBytes(buff, 7);
 
             long val = (long)((int)buff[4] + (256*(int)buff[5]) + (65536*(int)buff[6]));
@@ -1005,13 +1018,6 @@ class HMI
                 SerialHW.println();
                 SerialHW.println("File to delete in buffer: " + FILE_TO_DELETE); 
                 FILE_SELECTED_DELETE = true;  
-      
-                // Ya no me hace falta. Lo libero
-                if(FILES_FOUND_BUFF!=NULL)
-                {
-                    free(FILES_FOUND_BUFF);
-                    FILES_FOUND_BUFF = NULL;
-                }
             }
 
             if (FILE_SELECTED_DELETE)
@@ -1038,7 +1044,7 @@ class HMI
         {
             // Con este comando
             // devolvamos el fichero que se ha seleccionado en la pantalla
-            byte* buff = (byte*)ps_calloc(8,sizeof(byte));
+            byte buff[8];
             strCmd.getBytes(buff, 7);
             long val = (long)((int)buff[4] + (256*(int)buff[5]) + (65536*(int)buff[6]));
             String num = String(val);
@@ -1065,19 +1071,7 @@ class HMI
             }
             else
             {
-                FILE_TO_LOAD = FILE_LAST_DIR + FILES_FOUND_BUFF[FILE_IDX_SELECTED + FILE_PTR_POS].path;     
-      
-                // SerialHW.println();
-                // SerialHW.println();
-                // SerialHW.println("File to load: " + FILE_TO_LOAD); 
-      
-                // Ya no me hace falta. Lo libero
-                if(FILES_FOUND_BUFF!=NULL)
-                {
-                    free(FILES_FOUND_BUFF);
-                    FILES_FOUND_BUFF = NULL;
-                }
-      
+                FILE_TO_LOAD = FILE_LAST_DIR + FILES_FOUND_BUFF[FILE_IDX_SELECTED + FILE_PTR_POS].path;           
             }
       
       
@@ -1173,25 +1167,6 @@ class HMI
       
         if (strCmd.indexOf("EJECT") != -1) 
         {
-          PLAY = false;
-          PAUSE = false;
-          STOP = true;
-          ABORT = false;
-          REC = false;
-          EJECT = true;
-
-          BLOCK_SELECTED = 0;
-          BYTES_LOADED = 0;
-      
-          LAST_MESSAGE = "Tape stop. Press play to start again.";
-          //writeString("");
-          writeString("currentBlock.val=1");
-          //writeString("");
-          writeString("progressTotal.val=0");
-          //writeString("");
-          writeString("progression.val=0");
-          updateInformationMainPage();
-          //getFilesFromSD();
         }
       
         if (strCmd.indexOf("ABORT") != -1) 
@@ -1536,17 +1511,17 @@ class HMI
       
       void setBasicFileInformation(char* name,char* typeName,int size)
       {
-          LAST_NAME = name;
           LAST_SIZE = size;
-          LAST_TYPE = typeName;
+          strncpy(LAST_NAME,name,sizeof(name));
+          strncpy(LAST_TYPE,typeName,sizeof(typeName));
       }
 
       void clearInformationFile()
       {
           PROGRAM_NAME = "";
           LAST_SIZE = 0;
-          LAST_TYPE = &INITCHAR[0];
-          LAST_NAME = &INITCHAR[0];
+          strncpy(LAST_NAME,"",1);
+          strncpy(LAST_TYPE,"",1);
 
           updateInformationMainPage();
       }
@@ -1725,8 +1700,8 @@ class HMI
           SerialHW.println("");
           SerialHW.println("Total heap: " + String(ESP.getHeapSize() / 1024) + "KB");
           SerialHW.println("Free heap: " + String(ESP.getFreeHeap() / 1024) + "KB");
-          SerialHW.println("Total PSRAM: " + String(ESP.getPsramSize() / 1024 / 1024) + "MB");
-          SerialHW.println("Free PSRAM: " + String (ESP.getFreePsram() / 1024 / 1024) + "MB");  
+          SerialHW.println("Total PSRAM: " + String(ESP.getPsramSize() / 1024) + "KB");
+          SerialHW.println("Free PSRAM: " + String (ESP.getFreePsram() / 1024) + "KB");  
           SerialHW.println("");
           SerialHW.println("------------------------------------------------------------");
           //
@@ -1741,5 +1716,5 @@ class HMI
 
       // Constructor
       HMI()
-      {}
+      {     }
 };

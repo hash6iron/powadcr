@@ -67,6 +67,9 @@ class TAPproccesor
 
       // Creamos el contenedor de bloques. Descriptor de bloques
       //tBlockDescriptor* bDscr = new tBlockDescriptor[255];
+      // Gestión de bloques
+      int _startBlock = 0;
+      int _lastStartBlock = 0;
 
       bool isHeaderTAP(File32 tapFileName)
       {
@@ -80,7 +83,7 @@ class TAPproccesor
 
                 // La cabecera son 19 bytes
                 byte* bBlock;
-                bBlock = static_cast<byte*>(allocate(bBlock,19+1));
+                bBlock = allocateByte(19+1);
                 bBlock = sdm.readFileRange32(tapFileName,0,19,true);
 
                 SerialHW.println("");
@@ -89,7 +92,8 @@ class TAPproccesor
 
                 // Obtenemos la firma del TAP
                 char* signTZXHeader;
-                signTZXHeader = static_cast<char*>(allocate(bBlock,3+1));
+                signTZXHeader = allocateChar(3+1);;
+
 
                 SerialHW.println("");
                 SerialHW.println("");
@@ -119,8 +123,14 @@ class TAPproccesor
                 }
 
                 log("Iniciando deallocating");
-                deallocate(signTZXHeader);
-                deallocate(bBlock);
+                // free(signTZXHeader);
+                // free(bBlock);
+                delete [] signTZXHeader;
+                signTZXHeader = NULL;
+
+                delete [] bBlock;
+                bBlock = NULL;
+
                 log("Fin deallocating");
           }
           else
@@ -136,9 +146,6 @@ class TAPproccesor
       {
           bool rtn = false;
           char* szName = new char[254 + 1];
-
-          // char* szName;
-          // szName = static_cast<char*>(allocate(szName,254+1));
 
           tapFileName.getName(szName,254);
           String fileName = static_cast<String>(szName);
@@ -346,21 +353,21 @@ class TAPproccesor
           return (char*)(header+2);             
       }
 
-      void getBlockName(char** prgName, byte* header, int startByte)
-      {
-          // Obtenemos el nombre del bloque cabecera
-          // Es una cabecera PROGRAM 
-          // el nombre está en los bytes del 4 al 13 (empezando en 0)         
-          header[startByte+12]=0;
-          *prgName = (char*) (header+2);             
-      }      
+      // void getBlockName(char** prgName, byte* header, int startByte)
+      // {
+      //     // Obtenemos el nombre del bloque cabecera
+      //     // Es una cabecera PROGRAM 
+      //     // el nombre está en los bytes del 4 al 13 (empezando en 0)         
+      //     header[startByte+12]=0;
+      //     *prgName = (char*) (header+2);             
+      // }      
 
       byte* getBlockRange(byte* bBlock, int byteStart, int byteEnd)
       {
 
           // Extraemos un bloque de bytes indicando el byte inicio y final
           //byte* blockExtracted = new byte[(byteEnd - byteStart)+1];
-          byte* blockExtracted = static_cast<byte*>(allocate(blockExtracted,(byteEnd - byteStart)+1));
+          byte* blockExtracted = allocateByte((byteEnd - byteStart)+1);
 
           int i=0;
           for (int n=byteStart;n<(byteStart + (byteEnd - byteStart)+1);n++)
@@ -403,70 +410,21 @@ class TAPproccesor
           while(reachEndByte==false)
           {
 
-              byte* tmpRng = static_cast<byte*>(allocate(tmpRng,sizeB));
+              byte* tmpRng = allocateByte(sizeB);
 
               tmpRng = sdm.readFileRange32(_mFile,startBlock,sizeB-1,false);
               chk = calculateChecksum(tmpRng,0,sizeB-1);
 
-              deallocate(tmpRng);
-              //_hmi.getMemFree();
+              //free(tmpRng);
+              delete [] tmpRng;
+              tmpRng = NULL;              
+              _hmi.getMemFree();
                            
               blockChk = sdm.readFileRange32(_mFile,startBlock+sizeB-1,1,false)[0];
           
 
               if (blockChk == chk)
-              {
-                  
-                  int flagByte = sdm.readFileRange32(_mFile,startBlock,1,false)[0];
-
-                  int typeBlock = sdm.readFileRange32(_mFile,startBlock+1,1,false)[0];
-                  
-                  // Vemos si el bloque es una cabecera o un bloque de datos (bien BASIC o CM)
-                  if (flagByte < 128)
-                  {
-                     
-                      // Es una CABECERA
-                      if (typeBlock==0)
-                      {
-                          state = 1;
-                      }
-                      else if (typeBlock==1)
-                      {
-                          // Array num header
-                      }
-                      else if (typeBlock==2)
-                      {
-                          // Array char header
-                      }
-                      else if (typeBlock==3)
-                      {
-                          // Byte block
-
-                          // Vemos si es una cabecera de una SCREEN
-                          // para ello temporalmente vemos el tamaño del bloque de codigo. Si es 6914 bytes (incluido el checksum y el flag - 6912 + 2 bytes)
-                          // es una pantalla SCREEN
-
-                          int tmpSizeBlock = (256*sdm.readFileRange32(_mFile,startBlock + sizeB+1,1,false)[0]) + sdm.readFileRange32(_mFile,startBlock + sizeB,1,false)[0];
-
-                          if (tmpSizeBlock == 6914)
-                          {
-                              state = 2;
-                          }                   
-                      }
-
-                  }
-                  else
-                  {
-                      if (state == 1)
-                      {
-                          state = 0;
-                      }
-                      else if (state == 2)
-                      {
-                          state = 0;
-                      }
-                  }                   
-
+              {                                  
                   // Siguiente bloque
                   // Direcion de inicio (offset)
                   startBlock = startBlock + sizeB;
@@ -481,9 +439,6 @@ class TAPproccesor
                   SerialHW.print("OFFSET: 0x");
                   SerialHW.print(startBlock,HEX);
                   SerialHW.print(" / SIZE:   " + String(newSizeB));
-
-                  //_hmi.getMemFree();
-
               }
               else
               {
@@ -506,267 +461,283 @@ class TAPproccesor
           }
 
           return numBlocks;
-
       }
 
-      void getBlockDescriptor2(File32 mFile, int sizeTAP)
-      {
-          // Para ello tenemos que ir leyendo el TAP poco a poco
-          // y llegando a los bytes que indican TAMAÑO(2 bytes) + 0xFF(1 byte)
-          int numBlks = getNumBlocks(mFile, sizeTAP);
-         
-          if (!FILE_CORRUPTED)
-          {
-              SerialHW.println("");
-              SerialHW.println("Num. de bloques: " + String(numBlks));
-              SerialHW.println("");
+      // bool isCorrectBlock(File32 mFile, int startBlock, int size)
+      // {
+      //     byte* tmpRng = allocateByte(size);
+      //     // Cojo el bloque
+      //     tmpRng = sdm.readFileRange32(_mFile,startBlock,size-1,false);
+      //     // Calculo el checksum del bloque
+      //     int chk = calculateChecksum(tmpRng,0,size-1);
+      //     // Libero el bloque temporal
+      //     free(tmpRng);
+      //     // Cojo los bytes de checksum
+      //     int blockChk = sdm.readFileRange32(mFile,startBlock+size-1,1,false)[0];
+      //     // Comparo
+      //     if (blockChk == chk)
+      //     {
+      //       return true;
+      //     }
+      //     else
+      //     {
+      //       return false;
+      //     }
+      // }
+
+      // void getTypeBlock(File32 mFile, tBlockDescriptor &tB, int startBlock, int size)
+      // {
+      //   int flagByte = sdm.readFileRange32(_mFile,startBlock,1,false)[0];
+      //   int typeBlock = sdm.readFileRange32(_mFile,startBlock+1,1,false)[0];
+      //   int state = 0;
+
+      //   tB.nameDetected = true;                                      
+
+      //   if (flagByte < 128)
+      //   {
+      //       // Inicializamos                    
+      //       tB.typeBlock.id = 0;
+      //       tB.typeBlock.name = getTypeTAPBlock(tB.typeBlock.id); ;
             
-              deallocatingTAP();
+      //       // Es una CABECERA
+      //       if (typeBlock==0)
+      //       {
+      //           // Es un header PROGRAM
+      //           tB.header = true;
+      //           tB.typeBlock.id = HPRGM;
+      //           tB.nameDetected = true;
+      //           // Almacenamos el nombre
+      //           getBlockName(&tB.name,sdm.readFileRange32(_mFile,startBlock,19,false),0);
+      //           //Cogemos el nombre del TAP de la primera cabecera
+      //           if (startBlock < 23)
+      //           {
+      //               //nameTAP = (String)bDscr[numBlocks].name;
+      //               //nameTAP = bDscr[numBlocks].name;
+      //               _myTAP.name = tB.name;
+      //           }
+      //           state = 1;
+      //       }
+      //       else if (typeBlock==1)
+      //       {
+      //           // Array num header
+      //           // Almacenamos el nombre
+      //           getBlockName(&tB.name,sdm.readFileRange32(_mFile,startBlock,19,false),0); 
+      //           tB.typeBlock.id = HARRAYNUM;    
+      //       }
+      //       else if (typeBlock==2)
+      //       {
+      //           // Array char header
+      //           // Almacenamos el nombre
+      //           getBlockName(&tB.name,sdm.readFileRange32(_mFile,startBlock,19,false),0); 
+      //           tB.typeBlock.id = HARRAYCHR;    
+      //       }
+      //       else if (typeBlock==3)
+      //       {
+      //           // Byte block
+      //           // Vemos si es una cabecera de una SCREEN
+      //           // para ello temporalmente vemos el tamaño del bloque de codigo. Si es 6914 bytes (incluido el checksum y el flag - 6912 + 2 bytes)
+      //           // es una pantalla SCREEN
+      //           tB.nameDetected = true;
+      //           // Almacenamos el nombre
+      //           getBlockName(&tB.name,sdm.readFileRange32(_mFile,startBlock,19,false),0);                          
+      //           int tmpSizeBlock = (256*sdm.readFileRange32(_mFile,startBlock + size+1,1,false)[0]) + sdm.readFileRange32(_mFile,startBlock + size,1,false)[0];
 
-              tBlockDescriptor* bdPtr;
-              _myTAP.descriptor = static_cast<tBlockDescriptor*>(allocate(_myTAP.descriptor,numBlks+1));
-              bdPtr = _myTAP.descriptor;
-              // Guardamos el numero total de bloques
-              
-              char* typeName = new char[20+1];
-              typeName = "\0";
+      //           if (tmpSizeBlock == 6914)
+      //           {
+      //               // Es una cabecera de un Screen
+      //               tB.screen = true;
+      //               tB.typeBlock.id = HSCRN;                              
+      //               state = 2;
+      //           }
+      //           else
+      //           {               
+      //               tB.typeBlock.id = HCODE;    
+      //           }
+      //       }
+      //   }
+      //   else
+      //   {
+      //       if (state == 1)
+      //       {
+      //           state = 0;
+      //           // Es un bloque BASIC                         
+      //           tB.typeBlock.id = PRGM;
+      //       }
+      //       else if (state == 2)
+      //       {
+      //           state = 0;
+      //           // Es un bloque SCREEN                     
+      //           tB.typeBlock.id = SCRN;                         
+      //       }
+      //       else
+      //       {
+      //           // Es un bloque CM                        
+      //           tB.typeBlock.id = CODE;                         
+      //       }
+      //   }
 
-              char* blockName = new char[10+1];
-              blockName = "\0";
+      //   tB.typeBlock.name = getTypeTAPBlock(tB.typeBlock.id);                         
+      // }
 
-              int startBlock = 0;
-              int lastStartBlock = 0;
-              int sizeB = 0;
-              int newSizeB = 0;
-              int chk = 0;
-              int blockChk = 0;
-              int numBlocks = 0;
+      // tBlockDescriptor getBlock(File32 mFile, int startBlock)
+      // {
+      //     tBlockDescriptor tB;
+      //     // Los dos primeros bytes son el tamaño a contar
+      //     int sizeB = (256*sdm.readFileRange32(_mFile,startBlock+1,1,false)[0]) + sdm.readFileRange32(_mFile,startBlock,1,false)[0];
+      //     // Incrementamos el puntero de offset 2 bytes que ya han sido leidos
+      //     startBlock += 2;
 
-              bool blockNameDetected = false;
-              
-              bool reachEndByte = false;
+      //     if (isCorrectBlock(mFile,startBlock,sizeB))
+      //     {
+      //       tB.corrupted = false;
+      //       tB.offset = 0;
+      //       tB.size = sizeB;
+      //       tB.chk = sdm.readFileRange32(mFile,startBlock+sizeB-1,1,false)[0];
+      //       tB.name = "\0";
+      //       tB.nameDetected = false;
+      //       tB.header = true;
+      //       tB.screen = false;
+      //       //Obtenemos el tipo de bloque
+      //       getTypeBlock(mFile,tB,startBlock,sizeB);
+      //     }
+      //     else
+      //     {
+      //         SerialHW.println("Error in checksum.");
+      //         // Abortamos
+      //         tB.corrupted = true;
+      //         FILE_CORRUPTED = true;            
+      //     }
 
-              int state = 0;    
+      //     return tB;
+      // }
 
-              //Entonces recorremos el TAP. 
-              // La primera cabecera SIEMPRE debe darse.
-              SerialHW.println("");
-              SerialHW.println("Analyzing TAP file. Please wait ...");
-              
-              // Los dos primeros bytes son el tamaño a contar
-              sizeB = (256*sdm.readFileRange32(_mFile,startBlock+1,1,false)[0]) + sdm.readFileRange32(_mFile,startBlock,1,false)[0];
-              startBlock = 2;
+      // tBlockDescriptor nextBlock(File32 mFile, tBlockDescriptor prevBlock)
+      // {
+      //     tBlockDescriptor tB;
+      //     tB = getBlock(mFile,prevBlock.offset + prevBlock.size);
 
-              while(reachEndByte==false && sizeB!=0)
-              {
-                  // Inicializamos
-                  //blockName = &INITCHAR[0];
+      //     return tB;        
+      // }
 
-                  bdPtr->name = "\0";
-                  //_myTAP.descriptor[numBlocks].name = "\0";
+      // void seekBlock(File32 mFile, tBlockDescriptor &tB, int numBlock)
+      // {}
 
-                  blockNameDetected = false;
-                  
-                  byte* tmpRng = static_cast<byte*>(allocate(tmpRng,sizeB+16));
+      // bool playBlock(tBlockDescriptor blockDescriptor)
+      // {
+      //   return false;
+      // }
+      bool getInformationOfHead(tBlockDescriptor &tB, int flagByte, int typeBlock, int startBlock, int sizeB, char (&nameTAP)[11])
+      {
+        
+        // Obtenemos informacion de la cabecera
 
-                  // SerialHW.println("");
-                  // SerialHW.println("Block:      " + String(numBlocks));
-                  // SerialHW.println("Size:       " + String(sizeB) + " bytes");              
-                  // SerialHW.println("");
-                  // SerialHW.print("Startblock: 0x");
-                  // SerialHW.print(startBlock,HEX);
+        bool blockNameDetected = false;
+        int state = 0;
 
-                  tmpRng = sdm.readFileRange32(_mFile,startBlock,sizeB-1,false);
+        if (flagByte < 128)
+        {
 
-                  chk = calculateChecksum(tmpRng,0,sizeB-1);
+            // Inicializamos                    
+            tB.type = 0;
+            strncpy(tB.typeName,"",10);
+            
+            // Es una CABECERA
+            if (typeBlock==0)
+            {
+                // Es un header PROGRAM
 
-                  // Liberamos memoria
-                  deallocate(tmpRng);
-                  
-                  blockChk = sdm.readFileRange32(_mFile,startBlock+sizeB-1,1,false)[0];
+                tB.header = true;
+                tB.type = HPRGM;
 
-                  if (blockChk == chk)
-                  {
-                      
-                      bdPtr->offset = startBlock;
-                      bdPtr->size = sizeB;
-                      bdPtr->chk = chk;        
+                blockNameDetected = true;
 
-                      // Cogemos info del bloque
-                      
-                      // Flagbyte
-                      // 0x00 - HEADER
-                      // 0xFF - DATA BLOCK
-                      int flagByte = sdm.readFileRange32(_mFile,startBlock,1,false)[0];
-
-                      // 0x00 - PROGRAM
-                      // 0x01 - ARRAY NUM
-                      // 0x02 - ARRAY CHAR
-                      // 0x03 - CODE FILE
-                      int typeBlock = sdm.readFileRange32(_mFile,startBlock+1,1,false)[0];
-                      
-                      //log("STEP 1");
-
-                      // Vemos si el bloque es una cabecera o un bloque de datos (bien BASIC o CM)
-                      if (flagByte < 128)
-                      {
-
-                          // Inicializamos                    
-                          bdPtr->type = 0;
-                          bdPtr->typeName = typeName;
-
-                          //log("STEP 2");
-
-                          // Es una CABECERA
-                          if (typeBlock==0)
-                          {
-                              // Es un header PROGRAM
-
-                              bdPtr->header = true;
-                              bdPtr->type = HPRGM;
-
-                              blockNameDetected = true;
-
-                              // Almacenamos el nombre
-                              bdPtr->name = getBlockName(bdPtr->name,sdm.readFileRange32(_mFile,startBlock,19,false),0);
-                              //log("STEP 3");
+                // Almacenamos el nombre
+                //getBlockName(tB.name,sdm.readFileRange32(_mFile,startBlock,19,false),0);
+                strncpy(tB.name,getBlockName(tB.name,sdm.readFileRange32(_mFile,startBlock,19,false),0),10);
 
 
-                              //Cogemos el nombre del TAP de la primera cabecera
-                              if (startBlock < 23)
-                              {
-                                  _myTAP.name = bdPtr->name;
-                                  //log("STEP 4");
-                              }
 
-                              state = 1;
-                          }
-                          else if (typeBlock==1)
-                          {
-                              // Array num header
-                              // Almacenamos el nombre
-                              bdPtr->name = getBlockName(bdPtr->name,sdm.readFileRange32(_mFile,startBlock,19,false),0); 
-                              bdPtr->type = HARRAYNUM; 
-                              //log("STEP 5");
-                          }
-                          else if (typeBlock==2)
-                          {
-                              // Array char header
-                              // Almacenamos el nombre
-                              bdPtr->name = getBlockName(bdPtr->name,sdm.readFileRange32(_mFile,startBlock,19,false),0); 
-                              bdPtr->type = HARRAYCHR;    
-                              //log("STEP 6");
-                          }
-                          else if (typeBlock==3)
-                          {
-                              // Byte block
+                //Cogemos el nombre del TAP de la primera cabecera
+                if (startBlock < 23)
+                {
+                    //nameTAP = (String)bDscr[numBlocks].name;
+                    //nameTAP = bDscr[numBlocks].name;
+                    strncpy(nameTAP,tB.name,10);
+                }
 
-                              // Vemos si es una cabecera de una SCREEN
-                              // para ello temporalmente vemos el tamaño del bloque de codigo. Si es 6914 bytes (incluido el checksum y el flag - 6912 + 2 bytes)
-                              // es una pantalla SCREEN
-                              blockNameDetected = true;
-                              
-                              // Almacenamos el nombre
-                              bdPtr->name = getBlockName(bdPtr->name,sdm.readFileRange32(_mFile,startBlock,19,false),0);                          
-                              //log("STEP 7");
-                              int tmpSizeBlock = (256*sdm.readFileRange32(_mFile,startBlock + sizeB+1,1,false)[0]) + sdm.readFileRange32(_mFile,startBlock + sizeB,1,false)[0];
+                state = 1;
+            }
+            else if (typeBlock==1)
+            {
+                // Array num header
+                // Almacenamos el nombre
+                strncpy(tB.name,getBlockName(tB.name,sdm.readFileRange32(_mFile,startBlock,19,false),0),10);
+                tB.type = HARRAYNUM;    
 
-                              if (tmpSizeBlock == 6914)
-                              {
-                                  // Es una cabecera de un Screen
-                                  bdPtr->screen = true;
-                                  bdPtr->type = HSCRN;                              
+            }
+            else if (typeBlock==2)
+            {
+                // Array char header
+                // Almacenamos el nombre
+                strncpy(tB.name,getBlockName(tB.name,sdm.readFileRange32(_mFile,startBlock,19,false),0),10);
+                tB.type = HARRAYCHR;    
 
-                                  state = 2;
-                              }
-                              else
-                              {               
-                                  bdPtr->type = HCODE;    
-                              }
-                      
-                          }
+            }
+            else if (typeBlock==3)
+            {
+                // Byte block
 
-                      }
-                      else
-                      {
-                          if (state == 1)
-                          {
-                              state = 0;
-                              // Es un bloque BASIC                         
-                              bdPtr->type = PRGM;
-                          }
-                          else if (state == 2)
-                          {
-                              state = 0;
-                              // Es un bloque SCREEN                     
-                              bdPtr->type = SCRN;                         
-                          }
-                          else
-                          {
-                              // Es un bloque CM                        
-                              bdPtr->type = CODE;                         
-                          }
-                      }
+                // Vemos si es una cabecera de una SCREEN
+                // para ello temporalmente vemos el tamaño del bloque de codigo. Si es 6914 bytes (incluido el checksum y el flag - 6912 + 2 bytes)
+                // es una pantalla SCREEN
+                blockNameDetected = true;
+                
+                // Almacenamos el nombre
+                strncpy(tB.name,getBlockName(tB.name,sdm.readFileRange32(_mFile,startBlock,19,false),0),10);
 
-                      bdPtr->typeName = getTypeTAPBlock(bdPtr->type);                         
-                      //log("STEP 8");
+                int tmpSizeBlock = (256*sdm.readFileRange32(_mFile,startBlock + sizeB+1,1,false)[0]) + sdm.readFileRange32(_mFile,startBlock + sizeB,1,false)[0];
 
-                      if (blockNameDetected)
-                      {                                     
-                          bdPtr->nameDetected = true;                                      
-                      }
-                      else
-                      {
-                          bdPtr->nameDetected = false;
-                      }
+                if (tmpSizeBlock == 6914)
+                {
+                    // Es una cabecera de un Screen
+                    tB.screen = true;
+                    tB.type = HSCRN;                              
 
-                      // Siguiente bloque
-                      // Direcion de inicio (offset)
-                      startBlock = startBlock + sizeB;
-                      // Tamaño
-                      newSizeB = (256*sdm.readFileRange32(_mFile,startBlock+1,1,false)[0]) + sdm.readFileRange32(_mFile,startBlock,1,false)[0];
-                      //log("STEP 9");
+                    state = 2;
+                }
+                else
+                {               
+                    tB.type = HCODE;    
+                }
+        
+            }
 
-                      // Avanzamos al siguiente registro
-                      bdPtr++;
+        }
+        else
+        {
+            if (state == 1)
+            {
+                state = 0;
+                // Es un bloque BASIC                         
+                tB.type = PRGM;
+            }
+            else if (state == 2)
+            {
+                state = 0;
+                // Es un bloque SCREEN                     
+                tB.type = SCRN;                         
+            }
+            else
+            {
+                // Es un bloque CM                        
+                tB.type = CODE;                         
+            }
+        }   
 
-                      numBlocks++;
-                      sizeB = newSizeB;
-                      startBlock = startBlock + 2;
-
-                  }
-                  else
-                  {
-                      reachEndByte = true;
-                      SerialHW.println("Error in checksum. Block --> " + String(numBlocks) + " - offset: " + String(lastStartBlock));
-                  }
-
-                  // ¿Hemos llegado al ultimo byte
-                  if (startBlock > sizeTAP)                
-                  {
-                      reachEndByte = true;
-                      //break;
-                      SerialHW.println("");
-                      SerialHW.println("Success. End: ");
-                  }
-              }
-
-              // Añadimos información importante
-              _myTAP.size = sizeTAP;
-              _myTAP.numBlocks = numBlocks;
-          }
-          else
-          {
-              // Añadimos información importante
-              _myTAP.name = "\0";
-              _myTAP.size = 0;
-              _myTAP.numBlocks = 0;            
-          }
+        return blockNameDetected;     
       }
-
 
       // Bueno
-
       void getBlockDescriptor(File32 mFile, int sizeTAP)
       {
           // Para ello tenemos que ir leyendo el TAP poco a poco
@@ -779,22 +750,23 @@ class TAPproccesor
               SerialHW.println("Num. de bloques: " + String(numBlks));
               SerialHW.println("");
 
-              //tBlockDescriptor* bDscr = (tBlockDescriptor*)ps_calloc(numBlks,sizeof(tBlockDescriptor));
-              
-              // if (_myTAP.descriptor != NULL)
-              // {
-              //     free(_myTAP.descriptor);
-              //     _myTAP.descriptor = NULL;
-              // }
+              // Reservo memoria para los descriptores de los bloques del TAP
+              _myTAP.descriptor = NULL;
+              _myTAP.descriptor = (tBlockDescriptor*)ps_calloc(numBlks+1,sizeof(struct tBlockDescriptor));
+              //Guardo la dirección para liberar mas tarde.
+              log("Direccion del puntero de la estructura");
+              log("--------------------------------------");
+              SerialHW.println("");
+              SerialHW.printf("Direccion del descriptor %p",_myTAP.descriptor);
+              SerialHW.println("");
+              ptrDescriptorTAP = _myTAP.descriptor;
+              SerialHW.printf("Direccion de la copia %p",ptrDescriptorTAP);
+              SerialHW.println("");
 
-              _myTAP.descriptor = (tBlockDescriptor*)ps_calloc(numBlks+1,sizeof(tBlockDescriptor));
               // Guardamos el numero total de bloques
-              
-              char* nameTAP = (char*)ps_calloc(10+1,sizeof(char));
-              nameTAP = &INITCHAR[0];
+              char nameTAP[11];
 
-              char* typeName = (char*)ps_calloc(10+1,sizeof(char));
-              typeName = &INITCHAR[0];
+              char typeName[11];
 
               int startBlock = 0;
               int lastStartBlock = 0;
@@ -803,8 +775,7 @@ class TAPproccesor
               int chk = 0;
               int blockChk = 0;
               int numBlocks = 0;
-              char* blockName = (char*)ps_calloc(10+1,sizeof(char));
-              blockName = &INITCHAR[0];
+              char blockName[11];
 
               bool blockNameDetected = false;
               
@@ -824,27 +795,13 @@ class TAPproccesor
               while(reachEndByte==false && sizeB!=0)
               {
                   // Inicializamos
-                  blockName = &INITCHAR[0];
-                  //bDscr[numBlocks].name = blockName;
-                  _myTAP.descriptor[numBlocks].name = blockName;
-
                   blockNameDetected = false;
-                  
-                  //SerialHW.println("START LOOP AGAIN: ");  
-                  byte* tmpRng = (byte*)ps_calloc(sizeB,sizeof(byte));
+                   
+                  byte* tmpRng = allocateByte(sizeB);
                   tmpRng = sdm.readFileRange32(_mFile,startBlock,sizeB-1,false);
                   chk = calculateChecksum(tmpRng,0,sizeB-1);
-
-                  // if (tmpRng!=NULL)
-                  // {
-                  //     free(tmpRng);
-                  //     tmpRng=NULL;
-                  // }
-
-                  //SerialHW.println("MARK CHK: ");
-                  
-                  blockChk = sdm.readFileRange32(_mFile,startBlock+sizeB-1,1,false)[0];
-                  //SerialHW.println("MARK BLOCK CHK: ");            
+                 
+                  blockChk = sdm.readFileRange32(_mFile,startBlock+sizeB-1,1,false)[0];         
 
                   if (blockChk == chk)
                   {
@@ -867,108 +824,9 @@ class TAPproccesor
                       int typeBlock = sdm.readFileRange32(_mFile,startBlock+1,1,false)[0];
                       
                       // Vemos si el bloque es una cabecera o un bloque de datos (bien BASIC o CM)
-                      if (flagByte < 128)
-                      {
+                      blockNameDetected = getInformationOfHead(_myTAP.descriptor[numBlocks],flagByte,typeBlock,startBlock,sizeB,nameTAP);
 
-                          // Inicializamos                    
-                          _myTAP.descriptor[numBlocks].type = 0;
-                          _myTAP.descriptor[numBlocks].typeName = typeName;
-                          
-                          // Es una CABECERA
-                          if (typeBlock==0)
-                          {
-                              // Es un header PROGRAM
-
-                              _myTAP.descriptor[numBlocks].header = true;
-                              _myTAP.descriptor[numBlocks].type = HPRGM;
-
-                              blockNameDetected = true;
-
-                              // Almacenamos el nombre
-                              getBlockName(&_myTAP.descriptor[numBlocks].name,sdm.readFileRange32(_mFile,startBlock,19,false),0);
-
-
-                              //Cogemos el nombre del TAP de la primera cabecera
-                              if (startBlock < 23)
-                              {
-                                  //nameTAP = (String)bDscr[numBlocks].name;
-                                  //nameTAP = bDscr[numBlocks].name;
-                                  nameTAP = _myTAP.descriptor[numBlocks].name;
-                              }
-
-                              state = 1;
-                          }
-                          else if (typeBlock==1)
-                          {
-                              // Array num header
-                              // Almacenamos el nombre
-                              getBlockName(&_myTAP.descriptor[numBlocks].name,sdm.readFileRange32(_mFile,startBlock,19,false),0); 
-
-                              _myTAP.descriptor[numBlocks].type = HARRAYNUM;    
-
-                          }
-                          else if (typeBlock==2)
-                          {
-                              // Array char header
-                              // Almacenamos el nombre
-                              getBlockName(&_myTAP.descriptor[numBlocks].name,sdm.readFileRange32(_mFile,startBlock,19,false),0); 
-
-                              _myTAP.descriptor[numBlocks].type = HARRAYCHR;    
-
-                          }
-                          else if (typeBlock==3)
-                          {
-                              // Byte block
-
-                              // Vemos si es una cabecera de una SCREEN
-                              // para ello temporalmente vemos el tamaño del bloque de codigo. Si es 6914 bytes (incluido el checksum y el flag - 6912 + 2 bytes)
-                              // es una pantalla SCREEN
-                              blockNameDetected = true;
-                              
-                              // Almacenamos el nombre
-                              getBlockName(&_myTAP.descriptor[numBlocks].name,sdm.readFileRange32(_mFile,startBlock,19,false),0);                          
-
-                              int tmpSizeBlock = (256*sdm.readFileRange32(_mFile,startBlock + sizeB+1,1,false)[0]) + sdm.readFileRange32(_mFile,startBlock + sizeB,1,false)[0];
-
-                              if (tmpSizeBlock == 6914)
-                              {
-                                  // Es una cabecera de un Screen
-                                  _myTAP.descriptor[numBlocks].screen = true;
-                                  _myTAP.descriptor[numBlocks].type = HSCRN;                              
-
-                                  state = 2;
-                              }
-                              else
-                              {               
-                                  _myTAP.descriptor[numBlocks].type = HCODE;    
-                              }
-                      
-                          }
-
-                      }
-                      else
-                      {
-                          if (state == 1)
-                          {
-                              state = 0;
-                              // Es un bloque BASIC                         
-                              _myTAP.descriptor[numBlocks].type = PRGM;
-                          }
-                          else if (state == 2)
-                          {
-                              state = 0;
-                              // Es un bloque SCREEN                     
-                              _myTAP.descriptor[numBlocks].type = SCRN;                         
-                          }
-                          else
-                          {
-                              // Es un bloque CM                        
-                              _myTAP.descriptor[numBlocks].type = CODE;                         
-                          }
-                      }
-
-                      _myTAP.descriptor[numBlocks].typeName = getTypeTAPBlock(_myTAP.descriptor[numBlocks].type);                         
-
+                      strncpy(_myTAP.descriptor[numBlocks].typeName,getTypeTAPBlock(_myTAP.descriptor[numBlocks].type),10)                       ;                      
 
                       if (blockNameDetected)
                       {                                     
@@ -989,6 +847,8 @@ class TAPproccesor
                       sizeB = newSizeB;
                       startBlock = startBlock + 2;
 
+                      _hmi.getMemFree();
+
                   }
                   else
                   {
@@ -1008,7 +868,7 @@ class TAPproccesor
               }
 
               // Añadimos información importante
-              _myTAP.name = nameTAP;
+              strncpy(_myTAP.name,nameTAP,sizeof(nameTAP));
               _myTAP.size = sizeTAP;
               _myTAP.numBlocks = numBlocks;
           
@@ -1016,7 +876,7 @@ class TAPproccesor
           else
           {
               // Añadimos información importante
-              _myTAP.name = (char*)"\0";
+              strncpy(_myTAP.name,"",1);
               _myTAP.size = 0;
               _myTAP.numBlocks = 0;            
           }
@@ -1092,7 +952,7 @@ class TAPproccesor
           int nblocks = 0;
           //byte* bBlock = new byte[sizeTAP];
           byte* bBlock;
-          bBlock = static_cast<byte*>(allocate(bBlock,sizeTAP));
+          bBlock = allocateByte(sizeTAP);
           
           bBlock = fileTAP; 
           // Para ello buscamos la secuencia "0x13 0x00 0x00"
@@ -1110,7 +970,11 @@ class TAPproccesor
                   }
               }
           }
-          deallocate(bBlock);
+          
+          //free(bBlock);
+          delete [] bBlock;
+          bBlock = NULL;
+
           return nblocks;
       }
 
@@ -1125,7 +989,7 @@ class TAPproccesor
                   #if LOG==3
                     SerialHW.println("> PROGRAM HEADER");
                   #endif
-                  LAST_TYPE = &LASTYPE0[0];
+                  strncpy(LAST_TYPE,&LASTYPE0[0],sizeof(&LASTYPE0[0]));
                   break;
 
               case 1:
@@ -1135,8 +999,8 @@ class TAPproccesor
                     SerialHW.println("");
                     SerialHW.println("> BYTE HEADER");
                   #endif
-                  LAST_TYPE = &LASTYPE1[0];
-                  break;
+                  strncpy(LAST_TYPE,&LASTYPE1[0],sizeof(&LASTYPE1[0]));
+                 break;
 
               case 7:
 
@@ -1145,7 +1009,7 @@ class TAPproccesor
                     SerialHW.println("");
                     SerialHW.println("> SCREEN HEADER");
                   #endif
-                  LAST_TYPE = &LASTYPE7[0];
+                  strncpy(LAST_TYPE,&LASTYPE7[0],sizeof(&LASTYPE7[0]));
                   break;
 
               case 2:
@@ -1154,7 +1018,7 @@ class TAPproccesor
                     SerialHW.println("");
                     SerialHW.println("> BASIC PROGRAM");
                   #endif
-                  LAST_TYPE = &LASTYPE2[0];
+                  strncpy(LAST_TYPE,&LASTYPE2[0],sizeof(&LASTYPE2[0]));
                   break;
 
               case 3:
@@ -1163,7 +1027,7 @@ class TAPproccesor
                     SerialHW.println("");
                     SerialHW.println("> SCREEN");
                   #endif
-                  LAST_TYPE = &LASTYPE3[0];
+                  strncpy(LAST_TYPE,&LASTYPE3[0],sizeof(&LASTYPE3[0]));
                   break;
 
               case 4:
@@ -1174,11 +1038,11 @@ class TAPproccesor
                   #endif
                   if (LAST_SIZE != 6914)
                   {
-                      LAST_TYPE = &LASTYPE4_1[0];
+                    strncpy(LAST_TYPE,&LASTYPE4_1[0],sizeof(&LASTYPE4_1[0]));
                   }
                   else
                   {
-                      LAST_TYPE = &LASTYPE4_2[0];
+                    strncpy(LAST_TYPE,&LASTYPE4_2[0],sizeof(&LASTYPE4_2[0]));
                   }
                   break;
 
@@ -1188,7 +1052,7 @@ class TAPproccesor
                     SerialHW.println("");
                     SerialHW.println("> ARRAY.NUM");
                   #endif
-                  LAST_TYPE = &LASTYPE5[0];
+                  strncpy(LAST_TYPE,&LASTYPE5[0],sizeof(&LASTYPE5[0]));
                   break;
 
               case 6:
@@ -1197,54 +1061,22 @@ class TAPproccesor
                     SerialHW.println("");
                     SerialHW.println("> ARRAY.CHR");
                   #endif
-                  LAST_TYPE = &LASTYPE6[0];
+                  strncpy(LAST_TYPE,&LASTYPE6[0],sizeof(&LASTYPE6[0]));
                   break;
 
 
           }        
       }
 
-      // void sendStatus(int action, int value) 
-      // {
+      byte* allocateByte(int size)
+      {
+          return((byte*)(ps_calloc(size,sizeof(byte))));
+      }
 
-      //   switch (action) {
-      //     case PLAY_ST:
-      //       //_hmi.writeString("");
-      //       _hmi.writeString("PLAYst.val=" + String(value));
-      //       break;
-
-      //     case STOP_ST:
-      //       //_hmi.writeString("");
-      //       _hmi.writeString("STOPst.val=" + String(value));
-      //       break;
-
-      //     case PAUSE_ST:
-      //       //_hmi.writeString("");
-      //       _hmi.writeString("PAUSEst.val=" + String(value));
-      //       break;
-
-      //     case END_ST:
-      //       //_hmi.writeString("");
-      //       _hmi.writeString("ENDst.val=" + String(value));
-      //       break;
-
-      //     case READY_ST:
-      //       //_hmi.writeString("");
-      //       _hmi.writeString("READYst.val=" + String(value));
-      //       break;
-
-      //     case ACK_LCD:
-      //       //_hmi.writeString("");
-      //       _hmi.writeString("tape.LCDACK.val=" + String(value));
-      //       //_hmi.writeString("");
-      //       _hmi.writeString("statusLCD.txt=\"READY. PRESS SCREEN\"");
-      //       break;
-          
-      //     case RESET:
-      //       //_hmi.writeString("");
-      //       _hmi.writeString("statusLCD.txt=\"SYSTEM REBOOT\"");
-      //   }
-      // }
+      char* allocateChar(int size)
+      {
+          return((char*)(ps_calloc(size,sizeof(char))));
+      }
 
       public:    
 
@@ -1291,21 +1123,19 @@ class TAPproccesor
 
       void deallocatingTAP()
       {
-        log("Deallocatin TAP");
-
-        for(int i=0;i<_myTAP.numBlocks;i++)
-        {
-          deallocate(_myTAP.descriptor[i].name);
-          deallocate(_myTAP.descriptor[i].typeName);
-        }
-
-        deallocate(_myTAP.descriptor);
-        deallocate(_myTAP.name);
+          log("Deallocating TAP");
+          log("--------------------------------------");
+          SerialHW.printf("Direccion de la copia %p", ptrDescriptorTAP);
+          
+          //free(ptrDescriptorTAP);
+          
+          delete [] ptrDescriptorTAP;
+          ptrDescriptorTAP = NULL;       
       }
       
       void initialize()
       {
-          _myTAP.name = "\0";
+          strncpy(_myTAP.name,"",1);
           _myTAP.numBlocks = 0;
           _myTAP.size = 0;
           CURRENT_BLOCK_IN_PROGRESS = 1;
@@ -1320,10 +1150,11 @@ class TAPproccesor
       {
         deallocatingTAP();
 
-        _myTAP.name = "\0";
+        strncpy(_myTAP.name,"",1);
         _myTAP.numBlocks = 0;
         _myTAP.size = 0;     
-        //_hmi.getMemFree();
+        
+        _hmi.getMemFree();
         _hmi.updateMem();
       }
 
@@ -1377,7 +1208,7 @@ class TAPproccesor
                 // Entregamos información por consola
                 PROGRAM_NAME = get_tap_name();
                 TOTAL_BLOCKS = get_tap_numBlocks();
-                LAST_NAME = &INITCHAR2[0];
+                strncpy(LAST_TYPE,&INITCHAR2[0],sizeof(&INITCHAR2[0]));
           
                 SerialHW.println("");
                 SerialHW.println("");
@@ -1413,7 +1244,7 @@ class TAPproccesor
               // Entregamos información por consola
               PROGRAM_NAME = _myTAP.name;
               TOTAL_BLOCKS = _myTAP.numBlocks;
-              LAST_NAME = &INITCHAR2[0];
+              strncpy(LAST_NAME,&INITCHAR2[0],sizeof(&INITCHAR2[0]));
 
               // Ahora reproducimos todos los bloques desde el seleccionado (para cuando se quiera uno concreto)
               int m = BLOCK_SELECTED;
@@ -1436,7 +1267,7 @@ class TAPproccesor
               {
 
                 // Obtenemos el nombre del bloque
-                LAST_NAME = _myTAP.descriptor[i].name;
+                strncpy(LAST_NAME,_myTAP.descriptor[i].name,sizeof(_myTAP.descriptor[i].name));
                 LAST_SIZE = _myTAP.descriptor[i].size;
 
                 // Almacenmas el bloque en curso para un posible PAUSE
@@ -1477,24 +1308,31 @@ class TAPproccesor
                 if (_myTAP.descriptor[i].type == 0) 
                 {
 
-                  bufferPlay = static_cast<byte*>(allocate(bufferPlay,_myTAP.descriptor[i].size));
+                  
+                  bufferPlay = allocateByte(_myTAP.descriptor[i].size);
                   bufferPlay = sdm.readFileRange32(_mFile, _myTAP.descriptor[i].offset, _myTAP.descriptor[i].size, false);
 
                   // Llamamos a la clase de reproducción
                   // Cabecera PROGRAM
                   zxp.playData(bufferPlay, _myTAP.descriptor[i].size,DPILOT_HEADER * DPULSE_PILOT);
-                  deallocate(bufferPlay);
+                  //free(bufferPlay);
+                  delete [] bufferPlay;
+                  bufferPlay = NULL;
+
                   //_hmi.getMemFree();
                 } 
                 else if (_myTAP.descriptor[i].type == 1 || _myTAP.descriptor[i].type == 7) 
                 {
                   
-                  bufferPlay = static_cast<byte*>(allocate(bufferPlay,_myTAP.descriptor[i].size));
+                  bufferPlay = allocateByte(_myTAP.descriptor[i].size);
                   bufferPlay = sdm.readFileRange32(_mFile, _myTAP.descriptor[i].offset, _myTAP.descriptor[i].size, false);
 
                   // Cabecera BYTE
                   zxp.playData(bufferPlay, _myTAP.descriptor[i].size,DPILOT_HEADER * DPULSE_PILOT);
-                  deallocate(bufferPlay);
+                  //free(bufferPlay);
+                  delete [] bufferPlay;
+                  bufferPlay = NULL;
+
                   //_hmi.getMemFree();
                 } 
                 else 
@@ -1512,36 +1350,39 @@ class TAPproccesor
                     int offsetPlay = 0;
 
                     for (int j = 0; j < 2; j++) {
+
                       if (j == 0) {
                         blockPlaySize = bl1;
+                        bufferPlay = allocateByte(blockPlaySize);
                         offsetPlay = _myTAP.descriptor[i].offset;
-
-                        bufferPlay = static_cast<byte*>(allocate(bufferPlay,blockPlaySize));
                         bufferPlay = sdm.readFileRange32(_mFile, offsetPlay, blockPlaySize, true);
                         zxp.playDataBegin(bufferPlay, blockPlaySize,DPILOT_DATA * DPULSE_PILOT);
-                        deallocate(bufferPlay);
-                        //_hmi.getMemFree();
+                        //free(bufferPlay);
+                        delete [] bufferPlay;
+                        bufferPlay = NULL;
+                      
                       } 
                       else 
                       {
                         blockPlaySize = bl2;
                         offsetPlay = offsetPlay + bl1;
-
-                        bufferPlay = static_cast<byte*>(allocate(bufferPlay,blockPlaySize));
+                        bufferPlay = allocateByte(blockPlaySize);
                         bufferPlay = sdm.readFileRange32(_mFile, offsetPlay, blockPlaySize, true);
 
                         zxp.playDataEnd(bufferPlay, blockPlaySize,DPILOT_DATA * DPULSE_PILOT);
-                        deallocate(bufferPlay);
-                        //_hmi.getMemFree();
+                        //free(bufferPlay);
+                        delete [] bufferPlay;
+                        bufferPlay = NULL;
                       }
                     }
                   } else {
                     // En el caso de NO USAR SPLIT o el bloque es menor de 20K
-                    bufferPlay = static_cast<byte*>(allocate(bufferPlay,_myTAP.descriptor[i].size));
+                    bufferPlay = allocateByte(_myTAP.descriptor[i].size);
                     bufferPlay = sdm.readFileRange32(_mFile, _myTAP.descriptor[i].offset, _myTAP.descriptor[i].size, false);
-                    
                     zxp.playData(bufferPlay, _myTAP.descriptor[i].size,DPILOT_DATA * DPULSE_PILOT);
-                    deallocate(bufferPlay);
+                    //free(bufferPlay);
+                    delete [] bufferPlay;
+                    bufferPlay=NULL;
                     //_hmi.getMemFree();
                   }
                 }
@@ -1575,15 +1416,8 @@ class TAPproccesor
 
       }
 
-
       // Constructor de la clase
       TAPproccesor(AudioKit kit)
-      {
-          _myTAP.name = new char[10+1];
-          _myTAP.name = "\0";
-          _myTAP.numBlocks = 0;
-          _myTAP.descriptor = NULL;
-          _myTAP.size = 0;
-      }      
+      {}      
 
 };

@@ -365,19 +365,19 @@ class TAPrecorder
 
             if (header.type == 0)
             {
-              LAST_TYPE = "PROGRAM.HEAD";
+              strncpy(LAST_TYPE,"PROGRAM.HEAD",sizeof("PROGRAM.HEAD"));
             }
             else if (header.type == 1)
             {
-              LAST_TYPE = "NUMBER_ARRAY.HEAD";
+              strncpy(LAST_TYPE,"NUMBER_ARRAY.HEAD",sizeof("NUMBER_ARRAY.HEAD"));
             }
             else if (header.type == 2)
             {
-              LAST_TYPE = "CHAR_ARRAY.HEAD";
+              strncpy(LAST_TYPE,"NUMBER_ARRAY.HEAD",sizeof("NUMBER_ARRAY.HEAD"));
             }
             else if (header.type == 3)
             {
-              LAST_TYPE = "BYTE.HEAD";
+              strncpy(LAST_TYPE,"BYTE.HEAD",sizeof("BYTE.HEAD"));
             }            
           }
           else if (header.blockSize > 0 && stateInfoBlock==1)
@@ -387,7 +387,7 @@ class TAPrecorder
 
             if (header.blockSize == 6912)
             {
-              LAST_TYPE = "SCREEN.DATA";
+              strncpy(LAST_TYPE,"SCREEN.DATA",sizeof("SCREEN.DATA"));
               SerialHW.println("SCREEN");
             }
             else
@@ -395,13 +395,13 @@ class TAPrecorder
               if (header.type != 0)
               {
                   // Es un bloque de datos BYTE
-                  LAST_TYPE = "BYTE.DATA";
+                  strncpy(LAST_TYPE,"BYTE.DATA",sizeof("BYTE.DATA"));
                   SerialHW.println("BYTE.DATA");
               }
               else if (header.type == 0)
               {
                   // Es un bloque BASIC
-                  LAST_TYPE = "BASIC.DATA";
+                  strncpy(LAST_TYPE,"BASIC.DATA",sizeof("BASIC.DATA"));
                   SerialHW.println("BASIC.DATA");
               }
             }
@@ -1573,8 +1573,8 @@ class TAPrecorder
         PROGRAM_NAME_2 = "";
         TYPE_FILE_LOAD = "";
         LAST_SIZE = 0;
-        LAST_NAME = "";
-        LAST_TYPE = "";    
+        strncpy(LAST_TYPE,"",1);
+        strncpy(LAST_NAME,"",1);
       }
 
       void initialize()

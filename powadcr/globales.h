@@ -48,17 +48,25 @@ struct tBlock
 };
 
 // Descriptor de bloque de un TAP
+struct tTypeBlock
+{
+  int id = 0;
+  char name[11];
+};
+
 struct tBlockDescriptor 
 {
+  bool corrupted = false;
   int offset = 0;
   int size = 0;
   int chk = 0;
-  char* name;
+  char name[11];
   bool nameDetected = false;
   bool header = false;
   bool screen = false;
   int type = 0;
-  char* typeName;
+  char typeName[11];
+  tTypeBlock typeBlock;
 };
 
 struct tTimming
@@ -86,7 +94,7 @@ struct tTZXBlockDescriptor
   uint pauseAfterThisBlock = 1000;   //ms
   uint lengthOfData = 0;
   uint offsetData = 0;
-  char* name;
+  char name[11];
   bool nameDetected = false;
   bool header = false;
   bool screen = false;
@@ -97,25 +105,25 @@ struct tTZXBlockDescriptor
   int silent;
   byte maskLastByte = 8;
   tTimming timming;
-  char* typeName;
+  char typeName[35];
 };
 
 // Estructura tipo TAP
 struct tTAP 
 {
-  char* name;                               // Nombre del TAP
+  char name[11];                            // Nombre del TAP
   int size = 0;                             // Tamaño
   int numBlocks = 0;                        // Numero de bloques
-  tBlockDescriptor* descriptor;             // Descriptor
+  tBlockDescriptor* descriptor = NULL;             // Descriptor
 };
 
 // Estructura tipo TZX
 struct tTZX
 {
-  char* name;                               // Nombre del TZX
+  char name[11];                            // Nombre del TZX
   int size = 0;                             // Tamaño
   int numBlocks = 0;                        // Numero de bloques
-  tTZXBlockDescriptor* descriptor;          // Descriptor
+  tTZXBlockDescriptor* descriptor = NULL;          // Descriptor
 };
 
 // Estructura para el HMI
@@ -125,6 +133,9 @@ struct tFileBuffer
     String path = "";
     String type = "";
 };
+
+tBlockDescriptor* ptrDescriptorTAP = NULL;
+tTZXBlockDescriptor* ptrDescriptorTZX = NULL;
 
 // ZX Proccesor config
 // ********************************************************************
@@ -213,8 +224,8 @@ int LOADING_STATE = 0;
 int CURRENT_BLOCK_IN_PROGRESS = 0;
 int BLOCK_SELECTED = 0;
 String TYPE_FILE_LOAD = "";
-char* LAST_NAME = &INITCHAR[0];
-char* LAST_TYPE = &INITCHAR[0];
+char LAST_NAME[15];
+char LAST_TYPE[36];
 String LAST_TZX_GROUP = &INITCHAR[0];
 String LAST_MESSAGE = "";
 String PROGRAM_NAME = "";
@@ -243,8 +254,8 @@ int FILE_IDX_SELECTED = -1;
 bool FILE_PREPARED = false;
 bool PROGRAM_NAME_DETECTED = false;
 
-tFileBuffer* FILES_BUFF = NULL;
-tFileBuffer* FILES_FOUND_BUFF = NULL;
+tFileBuffer FILES_BUFF[MAX_FILES_TO_LOAD];
+tFileBuffer FILES_FOUND_BUFF[MAX_FILES_FOUND_BUFF];
 
 String FILE_TO_LOAD = "";
 String FILE_TO_DELETE = "";
@@ -311,13 +322,16 @@ void log(String txt)
   SerialHW.println(txt);
 }
 
-void deallocate(void* ptr)
+void* deallocate(void* ptr)
 {
   //liberamos memoria
   if(ptr != NULL)
   {
-    free(ptr);
+    delete [] ptr;
+    ptr=NULL;
   }
+
+  return ptr;
 }
 
 void* allocate(void* ptr, int size)
