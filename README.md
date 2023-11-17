@@ -120,7 +120,7 @@ From my compiled .bin
    ![image](https://github.com/hash6iron/powadcr_IO/assets/118267564/e7158518-4af8-4e6e-b4ab-eff6b9693307)
 
    
-4. Select
+4. Select ESP32 model.
    - ESP32
    - Develop
      And press "OK" button
@@ -130,7 +130,7 @@ From my compiled .bin
      ![image](https://github.com/hash6iron/powadcr_IO/assets/118267564/e9348bcb-2879-4872-8998-7e14c02b6f82)
 
    
-5. Select
+5. Setting and begin the flash proccess.
    - Select .bin file or write the path of it (see below lastest stable version)
    - Select all parameters exactly at the image below.
    - Connect ESP32-A1S Audiokit board from UART microUSB port (not power microUSB PORT) at PC USB port.
@@ -146,6 +146,7 @@ From my compiled .bin
      lastest version: <a href="https://github.com/hash6iron/powadcr_IO/blob/main/powaDCR-ESP32-A1S-v0.3.15.bin">powaDCR-ESP32A1S-v0.3.15.bin</a>
    
    Show image below.
+   
    ![image](https://github.com/hash6iron/powadcr_IO/assets/118267564/a595ea33-a1df-406e-b2af-a1d72680fb59)
 
 
