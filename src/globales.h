@@ -47,28 +47,6 @@ struct tBlock
   byte* data;        // Datos del bloque
 };
 
-// Descriptor de bloque de un TAP
-struct tTypeBlock
-{
-  int id = 0;
-  char name[11];
-};
-
-struct tBlockDescriptor 
-{
-  bool corrupted = false;
-  int offset = 0;
-  int size = 0;
-  int chk = 0;
-  char name[11];
-  bool nameDetected = false;
-  bool header = false;
-  bool screen = false;
-  int type = 0;
-  char typeName[11];
-  tTypeBlock typeBlock;
-};
-
 struct tTimming
 {
   int bit_0 = 855;
@@ -108,14 +86,7 @@ struct tTZXBlockDescriptor
   char typeName[35];
 };
 
-// Estructura tipo TAP
-struct tTAP 
-{
-  char name[11];                            // Nombre del TAP
-  int size = 0;                             // Tamaño
-  int numBlocks = 0;                        // Numero de bloques
-  tBlockDescriptor* descriptor = NULL;             // Descriptor
-};
+
 
 // Estructura tipo TZX
 struct tTZX
@@ -133,9 +104,6 @@ struct tFileBuffer
     String path = "";
     String type = "";
 };
-
-tBlockDescriptor* ptrDescriptorTAP = NULL;
-tTZXBlockDescriptor* ptrDescriptorTZX = NULL;
 
 // ZX Proccesor config
 // ********************************************************************
@@ -320,22 +288,4 @@ void log(String txt)
 {
   SerialHW.println("");
   SerialHW.println(txt);
-}
-
-void* deallocate(void* ptr)
-{
-  //liberamos memoria
-  if(ptr != NULL)
-  {
-    delete [] ptr;
-    ptr=NULL;
-  }
-
-  return ptr;
-}
-
-void* allocate(void* ptr, int size)
-{
-  // Reservamos memoria con ps_calloc
-  return((typeof(ptr)*)ps_calloc(size,sizeof(typeof(ptr))));
 }

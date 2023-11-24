@@ -84,6 +84,9 @@
 #define SPLIT_ENABLED 0
 #define SIZE_TO_ACTIVATE_SPLIT 20000
 
+// Maximo número de bloques para el descriptor.
+#define MAX_BLOCKS_IN_TAP 2000
+
 // Configuracion del test in/out
 bool TEST_LINE_IN_OUT = false;
 

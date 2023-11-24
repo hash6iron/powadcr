@@ -118,6 +118,7 @@ bool last_headPhoneDetection = false;
 void proccesingTAP(char* file_ch)
 {
     //pTAP.set_SdFat32(sdf);
+    pTAP.initialize();
     pTAP.getInfoFileTAP(file_ch);
 
     if (!FILE_CORRUPTED)
@@ -720,8 +721,6 @@ void tapeControl()
           {
               // Lo procesamos
               proccesingTAP(file_ch);
-              free(file_ch);
-
               TYPE_FILE_LOAD = "TAP";
               //hmi.getMemFree();
           }
@@ -729,8 +728,6 @@ void tapeControl()
           {
               // Lo procesamos. Para ZX Spectrum
               proccesingTZX(file_ch);
-              free(file_ch);
-
               TYPE_FILE_LOAD = "TZX";
               //hmi.getMemFree();              
           }
@@ -738,11 +735,12 @@ void tapeControl()
           {
               // Lo procesamos. Para MSX
               proccesingTZX(file_ch);
-              free(file_ch);
-
               TYPE_FILE_LOAD = "TSX";
           }   
         }
+
+        delete [] file_ch;
+        file_ch = NULL;
       }
 
       if (PLAY && LOADING_STATE == 0 && FILE_PREPARED && !REC) 
