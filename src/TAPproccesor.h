@@ -1181,8 +1181,8 @@ class TAPproccesor
         strncpy(_myTAP.name,"",1);
         _myTAP.numBlocks = 0;
         _myTAP.size = 0;
-        CURRENT_BLOCK_IN_PROGRESS = 1;
-        BLOCK_SELECTED = 1;
+        CURRENT_BLOCK_IN_PROGRESS = 0;
+        BLOCK_SELECTED = 0;
         _hmi.writeString("currentBlock.val=" + String(BLOCK_SELECTED));
         _hmi.writeString("progression.val=" + String(0));     
         //_hmi.getMemFree();
@@ -1226,7 +1226,9 @@ class TAPproccesor
     {
     
         File32 tapFile;
-
+        
+        FILE_CORRUPTED = false;
+        
         LAST_MESSAGE = "Analyzing file";
         _hmi.updateInformationMainPage();
         

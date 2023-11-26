@@ -116,7 +116,7 @@ class HMI
           FILE_TOTAL_FILES = MAX_FILES_TO_LOAD;
           FILE_DIR_OPEN_FAILED = false;
           
-          if (!sdm.dir.open(FILE_LAST_DIR)) 
+          if (!sdm.dir.open(FILE_LAST_DIR.c_str())) 
           {
               SerialHW.println("");
               SerialHW.println("dir.open failed - " + String(FILE_LAST_DIR));
@@ -339,12 +339,12 @@ class HMI
               }  
       }
       
-      char* getPreviousDirFromPath(char* path)
+      String getPreviousDirFromPath(String path)
       {
-          char* strTmp = (char*)ps_calloc(3,sizeof(char));
-          strncpy(strTmp,&INITFILEPATH[0],2);
+          String strTmp = INITFILEPATH;
+          //strncpy(strTmp,&INITFILEPATH[0],2);
           
-          int lpath = strlen(path);
+          int lpath = path.length();
           
           for (int n=lpath-2;n>1;n--)
           {
@@ -354,7 +354,8 @@ class HMI
               {
                   //Copiamos ahora el trozo de cadena restante
                   //ponemos n-1 para que copie también la "/"
-                  strlcpy(strTmp,path,n+2);
+                  //strlcpy(strTmp,path,n+2);
+                  strTmp = path.substring(0,n+2);
                   break;
               }
           }
@@ -525,11 +526,10 @@ class HMI
 
       void putInHome()
       {
-          // Dimensionamos el array con ps_calloc
           FILE_BROWSER_SEARCHING = false;  
-          FILE_LAST_DIR_LAST = &INITFILEPATH[0];
-          FILE_LAST_DIR=&INITFILEPATH[0];
-          FILE_PREVIOUS_DIR=&INITFILEPATH[0];
+          FILE_LAST_DIR_LAST = INITFILEPATH;
+          FILE_LAST_DIR = INITFILEPATH;
+          FILE_PREVIOUS_DIR = INITFILEPATH;
           // Open root directory
           FILE_PTR_POS = 0;
           clearFilesInScreen();
@@ -653,6 +653,18 @@ class HMI
           }           
       }
 
+      void resetBlockIndicators()
+      {
+          TOTAL_BLOCKS = 0;
+          BLOCK_SELECTED = 0;
+          BYTES_LOADED = 0;          
+          writeString("tape.totalBlocks.val=0");
+          writeString("tape.currentBlock.val=0");
+          writeString("tape.progressTotal.val=0");
+          writeString("tape.progression.val=0");
+          updateInformationMainPage();        
+      }
+
       void proccesingEject()
       {
           PLAY = false;
@@ -671,20 +683,20 @@ class HMI
             EJECT = false;
           }
           
-          BLOCK_SELECTED = 0;
-          BYTES_LOADED = 0;
+
       
-          LAST_MESSAGE = "Tape stop. Press play to start again.";
-          //writeString("");
-          writeString("currentBlock.val=1");
-          //writeString("");
-          writeString("progressTotal.val=0");
-          //writeString("");
-          writeString("progression.val=0");
-          updateInformationMainPage();        
+          //LAST_MESSAGE = "Tape stop. Press play to start again.";
+          //updateInformationMainPage();        
+          //
+          resetBlockIndicators();
       }
 
       public:
+
+      void resetIndicators()
+      {
+        resetBlockIndicators();
+      }
 
       void verifyCommand(String strCmd) 
       {
@@ -796,7 +808,9 @@ class HMI
             //delay(125);
             FILE_PREPARED = false;
             FILE_SELECTED = false;
-            
+
+            resetIndicators();
+
             if (FILE_LAST_DIR_LAST != FILE_LAST_DIR)
             {
 
@@ -926,8 +940,11 @@ class HMI
 
             FILE_DIR_TO_CHANGE = FILE_LAST_DIR + FILES_BUFF[FILE_IDX_SELECTED + FILE_PTR_POS].path + "/";    
       
-            char* dir_ch = (char*)ps_calloc(FILE_DIR_TO_CHANGE.length()+1,sizeof(char));
-            FILE_DIR_TO_CHANGE.toCharArray(dir_ch,FILE_DIR_TO_CHANGE.length()+1);
+            // Reserva dinamica de memoria
+            String dir_ch = FILE_DIR_TO_CHANGE;
+
+            //
+            //FILE_DIR_TO_CHANGE.toCharArray(dir_ch,FILE_DIR_TO_CHANGE.length()+1);
             FILE_PREVIOUS_DIR = FILE_LAST_DIR;
             FILE_LAST_DIR = dir_ch;
             FILE_LAST_DIR_LAST = FILE_LAST_DIR;
@@ -957,21 +974,23 @@ class HMI
             //Cogemos el directorio padre que siempre estará en el prevDir y por tanto
             //no hay que calcular la posición
             FILE_DIR_TO_CHANGE = FILES_BUFF[0].path;    
-      
-            char* dir_ch = (char*)ps_calloc(FILE_DIR_TO_CHANGE.length()+1,sizeof(char));
-            FILE_DIR_TO_CHANGE.toCharArray(dir_ch,FILE_DIR_TO_CHANGE.length()+1);
+
+            // Reserva dinamica de memoria
+            String dir_ch;
+
+            //
+            //FILE_DIR_TO_CHANGE = dir_ch;
             FILE_LAST_DIR = dir_ch;
             FILE_LAST_DIR_LAST = FILE_LAST_DIR;
-      
+
             if (FILE_DIR_TO_CHANGE.length() == 1)
             {
                 //Es el nivel mas alto
-                FILE_PREVIOUS_DIR = &INITFILEPATH[0];
+                FILE_PREVIOUS_DIR = INITFILEPATH;
             }
             else
             {
                 //Cogemos el directorio anterior de la cadena
-                FILE_PREVIOUS_DIR = (char*)ps_calloc(FILE_DIR_TO_CHANGE.length(),sizeof(char));
                 FILE_PREVIOUS_DIR = getPreviousDirFromPath(FILE_LAST_DIR);
             }
             //

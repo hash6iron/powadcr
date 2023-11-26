@@ -739,6 +739,7 @@ void tapeControl()
           }   
         }
 
+        // Liberamos
         delete [] file_ch;
         file_ch = NULL;
       }

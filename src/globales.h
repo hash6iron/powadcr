@@ -130,9 +130,10 @@ struct tFileBuffer
 #endif
 
 // Inicializadores para los char*
-char INITCHAR[] = "\0";
-char INITCHAR2[] = "..\0";
-char INITFILEPATH[] = "/\0";
+String INITCHAR = "";
+String INITCHAR2 = "..";
+String INITFILEPATH = "/";
+
 char STRTYPE0[] = "PROGRAM - HEADER\0";
 char STRTYPE1[] = "BYTE - HEADER\0";
 char STRTYPE2[] = "BASIC DATA\0";
@@ -194,7 +195,7 @@ int BLOCK_SELECTED = 0;
 String TYPE_FILE_LOAD = "";
 char LAST_NAME[15];
 char LAST_TYPE[36];
-String LAST_TZX_GROUP = &INITCHAR[0];
+String LAST_TZX_GROUP = "";
 String LAST_MESSAGE = "";
 String PROGRAM_NAME = "";
 String PROGRAM_NAME_2 = "";
@@ -212,11 +213,11 @@ int SCREEN_SECTION = 0;
 // File system
 int FILE_INDEX = 0;           // Índice de la fila seleccionada
 int FILE_PAGE = 0;            // Contador de la pagina leida
-char* FILE_PATH = &INITCHAR[0];         // Ruta del archivo seleccionado
+String FILE_PATH="";         // Ruta del archivo seleccionado
 int FILE_LAST_DIR_LEVEL = 0;  // Nivel de profundida de directorio
-char* FILE_LAST_DIR = &INITFILEPATH[0];
-char* FILE_PREVIOUS_DIR = &INITFILEPATH[0];
-char* FILE_LAST_DIR_LAST = &INITCHAR[0];
+String FILE_LAST_DIR = "/";
+String FILE_PREVIOUS_DIR = "/";
+String FILE_LAST_DIR_LAST = "../";
 int FILE_LAST_INDEX = 0;
 int FILE_IDX_SELECTED = -1;
 bool FILE_PREPARED = false;
