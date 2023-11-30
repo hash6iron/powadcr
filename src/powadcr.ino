@@ -54,6 +54,7 @@
 
  +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
 #include <Arduino.h>
+#include "esp32-hal-psram.h"
 // Librerias (mantener este orden)
 //   -- En esta se encuentran las variables globales a todo el proyecto
 TaskHandle_t Task0;
@@ -705,8 +706,8 @@ void tapeControl()
       {
 
         // Cogemos el fichero seleccionado y lo cargamos              
-        char* file_ch = (char*)ps_calloc(FILE_TO_LOAD.length() + 1, sizeof(char));
-        FILE_TO_LOAD.toCharArray(file_ch, FILE_TO_LOAD.length() + 1);
+        char* file_ch = (char*)ps_malloc(256 * sizeof(char));
+        FILE_TO_LOAD.toCharArray(file_ch, 256);
 
         // Si no está vacio
         if (FILE_TO_LOAD != "") {

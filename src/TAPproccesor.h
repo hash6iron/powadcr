@@ -71,7 +71,7 @@ class TAPproccesor
             char name[11];                                  // Nombre del TAP
             int size = 0;                                   // Tamaño
             int numBlocks = 0;                              // Numero de bloques
-            tBlockDescriptor* descriptor = NULL;            // Descriptor
+            tBlockDescriptor* descriptor;            // Descriptor
         };
 
     private:
@@ -599,7 +599,7 @@ class TAPproccesor
             if (!FILE_CORRUPTED)
             {
                 // Reservo memoria para el descriptor de bloques del TAP
-                _myTAP.descriptor = (tBlockDescriptor*)ps_calloc(MAX_BLOCKS_IN_TAP,sizeof(struct tBlockDescriptor));
+                _myTAP.descriptor = (tBlockDescriptor*)ps_malloc(MAX_BLOCKS_IN_TAP * sizeof(struct tBlockDescriptor));
 
                 //  Inicializamos variables
                 char nameTAP[11];
@@ -909,12 +909,12 @@ class TAPproccesor
 
         byte* allocateByte(int size)
         {
-            return((byte*)(ps_calloc(size,sizeof(byte))));
+            return((byte*)(ps_malloc(size * sizeof(byte))));
         }
 
         char* allocateChar(int size)
         {
-            return((char*)(ps_calloc(size,sizeof(char))));
+            return((char*)(ps_malloc(size * sizeof(char))));
         }   
 
         void deallocatingTAP()

@@ -94,7 +94,7 @@ struct tTZX
   char name[11];                            // Nombre del TZX
   int size = 0;                             // Tamaño
   int numBlocks = 0;                        // Numero de bloques
-  tTZXBlockDescriptor* descriptor = NULL;          // Descriptor
+  tTZXBlockDescriptor* descriptor;          // Descriptor
 };
 
 // Estructura para el HMI
@@ -290,3 +290,8 @@ void log(String txt)
   SerialHW.println("");
   SerialHW.println(txt);
 }
+
+// void logMemory() 
+// {
+//   log_d("Used PSRAM: %d", ESP.getPsramSize() - ESP.getFreePsram());
+// }

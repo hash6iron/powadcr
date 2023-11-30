@@ -655,14 +655,22 @@ class HMI
 
       void resetBlockIndicators()
       {
-          TOTAL_BLOCKS = 0;
-          BLOCK_SELECTED = 0;
-          BYTES_LOADED = 0;          
+          PROGRAM_NAME = "";
+          PROGRAM_NAME_2 = "";
+          strcpy(LAST_NAME,"              ");
+          strcpy(LAST_TYPE,"                                   ");
+          LAST_SIZE = 0;
+
           writeString("tape.totalBlocks.val=0");
           writeString("tape.currentBlock.val=0");
           writeString("tape.progressTotal.val=0");
           writeString("tape.progression.val=0");
+
           updateInformationMainPage();        
+
+          TOTAL_BLOCKS = 0;
+          BLOCK_SELECTED = 0;
+          BYTES_LOADED = 0;     
       }
 
       void proccesingEject()
@@ -683,11 +691,6 @@ class HMI
             EJECT = false;
           }
           
-
-      
-          //LAST_MESSAGE = "Tape stop. Press play to start again.";
-          //updateInformationMainPage();        
-          //
           resetBlockIndicators();
       }
 
@@ -974,13 +977,7 @@ class HMI
             //Cogemos el directorio padre que siempre estará en el prevDir y por tanto
             //no hay que calcular la posición
             FILE_DIR_TO_CHANGE = FILES_BUFF[0].path;    
-
-            // Reserva dinamica de memoria
-            String dir_ch;
-
-            //
-            //FILE_DIR_TO_CHANGE = dir_ch;
-            FILE_LAST_DIR = dir_ch;
+            FILE_LAST_DIR = FILE_DIR_TO_CHANGE;
             FILE_LAST_DIR_LAST = FILE_LAST_DIR;
 
             if (FILE_DIR_TO_CHANGE.length() == 1)
@@ -1186,6 +1183,12 @@ class HMI
       
         if (strCmd.indexOf("EJECT") != -1) 
         {
+            PLAY = false;
+            PAUSE = false;
+            STOP = true;
+            ABORT = true;
+
+            proccesingEject();            
         }
       
         if (strCmd.indexOf("ABORT") != -1) 
@@ -1394,19 +1397,6 @@ class HMI
           SerialHW.println("MP6=" + String(MAX_BIT1));
         }
 
-        if (strCmd.indexOf("VOLUP") != -1) 
-        {
-          MAIN_VOL += 1;
-          
-          if (MAIN_VOL >100)
-          {
-            MAIN_VOL = 100;
-          }
-          // SerialHW.println("");
-          // SerialHW.println("VOL UP");
-          // SerialHW.println("");
-        }
-
         if (strCmd.indexOf("MP7=") != -1) 
         {
           //max pulses lead
@@ -1548,7 +1538,7 @@ class HMI
       void updateInformationMainPage() 
       {
         
-        if (TOTAL_BLOCKS != 0 || REC) 
+        if (TOTAL_BLOCKS != 0 || REC || EJECT) 
         {
       
           // Enviamos información al HMI
