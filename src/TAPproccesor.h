@@ -369,21 +369,21 @@ class TAPproccesor
             return (char*)(header+2);             
         }
   
-        byte* getBlockRange(byte* bBlock, int byteStart, int byteEnd)
-        {
+        // byte* getBlockRange(byte* bBlock, int byteStart, int byteEnd)
+        // {
 
-            // Extraemos un bloque de bytes indicando el byte inicio y final
-            //byte* blockExtracted = new byte[(byteEnd - byteStart)+1];
-            byte* blockExtracted = (byte*)(ps_malloc(((byteEnd - byteStart)+1) * sizeof(byte)));
+        //     // Extraemos un bloque de bytes indicando el byte inicio y final
+        //     //byte* blockExtracted = new byte[(byteEnd - byteStart)+1];
+        //     byte* blockExtracted = (byte*)(ps_malloc(((byteEnd - byteStart)+1) * sizeof(byte)));
 
-            int i=0;
-            for (int n=byteStart;n<(byteStart + (byteEnd - byteStart)+1);n++)
-            {
-                blockExtracted[i] = bBlock[n];
-            }
+        //     int i=0;
+        //     for (int n=byteStart;n<(byteStart + (byteEnd - byteStart)+1);n++)
+        //     {
+        //         blockExtracted[i] = bBlock[n];
+        //     }
 
-            return blockExtracted;
-        }
+        //     return blockExtracted;
+        // }
 
         int getNumBlocks(File32 mFile, int sizeTAP)
         {
