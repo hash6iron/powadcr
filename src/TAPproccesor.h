@@ -107,8 +107,7 @@ class TAPproccesor
                 SerialHW.println("Begin isHeaderTAP");
 
                 // La cabecera son 19 bytes
-                byte* bBlock;
-                bBlock = allocateByte(19+1);
+                byte* bBlock = (byte*)(ps_malloc((20 * sizeof(byte))));
                 bBlock = sdm.readFileRange32(tapFileName,0,19,true);
 
                 SerialHW.println("");
@@ -116,8 +115,7 @@ class TAPproccesor
                 SerialHW.println("Got bBlock");
 
                 // Obtenemos la firma del TAP
-                char* signTZXHeader;
-                signTZXHeader = allocateChar(3+1);;
+                char signTZXHeader[4];
 
 
                 SerialHW.println("");
@@ -148,13 +146,7 @@ class TAPproccesor
                 }
 
                 // Liberamos memoria
-                delete [] signTZXHeader;
-                signTZXHeader = NULL;
-
-                // Liberamos memoria
-                delete [] bBlock;
-                bBlock = NULL;
-
+                free(bBlock);
             }
             else
             { 
@@ -382,7 +374,7 @@ class TAPproccesor
 
             // Extraemos un bloque de bytes indicando el byte inicio y final
             //byte* blockExtracted = new byte[(byteEnd - byteStart)+1];
-            byte* blockExtracted = allocateByte((byteEnd - byteStart)+1);
+            byte* blockExtracted = (byte*)(ps_malloc(((byteEnd - byteStart)+1) * sizeof(byte)));
 
             int i=0;
             for (int n=byteStart;n<(byteStart + (byteEnd - byteStart)+1);n++)
@@ -425,14 +417,12 @@ class TAPproccesor
             while(reachEndByte==false)
             {
 
-                byte* tmpRng = allocateByte(sizeB);
+                byte* tmpRng = (byte*)(ps_malloc(sizeB * sizeof(byte)));
 
                 tmpRng = sdm.readFileRange32(_mFile,startBlock,sizeB-1,false);
                 chk = calculateChecksum(tmpRng,0,sizeB-1);
 
-                //free(tmpRng);
-                delete [] tmpRng;
-                tmpRng = NULL;              
+                free(tmpRng);
                 _hmi.getMemFree();
                             
                 blockChk = sdm.readFileRange32(_mFile,startBlock+sizeB-1,1,false)[0];
@@ -632,13 +622,12 @@ class TAPproccesor
                     // Inicializamos
                     blockNameDetected = false;
                     
-                    byte* tmpRng = allocateByte(sizeB);
+                    byte* tmpRng = (byte*)(ps_malloc(sizeB * sizeof(byte)));
                     tmpRng = sdm.readFileRange32(_mFile,startBlock,sizeB-1,false);
                     chk = calculateChecksum(tmpRng,0,sizeB-1);
                     
                     // Liberamos
-                    delete [] tmpRng;
-                    tmpRng = NULL;
+                    free(tmpRng);
                     
                     blockChk = sdm.readFileRange32(_mFile,startBlock+sizeB-1,1,false)[0];         
 
@@ -789,8 +778,7 @@ class TAPproccesor
             // Este procedimiento devuelve el total de bloques que contiene el fichero
             int nblocks = 0;
             //byte* bBlock = new byte[sizeTAP];
-            byte* bBlock;
-            bBlock = allocateByte(sizeTAP);
+            byte* bBlock = (byte*)(ps_malloc(sizeTAP * sizeof(byte)));
             
             bBlock = fileTAP; 
             // Para ello buscamos la secuencia "0x13 0x00 0x00"
@@ -809,10 +797,7 @@ class TAPproccesor
                 }
             }
             
-            //free(bBlock);
-            delete [] bBlock;
-            bBlock = NULL;
-
+            free(bBlock);
             return nblocks;
         }
 
@@ -907,16 +892,6 @@ class TAPproccesor
             }        
         }
 
-        byte* allocateByte(int size)
-        {
-            return((byte*)(ps_malloc(size * sizeof(byte))));
-        }
-
-        char* allocateChar(int size)
-        {
-            return((char*)(ps_malloc(size * sizeof(char))));
-        }   
-
         void deallocatingTAP()
         {
             _hmi.getMemFree();
@@ -926,11 +901,8 @@ class TAPproccesor
             log("--------------------------------------");
             SerialHW.printf("Direccion de la copia %p", _myTAP.descriptor);
             
-            //free(ptrDescriptorTAP);
+            free(_myTAP.descriptor);
             
-            delete [] _myTAP.descriptor;
-            _myTAP.descriptor = NULL;     
-
             _hmi.getMemFree();
             _hmi.updateMem();
         }
@@ -1153,7 +1125,7 @@ class TAPproccesor
                     {
 
                         // Reservamos memoria para el buffer de reproducción
-                        bufferPlay = allocateByte(_myTAP.descriptor[i].size);
+                        bufferPlay = (byte*)(ps_malloc(_myTAP.descriptor[i].size * sizeof(byte)));
                         bufferPlay = sdm.readFileRange32(_mFile, _myTAP.descriptor[i].offset, _myTAP.descriptor[i].size, false);
 
                         // *** Cabecera PROGRAM
@@ -1161,13 +1133,12 @@ class TAPproccesor
                         zxp.playData(bufferPlay, _myTAP.descriptor[i].size,DPILOT_HEADER * DPULSE_PILOT);
 
                         // Liberamos el buffer de reproducción
-                        delete [] bufferPlay;
-                        bufferPlay = NULL;
-                    } 
+                        free(bufferPlay);
+                   } 
                     else if (_myTAP.descriptor[i].type == 1 || _myTAP.descriptor[i].type == 7) 
                     {
                         
-                        bufferPlay = allocateByte(_myTAP.descriptor[i].size);
+                        bufferPlay = (byte*)(ps_malloc(_myTAP.descriptor[i].size * sizeof(byte)));
                         bufferPlay = sdm.readFileRange32(_mFile, _myTAP.descriptor[i].offset, _myTAP.descriptor[i].size, false);
 
                         // *** Cabecera BYTE
@@ -1175,8 +1146,7 @@ class TAPproccesor
                         zxp.playData(bufferPlay, _myTAP.descriptor[i].size,DPILOT_HEADER * DPULSE_PILOT);
 
                         // Liberamos el buffer de reproducción
-                        delete [] bufferPlay;
-                        bufferPlay = NULL;
+                        free(bufferPlay);
                     } 
                     else 
                     {
@@ -1201,7 +1171,7 @@ class TAPproccesor
                                     
                                     // Cortamos la primera mitad del bloque
                                     blockPlaySize = bl1;
-                                    bufferPlay = allocateByte(blockPlaySize);
+                                    bufferPlay = (byte*)(ps_malloc(blockPlaySize * sizeof(byte)));
                                     offsetPlay = _myTAP.descriptor[i].offset;
                                     bufferPlay = sdm.readFileRange32(_mFile, offsetPlay, blockPlaySize, true);
                                     
@@ -1209,38 +1179,35 @@ class TAPproccesor
                                     zxp.playDataBegin(bufferPlay, blockPlaySize,DPILOT_DATA * DPULSE_PILOT);
                                     
                                     // Liberamos el buffer de reproducción
-                                    delete [] bufferPlay;
-                                    bufferPlay = NULL;                            
+                                    free(bufferPlay);                                      
                                 } 
                                 else 
                                 {
                                     // Cortamos el final del bloque
                                     blockPlaySize = bl2;
                                     offsetPlay = offsetPlay + bl1;
-                                    bufferPlay = allocateByte(blockPlaySize);
+                                    bufferPlay = (byte*)(ps_malloc(blockPlaySize * sizeof(byte)));
                                     bufferPlay = sdm.readFileRange32(_mFile, offsetPlay, blockPlaySize, true);
 
                                     // Reproducimos la ultima mitad
                                     zxp.playDataEnd(bufferPlay, blockPlaySize,DPILOT_DATA * DPULSE_PILOT);
 
                                     // Liberamos el buffer de reproducción
-                                    delete [] bufferPlay;
-                                    bufferPlay = NULL;
+                                    free(bufferPlay);
                                 }
                             }
                         } 
                         else 
                         {
                             // En el caso de NO USAR SPLIT o el bloque es menor de 20K
-                            bufferPlay = allocateByte(_myTAP.descriptor[i].size);
+                            bufferPlay = (byte*)(ps_malloc((_myTAP.descriptor[i].size) * sizeof(byte)));
                             bufferPlay = sdm.readFileRange32(_mFile, _myTAP.descriptor[i].offset, _myTAP.descriptor[i].size, false);
                             
                             // Reproducimos el bloque de datos
                             zxp.playData(bufferPlay, _myTAP.descriptor[i].size,DPILOT_DATA * DPULSE_PILOT);
 
                             // Liberamos el buffer de reproducción
-                            delete [] bufferPlay;
-                            bufferPlay=NULL;
+                            free(bufferPlay);
                         }
                     }
                     }
