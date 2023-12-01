@@ -107,7 +107,7 @@ class TAPproccesor
                 SerialHW.println("Begin isHeaderTAP");
 
                 // La cabecera son 19 bytes
-                byte* bBlock = (byte*)(ps_malloc((20 * sizeof(byte))));
+                uint8_t* bBlock = (uint8_t*)(ps_malloc((20 * sizeof(uint8_t))));
                 bBlock = sdm.readFileRange32(tapFileName,0,19,true);
 
                 SerialHW.println("");
@@ -126,7 +126,7 @@ class TAPproccesor
                 // Extraemos el nombre del programa
                 for (int n=0;n<3;n++)
                 {   
-                    signTZXHeader[n] = (byte)bBlock[n];
+                    signTZXHeader[n] = (uint8_t)bBlock[n];
                     
                     SerialHW.println("");
                     SerialHW.println("");
@@ -193,15 +193,15 @@ class TAPproccesor
             return rtn;
         }
 
-        byte calculateChecksum(byte* bBlock, int startByte, int numBytes)
+        uint8_t calculateChecksum(uint8_t* bBlock, int startByte, int numBytes)
         {
             // Calculamos el checksum de un bloque de bytes
-            byte newChk = 0;
+            uint8_t newChk = 0;
 
             #if LOG>3
             SerialHW.println("");
             SerialHW.println("Block len: ");
-            SerialHW.print(sizeof(bBlock)/sizeof(byte*));
+            SerialHW.print(sizeof(bBlock)/sizeof(uint8_t*));
             #endif
 
             // Calculamos el checksum (no se contabiliza el ultimo numero que es precisamente el checksum)
@@ -220,12 +220,12 @@ class TAPproccesor
         }
 
 
-        bool isCorrectHeader(byte* header, int startByte)
+        bool isCorrectHeader(uint8_t* header, int startByte)
         {
             // Verifica que es una cabecera
             bool isHeader = false;
-            byte checksum = 0;
-            byte calcBlockChk = 0;
+            uint8_t checksum = 0;
+            uint8_t calcBlockChk = 0;
 
             if (header[startByte]==19 && header[startByte+1]==0 && header[startByte+2]==0)
             {
@@ -241,12 +241,12 @@ class TAPproccesor
             return isHeader;
         }
 
-        bool isProgramHeader(byte* header, int startByte)
+        bool isProgramHeader(uint8_t* header, int startByte)
         {
             // Verifica que es una cabecera
             //bool isHeaderPrg = false;
-            byte checksum = 0;
-            byte calcBlockChk = 0;
+            uint8_t checksum = 0;
+            uint8_t calcBlockChk = 0;
 
             if (isCorrectHeader(header, startByte))
             {
@@ -272,7 +272,7 @@ class TAPproccesor
             return false;
         }
 
-        int getBlockLen(byte* header, int startByte)
+        int getBlockLen(uint8_t* header, int startByte)
         {
             // Este procedimiento nos devuelve el tamaño definido un bloque de datos
             // analizando los 22 bytes de la cabecera pasada por valor.
@@ -337,7 +337,7 @@ class TAPproccesor
             return rtnStr;
         }
         
-        char* getNameFromHeader(byte* header, int startByte)
+        char* getNameFromHeader(uint8_t* header, int startByte)
         {
             // Obtenemos el nombre del bloque cabecera      
             char* prgName = new char[10 + 1];
@@ -360,7 +360,7 @@ class TAPproccesor
             return prgName;
         }
 
-        char* getBlockName(char* prgName, byte* header, int startByte)
+        char* getBlockName(char* prgName, uint8_t* header, int startByte)
         {
             // Obtenemos el nombre del bloque cabecera
             // Es una cabecera PROGRAM 
@@ -369,12 +369,12 @@ class TAPproccesor
             return (char*)(header+2);             
         }
   
-        // byte* getBlockRange(byte* bBlock, int byteStart, int byteEnd)
+        // uint8_t* getBlockRange(uint8_t* bBlock, int byteStart, int byteEnd)
         // {
 
-        //     // Extraemos un bloque de bytes indicando el byte inicio y final
-        //     //byte* blockExtracted = new byte[(byteEnd - byteStart)+1];
-        //     byte* blockExtracted = (byte*)(ps_malloc(((byteEnd - byteStart)+1) * sizeof(byte)));
+        //     // Extraemos un bloque de bytes indicando el uint8_t inicio y final
+        //     //uint8_t* blockExtracted = new uint8_t[(byteEnd - byteStart)+1];
+        //     uint8_t* blockExtracted = (uint8_t*)(ps_malloc(((byteEnd - byteStart)+1) * sizeof(uint8_t)));
 
         //     int i=0;
         //     for (int n=byteStart;n<(byteStart + (byteEnd - byteStart)+1);n++)
@@ -417,7 +417,7 @@ class TAPproccesor
             while(reachEndByte==false)
             {
 
-                byte* tmpRng = (byte*)(ps_malloc(sizeB * sizeof(byte)));
+                uint8_t* tmpRng = (uint8_t*)(ps_malloc(sizeB * sizeof(uint8_t)));
 
                 tmpRng = sdm.readFileRange32(_mFile,startBlock,sizeB-1,false);
                 chk = calculateChecksum(tmpRng,0,sizeB-1);
@@ -454,7 +454,7 @@ class TAPproccesor
                     FILE_CORRUPTED = true;
                 }
 
-                // ¿Hemos llegado al ultimo byte
+                // ¿Hemos llegado al ultimo uint8_t
                 if (startBlock > sizeTAP)                
                 {
                     reachEndByte = true;
@@ -582,7 +582,7 @@ class TAPproccesor
         void getBlockDescriptor(File32 mFile, int sizeTAP)
         {
             // Para ello tenemos que ir leyendo el TAP poco a poco
-            // y llegando a los bytes que indican TAMAÑO(2 bytes) + 0xFF(1 byte)
+            // y llegando a los bytes que indican TAMAÑO(2 bytes) + 0xFF(1 uint8_t)
 
             //int numBlks = getNumBlocks(mFile, sizeTAP);
             
@@ -622,7 +622,7 @@ class TAPproccesor
                     // Inicializamos
                     blockNameDetected = false;
                     
-                    byte* tmpRng = (byte*)(ps_malloc(sizeB * sizeof(byte)));
+                    uint8_t* tmpRng = (uint8_t*)(ps_malloc(sizeB * sizeof(uint8_t)));
                     tmpRng = sdm.readFileRange32(_mFile,startBlock,sizeB-1,false);
                     chk = calculateChecksum(tmpRng,0,sizeB-1);
                     
@@ -684,7 +684,7 @@ class TAPproccesor
                         SerialHW.println("Error in checksum. Block --> " + String(numBlocks) + " - offset: " + String(lastStartBlock));
                     }
 
-                    // ¿Hemos llegado al ultimo byte
+                    // ¿Hemos llegado al ultimo uint8_t
                     if (startBlock > sizeTAP)                
                     {
                         reachEndByte = true;
@@ -773,12 +773,12 @@ class TAPproccesor
             }      
         }
 
-        int getTotalHeaders(byte* fileTAP, int sizeTAP)
+        int getTotalHeaders(uint8_t* fileTAP, int sizeTAP)
         {
             // Este procedimiento devuelve el total de bloques que contiene el fichero
             int nblocks = 0;
-            //byte* bBlock = new byte[sizeTAP];
-            byte* bBlock = (byte*)(ps_malloc(sizeTAP * sizeof(byte)));
+            //uint8_t* bBlock = new uint8_t[sizeTAP];
+            uint8_t* bBlock = (uint8_t*)(ps_malloc(sizeTAP * sizeof(uint8_t)));
             
             bBlock = fileTAP; 
             // Para ello buscamos la secuencia "0x13 0x00 0x00"
@@ -1055,7 +1055,7 @@ class TAPproccesor
             {         
             
                     // Inicializamos el buffer de reproducción. Memoria dinamica
-                    byte* bufferPlay;
+                    uint8_t* bufferPlay;
 
                     // Entregamos información por consola
                     PROGRAM_NAME = _myTAP.name;
@@ -1125,7 +1125,7 @@ class TAPproccesor
                     {
 
                         // Reservamos memoria para el buffer de reproducción
-                        bufferPlay = (byte*)(ps_malloc(_myTAP.descriptor[i].size * sizeof(byte)));
+                        bufferPlay = (uint8_t*)(ps_malloc(_myTAP.descriptor[i].size * sizeof(uint8_t)));
                         bufferPlay = sdm.readFileRange32(_mFile, _myTAP.descriptor[i].offset, _myTAP.descriptor[i].size, false);
 
                         // *** Cabecera PROGRAM
@@ -1138,7 +1138,7 @@ class TAPproccesor
                     else if (_myTAP.descriptor[i].type == 1 || _myTAP.descriptor[i].type == 7) 
                     {
                         
-                        bufferPlay = (byte*)(ps_malloc(_myTAP.descriptor[i].size * sizeof(byte)));
+                        bufferPlay = (uint8_t*)(ps_malloc(_myTAP.descriptor[i].size * sizeof(uint8_t)));
                         bufferPlay = sdm.readFileRange32(_mFile, _myTAP.descriptor[i].offset, _myTAP.descriptor[i].size, false);
 
                         // *** Cabecera BYTE
@@ -1171,7 +1171,7 @@ class TAPproccesor
                                     
                                     // Cortamos la primera mitad del bloque
                                     blockPlaySize = bl1;
-                                    bufferPlay = (byte*)(ps_malloc(blockPlaySize * sizeof(byte)));
+                                    bufferPlay = (uint8_t*)(ps_malloc(blockPlaySize * sizeof(uint8_t)));
                                     offsetPlay = _myTAP.descriptor[i].offset;
                                     bufferPlay = sdm.readFileRange32(_mFile, offsetPlay, blockPlaySize, true);
                                     
@@ -1186,7 +1186,7 @@ class TAPproccesor
                                     // Cortamos el final del bloque
                                     blockPlaySize = bl2;
                                     offsetPlay = offsetPlay + bl1;
-                                    bufferPlay = (byte*)(ps_malloc(blockPlaySize * sizeof(byte)));
+                                    bufferPlay = (uint8_t*)(ps_malloc(blockPlaySize * sizeof(uint8_t)));
                                     bufferPlay = sdm.readFileRange32(_mFile, offsetPlay, blockPlaySize, true);
 
                                     // Reproducimos la ultima mitad
@@ -1200,7 +1200,7 @@ class TAPproccesor
                         else 
                         {
                             // En el caso de NO USAR SPLIT o el bloque es menor de 20K
-                            bufferPlay = (byte*)(ps_malloc((_myTAP.descriptor[i].size) * sizeof(byte)));
+                            bufferPlay = (uint8_t*)(ps_malloc((_myTAP.descriptor[i].size) * sizeof(uint8_t)));
                             bufferPlay = sdm.readFileRange32(_mFile, _myTAP.descriptor[i].offset, _myTAP.descriptor[i].size, false);
                             
                             // Reproducimos el bloque de datos

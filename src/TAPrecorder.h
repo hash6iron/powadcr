@@ -139,8 +139,8 @@ class TAPrecorder
       long silenceSample = 0;
 
       char* bitChStr;
-      byte* datablock;
-      //byte* fileData;
+      uint8_t* datablock;
+      //uint8_t* fileData;
       int bytesXlinea = 0;
       int bitCount = 0;
       int byteCount = 0;
@@ -148,9 +148,9 @@ class TAPrecorder
       int pulseCount = 0;
       String bitString = "";
 
-      byte checksum = 0;
-      byte lastChk = 0;
-      byte byteRead = 0;
+      uint8_t checksum = 0;
+      uint8_t lastChk = 0;
+      uint8_t byteRead = 0;
 
       // Estado flanco de la senal, HIGH or LOW
       bool pulseHigh = false;
@@ -250,8 +250,8 @@ class TAPrecorder
       {
           int type;
           char name[11];
-          byte sizeLSB;
-          byte sizeMSB;
+          uint8_t sizeLSB;
+          uint8_t sizeMSB;
           int blockSize = 19;
       };
 
@@ -268,10 +268,10 @@ class TAPrecorder
       //     return samples; 
       // }
 
-      byte calculateChecksum(byte* bBlock, int startByte, int numBytes)
+      uint8_t calculateChecksum(uint8_t* bBlock, int startByte, int numBytes)
             {
                 // Calculamos el checksum de un bloque de bytes
-                byte newChk = 0;
+                uint8_t newChk = 0;
 
                 // Calculamos el checksum (no se contabiliza el ultimo numero que es precisamente el checksum)
                 
@@ -1204,7 +1204,7 @@ class TAPrecorder
                           {
                             if (showDataDebug)
                             { 
-                              SerialHW.println("[ Bit, " + String(bitCount) + " from byte, " + String(byteCount) + " error. Delta: " + String(delta) + " ]");                            
+                              SerialHW.println("[ Bit, " + String(bitCount) + " from uint8_t, " + String(byteCount) + " error. Delta: " + String(delta) + " ]");                            
                             }
                           }
                           state = 21;
@@ -1218,8 +1218,8 @@ class TAPrecorder
                           // Reiniciamos el contador de bits
                           bitCount=0;
 
-                          // Convertimos a byte el valor leido del DATA
-                          byte value = strtol(bitChStr, (char**) NULL, 2);
+                          // Convertimos a uint8_t el valor leido del DATA
+                          uint8_t value = strtol(bitChStr, (char**) NULL, 2);
                           byteRead = value;
                           uint8_t valueToBeWritten = byteRead;
                           
@@ -1305,7 +1305,7 @@ class TAPrecorder
                     // Si el checksum final es 0, y contiene datos
                     // El bloque es correcto.
 
-                    // NOTA: El ultimo byte es el checksum
+                    // NOTA: El ultimo uint8_t es el checksum
                     // si se hace XOR sobre este mismo da 0
                     // e indica que todo es correcto
 
@@ -1604,7 +1604,7 @@ class TAPrecorder
 
         // Inicializo bit string
         bitChStr = (char*)ps_calloc(8, sizeof(char));
-        datablock = (byte*)ps_calloc(1, sizeof(byte));
+        datablock = (uint8_t*)ps_calloc(1, sizeof(uint8_t));
         
         // Inicializamos el array de nombre del header
         for (int i=0;i<10;i++)
@@ -1720,7 +1720,7 @@ class TAPrecorder
                 // Tiene 0 bytes. Meto algo y lo cierro
                 // es un error
                 SerialHW.println("");
-                SerialHW.println("Error. 0 byte file");
+                SerialHW.println("Error. 0 uint8_t file");
                 _mFile.write(0xFF);
                 _mFile.close();
                 _mFile.remove();

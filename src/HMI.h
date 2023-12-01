@@ -711,7 +711,7 @@ class HMI
         {
             // Con este procedimiento capturamos el bloque seleccionado
             // desde la pantalla.
-            byte buff[8];
+            uint8_t buff[8];
 
             strCmd.getBytes(buff, 7);
             long val = (long)((int)buff[4] + (256*(int)buff[5]) + (65536*(int)buff[6]));
@@ -725,7 +725,7 @@ class HMI
         {
             // Con este procedimiento capturamos el bloque seleccionado
             // desde la pantalla.
-            byte buff[8];
+            uint8_t buff[8];
             strCmd.getBytes(buff, 7);
             
             long val = (long)((int)buff[4] + (256*(int)buff[5]) + (65536*(int)buff[6]));
@@ -930,7 +930,7 @@ class HMI
         if (strCmd.indexOf("CHD=") != -1) 
         {
             // Con este comando capturamos el directorio a cambiar
-            byte buff[8];
+            uint8_t buff[8];
             strCmd.getBytes(buff, 7);
             
             long val = (long)((int)buff[4] + (256*(int)buff[5]) + (65536*(int)buff[6]));
@@ -1007,7 +1007,7 @@ class HMI
         {
             // Con este comando
             // Borramos el fichero que se ha seleccionado en la pantalla
-            byte buff[8];
+            uint8_t buff[8];
             strCmd.getBytes(buff, 7);
 
             long val = (long)((int)buff[4] + (256*(int)buff[5]) + (65536*(int)buff[6]));
@@ -1060,7 +1060,7 @@ class HMI
         {
             // Con este comando
             // devolvamos el fichero que se ha seleccionado en la pantalla
-            byte buff[8];
+            uint8_t buff[8];
             strCmd.getBytes(buff, 7);
             long val = (long)((int)buff[4] + (256*(int)buff[5]) + (65536*(int)buff[6]));
             String num = String(val);
@@ -1199,7 +1199,7 @@ class HMI
         if (strCmd.indexOf("VOL=") != -1) 
         {
           //Cogemos el valor
-          byte buff[8];
+          uint8_t buff[8];
           strCmd.getBytes(buff, 7);
           int valVol = (int)buff[4];
           MAIN_VOL = valVol;
@@ -1215,7 +1215,7 @@ class HMI
         if (strCmd.indexOf("THR=") != -1) 
         {
           //Cogemos el valor
-          byte buff[8];
+          uint8_t buff[8];
           strCmd.getBytes(buff, 7);
           int valThr = (int)buff[4];
           SCHMITT_THR = valThr;
@@ -1234,7 +1234,7 @@ class HMI
         if (strCmd.indexOf("ESH=") != -1) 
         {
           //Cogemos el valor
-          byte buff[8];
+          uint8_t buff[8];
           strCmd.getBytes(buff, 7);
           int valEn = (int)buff[4];
           //
@@ -1253,7 +1253,7 @@ class HMI
         if (strCmd.indexOf("MUT=") != -1) 
         {
           //Cogemos el valor
-          byte buff[8];
+          uint8_t buff[8];
           strCmd.getBytes(buff, 7);
           int valEn = (int)buff[4];
           //
@@ -1267,7 +1267,7 @@ class HMI
         if (strCmd.indexOf("EMI=") != -1) 
         {
           //Cogemos el valor
-          byte buff[8];
+          uint8_t buff[8];
           strCmd.getBytes(buff, 7);
           int valEn = (int)buff[4];
           //
@@ -1286,7 +1286,7 @@ class HMI
         if (strCmd.indexOf("EAR=") != -1) 
         {
           //Cogemos el valor
-          byte buff[8];
+          uint8_t buff[8];
           strCmd.getBytes(buff, 7);
           int valEn = (int)buff[4];
           //
@@ -1305,7 +1305,7 @@ class HMI
         if (strCmd.indexOf("SDD=") != -1) 
         {
           //Cogemos el valor
-          byte buff[8];
+          uint8_t buff[8];
           strCmd.getBytes(buff, 7);
           int valEn = (int)buff[4];
           //
@@ -1334,7 +1334,7 @@ class HMI
         if (strCmd.indexOf("MP1=") != -1) 
         {
           //minSync1
-          byte buff[8];
+          uint8_t buff[8];
           strCmd.getBytes(buff, 7);
           int val = (int)buff[4];
           //
@@ -1345,7 +1345,7 @@ class HMI
         if (strCmd.indexOf("MP2=") != -1) 
         {
           //maxSync1
-          byte buff[8];
+          uint8_t buff[8];
           strCmd.getBytes(buff, 7);
           int val = (int)buff[4];
           //
@@ -1356,7 +1356,7 @@ class HMI
         if (strCmd.indexOf("MP3=") != -1) 
         {
           //minBit0
-          byte buff[8];
+          uint8_t buff[8];
           strCmd.getBytes(buff, 7);
           int val = (int)buff[4];
           //
@@ -1367,7 +1367,7 @@ class HMI
         if (strCmd.indexOf("MP4=") != -1) 
         {
           //maxBit0
-          byte buff[8];
+          uint8_t buff[8];
           strCmd.getBytes(buff, 7);
           int val = (int)buff[4];
           //
@@ -1378,7 +1378,7 @@ class HMI
         if (strCmd.indexOf("MP5=") != -1) 
         {
           //minBit1
-          byte buff[8];
+          uint8_t buff[8];
           strCmd.getBytes(buff, 7);
           int val = (int)buff[4];
           //
@@ -1389,7 +1389,7 @@ class HMI
         if (strCmd.indexOf("MP6=") != -1) 
         {
           //maxBit1
-          byte buff[8];
+          uint8_t buff[8];
           strCmd.getBytes(buff, 7);
           int val = (int)buff[4];
           //
@@ -1400,7 +1400,7 @@ class HMI
         if (strCmd.indexOf("MP7=") != -1) 
         {
           //max pulses lead
-          byte buff[8];
+          uint8_t buff[8];
           strCmd.getBytes(buff, 7);
 
           // SerialHW.println("0: " + String((char)buff[0]));
@@ -1421,7 +1421,7 @@ class HMI
         if (strCmd.indexOf("MP8=") != -1) 
         {
           //minLead
-          byte buff[8];
+          uint8_t buff[8];
           strCmd.getBytes(buff, 7);
           int val = (int)buff[4];
           //
@@ -1432,7 +1432,7 @@ class HMI
         if (strCmd.indexOf("MP9=") != -1) 
         {
           //maxLead
-          byte buff[8];
+          uint8_t buff[8];
           strCmd.getBytes(buff, 7);
           int val = buff[4];
           //
@@ -1469,7 +1469,7 @@ class HMI
         if (strCmd.indexOf("TXTF=") != -1) 
         {
           //Cogemos el valor
-          byte buff[50];
+          uint8_t buff[50];
           strCmd.getBytes(buff, 50);
           const int lencmd = 5;
           int n = lencmd;
@@ -1505,7 +1505,7 @@ class HMI
           }
       
           // Indicamos a la pantalla que ya hemos enviado todos
-          // los datos, con este triple byte 0xFF
+          // los datos, con este triple uint8_t 0xFF
           SerialHW.write(0xff);
           SerialHW.write(0xff);
           SerialHW.write(0xff);
@@ -1677,7 +1677,7 @@ class HMI
       {
         if (SerialHW.available() >= 1) 
         {
-          // get the new byte:
+          // get the new uint8_t:
           while (SerialHW.available())
           {
             String strCmd = SerialHW.readString();

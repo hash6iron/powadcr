@@ -77,9 +77,9 @@ class SDmanager
         } 
     }
     
-    byte* readFile32(File32 mFile)
+    uint8_t* readFile32(File32 mFile)
     {
-        byte* bufferFile = NULL;
+        uint8_t* bufferFile = NULL;
     
         mFile.rewind();
     
@@ -92,13 +92,13 @@ class SDmanager
             //SerialHW.print(String(rlen));
     
             //Redimensionamos el buffer al tamaño acordado del fichero
-            bufferFile = (byte*)ps_calloc(rlen+1,sizeof(byte));
+            bufferFile = (uint8_t*)ps_calloc(rlen+1,sizeof(uint8_t));
             mFile.read(bufferFile,rlen);
             
             // int i=0;
             // while(i < rlen)
             // {
-            //     bufferFile[i] = (byte)mFile.read();
+            //     bufferFile[i] = (uint8_t)mFile.read();
             //     i++;
             // }
         } 
@@ -110,15 +110,15 @@ class SDmanager
         return bufferFile;
     }
     
-    byte* readFileRange32(File32 mFile, int startByte, int size, bool logOn)
+    uint8_t* readFileRange32(File32 mFile, int startByte, int size, bool logOn)
     {
         //Redimensionamos el buffer al tamaño acordado del rango
-        byte* bufferFile = NULL;
-        bufferFile = (byte*)ps_calloc(size+1,sizeof(byte));
+        uint8_t* bufferFile = NULL;
+        bufferFile = (uint8_t*)ps_calloc(size+1,sizeof(uint8_t));
     
         // Ponemos a cero el puntero de lectura del fichero
         mFile.rewind();
-        // Nos posicionamos en el byte definido
+        // Nos posicionamos en el uint8_t definido
         mFile.seek(startByte);
     
         //SerialHW.println("***** readFileRange32 *****");

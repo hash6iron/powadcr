@@ -43,8 +43,8 @@ struct tBlock
 {
   int index = 0;            // Numero del bloque
   int offset = 0;           // Byte donde empieza
-  byte* header;      // Cabecera del bloque
-  byte* data;        // Datos del bloque
+  uint8_t* header;      // Cabecera del bloque
+  uint8_t* data;        // Datos del bloque
 };
 
 struct tTimming
@@ -81,7 +81,7 @@ struct tTZXBlockDescriptor
   bool forSetting = false;
   int delay = 1000;
   int silent;
-  byte maskLastByte = 8;
+  uint8_t maskLastByte = 8;
   tTimming timming;
   char typeName[35];
 };

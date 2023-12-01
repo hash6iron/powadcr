@@ -80,15 +80,15 @@ class TZXproccesor
     }
 
 
-    byte calculateChecksum(byte* bBlock, int startByte, int numBytes)
+    uint8_t calculateChecksum(uint8_t* bBlock, int startByte, int numBytes)
     {
         // Calculamos el checksum de un bloque de bytes
-        byte newChk = 0;
+        uint8_t newChk = 0;
 
         #if LOG>3
           SerialHW.println("");
           SerialHW.println("Block len: ");
-          SerialHW.print(sizeof(bBlock)/sizeof(byte*));
+          SerialHW.print(sizeof(bBlock)/sizeof(uint8_t*));
         #endif
 
         // Calculamos el checksum (no se contabiliza el ultimo numero que es precisamente el checksum)
@@ -106,7 +106,7 @@ class TZXproccesor
         return newChk;
     }      
 
-    char* getNameFromStandardBlock(byte* header)
+    char* getNameFromStandardBlock(uint8_t* header)
     {
         // Obtenemos el nombre del bloque cabecera
         char* prgName = (char*)ps_calloc(10+1,sizeof(char));
@@ -135,12 +135,12 @@ class TZXproccesor
 
       }
 
-     byte* getBlockRange(byte* bBlock, int byteStart, int byteEnd)
+     uint8_t* getBlockRange(uint8_t* bBlock, int byteStart, int byteEnd)
      {
 
-         // Extraemos un bloque de bytes indicando el byte inicio y final
-         //byte* blockExtracted = new byte[(byteEnd - byteStart)+1];
-         byte* blockExtracted = (byte*)ps_calloc((byteEnd - byteStart)+1, sizeof(byte));
+         // Extraemos un bloque de bytes indicando el uint8_t inicio y final
+         //uint8_t* blockExtracted = new uint8_t[(byteEnd - byteStart)+1];
+         uint8_t* blockExtracted = (uint8_t*)ps_calloc((byteEnd - byteStart)+1, sizeof(uint8_t));
 
          int i=0;
          for (int n=byteStart;n<(byteStart + (byteEnd - byteStart)+1);n++)
@@ -161,8 +161,8 @@ class TZXproccesor
 
            // Capturamos la cabecera
 
-           //byte* bBlock = NULL; 
-           byte* bBlock = (byte*)ps_calloc(10+1,sizeof(byte));
+           //uint8_t* bBlock = NULL; 
+           uint8_t* bBlock = (uint8_t*)ps_calloc(10+1,sizeof(uint8_t));
            bBlock = sdm.readFileRange32(tzxFile,0,10,false);
 
           // Obtenemos la firma del TZX
@@ -290,11 +290,11 @@ class TZXproccesor
     }
 
 
-    byte* getBlock(File32 mFile, int offset, int size)
+    uint8_t* getBlock(File32 mFile, int offset, int size)
     {
         //Entonces recorremos el TZX. 
         // La primera cabecera SIEMPRE debe darse.
-        byte* bloque = (byte*)ps_calloc(size+1,sizeof(byte));
+        uint8_t* bloque = (uint8_t*)ps_calloc(size+1,sizeof(uint8_t));
         // Obtenemos el bloque
         if (bloque != NULL)
         {
@@ -308,14 +308,14 @@ class TZXproccesor
     {
         // Vamos a verificar que el bloque cumple con el checksum
         // Cogemos el checksum del bloque
-        byte chk = getBYTE(mFile,offset+size-1);
+        uint8_t chk = getBYTE(mFile,offset+size-1);
 
         //  SerialHW.println("");
         //  SerialHW.println("Original checksum:");
         //  SerialHW.print(chk,HEX);
 
-        byte* block = getBlock(mFile,offset,size-1);
-        byte calcChk = calculateChecksum(block,0,size-1);
+        uint8_t* block = getBlock(mFile,offset,size-1);
+        uint8_t calcChk = calculateChecksum(block,0,size-1);
 
         //  SerialHW.println("");
         //  SerialHW.println("Calculated checksum:");
@@ -345,14 +345,14 @@ class TZXproccesor
       // 13 00 00 03 52 4f 4d 7x20 02 00 00 00 00 80 f1 04 00 ff f3 af a3
 
       // ^^^^^...... first block is 19 bytes (17 bytes+flag+checksum)
-      //       ^^... flag byte (A reg, 00 for headers, ff for data blocks)
-      //          ^^ first byte of header, indicating a code block
+      //       ^^... flag uint8_t (A reg, 00 for headers, ff for data blocks)
+      //          ^^ first uint8_t of header, indicating a code block
 
       // file name ..^^^^^^^^^^^^^
       // header info ..............^^^^^^^^^^^^^^^^^
       // checksum of header .........................^^
       // length of second block ........................^^^^^
-      // flag byte ...........................................^^
+      // flag uint8_t ...........................................^^
       // first two bytes of rom .................................^^^^^
       // checksum (checkbittoggle would be a better name!).............^^      
      
@@ -610,7 +610,7 @@ class TZXproccesor
           SerialHW.print(",PILOT TONE=");
           SerialHW.print(_myTZX.descriptor[currentBlock].timming.pilot_tone, HEX);
 
-        // Cogemos el byte de bits of the last byte
+        // Cogemos el uint8_t de bits of the last uint8_t
         _myTZX.descriptor[currentBlock].maskLastByte = getBYTE(mFile,currentOffset+13);
         zxp.set_maskLastByte(_myTZX.descriptor[currentBlock].maskLastByte);
 
@@ -808,7 +808,7 @@ class TZXproccesor
           SerialHW.print(",BIT_1=");
           SerialHW.print(_myTZX.descriptor[currentBlock].timming.bit_1, HEX);
 
-        // Cogemos el byte de bits of the last byte
+        // Cogemos el uint8_t de bits of the last uint8_t
         _myTZX.descriptor[currentBlock].maskLastByte = getBYTE(mFile,currentOffset+5);
         zxp.set_maskLastByte(_myTZX.descriptor[currentBlock].maskLastByte);
 
@@ -897,7 +897,7 @@ class TZXproccesor
         //SerialHW.println("");
         //SerialHW.println("ID48 - TextSize: " + String(sizeTextInformation));
         
-        // El tamaño del bloque es "1 byte de longitud de texto + TAMAÑO_TEXTO"
+        // El tamaño del bloque es "1 uint8_t de longitud de texto + TAMAÑO_TEXTO"
         // el bloque comienza en el offset del ID y acaba en
         // offset[ID] + tamaño_bloque
         _myTZX.descriptor[currentBlock].size = sizeBlock;         
@@ -915,13 +915,13 @@ class TZXproccesor
         _myTZX.descriptor[currentBlock].offset = currentOffset;
 
         // El bloque completo mide, el numero de maquinas a listar
-        // multiplicado por 3 byte por maquina listada
+        // multiplicado por 3 uint8_t por maquina listada
         sizeBlock = getBYTE(mFile,currentOffset+1) * 3;
 
         //SerialHW.println("");
         //SerialHW.println("ID48 - TextSize: " + String(sizeTextInformation));
         
-        // El tamaño del bloque es "1 byte de longitud de texto + TAMAÑO_TEXTO"
+        // El tamaño del bloque es "1 uint8_t de longitud de texto + TAMAÑO_TEXTO"
         // el bloque comienza en el offset del ID y acaba en
         // offset[ID] + tamaño_bloque
         _myTZX.descriptor[currentBlock].size = sizeBlock-1;         
@@ -941,7 +941,7 @@ class TZXproccesor
         SerialHW.println("");
         SerialHW.println("ID48 - TextSize: " + String(sizeTextInformation));
         
-        // El tamaño del bloque es "1 byte de longitud de texto + TAMAÑO_TEXTO"
+        // El tamaño del bloque es "1 uint8_t de longitud de texto + TAMAÑO_TEXTO"
         // el bloque comienza en el offset del ID y acaba en
         // offset[ID] + tamaño_bloque
         _myTZX.descriptor[currentBlock].size = sizeTextInformation + 1;
@@ -961,7 +961,7 @@ class TZXproccesor
         SerialHW.println("");
         SerialHW.println("ID33 - TextSize: " + String(sizeTextInformation));
         
-        // El tamaño del bloque es "1 byte de longitud de texto + TAMAÑO_TEXTO"
+        // El tamaño del bloque es "1 uint8_t de longitud de texto + TAMAÑO_TEXTO"
         // el bloque comienza en el offset del ID y acaba en
         // offset[ID] + tamaño_bloque
         _myTZX.descriptor[currentBlock].size = sizeTextInformation;
@@ -977,7 +977,7 @@ class TZXproccesor
     void getBlockDescriptor(File32 mFile, int sizeTZX)
     {
           // Para ello tenemos que ir leyendo el TZX poco a poco
-          // Detectaremos los IDs a partir del byte 9 (empezando por offset = 0)
+          // Detectaremos los IDs a partir del uint8_t 9 (empezando por offset = 0)
           // Cada bloque empieza por un ID menos el primero 
           // que empieza por ZXTape!
           // Ejemplo ID + bytes
@@ -1017,7 +1017,7 @@ class TZXproccesor
                   _hmi.updateInformationMainPage();
               }
 
-              // El objetivo es ENCONTRAR IDs y ultimo byte, y analizar el bloque completo para el descriptor.
+              // El objetivo es ENCONTRAR IDs y ultimo uint8_t, y analizar el bloque completo para el descriptor.
               currentID = getID(mFile, currentOffset);
               
               SerialHW.println("");
@@ -1483,7 +1483,7 @@ class TZXproccesor
         }      
     }
 
-    void showBufferPlay(byte* buffer, int size)
+    void showBufferPlay(uint8_t* buffer, int size)
     {
         SerialHW.println("Listing bufferplay.");
         for (int n=0;n<size;n++)
@@ -1685,7 +1685,7 @@ class TZXproccesor
         if (_myTZX.descriptor != NULL)
         {         
               // Inicializamos el buffer de reproducción. Memoria dinamica
-              byte* bufferPlay = NULL;
+              uint8_t* bufferPlay = NULL;
 
               // Entregamos información por consola
               //PROGRAM_NAME = _myTZX.name;
@@ -1838,7 +1838,7 @@ class TZXproccesor
                         SerialHW.println("Head 1" + _myTZX.descriptor[i].ID);
                         SerialHW.println("");
 
-                        bufferPlay = (byte*)ps_calloc(_myTZX.descriptor[i].size, sizeof(byte));
+                        bufferPlay = (uint8_t*)ps_calloc(_myTZX.descriptor[i].size, sizeof(uint8_t));
 
                         bufferPlay = sdm.readFileRange32(_mFile, _myTZX.descriptor[i].offsetData, _myTZX.descriptor[i].size, false);
 
@@ -1890,7 +1890,7 @@ class TZXproccesor
                       else if (_myTZX.descriptor[i].type == 1 || _myTZX.descriptor[i].type == 7) 
                       {
 
-                        bufferPlay = (byte*)ps_calloc(_myTZX.descriptor[i].size, sizeof(byte));
+                        bufferPlay = (uint8_t*)ps_calloc(_myTZX.descriptor[i].size, sizeof(uint8_t));
 
                         bufferPlay = sdm.readFileRange32(_mFile, _myTZX.descriptor[i].offsetData, _myTZX.descriptor[i].size, false);
 
@@ -1946,7 +1946,7 @@ class TZXproccesor
                       {
                         // DATA
                         int blockSize = _myTZX.descriptor[i].size;
-                        bufferPlay = (byte*)ps_calloc(_myTZX.descriptor[i].size, sizeof(byte));
+                        bufferPlay = (uint8_t*)ps_calloc(_myTZX.descriptor[i].size, sizeof(uint8_t));
                         bufferPlay = sdm.readFileRange32(_mFile, _myTZX.descriptor[i].offsetData, _myTZX.descriptor[i].size, true);
 
                         //showBufferPlay(bufferPlay,_myTZX.descriptor[i].size);

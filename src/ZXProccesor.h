@@ -80,7 +80,7 @@ class ZXProccesor
 
     private:
 
-    byte _mask_last_byte = 8;
+    uint8_t _mask_last_byte = 8;
 
     AudioKit m_kit;
 
@@ -564,14 +564,14 @@ class ZXProccesor
       }
     }
 
-    void sendDataArray(byte* data, int size)
+    void sendDataArray(uint8_t* data, int size)
     {
-        byte _mask = 8;   // Para el last_byte
+        uint8_t _mask = 8;   // Para el last_byte
 
         // Procedimiento para enviar datos desde un array
         if (LOADING_STATE==1 || TEST_RUNNING)
         {
-            byte bRead = 0x00;
+            uint8_t bRead = 0x00;
             int bytes_in_this_block = 0;
 
             for (int i = 0; i < size;i++)
@@ -620,8 +620,8 @@ class ZXProccesor
                   bRead = data[i];
                   
                   // Para la protección con mascara ID11 - 0x0C
-                  // "Used bits in the last byte (other bits should be 0) {8}
-                  //(e.g. if this is 6, then the bits used (x) in the last byte are: xxxxxx00, wh///ere MSb is the leftmost bit, LSb is the rightmost bit)"
+                  // "Used bits in the last uint8_t (other bits should be 0) {8}
+                  //(e.g. if this is 6, then the bits used (x) in the last uint8_t are: xxxxxx00, wh///ere MSb is the leftmost bit, LSb is the rightmost bit)"
                   
                   // ¿Es el ultimo BYTE?. Si se ha aplicado mascara entonces
                   // se modifica el numero de bits a transmitir
@@ -675,9 +675,9 @@ class ZXProccesor
             // _hmi.updateInformationMainPage();                    
 
             int width = 0;
-            // Leemos el ultimo bit (del ultimo byte), y dependiendo de como sea
+            // Leemos el ultimo bit (del ultimo uint8_t), y dependiendo de como sea
             // así cerramos el flanco.
-            // Cogemos el ultimo byte
+            // Cogemos el ultimo uint8_t
             bRead = data[size-1];
 
             // Vemos como es el último bit MSB es la posición 0, el ultimo bit
@@ -700,12 +700,12 @@ class ZXProccesor
     
     public:
 
-        void set_maskLastByte(byte mask)
+        void set_maskLastByte(uint8_t mask)
         {
             _mask_last_byte = mask;
         }
 
-        void playData(byte* bBlock, int lenBlock, int pulse_pilot_duration)
+        void playData(uint8_t* bBlock, int lenBlock, int pulse_pilot_duration)
         {
             float duration = tState * pulse_pilot_duration;
 
@@ -748,7 +748,7 @@ class ZXProccesor
             customPilotTone(lenPulse, numPulses);          
         }
 
-        void playPureData(byte* bBlock, int lenBlock)
+        void playPureData(uint8_t* bBlock, int lenBlock)
         {
             // Send data
             sendDataArray(bBlock, lenBlock);
@@ -757,7 +757,7 @@ class ZXProccesor
             {return;}
         }        
 
-        void playDataBegin(byte* bBlock, int lenBlock, int pulse_pilot_duration)
+        void playDataBegin(uint8_t* bBlock, int lenBlock, int pulse_pilot_duration)
         {
             // PROGRAM
             float duration = tState * pulse_pilot_duration;
@@ -772,7 +772,7 @@ class ZXProccesor
                    
         }
 
-        void playDataEnd(byte* bBlock, int lenBlock, int pulse_pilot_duration)
+        void playDataEnd(uint8_t* bBlock, int lenBlock, int pulse_pilot_duration)
         {
 
             float duration = tState * pulse_pilot_duration;
@@ -783,7 +783,7 @@ class ZXProccesor
             silence(silent);
         }
 
-        void playBlock(byte* header, int len_header, byte* data, int len_data, int pulse_pilot_duration_header, int pulse_pilot_duration_data)
+        void playBlock(uint8_t* header, int len_header, uint8_t* data, int len_data, int pulse_pilot_duration_header, int pulse_pilot_duration_data)
         {           
             #if LOG==3
               SerialHW.println("******* PROGRAM HEADER");
@@ -824,7 +824,7 @@ class ZXProccesor
             silence(silent);
         }
 
-        void playHeaderOnly(byte* header, int len_header, int pulse_pilot_duration)
+        void playHeaderOnly(uint8_t* header, int len_header, int pulse_pilot_duration)
         {           
 
             float duration = tState * pulse_pilot_duration;

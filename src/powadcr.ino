@@ -609,7 +609,7 @@ void setup()
       SerialHW.println("");
       SerialHW.println("Testing readFileRange32(..)"); 
 
-      byte* buffer = (byte*)calloc(11,sizeof(byte));
+      uint8_t* buffer = (uint8_t*)calloc(11,sizeof(uint8_t));
       char fileTest[65];
       strncpy(fileTest,"/Correcaminos - Nifty Lifty (1984)(Visions Software Factory).tzx",64);
       sdFile32 = sdm.openFile32(sdFile32,fileTest);
