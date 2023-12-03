@@ -89,14 +89,14 @@ SDmanager sdm;
 HMI hmi;
 
 #include "interface.h"
-#include "ZXProccesor.h"
+#include "ZXProcessor.h"
 
 // ZX Spectrum. Procesador de audio output
 ZXProccesor zxp;
 
 // Procesadores de cinta
-#include "TZXproccesor.h"
-#include "TAPproccesor.h"
+#include "TZXprocessor.h"
+#include "TAPprocessor.h"
 
 #include "test.h"
 
@@ -482,6 +482,37 @@ void stopRecording()
     SerialHW.println("Recording procces finish.");
     SerialHW.println("");    
 
+}
+
+void Task0code( void * pvParameters )
+{
+  // Core 0 - Para el HMI
+  while(true)
+  {
+      hmi.readUART();
+
+      // Control por botones
+      //buttonsControl();
+      delay(50);
+      // bool headphoneDetected = headPhoneDetection();
+      // if (headphoneDetected != last_headPhoneDetection)
+      // {
+      //     if (headphoneDetected)
+      //     {
+      //       last_headPhoneDetection = true;
+      //       //EN_MUTE_2 = 0;
+      //       SerialHW.println("");
+      //       SerialHW.println("Headphone detected.");
+      //     }
+      //     else
+      //     {
+      //       last_headPhoneDetection = false;
+      //       //EN_MUTE_2 = 1;
+      //       SerialHW.println("");
+      //       SerialHW.println("Headphone unpluged.");
+      //     }
+      // }
+  }
 }
 
 void setup() 
@@ -909,37 +940,6 @@ void tapeControl()
 bool headPhoneDetection()
 {
   return !gpio_get_level((gpio_num_t)HEADPHONE_DETECT);
-}
-
-void Task0code( void * pvParameters )
-{
-  // Core 0 - Para el HMI
-  while(true)
-  {
-      hmi.readUART();
-
-      // Control por botones
-      //buttonsControl();
-      delay(50);
-      // bool headphoneDetected = headPhoneDetection();
-      // if (headphoneDetected != last_headPhoneDetection)
-      // {
-      //     if (headphoneDetected)
-      //     {
-      //       last_headPhoneDetection = true;
-      //       //EN_MUTE_2 = 0;
-      //       SerialHW.println("");
-      //       SerialHW.println("Headphone detected.");
-      //     }
-      //     else
-      //     {
-      //       last_headPhoneDetection = false;
-      //       //EN_MUTE_2 = 1;
-      //       SerialHW.println("");
-      //       SerialHW.println("Headphone unpluged.");
-      //     }
-      // }
-  }
 }
 
 void loop() 
