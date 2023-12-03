@@ -465,7 +465,8 @@ class TAPrecorder
             }
           }
 
-          char* extFile = ".tap\0";
+          //char* extFile = ".tap\0";
+          char extFile[] = ".tap";
           strcat(fileNameRename,extFile);
           
           nameFileRead = true;                             
@@ -1587,7 +1588,7 @@ class TAPrecorder
 
         // Reservamos memoria
         fileName = (char*)ps_calloc(20,sizeof(char));
-        fileName = "_record\0";
+        fileName = (char*) "_record\0";
 
         recDir = (char*)ps_calloc(55,sizeof(char));
         String dirR = RECORDING_DIR + "/\0";
