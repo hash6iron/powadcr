@@ -14,6 +14,7 @@
     ----------------------
     v.0.1 - Version inicial
     v.0.2 - Se han hecho modificaciones relativas al resto de clases para HMI y SDmanager. Se ha incluido la reproducción y analisis de bloques que estaba antes en el powadcr.ino
+    v.0.3 - New update to develp branch
 
     Derechos de autor y distribución
     --------------------------------
