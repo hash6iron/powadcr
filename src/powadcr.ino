@@ -621,6 +621,9 @@ void setup()
       SerialHW.println("Test OK");  
   #endif
 
+  // Call the Task0code primitive function to avoid the error of Task0code not defined
+  void Task0code( void * pvParameters );
+    
   // Control de la UART - HMI
   xTaskCreatePinnedToCore(Task0code, "TaskCORE0", 4096, NULL, 5, &Task0,  0);
   delay(500);
