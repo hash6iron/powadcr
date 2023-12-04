@@ -496,18 +496,6 @@ void stopRecording()
 
 }
 
-void Task0code( void * pvParameters )
-{
-  // Core 0 - Para el HMI
-  while(true)
-  {
-      hmi.readUART();
-      // Control por botones
-      //buttonsControl();
-      //delay(50);
-  }
-}
-
 void setup() 
 {
 
@@ -1038,6 +1026,18 @@ void tapeControl()
 bool headPhoneDetection()
 {
   return !gpio_get_level((gpio_num_t)HEADPHONE_DETECT);
+}
+
+void Task0code( void * pvParameters )
+{
+  // Core 0 - Para el HMI
+  while(true)
+  {
+      hmi.readUART();
+      // Control por botones
+      //buttonsControl();
+      //delay(50);
+  }
 }
 
 void loop() 
