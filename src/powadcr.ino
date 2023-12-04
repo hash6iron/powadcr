@@ -26,6 +26,7 @@
 
     Historico de versiones
     v.0.1 - Version de pruebas. En desarrollo
+    v.0.2 - New update to develop branch
     
 
     Configuración en ARDUINO IDE
