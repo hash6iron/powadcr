@@ -114,12 +114,20 @@ TAPproccesor pTAP(ESP32kit);
 #include "TAPrecorder.h"
 TAPrecorder taprec;
 
+// Procesador de TAP
+TAPproccesor::tTAP myTAP;
+
 bool last_headPhoneDetection = false;
+uint8_t tapeState = 0;
 
 void proccesingTAP(char* file_ch)
 {
     //pTAP.set_SdFat32(sdf);
     pTAP.initialize();
+    // Reservamos memoria para el objeto
+    myTAP.descriptor = (TAPproccesor::tBlockDescriptor*)ps_malloc(MAX_BLOCKS_IN_TAP * sizeof(struct TAPproccesor::tBlockDescriptor));
+    // Pasamos el control a la clase
+    pTAP.setTAP(myTAP);
     pTAP.getInfoFileTAP(file_ch);
 
     if (!FILE_CORRUPTED)
@@ -136,6 +144,9 @@ void proccesingTAP(char* file_ch)
     }
 
     FILE_NOTIFIED = true;
+
+    // Actualizamos el indicador de memoria consumida para TAPprocessor.
+    pTAP.updateMemIndicator();
 
 }
 
@@ -490,28 +501,9 @@ void Task0code( void * pvParameters )
   while(true)
   {
       hmi.readUART();
-
       // Control por botones
       //buttonsControl();
-      delay(50);
-      // bool headphoneDetected = headPhoneDetection();
-      // if (headphoneDetected != last_headPhoneDetection)
-      // {
-      //     if (headphoneDetected)
-      //     {
-      //       last_headPhoneDetection = true;
-      //       //EN_MUTE_2 = 0;
-      //       SerialHW.println("");
-      //       SerialHW.println("Headphone detected.");
-      //     }
-      //     else
-      //     {
-      //       last_headPhoneDetection = false;
-      //       //EN_MUTE_2 = 1;
-      //       SerialHW.println("");
-      //       SerialHW.println("Headphone unpluged.");
-      //     }
-      // }
+      //delay(50);
   }
 }
 
@@ -599,7 +591,6 @@ void setup()
   pTZX.set_SDM(sdm);
 
   zxp.set_ESP32kit(ESP32kit);
-  
 
 // Si es test está activo. Lo lanzamos
 #ifdef TEST
@@ -698,239 +689,342 @@ void setSTOP()
   // sendStatus(READY_ST, 1);
 }
 
-void tapeControl()
+void playingFile()
 {
+  setAudioOutput();
+  ESP32kit.setVolume(MAIN_VOL);
 
-  if (!FILE_BROWSER_OPEN)
+  sendStatus(REC_ST, 0);
+
+  //Activamos la animación
+  hmi.writeString("tape.tmAnimation.en=1"); 
+
+  // Reproducimos el fichero
+  LAST_MESSAGE = "Loading in progress. Please wait.";
+  hmi.updateInformationMainPage();
+
+  if (TYPE_FILE_LOAD == "TAP")
   {
-      if (PAUSE && LOADING_STATE != 0)
-      {
-          SerialHW.println("");
-          SerialHW.println("PAUSEEEEEE!!!!");        
-          //pauseRecording();
-          LOADING_STATE = 0;
-          //Paramos la animación
-          hmi.writeString("tape.tmAnimation.en=0");           
-      }
+      hmi.getMemFree();
+      pTAP.play();
+      //Paramos la animación
+      hmi.writeString("tape.tmAnimation.en=0"); 
+      pTAP.updateMemIndicator();
+  }
+  else if (TYPE_FILE_LOAD = "TZX")
+  {
+      hmi.getMemFree();
+      pTZX.play();
+      //Paramos la animación
+      hmi.writeString("tape.tmAnimation.en=0"); 
+  }
+}
 
-      if (STOP && (LOADING_STATE != 0 || REC)) 
-      {
-        LOADING_STATE = 0;
-        //Paramos la animación
-        hmi.writeString("tape.tmAnimation.en=0"); 
+void loadingFile()
+{
+  // Cogemos el fichero seleccionado y lo cargamos              
+  char* file_ch = (char*)ps_malloc(256 * sizeof(char));
+  FILE_TO_LOAD.toCharArray(file_ch, 256);
 
-        SerialHW.println("");
-        SerialHW.println("STOPPPPP!!!!");
-        
-        if (REC)
-        {
-          stopRecording();
+  // Si no está vacio
+  if (FILE_TO_LOAD != "") {
+    
+    // Limpiamos los campos del TAPE
+    hmi.clearInformationFile();
 
-          SerialHW.println("");
-          SerialHW.println("STOP 1 - REC");
+    // Convierto a mayusculas
+    FILE_TO_LOAD.toUpperCase();
 
-        }
-        else
-        {}
+    if (FILE_TO_LOAD.indexOf(".TAP") != -1)
+    {
+        // Lo procesamos
+        proccesingTAP(file_ch);
+        TYPE_FILE_LOAD = "TAP";
+        //hmi.getMemFree();
+    }
+    else if (FILE_TO_LOAD.indexOf(".TZX") != -1)    
+    {
+        // Lo procesamos. Para ZX Spectrum
+        proccesingTZX(file_ch);
+        TYPE_FILE_LOAD = "TZX";
+        //hmi.getMemFree();              
+    }
+    else if (FILE_TO_LOAD.indexOf(".TSX") != -1)
+    {
+        // Lo procesamos. Para MSX
+        proccesingTZX(file_ch);
+        TYPE_FILE_LOAD = "TSX";
+    }   
+  }
 
-        setSTOP();
-      }
+  // Liberamos
+  free(file_ch);  
+}
 
-      if (FILE_SELECTED && !FILE_NOTIFIED && !REC) 
-      {
+void stopFile()
+{
+  //Paramos la animación
+  hmi.writeString("tape.tmAnimation.en=0"); 
+  setSTOP();     
+}
 
-        // Cogemos el fichero seleccionado y lo cargamos              
-        char* file_ch = (char*)ps_malloc(256 * sizeof(char));
-        FILE_TO_LOAD.toCharArray(file_ch, 256);
+void pauseFile()
+{}
 
-        // Si no está vacio
-        if (FILE_TO_LOAD != "") {
-          
-          // Limpiamos los campos del TAPE
-          hmi.clearInformationFile();
+void ejectingFile()
+{
+  log("Eject executing");
 
-          // Convierto a mayusculas
-          FILE_TO_LOAD.toUpperCase();
+  // Terminamos los players
+  if (TYPE_FILE_LOAD == "TAP")
+  {
+      free(myTAP.descriptor);
 
-          if (FILE_TO_LOAD.indexOf(".TAP") != -1)
-          {
-              // Lo procesamos
-              proccesingTAP(file_ch);
-              TYPE_FILE_LOAD = "TAP";
-              //hmi.getMemFree();
-          }
-          else if (FILE_TO_LOAD.indexOf(".TZX") != -1)    
-          {
-              // Lo procesamos. Para ZX Spectrum
-              proccesingTZX(file_ch);
-              TYPE_FILE_LOAD = "TZX";
-              //hmi.getMemFree();              
-          }
-          else if (FILE_TO_LOAD.indexOf(".TSX") != -1)
-          {
-              // Lo procesamos. Para MSX
-              proccesingTZX(file_ch);
-              TYPE_FILE_LOAD = "TSX";
-          }   
-        }
+      pTAP.terminate();
+      hmi.getMemFree();
+  }
+  else if (TYPE_FILE_LOAD = "TZX")
+  {
+      pTZX.terminate();
+      hmi.getMemFree();
+  }  
+}
 
-        // Liberamos
-        delete [] file_ch;
-        file_ch = NULL;
-      }
+void recordingFile()
+{
+  // Preparamos para recording
+  if (!waitingRecMessageShown)
+  {
+    SerialHW.println("");
+    SerialHW.println("REC. Waiting for guide tone");
+    SerialHW.println("");        
 
-      if (PLAY && LOADING_STATE == 0 && FILE_PREPARED && !REC) 
-      {
-        setAudioOutput();
-        ESP32kit.setVolume(MAIN_VOL);
+    //Activamos la animación
+    hmi.writeString("tape.tmAnimation.en=1"); 
 
-        if (FILE_SELECTED) 
-        {
-          // Pasamos a estado de reproducción
-          LOADING_STATE = 1;
-          // sendStatus(PLAY_ST, 1);
-          // sendStatus(STOP_ST, 0);
-          // sendStatus(PAUSE_ST, 0);
-          // sendStatus(END_ST, 0);
-          sendStatus(REC_ST, 0);
+    // Inicializamos audio input
+    setAudioInput();
+    taprec.set_kit(ESP32kit);
+    
+    taprec.initialize(); 
 
-          //Activamos la animación
-          hmi.writeString("tape.tmAnimation.en=1"); 
+    if (!taprec.createTempTAPfile())
+    {
+      LAST_MESSAGE = "Recorder not prepared.";
+      hmi.updateInformationMainPage();
+      waitingRecMessageShown = false;
+    }
+    else
+    {
+      waitingRecMessageShown = true;
 
-          // Reproducimos el fichero
-          LAST_MESSAGE = "Loading in progress. Please wait.";
-          hmi.updateInformationMainPage();
-
-          if (TYPE_FILE_LOAD == "TAP")
-          {
-              hmi.getMemFree();
-              pTAP.play();
-              //Paramos la animación
-              hmi.writeString("tape.tmAnimation.en=0"); 
-          }
-          else if (TYPE_FILE_LOAD = "TZX")
-          {
-              hmi.getMemFree();
-              pTZX.play();
-              //Paramos la animación
-              hmi.writeString("tape.tmAnimation.en=0"); 
-          }
-        } 
-        else 
-        {
-          LAST_MESSAGE = "No file was selected.";
-          
-          if (TYPE_FILE_LOAD == "TAP")
-          {
-              hmi.getMemFree();
-              pTAP.initialize();
-          }
-          else if (TYPE_FILE_LOAD = "TZX")
-          {
-              hmi.getMemFree();
-              pTZX.initialize();
-          }
-
-          hmi.updateInformationMainPage();
-        }
-      }
-
-      if (EJECT && FILE_PREPARED && !REC)
-      {
-
-        
-        log("Eject, pressed");
-
-        if (FILE_SELECTED) 
-        {
-          // Pasamos a estado de reproducción
-          EJECT = false;
-          
-          log("Eject executing");
-
-          // Terminamos los players
-          if (TYPE_FILE_LOAD == "TAP")
-          {
-              pTAP.terminate();
-              hmi.getMemFree();
-          }
-          else if (TYPE_FILE_LOAD = "TZX")
-          {
-              pTZX.terminate();
-              hmi.getMemFree();
-          }
-        }
-      }
-
-      if (REC && LOADING_STATE == 0)
-      {
-        // Preparamos para recording
-        if (!waitingRecMessageShown)
-        {
-          SerialHW.println("");
-          SerialHW.println("REC. Waiting for guide tone");
-          SerialHW.println("");        
-
-          //Activamos la animación
-          hmi.writeString("tape.tmAnimation.en=1"); 
-
-          // Inicializamos audio input
-          setAudioInput();
-          taprec.set_kit(ESP32kit);
-          
-          taprec.initialize(); 
-
-          if (!taprec.createTempTAPfile())
-          {
-            LAST_MESSAGE = "Recorder not prepared.";
-            hmi.updateInformationMainPage();
-            waitingRecMessageShown = false;
-          }
-          else
-          {
-            waitingRecMessageShown = true;
-
-            //writeString("");
-            hmi.writeString("currentBlock.val=1");
-            //writeString("");
-            hmi.writeString("progressTotal.val=0");
-            //writeString("");
-            hmi.writeString("progression.val=0");
-          }
-          
-          hmi.getMemFree();
-           
-        }
-        else
-        {
-            // Iniciamos la grabación
-            if (taprec.recording())
-            {
-                // Ha finalizado la grabación de un bloque
-                // ahora estudiamos la causa
-                if (taprec.stopRecordingProccess)   
-                {
-                    // Hay tres casos
-                    // - El fichero para grabar el TAP no fue creado
-                    // - La grabación fue parada pero fue correcta (no hay errores)
-                    // - La grabación fue parada pero fue incorrecta (hay errores)
-                    SerialHW.println("");
-                    SerialHW.println("STOP 2 - REC");
-
-                    LOADING_STATE = 0;
-
-                    stopRecording();
-                    setSTOP();
-
-                }
-            }            
-        }
-        
-      }
+      //writeString("");
+      hmi.writeString("currentBlock.val=1");
+      //writeString("");
+      hmi.writeString("progressTotal.val=0");
+      //writeString("");
+      hmi.writeString("progression.val=0");
+    }
+    
+    hmi.getMemFree();
+      
   }
   else
   {
+      // Iniciamos la grabación
+      if (taprec.recording())
+      {
+          // Ha finalizado la grabación de un bloque
+          // ahora estudiamos la causa
+          if (taprec.stopRecordingProccess)   
+          {
+              // Hay tres casos
+              // - El fichero para grabar el TAP no fue creado
+              // - La grabación fue parada pero fue correcta (no hay errores)
+              // - La grabación fue parada pero fue incorrecta (hay errores)
+              SerialHW.println("");
+              SerialHW.println("STOP 2 - REC");
 
+              LOADING_STATE = 0;
+
+              stopRecording();
+              setSTOP();
+          }
+      }            
+  }
+}
+
+void tapeControl()
+{ 
+  switch (tapeState)
+  {
+    case 0:
+      // Estado inicial
+      if (FILE_BROWSER_OPEN)
+      {
+        tapeState = 99;
+        LOADING_STATE = 0;          
+      }
+      else if(FILE_SELECTED)
+      {
+        // FICHERO CARGADO EN TAPE
+        loadingFile();
+        LAST_MESSAGE = "File inside the TAPE.";
+        hmi.updateInformationMainPage();  
+
+        tapeState = 1;
+        LOADING_STATE = 0;          
+        SerialHW.println(tapeState);
+
+      }
+      else if(PLAY)
+      {
+        LAST_MESSAGE = "No file was selected.";
+        hmi.updateInformationMainPage();
+        LOADING_STATE = 0;          
+        tapeState = 0;          
+      }
+      else if(REC)
+      {
+        recordingFile();
+        tapeState = 200;
+      }
+      else
+      {
+        tapeState = 0;
+      }
+      break;
+
+    case 1:
+      // Esperando que hacer con el fichero cargado
+      if (PLAY)
+      {
+        // Lo reproducimos
+        LOADING_STATE = 1;          
+        playingFile();
+        tapeState = 2;
+        SerialHW.println(tapeState);
+      }
+      else if(EJECT)
+      {
+        // Lo sacamaos del TAPE
+        ejectingFile();            
+        tapeState = 0;
+        LOADING_STATE = 0;          
+        SerialHW.println(tapeState);
+      }
+      else
+      {
+        tapeState = 1;
+      }
+      break;
+
+    case 2:
+      // Reproducción en curso.
+      if (PAUSE)
+      {
+        pauseFile();
+        tapeState = 3;
+      }
+      else if(STOP)
+      {
+        stopFile();
+        tapeState = 4;
+        LOADING_STATE = 0;          
+        SerialHW.println(tapeState);
+      }
+      else if(EJECT)
+      {
+        stopFile();
+        ejectingFile();
+        LOADING_STATE = 0;          
+        tapeState = 0;
+      }
+      else
+      {
+        tapeState = 2;
+      }
+      break;
+
+    case 3:
+      // FICHERO EN PAUSE
+      if (PLAY)
+      {
+        // Lo reproducimos
+        LOADING_STATE = 1;          
+        playingFile();          
+        tapeState = 2;
+      }
+      else if(STOP)
+      {
+        stopFile();
+        LOADING_STATE = 0;          
+        tapeState = 4;
+      }
+      else if(EJECT)
+      {
+        stopFile();
+        ejectingFile();
+        LOADING_STATE = 0;          
+        tapeState = 0;
+      }
+      else
+      {
+        tapeState = 3;
+      }
+      break;
+    
+    case 4:
+      // FICHERO EN STOP
+      if (PLAY)
+      {
+        // Lo reproducimos
+        LOADING_STATE = 1;          
+        playingFile();          
+        tapeState = 2;
+      }
+      else if(EJECT)
+      {
+        ejectingFile();
+        LOADING_STATE = 0;          
+        tapeState = 0;
+      }
+      else
+      {
+        tapeState = 4;
+      }
+      break;
+
+    case 99:
+      if (!FILE_BROWSER_OPEN)
+      {
+        tapeState = 0;
+        LOADING_STATE = 0;          
+      }
+      else
+      {
+        tapeState = 99;
+      }
+      break;
+
+    case 200:
+      // REC estados
+      if(STOP)
+      {
+        stopRecording();
+        SerialHW.println("");
+        SerialHW.println("STOP 1 - REC");
+        setSTOP();
+        tapeState = 0;
+      }
+      else
+      {
+        tapeState = 200;
+      }
+      break;
+
+    default:
+      break;
   }
 }
 

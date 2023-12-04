@@ -74,15 +74,17 @@ class TAPproccesor
             tBlockDescriptor* descriptor;            // Descriptor
         };
 
+
     private:
         // Procesador de audio output
         ZXProccesor _zxp;     
 
+        // Definicion de un TAP
+        tTAP _myTAP;
+
         // Gestor de SD
         HMI _hmi;
 
-        // Definicion de un TAP
-        tTAP _myTAP;
         SdFat32 _sdf32;
         File32 _mFile;
         int _sizeTAP;
@@ -422,9 +424,7 @@ class TAPproccesor
                 tmpRng = sdm.readFileRange32(_mFile,startBlock,sizeB-1,false);
                 chk = calculateChecksum(tmpRng,0,sizeB-1);
 
-                free(tmpRng);
-                _hmi.getMemFree();
-                            
+                free(tmpRng);                            
                 blockChk = sdm.readFileRange32(_mFile,startBlock+sizeB-1,1,false)[0];
             
 
@@ -589,7 +589,7 @@ class TAPproccesor
             if (!FILE_CORRUPTED)
             {
                 // Reservo memoria para el descriptor de bloques del TAP
-                _myTAP.descriptor = (tBlockDescriptor*)ps_malloc(MAX_BLOCKS_IN_TAP * sizeof(struct tBlockDescriptor));
+                //_myTAP.descriptor = (tBlockDescriptor*)ps_malloc(MAX_BLOCKS_IN_TAP * sizeof(struct tBlockDescriptor));
 
                 //  Inicializamos variables
                 char nameTAP[11];
@@ -892,20 +892,20 @@ class TAPproccesor
             }        
         }
 
-        void deallocatingTAP()
-        {
-            _hmi.getMemFree();
-            _hmi.updateMem();
+        // void deallocatingTAP()
+        // {
+        //     _hmi.getMemFree();
+        //     _hmi.updateMem();
 
-            log("Deallocating TAP");
-            log("--------------------------------------");
-            SerialHW.printf("Direccion de la copia %p", _myTAP.descriptor);
+        //     log("Deallocating TAP");
+        //     log("--------------------------------------");
+        //     SerialHW.printf("Direccion de la copia %p", _myTAP.descriptor);
             
-            free(_myTAP.descriptor);
+        //     free(_myTAP.descriptor);
             
-            _hmi.getMemFree();
-            _hmi.updateMem();
-        }
+        //     _hmi.getMemFree();
+        //     _hmi.updateMem();
+        // }
         
         void set_SdFat32(SdFat32 sdf32)
         {
@@ -930,22 +930,32 @@ class TAPproccesor
             _hmi = hmi;
         }
 
-        tTAP get_tap()
+        void setTAP(tTAP tap)
+        {
+            _myTAP = tap;
+        }
+
+        tTAP getTAP()
         {
             // Devolvemos el descriptor del TAP
             return _myTAP;
         }
 
-        char* get_tap_name()
+        char* getTAPName()
         {
             // Devolvemos el nombre del TAP
             return _myTAP.name;
         }
 
-        int get_tap_numBlocks()
+        int geTAPNumBlocks()
         {
             // Devolvemos el numero de bloques del TAP
             return _myTAP.numBlocks;
+        }
+
+        void updateMemIndicator()
+        {
+            _hmi.updateMem();
         }
 
         void initialize()
@@ -957,13 +967,11 @@ class TAPproccesor
             BLOCK_SELECTED = 0;
             _hmi.writeString("currentBlock.val=" + String(BLOCK_SELECTED));
             _hmi.writeString("progression.val=" + String(0));     
-            //_hmi.getMemFree();
-            _hmi.updateMem();
         }
 
         void terminate()
         {
-            deallocatingTAP();
+            //deallocatingTAP();
 
             strncpy(_myTAP.name,"",1);
             _myTAP.numBlocks = 0;
@@ -1244,6 +1252,8 @@ class TAPproccesor
 
         // Constructor de la clase
         TAPproccesor(AudioKit kit)
-        {}      
+        {
+            _myTAP.descriptor = NULL;
+        }      
 
 };
