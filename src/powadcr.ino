@@ -1017,16 +1017,16 @@ void tapeControl()
   }
 }
 
-//
-//
-// Gestión de nucleos del procesador
-//
-//
-
 bool headPhoneDetection()
 {
   return !gpio_get_level((gpio_num_t)HEADPHONE_DETECT);
 }
+
+// ******************************************************************
+//
+//            Gestión de nucleos del procesador
+//
+// ******************************************************************
 
 void Task0code( void * pvParameters )
 {
