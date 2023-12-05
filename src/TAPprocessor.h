@@ -582,15 +582,21 @@ class TAPproccesor
 
         void getBlockDescriptor(File32 mFile, int sizeTAP)
         {
+            // Este procedimiento permite analizar un fichero .TAP
+            // obteniendo de este información relevante y los distintos bloques que lo
+            // forman. De cada bloque almacenaremos la dirección de inicio ó 
+            // posición en el fichero (offset) así como el tamaño.
+            
             // Para ello tenemos que ir leyendo el TAP poco a poco
             // y llegando a los bytes que indican TAMAÑO(2 bytes) + 0xFF(1 uint8_t)
 
+            // Este procedimiento recorre el .TAP y devuelve el número de bloques que contiene
             //int numBlks = getNumBlocks(mFile, sizeTAP);
             
             if (!FILE_CORRUPTED)
             {
-                // Reservo memoria para el descriptor de bloques del TAP
-                //_myTAP.descriptor = (tBlockDescriptor*)ps_malloc(MAX_BLOCKS_IN_TAP * sizeof(struct tBlockDescriptor));
+                // La reserva de memoria para el descriptor de bloques del TAP
+                // se hace en powadcr.ino
 
                 //  Inicializamos variables
                 char nameTAP[11];
@@ -618,34 +624,42 @@ class TAPproccesor
                 sizeB = (256*sdm.readFileRange32(_mFile,startBlock+1,1,false)[0]) + sdm.readFileRange32(_mFile,startBlock,1,false)[0];
                 startBlock = 2;
 
+                // Recorremos ahora el fichero
                 while(reachEndByte==false && sizeB!=0)
                 {
                     // Inicializamos
                     blockNameDetected = false;
                     
+                    // Cogemos el bloque completo, para poder calcular su checksum
                     uint8_t* tmpRng = (uint8_t*)(ps_malloc(sizeB * sizeof(uint8_t)));
                     tmpRng = sdm.readFileRange32(_mFile,startBlock,sizeB-1,false);
+                    // Calculamos el checksum
                     chk = calculateChecksum(tmpRng,0,sizeB-1);
-                    
                     // Liberamos
                     free(tmpRng);
                     
+                    // Obtenemos el valor de checksum de la cabecera del bloque
                     blockChk = sdm.readFileRange32(_mFile,startBlock+sizeB-1,1,false)[0];         
 
+                    // Comparamos para asegurarnos que el bloque es correcto
                     if (blockChk == chk)
                     {
-                        
+                        // Si es correcto entonces, prosigo obteniendo información
+                        // Almaceno el inicio del bloque
                         _myTAP.descriptor[numBlocks].offset = startBlock;
+                        // Almaceno el tamaño del bloque
                         _myTAP.descriptor[numBlocks].size = sizeB;
+                        // Almaceno el checksum calculado
                         _myTAP.descriptor[numBlocks].chk = chk;        
 
-                        // Cogemos info del bloque
+                        // Cogemos mas info del bloque
                         
                         // Flagbyte
                         // 0x00 - HEADER
                         // 0xFF - DATA BLOCK
                         int flagByte = sdm.readFileRange32(_mFile,startBlock,1,false)[0];
 
+                        // Typeblock
                         // 0x00 - PROGRAM
                         // 0x01 - ARRAY NUM
                         // 0x02 - ARRAY CHAR
@@ -657,6 +671,7 @@ class TAPproccesor
 
                         strncpy(_myTAP.descriptor[numBlocks].typeName,getTypeTAPBlock(_myTAP.descriptor[numBlocks].type),10)                       ;                      
 
+                        // Si el bloque contenia nombre, se indica
                         if (blockNameDetected)
                         {                                     
                             _myTAP.descriptor[numBlocks].nameDetected = true;                                      
@@ -671,29 +686,38 @@ class TAPproccesor
                         startBlock = startBlock + sizeB;
                         // Tamaño
                         newSizeB = (256*sdm.readFileRange32(_mFile,startBlock+1,1,false)[0]) + sdm.readFileRange32(_mFile,startBlock,1,false)[0];
-
+                        // Pasamos al siguiente bloque
                         numBlocks++;
+                        // Ahora el tamaño es el nuevo tamaño calculado
                         sizeB = newSizeB;
+                        // El inicio de bloque comienza 2 bytes mas adelante (nos saltamos 13 00 ó FF 00)
                         startBlock = startBlock + 2;
-
-                        _hmi.getMemFree();
 
                     }
                     else
                     {
+                        // Si los checksum no coinciden. Indicamos que hemos acabado
+                        // y decimos que hay un error (debug)
                         reachEndByte = true;
                         SerialHW.println("Error in checksum. Block --> " + String(numBlocks) + " - offset: " + String(lastStartBlock));
+                        
+                        // Añadimos información importante
+                        strncpy(_myTAP.name,"",1);
+                        _myTAP.size = 0;
+                        _myTAP.numBlocks = 0; 
+                        // Salimos ya de la función.
+                        return;
                     }
 
-                    // ¿Hemos llegado al ultimo uint8_t
+                    // ¿Hemos llegado al ultimo byte? Entonces lo indicamos reachEndByte = true
                     if (startBlock > sizeTAP)                
                     {
+                        // Con esto en la siguiente vuelta, salimos del while
                         reachEndByte = true;
                         //break;
                         SerialHW.println("");
                         SerialHW.println("Success. End: ");
                     }
-
                 }
 
                 // Añadimos información importante
@@ -704,12 +728,14 @@ class TAPproccesor
             }
             else
             {
-                // Añadimos información importante
+                // Ponemos la información a cero porque el
+                // fichero estaba corrupto.
                 strncpy(_myTAP.name,"",1);
                 _myTAP.size = 0;
                 _myTAP.numBlocks = 0;            
             }
 
+            // Actualizamos el indicador de consumo de PS_RAM
             _hmi.updateMem();
         }
 
@@ -984,17 +1010,22 @@ class TAPproccesor
 
         bool proccess_tap(File32 tapFileName)
         {
-            // Procesamos el fichero
+            // Procesamos el fichero .TAP
+            
             SerialHW.println("");
             SerialHW.println("Getting total blocks...");
 
+            // Verificamos que sea un TAP correcto.
             if (isFileTAP(tapFileName))
             {
+                // Analizamos el .TAP y obtenemos el descriptor de bloques
                 getBlockDescriptor(_mFile, _sizeTAP);
-                if (!FILE_CORRUPTED)
-                {
-                    showDescriptorTable();
-                }
+
+                // if (!FILE_CORRUPTED)
+                // {
+                //     // Mostramos información del descriptor (para debug)
+                //     showDescriptorTable();
+                // }
                 return true;
             }
             else
@@ -1005,7 +1036,9 @@ class TAPproccesor
 
         void getInfoFileTAP(char* path) 
         {
-        
+            
+            // Comenzamos a trabajar con el fichero .TAP
+
             File32 tapFile;
             
             FILE_CORRUPTED = false;
