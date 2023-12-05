@@ -125,30 +125,47 @@ void proccesingTAP(char* file_ch)
 {
     //pTAP.set_SdFat32(sdf);
     pTAP.initialize();
-    // Reservamos memoria para el objeto
-    myTAP.descriptor = (TAPproccesor::tBlockDescriptor*)ps_malloc(MAX_BLOCKS_IN_TAP * sizeof(struct TAPproccesor::tBlockDescriptor));
-    // Pasamos el control a la clase
-    pTAP.setTAP(myTAP);
-    pTAP.getInfoFileTAP(file_ch);
-
-    if (!FILE_CORRUPTED)
+    
+    // Comprobamos que se ha liberado, anteriormente
+    if (myTAP.descriptor != nullptr)
     {
-      LAST_MESSAGE = "Press PLAY to enjoy!";
-      hmi.updateInformationMainPage();
-      FILE_PREPARED = true;
+      free(myTAP.descriptor);
     }
+    
+    if (!PLAY)
+    {
+        // Reservamos memoria para el objeto
+        myTAP.descriptor = (TAPproccesor::tBlockDescriptor*)ps_malloc(MAX_BLOCKS_IN_TAP * sizeof(struct TAPproccesor::tBlockDescriptor));
+        
+        // Pasamos el control a la clase
+        pTAP.setTAP(myTAP);
+        pTAP.getInfoFileTAP(file_ch);
+
+        if (!FILE_CORRUPTED)
+        {
+          LAST_MESSAGE = "Press PLAY to enjoy!";
+          hmi.updateInformationMainPage();
+          FILE_PREPARED = true;
+        }
+        else
+        {
+          LAST_MESSAGE = "ERROR! Selected file is CORRUPTED.";
+          hmi.updateInformationMainPage();
+          FILE_PREPARED = false;
+        }
+
+        FILE_NOTIFIED = true;
+
+        // Actualizamos el indicador de memoria consumida para TAPprocessor.
+        pTAP.updateMemIndicator();      
+    } 
     else
     {
-      LAST_MESSAGE = "ERROR! Selected file is CORRUPTED.";
-      hmi.updateInformationMainPage();
-      FILE_PREPARED = false;
-    }
-
-    FILE_NOTIFIED = true;
-
-    // Actualizamos el indicador de memoria consumida para TAPprocessor.
-    pTAP.updateMemIndicator();
-
+          LAST_MESSAGE = "Error. PLAY in progress. Try select file again.";
+          hmi.updateInformationMainPage();
+          FILE_PREPARED = false;
+          FILE_NOTIFIED = false;
+    }  
 }
 
 void proccesingTZX(char* file_ch)
@@ -753,8 +770,8 @@ void loadingFile()
 void stopFile()
 {
   //Paramos la animación
-  hmi.writeString("tape.tmAnimation.en=0"); 
   setSTOP();     
+  hmi.writeString("tape.tmAnimation.en=0"); 
 }
 
 void pauseFile()
@@ -767,7 +784,7 @@ void ejectingFile()
   // Terminamos los players
   if (TYPE_FILE_LOAD == "TAP")
   {
-      free(myTAP.descriptor);
+      //free(myTAP.descriptor);
 
       pTAP.terminate();
       hmi.getMemFree();
@@ -848,6 +865,7 @@ void tapeControl()
   switch (tapeState)
   {
     case 0:
+
       // Estado inicial
       if (FILE_BROWSER_OPEN)
       {
@@ -896,7 +914,6 @@ void tapeControl()
       }
       else if(EJECT)
       {
-        // Lo sacamaos del TAPE
         ejectingFile();            
         tapeState = 0;
         LOADING_STATE = 0;          
@@ -919,15 +936,16 @@ void tapeControl()
       {
         stopFile();
         tapeState = 4;
-        LOADING_STATE = 0;          
+        LOADING_STATE = 2;          
         SerialHW.println(tapeState);
       }
       else if(EJECT)
       {
+        // Lo sacamaos del TAPE
+        // cuando acabe el bloque, si está reproduciendo        
+        LOADING_STATE = 2;          
         stopFile();
-        ejectingFile();
-        LOADING_STATE = 0;          
-        tapeState = 0;
+        tapeState = 5;
       }
       else
       {
@@ -947,14 +965,16 @@ void tapeControl()
       else if(STOP)
       {
         stopFile();
-        LOADING_STATE = 0;          
+        LOADING_STATE = 2;          
         tapeState = 4;
       }
       else if(EJECT)
       {
+        log("Ejecting 1");
+
         stopFile();
         ejectingFile();
-        LOADING_STATE = 0;          
+        LOADING_STATE = 2;          
         tapeState = 0;
       }
       else
@@ -975,7 +995,7 @@ void tapeControl()
       else if(EJECT)
       {
         ejectingFile();
-        LOADING_STATE = 0;          
+        LOADING_STATE = 2;          
         tapeState = 0;
       }
       else
@@ -983,7 +1003,19 @@ void tapeControl()
         tapeState = 4;
       }
       break;
-
+    case 5:
+      
+      if(!BLOCK_PLAYED)
+      {
+        log("Ejecting 2");
+        ejectingFile();
+        tapeState = 0;
+      }
+      else
+      {
+        tapeState = 5;
+      }
+      break;
     case 99:
       if (!FILE_BROWSER_OPEN)
       {

@@ -192,6 +192,7 @@ bool TEST_RUNNING = false;
 int LOADING_STATE = 0;
 int CURRENT_BLOCK_IN_PROGRESS = 0;
 int BLOCK_SELECTED = 0;
+bool BLOCK_PLAYED = false;
 String TYPE_FILE_LOAD = "";
 char LAST_NAME[15];
 char LAST_TYPE[36];

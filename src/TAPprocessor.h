@@ -1090,135 +1090,143 @@ class TAPproccesor
 
                     for (int i = m; i < _myTAP.numBlocks; i++) 
                     {
+                        BLOCK_PLAYED = false;
 
-                    // Obtenemos el nombre del bloque
-                    strncpy(LAST_NAME,_myTAP.descriptor[i].name,sizeof(_myTAP.descriptor[i].name));
-                    LAST_SIZE = _myTAP.descriptor[i].size;
+                        // Obtenemos el nombre del bloque
+                        strncpy(LAST_NAME,_myTAP.descriptor[i].name,sizeof(_myTAP.descriptor[i].name));
+                        LAST_SIZE = _myTAP.descriptor[i].size;
 
-                    // Almacenmas el bloque en curso para un posible PAUSE
-                    if (LOADING_STATE != 2) 
-                    {
-                        CURRENT_BLOCK_IN_PROGRESS = i;
-                        BLOCK_SELECTED = i;
+                        // LOADING_STATE se usa también para detener el procesador de audio (ZXProcessor.h).
+                        //
+                        // El estado LOADING_STATE=0 es un estado INICIAL.
+                        // El estado LOADING_STATE=1 es un estado de PLAYING.
+                        // El estado LOADING_STATE=2 es una MANUAL STOP.
+                        //
+                        if (LOADING_STATE==2)
+                        {
+                            LOADING_STATE = 0;
+                            PAUSE = false;
+                            STOP = true;
+                            PLAY = false;
 
-                        _hmi.writeString("currentBlock.val=" + String(i + 1));
-                        _hmi.writeString("progression.val=" + String(0));
-                    }
+                            i = _myTAP.numBlocks+1;
 
-                    //Paramos la reproducción.
-                    if (LOADING_STATE == 2) 
-                    {
-                        PAUSE = false;
-                        STOP = true;
-                        PLAY = false;
+                            SerialHW.println("");
+                            SerialHW.println("LOADING_STATE 2");                            
+                            return;
+                        }
+                        else
+                        {
+                            // Almacenmas el bloque en curso para un posible PAUSE
 
-                        i = _myTAP.numBlocks+1;
+                            CURRENT_BLOCK_IN_PROGRESS = i;
+                            BLOCK_SELECTED = i;
 
-                        SerialHW.println("");
-                        SerialHW.println("LOADING_STATE 2");
+                            _hmi.writeString("currentBlock.val=" + String(i + 1));
+                            _hmi.writeString("progression.val=" + String(0));
+                        }
 
-                        return;
-                    }
+                        //Ahora vamos lanzando bloques dependiendo de su tipo
+                        //Esto actualiza el LAST_TYPE
+                        showInfoBlockInProgress(_myTAP.descriptor[i].type);
 
-                    //Ahora vamos lanzando bloques dependiendo de su tipo
-                    //Esto actualiza el LAST_TYPE
-                    showInfoBlockInProgress(_myTAP.descriptor[i].type);
+                        // Actualizamos HMI
+                        _hmi.setBasicFileInformation(_myTAP.descriptor[BLOCK_SELECTED].name,_myTAP.descriptor[BLOCK_SELECTED].typeName,_myTAP.descriptor[BLOCK_SELECTED].size);
 
-                    // Actualizamos HMI
-                    _hmi.setBasicFileInformation(_myTAP.descriptor[BLOCK_SELECTED].name,_myTAP.descriptor[BLOCK_SELECTED].typeName,_myTAP.descriptor[BLOCK_SELECTED].size);
+                        _hmi.updateInformationMainPage();
 
-                    _hmi.updateInformationMainPage();
-
-                    // Reproducimos el fichero
-                    if (_myTAP.descriptor[i].type == 0) 
-                    {
-
-                        // Reservamos memoria para el buffer de reproducción
-                        bufferPlay = (uint8_t*)(ps_malloc(_myTAP.descriptor[i].size * sizeof(uint8_t)));
-                        bufferPlay = sdm.readFileRange32(_mFile, _myTAP.descriptor[i].offset, _myTAP.descriptor[i].size, false);
-
-                        // *** Cabecera PROGRAM
-                        // Llamamos a la clase de reproducción
-                        zxp.playData(bufferPlay, _myTAP.descriptor[i].size,DPILOT_HEADER * DPULSE_PILOT);
-
-                        // Liberamos el buffer de reproducción
-                        free(bufferPlay);
-                   } 
-                    else if (_myTAP.descriptor[i].type == 1 || _myTAP.descriptor[i].type == 7) 
-                    {
-                        
-                        bufferPlay = (uint8_t*)(ps_malloc(_myTAP.descriptor[i].size * sizeof(uint8_t)));
-                        bufferPlay = sdm.readFileRange32(_mFile, _myTAP.descriptor[i].offset, _myTAP.descriptor[i].size, false);
-
-                        // *** Cabecera BYTE
-                        // Llamamos a la clase de reproducción
-                        zxp.playData(bufferPlay, _myTAP.descriptor[i].size,DPILOT_HEADER * DPULSE_PILOT);
-
-                        // Liberamos el buffer de reproducción
-                        free(bufferPlay);
-                    } 
-                    else 
-                    {
-                        // *** Bloque de DATA
-                        int blockSize = _myTAP.descriptor[i].size;
-
-                        // Si el SPLIT esta activado y el bloque es mayor de 20KB hacemos Split.
-                        if ((SPLIT_ENABLED) && (blockSize > SIZE_TO_ACTIVATE_SPLIT)) 
+                        // Reproducimos el fichero
+                        if (_myTAP.descriptor[i].type == 0) 
                         {
 
-                            // Lanzamos dos bloques
-                            int bl1 = blockSize / 2;
-                            int bl2 = blockSize - bl1;
-                            int blockPlaySize = 0;
-                            int offsetPlay = 0;
-
-                            for (int j = 0; j < 2; j++) 
-                            {
-
-                                if (j == 0) 
-                                {
-                                    
-                                    // Cortamos la primera mitad del bloque
-                                    blockPlaySize = bl1;
-                                    bufferPlay = (uint8_t*)(ps_malloc(blockPlaySize * sizeof(uint8_t)));
-                                    offsetPlay = _myTAP.descriptor[i].offset;
-                                    bufferPlay = sdm.readFileRange32(_mFile, offsetPlay, blockPlaySize, true);
-                                    
-                                    // Reproducimos la primera mitad
-                                    zxp.playDataBegin(bufferPlay, blockPlaySize,DPILOT_DATA * DPULSE_PILOT);
-                                    
-                                    // Liberamos el buffer de reproducción
-                                    free(bufferPlay);                                      
-                                } 
-                                else 
-                                {
-                                    // Cortamos el final del bloque
-                                    blockPlaySize = bl2;
-                                    offsetPlay = offsetPlay + bl1;
-                                    bufferPlay = (uint8_t*)(ps_malloc(blockPlaySize * sizeof(uint8_t)));
-                                    bufferPlay = sdm.readFileRange32(_mFile, offsetPlay, blockPlaySize, true);
-
-                                    // Reproducimos la ultima mitad
-                                    zxp.playDataEnd(bufferPlay, blockPlaySize,DPILOT_DATA * DPULSE_PILOT);
-
-                                    // Liberamos el buffer de reproducción
-                                    free(bufferPlay);
-                                }
-                            }
-                        } 
-                        else 
-                        {
-                            // En el caso de NO USAR SPLIT o el bloque es menor de 20K
-                            bufferPlay = (uint8_t*)(ps_malloc((_myTAP.descriptor[i].size) * sizeof(uint8_t)));
+                            // Reservamos memoria para el buffer de reproducción
+                            bufferPlay = (uint8_t*)(ps_malloc(_myTAP.descriptor[i].size * sizeof(uint8_t)));
                             bufferPlay = sdm.readFileRange32(_mFile, _myTAP.descriptor[i].offset, _myTAP.descriptor[i].size, false);
-                            
-                            // Reproducimos el bloque de datos
-                            zxp.playData(bufferPlay, _myTAP.descriptor[i].size,DPILOT_DATA * DPULSE_PILOT);
+
+                            // *** Cabecera PROGRAM
+                            // Llamamos a la clase de reproducción
+                            zxp.playData(bufferPlay, _myTAP.descriptor[i].size,DPILOT_HEADER * DPULSE_PILOT);
 
                             // Liberamos el buffer de reproducción
                             free(bufferPlay);
+                    } 
+                        else if (_myTAP.descriptor[i].type == 1 || _myTAP.descriptor[i].type == 7) 
+                        {
+                            
+                            bufferPlay = (uint8_t*)(ps_malloc(_myTAP.descriptor[i].size * sizeof(uint8_t)));
+                            bufferPlay = sdm.readFileRange32(_mFile, _myTAP.descriptor[i].offset, _myTAP.descriptor[i].size, false);
+
+                            // *** Cabecera BYTE
+                            // Llamamos a la clase de reproducción
+                            zxp.playData(bufferPlay, _myTAP.descriptor[i].size,DPILOT_HEADER * DPULSE_PILOT);
+
+                            // Liberamos el buffer de reproducción
+                            free(bufferPlay);
+                        } 
+                        else 
+                        {
+                            // *** Bloque de DATA
+                            int blockSize = _myTAP.descriptor[i].size;
+
+                            // Si el SPLIT esta activado y el bloque es mayor de 20KB hacemos Split.
+                            if ((SPLIT_ENABLED) && (blockSize > SIZE_TO_ACTIVATE_SPLIT)) 
+                            {
+
+                                // Lanzamos dos bloques
+                                int bl1 = blockSize / 2;
+                                int bl2 = blockSize - bl1;
+                                int blockPlaySize = 0;
+                                int offsetPlay = 0;
+
+                                for (int j = 0; j < 2; j++) 
+                                {
+
+                                    if (j == 0) 
+                                    {
+                                        
+                                        // Cortamos la primera mitad del bloque
+                                        blockPlaySize = bl1;
+                                        bufferPlay = (uint8_t*)(ps_malloc(blockPlaySize * sizeof(uint8_t)));
+                                        offsetPlay = _myTAP.descriptor[i].offset;
+                                        bufferPlay = sdm.readFileRange32(_mFile, offsetPlay, blockPlaySize, true);
+                                        
+                                        // Reproducimos la primera mitad
+                                        zxp.playDataBegin(bufferPlay, blockPlaySize,DPILOT_DATA * DPULSE_PILOT);
+                                        
+                                        // Liberamos el buffer de reproducción
+                                        free(bufferPlay);                                      
+                                    } 
+                                    else 
+                                    {
+                                        // Cortamos el final del bloque
+                                        blockPlaySize = bl2;
+                                        offsetPlay = offsetPlay + bl1;
+                                        bufferPlay = (uint8_t*)(ps_malloc(blockPlaySize * sizeof(uint8_t)));
+                                        bufferPlay = sdm.readFileRange32(_mFile, offsetPlay, blockPlaySize, true);
+
+                                        // Reproducimos la ultima mitad
+                                        zxp.playDataEnd(bufferPlay, blockPlaySize,DPILOT_DATA * DPULSE_PILOT);
+
+                                        // Liberamos el buffer de reproducción
+                                        free(bufferPlay);
+                                    }
+                                }
+                            } 
+                            else 
+                            {
+                                // En el caso de NO USAR SPLIT o el bloque es menor de 20K
+                                bufferPlay = (uint8_t*)(ps_malloc((_myTAP.descriptor[i].size) * sizeof(uint8_t)));
+                                bufferPlay = sdm.readFileRange32(_mFile, _myTAP.descriptor[i].offset, _myTAP.descriptor[i].size, false);
+                                
+                                // Reproducimos el bloque de datos
+                                zxp.playData(bufferPlay, _myTAP.descriptor[i].size,DPILOT_DATA * DPULSE_PILOT);
+
+                                // Liberamos el buffer de reproducción
+                                free(bufferPlay);
+                            }
                         }
-                    }
+
+                        BLOCK_PLAYED = true;
                     }
 
                     SerialHW.println("");
