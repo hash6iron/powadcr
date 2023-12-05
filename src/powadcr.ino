@@ -123,6 +123,12 @@ uint8_t tapeState = 0;
 
 void proccesingTAP(char* file_ch)
 {
+    // Liberamos myTAP.descriptor de la memoria si existe 
+    if (myTAP.descriptor!= NULL) 
+    {
+      free(myTAP.descriptor);
+    }
+    
     //pTAP.set_SdFat32(sdf);
     pTAP.initialize();
     
@@ -798,6 +804,12 @@ void ejectingFile()
 
 void recordingFile()
 {
+  // Liberamos myTAP.descriptor de la memoria si existe 
+  if (myTAP.descriptor!= NULL) 
+  {
+    free(myTAP.descriptor);
+  }
+    
   // Preparamos para recording
   if (!waitingRecMessageShown)
   {
