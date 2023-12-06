@@ -778,7 +778,7 @@ void ejectingFile()
   // Terminamos los players
   if (TYPE_FILE_LOAD == "TAP")
   {
-      //free(myTAP.descriptor);
+      free(myTAP.descriptor);
 
       pTAP.terminate();
       hmi.getMemFree();
@@ -995,7 +995,7 @@ void tapeControl()
       else if(EJECT)
       {
         ejectingFile();
-        LOADING_STATE = 2;          
+        LOADING_STATE = 0;          
         tapeState = 0;
       }
       else
@@ -1003,18 +1003,10 @@ void tapeControl()
         tapeState = 4;
       }
       break;
-    case 5:
-      
-      if(!BLOCK_PLAYED)
-      {
-        log("Ejecting 2");
-        ejectingFile();
-        tapeState = 0;
-      }
-      else
-      {
-        tapeState = 5;
-      }
+    case 5:     
+      log("Ejecting 2");
+      ejectingFile();
+      tapeState = 0;
       break;
     case 99:
       if (!FILE_BROWSER_OPEN)
