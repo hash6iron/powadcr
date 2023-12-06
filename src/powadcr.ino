@@ -129,6 +129,10 @@ void proccesingTAP(char* file_ch)
     if (!PLAY)
     {
         // Reservamos memoria para el objeto
+        log("Tamaño de la estructura");
+        SerialHW.println(String(sizeof( TAPproccesor::tBlockDescriptor)));
+        SerialHW.println("");
+
         myTAP.descriptor = (TAPproccesor::tBlockDescriptor*)ps_malloc(MAX_BLOCKS_IN_TAP * sizeof(struct TAPproccesor::tBlockDescriptor));
         
         // Pasamos el control a la clase
