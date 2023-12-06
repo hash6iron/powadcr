@@ -105,25 +105,25 @@ class TAPproccesor
 
             if (tapFileName != 0)
             {
-                SerialHW.println("");
-                SerialHW.println("");
-                SerialHW.println("Begin isHeaderTAP");
+                // SerialHW.println("");
+                // SerialHW.println("");
+                // SerialHW.println("Begin isHeaderTAP");
 
                 // La cabecera son 19 bytes
                 uint8_t* bBlock = (uint8_t*)(ps_malloc((20 * sizeof(uint8_t))));
                 bBlock = sdm.readFileRange32(tapFileName,0,19,true);
 
-                SerialHW.println("");
-                SerialHW.println("");
-                SerialHW.println("Got bBlock");
+                // SerialHW.println("");
+                // SerialHW.println("");
+                // SerialHW.println("Got bBlock");
 
                 // Obtenemos la firma del TAP
                 char signTZXHeader[4];
 
 
-                SerialHW.println("");
-                SerialHW.println("");
-                SerialHW.println("Initialized signTAP Header");
+                // SerialHW.println("");
+                // SerialHW.println("");
+                // SerialHW.println("Initialized signTAP Header");
 
                 // Analizamos la cabecera
                 // Extraemos el nombre del programa
@@ -131,16 +131,16 @@ class TAPproccesor
                 {   
                     signTZXHeader[n] = (uint8_t)bBlock[n];
                     
-                    SerialHW.println("");
-                    SerialHW.println("");
-                    SerialHW.println((int)signTZXHeader[n]);                  
+                    // SerialHW.println("");
+                    // SerialHW.println("");
+                    // SerialHW.println((int)signTZXHeader[n]);                  
                 }
 
                 if (signTZXHeader[0] == 19 && signTZXHeader[1] == 0 && signTZXHeader[2] == 0)
                 {
-                    SerialHW.println("");
-                    SerialHW.println("");
-                    SerialHW.println("is TAP ok");
+                    // SerialHW.println("");
+                    // SerialHW.println("");
+                    // SerialHW.println("is TAP ok");
                     rtn = true;
                 }
                 else
@@ -202,9 +202,9 @@ class TAPproccesor
             uint8_t newChk = 0;
 
             #if LOG>3
-            SerialHW.println("");
-            SerialHW.println("Block len: ");
-            SerialHW.print(sizeof(bBlock)/sizeof(uint8_t*));
+            // SerialHW.println("");
+            // SerialHW.println("Block len: ");
+            // SerialHW.print(sizeof(bBlock)/sizeof(uint8_t*));
             #endif
 
             // Calculamos el checksum (no se contabiliza el ultimo numero que es precisamente el checksum)
@@ -215,8 +215,8 @@ class TAPproccesor
             }
 
             #if LOG>3
-            SerialHW.println("");
-            SerialHW.println("Checksum: " + String(newChk));
+            // SerialHW.println("");
+            // SerialHW.println("Checksum: " + String(newChk));
             #endif
 
             return newChk;
@@ -349,8 +349,8 @@ class TAPproccesor
             {
                 // Es una cabecera PROGRAM 
                 // el nombre está en los bytes del 4 al 13 (empezando en 0)
-                SerialHW.println("");
-                SerialHW.println("Name detected ");
+                // SerialHW.println("");
+                // SerialHW.println("Name detected ");
 
                 // Extraemos el nombre del programa
                 for (int n=4;n<14;n++)
@@ -407,11 +407,11 @@ class TAPproccesor
 
             //Entonces recorremos el TAP. 
             // La primera cabecera SIEMPRE debe darse.
-            SerialHW.println("");
-            SerialHW.println("Analyzing TAP file. Please wait ...");
+            // SerialHW.println("");
+            // SerialHW.println("Analyzing TAP file. Please wait ...");
             
-            SerialHW.println("");
-            SerialHW.println("SIZE TAP: " + String(sizeTAP));
+            // SerialHW.println("");
+            // SerialHW.println("SIZE TAP: " + String(sizeTAP));
 
             // Los dos primeros bytes son el tamaño a contar
             sizeB = (256*sdm.readFileRange32(_mFile,startBlock+1,1,false)[0]) + sdm.readFileRange32(_mFile,startBlock,1,false)[0];
@@ -441,15 +441,15 @@ class TAPproccesor
                     sizeB = newSizeB;
                     startBlock = startBlock + 2;
 
-                    SerialHW.println("");
-                    SerialHW.print("OFFSET: 0x");
-                    SerialHW.print(startBlock,HEX);
-                    SerialHW.print(" / SIZE:   " + String(newSizeB));
+                    // SerialHW.println("");
+                    // SerialHW.print("OFFSET: 0x");
+                    // SerialHW.print(startBlock,HEX);
+                    // SerialHW.print(" / SIZE:   " + String(newSizeB));
                 }
                 else
                 {
                     reachEndByte = true;
-                    SerialHW.println("Error in checksum. Block --> " + String(numBlocks) + " - offset: " + String(lastStartBlock));
+                    // SerialHW.println("Error in checksum. Block --> " + String(numBlocks) + " - offset: " + String(lastStartBlock));
 
                     // Abortamos
                     FILE_CORRUPTED = true;
@@ -460,8 +460,8 @@ class TAPproccesor
                 {
                     reachEndByte = true;
                     //break;
-                    SerialHW.println("");
-                    SerialHW.println("Success. End: ");
+                    // SerialHW.println("");
+                    // SerialHW.println("Success. End: ");
                 }
 
             }
@@ -616,8 +616,8 @@ class TAPproccesor
                 bool reachEndByte = false;
 
                 //Entonces recorremos el TAP. 
-                SerialHW.println("");
-                SerialHW.println("Analyzing TAP file. Please wait ...");
+                // SerialHW.println("");
+                // SerialHW.println("Analyzing TAP file. Please wait ...");
                 
                 // La primera cabecera SIEMPRE debe darse.
                 // Los dos primeros bytes son el tamaño a contar
@@ -699,7 +699,7 @@ class TAPproccesor
                         // Si los checksum no coinciden. Indicamos que hemos acabado
                         // y decimos que hay un error (debug)
                         reachEndByte = true;
-                        SerialHW.println("Error in checksum. Block --> " + String(numBlocks) + " - offset: " + String(lastStartBlock));
+                        // SerialHW.println("Error in checksum. Block --> " + String(numBlocks) + " - offset: " + String(lastStartBlock));
                         
                         // Añadimos información importante
                         strncpy(_myTAP.name,"",1);
@@ -715,8 +715,8 @@ class TAPproccesor
                         // Con esto en la siguiente vuelta, salimos del while
                         reachEndByte = true;
                         //break;
-                        SerialHW.println("");
-                        SerialHW.println("Success. End: ");
+                        // SerialHW.println("");
+                        // SerialHW.println("Success. End: ");
                     }
                 }
 
@@ -741,15 +741,15 @@ class TAPproccesor
 
         void showDescriptorTable()
         {
-            SerialHW.println("");
-            SerialHW.println("");
-            SerialHW.println("++++++++++++++++++++++++++++++ Block Descriptor +++++++++++++++++++++++++++++++++++++++");
+            // SerialHW.println("");
+            // SerialHW.println("");
+            // SerialHW.println("++++++++++++++++++++++++++++++ Block Descriptor +++++++++++++++++++++++++++++++++++++++");
 
             int totalBlocks = _myTAP.numBlocks;
 
             for (int n=0;n<totalBlocks;n++)
             {
-                SerialHW.print("[" + String(n) + "]" + " - Offset: " + String(_myTAP.descriptor[n].offset) + " - Size: " + String(_myTAP.descriptor[n].size));
+                // SerialHW.print("[" + String(n) + "]" + " - Offset: " + String(_myTAP.descriptor[n].offset) + " - Size: " + String(_myTAP.descriptor[n].size));
                 char* strType = &INITCHAR[0];
                 
                 switch(_myTAP.descriptor[n].type)
@@ -784,18 +784,18 @@ class TAPproccesor
 
                 if (_myTAP.descriptor[n].nameDetected)
                 {
-                    SerialHW.println("");
-                    //SerialHW.print("[" + String(n) + "]" + " - Name: " + (String(bDscr[n].name)).substring(0,10) + " - (" + strType + ")");
-                    SerialHW.print("[" + String(n) + "]" + " - Name: " + _myTAP.descriptor[n].name + " - (" + strType + ")");
+                    // SerialHW.println("");
+                    //// SerialHW.print("[" + String(n) + "]" + " - Name: " + (String(bDscr[n].name)).substring(0,10) + " - (" + strType + ")");
+                    // SerialHW.print("[" + String(n) + "]" + " - Name: " + _myTAP.descriptor[n].name + " - (" + strType + ")");
                 }
                 else
                 { 
-                    SerialHW.println("");
-                    SerialHW.print("[" + String(n) + "] - " + strType + " ");
+                    // SerialHW.println("");
+                    // SerialHW.print("[" + String(n) + "] - " + strType + " ");
                 }
 
-                SerialHW.println("");
-                SerialHW.println("");
+                // SerialHW.println("");
+                // SerialHW.println("");
 
             }      
         }
@@ -838,7 +838,7 @@ class TAPproccesor
 
                     // Definimos el buffer del PLAYER igual al tamaño del bloque
                     #if LOG==3
-                    SerialHW.println("> PROGRAM HEADER");
+                    // SerialHW.println("> PROGRAM HEADER");
                     #endif
                     strncpy(LAST_TYPE,&LASTYPE0[0],sizeof(&LASTYPE0[0]));
                     break;
@@ -847,8 +847,8 @@ class TAPproccesor
 
                     // Definimos el buffer del PLAYER igual al tamaño del bloque
                     #if LOG==3
-                    SerialHW.println("");
-                    SerialHW.println("> BYTE HEADER");
+                    // SerialHW.println("");
+                    // SerialHW.println("> BYTE HEADER");
                     #endif
                     strncpy(LAST_TYPE,&LASTYPE1[0],sizeof(&LASTYPE1[0]));
                     break;
@@ -857,8 +857,8 @@ class TAPproccesor
 
                     // Definimos el buffer del PLAYER igual al tamaño del bloque
                     #if LOG==3
-                    SerialHW.println("");
-                    SerialHW.println("> SCREEN HEADER");
+                    // SerialHW.println("");
+                    // SerialHW.println("> SCREEN HEADER");
                     #endif
                     strncpy(LAST_TYPE,&LASTYPE7[0],sizeof(&LASTYPE7[0]));
                     break;
@@ -866,8 +866,8 @@ class TAPproccesor
                 case 2:
                     // Definimos el buffer del PLAYER igual al tamaño del bloque
                     #if LOG==3
-                    SerialHW.println("");
-                    SerialHW.println("> BASIC PROGRAM");
+                    // SerialHW.println("");
+                    // SerialHW.println("> BASIC PROGRAM");
                     #endif
                     strncpy(LAST_TYPE,&LASTYPE2[0],sizeof(&LASTYPE2[0]));
                     break;
@@ -875,8 +875,8 @@ class TAPproccesor
                 case 3:
                     // Definimos el buffer del PLAYER igual al tamaño del bloque
                     #if LOG==3
-                    SerialHW.println("");
-                    SerialHW.println("> SCREEN");
+                    // SerialHW.println("");
+                    // SerialHW.println("> SCREEN");
                     #endif
                     strncpy(LAST_TYPE,&LASTYPE3[0],sizeof(&LASTYPE3[0]));
                     break;
@@ -884,8 +884,8 @@ class TAPproccesor
                 case 4:
                     // Definimos el buffer del PLAYER igual al tamaño del bloque
                     #if LOG==3
-                    SerialHW.println("");
-                    SerialHW.println("> BYTE CODE");
+                    // SerialHW.println("");
+                    // SerialHW.println("> BYTE CODE");
                     #endif
                     if (LAST_SIZE != 6914)
                     {
@@ -900,8 +900,8 @@ class TAPproccesor
                 case 5:
                     // Definimos el buffer del PLAYER igual al tamaño del bloque
                     #if LOG==3
-                    SerialHW.println("");
-                    SerialHW.println("> ARRAY.NUM");
+                    // SerialHW.println("");
+                    // SerialHW.println("> ARRAY.NUM");
                     #endif
                     strncpy(LAST_TYPE,&LASTYPE5[0],sizeof(&LASTYPE5[0]));
                     break;
@@ -909,8 +909,8 @@ class TAPproccesor
                 case 6:
                     // Definimos el buffer del PLAYER igual al tamaño del bloque
                     #if LOG==3
-                    SerialHW.println("");
-                    SerialHW.println("> ARRAY.CHR");
+                    // SerialHW.println("");
+                    // SerialHW.println("> ARRAY.CHR");
                     #endif
                     strncpy(LAST_TYPE,&LASTYPE6[0],sizeof(&LASTYPE6[0]));
                     break;
@@ -926,7 +926,7 @@ class TAPproccesor
 
         //     log("Deallocating TAP");
         //     log("--------------------------------------");
-        //     SerialHW.printf("Direccion de la copia %p", _myTAP.descriptor);
+        //     // SerialHW.printf("Direccion de la copia %p", _myTAP.descriptor);
             
         //     free(_myTAP.descriptor);
             
@@ -1012,8 +1012,8 @@ class TAPproccesor
         {
             // Procesamos el fichero .TAP
             
-            SerialHW.println("");
-            SerialHW.println("Getting total blocks...");
+            // SerialHW.println("");
+            // SerialHW.println("Getting total blocks...");
 
             // Verificamos que sea un TAP correcto.
             if (isFileTAP(tapFileName))
@@ -1062,9 +1062,9 @@ class TAPproccesor
 
             if (proccess_tap(tapFile))
             {
-                SerialHW.println("");
-                SerialHW.println("");
-                SerialHW.println("END PROCCESING TAP: ");
+                // SerialHW.println("");
+                // SerialHW.println("");
+                // SerialHW.println("END PROCCESING TAP: ");
 
                 if (_myTAP.descriptor != NULL)
                 {
@@ -1073,10 +1073,10 @@ class TAPproccesor
                     TOTAL_BLOCKS = _myTAP.numBlocks;
                     strncpy(LAST_TYPE,&INITCHAR2[0],sizeof(&INITCHAR2[0]));
                 
-                    SerialHW.println("");
-                    SerialHW.println("");
-                    SerialHW.println("PROGRAM_NAME: " + PROGRAM_NAME);
-                    SerialHW.println("TOTAL_BLOCKS: " + String(TOTAL_BLOCKS));
+                    // SerialHW.println("");
+                    // SerialHW.println("");
+                    // SerialHW.println("PROGRAM_NAME: " + PROGRAM_NAME);
+                    // SerialHW.println("TOTAL_BLOCKS: " + String(TOTAL_BLOCKS));
                 
                     // Pasamos informacion del descriptor al HMI         
                     _hmi.setBasicFileInformation(_myTAP.descriptor[BLOCK_SELECTED].name,_myTAP.descriptor[BLOCK_SELECTED].typeName,_myTAP.descriptor[BLOCK_SELECTED].size);
@@ -1144,8 +1144,8 @@ class TAPproccesor
 
                             i = _myTAP.numBlocks+1;
 
-                            SerialHW.println("");
-                            SerialHW.println("LOADING_STATE 2");                            
+                            // SerialHW.println("");
+                            // SerialHW.println("LOADING_STATE 2");                            
                             return;
                         }
                         else
@@ -1262,8 +1262,8 @@ class TAPproccesor
                         BLOCK_PLAYED = true;
                     }
 
-                    SerialHW.println("");
-                    SerialHW.println("Playing was finish.");
+                    // SerialHW.println("");
+                    // SerialHW.println("Playing was finish.");
 
                     // En el caso de no haber parado manualmente, 
                     // Lanzamos el AUTO-STOP
@@ -1278,8 +1278,8 @@ class TAPproccesor
                         _hmi.setBasicFileInformation(_myTAP.descriptor[BLOCK_SELECTED].name,_myTAP.descriptor[BLOCK_SELECTED].typeName,_myTAP.descriptor[BLOCK_SELECTED].size);
                         _hmi.updateInformationMainPage();
 
-                        SerialHW.println("");
-                        SerialHW.println("LOADING_STATE 1");
+                        // SerialHW.println("");
+                        // SerialHW.println("LOADING_STATE 1");
                     }              
             }
             else

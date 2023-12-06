@@ -128,10 +128,6 @@ void proccesingTAP(char* file_ch)
       
     if (!PLAY)
     {
-        // Reservamos memoria para el objeto
-        log("Tamaño de la estructura");
-        SerialHW.println(String(sizeof( TAPproccesor::tBlockDescriptor)));
-        SerialHW.println("");
 
         myTAP.descriptor = (TAPproccesor::tBlockDescriptor*)ps_malloc(MAX_BLOCKS_IN_TAP * sizeof(struct TAPproccesor::tBlockDescriptor));
         
@@ -742,9 +738,15 @@ void loadingFile()
     if (FILE_TO_LOAD.indexOf(".TAP") != -1)
     {
         // Lo procesamos
+
+        log("STEP 1 *********************************************************************");
         proccesingTAP(file_ch);
+        hmi.getMemFree();
         TYPE_FILE_LOAD = "TAP";
-        //hmi.getMemFree();
+
+        log("STEP 2 *********************************************************************");
+        free(myTAP.descriptor);
+        hmi.getMemFree();
     }
     else if (FILE_TO_LOAD.indexOf(".TZX") != -1)    
     {
@@ -782,7 +784,7 @@ void ejectingFile()
   // Terminamos los players
   if (TYPE_FILE_LOAD == "TAP")
   {
-      free(myTAP.descriptor);
+      //free(myTAP.descriptor);
 
       pTAP.terminate();
       hmi.getMemFree();
