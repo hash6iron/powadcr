@@ -738,13 +738,15 @@ void loadingFile()
     if (FILE_TO_LOAD.indexOf(".TAP") != -1)
     {
         // Lo procesamos
-
-        log("STEP 1 *********************************************************************");
+        log("");
+        log("> STEP 1 *********************************************************************");
         proccesingTAP(file_ch);
         hmi.getMemFree();
         TYPE_FILE_LOAD = "TAP";
 
-        log("STEP 2 *********************************************************************");
+        // Liberamos ahora el espacio reservado
+        log("");
+        log("> STEP 2 *********************************************************************");
         free(myTAP.descriptor);
         hmi.getMemFree();
     }
