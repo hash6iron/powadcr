@@ -1003,14 +1003,9 @@ class TAPproccesor
 
         void terminate()
         {
-            //deallocatingTAP();
-
             strncpy(_myTAP.name,"",1);
             _myTAP.numBlocks = 0;
             _myTAP.size = 0;     
-            
-            _hmi.getMemFree();
-            _hmi.updateMem();
         }
 
         bool proccess_tap(File32 tapFileName)

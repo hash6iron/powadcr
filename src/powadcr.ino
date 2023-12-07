@@ -552,7 +552,7 @@ void setup()
   setSDFrequency(SD_Speed);
 
   // Forzamos a 26MHz
-  sdf.begin(ESP32kit.pinSpiCs(), SD_SCK_MHZ(26));
+  // sdf.begin(ESP32kit.pinSpiCs(), SD_SCK_MHZ(26));
 
   // Le pasamos al HMI el gestor de SD
   hmi.set_sdf(sdf);
@@ -735,21 +735,15 @@ void loadingFile()
     {
         // Reservamos memoria
         myTAP.descriptor = (TAPproccesor::tBlockDescriptor*)ps_malloc(MAX_BLOCKS_IN_TAP * sizeof(struct TAPproccesor::tBlockDescriptor));        
+    
         // Pasamos el control a la clase
         pTAP.setTAP(myTAP);
     
         // Lo procesamos
-        log("");
-        log("> STEP 1 *********************************************************************");
         proccesingTAP(file_ch);
-        hmi.getMemFree();
         TYPE_FILE_LOAD = "TAP";
 
-        // Liberamos ahora el espacio reservado
-        log("");
-        log("> STEP 2 *********************************************************************");
-        free(pTAP.getDescriptor());
-        //free(myTAP.descriptor);
+        // Actualizamos el indicador de consumo de memoria.
         hmi.getMemFree();
     }
     else if (FILE_TO_LOAD.indexOf(".TZX") != -1)    
@@ -757,13 +751,17 @@ void loadingFile()
         // Lo procesamos. Para ZX Spectrum
         proccesingTZX(file_ch);
         TYPE_FILE_LOAD = "TZX";
-        //hmi.getMemFree();              
+        
+        // Actualizamos el indicador de consumo de memoria
+        hmi.getMemFree();
     }
     else if (FILE_TO_LOAD.indexOf(".TSX") != -1)
     {
         // Lo procesamos. Para MSX
         proccesingTZX(file_ch);
         TYPE_FILE_LOAD = "TSX";
+        // Actualizamos el indicador de consumo de memoria
+        hmi.getMemFree();        
     }   
   }
 
@@ -788,9 +786,13 @@ void ejectingFile()
   // Terminamos los players
   if (TYPE_FILE_LOAD == "TAP")
   {
-      //free(myTAP.descriptor);
+      // Solicitamos el puntero _myTAP de la clase
+      // para liberarlo
+      free(pTAP.getDescriptor());
 
+      // Finalizamos
       pTAP.terminate();
+      // Actualizamos el indicador de consumo de memoria
       hmi.getMemFree();
   }
   else if (TYPE_FILE_LOAD = "TZX")
