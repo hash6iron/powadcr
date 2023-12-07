@@ -129,10 +129,6 @@ void proccesingTAP(char* file_ch)
     if (!PLAY)
     {
 
-        myTAP.descriptor = (TAPproccesor::tBlockDescriptor*)ps_malloc(MAX_BLOCKS_IN_TAP * sizeof(struct TAPproccesor::tBlockDescriptor));
-        
-        // Pasamos el control a la clase
-        pTAP.setTAP(myTAP);
         pTAP.getInfoFileTAP(file_ch);
 
         if (!FILE_CORRUPTED)
@@ -737,6 +733,11 @@ void loadingFile()
 
     if (FILE_TO_LOAD.indexOf(".TAP") != -1)
     {
+        // Reservamos memoria
+        myTAP.descriptor = (TAPproccesor::tBlockDescriptor*)ps_malloc(MAX_BLOCKS_IN_TAP * sizeof(struct TAPproccesor::tBlockDescriptor));        
+        // Pasamos el control a la clase
+        pTAP.setTAP(myTAP);
+    
         // Lo procesamos
         log("");
         log("> STEP 1 *********************************************************************");
@@ -747,7 +748,8 @@ void loadingFile()
         // Liberamos ahora el espacio reservado
         log("");
         log("> STEP 2 *********************************************************************");
-        free(myTAP.descriptor);
+        free(pTAP.getDescriptor());
+        //free(myTAP.descriptor);
         hmi.getMemFree();
     }
     else if (FILE_TO_LOAD.indexOf(".TZX") != -1)    

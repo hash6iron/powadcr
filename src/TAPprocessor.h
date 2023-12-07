@@ -962,6 +962,11 @@ class TAPproccesor
             _myTAP = tap;
         }
 
+        tBlockDescriptor* getDescriptor()
+        {
+            return _myTAP.descriptor;
+        }
+
         tTAP getTAP()
         {
             // Devolvemos el descriptor del TAP
