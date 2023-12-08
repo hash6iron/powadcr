@@ -948,14 +948,14 @@ void tapeControl()
       {
         stopFile();
         tapeState = 4;
-        LOADING_STATE = 2;          
+        LOADING_STATE = 0;          
         SerialHW.println(tapeState);
       }
       else if(EJECT)
       {
         // Lo sacamaos del TAPE
         // cuando acabe el bloque, si está reproduciendo        
-        LOADING_STATE = 2;          
+        LOADING_STATE = 0;          
         stopFile();
         tapeState = 5;
       }
@@ -977,7 +977,7 @@ void tapeControl()
       else if(STOP)
       {
         stopFile();
-        LOADING_STATE = 2;          
+        LOADING_STATE = 0;          
         tapeState = 4;
       }
       else if(EJECT)
@@ -986,7 +986,7 @@ void tapeControl()
 
         stopFile();
         ejectingFile();
-        LOADING_STATE = 2;          
+        LOADING_STATE = 0;          
         tapeState = 0;
       }
       else
