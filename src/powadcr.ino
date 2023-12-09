@@ -893,8 +893,7 @@ void tapeControl()
 
         tapeState = 1;
         LOADING_STATE = 0;          
-        SerialHW.println(tapeState);
-
+        FILE_SELECTED = false;
       }
       else if(PLAY)
       {
@@ -926,10 +925,7 @@ void tapeControl()
       }
       else if(EJECT)
       {
-        ejectingFile();            
-        tapeState = 0;
-        LOADING_STATE = 0;          
-        SerialHW.println(tapeState);
+        tapeState = 5;
       }
       else
       {
@@ -953,10 +949,7 @@ void tapeControl()
       }
       else if(EJECT)
       {
-        // Lo sacamaos del TAPE
-        // cuando acabe el bloque, si está reproduciendo        
-        LOADING_STATE = 0;          
-        stopFile();
+        // Lo sacamaos del TAPE       
         tapeState = 5;
       }
       else
@@ -981,13 +974,8 @@ void tapeControl()
         tapeState = 4;
       }
       else if(EJECT)
-      {
-        log("Ejecting 1");
-
-        stopFile();
-        ejectingFile();
-        LOADING_STATE = 0;          
-        tapeState = 0;
+      {      
+        tapeState = 5;
       }
       else
       {
@@ -1006,9 +994,7 @@ void tapeControl()
       }
       else if(EJECT)
       {
-        ejectingFile();
-        LOADING_STATE = 0;          
-        tapeState = 0;
+        tapeState = 5;
       }
       else
       {
@@ -1016,9 +1002,10 @@ void tapeControl()
       }
       break;
     case 5:     
-      log("Ejecting 2");
-      ejectingFile();
-      tapeState = 0;
+        stopFile();
+        ejectingFile();
+        LOADING_STATE = 0;          
+        tapeState = 0;
       break;
     case 99:
       if (!FILE_BROWSER_OPEN)
