@@ -777,7 +777,12 @@ void stopFile()
 }
 
 void pauseFile()
-{}
+{
+  STOP = false;
+  PLAY = false;
+  PAUSE = true;
+  REC = false;
+}
 
 void ejectingFile()
 {
@@ -937,7 +942,8 @@ void tapeControl()
       // Reproducción en curso.
       if (PAUSE)
       {
-        pauseFile();
+        //pauseFile();
+        LOADING_STATE = 0;
         tapeState = 3;
       }
       else if(STOP)
