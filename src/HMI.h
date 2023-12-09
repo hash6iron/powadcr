@@ -392,7 +392,7 @@ class HMI
           int totalPages = (FILE_TOTAL_FILES / TOTAL_FILES_IN_BROWSER_PAGE);
           
           if (FILE_TOTAL_FILES % TOTAL_FILES_IN_BROWSER_PAGE != 0)
-          {
+          { 
               totalPages+=1;
           }
 
@@ -717,7 +717,11 @@ class HMI
             long val = (long)((int)buff[4] + (256*(int)buff[5]) + (65536*(int)buff[6]));
             String num = String(val);
             BLOCK_SELECTED = num.toInt();
-      
+            
+            // Esto lo hacemos para poder actualizar la info del TAPE
+            FFWIND=true;
+            RWIND=true;
+            
             updateInformationMainPage();
         }
 
@@ -1112,22 +1116,33 @@ class HMI
       
         if (strCmd.indexOf("FFWD") != -1) 
         {
-          if (LOADING_STATE == 2 || LOADING_STATE == 0) 
+          if (LOADING_STATE == 2 || LOADING_STATE == 3 || LOADING_STATE == 0) 
           {
+
+            log("Ahora muestro el bloque seleccionado");
+            log(String(BLOCK_SELECTED));
+
             BLOCK_SELECTED++;
       
             if (BLOCK_SELECTED > TOTAL_BLOCKS - 1) 
             {
               BLOCK_SELECTED = 0;
             }
-      
+
             updateInformationMainPage();
+
+            FFWIND = true;
+            RWIND = false;
+
+            log("Ahora muestro el bloque seleccionado");
+            log(String(BLOCK_SELECTED));
+
           }
         }
       
         if (strCmd.indexOf("RWD") != -1) 
         {
-          if (LOADING_STATE == 2 || LOADING_STATE == 0) 
+          if (LOADING_STATE == 2 || LOADING_STATE == 3 || LOADING_STATE == 0) 
           {
       
             BLOCK_SELECTED--;
@@ -1138,6 +1153,10 @@ class HMI
             }
       
             updateInformationMainPage();
+
+            FFWIND = false;
+            RWIND = true;
+
           }
         }
       

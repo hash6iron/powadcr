@@ -1111,14 +1111,14 @@ class TAPproccesor
                     // Reiniciamos
                     if (BLOCK_SELECTED == 0) 
                     {
-                    BYTES_LOADED = 0;
-                    BYTES_TOBE_LOAD = _rlen;
-                    //_hmi.writeString("");
-                    _hmi.writeString("progressTotal.val=" + String((int)((BYTES_LOADED * 100) / (BYTES_TOBE_LOAD))));
+                        BYTES_LOADED = 0;
+                        BYTES_TOBE_LOAD = _rlen;
+                        //_hmi.writeString("");
+                        _hmi.writeString("progressTotal.val=" + String((int)((BYTES_LOADED * 100) / (BYTES_TOBE_LOAD))));
                     } 
                     else 
                     {
-                    BYTES_TOBE_LOAD = _rlen - _myTAP.descriptor[BLOCK_SELECTED - 1].offset;
+                        BYTES_TOBE_LOAD = _rlen - _myTAP.descriptor[BLOCK_SELECTED - 1].offset;
                     }
 
                     for (int i = m; i < _myTAP.numBlocks; i++) 
@@ -1144,9 +1144,20 @@ class TAPproccesor
 
                             i = _myTAP.numBlocks+1;
 
-                            // SerialHW.println("");
-                            // SerialHW.println("LOADING_STATE 2");                            
+                            log("LOADING_STATE 2");                           
                             return;
+                        }
+                        else if (LOADING_STATE==3)
+                        {
+                            LOADING_STATE = 0;
+                            PAUSE = true;
+                            STOP = false;
+                            PLAY = false;
+
+                            //i = _myTAP.numBlocks+1;
+
+                            log("LOADING_STATE 3"); 
+                            return; 
                         }
                         else
                         {

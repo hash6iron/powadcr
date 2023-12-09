@@ -733,6 +733,9 @@ void loadingFile()
 
     if (FILE_TO_LOAD.indexOf(".TAP") != -1)
     {
+        PROGRESS_BAR_REFRESH = 32;
+        PROGRESS_BAR_REFRESH_2 = 16;
+
         // Reservamos memoria
         myTAP.descriptor = (TAPproccesor::tBlockDescriptor*)ps_malloc(MAX_BLOCKS_IN_TAP * sizeof(struct TAPproccesor::tBlockDescriptor));        
     
@@ -748,6 +751,9 @@ void loadingFile()
     }
     else if (FILE_TO_LOAD.indexOf(".TZX") != -1)    
     {
+        PROGRESS_BAR_REFRESH = 256;
+        PROGRESS_BAR_REFRESH_2 = 32;
+
         // Lo procesamos. Para ZX Spectrum
         proccesingTZX(file_ch);
         TYPE_FILE_LOAD = "TZX";
@@ -757,6 +763,9 @@ void loadingFile()
     }
     else if (FILE_TO_LOAD.indexOf(".TSX") != -1)
     {
+        PROGRESS_BAR_REFRESH = 256;
+        PROGRESS_BAR_REFRESH_2 = 32;
+
         // Lo procesamos. Para MSX
         proccesingTZX(file_ch);
         TYPE_FILE_LOAD = "TSX";
@@ -882,7 +891,6 @@ void tapeControl()
   switch (tapeState)
   {
     case 0:
-
       // Estado inicial
       if (FILE_BROWSER_OPEN)
       {
@@ -899,16 +907,23 @@ void tapeControl()
         tapeState = 1;
         LOADING_STATE = 0;          
         FILE_SELECTED = false;
+        FFWIND = false;
+        RWIND = false;           
       }
       else if(PLAY)
       {
         LAST_MESSAGE = "No file was selected.";
         hmi.updateInformationMainPage();
         LOADING_STATE = 0;          
-        tapeState = 0;          
-      }
+        tapeState = 0;       
+        FFWIND = false;
+        RWIND = false;              
+      }    
       else if(REC)
       {
+        FFWIND = false;
+        RWIND = false;   
+                
         recordingFile();
         tapeState = 200;
       }
@@ -923,6 +938,8 @@ void tapeControl()
       if (PLAY)
       {
         // Lo reproducimos
+        FFWIND = false;
+        RWIND = false;        
         LOADING_STATE = 1;          
         playingFile();
         tapeState = 2;
@@ -930,8 +947,19 @@ void tapeControl()
       }
       else if(EJECT)
       {
+        FFWIND = false;
+        RWIND = false;
         tapeState = 5;
       }
+      else if (FFWIND || RWIND)
+      {
+        // Actualizamos el HMI
+        hmi.setBasicFileInformation(myTAP.descriptor[BLOCK_SELECTED].name,myTAP.descriptor[BLOCK_SELECTED].typeName,myTAP.descriptor[BLOCK_SELECTED].size);
+        hmi.updateInformationMainPage();
+        tapeState = 1;
+        FFWIND = false;
+        RWIND = false;         
+      }        
       else
       {
         tapeState = 1;
@@ -943,8 +971,9 @@ void tapeControl()
       if (PAUSE)
       {
         //pauseFile();
-        LOADING_STATE = 0;
+        LOADING_STATE = 3;
         tapeState = 3;
+        log("Estoy en PAUSA.");
       }
       else if(STOP)
       {
@@ -972,16 +1001,34 @@ void tapeControl()
         LOADING_STATE = 1;          
         playingFile();          
         tapeState = 2;
+
+        FFWIND = false;
+        RWIND = false;        
       }
       else if(STOP)
       {
         stopFile();
         LOADING_STATE = 0;          
         tapeState = 4;
+
+        FFWIND = false;
+        RWIND = false;           
       }
       else if(EJECT)
       {      
         tapeState = 5;
+
+        FFWIND = false;
+        RWIND = false;   
+      }
+      else if (FFWIND || RWIND)
+      {
+        // Actualizamos el HMI
+        hmi.setBasicFileInformation(myTAP.descriptor[BLOCK_SELECTED].name,myTAP.descriptor[BLOCK_SELECTED].typeName,myTAP.descriptor[BLOCK_SELECTED].size);
+        hmi.updateInformationMainPage();
+        tapeState = 3;
+        FFWIND = false;
+        RWIND = false; 
       }
       else
       {

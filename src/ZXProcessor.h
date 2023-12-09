@@ -175,7 +175,7 @@ class ZXProccesor
         // Pulso alto (mitad del periodo)
         for (int j=0;j<bytes/(4*chn);j++){
 
-            if (j % 256 == 0)
+            if (j % PROGRESS_BAR_REFRESH == 0)
             {
               m_amplitude = MAIN_VOL * 32767 / 100;
             }
@@ -239,7 +239,7 @@ class ZXProccesor
         int16_t *ptr = (int16_t*)buffer;
         for (int j=0;j<bytes/(2*chn);j++){
 
-            if (j % 256 ==0)
+            if (j % PROGRESS_BAR_REFRESH == 0)
             {
               m_amplitude = MAIN_VOL * 32767 / 100;
             }
@@ -335,7 +335,7 @@ class ZXProccesor
             }
             else if (PAUSE==true)
             {
-                LOADING_STATE = 2; // Parada del bloque actual
+                LOADING_STATE = 3; // Pausa del bloque actual
                 return;
             }
         }
@@ -365,7 +365,7 @@ class ZXProccesor
                 }
                 else if (PAUSE==true)
                 {
-                    LOADING_STATE = 2; // Parada del bloque actual
+                    LOADING_STATE = 3; // Parada del bloque actual
                     return;
                 }
             }
@@ -399,7 +399,7 @@ class ZXProccesor
     //             }
     //             else if (PAUSE==true)
     //             {
-    //                 LOADING_STATE = 2; // Parada del bloque actual
+    //                 LOADING_STATE = 3; // Parada del bloque actual
     //                 return;
     //             }
     //         }
@@ -580,7 +580,7 @@ class ZXProccesor
               if (!TEST_RUNNING)
               {
 
-                    if (i % 32==0)
+                    if (i % PROGRESS_BAR_REFRESH_2 == 0)
                     {
                         SerialHW.flush();
                         // Progreso de cada bloque.
@@ -605,7 +605,7 @@ class ZXProccesor
                         }
                         else if (PAUSE==true)
                         {
-                            LOADING_STATE = 2; // Parada del bloque actual
+                            LOADING_STATE = 3; // Parada del bloque actual
                             i=size;
                             return;
                         }
