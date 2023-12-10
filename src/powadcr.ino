@@ -816,74 +816,67 @@ void ejectingFile()
   }  
 }
 
+void prepareRecording()
+{
+    // Liberamos myTAP.descriptor de la memoria si existe 
+    if (myTAP.descriptor!= NULL) 
+    {
+      free(myTAP.descriptor);
+    }
+      
+    // Preparamos para recording
+ 
+
+      //Activamos la animación
+      hmi.writeString("tape.tmAnimation.en=1"); 
+
+      // Inicializamos audio input
+      setAudioInput();
+      taprec.set_kit(ESP32kit);
+      
+      taprec.initialize(); 
+
+      if (!taprec.createTempTAPfile())
+      {
+        LAST_MESSAGE = "Recorder not prepared.";
+        hmi.updateInformationMainPage();
+      }
+      else
+      {
+        //writeString("");
+        hmi.writeString("currentBlock.val=1");
+        //writeString("");
+        hmi.writeString("progressTotal.val=0");
+        //writeString("");
+        hmi.writeString("progression.val=0");
+      }
+      
+      hmi.getMemFree();        
+}
+
+
 void recordingFile()
 {
-  // Liberamos myTAP.descriptor de la memoria si existe 
-  if (myTAP.descriptor!= NULL) 
-  {
-    free(myTAP.descriptor);
-  }
-    
-  // Preparamos para recording
-  if (!waitingRecMessageShown)
-  {
-    SerialHW.println("");
-    SerialHW.println("REC. Waiting for guide tone");
-    SerialHW.println("");        
-
-    //Activamos la animación
-    hmi.writeString("tape.tmAnimation.en=1"); 
-
-    // Inicializamos audio input
-    setAudioInput();
-    taprec.set_kit(ESP32kit);
-    
-    taprec.initialize(); 
-
-    if (!taprec.createTempTAPfile())
+    // Iniciamos la grabación
+    if (taprec.recording())
     {
-      LAST_MESSAGE = "Recorder not prepared.";
-      hmi.updateInformationMainPage();
-      waitingRecMessageShown = false;
+        // Ha finalizado la grabación de un bloque
+        // ahora estudiamos la causa
+        if (taprec.stopRecordingProccess)   
+        {
+            // Hay tres casos
+            // - El fichero para grabar el TAP no fue creado
+            // - La grabación fue parada pero fue correcta (no hay errores)
+            // - La grabación fue parada pero fue incorrecta (hay errores)
+            SerialHW.println("");
+            SerialHW.println("STOP 2 - REC");
+
+            LOADING_STATE = 0;
+
+            stopRecording();
+            setSTOP();
+        }
     }
-    else
-    {
-      waitingRecMessageShown = true;
-
-      //writeString("");
-      hmi.writeString("currentBlock.val=1");
-      //writeString("");
-      hmi.writeString("progressTotal.val=0");
-      //writeString("");
-      hmi.writeString("progression.val=0");
-    }
-    
-    hmi.getMemFree();
-      
-  }
-  else
-  {
-      // Iniciamos la grabación
-      if (taprec.recording())
-      {
-          // Ha finalizado la grabación de un bloque
-          // ahora estudiamos la causa
-          if (taprec.stopRecordingProccess)   
-          {
-              // Hay tres casos
-              // - El fichero para grabar el TAP no fue creado
-              // - La grabación fue parada pero fue correcta (no hay errores)
-              // - La grabación fue parada pero fue incorrecta (hay errores)
-              SerialHW.println("");
-              SerialHW.println("STOP 2 - REC");
-
-              LOADING_STATE = 0;
-
-              stopRecording();
-              setSTOP();
-          }
-      }            
-  }
 }
 
 void tapeControl()
@@ -924,7 +917,8 @@ void tapeControl()
         FFWIND = false;
         RWIND = false;   
                 
-        recordingFile();
+        prepareRecording();
+        log("REC. Waiting for guide tone");
         tapeState = 200;
       }
       else
@@ -1084,6 +1078,7 @@ void tapeControl()
       }
       else
       {
+        recordingFile();
         tapeState = 200;
       }
       break;
