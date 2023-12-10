@@ -110,7 +110,7 @@ class TAPproccesor
                 // SerialHW.println("Begin isHeaderTAP");
 
                 // La cabecera son 19 bytes
-                uint8_t* bBlock = (uint8_t*)(ps_malloc((20 * sizeof(uint8_t))));
+                uint8_t* bBlock = (uint8_t*)(malloc((20 * sizeof(uint8_t))));
                 bBlock = sdm.readFileRange32(tapFileName,0,19,true);
 
                 // SerialHW.println("");
@@ -377,7 +377,7 @@ class TAPproccesor
 
         //     // Extraemos un bloque de bytes indicando el uint8_t inicio y final
         //     //uint8_t* blockExtracted = new uint8_t[(byteEnd - byteStart)+1];
-        //     uint8_t* blockExtracted = (uint8_t*)(ps_malloc(((byteEnd - byteStart)+1) * sizeof(uint8_t)));
+        //     uint8_t* blockExtracted = (uint8_t*)(malloc(((byteEnd - byteStart)+1) * sizeof(uint8_t)));
 
         //     int i=0;
         //     for (int n=byteStart;n<(byteStart + (byteEnd - byteStart)+1);n++)
@@ -420,7 +420,7 @@ class TAPproccesor
             while(reachEndByte==false)
             {
 
-                uint8_t* tmpRng = (uint8_t*)(ps_malloc(sizeB * sizeof(uint8_t)));
+                uint8_t* tmpRng = (uint8_t*)(malloc(sizeB * sizeof(uint8_t)));
 
                 tmpRng = sdm.readFileRange32(_mFile,startBlock,sizeB-1,false);
                 chk = calculateChecksum(tmpRng,0,sizeB-1);
@@ -631,7 +631,7 @@ class TAPproccesor
                     blockNameDetected = false;
                     
                     // Cogemos el bloque completo, para poder calcular su checksum
-                    uint8_t* tmpRng = (uint8_t*)(ps_malloc(sizeB * sizeof(uint8_t)));
+                    uint8_t* tmpRng = (uint8_t*)(malloc(sizeB * sizeof(uint8_t)));
                     tmpRng = sdm.readFileRange32(_mFile,startBlock,sizeB-1,false);
                     // Calculamos el checksum
                     chk = calculateChecksum(tmpRng,0,sizeB-1);
@@ -718,6 +718,8 @@ class TAPproccesor
                         // SerialHW.println("");
                         // SerialHW.println("Success. End: ");
                     }
+
+                    TOTAL_BLOCKS = numBlocks;
                 }
 
                 // Añadimos información importante
@@ -736,7 +738,7 @@ class TAPproccesor
             }
 
             // Actualizamos el indicador de consumo de PS_RAM
-            _hmi.updateMem();
+            //_hmi.updateMem();
         }
 
         void showDescriptorTable()
@@ -800,33 +802,33 @@ class TAPproccesor
             }      
         }
 
-        int getTotalHeaders(uint8_t* fileTAP, int sizeTAP)
-        {
-            // Este procedimiento devuelve el total de bloques que contiene el fichero
-            int nblocks = 0;
-            //uint8_t* bBlock = new uint8_t[sizeTAP];
-            uint8_t* bBlock = (uint8_t*)(ps_malloc(sizeTAP * sizeof(uint8_t)));
+        // int getTotalHeaders(uint8_t* fileTAP, int sizeTAP)
+        // {
+        //     // Este procedimiento devuelve el total de bloques que contiene el fichero
+        //     int nblocks = 0;
+        //     //uint8_t* bBlock = new uint8_t[sizeTAP];
+        //     uint8_t* bBlock = (uint8_t*)(malloc(sizeTAP * sizeof(uint8_t)));
             
-            bBlock = fileTAP; 
-            // Para ello buscamos la secuencia "0x13 0x00 0x00"
-            for (int n=0;n<sizeTAP;n++)
-            {
-                if (bBlock[n] == 19)
-                {
-                    if ((n+1 < sizeTAP) && (bBlock[n+1] == 0))
-                    {
-                        if ((n+2 < sizeTAP) && (bBlock[n+2] == 0))
-                        {
-                            nblocks++;
-                            n = n + 3;
-                        }
-                    }
-                }
-            }
+        //     bBlock = fileTAP; 
+        //     // Para ello buscamos la secuencia "0x13 0x00 0x00"
+        //     for (int n=0;n<sizeTAP;n++)
+        //     {
+        //         if (bBlock[n] == 19)
+        //         {
+        //             if ((n+1 < sizeTAP) && (bBlock[n+1] == 0))
+        //             {
+        //                 if ((n+2 < sizeTAP) && (bBlock[n+2] == 0))
+        //                 {
+        //                     nblocks++;
+        //                     n = n + 3;
+        //                 }
+        //             }
+        //         }
+        //     }
             
-            free(bBlock);
-            return nblocks;
-        }
+        //     free(bBlock);
+        //     return nblocks;
+        // }
 
     public:
     
@@ -921,7 +923,7 @@ class TAPproccesor
 
         // void deallocatingTAP()
         // {
-        //     _hmi.getMemFree();
+        //     _//hmi.getMemFree();
         //     _hmi.updateMem();
 
         //     log("Deallocating TAP");
@@ -930,7 +932,7 @@ class TAPproccesor
             
         //     free(_myTAP.descriptor);
             
-        //     _hmi.getMemFree();
+        //     _//hmi.getMemFree();
         //     _hmi.updateMem();
         // }
         
@@ -1044,7 +1046,7 @@ class TAPproccesor
             FILE_CORRUPTED = false;
             
             LAST_MESSAGE = "Analyzing file";
-            //_hmi.updateInformationMainPage();
+            delay(500);
             
             // Abrimos el fichero
             tapFile = sdm.openFile32(tapFile, path);
@@ -1057,8 +1059,8 @@ class TAPproccesor
             set_file(tapFile, _rlen);
             
             // Actualizamos el indicador de memoria
-            _hmi.getMemFree();
-            _hmi.updateMem();
+            //_hmi.getMemFree();
+           //_hmi.updateMem();
 
             if (proccess_tap(tapFile))
             {
@@ -1081,7 +1083,7 @@ class TAPproccesor
                     // Pasamos informacion del descriptor al HMI         
                     _hmi.setBasicFileInformation(_myTAP.descriptor[BLOCK_SELECTED].name,_myTAP.descriptor[BLOCK_SELECTED].typeName,_myTAP.descriptor[BLOCK_SELECTED].size);
                     // Actualizamos la pantalla
-                    //_hmi.updateInformationMainPage();
+                    //
                 }          
             }
             else
@@ -1177,14 +1179,14 @@ class TAPproccesor
                         // Actualizamos HMI
                         _hmi.setBasicFileInformation(_myTAP.descriptor[BLOCK_SELECTED].name,_myTAP.descriptor[BLOCK_SELECTED].typeName,_myTAP.descriptor[BLOCK_SELECTED].size);
 
-                        //_hmi.updateInformationMainPage();
+                        //
 
                         // Reproducimos el fichero
                         if (_myTAP.descriptor[i].type == 0) 
                         {
 
                             // Reservamos memoria para el buffer de reproducción
-                            bufferPlay = (uint8_t*)(ps_malloc(_myTAP.descriptor[i].size * sizeof(uint8_t)));
+                            bufferPlay = (uint8_t*)(malloc(_myTAP.descriptor[i].size * sizeof(uint8_t)));
                             bufferPlay = sdm.readFileRange32(_mFile, _myTAP.descriptor[i].offset, _myTAP.descriptor[i].size, false);
 
                             // *** Cabecera PROGRAM
@@ -1197,7 +1199,7 @@ class TAPproccesor
                         else if (_myTAP.descriptor[i].type == 1 || _myTAP.descriptor[i].type == 7) 
                         {
                             
-                            bufferPlay = (uint8_t*)(ps_malloc(_myTAP.descriptor[i].size * sizeof(uint8_t)));
+                            bufferPlay = (uint8_t*)(malloc(_myTAP.descriptor[i].size * sizeof(uint8_t)));
                             bufferPlay = sdm.readFileRange32(_mFile, _myTAP.descriptor[i].offset, _myTAP.descriptor[i].size, false);
 
                             // *** Cabecera BYTE
@@ -1230,7 +1232,7 @@ class TAPproccesor
                                         
                                         // Cortamos la primera mitad del bloque
                                         blockPlaySize = bl1;
-                                        bufferPlay = (uint8_t*)(ps_malloc(blockPlaySize * sizeof(uint8_t)));
+                                        bufferPlay = (uint8_t*)(malloc(blockPlaySize * sizeof(uint8_t)));
                                         offsetPlay = _myTAP.descriptor[i].offset;
                                         bufferPlay = sdm.readFileRange32(_mFile, offsetPlay, blockPlaySize, true);
                                         
@@ -1245,7 +1247,7 @@ class TAPproccesor
                                         // Cortamos el final del bloque
                                         blockPlaySize = bl2;
                                         offsetPlay = offsetPlay + bl1;
-                                        bufferPlay = (uint8_t*)(ps_malloc(blockPlaySize * sizeof(uint8_t)));
+                                        bufferPlay = (uint8_t*)(malloc(blockPlaySize * sizeof(uint8_t)));
                                         bufferPlay = sdm.readFileRange32(_mFile, offsetPlay, blockPlaySize, true);
 
                                         // Reproducimos la ultima mitad
@@ -1259,7 +1261,7 @@ class TAPproccesor
                             else 
                             {
                                 // En el caso de NO USAR SPLIT o el bloque es menor de 20K
-                                bufferPlay = (uint8_t*)(ps_malloc((_myTAP.descriptor[i].size) * sizeof(uint8_t)));
+                                bufferPlay = (uint8_t*)(malloc((_myTAP.descriptor[i].size) * sizeof(uint8_t)));
                                 bufferPlay = sdm.readFileRange32(_mFile, _myTAP.descriptor[i].offset, _myTAP.descriptor[i].size, false);
                                 
                                 // Reproducimos el bloque de datos
@@ -1287,7 +1289,7 @@ class TAPproccesor
                         LAST_MESSAGE = "Playing end. Automatic STOP.";
 
                         _hmi.setBasicFileInformation(_myTAP.descriptor[BLOCK_SELECTED].name,_myTAP.descriptor[BLOCK_SELECTED].typeName,_myTAP.descriptor[BLOCK_SELECTED].size);
-                        //_hmi.updateInformationMainPage();
+                        //
 
                         // SerialHW.println("");
                         // SerialHW.println("LOADING_STATE 1");
@@ -1298,7 +1300,7 @@ class TAPproccesor
                 // No se ha seleccionado ningún fichero
                 LAST_MESSAGE = "No file selected.";
                 _hmi.setBasicFileInformation(_myTAP.descriptor[BLOCK_SELECTED].name,_myTAP.descriptor[BLOCK_SELECTED].typeName,_myTAP.descriptor[BLOCK_SELECTED].size);
-                //_hmi.updateInformationMainPage();
+                //
             }
 
         }

@@ -228,8 +228,8 @@ class HMI
               FILE_TOTAL_FILES = j;
               sdm.dir.close();
 
-              getMemFree();
-              updateMem();
+              //getMemFree();
+              //updateMem();
           }
 
           writeString("statusFILE.txt=\"FILES " + String(FILE_TOTAL_FILES-1) +"\"");
@@ -1596,8 +1596,15 @@ class HMI
           writeString("totalBlocks.val=" + String(TOTAL_BLOCKS));
           writeString("currentBlock.val=" + String(BLOCK_SELECTED + 1));
         }
+        else if (TOTAL_BLOCKS == 0)
+        {
+          writeString("totalBlocks.val=0");
+          writeString("currentBlock.val=0");
+        }
       
         writeString("g0.txt=\"" + LAST_MESSAGE + "\"");
+
+        updateMem();
       }
       
       int getEndCharPosition(String str,int start)
@@ -1744,8 +1751,8 @@ class HMI
 
       void updateMem()
       {
-          writeString("menu.totalPSRAM.txt=\""+ String(ESP.getPsramSize() / 1024) + " KB\"");
-          writeString("menu.freePSRAM.txt=\"" + String(ESP.getFreePsram() / 1024) + " KB\"");
+          writeString("menu.totalPSRAM.txt=\""+ String(ESP.getPsramSize() / 1024) + " | " + String(ESP.getHeapSize() / 1024) + " KB\"");
+          writeString("menu.freePSRAM.txt=\"" + String(ESP.getFreePsram() / 1024)  + " | " + String(ESP.getFreeHeap() / 1024) + " KB\"");
       }
 
       // Constructor

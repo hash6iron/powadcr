@@ -993,28 +993,30 @@ class TZXproccesor
           bool forzeEnd = false;
           bool endWithErrors = false;
 
-          const int maxAllocationBlocks = 4000;
+          const int maxAllocationBlocks = MAX_BLOCKS_IN_TZX;
 
           currentOffset = startOffset;
 
           // Hacemos allocation in memory
-
-          tryAllocateSRamThenPSRam(_myTZX.descriptor,maxAllocationBlocks);
+          _myTZX.descriptor = (tTZXBlockDescriptor*)malloc(maxAllocationBlocks * sizeof(struct tTZXBlockDescriptor));
           
           // Inicializamos
           ID_NOT_IMPLEMENTED = false;
 
           //TIMMING_STABLISHED = false;
+          int iBlock = 0;
 
           while (!endTZX && !forzeEnd && !ID_NOT_IMPLEMENTED)
           {
-             
+              TOTAL_BLOCKS = iBlock;
+              iBlock++;
+
               if (ABORT==true)
               {
                   forzeEnd = true;
                   endWithErrors = true;
                   LAST_MESSAGE = "Aborting. No proccess complete.";
-                  //_hmi.updateInformationMainPage();
+                  //
               }
 
               // El objetivo es ENCONTRAR IDs y ultimo uint8_t, y analizar el bloque completo para el descriptor.
@@ -1052,7 +1054,7 @@ class TZXproccesor
                       endTZX = true;
                       endWithErrors = true;
                   }
-                break;
+                  break;
 
                 // ID 11- Turbo Speed Data Block
                 case 17:
@@ -1434,9 +1436,9 @@ class TZXproccesor
                     currentOffset = nextIDoffset;
                 }
 
-                //delay(2000);
-                TOTAL_BLOCKS = currentBlock;
-                //_hmi.updateInformationMainPage();
+                //
+                //TOTAL_BLOCKS = currentBlock;
+                //
 
                 SerialHW.println("");
                 SerialHW.println("+++++++++++++++++++++++++++++++++++++++++++++++");
@@ -1444,7 +1446,7 @@ class TZXproccesor
 
           }
 
-          _hmi.getMemFree();
+          //hmi.getMemFree();
 
           // El siguiente bloque será
           // currentOffset + blockSize (que obtenemos del descriptor)
@@ -1458,7 +1460,7 @@ class TZXproccesor
           // Actualizamos una vez mas el HMI
           if (currentBlock % 100 == 0)
           {
-              //_hmi.updateInformationMainPage();
+              //
           }
     }
    
@@ -1616,7 +1618,9 @@ class TZXproccesor
       PROGRAM_NAME_2 = "";
 
       LAST_MESSAGE = "Analyzing file";
-      //_hmi.updateInformationMainPage();
+      delay(500);
+      
+      //
     
       // Abrimos el fichero
       tzxFile = sdm.openFile32(tzxFile, path);
@@ -1645,12 +1649,12 @@ class TZXproccesor
     
           // Pasamos el descriptor           
           _hmi.setBasicFileInformation(_myTZX.descriptor[BLOCK_SELECTED].name,_myTZX.descriptor[BLOCK_SELECTED].typeName,_myTZX.descriptor[BLOCK_SELECTED].size);
-          //_hmi.updateInformationMainPage();
+          //
       }
       else
       {
         LAST_MESSAGE = "Error in TZX or ID not supported";
-        //_hmi.updateInformationMainPage();
+        //
       }
 
     }
@@ -1750,7 +1754,7 @@ class TZXproccesor
                         }
 
                         _hmi.setBasicFileInformation(_myTZX.descriptor[BLOCK_SELECTED].name,_myTZX.descriptor[BLOCK_SELECTED].typeName,_myTZX.descriptor[BLOCK_SELECTED].size);
-                        //_hmi.updateInformationMainPage();                        
+                        //                        
                         
                         return;
                     }
@@ -1828,7 +1832,7 @@ class TZXproccesor
                       // Actualizamos HMI
                       _hmi.setBasicFileInformation(_myTZX.descriptor[i].name,_myTZX.descriptor[i].typeName,_myTZX.descriptor[i].size);
 
-                      //_hmi.updateInformationMainPage();
+                      //
 
                       // Reproducimos el fichero
                       if (_myTZX.descriptor[i].type == 0) 
@@ -1999,7 +2003,7 @@ class TZXproccesor
                 LAST_MESSAGE = "Playing end. Automatic STOP.";
 
                 _hmi.setBasicFileInformation(_myTZX.descriptor[BLOCK_SELECTED].name,_myTZX.descriptor[BLOCK_SELECTED].typeName,_myTZX.descriptor[BLOCK_SELECTED].size);
-                //_hmi.updateInformationMainPage();
+                //
               }
 
               // Cerrando
@@ -2009,7 +2013,7 @@ class TZXproccesor
             LAST_MESSAGE = "No file selected.";
             _hmi.setBasicFileInformation(_myTZX.descriptor[BLOCK_SELECTED].name,_myTZX.descriptor[BLOCK_SELECTED].typeName,_myTZX.descriptor[BLOCK_SELECTED].size);
 
-            //_hmi.updateInformationMainPage();
+            //
         }        
 
     }

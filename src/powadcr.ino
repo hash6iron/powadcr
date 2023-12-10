@@ -134,13 +134,13 @@ void proccesingTAP(char* file_ch)
         if (!FILE_CORRUPTED)
         {
           LAST_MESSAGE = "Press PLAY to enjoy!";
-          //hmi.updateInformationMainPage();
+          //
           FILE_PREPARED = true;
         }
         else
         {
           LAST_MESSAGE = "ERROR! Selected file is CORRUPTED.";
-          //hmi.updateInformationMainPage();
+          //
           FILE_PREPARED = false;
         }
 
@@ -152,7 +152,7 @@ void proccesingTAP(char* file_ch)
     else
     {
           LAST_MESSAGE = "Error. PLAY in progress. Try select file again.";
-          //hmi.updateInformationMainPage();
+          //
           FILE_PREPARED = false;
           FILE_NOTIFIED = false;
     }  
@@ -165,14 +165,14 @@ void proccesingTZX(char* file_ch)
     if (ABORT)
     {
       LAST_MESSAGE = "Aborting proccess.";
-      //hmi.updateInformationMainPage();
+      //
       FILE_PREPARED = false;      
       ABORT=false;
     }
     else
     {
       LAST_MESSAGE = "Press PLAY to enjoy!";
-      //hmi.updateInformationMainPage();
+      //
       FILE_PREPARED = true;
     }
 
@@ -429,7 +429,7 @@ void pauseRecording()
     REC = false;
 
     LAST_MESSAGE = "Recording paused.";
-    //hmi.updateInformationMainPage();
+    //
 
     SerialHW.println("");
     SerialHW.println("REC. Procces paused.");
@@ -457,14 +457,14 @@ void stopRecording()
       {
         taprec.terminate(false);
         LAST_MESSAGE = "Recording STOP. File succesfully saved.";
-        //hmi.updateInformationMainPage();
+        //
         delay(1000);
       }
       else
       {
         taprec.terminate(true);
         LAST_MESSAGE = "Recording STOP. No file saved";
-        //hmi.updateInformationMainPage();      
+        //      
         delay(1000);
       }
     }
@@ -477,7 +477,7 @@ void stopRecording()
       taprec.terminate(true);
       LAST_MESSAGE = "Recording STOP. No file saved."; 
       // Actualizamos la pantalla
-      //hmi.updateInformationMainPage();      
+      //      
       delay(1000);
     }
     else if (taprec.wasFileNotCreated)
@@ -486,7 +486,7 @@ void stopRecording()
         taprec.terminate(false);
         LAST_MESSAGE = "Error in filesystem or SD.";
         // Actualizamos la pantalla
-        //hmi.updateInformationMainPage();        
+        //        
         delay(1000);
     }
 
@@ -654,7 +654,7 @@ void setup()
   taprec.set_HMI(hmi);
   taprec.set_SdFat32(sdf);
   
-  hmi.getMemFree();
+  //hmi.getMemFree();
 }
 
 void setSTOP()
@@ -667,7 +667,7 @@ void setSTOP()
   BLOCK_SELECTED = 0;
 
   LAST_MESSAGE = "Tape stop.";
-  //hmi.updateInformationMainPage();
+  //
   
   SerialHW.println("");
   SerialHW.println("Tape stop.");
@@ -697,11 +697,11 @@ void playingFile()
 
   // Reproducimos el fichero
   LAST_MESSAGE = "Loading in progress. Please wait.";
-  //hmi.updateInformationMainPage();
+  //
 
   if (TYPE_FILE_LOAD == "TAP")
   {
-      hmi.getMemFree();
+      //hmi.getMemFree();
       pTAP.play();
       //Paramos la animación
       hmi.writeString("tape.tmAnimation.en=0"); 
@@ -709,7 +709,7 @@ void playingFile()
   }
   else if (TYPE_FILE_LOAD = "TZX")
   {
-      hmi.getMemFree();
+      //hmi.getMemFree();
       pTZX.play();
       //Paramos la animación
       hmi.writeString("tape.tmAnimation.en=0"); 
@@ -719,7 +719,7 @@ void playingFile()
 void loadingFile()
 {
   // Cogemos el fichero seleccionado y lo cargamos              
-  char* file_ch = (char*)ps_malloc(256 * sizeof(char));
+  char* file_ch = (char*)malloc(256 * sizeof(char));
   FILE_TO_LOAD.toCharArray(file_ch, 256);
 
   // Si no está vacio
@@ -737,7 +737,7 @@ void loadingFile()
         PROGRESS_BAR_REFRESH_2 = 16;
 
         // Reservamos memoria
-        myTAP.descriptor = (TAPproccesor::tBlockDescriptor*)ps_malloc(MAX_BLOCKS_IN_TAP * sizeof(struct TAPproccesor::tBlockDescriptor));        
+        myTAP.descriptor = (TAPproccesor::tBlockDescriptor*)malloc(MAX_BLOCKS_IN_TAP * sizeof(struct TAPproccesor::tBlockDescriptor));        
     
         // Pasamos el control a la clase
         pTAP.setTAP(myTAP);
@@ -747,7 +747,7 @@ void loadingFile()
         TYPE_FILE_LOAD = "TAP";
 
         // Actualizamos el indicador de consumo de memoria.
-        hmi.getMemFree();
+        //hmi.getMemFree();
     }
     else if (FILE_TO_LOAD.indexOf(".TZX") != -1)    
     {
@@ -759,7 +759,7 @@ void loadingFile()
         TYPE_FILE_LOAD = "TZX";
         
         // Actualizamos el indicador de consumo de memoria
-        hmi.getMemFree();
+        //hmi.getMemFree();
     }
     else if (FILE_TO_LOAD.indexOf(".TSX") != -1)
     {
@@ -770,7 +770,7 @@ void loadingFile()
         proccesingTZX(file_ch);
         TYPE_FILE_LOAD = "TSX";
         // Actualizamos el indicador de consumo de memoria
-        hmi.getMemFree();        
+        //hmi.getMemFree();        
     }   
   }
 
@@ -807,12 +807,12 @@ void ejectingFile()
       // Finalizamos
       pTAP.terminate();
       // Actualizamos el indicador de consumo de memoria
-      hmi.getMemFree();
+      //hmi.getMemFree();
   }
   else if (TYPE_FILE_LOAD = "TZX")
   {
       pTZX.terminate();
-      hmi.getMemFree();
+      //hmi.getMemFree();
   }  
 }
 
@@ -839,7 +839,7 @@ void prepareRecording()
       if (!taprec.createTempTAPfile())
       {
         LAST_MESSAGE = "Recorder not prepared.";
-        //hmi.updateInformationMainPage();
+        //
       }
       else
       {
@@ -851,7 +851,7 @@ void prepareRecording()
         hmi.writeString("progression.val=0");
       }
       
-      hmi.getMemFree();        
+      //hmi.getMemFree();        
 }
 
 
@@ -895,7 +895,7 @@ void tapeControl()
         // FICHERO CARGADO EN TAPE
         loadingFile();
         LAST_MESSAGE = "File inside the TAPE.";
-        //hmi.updateInformationMainPage();  
+        //  
 
         tapeState = 1;
         LOADING_STATE = 0;          
@@ -906,7 +906,7 @@ void tapeControl()
       else if(PLAY)
       {
         LAST_MESSAGE = "No file was selected.";
-        //hmi.updateInformationMainPage();
+        //
         LOADING_STATE = 0;          
         tapeState = 0;       
         FFWIND = false;
@@ -949,7 +949,7 @@ void tapeControl()
       {
         // Actualizamos el HMI
         hmi.setBasicFileInformation(myTAP.descriptor[BLOCK_SELECTED].name,myTAP.descriptor[BLOCK_SELECTED].typeName,myTAP.descriptor[BLOCK_SELECTED].size);
-        //hmi.updateInformationMainPage();
+        //
         tapeState = 1;
         FFWIND = false;
         RWIND = false;         
@@ -1019,7 +1019,7 @@ void tapeControl()
       {
         // Actualizamos el HMI
         hmi.setBasicFileInformation(myTAP.descriptor[BLOCK_SELECTED].name,myTAP.descriptor[BLOCK_SELECTED].typeName,myTAP.descriptor[BLOCK_SELECTED].size);
-        //hmi.updateInformationMainPage();
+        //
         tapeState = 3;
         FFWIND = false;
         RWIND = false; 
@@ -1109,7 +1109,7 @@ void Task0code( void * pvParameters )
       // Control por botones
       //buttonsControl();
       //delay(50);
-      if ((millis() - startTime) > 250)
+      if ((millis() - startTime) > 125)
       {
         startTime = millis();
         hmi.updateInformationMainPage();
