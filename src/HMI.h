@@ -1557,6 +1557,12 @@ class HMI
       void updateInformationMainPage() 
       {
         
+        if (PLAY)
+        {
+          writeString("progression.val=" + String(PROGRESS_BAR_BLOCK_VALUE));
+          writeString("progressTotal.val=" + String(PROGRESS_BAR_TOTAL_VALUE));
+        }
+
         if (TOTAL_BLOCKS != 0 || REC || EJECT) 
         {
       

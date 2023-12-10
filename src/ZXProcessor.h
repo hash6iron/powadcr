@@ -579,38 +579,30 @@ class ZXProccesor
             
               if (!TEST_RUNNING)
               {
+                // Informacion para la barra de progreso
+                PROGRESS_BAR_BLOCK_VALUE = (int)(((i+1)*100)/(size));
 
-                    if (i % PROGRESS_BAR_REFRESH_2 == 0)
+                if (BYTES_LOADED > BYTES_TOBE_LOAD)
+                {BYTES_LOADED = BYTES_TOBE_LOAD;}
+                // Informacion para la barra de progreso total
+                PROGRESS_BAR_TOTAL_VALUE = (int)((BYTES_LOADED*100)/(BYTES_TOBE_LOAD));
+                
+                if (LOADING_STATE == 1)
+                {
+                    if (STOP==true)
                     {
-                        SerialHW.flush();
-                        // Progreso de cada bloque.
-                        // Con este metodo reducimos el consumo de datos
-                        _hmi.writeString("progression.val=" + String((int)(((i+1)*100)/(size))));
-
-                        if (BYTES_LOADED > BYTES_TOBE_LOAD)
-                        {BYTES_LOADED = BYTES_TOBE_LOAD;}
-
-                        _hmi.writeString("progressTotal.val=" + String((int)((BYTES_LOADED*100)/(BYTES_TOBE_LOAD))));
-                        _hmi.updateInformationMainPage();                    
-
+                        LOADING_STATE = 2; // Parada del bloque actual
+                        i=size;
+                        return;
+                    }
+                    else if (PAUSE==true)
+                    {
+                        LOADING_STATE = 3; // Parada del bloque actual
+                        i=size;
+                        return;
                     }
 
-                    if (LOADING_STATE == 1)
-                    {
-                        if (STOP==true)
-                        {
-                            LOADING_STATE = 2; // Parada del bloque actual
-                            i=size;
-                            return;
-                        }
-                        else if (PAUSE==true)
-                        {
-                            LOADING_STATE = 3; // Parada del bloque actual
-                            i=size;
-                            return;
-                        }
-
-                    }
+                }
               }
 
 
@@ -672,7 +664,7 @@ class ZXProccesor
             // {BYTES_LOADED = BYTES_TOBE_LOAD;}
 
             // _hmi.writeString("progressTotal.val=" + String((int)((BYTES_LOADED*100)/(BYTES_TOBE_LOAD))));
-            // _hmi.updateInformationMainPage();                    
+            // //_hmi.updateInformationMainPage();                   
 
             int width = 0;
             // Leemos el ultimo bit (del ultimo uint8_t), y dependiendo de como sea

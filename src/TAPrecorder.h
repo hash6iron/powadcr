@@ -568,7 +568,7 @@ class TAPrecorder
             SerialHW.println("");
 
             //LAST_SIZE = header.blockSize;  
-            //_hmi.updateInformationMainPage();
+            ////_hmi.updateInformationMainPage();
         }
         else
         {
@@ -984,7 +984,7 @@ class TAPrecorder
         if (!WasfirstStepInTheRecordingProccess)
         {
           LAST_MESSAGE = "Recorder ready. Play source data.";
-          _hmi.updateInformationMainPage(); 
+          //_hmi.updateInformationMainPage(); 
           WasfirstStepInTheRecordingProccess=true;         
         }
 
@@ -1082,7 +1082,7 @@ class TAPrecorder
                                     pilotPulseCount = 0;
                                
                                     LAST_MESSAGE = "Recorder listening.";
-                                    _hmi.updateInformationMainPage();  
+                                    //_hmi.updateInformationMainPage();  
 
                                     if (showDataDebug)
                                     {
@@ -1321,7 +1321,7 @@ class TAPrecorder
                     // Procesamos información del bloque
                     proccessInfoBlock();
                     // Actualizamos el HMI.
-                    _hmi.updateInformationMainPage(); 
+                    //_hmi.updateInformationMainPage(); 
 
                     // Incrementamos un bloque  
                     blockCount++;      
@@ -1334,7 +1334,7 @@ class TAPrecorder
 
                     LAST_MESSAGE = "Error. Corrupted data.";
                     // Actualizamos el HMI.
-                    _hmi.updateInformationMainPage();
+                    //_hmi.updateInformationMainPage();
                     delay(1000);
 
                     // Reiniciamos todo
@@ -1396,7 +1396,7 @@ class TAPrecorder
 
                     LAST_MESSAGE = "Unknow  error.";
                     // Actualizamos el HMI.
-                    _hmi.updateInformationMainPage();  
+                    //_hmi.updateInformationMainPage();  
                     delay(1000);
 
                     // Finalizamos
@@ -1737,7 +1737,7 @@ class TAPrecorder
           nameFileRead = false;
 
           _hmi.writeString("progression.val=0");     
-          _hmi.updateInformationMainPage();     
+          //_hmi.updateInformationMainPage();     
           
           // Reiniciamos flags
           // Hay que reiniciar para el disparador de Schmitt

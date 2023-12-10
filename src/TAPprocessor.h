@@ -1044,7 +1044,7 @@ class TAPproccesor
             FILE_CORRUPTED = false;
             
             LAST_MESSAGE = "Analyzing file";
-            _hmi.updateInformationMainPage();
+            //_hmi.updateInformationMainPage();
             
             // Abrimos el fichero
             tapFile = sdm.openFile32(tapFile, path);
@@ -1081,7 +1081,7 @@ class TAPproccesor
                     // Pasamos informacion del descriptor al HMI         
                     _hmi.setBasicFileInformation(_myTAP.descriptor[BLOCK_SELECTED].name,_myTAP.descriptor[BLOCK_SELECTED].typeName,_myTAP.descriptor[BLOCK_SELECTED].size);
                     // Actualizamos la pantalla
-                    _hmi.updateInformationMainPage();
+                    //_hmi.updateInformationMainPage();
                 }          
             }
             else
@@ -1177,7 +1177,7 @@ class TAPproccesor
                         // Actualizamos HMI
                         _hmi.setBasicFileInformation(_myTAP.descriptor[BLOCK_SELECTED].name,_myTAP.descriptor[BLOCK_SELECTED].typeName,_myTAP.descriptor[BLOCK_SELECTED].size);
 
-                        _hmi.updateInformationMainPage();
+                        //_hmi.updateInformationMainPage();
 
                         // Reproducimos el fichero
                         if (_myTAP.descriptor[i].type == 0) 
@@ -1287,7 +1287,7 @@ class TAPproccesor
                         LAST_MESSAGE = "Playing end. Automatic STOP.";
 
                         _hmi.setBasicFileInformation(_myTAP.descriptor[BLOCK_SELECTED].name,_myTAP.descriptor[BLOCK_SELECTED].typeName,_myTAP.descriptor[BLOCK_SELECTED].size);
-                        _hmi.updateInformationMainPage();
+                        //_hmi.updateInformationMainPage();
 
                         // SerialHW.println("");
                         // SerialHW.println("LOADING_STATE 1");
@@ -1298,7 +1298,7 @@ class TAPproccesor
                 // No se ha seleccionado ningún fichero
                 LAST_MESSAGE = "No file selected.";
                 _hmi.setBasicFileInformation(_myTAP.descriptor[BLOCK_SELECTED].name,_myTAP.descriptor[BLOCK_SELECTED].typeName,_myTAP.descriptor[BLOCK_SELECTED].size);
-                _hmi.updateInformationMainPage();
+                //_hmi.updateInformationMainPage();
             }
 
         }

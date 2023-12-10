@@ -1014,7 +1014,7 @@ class TZXproccesor
                   forzeEnd = true;
                   endWithErrors = true;
                   LAST_MESSAGE = "Aborting. No proccess complete.";
-                  _hmi.updateInformationMainPage();
+                  //_hmi.updateInformationMainPage();
               }
 
               // El objetivo es ENCONTRAR IDs y ultimo uint8_t, y analizar el bloque completo para el descriptor.
@@ -1436,7 +1436,7 @@ class TZXproccesor
 
                 //delay(2000);
                 TOTAL_BLOCKS = currentBlock;
-                _hmi.updateInformationMainPage();
+                //_hmi.updateInformationMainPage();
 
                 SerialHW.println("");
                 SerialHW.println("+++++++++++++++++++++++++++++++++++++++++++++++");
@@ -1458,7 +1458,7 @@ class TZXproccesor
           // Actualizamos una vez mas el HMI
           if (currentBlock % 100 == 0)
           {
-              _hmi.updateInformationMainPage();
+              //_hmi.updateInformationMainPage();
           }
     }
    
@@ -1616,7 +1616,7 @@ class TZXproccesor
       PROGRAM_NAME_2 = "";
 
       LAST_MESSAGE = "Analyzing file";
-      _hmi.updateInformationMainPage();
+      //_hmi.updateInformationMainPage();
     
       // Abrimos el fichero
       tzxFile = sdm.openFile32(tzxFile, path);
@@ -1645,12 +1645,12 @@ class TZXproccesor
     
           // Pasamos el descriptor           
           _hmi.setBasicFileInformation(_myTZX.descriptor[BLOCK_SELECTED].name,_myTZX.descriptor[BLOCK_SELECTED].typeName,_myTZX.descriptor[BLOCK_SELECTED].size);
-          _hmi.updateInformationMainPage();
+          //_hmi.updateInformationMainPage();
       }
       else
       {
         LAST_MESSAGE = "Error in TZX or ID not supported";
-        _hmi.updateInformationMainPage();
+        //_hmi.updateInformationMainPage();
       }
 
     }
@@ -1750,7 +1750,7 @@ class TZXproccesor
                         }
 
                         _hmi.setBasicFileInformation(_myTZX.descriptor[BLOCK_SELECTED].name,_myTZX.descriptor[BLOCK_SELECTED].typeName,_myTZX.descriptor[BLOCK_SELECTED].size);
-                        _hmi.updateInformationMainPage();                        
+                        //_hmi.updateInformationMainPage();                        
                         
                         return;
                     }
@@ -1828,7 +1828,7 @@ class TZXproccesor
                       // Actualizamos HMI
                       _hmi.setBasicFileInformation(_myTZX.descriptor[i].name,_myTZX.descriptor[i].typeName,_myTZX.descriptor[i].size);
 
-                      _hmi.updateInformationMainPage();
+                      //_hmi.updateInformationMainPage();
 
                       // Reproducimos el fichero
                       if (_myTZX.descriptor[i].type == 0) 
@@ -1999,7 +1999,7 @@ class TZXproccesor
                 LAST_MESSAGE = "Playing end. Automatic STOP.";
 
                 _hmi.setBasicFileInformation(_myTZX.descriptor[BLOCK_SELECTED].name,_myTZX.descriptor[BLOCK_SELECTED].typeName,_myTZX.descriptor[BLOCK_SELECTED].size);
-                _hmi.updateInformationMainPage();
+                //_hmi.updateInformationMainPage();
               }
 
               // Cerrando
@@ -2009,7 +2009,7 @@ class TZXproccesor
             LAST_MESSAGE = "No file selected.";
             _hmi.setBasicFileInformation(_myTZX.descriptor[BLOCK_SELECTED].name,_myTZX.descriptor[BLOCK_SELECTED].typeName,_myTZX.descriptor[BLOCK_SELECTED].size);
 
-            _hmi.updateInformationMainPage();
+            //_hmi.updateInformationMainPage();
         }        
 
     }
