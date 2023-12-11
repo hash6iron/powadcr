@@ -35,7 +35,7 @@
 //
 // 0 for ZX Spectrum
 
-#define VERSION "v0.3.15"
+#define VERSION "v0.3.19"
 #define MACHINE_ZX
 //#define MACHINE_AMSTRAD
 
@@ -85,7 +85,8 @@
 #define SIZE_TO_ACTIVATE_SPLIT 20000
 
 // Maximo número de bloques para el descriptor.
-#define MAX_BLOCKS_IN_TAP 2000
+#define MAX_BLOCKS_IN_TAP 4000
+#define MAX_BLOCKS_IN_TZX 4000
 
 // Configuracion del test in/out
 bool TEST_LINE_IN_OUT = false;

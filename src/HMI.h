@@ -228,8 +228,8 @@ class HMI
               FILE_TOTAL_FILES = j;
               sdm.dir.close();
 
-              getMemFree();
-              updateMem();
+              //getMemFree();
+              //updateMem();
           }
 
           writeString("statusFILE.txt=\"FILES " + String(FILE_TOTAL_FILES-1) +"\"");
@@ -392,7 +392,7 @@ class HMI
           int totalPages = (FILE_TOTAL_FILES / TOTAL_FILES_IN_BROWSER_PAGE);
           
           if (FILE_TOTAL_FILES % TOTAL_FILES_IN_BROWSER_PAGE != 0)
-          {
+          { 
               totalPages+=1;
           }
 
@@ -655,14 +655,22 @@ class HMI
 
       void resetBlockIndicators()
       {
-          TOTAL_BLOCKS = 0;
-          BLOCK_SELECTED = 0;
-          BYTES_LOADED = 0;          
+          PROGRAM_NAME = "";
+          PROGRAM_NAME_2 = "";
+          strcpy(LAST_NAME,"              ");
+          strcpy(LAST_TYPE,"                                   ");
+          LAST_SIZE = 0;
+
           writeString("tape.totalBlocks.val=0");
           writeString("tape.currentBlock.val=0");
           writeString("tape.progressTotal.val=0");
           writeString("tape.progression.val=0");
+
           updateInformationMainPage();        
+
+          TOTAL_BLOCKS = 0;
+          BLOCK_SELECTED = 0;
+          BYTES_LOADED = 0;     
       }
 
       void proccesingEject()
@@ -683,11 +691,6 @@ class HMI
             EJECT = false;
           }
           
-
-      
-          //LAST_MESSAGE = "Tape stop. Press play to start again.";
-          //updateInformationMainPage();        
-          //
           resetBlockIndicators();
       }
 
@@ -708,13 +711,17 @@ class HMI
         {
             // Con este procedimiento capturamos el bloque seleccionado
             // desde la pantalla.
-            byte buff[8];
+            uint8_t buff[8];
 
             strCmd.getBytes(buff, 7);
             long val = (long)((int)buff[4] + (256*(int)buff[5]) + (65536*(int)buff[6]));
             String num = String(val);
             BLOCK_SELECTED = num.toInt();
-      
+            
+            // Esto lo hacemos para poder actualizar la info del TAPE
+            FFWIND=true;
+            RWIND=true;
+            
             updateInformationMainPage();
         }
 
@@ -722,7 +729,7 @@ class HMI
         {
             // Con este procedimiento capturamos el bloque seleccionado
             // desde la pantalla.
-            byte buff[8];
+            uint8_t buff[8];
             strCmd.getBytes(buff, 7);
             
             long val = (long)((int)buff[4] + (256*(int)buff[5]) + (65536*(int)buff[6]));
@@ -927,7 +934,7 @@ class HMI
         if (strCmd.indexOf("CHD=") != -1) 
         {
             // Con este comando capturamos el directorio a cambiar
-            byte buff[8];
+            uint8_t buff[8];
             strCmd.getBytes(buff, 7);
             
             long val = (long)((int)buff[4] + (256*(int)buff[5]) + (65536*(int)buff[6]));
@@ -974,13 +981,7 @@ class HMI
             //Cogemos el directorio padre que siempre estará en el prevDir y por tanto
             //no hay que calcular la posición
             FILE_DIR_TO_CHANGE = FILES_BUFF[0].path;    
-
-            // Reserva dinamica de memoria
-            String dir_ch;
-
-            //
-            //FILE_DIR_TO_CHANGE = dir_ch;
-            FILE_LAST_DIR = dir_ch;
+            FILE_LAST_DIR = FILE_DIR_TO_CHANGE;
             FILE_LAST_DIR_LAST = FILE_LAST_DIR;
 
             if (FILE_DIR_TO_CHANGE.length() == 1)
@@ -1010,7 +1011,7 @@ class HMI
         {
             // Con este comando
             // Borramos el fichero que se ha seleccionado en la pantalla
-            byte buff[8];
+            uint8_t buff[8];
             strCmd.getBytes(buff, 7);
 
             long val = (long)((int)buff[4] + (256*(int)buff[5]) + (65536*(int)buff[6]));
@@ -1063,7 +1064,7 @@ class HMI
         {
             // Con este comando
             // devolvamos el fichero que se ha seleccionado en la pantalla
-            byte buff[8];
+            uint8_t buff[8];
             strCmd.getBytes(buff, 7);
             long val = (long)((int)buff[4] + (256*(int)buff[5]) + (65536*(int)buff[6]));
             String num = String(val);
@@ -1115,22 +1116,33 @@ class HMI
       
         if (strCmd.indexOf("FFWD") != -1) 
         {
-          if (LOADING_STATE == 2 || LOADING_STATE == 0) 
+          if (LOADING_STATE == 2 || LOADING_STATE == 3 || LOADING_STATE == 0) 
           {
+
+            log("Ahora muestro el bloque seleccionado");
+            log(String(BLOCK_SELECTED));
+
             BLOCK_SELECTED++;
       
             if (BLOCK_SELECTED > TOTAL_BLOCKS - 1) 
             {
               BLOCK_SELECTED = 0;
             }
-      
+
             updateInformationMainPage();
+
+            FFWIND = true;
+            RWIND = false;
+
+            log("Ahora muestro el bloque seleccionado");
+            log(String(BLOCK_SELECTED));
+
           }
         }
       
         if (strCmd.indexOf("RWD") != -1) 
         {
-          if (LOADING_STATE == 2 || LOADING_STATE == 0) 
+          if (LOADING_STATE == 2 || LOADING_STATE == 3 || LOADING_STATE == 0) 
           {
       
             BLOCK_SELECTED--;
@@ -1141,6 +1153,10 @@ class HMI
             }
       
             updateInformationMainPage();
+
+            FFWIND = false;
+            RWIND = true;
+
           }
         }
       
@@ -1186,6 +1202,12 @@ class HMI
       
         if (strCmd.indexOf("EJECT") != -1) 
         {
+            PLAY = false;
+            PAUSE = false;
+            STOP = true;
+            ABORT = true;
+
+            proccesingEject();            
         }
       
         if (strCmd.indexOf("ABORT") != -1) 
@@ -1196,7 +1218,7 @@ class HMI
         if (strCmd.indexOf("VOL=") != -1) 
         {
           //Cogemos el valor
-          byte buff[8];
+          uint8_t buff[8];
           strCmd.getBytes(buff, 7);
           int valVol = (int)buff[4];
           MAIN_VOL = valVol;
@@ -1212,7 +1234,7 @@ class HMI
         if (strCmd.indexOf("THR=") != -1) 
         {
           //Cogemos el valor
-          byte buff[8];
+          uint8_t buff[8];
           strCmd.getBytes(buff, 7);
           int valThr = (int)buff[4];
           SCHMITT_THR = valThr;
@@ -1231,7 +1253,7 @@ class HMI
         if (strCmd.indexOf("ESH=") != -1) 
         {
           //Cogemos el valor
-          byte buff[8];
+          uint8_t buff[8];
           strCmd.getBytes(buff, 7);
           int valEn = (int)buff[4];
           //
@@ -1250,7 +1272,7 @@ class HMI
         if (strCmd.indexOf("MUT=") != -1) 
         {
           //Cogemos el valor
-          byte buff[8];
+          uint8_t buff[8];
           strCmd.getBytes(buff, 7);
           int valEn = (int)buff[4];
           //
@@ -1264,7 +1286,7 @@ class HMI
         if (strCmd.indexOf("EMI=") != -1) 
         {
           //Cogemos el valor
-          byte buff[8];
+          uint8_t buff[8];
           strCmd.getBytes(buff, 7);
           int valEn = (int)buff[4];
           //
@@ -1283,7 +1305,7 @@ class HMI
         if (strCmd.indexOf("EAR=") != -1) 
         {
           //Cogemos el valor
-          byte buff[8];
+          uint8_t buff[8];
           strCmd.getBytes(buff, 7);
           int valEn = (int)buff[4];
           //
@@ -1302,7 +1324,7 @@ class HMI
         if (strCmd.indexOf("SDD=") != -1) 
         {
           //Cogemos el valor
-          byte buff[8];
+          uint8_t buff[8];
           strCmd.getBytes(buff, 7);
           int valEn = (int)buff[4];
           //
@@ -1331,7 +1353,7 @@ class HMI
         if (strCmd.indexOf("MP1=") != -1) 
         {
           //minSync1
-          byte buff[8];
+          uint8_t buff[8];
           strCmd.getBytes(buff, 7);
           int val = (int)buff[4];
           //
@@ -1342,7 +1364,7 @@ class HMI
         if (strCmd.indexOf("MP2=") != -1) 
         {
           //maxSync1
-          byte buff[8];
+          uint8_t buff[8];
           strCmd.getBytes(buff, 7);
           int val = (int)buff[4];
           //
@@ -1353,7 +1375,7 @@ class HMI
         if (strCmd.indexOf("MP3=") != -1) 
         {
           //minBit0
-          byte buff[8];
+          uint8_t buff[8];
           strCmd.getBytes(buff, 7);
           int val = (int)buff[4];
           //
@@ -1364,7 +1386,7 @@ class HMI
         if (strCmd.indexOf("MP4=") != -1) 
         {
           //maxBit0
-          byte buff[8];
+          uint8_t buff[8];
           strCmd.getBytes(buff, 7);
           int val = (int)buff[4];
           //
@@ -1375,7 +1397,7 @@ class HMI
         if (strCmd.indexOf("MP5=") != -1) 
         {
           //minBit1
-          byte buff[8];
+          uint8_t buff[8];
           strCmd.getBytes(buff, 7);
           int val = (int)buff[4];
           //
@@ -1386,7 +1408,7 @@ class HMI
         if (strCmd.indexOf("MP6=") != -1) 
         {
           //maxBit1
-          byte buff[8];
+          uint8_t buff[8];
           strCmd.getBytes(buff, 7);
           int val = (int)buff[4];
           //
@@ -1394,23 +1416,10 @@ class HMI
           SerialHW.println("MP6=" + String(MAX_BIT1));
         }
 
-        if (strCmd.indexOf("VOLUP") != -1) 
-        {
-          MAIN_VOL += 1;
-          
-          if (MAIN_VOL >100)
-          {
-            MAIN_VOL = 100;
-          }
-          // SerialHW.println("");
-          // SerialHW.println("VOL UP");
-          // SerialHW.println("");
-        }
-
         if (strCmd.indexOf("MP7=") != -1) 
         {
           //max pulses lead
-          byte buff[8];
+          uint8_t buff[8];
           strCmd.getBytes(buff, 7);
 
           // SerialHW.println("0: " + String((char)buff[0]));
@@ -1431,7 +1440,7 @@ class HMI
         if (strCmd.indexOf("MP8=") != -1) 
         {
           //minLead
-          byte buff[8];
+          uint8_t buff[8];
           strCmd.getBytes(buff, 7);
           int val = (int)buff[4];
           //
@@ -1442,7 +1451,7 @@ class HMI
         if (strCmd.indexOf("MP9=") != -1) 
         {
           //maxLead
-          byte buff[8];
+          uint8_t buff[8];
           strCmd.getBytes(buff, 7);
           int val = buff[4];
           //
@@ -1479,7 +1488,7 @@ class HMI
         if (strCmd.indexOf("TXTF=") != -1) 
         {
           //Cogemos el valor
-          byte buff[50];
+          uint8_t buff[50];
           strCmd.getBytes(buff, 50);
           const int lencmd = 5;
           int n = lencmd;
@@ -1515,7 +1524,7 @@ class HMI
           }
       
           // Indicamos a la pantalla que ya hemos enviado todos
-          // los datos, con este triple byte 0xFF
+          // los datos, con este triple uint8_t 0xFF
           SerialHW.write(0xff);
           SerialHW.write(0xff);
           SerialHW.write(0xff);
@@ -1548,7 +1557,13 @@ class HMI
       void updateInformationMainPage() 
       {
         
-        if (TOTAL_BLOCKS != 0 || REC) 
+        if (PLAY)
+        {
+          writeString("progression.val=" + String(PROGRESS_BAR_BLOCK_VALUE));
+          writeString("progressTotal.val=" + String(PROGRESS_BAR_TOTAL_VALUE));
+        }
+
+        if (TOTAL_BLOCKS != 0 || REC || EJECT) 
         {
       
           // Enviamos información al HMI
@@ -1581,8 +1596,15 @@ class HMI
           writeString("totalBlocks.val=" + String(TOTAL_BLOCKS));
           writeString("currentBlock.val=" + String(BLOCK_SELECTED + 1));
         }
+        else if (TOTAL_BLOCKS == 0)
+        {
+          writeString("totalBlocks.val=0");
+          writeString("currentBlock.val=0");
+        }
       
         writeString("g0.txt=\"" + LAST_MESSAGE + "\"");
+
+        updateMem();
       }
       
       int getEndCharPosition(String str,int start)
@@ -1687,7 +1709,7 @@ class HMI
       {
         if (SerialHW.available() >= 1) 
         {
-          // get the new byte:
+          // get the new uint8_t:
           while (SerialHW.available())
           {
             String strCmd = SerialHW.readString();
@@ -1729,8 +1751,8 @@ class HMI
 
       void updateMem()
       {
-          writeString("menu.totalPSRAM.txt=\""+ String(ESP.getPsramSize() / 1024) + " KB\"");
-          writeString("menu.freePSRAM.txt=\"" + String(ESP.getFreePsram() / 1024) + " KB\"");
+          writeString("menu.totalPSRAM.txt=\""+ String(ESP.getPsramSize() / 1024) + " | " + String(ESP.getHeapSize() / 1024) + " KB\"");
+          writeString("menu.freePSRAM.txt=\"" + String(ESP.getFreePsram() / 1024)  + " | " + String(ESP.getFreeHeap() / 1024) + " KB\"");
       }
 
       // Constructor

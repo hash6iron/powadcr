@@ -43,8 +43,8 @@ struct tBlock
 {
   int index = 0;            // Numero del bloque
   int offset = 0;           // Byte donde empieza
-  byte* header;      // Cabecera del bloque
-  byte* data;        // Datos del bloque
+  uint8_t* header;      // Cabecera del bloque
+  uint8_t* data;        // Datos del bloque
 };
 
 struct tTimming
@@ -63,39 +63,7 @@ struct tTimming
   int* pulse_seq_array;
 };
 
-struct tTZXBlockDescriptor 
-{
-  uint ID = 0;
-  uint offset = 0;
-  uint size = 0;
-  uint chk = 0;
-  uint pauseAfterThisBlock = 1000;   //ms
-  uint lengthOfData = 0;
-  uint offsetData = 0;
-  char name[11];
-  bool nameDetected = false;
-  bool header = false;
-  bool screen = false;
-  uint type = 0;
-  bool playeable = false;
-  bool forSetting = false;
-  int delay = 1000;
-  int silent;
-  byte maskLastByte = 8;
-  tTimming timming;
-  char typeName[35];
-};
 
-
-
-// Estructura tipo TZX
-struct tTZX
-{
-  char name[11];                            // Nombre del TZX
-  int size = 0;                             // Tamaño
-  int numBlocks = 0;                        // Numero de bloques
-  tTZXBlockDescriptor* descriptor = NULL;          // Descriptor
-};
 
 // Estructura para el HMI
 struct tFileBuffer
@@ -191,7 +159,12 @@ bool TURBOMODE = false;
 bool TEST_RUNNING = false;
 int LOADING_STATE = 0;
 int CURRENT_BLOCK_IN_PROGRESS = 0;
+int PROGRESS_BAR_REFRESH = 256;
+int PROGRESS_BAR_REFRESH_2 = 32;
+int PROGRESS_BAR_BLOCK_VALUE = 0;
+int PROGRESS_BAR_TOTAL_VALUE = 0;
 int BLOCK_SELECTED = 0;
+bool BLOCK_PLAYED = false;
 String TYPE_FILE_LOAD = "";
 char LAST_NAME[15];
 char LAST_TYPE[36];
@@ -290,3 +263,8 @@ void log(String txt)
   SerialHW.println("");
   SerialHW.println(txt);
 }
+
+// void logMemory() 
+// {
+//   log_d("Used PSRAM: %d", ESP.getPsramSize() - ESP.getFreePsram());
+// }
