@@ -85,34 +85,34 @@ class TZXproccesor
 
       int CURRENT_LOADING_BLOCK = 0;
 
-      static void tryAllocateSRamThenPSRam(tTZXBlockDescriptor*& ds,int size)
-      {
-          // Liberamos
-          // if (ds != NULL)
-          // {
-          //   free(ds);
-          // }
+      // static void tryAllocateSRamThenPSRam(tTZXBlockDescriptor*& ds,int size)
+      // {
+      //     // Liberamos
+      //     // if (ds != NULL)
+      //     // {
+      //     //   free(ds);
+      //     // }
 
-          // only try allocating in SRAM when there are 96K free at least
-          if (ESP.getFreeHeap() >= 256*1024)
-          {
-              ds = (tTZXBlockDescriptor*)calloc(size, sizeof(tTZXBlockDescriptor));
-              if (ds != NULL)
-              {
-                  //SerialHW.printf("Ds allocated into SRAM (fast)");
-                  return;
-              }
-          }
+      //     // only try allocating in SRAM when there are 96K free at least
+      //     if (ESP.getFreeHeap() >= 256*1024)
+      //     {
+      //         ds = (tTZXBlockDescriptor*)calloc(size, sizeof(tTZXBlockDescriptor));
+      //         if (ds != NULL)
+      //         {
+      //             //SerialHW.printf("Ds allocated into SRAM (fast)");
+      //             return;
+      //         }
+      //     }
           
-          ds = (tTZXBlockDescriptor*)ps_calloc(size, sizeof(tTZXBlockDescriptor));
-          if (ds != NULL) 
-          {
-              //SerialHW.printf("Ds allocated into PSRAM (slow)");
-              return;
-          }
-          //
-          //SerialHW.printf("ERROR: unable to allocate ds");
-      }
+      //     ds = (tTZXBlockDescriptor*)ps_calloc(size, sizeof(tTZXBlockDescriptor));
+      //     if (ds != NULL) 
+      //     {
+      //         //SerialHW.printf("Ds allocated into PSRAM (slow)");
+      //         return;
+      //     }
+      //     //
+      //     //SerialHW.printf("ERROR: unable to allocate ds");
+      // }
 
 
       uint8_t calculateChecksum(uint8_t* bBlock, int startByte, int numBytes)
@@ -1718,9 +1718,10 @@ class TZXproccesor
 
         void terminate()
         {
-          free(_myTZX.descriptor);
-          //_myTZX.descriptor = NULL;
-          //free(_myTZX.name);      
+            strcpy(_myTZX.name,"          ");
+            _myTZX.numBlocks = 0;
+            _myTZX.size = 0;      
+            _myTZX.descriptor = nullptr;
         }
 
         void play()

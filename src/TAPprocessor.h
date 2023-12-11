@@ -1007,7 +1007,8 @@ class TAPproccesor
         {
             strncpy(_myTAP.name,"",1);
             _myTAP.numBlocks = 0;
-            _myTAP.size = 0;     
+            _myTAP.size = 0; 
+            _myTAP.descriptor = nullptr;    
         }
 
         bool proccess_tap(File32 tapFileName)
