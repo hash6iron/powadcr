@@ -59,7 +59,6 @@ class TAPrecorder
 
       HMI _hmi;
       SdFat32 _sdf32;
-      tTZX _myTZX;
       File32 _mFile;
 
       const int BUFFER_SIZE_REC = 4;

@@ -1308,7 +1308,11 @@ class TAPproccesor
         // Constructor de la clase
         TAPproccesor(AudioKit kit)
         {
-            _myTAP.descriptor = NULL;
+            // Constructor de la clase
+            strcpy(_myTAP.name,"          ");
+            _myTAP.numBlocks = 0;
+            _myTAP.size = 0;
+            _myTAP.descriptor = nullptr;
         }      
 
 };

@@ -63,39 +63,7 @@ struct tTimming
   int* pulse_seq_array;
 };
 
-struct tTZXBlockDescriptor 
-{
-  uint ID = 0;
-  uint offset = 0;
-  uint size = 0;
-  uint chk = 0;
-  uint pauseAfterThisBlock = 1000;   //ms
-  uint lengthOfData = 0;
-  uint offsetData = 0;
-  char name[11];
-  bool nameDetected = false;
-  bool header = false;
-  bool screen = false;
-  uint type = 0;
-  bool playeable = false;
-  bool forSetting = false;
-  int delay = 1000;
-  int silent;
-  uint8_t maskLastByte = 8;
-  tTimming timming;
-  char typeName[35];
-};
 
-
-
-// Estructura tipo TZX
-struct tTZX
-{
-  char name[11];                            // Nombre del TZX
-  int size = 0;                             // Tamaño
-  int numBlocks = 0;                        // Numero de bloques
-  tTZXBlockDescriptor* descriptor;          // Descriptor
-};
 
 // Estructura para el HMI
 struct tFileBuffer

@@ -117,6 +117,8 @@ TAPrecorder taprec;
 
 // Procesador de TAP
 TAPproccesor::tTAP myTAP;
+// Procesador de TZX
+TZXproccesor::tTZX myTZX;
 
 bool last_headPhoneDetection = false;
 uint8_t tapeState = 0;
@@ -745,21 +747,20 @@ void loadingFile()
         // Lo procesamos
         proccesingTAP(file_ch);
         TYPE_FILE_LOAD = "TAP";
-
-        // Actualizamos el indicador de consumo de memoria.
-        //hmi.getMemFree();
     }
     else if (FILE_TO_LOAD.indexOf(".TZX") != -1)    
     {
         PROGRESS_BAR_REFRESH = 256;
         PROGRESS_BAR_REFRESH_2 = 32;
 
+        // Reservamos memoria
+        myTZX.descriptor = (TZXproccesor::tTZXBlockDescriptor*)malloc(MAX_BLOCKS_IN_TZX * sizeof(struct TZXproccesor::tTZXBlockDescriptor));        
+        // Pasamos el control a la clase
+        pTZX.setTZX(myTZX);
+
         // Lo procesamos. Para ZX Spectrum
         proccesingTZX(file_ch);
         TYPE_FILE_LOAD = "TZX";
-        
-        // Actualizamos el indicador de consumo de memoria
-        //hmi.getMemFree();
     }
     else if (FILE_TO_LOAD.indexOf(".TSX") != -1)
     {
@@ -768,9 +769,7 @@ void loadingFile()
 
         // Lo procesamos. Para MSX
         proccesingTZX(file_ch);
-        TYPE_FILE_LOAD = "TSX";
-        // Actualizamos el indicador de consumo de memoria
-        //hmi.getMemFree();        
+        TYPE_FILE_LOAD = "TSX";      
     }   
   }
 
@@ -803,16 +802,16 @@ void ejectingFile()
       // Solicitamos el puntero _myTAP de la clase
       // para liberarlo
       free(pTAP.getDescriptor());
-
       // Finalizamos
       pTAP.terminate();
-      // Actualizamos el indicador de consumo de memoria
-      //hmi.getMemFree();
   }
   else if (TYPE_FILE_LOAD = "TZX")
   {
+      // Solicitamos el puntero _myTZX de la clase
+      // para liberarlo
+      free(pTZX.getDescriptor());
+      // Finalizamos
       pTZX.terminate();
-      //hmi.getMemFree();
   }  
 }
 
