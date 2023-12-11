@@ -8,14 +8,14 @@
         {
             "name": "PlatformIO",
             "includePath": [
-                "C:/Users/atama/Documents/200.SPECTRUM/500. Proyectos/PowaDCR - General/powadcr_IO/include",
-                "C:/Users/atama/Documents/200.SPECTRUM/500. Proyectos/PowaDCR - General/powadcr_IO/src",
-                "C:/Users/atama/Documents/200.SPECTRUM/500. Proyectos/PowaDCR - General/powadcr_IO/.pio/libdeps/esp32dev/SdFat/src",
+                "C:/Users/atama/Documents/200.SPECTRUM/500. Proyectos/PowaDCR - General/powadcr/include",
+                "C:/Users/atama/Documents/200.SPECTRUM/500. Proyectos/PowaDCR - General/powadcr/src",
+                "C:/Users/atama/Documents/200.SPECTRUM/500. Proyectos/PowaDCR - General/powadcr/.pio/libdeps/esp32dev/SdFat/src",
                 "C:/Users/atama/.platformio/packages/framework-arduinoespressif32/libraries/SPI/src",
-                "C:/Users/atama/Documents/200.SPECTRUM/500. Proyectos/PowaDCR - General/powadcr_IO/.pio/libdeps/esp32dev/audiokit/src",
+                "C:/Users/atama/Documents/200.SPECTRUM/500. Proyectos/PowaDCR - General/powadcr/.pio/libdeps/esp32dev/audiokit/src",
                 "C:/Users/atama/.platformio/packages/framework-arduinoespressif32/libraries/Wire/src",
-                "C:/Users/atama/Documents/200.SPECTRUM/500. Proyectos/PowaDCR - General/powadcr_IO/.pio/libdeps/esp32dev/libhelix/src",
-                "C:/Users/atama/Documents/200.SPECTRUM/500. Proyectos/PowaDCR - General/powadcr_IO/.pio/libdeps/esp32dev/audio-tools/src",
+                "C:/Users/atama/Documents/200.SPECTRUM/500. Proyectos/PowaDCR - General/powadcr/.pio/libdeps/esp32dev/libhelix/src",
+                "C:/Users/atama/Documents/200.SPECTRUM/500. Proyectos/PowaDCR - General/powadcr/.pio/libdeps/esp32dev/audio-tools/src",
                 "C:/Users/atama/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32/include/newlib/platform_include",
                 "C:/Users/atama/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32/include/freertos/include",
                 "C:/Users/atama/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32/include/freertos/include/esp_additions/freertos",
@@ -242,14 +242,14 @@
             "browse": {
                 "limitSymbolsToIncludedHeaders": true,
                 "path": [
-                    "C:/Users/atama/Documents/200.SPECTRUM/500. Proyectos/PowaDCR - General/powadcr_IO/include",
-                    "C:/Users/atama/Documents/200.SPECTRUM/500. Proyectos/PowaDCR - General/powadcr_IO/src",
-                    "C:/Users/atama/Documents/200.SPECTRUM/500. Proyectos/PowaDCR - General/powadcr_IO/.pio/libdeps/esp32dev/SdFat/src",
+                    "C:/Users/atama/Documents/200.SPECTRUM/500. Proyectos/PowaDCR - General/powadcr/include",
+                    "C:/Users/atama/Documents/200.SPECTRUM/500. Proyectos/PowaDCR - General/powadcr/src",
+                    "C:/Users/atama/Documents/200.SPECTRUM/500. Proyectos/PowaDCR - General/powadcr/.pio/libdeps/esp32dev/SdFat/src",
                     "C:/Users/atama/.platformio/packages/framework-arduinoespressif32/libraries/SPI/src",
-                    "C:/Users/atama/Documents/200.SPECTRUM/500. Proyectos/PowaDCR - General/powadcr_IO/.pio/libdeps/esp32dev/audiokit/src",
+                    "C:/Users/atama/Documents/200.SPECTRUM/500. Proyectos/PowaDCR - General/powadcr/.pio/libdeps/esp32dev/audiokit/src",
                     "C:/Users/atama/.platformio/packages/framework-arduinoespressif32/libraries/Wire/src",
-                    "C:/Users/atama/Documents/200.SPECTRUM/500. Proyectos/PowaDCR - General/powadcr_IO/.pio/libdeps/esp32dev/libhelix/src",
-                    "C:/Users/atama/Documents/200.SPECTRUM/500. Proyectos/PowaDCR - General/powadcr_IO/.pio/libdeps/esp32dev/audio-tools/src",
+                    "C:/Users/atama/Documents/200.SPECTRUM/500. Proyectos/PowaDCR - General/powadcr/.pio/libdeps/esp32dev/libhelix/src",
+                    "C:/Users/atama/Documents/200.SPECTRUM/500. Proyectos/PowaDCR - General/powadcr/.pio/libdeps/esp32dev/audio-tools/src",
                     "C:/Users/atama/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32/include/newlib/platform_include",
                     "C:/Users/atama/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32/include/freertos/include",
                     "C:/Users/atama/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32/include/freertos/include/esp_additions/freertos",
@@ -501,8 +501,6 @@
             "cppStandard": "gnu++11",
             "compilerPath": "C:/Users/atama/.platformio/packages/toolchain-xtensa-esp32/bin/xtensa-esp32-elf-gcc.exe",
             "compilerArgs": [
-                "-mfix-esp32-psram-cache-issue",
-                "-mfix-esp32-psram-cache-strategy=memw",
                 "-mlongcalls",
                 ""
             ]
