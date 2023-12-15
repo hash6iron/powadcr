@@ -668,13 +668,11 @@ void setSTOP()
   REC = false;
 
   BLOCK_SELECTED = 0;
-
+  
+  hmi.writeString("tape.tmAnimation.en=0"); 
   LAST_MESSAGE = "Tape stop.";
   //
   
-  SerialHW.println("");
-  SerialHW.println("Tape stop.");
-
   hmi.writeString("currentBlock.val=1");
   hmi.writeString("progressTotal.val=0");
   hmi.writeString("progression.val=0");
@@ -825,33 +823,33 @@ void prepareRecording()
     }
       
     // Preparamos para recording
- 
 
-      //Activamos la animación
-      hmi.writeString("tape.tmAnimation.en=1"); 
+    //Activamos la animación
+    hmi.writeString("tape.tmAnimation.en=1"); 
 
-      // Inicializamos audio input
-      setAudioInput();
-      taprec.set_kit(ESP32kit);
-      
-      taprec.initialize(); 
+    // Inicializamos audio input
+    setAudioInput();
+    taprec.set_kit(ESP32kit);    
+    taprec.initialize(); 
 
-      if (!taprec.createTempTAPfile())
-      {
-        LAST_MESSAGE = "Recorder not prepared.";
-        //
-      }
-      else
-      {
-        //writeString("");
-        hmi.writeString("currentBlock.val=1");
-        //writeString("");
-        hmi.writeString("progressTotal.val=0");
-        //writeString("");
-        hmi.writeString("progression.val=0");
-      }
-      
-      //hmi.getMemFree();        
+    if (!taprec.createTempTAPfile())
+    {
+      LAST_MESSAGE = "Recorder not prepared.";
+      //
+    }
+    else
+    {
+      LAST_MESSAGE = "Recorder listening.";
+
+      //writeString("");
+      hmi.writeString("currentBlock.val=1");
+      //writeString("");
+      hmi.writeString("progressTotal.val=0");
+      //writeString("");
+      hmi.writeString("progression.val=0");
+    }
+    
+    //hmi.getMemFree();        
 }
 
 
@@ -1043,6 +1041,15 @@ void tapeControl()
       {
         tapeState = 5;
       }
+      else if(REC)
+      {
+        FFWIND = false;
+        RWIND = false;   
+                
+        prepareRecording();
+        log("REC. Waiting for guide tone");
+        tapeState = 200;
+      }
       else
       {
         tapeState = 4;
@@ -1071,8 +1078,6 @@ void tapeControl()
       if(STOP)
       {
         stopRecording();
-        SerialHW.println("");
-        SerialHW.println("STOP 1 - REC");
         setSTOP();
         tapeState = 0;
       }
