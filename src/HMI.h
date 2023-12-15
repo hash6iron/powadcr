@@ -1540,8 +1540,8 @@ class HMI
       void setBasicFileInformation(char* name,char* typeName,int size)
       {
           LAST_SIZE = size;
-          strncpy(LAST_NAME,name,sizeof(name));
-          strncpy(LAST_TYPE,typeName,sizeof(typeName));
+          strncpy(LAST_NAME,name,14);
+          strncpy(LAST_TYPE,typeName,35);
       }
 
       void clearInformationFile()
