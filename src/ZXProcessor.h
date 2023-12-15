@@ -710,6 +710,9 @@ class ZXProcessor
 
         void playData(uint8_t* bBlock, int lenBlock, int pulse_pilot_duration)
         {
+            // Inicializamos el estado de la progress bar de bloque.
+            PROGRESS_BAR_BLOCK_VALUE = 0;
+
             float duration = tState * pulse_pilot_duration;
 
             // Put now code block
