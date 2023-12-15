@@ -96,7 +96,7 @@ HMI hmi;
 ZXProcessor zxp;
 
 // Procesadores de cinta
-#include "TZXproccesor.h"
+#include "TZXprocessor.h"
 #include "TAPprocessor.h"
 
 #include "test.h"
@@ -1112,7 +1112,7 @@ void Task0code( void * pvParameters )
       if ((millis() - startTime) > 250)
       {
         startTime = millis();
-        //hmi.updateInformationMainPage();
+        hmi.updateInformationMainPage();
       }
       
   }
