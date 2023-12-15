@@ -46,7 +46,7 @@
 #define SCRN 3                      //Bloque de datos Screen$
 #define CODE 4                      //Bloque de datps CM (BYTE)
 
-class TAPproccesor
+class TAPprocessor
 {
 
     public:
@@ -78,7 +78,7 @@ class TAPproccesor
 
     private:
         // Procesador de audio output
-        ZXProccesor _zxp;     
+        ZXProcessor _zxp;     
 
         // Definicion de un TAP
         tTAP _myTAP;
@@ -1069,7 +1069,7 @@ class TAPproccesor
                 // SerialHW.println("");
                 // SerialHW.println("END PROCCESING TAP: ");
 
-                if (_myTAP.descriptor != NULL)
+                if (_myTAP.descriptor != nullptr)
                 {
                     // Entregamos información por consola
                     PROGRAM_NAME = _myTAP.name;
@@ -1096,7 +1096,7 @@ class TAPproccesor
         void play() 
         {
 
-            if (_myTAP.descriptor != NULL)
+            if (_myTAP.descriptor != nullptr)
             {         
             
                     // Inicializamos el buffer de reproducción. Memoria dinamica
@@ -1165,6 +1165,7 @@ class TAPproccesor
                         else
                         {
                             // Almacenmas el bloque en curso para un posible PAUSE
+                            log("LOADING_STATE unknow");
 
                             CURRENT_BLOCK_IN_PROGRESS = i;
                             BLOCK_SELECTED = i;
@@ -1181,6 +1182,8 @@ class TAPproccesor
                         _hmi.setBasicFileInformation(_myTAP.descriptor[BLOCK_SELECTED].name,_myTAP.descriptor[BLOCK_SELECTED].typeName,_myTAP.descriptor[BLOCK_SELECTED].size);
 
                         //
+                        log("Tamaño del bloque ");
+                        log(String(_myTAP.descriptor[i].size) + " bytes");
 
                         // Reproducimos el fichero
                         if (_myTAP.descriptor[i].type == 0) 
@@ -1192,11 +1195,11 @@ class TAPproccesor
 
                             // *** Cabecera PROGRAM
                             // Llamamos a la clase de reproducción
-                            zxp.playData(bufferPlay, _myTAP.descriptor[i].size,DPILOT_HEADER * DPULSE_PILOT);
+                            _zxp.playData(bufferPlay, _myTAP.descriptor[i].size,DPILOT_HEADER * DPULSE_PILOT);
 
                             // Liberamos el buffer de reproducción
                             free(bufferPlay);
-                    } 
+                        } 
                         else if (_myTAP.descriptor[i].type == 1 || _myTAP.descriptor[i].type == 7) 
                         {
                             
@@ -1205,7 +1208,7 @@ class TAPproccesor
 
                             // *** Cabecera BYTE
                             // Llamamos a la clase de reproducción
-                            zxp.playData(bufferPlay, _myTAP.descriptor[i].size,DPILOT_HEADER * DPULSE_PILOT);
+                            _zxp.playData(bufferPlay, _myTAP.descriptor[i].size,DPILOT_HEADER * DPULSE_PILOT);
 
                             // Liberamos el buffer de reproducción
                             free(bufferPlay);
@@ -1238,7 +1241,7 @@ class TAPproccesor
                                         bufferPlay = sdm.readFileRange32(_mFile, offsetPlay, blockPlaySize, true);
                                         
                                         // Reproducimos la primera mitad
-                                        zxp.playDataBegin(bufferPlay, blockPlaySize,DPILOT_DATA * DPULSE_PILOT);
+                                        _zxp.playDataBegin(bufferPlay, blockPlaySize,DPILOT_DATA * DPULSE_PILOT);
                                         
                                         // Liberamos el buffer de reproducción
                                         free(bufferPlay);                                      
@@ -1252,7 +1255,7 @@ class TAPproccesor
                                         bufferPlay = sdm.readFileRange32(_mFile, offsetPlay, blockPlaySize, true);
 
                                         // Reproducimos la ultima mitad
-                                        zxp.playDataEnd(bufferPlay, blockPlaySize,DPILOT_DATA * DPULSE_PILOT);
+                                        _zxp.playDataEnd(bufferPlay, blockPlaySize,DPILOT_DATA * DPULSE_PILOT);
 
                                         // Liberamos el buffer de reproducción
                                         free(bufferPlay);
@@ -1266,7 +1269,7 @@ class TAPproccesor
                                 bufferPlay = sdm.readFileRange32(_mFile, _myTAP.descriptor[i].offset, _myTAP.descriptor[i].size, false);
                                 
                                 // Reproducimos el bloque de datos
-                                zxp.playData(bufferPlay, _myTAP.descriptor[i].size,DPILOT_DATA * DPULSE_PILOT);
+                                _zxp.playData(bufferPlay, _myTAP.descriptor[i].size,DPILOT_DATA * DPULSE_PILOT);
 
                                 // Liberamos el buffer de reproducción
                                 free(bufferPlay);
@@ -1301,19 +1304,21 @@ class TAPproccesor
                 // No se ha seleccionado ningún fichero
                 LAST_MESSAGE = "No file selected.";
                 _hmi.setBasicFileInformation(_myTAP.descriptor[BLOCK_SELECTED].name,_myTAP.descriptor[BLOCK_SELECTED].typeName,_myTAP.descriptor[BLOCK_SELECTED].size);
+                log("Error - No file selected");
                 //
             }
 
         }
 
         // Constructor de la clase
-        TAPproccesor(AudioKit kit)
+        TAPprocessor(AudioKit kit)
         {
             // Constructor de la clase
-            strcpy(_myTAP.name,"          ");
+            strncpy(_myTAP.name,"          ",10);
             _myTAP.numBlocks = 0;
             _myTAP.size = 0;
             _myTAP.descriptor = nullptr;
+            _zxp.set_ESP32kit(kit);
         }      
 
 };

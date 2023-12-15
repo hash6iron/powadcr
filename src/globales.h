@@ -47,23 +47,6 @@ struct tBlock
   uint8_t* data;        // Datos del bloque
 };
 
-struct tTimming
-{
-  int bit_0 = 855;
-  int bit_1 = 1710;
-  int pulse_pilot = 2168;
-  int pilot_tone = 8063;
-  int pilot_header = 8063;
-  int pilot_data = 3223;
-  int sync_1 = 667;
-  int sync_2 = 735;
-  int pure_tone_len = 0;
-  int pure_tone_num_pulses = 0;
-  int pulse_seq_num_pulses = 0;
-  int* pulse_seq_array;
-};
-
-
 
 // Estructura para el HMI
 struct tFileBuffer
@@ -119,8 +102,6 @@ char LASTYPE4_2[] = "SCREEN\0";
 char LASTYPE7[] = "SCREEN.H\0";
 char LASTYPE5[] = "ARRAY.NUM\0";
 char LASTYPE6[] = "ARRAY.CHR\0";
-
-
 
 bool ID_NOT_IMPLEMENTED = false;
 int LAST_EDGE_IS = 0;

@@ -38,7 +38,7 @@
 #pragma once
 
 // Clase para generar todo el conjunto de señales que necesita el ZX Spectrum
-class ZXProccesor 
+class ZXProcessor 
 {
    
     private:
@@ -172,13 +172,17 @@ class ZXProccesor
         size_t result = 0;
         int16_t *ptr = (int16_t*)buffer;
 
+        // log("MAIN VOL " + String(MAIN_VOL));
+        // log("Channels " + String(chn));
+        // log("Bytes " + String(bytes));
+
         // Pulso alto (mitad del periodo)
         for (int j=0;j<bytes/(4*chn);j++){
 
-            if (j % PROGRESS_BAR_REFRESH == 0)
-            {
-              m_amplitude = MAIN_VOL * 32767 / 100;
-            }
+            // if (j % PROGRESS_BAR_REFRESH == 0)
+            // {
+            m_amplitude = MAIN_VOL * 32767 / 100;
+            // }
 
             //int16_t sample = m_amplitude * (1 - LAST_EDGE_IS);
             int16_t sample = m_amplitude;
@@ -239,10 +243,10 @@ class ZXProccesor
         int16_t *ptr = (int16_t*)buffer;
         for (int j=0;j<bytes/(2*chn);j++){
 
-            if (j % PROGRESS_BAR_REFRESH == 0)
-            {
-              m_amplitude = MAIN_VOL * 32767 / 100;
-            }
+            // if (j % PROGRESS_BAR_REFRESH == 0)
+            // {
+            m_amplitude = MAIN_VOL * 32767 / 100;
+            // }
 
             int16_t sample = 0;
             // slope tomará los valores 1 o -1
@@ -331,11 +335,13 @@ class ZXProccesor
             if (STOP==true)
             {
                 LOADING_STATE = 2; // Parada del bloque actual
+                //log("Salgoooooooo_3");
                 return;
             }
             else if (PAUSE==true)
             {
                 LOADING_STATE = 3; // Pausa del bloque actual
+                //log("Salgoooooooo_4");
                 return;
             }
         }
@@ -361,11 +367,13 @@ class ZXProccesor
                 if (STOP==true)
                 {
                     LOADING_STATE = 2; // Parada del bloque actual
+                    //log("Salgoooooooo");
                     return;
                 }
                 else if (PAUSE==true)
                 {
                     LOADING_STATE = 3; // Parada del bloque actual
+                    //log("Salgoooooooo_2");
                     return;
                 }
             }
@@ -593,12 +601,14 @@ class ZXProccesor
                     {
                         LOADING_STATE = 2; // Parada del bloque actual
                         i=size;
+                        //log("Aqui he parado - STOP");
                         return;
                     }
                     else if (PAUSE==true)
                     {
                         LOADING_STATE = 3; // Parada del bloque actual
                         i=size;
+                        //log("Aqui he parado - PAUSA");
                         return;
                     }
 
@@ -652,6 +662,7 @@ class ZXProccesor
               }
               else
               {
+                //log("Me las piroooooooooooooo");
                 break;
               }
 
@@ -704,33 +715,34 @@ class ZXProccesor
             // Put now code block
             // syncronize with short leader tone
             pilotTone(duration);
-
+            //log("Pilot tone");
             if (LOADING_STATE == 2)
             {return;}
 
             // syncronization for end short leader tone
             syncTone(SYNC1,1);
-
+            //log("SYNC 1");
             if (LOADING_STATE == 2)
             {return;}
 
             syncTone(SYNC2,0);
-
+            //log("SYNC 2");
             if (LOADING_STATE == 2)
             {return;}
 
             // Send data
             sendDataArray(bBlock, lenBlock);
-
+            //log("Send DATA");
             if (LOADING_STATE == 2)
             {return;}
                         
             // Silent tone
             silence(silent);
-
+            //log("Send SILENCE");
             if (LOADING_STATE == 2)
             {return;}
-
+            
+            //log("Fin del PLAY");
         }
 
         void playPureTone(int lenPulse, int numPulses)
@@ -845,7 +857,7 @@ class ZXProccesor
         }
 
         // Constructor
-        ZXProccesor()
+        ZXProcessor()
         {
           // Constructor de la clase
         }

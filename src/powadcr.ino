@@ -93,10 +93,10 @@ HMI hmi;
 #include "ZXProcessor.h"
 
 // ZX Spectrum. Procesador de audio output
-ZXProccesor zxp;
+ZXProcessor zxp;
 
 // Procesadores de cinta
-#include "TZXprocessor.h"
+#include "TZXproccesor.h"
 #include "TAPprocessor.h"
 
 #include "test.h"
@@ -108,17 +108,17 @@ SdFile sdFile;
 File32 sdFile32;
 
 // Creamos los distintos objetos
-TZXproccesor pTZX(ESP32kit);
-TAPproccesor pTAP(ESP32kit);
+TZXprocessor pTZX(ESP32kit);
+TAPprocessor pTAP(ESP32kit);
 
 // Procesador de audio input
 #include "TAPrecorder.h"
 TAPrecorder taprec;
 
 // Procesador de TAP
-TAPproccesor::tTAP myTAP;
+TAPprocessor::tTAP myTAP;
 // Procesador de TZX
-TZXproccesor::tTZX myTZX;
+//TZXprocessor::tTZX myTZX;
 
 bool last_headPhoneDetection = false;
 uint8_t tapeState = 0;
@@ -149,7 +149,7 @@ void proccesingTAP(char* file_ch)
         FILE_NOTIFIED = true;
 
         // Actualizamos el indicador de memoria consumida para TAPprocessor.
-        pTAP.updateMemIndicator();      
+        //pTAP.updateMemIndicator();      
     } 
     else
     {
@@ -554,7 +554,7 @@ void setup()
   setSDFrequency(SD_Speed);
 
   // Forzamos a 26MHz
-  // sdf.begin(ESP32kit.pinSpiCs(), SD_SCK_MHZ(26));
+  //sdf.begin(ESP32kit.pinSpiCs(), SD_SCK_MHZ(26));
 
   // Le pasamos al HMI el gestor de SD
   hmi.set_sdf(sdf);
@@ -589,6 +589,7 @@ void setup()
   pTZX.set_SDM(sdm);
 
   zxp.set_ESP32kit(ESP32kit);
+  //pTZX.setZXP_audio(ESP32kit);
 
 // Si es test está activo. Lo lanzamos
 #ifdef TEST
@@ -707,7 +708,7 @@ void playingFile()
       pTAP.play();
       //Paramos la animación
       hmi.writeString("tape.tmAnimation.en=0"); 
-      pTAP.updateMemIndicator();
+      //pTAP.updateMemIndicator();
   }
   else if (TYPE_FILE_LOAD = "TZX")
   {
@@ -735,11 +736,11 @@ void loadingFile()
 
     if (FILE_TO_LOAD.indexOf(".TAP") != -1)
     {
-        PROGRESS_BAR_REFRESH = 32;
-        PROGRESS_BAR_REFRESH_2 = 16;
+        // PROGRESS_BAR_REFRESH = 32;
+        // PROGRESS_BAR_REFRESH_2 = 16;
 
         // Reservamos memoria
-        myTAP.descriptor = (TAPproccesor::tBlockDescriptor*)malloc(MAX_BLOCKS_IN_TAP * sizeof(struct TAPproccesor::tBlockDescriptor));        
+        myTAP.descriptor = (TAPprocessor::tBlockDescriptor*)ps_malloc(MAX_BLOCKS_IN_TAP * sizeof(struct TAPprocessor::tBlockDescriptor));        
     
         // Pasamos el control a la clase
         pTAP.setTAP(myTAP);
@@ -750,13 +751,13 @@ void loadingFile()
     }
     else if (FILE_TO_LOAD.indexOf(".TZX") != -1)    
     {
-        PROGRESS_BAR_REFRESH = 256;
-        PROGRESS_BAR_REFRESH_2 = 32;
+        // PROGRESS_BAR_REFRESH = 256;
+        // PROGRESS_BAR_REFRESH_2 = 32;
 
         // Reservamos memoria
-        myTZX.descriptor = (TZXproccesor::tTZXBlockDescriptor*)malloc(MAX_BLOCKS_IN_TZX * sizeof(struct TZXproccesor::tTZXBlockDescriptor));        
+        //myTZX.descriptor = (TZXprocessor::tTZXBlockDescriptor*)ps_malloc(MAX_BLOCKS_IN_TZX * sizeof(struct TZXprocessor::tTZXBlockDescriptor));        
         // Pasamos el control a la clase
-        pTZX.setTZX(myTZX);
+        //pTZX.setTZX(myTZX);
 
         // Lo procesamos. Para ZX Spectrum
         proccesingTZX(file_ch);
@@ -764,8 +765,8 @@ void loadingFile()
     }
     else if (FILE_TO_LOAD.indexOf(".TSX") != -1)
     {
-        PROGRESS_BAR_REFRESH = 256;
-        PROGRESS_BAR_REFRESH_2 = 32;
+        // PROGRESS_BAR_REFRESH = 256;
+        // PROGRESS_BAR_REFRESH_2 = 32;
 
         // Lo procesamos. Para MSX
         proccesingTZX(file_ch);
@@ -809,7 +810,7 @@ void ejectingFile()
   {
       // Solicitamos el puntero _myTZX de la clase
       // para liberarlo
-      free(pTZX.getDescriptor());
+      //free(pTZX.getDescriptor());
       // Finalizamos
       pTZX.terminate();
   }  
@@ -818,7 +819,7 @@ void ejectingFile()
 void prepareRecording()
 {
     // Liberamos myTAP.descriptor de la memoria si existe 
-    if (myTAP.descriptor!= NULL) 
+    if (myTAP.descriptor!= nullptr) 
     {
       free(myTAP.descriptor);
     }
@@ -1108,10 +1109,10 @@ void Task0code( void * pvParameters )
       // Control por botones
       //buttonsControl();
       //delay(50);
-      if ((millis() - startTime) > 125)
+      if ((millis() - startTime) > 250)
       {
         startTime = millis();
-        hmi.updateInformationMainPage();
+        //hmi.updateInformationMainPage();
       }
       
   }
