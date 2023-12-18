@@ -1231,6 +1231,40 @@ class HMI
           //_zxp.set_amplitude(MAIN_VOL * 32767 / 100);
         }
 
+        if (strCmd.indexOf("VRR=") != -1) 
+        {
+          //Cogemos el valor
+          uint8_t buff[8];
+          strCmd.getBytes(buff, 7);
+          int valVol = (int)buff[4];
+          MAIN_VOL_R = valVol;
+          
+          // Ajustamos el volumen
+          log("");
+          log("R-Channel volume value=" + String(MAIN_VOL_R));
+          log("");
+          //ESP32kit.setVolume(MAIN_VOL);
+          //ESP32kit.maxAmplitude = 
+          //_zxp.set_amplitude(MAIN_VOL * 32767 / 100);
+        }
+
+        if (strCmd.indexOf("VLL=") != -1) 
+        {
+          //Cogemos el valor
+          uint8_t buff[8];
+          strCmd.getBytes(buff, 7);
+          int valVol = (int)buff[4];
+          MAIN_VOL_L = valVol;
+          
+          // Ajustamos el volumen
+          log("");
+          log("L-Channel volume value=" + String(MAIN_VOL_L));
+          log("");
+          //ESP32kit.setVolume(MAIN_VOL);
+          //ESP32kit.maxAmplitude = 
+          //_zxp.set_amplitude(MAIN_VOL * 32767 / 100);
+        }
+
         if (strCmd.indexOf("THR=") != -1) 
         {
           //Cogemos el valor
@@ -1466,6 +1500,7 @@ class HMI
           if (MAIN_VOL >100)
           {
             MAIN_VOL = 100;
+
           }
           // SerialHW.println("");
           // SerialHW.println("VOL UP");

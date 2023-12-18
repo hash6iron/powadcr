@@ -399,7 +399,7 @@ void setAudioOutput()
   //SerialHW.println("Initialized Audiokit. Output - Playing");
 
   ESP32kit.begin(cfg);
-  ESP32kit.setVolume(MAIN_VOL);
+  ESP32kit.setVolume(MAX_MAIN_VOL);
   //ESP32kit.setVolume(MAX_MAIN_VOL);   
   
 }
@@ -420,7 +420,7 @@ void setAudioInOut()
   cfg.adc_input = AUDIO_HAL_ADC_INPUT_LINE2; // microphone
   cfg.sample_rate = AUDIO_HAL_48K_SAMPLES;
   ESP32kit.begin(cfg);
-  ESP32kit.setVolume(MAIN_VOL);  
+  ESP32kit.setVolume(MAX_MAIN_VOL);  
 }
 
 void pauseRecording()
@@ -689,7 +689,7 @@ void setSTOP()
 void playingFile()
 {
   setAudioOutput();
-  ESP32kit.setVolume(MAIN_VOL);
+  ESP32kit.setVolume(MAX_MAIN_VOL);
 
   sendStatus(REC_ST, 0);
 

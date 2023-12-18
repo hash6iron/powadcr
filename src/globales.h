@@ -225,8 +225,14 @@ const int ACK_LCD = 5;
 const int RESET = 6;
 //
 int MAIN_VOL = 97;
+int MAIN_VOL_R = 97;
+int MAIN_VOL_L = 97;
 int LAST_MAIN_VOL = 97;
+int LAST_MAIN_VOL_R = 97;
+int LAST_MAIN_VOL_L = 97;
 int MAX_MAIN_VOL = 100;
+int MAX_MAIN_VOL_R = 100;
+int MAX_MAIN_VOL_L = 100;
 int EN_MUTE = 0;
 int EN_MUTE_2 = 0;
 bool wasHeadphoneDetected = false;
