@@ -101,14 +101,14 @@ class ZXProcessor
             if (!SWAP_EAR_CHANNEL)
             {
               //L-OUT
-              *ptr++ = sample_R * (1-EN_MUTE);
+              *ptr++ = sample_R;
               //R-OUT
               *ptr++ = sample_L * (EN_MUTE) * (1-EN_MUTE_2);
             }
             else
             {
               //R-OUT
-              *ptr++ = sample_L * (1-EN_MUTE) * (1-EN_MUTE_2);
+              *ptr++ = sample_L;
               //L-OUT
               *ptr++ = sample_R * (EN_MUTE);
             }
@@ -197,16 +197,16 @@ class ZXProcessor
             if (!SWAP_EAR_CHANNEL)
             {
               //R-OUT
-              *ptr++ = sample_R * (1-EN_MUTE);
+              *ptr++ = sample_R;
               //L-OUT
               *ptr++ = sample_L * EN_MUTE;
             }
             else
             {
               //L-OUT
-              *ptr++ = sample_L * (1-EN_MUTE);
+              *ptr++ = sample_L;
               //R-OUT
-              *ptr++ = sample_R * (EN_MUTE);
+              *ptr++ = sample_R * EN_MUTE;
             }
 
             result +=2*chn;
@@ -269,16 +269,16 @@ class ZXProcessor
             if (!SWAP_EAR_CHANNEL)
             {
               //R-OUT
-              *ptr++ = sample_R * (1-EN_MUTE);
+              *ptr++ = sample_R;
               //L-OUT
               *ptr++ = sample_L * EN_MUTE;
             }
             else
             {
               //L-OUT
-              *ptr++ = sample_L * (1-EN_MUTE);
+              *ptr++ = sample_L;
               //R-OUT
-              *ptr++ = sample_R * (EN_MUTE);
+              *ptr++ = sample_R * EN_MUTE;
             }
 
 
