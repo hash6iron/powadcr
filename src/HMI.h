@@ -1312,7 +1312,7 @@ class HMI
           //
           EN_MUTE = valEn;
 
-          SerialHW.println("Mute enable=" + String(EN_MUTE));
+          log("Mute enable=" + String(EN_MUTE));
         }
 
 
