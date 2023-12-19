@@ -1117,7 +1117,7 @@ void Task0code( void * pvParameters )
       if ((millis() - startTime) > 125)
       {
         startTime = millis();
-        //hmi.updateInformationMainPage();
+        hmi.updateInformationMainPage();
       }
       
   }
