@@ -787,12 +787,12 @@ class TZXprocessor
         _myTZX.descriptor[currentBlock].timming.pure_tone_len = getDWORD(mFile,currentOffset+1);
         _myTZX.descriptor[currentBlock].timming.pure_tone_num_pulses = getDWORD(mFile,currentOffset+3); 
 
-            //SerialHW.println("");
-            //SerialHW.print("Pure tone setting: Ts: ");
-            //SerialHW.print(_myTZX.descriptor[currentBlock].timming.pure_tone_len,HEX);
-            //SerialHW.print(" / Np: ");
-            //SerialHW.print(_myTZX.descriptor[currentBlock].timming.pure_tone_num_pulses,HEX);        
-            //SerialHW.println("");
+            SerialHW.println("");
+            SerialHW.print("Pure tone setting: Ts: ");
+            SerialHW.print(_myTZX.descriptor[currentBlock].timming.pure_tone_len,HEX);
+            SerialHW.print(" / Np: ");
+            SerialHW.print(_myTZX.descriptor[currentBlock].timming.pure_tone_num_pulses,HEX);        
+            SerialHW.println("");
 
         // Esto es para que tome los bloques como especiales
         _myTZX.descriptor[currentBlock].type = 99;     
@@ -816,15 +816,16 @@ class TZXprocessor
         // Tomamos ahora las longitudes
         int coff = currentOffset+2;
 
-        //SerialHW.println("");
+        log("ID-13: Pulse sequence");
+        SerialHW.println("");
 
         for (int i=0;i<num_pulses;i++)
         {
           int lenPulse = getDWORD(mFile,coff);
           _myTZX.descriptor[currentBlock].timming.pulse_seq_array[i]=lenPulse;
-          //SerialHW.print("[" +String(i) + "]=0x");
-          //SerialHW.print(lenPulse,HEX);
-          //SerialHW.print("; ");
+          SerialHW.print("[" +String(i) + "]=0x");
+          SerialHW.print(lenPulse,HEX);
+          SerialHW.print("; ");
 
           // Adelantamos 2 bytes
           coff+=2;
@@ -855,23 +856,23 @@ class TZXprocessor
         _myTZX.descriptor[currentBlock].timming.bit_0 = getDWORD(mFile,currentOffset+1);
 
           ////SerialHW.println("");
-          //SerialHW.print(",BIT_0=");
-          //SerialHW.print(_myTZX.descriptor[currentBlock].timming.bit_0, HEX);
+          // SerialHW.print(",BIT_0=");
+          // SerialHW.print(_myTZX.descriptor[currentBlock].timming.bit_0, HEX);
 
         // Timming de BIT 1
         _myTZX.descriptor[currentBlock].timming.bit_1 = getDWORD(mFile,currentOffset+3);        
 
           ////SerialHW.println("");
-          //SerialHW.print(",BIT_1=");
-          //SerialHW.print(_myTZX.descriptor[currentBlock].timming.bit_1, HEX);
+          // SerialHW.print(",BIT_1=");
+          // SerialHW.print(_myTZX.descriptor[currentBlock].timming.bit_1, HEX);
 
         // Cogemos el byte de bits of the last byte
         _myTZX.descriptor[currentBlock].maskLastByte = getBYTE(mFile,currentOffset+5);
         _zxp.set_maskLastByte(_myTZX.descriptor[currentBlock].maskLastByte);
 
-          ////SerialHW.println("");
-          //SerialHW.print(",MASK LAST BYTE=");
-          //SerialHW.print(_myTZX.descriptor[currentBlock].maskLastByte, HEX);
+          // SerialHW.println("");
+          // SerialHW.print(",MASK LAST BYTE=");
+          // SerialHW.print(_myTZX.descriptor[currentBlock].maskLastByte, HEX);
 
 
         // ********************************************************************
@@ -890,18 +891,18 @@ class TZXprocessor
         // BYTE 0x00 y 0x01
         _myTZX.descriptor[currentBlock].pauseAfterThisBlock = getDWORD(mFile,currentOffset+6);
 
-        //SerialHW.println("");
-        //SerialHW.print("Pause after block: " + String(_myTZX.descriptor[currentBlock].pauseAfterThisBlock)+ " - 0x");
-        //SerialHW.print(_myTZX.descriptor[currentBlock].pauseAfterThisBlock,HEX);
-        //SerialHW.println("");
+        // SerialHW.println("");
+        // SerialHW.print("Pause after block: " + String(_myTZX.descriptor[currentBlock].pauseAfterThisBlock)+ " - 0x");
+        // SerialHW.print(_myTZX.descriptor[currentBlock].pauseAfterThisBlock,HEX);
+        // SerialHW.println("");
 
         // Obtenemos el "tamaño de los datos"
         // BYTE 0x02 y 0x03
         _myTZX.descriptor[currentBlock].lengthOfData = getNBYTE(mFile,currentOffset+8,3);
 
-        //SerialHW.println("");
-        //SerialHW.println("Length of data: ");
-        //SerialHW.print(String(_myTZX.descriptor[currentBlock].lengthOfData));
+        // SerialHW.println("");
+        // SerialHW.println("Length of data: ");
+        // SerialHW.print(String(_myTZX.descriptor[currentBlock].lengthOfData));
 
         // Los datos (TAP) empiezan en 0x04. Posición del bloque de datos.
         _myTZX.descriptor[currentBlock].offsetData = currentOffset + 11;
@@ -1127,13 +1128,13 @@ class TZXprocessor
               // El objetivo es ENCONTRAR IDs y ultimo byte, y analizar el bloque completo para el descriptor.
               currentID = getID(mFile, currentOffset);
               
-              //SerialHW.println("");
-              //SerialHW.println("-----------------------------------------------");
-              //SerialHW.print("TZX ID: 0x");
-              //SerialHW.print(currentID, HEX);
-              //SerialHW.println("");
-              //SerialHW.println("block: " + String(currentBlock));
-              //SerialHW.println("");
+              SerialHW.println("");
+              SerialHW.println("-----------------------------------------------");
+              SerialHW.print("TZX ID: 0x");
+              SerialHW.print(currentID, HEX);
+              SerialHW.println("");
+              SerialHW.println("block: " + String(currentBlock));
+              SerialHW.println("");
 
               // Ahora dependiendo del ID analizamos. Los ID están en HEX
               // y la rutina devolverá la posición del siguiente ID, así hasta
@@ -1363,25 +1364,62 @@ class TZXprocessor
 
                 // ID 24 - Loop start
                 case 36:
-                  ID_NOT_IMPLEMENTED = true;
+                  if (_myTZX.descriptor != nullptr)
+                  {
+                      // Obtenemos la dirección del siguiente offset
+                      _myTZX.descriptor[currentBlock].ID = 35;
+                      _myTZX.descriptor[currentBlock].playeable = false;
+                      _myTZX.descriptor[currentBlock].offset = currentOffset;
+                      LOOP_START = currentOffset;
+                      LOOP_COUNT = getDWORD(mFile,currentOffset+1);
+
+                      nextIDoffset = currentOffset + 3;                      
+                      //_myTZX.descriptor[currentBlock].typeName = "ID 24 - Loop start";
+                      strncpy(_myTZX.descriptor[currentBlock].typeName,IDXXSTR,35);
+                      BL_LOOP_START = currentBlock;
+                      currentBlock++;
+                  }
+                  else
+                  {
+                      //SerialHW.println("");
+                      //SerialHW.println("Error: Not allocation memory for block ID 0x22");
+                      endTZX = true;
+                      endWithErrors = true;
+                  }                
+                  break;
+                  //ID_NOT_IMPLEMENTED = true;
                   // analyzeBlockUnknow(currentID,currentOffset, currentBlock);
                   // nextIDoffset = currentOffset + 1;            
 
-                  // _myTZX.descriptor[currentBlock].typeName = "ID 24 - Loop start";
+                  // _myTZX.descriptor[currentBlock].typeName = "ID 23 - Jump to block";
                   // currentBlock++;
-                  break;
+
 
                 // ID 25 - Loop end
                 case 37:
-                  ID_NOT_IMPLEMENTED = true;
-                  // analyzeBlockUnknow(currentID,currentOffset, currentBlock);
-                  // nextIDoffset = currentOffset + 1;            
-
-                  // _myTZX.descriptor[currentBlock].typeName = "ID 25 - Loop end";
-                  // currentBlock++;
+                  if (_myTZX.descriptor != nullptr)
+                  {
+                      // Obtenemos la dirección del siguiente offset
+                      _myTZX.descriptor[currentBlock].ID = 37;
+                      _myTZX.descriptor[currentBlock].playeable = false;
+                      _myTZX.descriptor[currentBlock].offset = currentOffset;
+                      LOOP_END = currentOffset;
+                      
+                      nextIDoffset = currentOffset + 1;                      
+                      //_myTZX.descriptor[currentBlock].typeName = "ID 25 - Loop end";
+                      strncpy(_myTZX.descriptor[currentBlock].typeName,IDXXSTR,35);
+                      BL_LOOP_END = currentBlock;
+                      currentBlock++;
+                  }
+                  else
+                  {
+                      //SerialHW.println("");
+                      //SerialHW.println("Error: Not allocation memory for block ID 0x22");
+                      endTZX = true;
+                      endWithErrors = true;
+                  }                
                   break;
 
-                // ID 26 - Call sequence
                 case 38:
                   ID_NOT_IMPLEMENTED = true;
                   // analyzeBlockUnknow(currentID,currentOffset, currentBlock);
@@ -1540,10 +1578,10 @@ class TZXprocessor
                   break;
                 }
 
-                //SerialHW.println("");
-                //SerialHW.print("Next ID offset: 0x");
-                //SerialHW.print(nextIDoffset, HEX);
-                //SerialHW.println("");
+                SerialHW.println("");
+                SerialHW.print("Next ID offset: 0x");
+                SerialHW.print(nextIDoffset, HEX);
+                SerialHW.println("");
 
                 if(currentBlock > maxAllocationBlocks)
                 {
@@ -1566,9 +1604,9 @@ class TZXprocessor
                 TOTAL_BLOCKS = currentBlock;
                 _hmi.updateInformationMainPage();
 
-                //SerialHW.println("");
-                //SerialHW.println("+++++++++++++++++++++++++++++++++++++++++++++++");
-                //SerialHW.println("");
+                SerialHW.println("");
+                SerialHW.println("+++++++++++++++++++++++++++++++++++++++++++++++");
+                SerialHW.println("");
 
           }
 
@@ -1613,13 +1651,13 @@ class TZXprocessor
 
     void showBufferPlay(byte* buffer, int size)
     {
-        //SerialHW.println("Listing bufferplay.");
-        for (int n=0;n<size;n++)
-        {
-            //SerialHW.print(buffer[n],HEX);
-            //SerialHW.print(",");
-        }
-        //SerialHW.println("");
+        // SerialHW.println("Listing bufferplay.");
+        // for (int n=0;n<size;n++)
+        // {
+        //     SerialHW.print(buffer[n],HEX);
+        //     SerialHW.print(",");
+        // }
+        // SerialHW.println("");
     }
 
     public:
@@ -1850,12 +1888,35 @@ class TZXprocessor
                 BYTES_TOBE_LOAD = _rlen - _myTZX.descriptor[BLOCK_SELECTED - 1].offset;
               }
 
+              int loopPlayed = 0;
 
               for (int i = m; i < _myTZX.numBlocks; i++) 
               {
                 
                 // Ahora lo voy actualizando a medida que van avanzando los bloques.
                 PROGRAM_NAME_2 = _myTZX.descriptor[BLOCK_SELECTED].name;
+
+                // El loop controla el cursor de bloque por tanto debe estar el primero
+                if (_myTZX.descriptor[i].ID == 36)
+                {
+                    //Loop start
+                    loopPlayed = 0;
+                    i = BL_LOOP_START+1;
+                }
+
+                if (_myTZX.descriptor[i].ID == 37)
+                {
+                    //Loop end
+                    if (loopPlayed < LOOP_COUNT)
+                    {
+                      i = BL_LOOP_START;
+                      loopPlayed++;
+                    }
+                    else
+                    {
+                      i = BL_LOOP_END+1;
+                    }
+                }
 
                 if (_myTZX.descriptor[i].ID == 32)
                 {
@@ -1941,10 +2002,10 @@ class TZXprocessor
                         BLOCK_SELECTED = i;
 
                         //_hmi.writeString("");
-                        _hmi.writeString("currentBlock.val=" + String(i + 1));
+                        //_hmi.writeString("currentBlock.val=" + String(i + 1));
 
                         //_hmi.writeString("");
-                        _hmi.writeString("progression.val=" + String(0));
+                        //_hmi.writeString("progression.val=" + String(0));
                       }
 
                       //Paramos la reproducción.
@@ -1958,6 +2019,13 @@ class TZXprocessor
 
                         //SerialHW.println("");
                         //SerialHW.println("LOADING_STATE 2"); 
+                        loopPlayed = 0;
+                        LAST_EDGE_IS = 0;
+                        LOOP_START = 0;
+                        LOOP_END = 0;
+                        LOOP_COUNT = 0;
+                        BL_LOOP_START = 0;
+                        BL_LOOP_END = 0;
 
                         return;
                       }
@@ -2035,7 +2103,7 @@ class TZXprocessor
 
                         bufferPlay = sdm.readFileRange32(_mFile, _myTZX.descriptor[i].offsetData, _myTZX.descriptor[i].size, false);
 
-                        //showBufferPlay(bufferPlay,_myTZX.descriptor[i].size);
+                        showBufferPlay(bufferPlay,_myTZX.descriptor[i].size);
                         verifyChecksum(_mFile,_myTZX.descriptor[i].offsetData,_myTZX.descriptor[i].size);
 
 
@@ -2043,7 +2111,7 @@ class TZXprocessor
                         switch (_myTZX.descriptor[i].ID)
                         {
                           case 16:
-                            //PULSE PILOT
+                            //Standard data - ID-10
                             _myTZX.descriptor[i].timming.pilot_tone = DPILOT_HEADER;
                             _zxp.PILOT_TONE = _myTZX.descriptor[i].timming.pilot_tone;
                             _zxp.playData(bufferPlay, _myTZX.descriptor[i].size,_myTZX.descriptor[i].timming.pilot_tone * _myTZX.descriptor[i].timming.pulse_pilot);
@@ -2051,18 +2119,20 @@ class TZXprocessor
                             break;
 
                           case 17:
-                            //PULSE PILOT
+                            // Speed data - ID-11
                             _zxp.PILOT_TONE = _myTZX.descriptor[i].timming.pilot_tone;
                             _zxp.playData(bufferPlay, _myTZX.descriptor[i].size,_myTZX.descriptor[i].timming.pilot_tone * _myTZX.descriptor[i].timming.pulse_pilot);
                             free(bufferPlay);
                             break;
 
                           case 20:
+                            // Pure Data - ID-14
                             // BTI 0
                             _zxp.BIT_0 = _myTZX.descriptor[i].timming.bit_0;
                             // BIT1                                          
                             _zxp.BIT_1 = _myTZX.descriptor[i].timming.bit_1;
                             //                          
+                            
                             _zxp.playPureData(bufferPlay, _myTZX.descriptor[i].size);
                             free(bufferPlay);
                             break;
@@ -2073,14 +2143,14 @@ class TZXprocessor
                       {
                           if (_myTZX.descriptor[i].ID == 18)
                           {
-                              // ID 0x12 - Reproducimos un tono puro
+                              // ID 0x12 - Reproducimos un tono puro. Pulso repetido n veces
                               _zxp.playPureTone(_myTZX.descriptor[i].timming.pure_tone_len,_myTZX.descriptor[i].timming.pure_tone_num_pulses);
                           }
                           else if (_myTZX.descriptor[i].ID == 19)
                           {
-                              // ID 0x13 - Reproducimos un tono puro
+                              // ID 0x13 - Reproducimos una secuencia. Pulsos de longitud contenidos en un array y repetición
                               int num_pulses = _myTZX.descriptor[i].timming.pulse_seq_num_pulses;
-                              _zxp.playCustomPulses(_myTZX.descriptor[i].timming.pulse_seq_array,num_pulses);
+                              _zxp.playCustomSequence(_myTZX.descriptor[i].timming.pulse_seq_array,num_pulses);
                           }                        
                       }
                       else 
@@ -2090,7 +2160,7 @@ class TZXprocessor
                         bufferPlay = (byte*)ps_calloc(_myTZX.descriptor[i].size, sizeof(byte));
                         bufferPlay = sdm.readFileRange32(_mFile, _myTZX.descriptor[i].offsetData, _myTZX.descriptor[i].size, true);
 
-                        //showBufferPlay(bufferPlay,_myTZX.descriptor[i].size);
+                        showBufferPlay(bufferPlay,_myTZX.descriptor[i].size);
                         verifyChecksum(_mFile,_myTZX.descriptor[i].offsetData,_myTZX.descriptor[i].size);
 
                         switch (_myTZX.descriptor[i].ID)
@@ -2127,6 +2197,7 @@ class TZXprocessor
                       }                  
                 }
                 
+                //End FOR
               }
 
               // En el caso de no haber parado manualmente, es por finalizar
@@ -2144,6 +2215,13 @@ class TZXprocessor
               }
 
               // Cerrando
+              // reiniciamos el edge del ultimo pulse
+              LAST_EDGE_IS = 0;
+              LOOP_START = 0;
+              LOOP_END = 0;
+              LOOP_COUNT = 0;
+              BL_LOOP_START = 0;
+              BL_LOOP_END = 0;
         }
         else
         {

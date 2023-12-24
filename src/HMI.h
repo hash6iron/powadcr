@@ -1109,6 +1109,39 @@ class HMI
       
         }
       
+        if (strCmd.indexOf("FRQ1") != -1)
+        {
+          DfreqCPU = 3250000.0;
+        }
+        if (strCmd.indexOf("FRQ2") != -1)
+        {
+          DfreqCPU = 3300000.0;
+        }
+        if (strCmd.indexOf("FRQ3") != -1)
+        {
+          DfreqCPU = 3330000.0;
+        }
+        if (strCmd.indexOf("FRQ4") != -1)
+        {
+          DfreqCPU = 3350000.0;
+        }
+        if (strCmd.indexOf("FRQ5") != -1)
+        {
+          DfreqCPU = 3400000.0;
+        }
+        if (strCmd.indexOf("FRQ6") != -1)
+        {
+          DfreqCPU = 3430000.0;
+        }
+        if (strCmd.indexOf("FRQ7") != -1)
+        {
+          DfreqCPU = 3450000.0;
+        }
+        if (strCmd.indexOf("FRQ8") != -1)
+        {
+          DfreqCPU = 3500000.0;
+        }
+
         if (strCmd.indexOf("LCDON") != -1) 
         {
             LCD_ON = true;

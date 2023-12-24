@@ -62,7 +62,7 @@ struct tFileBuffer
 #ifdef MACHINE_ZX
   // Timming estandar de la ROM
   // Frecuencia de la CPU
-  float DfreqCPU = 3500000.0;
+  float DfreqCPU = 3476604.8;
 
   const int DPILOT_HEADER = 8063;
   const int DPILOT_DATA = 3223;
@@ -104,6 +104,10 @@ char LASTYPE5[] = "ARRAY.NUM\0";
 char LASTYPE6[] = "ARRAY.CHR\0";
 
 bool ID_NOT_IMPLEMENTED = false;
+
+// ZXProcessor
+// 0: low
+// 1: high
 int LAST_EDGE_IS = 0;
 // Tamaño del fichero abierto
 int FILE_LENGTH = 0;
@@ -158,6 +162,11 @@ int BYTES_LOADED = 0;
 int BYTES_TOBE_LOAD = 0;
 int BYTES_LAST_BLOCK = 0;
 int TOTAL_BLOCKS = 0;
+int LOOP_START = 0;
+int BL_LOOP_START = 0;
+int LOOP_COUNT=0;
+int LOOP_END = 0;
+int BL_LOOP_END = 0;
 // Screen
 bool SCREEN_LOADING = 0;
 int SCREEN_LINE = 0;
