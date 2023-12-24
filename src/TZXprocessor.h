@@ -845,7 +845,8 @@ class TZXprocessor
 
         _myTZX.descriptor[currentBlock].ID = 20;
         _myTZX.descriptor[currentBlock].playeable = true;
-        _myTZX.descriptor[currentBlock].offset = currentOffset;    
+        _myTZX.descriptor[currentBlock].offset = currentOffset; 
+        _myTZX.descriptor[currentBlock].type = 7;   
 
         // Timming de la ROM
         _myTZX.descriptor[currentBlock].timming.pulse_pilot = DPULSE_PILOT;
