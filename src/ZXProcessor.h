@@ -290,19 +290,18 @@ class ZXProcessor
         int16_t *ptr = (int16_t*)buffer;
         int A = 32767;
 
+        if (edge==1)
+        {
+            A=-32768;
+        }
+        else
+        {
+            A=32767;
+        }
+
         // Pulso alto (mitad del periodo)
         for (int j=0;j<bytes/(4*chn);j++)
         {
-
-            if (edge==1)
-            {
-                A=0;
-            }
-            else
-            {
-                A=32767;
-            }
-
             m_amplitude_R = MAIN_VOL_R * A / 100;
             m_amplitude_L = MAIN_VOL_L * A / 100;
 
@@ -327,20 +326,21 @@ class ZXProcessor
             result +=2*chn;
         }
 
+
+        if (edge==1)
+        {
+            A=32767;
+            LAST_EDGE_IS = 1;
+        }
+        else
+        {
+            A=-32768;
+            LAST_EDGE_IS = -1;
+        }
+
         // Pulso bajo (la otra mitad) es invertida
         for (int j=bytes/(4*chn);j<bytes/(2*chn);j++){
             
-            if (edge==1)
-            {
-                A=32767;
-                LAST_EDGE_IS = 1;
-            }
-            else
-            {
-                A=0;
-                LAST_EDGE_IS = 0;
-            }
-
             m_amplitude_R = MAIN_VOL_R * A / 100;
             m_amplitude_L = MAIN_VOL_L * A / 100;
 
@@ -379,14 +379,22 @@ class ZXProcessor
         
         for (int j=0;j<bytes/(2*chn);j++)
         {
-         
-            m_amplitude_R = MAIN_VOL_R * 32767 / 100;
-            m_amplitude_L = MAIN_VOL_L * 32767 / 100;
+
+            // slope tomará los valores 1 o -1
+            if (slope==1)
+            {
+                m_amplitude_R = MAIN_VOL_R * 32767 / 100;
+                m_amplitude_L = MAIN_VOL_L * 32767 / 100;
+            }
+            else
+            {
+                m_amplitude_R = MAIN_VOL_R * 32768 / 100;
+                m_amplitude_L = MAIN_VOL_L * 32768 / 100;
+            }
  
             int16_t sample_L = 0;
             int16_t sample_R = 0;
 
-            // slope tomará los valores 1 o -1
             sample_R = m_amplitude_R * slope;
             sample_L = m_amplitude_L * slope;
 
@@ -717,18 +725,20 @@ class ZXProcessor
         {
             // Cambiamos slope de 0 a 1, para indicar si es 
             // pulso alto o bajo
-            if (LAST_EDGE_IS==0)
+            if (LAST_EDGE_IS!=1)
             {
                 slope=1;
             }
             else
             {
-                slope=0;
+                slope=-1;
             }
 
             semiPulse(lenPulse,slope);
             LAST_EDGE_IS = slope;          
         }
+        //log("Flanco: " + String(LAST_EDGE_IS));       
+
     }
 
     void playCustomSequence(int* data, int numPulses)
@@ -745,50 +755,52 @@ class ZXProcessor
         {
             // Cambiamos slope de 0 a 1, para indicar si es 
             // pulso alto o bajo
-            if (LAST_EDGE_IS==0)
+            if (LAST_EDGE_IS!=1)
             {
                 slope=1;
             }
             else
             {
-                slope=0;
+                slope=-1;
             }
 
             semiPulse(data[i],slope);
-            LAST_EDGE_IS = slope;          
+            LAST_EDGE_IS = slope;   
         }
+        //log("Flanco: " + String(LAST_EDGE_IS));       
+
     }
 
-    void playCustomSequence_old(int* data, int numPulses)
-    {
-        // Reproduce una secuencia de pulsos totalmente customizada
-        // cada pulso tiene su timming y viene dado en un array (data)
-        int slope = 0;
+    // void playCustomSequence_old(int* data, int numPulses)
+    // {
+    //     // Reproduce una secuencia de pulsos totalmente customizada
+    //     // cada pulso tiene su timming y viene dado en un array (data)
+    //     int slope = 0;
 
-        for (int i = 0; i < numPulses;i++)
-        {
-            // Cambiamos slope de 0 a 1, para indicar si es 
-            // pulso alto o bajo
-            slope = 1 - (i % 2);
-            syncTone(data[i],slope);            
-        }
+    //     for (int i = 0; i < numPulses;i++)
+    //     {
+    //         // Cambiamos slope de 0 a 1, para indicar si es 
+    //         // pulso alto o bajo
+    //         slope = 1 - (i % 2);
+    //         syncTone(data[i],slope);            
+    //     }
 
-        // Metemos un pulso de cambio de estado
-        // para asegurar el cambio de flanco alto->bajo, del elemento de la secuencia
+    //     // Metemos un pulso de cambio de estado
+    //     // para asegurar el cambio de flanco alto->bajo, del elemento de la secuencia
 
-        // if (slope == 1)
-        // {
-        //     SerialHW.println("");
-        //     SerialHW.println("End edge: HIGH");
-        //     LAST_EDGE_IS = 1;
-        // }
-        // else
-        // {
-        //     SerialHW.println("");
-        //     SerialHW.println("End edge: LOW");
-        //     LAST_EDGE_IS = 0;
-        // }
-    }
+    //     // if (slope == 1)
+    //     // {
+    //     //     SerialHW.println("");
+    //     //     SerialHW.println("End edge: HIGH");
+    //     //     LAST_EDGE_IS = 1;
+    //     // }
+    //     // else
+    //     // {
+    //     //     SerialHW.println("");
+    //     //     SerialHW.println("End edge: LOW");
+    //     //     LAST_EDGE_IS = 0;
+    //     // }
+    // }
 
     void semiPulse(int nTStates, int slope)
     {
@@ -797,7 +809,8 @@ class ZXProcessor
         //
         // El ZX Spectrum tiene dos tipo de sincronismo, uno al finalizar el tono piloto
         // y otro al final de la recepción de los datos, que serán SYNC1 y SYNC2 respectivamente.
-        float freq = (1 / (nTStates * tState));    
+        float freq = (1 / (nTStates * tState));   
+        
         generatePulse(freq, samplingRate,slope, false);        
     }
 
@@ -1006,97 +1019,107 @@ class ZXProcessor
     {
         uint8_t _mask = 8;   // Para el last_byte
 
-        // Procedimiento para enviar datos desde un array
+        // Procedimiento para enviar datos desde un array.
+        // si estamos reproduciendo, nos mantenemos.
         if (LOADING_STATE==1 || TEST_RUNNING)
         {
             uint8_t bRead = 0x00;
             int bytes_in_this_block = 0;
 
+            // Recorremos todo el vector de bytes leidos para reproducirlos
             for (int i = 0; i < size;i++)
             {
             
-              if (!TEST_RUNNING)
-              {
-                // Informacion para la barra de progreso
-                PROGRESS_BAR_BLOCK_VALUE = (int)(((i+1)*100)/(size));
-
-                if (BYTES_LOADED > BYTES_TOBE_LOAD)
-                {BYTES_LOADED = BYTES_TOBE_LOAD;}
-                // Informacion para la barra de progreso total
-                PROGRESS_BAR_TOTAL_VALUE = (int)((BYTES_LOADED*100)/(BYTES_TOBE_LOAD));
-                
-                if (LOADING_STATE == 1)
+                if (!TEST_RUNNING)
                 {
-                    if (STOP==true)
-                    {
-                        LOADING_STATE = 2; // Parada del bloque actual
-                        i=size;
-                        //log("Aqui he parado - STOP");
-                        return;
-                    }
-                    else if (PAUSE==true)
-                    {
-                        LOADING_STATE = 3; // Parada del bloque actual
-                        i=size;
-                        //log("Aqui he parado - PAUSA");
-                        return;
-                    }
+                    // Informacion para la barra de progreso
+                    PROGRESS_BAR_BLOCK_VALUE = (int)(((i+1)*100)/(size));
 
+                    if (BYTES_LOADED > BYTES_TOBE_LOAD)
+                    {BYTES_LOADED = BYTES_TOBE_LOAD;}
+                    // Informacion para la barra de progreso total
+                    PROGRESS_BAR_TOTAL_VALUE = (int)((BYTES_LOADED*100)/(BYTES_TOBE_LOAD));
+                    
+                    if (LOADING_STATE == 1)
+                    {
+                        if (STOP==true)
+                        {
+                            LOADING_STATE = 2; // Parada del bloque actual
+                            i=size;
+                            //log("Aqui he parado - STOP");
+                            return;
+                        }
+                        else if (PAUSE==true)
+                        {
+                            LOADING_STATE = 3; // Parada del bloque actual
+                            i=size;
+                            //log("Aqui he parado - PAUSA");
+                            return;
+                        }
+
+                    }
                 }
-              }
 
 
-              if (LOADING_STATE == 1 || TEST_RUNNING)
-              {
-                  // Vamos a ir leyendo los bytes y generando el sonido
-                  bRead = data[i];
-                  
-                  // Para la protección con mascara ID11 - 0x0C
-                  // "Used bits in the last uint8_t (other bits should be 0) {8}
-                  //(e.g. if this is 6, then the bits used (x) in the last uint8_t are: xxxxxx00, wh///ere MSb is the leftmost bit, LSb is the rightmost bit)"
-                  
-                  // ¿Es el ultimo BYTE?. Si se ha aplicado mascara entonces
-                  // se modifica el numero de bits a transmitir
-                  if (i == size-1)
-                  {
-                      _mask = _mask_last_byte;
-                  }
-                  else
-                  {
-                      _mask = 8;
-                  }
+                // Vamos a ir leyendo los bytes y generando el sonido
+                bRead = data[i];
+                
+                // Para la protección con mascara ID 0x11 - 0x0C
+                // ---------------------------------------------
+                // "Used bits in the last uint8_t (other bits should be 0) {8}
+                //(e.g. if this is 6, then the bits used (x) in the last uint8_t are: xxxxxx00, wh///ere MSb is the leftmost bit, LSb is the rightmost bit)"
+                
+                // ¿Es el ultimo BYTE?. Si se ha aplicado mascara entonces
+                // se modifica el numero de bits a transmitir
 
-                  for (int n=0;n < _mask;n++)
-                  {
-                      // Si el bit leido del BYTE es un "1"
-                      if(bitRead(bRead, 7-n) == 1)
-                      {
-                          // Procesamos "1"
-                          oneToneEdge();
-                      }
-                      else
-                      {
-                          // En otro caso
-                          // procesamos "0"
-                          zeroToneEdge();
-                      }
-                  }
+                if (LOADING_STATE==1 || TEST_RUNNING)
+                {
+                    if (i == size-1)
+                    {
+                        // Aplicamos la mascara
+                        _mask = _mask_last_byte;
+                    }
+                    else
+                    {
+                        // En otro caso todo el byte es valido.
+                        // se anula la mascara.
+                        _mask = 8;
+                    }
+                
+                    // Ahora vamos a descomponer el byte leido
+                    // si hay mascara entonces solo se leerán n bits de los 8 que componen un BYTE.
+                    for (int n=0;n < _mask;n++)
+                    {
 
-                  // Hemos cargado 1 bytes. Seguimos
-                  if (!TEST_RUNNING)
-                  {
-                      BYTES_LOADED++;
-                      bytes_in_this_block++;
-                      BYTES_LAST_BLOCK = bytes_in_this_block;              
-                  }
-              }
-              else
-              {
-                break;
-              }
+                        // Si el bit leido del BYTE es un "1"
+                        if(bitRead(bRead, 7-n) == 1)
+                        {
+                            // Procesamos "1"
+                            oneToneEdge();
+                        }
+                        else
+                        {
+                            // En otro caso
+                            // procesamos "0"
+                            zeroToneEdge();
+                        }
+                    }
 
+                    // Hemos cargado +1 byte. Seguimos
+                    if (!TEST_RUNNING)
+                    {
+                        BYTES_LOADED++;
+                        bytes_in_this_block++;
+                        BYTES_LAST_BLOCK = bytes_in_this_block;              
+                    }
+                }
+                else
+                {
+                    break;
+                }
             }
 
+            
             // Esto lo hacemos para asegurarnos que la barra se llena entera
             // _hmi.writeString("progression.val=100");
 
@@ -1132,7 +1155,8 @@ class ZXProcessor
             generatePulse(freq, samplingRate,1,true);
 
             // El ultimo flanco siempre es HIGH
-            LAST_EDGE_IS = 1;
+            LAST_EDGE_IS = 1;    
+
         }
     }
    
@@ -1200,14 +1224,18 @@ class ZXProcessor
 
             //log("Send DATA");
             if (LOADING_STATE == 2)
-            {return;}
+            {
+                return;
+            }
                         
             // Silent tone
             silenceEdge(silent);
 
             //log("Send SILENCE");
             if (LOADING_STATE == 2)
-            {return;}
+            {
+                return;
+            }
             
             //log("Fin del PLAY");
         }        
