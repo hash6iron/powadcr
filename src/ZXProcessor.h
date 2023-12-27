@@ -330,22 +330,22 @@ class ZXProcessor
         if (edge==1)
         {
             A=32767;
-            LAST_EDGE_IS = 1;
         }
         else
         {
             A=-32768;
-            LAST_EDGE_IS = -1;
         }
 
         // Pulso bajo (la otra mitad) es invertida
-        for (int j=bytes/(4*chn);j<bytes/(2*chn);j++){
+        for (int j=bytes/(4*chn);j<bytes/(2*chn);j++)
+        {
             
             m_amplitude_R = MAIN_VOL_R * A / 100;
             m_amplitude_L = MAIN_VOL_L * A / 100;
 
             int16_t sample_L = m_amplitude_L;
             int16_t sample_R = m_amplitude_R;
+            
 
             if (!SWAP_EAR_CHANNEL)
             {
@@ -365,6 +365,8 @@ class ZXProcessor
             result +=2*chn;
         }
 
+        LAST_EDGE_IS = edge;
+
         return result;
     }
 
@@ -383,21 +385,22 @@ class ZXProcessor
             // slope tomará los valores 1 o -1
             if (slope==1)
             {
-                m_amplitude_R = MAIN_VOL_R * 32767 / 100;
-                m_amplitude_L = MAIN_VOL_L * 32767 / 100;
+                m_amplitude_R = (MAIN_VOL_R * 32767 * slope) / 100;
+                m_amplitude_L = (MAIN_VOL_L * 32767 * slope) / 100;
             }
             else
             {
-                m_amplitude_R = MAIN_VOL_R * 32768 / 100;
-                m_amplitude_L = MAIN_VOL_L * 32768 / 100;
+                m_amplitude_R = (MAIN_VOL_R * 32768 * slope) / 100;
+                m_amplitude_L = (MAIN_VOL_L * 32768 * slope) / 100;
             }
  
             int16_t sample_L = 0;
             int16_t sample_R = 0;
 
-            sample_R = m_amplitude_R * slope;
-            sample_L = m_amplitude_L * slope;
-
+            sample_R = m_amplitude_R;
+            sample_L = m_amplitude_L;
+         
+            // Aplica un terminador si es el caso
             if (end)
             {
                 sample_R = (m_amplitude_R/2) + (m_amplitude_R/4);
@@ -699,6 +702,9 @@ class ZXProcessor
             uint8_t buffer[bufferSize*chn]; 
             m_kit.write(buffer, silenceWaveEdge(buffer, bufferSize));
         }
+        
+        // Reiniciamos el silencio para evitar historias.
+        // silent = DSILENT;
     }
 
     void customPilotTone_old(int lenPulse, int numPulses)
@@ -741,67 +747,6 @@ class ZXProcessor
 
     }
 
-    void playCustomSequence(int* data, int numPulses)
-    {
-        //
-        // Esto lo usamos para el PULSE_SEQUENCE ID-13
-        //
-
-        // Reproduce una secuencia de pulsos totalmente customizada
-        // cada pulso tiene su timming y viene dado en un array (data)
-        int slope = LAST_EDGE_IS;
-
-        for (int i = 0; i < numPulses;i++)
-        {
-            // Cambiamos slope de 0 a 1, para indicar si es 
-            // pulso alto o bajo
-            if (LAST_EDGE_IS!=1)
-            {
-                slope=1;
-            }
-            else
-            {
-                slope=-1;
-            }
-
-            semiPulse(data[i],slope);
-            LAST_EDGE_IS = slope;   
-        }
-        //log("Flanco: " + String(LAST_EDGE_IS));       
-
-    }
-
-    // void playCustomSequence_old(int* data, int numPulses)
-    // {
-    //     // Reproduce una secuencia de pulsos totalmente customizada
-    //     // cada pulso tiene su timming y viene dado en un array (data)
-    //     int slope = 0;
-
-    //     for (int i = 0; i < numPulses;i++)
-    //     {
-    //         // Cambiamos slope de 0 a 1, para indicar si es 
-    //         // pulso alto o bajo
-    //         slope = 1 - (i % 2);
-    //         syncTone(data[i],slope);            
-    //     }
-
-    //     // Metemos un pulso de cambio de estado
-    //     // para asegurar el cambio de flanco alto->bajo, del elemento de la secuencia
-
-    //     // if (slope == 1)
-    //     // {
-    //     //     SerialHW.println("");
-    //     //     SerialHW.println("End edge: HIGH");
-    //     //     LAST_EDGE_IS = 1;
-    //     // }
-    //     // else
-    //     // {
-    //     //     SerialHW.println("");
-    //     //     SerialHW.println("End edge: LOW");
-    //     //     LAST_EDGE_IS = 0;
-    //     // }
-    // }
-
     void semiPulse(int nTStates, int slope)
     {
         // Procedimiento que genera un pulso de sincronismo, según los
@@ -810,7 +755,6 @@ class ZXProcessor
         // El ZX Spectrum tiene dos tipo de sincronismo, uno al finalizar el tono piloto
         // y otro al final de la recepción de los datos, que serán SYNC1 y SYNC2 respectivamente.
         float freq = (1 / (nTStates * tState));   
-        
         generatePulse(freq, samplingRate,slope, false);        
     }
 
@@ -827,6 +771,7 @@ class ZXProcessor
     void zeroToneEdge()
     {
         // Procedimiento que genera un bit "0"
+        //log("Valor de BIT0: " + String(BIT_0));
         float freq = (1 / (BIT_0 * tState)) / 2;        
         generateOneWaveEdge(freq, samplingRate,LAST_EDGE_IS);
     }
@@ -1018,13 +963,13 @@ class ZXProcessor
     void sendDataArrayEdge(uint8_t* data, int size)
     {
         uint8_t _mask = 8;   // Para el last_byte
+        uint8_t bRead = 0x00;
+        int bytes_in_this_block = 0;        
 
         // Procedimiento para enviar datos desde un array.
         // si estamos reproduciendo, nos mantenemos.
         if (LOADING_STATE==1 || TEST_RUNNING)
         {
-            uint8_t bRead = 0x00;
-            int bytes_in_this_block = 0;
 
             // Recorremos todo el vector de bytes leidos para reproducirlos
             for (int i = 0; i < size;i++)
@@ -1056,14 +1001,18 @@ class ZXProcessor
                             //log("Aqui he parado - PAUSA");
                             return;
                         }
-
+                    }
+                    else
+                    {
+                        //log("Me lo he saltado 1");
                     }
                 }
 
 
                 // Vamos a ir leyendo los bytes y generando el sonido
                 bRead = data[i];
-                
+                //log("Dato: " + String(i) + " - " + String(data[i]));
+
                 // Para la protección con mascara ID 0x11 - 0x0C
                 // ---------------------------------------------
                 // "Used bits in the last uint8_t (other bits should be 0) {8}
@@ -1078,6 +1027,7 @@ class ZXProcessor
                     {
                         // Aplicamos la mascara
                         _mask = _mask_last_byte;
+                        //log("Mascara: " + String(_mask) + " - Dato: [" + String(i) + "] - " + String(data[i]));
                     }
                     else
                     {
@@ -1115,9 +1065,12 @@ class ZXProcessor
                 }
                 else
                 {
-                    break;
+                    //log("He salido en: " + String(i));
+                    //break // -> 27/12/2023
+                    return;
                 }
             }
+
 
             
             // Esto lo hacemos para asegurarnos que la barra se llena entera
@@ -1158,6 +1111,10 @@ class ZXProcessor
             LAST_EDGE_IS = 1;    
 
         }
+        else
+        {
+            //log("Me lo he saltado 2");
+        }        
     }
    
 
@@ -1216,11 +1173,45 @@ class ZXProcessor
             customPilotTone(lenPulse, numPulses);          
         }
 
+        void playCustomSequence(int* data, int numPulses)
+        {
+            //log("BYTE: " + String(BYTES_LOADED) + " - sample: 2SM - " + String(j) + " - R: " + String(sample_R) + " L: "+ String(sample_L));
+            //
+            // Esto lo usamos para el PULSE_SEQUENCE ID-13
+            //
+
+            // Reproduce una secuencia de pulsos totalmente customizada
+            // cada pulso tiene su timming y viene dado en un array (data)
+            int slope = LAST_EDGE_IS;
+
+            //log("------  Start PULSE SQZ");
+
+            for (int i = 0; i < numPulses;i++)
+            {
+                // Cambiamos slope de 0 a 1, para indicar si es 
+                // pulso alto o bajo
+                if (LAST_EDGE_IS!=1)
+                {
+                    slope=1;
+                }
+                else
+                {
+                    slope=-1;
+                }
+
+                semiPulse(data[i],slope);
+                LAST_EDGE_IS = slope;   
+            }
+            //log("Flanco: " + String(LAST_EDGE_IS));     
+            //log("++++++  End PULSE SQZ");  
+        }   
+
         void playPureData(uint8_t* bBlock, int lenBlock)
         {
 
             // Send data
             sendDataArrayEdge(bBlock, lenBlock);
+            //log("Pure data " + String(lenBlock));
 
             //log("Send DATA");
             if (LOADING_STATE == 2)
@@ -1228,13 +1219,21 @@ class ZXProcessor
                 return;
             }
                         
-            // Silent tone
-            silenceEdge(silent);
-
-            //log("Send SILENCE");
-            if (LOADING_STATE == 2)
+            if (silent!=0)
             {
-                return;
+                // Silent tone
+                silenceEdge(silent);
+                //log("Silencio: " + String(silent));
+
+                //log("Send SILENCE");
+                if (LOADING_STATE == 2)
+                {
+                    return;
+                }
+            }
+            else
+            {
+                //log("No hay silencio");
             }
             
             //log("Fin del PLAY");

@@ -1765,11 +1765,6 @@ class TZXprocessor
 
     void play()
     {
-        //_hmi.writeString("");
-        // _hmi.writeString("READYst.val=0");
-
-        // //_hmi.writeString("");
-        // _hmi.writeString("ENDst.val=0");
 
         if (_myTZX.descriptor != nullptr)
         {         
@@ -1777,20 +1772,18 @@ class TZXprocessor
               byte* bufferPlay = nullptr;
 
               // Entregamos información por consola
-              //PROGRAM_NAME = _myTZX.name;
               TOTAL_BLOCKS = _myTZX.numBlocks;
               strcpy(LAST_NAME,"              ");
 
               // Ahora reproducimos todos los bloques desde el seleccionado (para cuando se quiera uno concreto)
               int m = BLOCK_SELECTED;
-              //BYTES_TOBE_LOAD = _rlen;
 
               // Reiniciamos
               if (BLOCK_SELECTED == 0) 
               {
                 BYTES_LOADED = 0;
                 BYTES_TOBE_LOAD = _rlen;
-                //_hmi.writeString("");
+
                 _hmi.writeString("progressTotal.val=" + String((int)((BYTES_LOADED * 100) / (BYTES_TOBE_LOAD))));
               } 
               else 
@@ -1922,11 +1915,9 @@ class TZXprocessor
                         CURRENT_BLOCK_IN_PROGRESS = i;
                         BLOCK_SELECTED = i;
 
-                        //_hmi.writeString("");
-                        //_hmi.writeString("currentBlock.val=" + String(i + 1));
+                        _hmi.writeString("currentBlock.val=" + String(i + 1));
 
-                        //_hmi.writeString("");
-                        //_hmi.writeString("progression.val=" + String(0));
+                        _hmi.writeString("progression.val=" + String(0));
                       }
 
                       //Paramos la reproducción.
@@ -1957,8 +1948,6 @@ class TZXprocessor
 
                       // Actualizamos HMI
                       _hmi.setBasicFileInformation(_myTZX.descriptor[i].name,_myTZX.descriptor[i].typeName,_myTZX.descriptor[i].size);
-
-                      //_hmi.updateInformationMainPage();
 
                       // Reproducimos el fichero
                       if (_myTZX.descriptor[i].type == 0) 
@@ -2018,7 +2007,6 @@ class TZXprocessor
                           // Estos bloques pueden ser BYTE o SCREEN
 
                           bufferPlay = (byte*)ps_calloc(_myTZX.descriptor[i].size, sizeof(byte));
-
                           bufferPlay = sdm.readFileRange32(_mFile, _myTZX.descriptor[i].offsetData, _myTZX.descriptor[i].size, false);
 
                           showBufferPlay(bufferPlay,_myTZX.descriptor[i].size);
@@ -2069,21 +2057,65 @@ class TZXprocessor
                               case 20:
 
                                 // ID 0x14
-
                                 blockSize = _myTZX.descriptor[i].size;
-                                bufferPlay = (byte*)ps_calloc(_myTZX.descriptor[i].size, sizeof(byte));
-                                bufferPlay = sdm.readFileRange32(_mFile, _myTZX.descriptor[i].offsetData, _myTZX.descriptor[i].size, true);
+                                int blockSize = 10000;
 
-                                showBufferPlay(bufferPlay,_myTZX.descriptor[i].size);
-                                verifyChecksum(_mFile,_myTZX.descriptor[i].offsetData,_myTZX.descriptor[i].size);    
+                                if (_myTZX.descriptor[i].size > blockSize)
+                                {
+                                    log("Partiendo la pana");
 
-                                // BTI 0
-                                _zxp.BIT_0 = _myTZX.descriptor[i].timming.bit_0;
-                                // BIT1                                          
-                                _zxp.BIT_1 = _myTZX.descriptor[i].timming.bit_1;
-                                //
-                                _zxp.playPureData(bufferPlay, _myTZX.descriptor[i].size);
-                                free(bufferPlay);
+                                    int totalSize = _myTZX.descriptor[i].size;
+                                    int offset = _myTZX.descriptor[i].offsetData;
+                                    int blocks = totalSize / blockSize;
+                                    int lastBlockSize = totalSize - (blocks * blockSize);
+
+                                    log("Información: ");
+                                    log(" - Tamaño total del bloque entero: " + String(totalSize));
+                                    log(" - Numero de particiones: " + String(blocks));
+                                    log(" - Ultimo bloque (size): " + String(lastBlockSize));
+                                    log(" - Offset: " + String(offset));
+
+
+                                    // BTI 0
+                                    _zxp.BIT_0 = _myTZX.descriptor[i].timming.bit_0;
+                                    // BIT1                                          
+                                    _zxp.BIT_1 = _myTZX.descriptor[i].timming.bit_1;
+
+                                    bufferPlay = (byte*)ps_calloc(blockSize, sizeof(byte));
+
+                                    for (int n=0;n < blocks;n++)
+                                    {
+                                      log("Particion [" + String(n));
+                                      log(" - Offset ini: " + String(offset + (blockSize*n)));
+                                      log(" - Offset fin: " + String(offset + (blockSize*n) + blockSize));
+                                      bufferPlay = sdm.readFileRange32(_mFile, offset + (blockSize*n), blockSize, true);
+                                      _zxp.playPureData(bufferPlay, blockSize);                                      
+                                    }
+
+                                    bufferPlay = sdm.readFileRange32(_mFile, offset + (blockSize*blocks), lastBlockSize, true);
+                                    _zxp.playPureData(bufferPlay, lastBlockSize);                                    
+
+                                    free(bufferPlay); 
+
+                                }
+                                else
+                                {
+                                    bufferPlay = (byte*)ps_calloc(_myTZX.descriptor[i].size, sizeof(byte));
+                                    bufferPlay = sdm.readFileRange32(_mFile, _myTZX.descriptor[i].offsetData, _myTZX.descriptor[i].size, true);
+    
+                                    showBufferPlay(bufferPlay,_myTZX.descriptor[i].size);
+                                    verifyChecksum(_mFile,_myTZX.descriptor[i].offsetData,_myTZX.descriptor[i].size);    
+
+                                    // BTI 0
+                                    _zxp.BIT_0 = _myTZX.descriptor[i].timming.bit_0;
+                                    // BIT1                                          
+                                    _zxp.BIT_1 = _myTZX.descriptor[i].timming.bit_1;
+                                    //
+                                    _zxp.playPureData(bufferPlay, _myTZX.descriptor[i].size);
+                                    free(bufferPlay);                                  
+                                }
+
+                                
                                 break;                          
                           }
                       
