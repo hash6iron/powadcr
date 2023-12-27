@@ -1561,13 +1561,22 @@ class TZXprocessor
 
     void showBufferPlay(byte* buffer, int size)
     {
-        // SerialHW.println("Listing bufferplay.");
-        // for (int n=0;n<size;n++)
-        // {
-        //     SerialHW.print(buffer[n],HEX);
-        //     SerialHW.print(",");
-        // }
-        // SerialHW.println("");
+        
+        if (size > 5)
+        {
+          SerialHW.println("Listing bufferplay.");
+          // for (int n=0;n<size;n++)
+          // {
+
+          SerialHW.print(buffer[0],HEX);
+          SerialHW.print(buffer[2],HEX);
+          SerialHW.print(" ... ");
+          SerialHW.print(buffer[size-2],HEX);
+          SerialHW.print(buffer[size-1],HEX);
+
+          // }
+          SerialHW.println("");
+        }
     }
 
     public:
@@ -2058,7 +2067,7 @@ class TZXprocessor
 
                                 // ID 0x14
                                 blockSize = _myTZX.descriptor[i].size;
-                                int blockSize = 10000;
+                                int blockSize = 5000;
 
                                 if (_myTZX.descriptor[i].size > blockSize)
                                 {
@@ -2087,19 +2096,24 @@ class TZXprocessor
                                     for (int n=0;n < blocks;n++)
                                     {
                                       log("Particion [" + String(n) + "]");
-                                      log(" - Offset ini: " + String(offsetBase + (blockSize*n)));
-                                      log(" - Offset fin: " + String(offsetBase + (blockSize*n) + (blockSize-1)));
+                                      log(" - Offset ini: ");
+                                      SerialHW.print(offsetBase + (blockSize*n),HEX);
+
+                                      log(" - Offset fin: ");
+                                      SerialHW.print(offsetBase + (blockSize*n) + (blockSize-1),HEX);
 
                                       newOffset = offsetBase + (blockSize*n);
-                                      bufferPlay = sdm.readFileRange32(_mFile, newOffset, blockSize-1, true);
+                                      bufferPlay = sdm.readFileRange32(_mFile, newOffset, blockSize, true);
+                                      showBufferPlay(bufferPlay,blockSize);                                      
                                       _zxp.playPureData(bufferPlay, blockSize);                                      
                                     }
 
                                     log("Particion [" + String(blocks) + "]");
                                     log(" - Offset ini: " + String(offsetBase + (blockSize * blocks)));
-                                    log(" - Offset fin: " + String(offsetBase + (blockSize * (blocks)) + lastBlockSize));
+                                    log(" - Offset fin: " + String(offsetBase + (blockSize * (blocks)) + lastBlockSize - 1));
 
                                     bufferPlay = sdm.readFileRange32(_mFile, offsetBase + (blockSize*blocks), lastBlockSize+1, true);
+                                    showBufferPlay(bufferPlay,lastBlockSize);                                      
                                     _zxp.playPureData(bufferPlay, lastBlockSize);                                    
 
                                     free(bufferPlay); 
