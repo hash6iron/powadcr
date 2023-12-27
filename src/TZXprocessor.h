@@ -2065,7 +2065,8 @@ class TZXprocessor
                                     log("Partiendo la pana");
 
                                     int totalSize = _myTZX.descriptor[i].size;
-                                    int offset = _myTZX.descriptor[i].offsetData;
+                                    int offsetBase = _myTZX.descriptor[i].offsetData;
+                                    int newOffset = 0;
                                     int blocks = totalSize / blockSize;
                                     int lastBlockSize = totalSize - (blocks * blockSize);
 
@@ -2073,7 +2074,7 @@ class TZXprocessor
                                     log(" - Tamaño total del bloque entero: " + String(totalSize));
                                     log(" - Numero de particiones: " + String(blocks));
                                     log(" - Ultimo bloque (size): " + String(lastBlockSize));
-                                    log(" - Offset: " + String(offset));
+                                    log(" - Offset: " + String(offsetBase));
 
 
                                     // BTI 0
@@ -2085,14 +2086,20 @@ class TZXprocessor
 
                                     for (int n=0;n < blocks;n++)
                                     {
-                                      log("Particion [" + String(n));
-                                      log(" - Offset ini: " + String(offset + (blockSize*n)));
-                                      log(" - Offset fin: " + String(offset + (blockSize*n) + blockSize));
-                                      bufferPlay = sdm.readFileRange32(_mFile, offset + (blockSize*n), blockSize, true);
+                                      log("Particion [" + String(n) + "]");
+                                      log(" - Offset ini: " + String(offsetBase + (blockSize*n)));
+                                      log(" - Offset fin: " + String(offsetBase + (blockSize*n) + (blockSize-1)));
+
+                                      newOffset = offsetBase + (blockSize*n);
+                                      bufferPlay = sdm.readFileRange32(_mFile, newOffset, blockSize-1, true);
                                       _zxp.playPureData(bufferPlay, blockSize);                                      
                                     }
 
-                                    bufferPlay = sdm.readFileRange32(_mFile, offset + (blockSize*blocks), lastBlockSize, true);
+                                    log("Particion [" + String(blocks) + "]");
+                                    log(" - Offset ini: " + String(offsetBase + (blockSize * blocks)));
+                                    log(" - Offset fin: " + String(offsetBase + (blockSize * (blocks)) + lastBlockSize));
+
+                                    bufferPlay = sdm.readFileRange32(_mFile, offsetBase + (blockSize*blocks), lastBlockSize+1, true);
                                     _zxp.playPureData(bufferPlay, lastBlockSize);                                    
 
                                     free(bufferPlay); 

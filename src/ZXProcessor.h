@@ -926,12 +926,12 @@ class ZXProcessor
             }
 
             // Esto lo hacemos para asegurarnos que la barra se llena entera
-            // _hmi.writeString("progression.val=100");
+            _hmi.writeString("progression.val=100");
 
-            // if (BYTES_LOADED > BYTES_TOBE_LOAD)
-            // {BYTES_LOADED = BYTES_TOBE_LOAD;}
+            if (BYTES_LOADED > BYTES_TOBE_LOAD)
+            {BYTES_LOADED = BYTES_TOBE_LOAD;}
 
-            // _hmi.writeString("progressTotal.val=" + String((int)((BYTES_LOADED*100)/(BYTES_TOBE_LOAD))));
+            _hmi.writeString("progressTotal.val=" + String((int)((BYTES_LOADED*100)/(BYTES_TOBE_LOAD))));
             // //_hmi.updateInformationMainPage();                   
 
             int width = 0;
@@ -1074,12 +1074,12 @@ class ZXProcessor
 
             
             // Esto lo hacemos para asegurarnos que la barra se llena entera
-            // _hmi.writeString("progression.val=100");
+            _hmi.writeString("progression.val=100");
 
-            // if (BYTES_LOADED > BYTES_TOBE_LOAD)
-            // {BYTES_LOADED = BYTES_TOBE_LOAD;}
+            if (BYTES_LOADED > BYTES_TOBE_LOAD)
+            {BYTES_LOADED = BYTES_TOBE_LOAD;}
 
-            // _hmi.writeString("progressTotal.val=" + String((int)((BYTES_LOADED*100)/(BYTES_TOBE_LOAD))));
+            _hmi.writeString("progressTotal.val=" + String((int)((BYTES_LOADED*100)/(BYTES_TOBE_LOAD))));
             // //_hmi.updateInformationMainPage();                   
 
             // ****************

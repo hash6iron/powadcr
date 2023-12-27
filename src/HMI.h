@@ -240,7 +240,6 @@ class HMI
           sdm.file.close();
       }
 
-
       void printFileRows(int row, int color, String szName)
       {
             switch(row)
