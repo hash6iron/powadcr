@@ -287,7 +287,7 @@ class ZXProcessor
         return result;
     }
 
-    size_t createWaveEdge(uint8_t *buffer, size_t bytes, int edge)
+    size_t createWaveEdge(uint8_t *buffer, size_t bytes, int slope)
     {
         
         // Procedimiento para generar un tren de pulsos cuadrados completo
@@ -298,13 +298,13 @@ class ZXProcessor
         int16_t *ptr = (int16_t*)buffer;
         int A = maxAmplitude;
 
-        if (edge==1)
+        if (slope==1)
         {
-            A=minAmplitude;
+            A=maxAmplitude;
         }
         else
         {
-            A=maxAmplitude;
+            A=minAmplitude;
         }
 
         // Pulso alto (mitad del periodo)
@@ -335,13 +335,13 @@ class ZXProcessor
         }
 
 
-        if (edge==1)
+        if (slope==1)
         {
-            A = maxAmplitude;
+            A = minAmplitude;
         }
         else
         {
-            A = minAmplitude;
+            A = maxAmplitude;
         }
 
         // Pulso bajo (la otra mitad) es invertida
@@ -373,7 +373,8 @@ class ZXProcessor
             result +=2*chn;
         }
 
-        LAST_EDGE_IS = edge;
+        // slope tomará los valores 1 (el ultimo flanco va de alto --> bajo) o distinto de 1 (el ultimo flanco va de bajo --> alto)
+        LAST_EDGE_IS = slope;
 
         return result;
     }
@@ -390,21 +391,39 @@ class ZXProcessor
         int16_t sample_L = 0;
         int16_t sample_R = 0;
 
-        // slope tomará los valores 1 (se queda el flanco en alto) o distinto de 1 (se queda el flanco en bajo)
-        if (slope==1)
+        // slope tomará los valores 1 (el ultimo flanco va de alto --> bajo) o distinto de 1 (el ultimo flanco va de bajo --> alto)
+        if (end)
         {
-            // m_amplitude_R = (MAIN_VOL_R * maxAmplitude * slope) / 100;
-            // m_amplitude_L = (MAIN_VOL_L * maxAmplitude * slope) / 100;
-            m_amplitude_R =  (maxAmplitude/3);
-            m_amplitude_L =  (maxAmplitude/3);
+            // Terminador
+            if (slope==1)
+            {
+                // Volvemos a pasar por cero (de bajo --> alto) para que el semi-pulso en bajo se entienda
+                m_amplitude_R =  (maxAmplitude/3);
+                m_amplitude_L =  (maxAmplitude/3);
+            }
+            else
+            {
+                // Volvemos a pasar por cero (de alto --> bajo) para que el semi-pulso en alto se entienda
+                m_amplitude_R =  (minAmplitude/3);
+                m_amplitude_L =  (minAmplitude/3);
+            }            
         }
         else
         {
-            // m_amplitude_R = (MAIN_VOL_R * abs(minAmplitude) * slope) / 100;
-            // m_amplitude_L = (MAIN_VOL_L * abs(minAmplitude) * slope) / 100;
-            m_amplitude_R =  (minAmplitude/3);
-            m_amplitude_L =  (minAmplitude/3);
+            if (slope==1)
+            {
+                // Volvemos a pasar por cero (de bajo --> alto) para que el semi-pulso en bajo se entienda
+                m_amplitude_R =  MAIN_VOL_R * maxAmplitude / 100;
+                m_amplitude_L =  MAIN_VOL_L * maxAmplitude / 100;
+            }
+            else
+            {
+                // Volvemos a pasar por cero (de alto --> bajo) para que el semi-pulso en alto se entienda
+                m_amplitude_R =  MAIN_VOL_R * minAmplitude / 100;
+                m_amplitude_L =  MAIN_VOL_L * minAmplitude / 100;
+            }
         }
+
 
         sample_R = m_amplitude_R;
         sample_L = m_amplitude_L;
@@ -431,6 +450,7 @@ class ZXProcessor
             result+=2*chn;
         }
 
+        // slope tomará los valores 1 (el ultimo flanco va de alto --> bajo) o distinto de 1 (el ultimo flanco va de bajo --> alto)
         LAST_EDGE_IS = slope;
 
         return result;          
@@ -629,7 +649,7 @@ class ZXProcessor
         // Metemos un pulso de cambio de estado
         // para asegurar el cambio de flanco alto->bajo, del ultimo bit
         float freq = (1 / (width * tState));    
-        if (LAST_EDGE_IS!=1)
+        if (LAST_EDGE_IS==1)
         {
             generatePulse(freq, samplingRate,1,true);
         }
@@ -763,6 +783,7 @@ class ZXProcessor
         //
         
         // Iniciamos el flanco dependiendo de como fuera el ultimo
+        // slope tomará los valores 1 (el ultimo flanco va de alto --> bajo) o distinto de 1 (el ultimo flanco va de bajo --> alto)        
         int slope = LAST_EDGE_IS;
 
         // Repetimos el número de pulsos solicitados con un ancho "lenPulse"
@@ -770,7 +791,7 @@ class ZXProcessor
         {
             // Cambiamos slope de 0 a 1, para indicar si es 
             // pulso alto o bajo
-            if (LAST_EDGE_IS!=1)
+            if (LAST_EDGE_IS==1)
             {
                 slope=1;
             }
@@ -999,20 +1020,20 @@ class ZXProcessor
         }
     }
     
-    void terminatorPulse()
-    {
-        //Generamos un semipulso de cambio
-        if (LAST_EDGE_IS!=1)
-        {
-            semiPulse(200,1);
-            LAST_EDGE_IS=1;
-        }
-        else
-        {
-            semiPulse(200,0);
-            LAST_EDGE_IS=0;
-        }
-    }
+    // void terminatorPulse()
+    // {
+    //     //Generamos un semipulso de cambio
+    //     if (LAST_EDGE_IS==1)
+    //     {
+    //         semiPulse(200,1);
+    //         LAST_EDGE_IS=1;
+    //     }
+    //     else
+    //     {
+    //         semiPulse(200,0);
+    //         LAST_EDGE_IS=0;
+    //     }
+    // }
 
     void sendDataArrayEdge(uint8_t* data, int size, bool isThelastBlock)
     {
@@ -1226,7 +1247,7 @@ class ZXProcessor
             {
                 // Cambiamos slope de 0 a 1, para indicar si es 
                 // pulso alto o bajo
-                if (LAST_EDGE_IS!=1)
+                if (LAST_EDGE_IS==1)
                 {
                     slope=1;
                 }
@@ -1236,6 +1257,8 @@ class ZXProcessor
                 }
 
                 semiPulse(data[i],slope);
+                
+                // slope tomará los valores 1 (el ultimo flanco va de alto --> bajo) o distinto de 1 (el ultimo flanco va de bajo --> alto)                
                 LAST_EDGE_IS = slope;   
             }
 
