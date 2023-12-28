@@ -92,6 +92,7 @@ class TZXprocessor
     const char ID11STR[35] = "ID 11 - Speed block               ";
     const char ID12STR[35] = "ID 12 - Pure tone                 ";
     const char ID13STR[35] = "ID 13 - Pulse seq.                ";
+    const char ID14STR[35] = "ID 14 - Pure data                 ";
     const char IDXXSTR[35] = "ID                                ";
 
     // Procesador de audio output
@@ -1150,7 +1151,7 @@ class TZXprocessor
                       nextIDoffset = currentOffset + _myTZX.descriptor[currentBlock].size + 10 + 1;
                       
                       //"ID 14 - Pure Data block";
-                      strncpy(_myTZX.descriptor[currentBlock].typeName,IDXXSTR,35);
+                      strncpy(_myTZX.descriptor[currentBlock].typeName,ID14STR,35);
 
                       currentBlock++;
                   }
@@ -1562,24 +1563,24 @@ class TZXprocessor
     void showBufferPlay(byte* buffer, int size)
     {
         
-        if (size > 10)
-        {
-          log("");
-          SerialHW.println("Listing bufferplay.");
-          // for (int n=0;n<size;n++)
-          // {
+        // if (size > 10)
+        // {
+        //   log("");
+        //   SerialHW.println("Listing bufferplay.");
+        //   // for (int n=0;n<size;n++)
+        //   // {
 
-          SerialHW.print(buffer[0],HEX);
-          SerialHW.print(",");
-          SerialHW.print(buffer[1],HEX);
-          SerialHW.print(" ... ");
-          SerialHW.print(buffer[size-2],HEX);
-          SerialHW.print(",");
-          SerialHW.print(buffer[size-1],HEX);
+        //   SerialHW.print(buffer[0],HEX);
+        //   SerialHW.print(",");
+        //   SerialHW.print(buffer[1],HEX);
+        //   SerialHW.print(" ... ");
+        //   SerialHW.print(buffer[size-2],HEX);
+        //   SerialHW.print(",");
+        //   SerialHW.print(buffer[size-1],HEX);
 
-          // }
-          log("");
-        }
+        //   // }
+        //   log("");
+        // }
     }
 
     public:

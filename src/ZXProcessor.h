@@ -52,8 +52,9 @@ class ZXProcessor
     const float samplingRate = 44099.988;
     //const float samplingRate = 48000.0;
     const float sampleDuration = (1.0 / samplingRate); //0.0000002267; //
-                                                              // segundos para 44.1HKz
+                                                       // segundos para 44.1HKz
     const float maxAmplitude = 32767.0;
+    const float minAmplitude = 0.0;
     float m_amplitude_L = maxAmplitude; 
     float m_amplitude_R = maxAmplitude; 
 
@@ -196,8 +197,8 @@ class ZXProcessor
     {
 
         // Antes de iniciar la reproducción ajustamos el volumen de carga.
-        m_amplitude_R = MAIN_VOL_R * 32767 / 100;
-        m_amplitude_L = MAIN_VOL_L * 32767 / 100;
+        m_amplitude_R = MAIN_VOL_R * maxAmplitude / 100;
+        m_amplitude_L = MAIN_VOL_L * maxAmplitude / 100;
 
         float double_Pi = PI * 2.0;
         float angle = double_Pi * freq * m_time + 0;
@@ -228,8 +229,8 @@ class ZXProcessor
         // Pulso alto (mitad del periodo)
         for (int j=0;j<bytes/(4*chn);j++){
 
-            m_amplitude_R = MAIN_VOL_R * 32767 / 100;
-            m_amplitude_L = MAIN_VOL_L * 32767 / 100;
+            m_amplitude_R = MAIN_VOL_R * maxAmplitude / 100;
+            m_amplitude_L = MAIN_VOL_L * maxAmplitude / 100;
 
             int16_t sample_L = m_amplitude_L;
             int16_t sample_R = m_amplitude_R;
@@ -255,23 +256,26 @@ class ZXProcessor
         // Pulso bajo (la otra mitad)
         for (int j=bytes/(4*chn);j<bytes/(2*chn);j++){
             
-            int16_t sample = 0;          
+            m_amplitude_R = MAIN_VOL_R * minAmplitude / 100;
+            m_amplitude_L = MAIN_VOL_L * minAmplitude / 100;
+
+            int16_t sample_L = m_amplitude_L;
+            int16_t sample_R = m_amplitude_R;          
 
             if (!SWAP_EAR_CHANNEL)
             {
-              //L-OUT
-              *ptr++ = sample * (1-EN_MUTE);
               //R-OUT
-              *ptr++ = sample* EN_MUTE;
+              *ptr++ = sample_R;
+              //L-OUT
+              *ptr++ = sample_L * EN_MUTE;
             }
             else
             {
-              //R-OUT
-              *ptr++ = sample* EN_MUTE;
               //L-OUT
-              *ptr++ = sample * (1-EN_MUTE);
+              *ptr++ = sample_L;
+              //R-OUT
+              *ptr++ = sample_R * EN_MUTE;
             }
-
 
             result +=2*chn;
         }
@@ -288,15 +292,15 @@ class ZXProcessor
         int chn = channels;
         size_t result = 0;
         int16_t *ptr = (int16_t*)buffer;
-        int A = 32767;
+        int A = maxAmplitude;
 
         if (edge==1)
         {
-            A=-32768;
+            A=minAmplitude;
         }
         else
         {
-            A=32767;
+            A=maxAmplitude;
         }
 
         // Pulso alto (mitad del periodo)
@@ -329,11 +333,11 @@ class ZXProcessor
 
         if (edge==1)
         {
-            A=32767;
+            A = maxAmplitude;
         }
         else
         {
-            A=-32768;
+            A = minAmplitude;
         }
 
         // Pulso bajo (la otra mitad) es invertida
@@ -385,13 +389,13 @@ class ZXProcessor
             // slope tomará los valores 1 o -1
             if (slope==1)
             {
-                m_amplitude_R = (MAIN_VOL_R * 32767 * slope) / 100;
-                m_amplitude_L = (MAIN_VOL_L * 32767 * slope) / 100;
+                m_amplitude_R = (MAIN_VOL_R * maxAmplitude * slope) / 100;
+                m_amplitude_L = (MAIN_VOL_L * maxAmplitude * slope) / 100;
             }
             else
             {
-                m_amplitude_R = (MAIN_VOL_R * 32768 * slope) / 100;
-                m_amplitude_L = (MAIN_VOL_L * 32768 * slope) / 100;
+                m_amplitude_R = (MAIN_VOL_R * abs(minAmplitude) * slope) / 100;
+                m_amplitude_L = (MAIN_VOL_L * abs(minAmplitude) * slope) / 100;
             }
  
             int16_t sample_L = 0;

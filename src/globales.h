@@ -63,7 +63,8 @@ struct tFileBuffer
   // Timming estandar de la ROM
   // Frecuencia de la CPU
   //float DfreqCPU = 3476604.8;
-  float DfreqCPU = 3450000;
+  //float DfreqCPU = 3450000;
+  float DfreqCPU = 3500000;
 
   const int DPILOT_HEADER = 8063;
   const int DPILOT_DATA = 3223;
