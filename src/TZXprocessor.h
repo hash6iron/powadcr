@@ -1928,9 +1928,9 @@ class TZXprocessor
                         CURRENT_BLOCK_IN_PROGRESS = i;
                         BLOCK_SELECTED = i;
 
-                        _hmi.writeString("currentBlock.val=" + String(i + 1));
+                        //_hmi.writeString("currentBlock.val=" + String(i + 1));
 
-                        _hmi.writeString("progression.val=" + String(0));
+                        //_hmi.writeString("progression.val=" + String(0));
                       }
 
                       //Paramos la reproducción.
@@ -2075,7 +2075,7 @@ class TZXprocessor
 
                                 if (_myTZX.descriptor[i].size > blockSize)
                                 {
-                                    log("Partiendo la pana");
+                                    //log("Partiendo la pana");
 
                                     int totalSize = _myTZX.descriptor[i].size;
                                     int offsetBase = _myTZX.descriptor[i].offsetData;
@@ -2083,11 +2083,11 @@ class TZXprocessor
                                     int blocks = totalSize / blockSize;
                                     int lastBlockSize = totalSize - (blocks * blockSize);
 
-                                    log("Información: ");
-                                    log(" - Tamaño total del bloque entero: " + String(totalSize));
-                                    log(" - Numero de particiones: " + String(blocks));
-                                    log(" - Ultimo bloque (size): " + String(lastBlockSize));
-                                    log(" - Offset: " + String(offsetBase));
+                                    // log("Información: ");
+                                    // log(" - Tamaño total del bloque entero: " + String(totalSize));
+                                    // log(" - Numero de particiones: " + String(blocks));
+                                    // log(" - Ultimo bloque (size): " + String(lastBlockSize));
+                                    // log(" - Offset: " + String(offsetBase));
 
 
                                     // BTI 0
@@ -2101,7 +2101,7 @@ class TZXprocessor
                                     // Recorremos el vector de particiones del bloque.
                                     for (int n=0;n < blocks;n++)
                                     {
-                                      log("Particion [" + String(n) + "/" + String(blocks) +  "]");
+                                      //log("Particion [" + String(n) + "/" + String(blocks) +  "]");
 
                                       // Calculamos el offset del bloque
                                       newOffset = offsetBase + (blockSize*n);
@@ -2115,7 +2115,7 @@ class TZXprocessor
                                     }
 
                                     // Ultimo bloque
-                                    log("Particion [" + String(blocks) + "/" + String(blocks) + "]");
+                                    //log("Particion [" + String(blocks) + "/" + String(blocks) + "]");
 
                                     // Calculamos el offset del último bloque
                                     newOffset = offsetBase + (blockSize*blocks);
