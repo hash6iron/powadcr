@@ -425,6 +425,8 @@ class ZXProcessor
             result+=2*chn;
         }
 
+        LAST_EDGE_IS = slope;
+
         return result;          
     }
 
@@ -859,14 +861,14 @@ class ZXProcessor
                     {
                         LOADING_STATE = 2; // Parada del bloque actual
                         i=size;
-                        //log("Aqui he parado - STOP");
+
                         return;
                     }
                     else if (PAUSE==true)
                     {
                         LOADING_STATE = 3; // Parada del bloque actual
                         i=size;
-                        //log("Aqui he parado - PAUSA");
+
                         return;
                     }
 
@@ -926,13 +928,8 @@ class ZXProcessor
             }
 
             // Esto lo hacemos para asegurarnos que la barra se llena entera
-            _hmi.writeString("progression.val=100");
-
             if (BYTES_LOADED > BYTES_TOBE_LOAD)
-            {BYTES_LOADED = BYTES_TOBE_LOAD;}
-
-            _hmi.writeString("progressTotal.val=" + String((int)((BYTES_LOADED*100)/(BYTES_TOBE_LOAD))));
-            // //_hmi.updateInformationMainPage();                   
+            {BYTES_LOADED = BYTES_TOBE_LOAD;}               
 
             int width = 0;
             // Leemos el ultimo bit (del ultimo uint8_t), y dependiendo de como sea
@@ -960,7 +957,27 @@ class ZXProcessor
         }
     }
     
-    void sendDataArrayEdge(uint8_t* data, int size)
+    void terminatorPulse(uint8_t bit)
+    {
+            // Vemos como es el último bit MSB es la posición 0, el ultimo bit
+            int width = 0;
+
+            if (bit == 1)
+            {
+                width = BIT_1;
+            }
+            else
+            {
+                width = BIT_0;
+            }
+            
+            // Metemos un pulso de cambio de estado
+            // para asegurar el cambio de flanco alto->bajo, del ultimo bit
+            float freq = (1 / (width * tState));    
+            generatePulse(freq, samplingRate,LAST_EDGE_IS,true);  
+    }
+
+    void sendDataArrayEdge(uint8_t* data, int size, bool isThelastBlock)
     {
         uint8_t _mask = 8;   // Para el last_byte
         uint8_t bRead = 0x00;
@@ -1074,42 +1091,27 @@ class ZXProcessor
 
             
             // Esto lo hacemos para asegurarnos que la barra se llena entera
-            _hmi.writeString("progression.val=100");
+            //_hmi.writeString("progression.val=100");
 
             if (BYTES_LOADED > BYTES_TOBE_LOAD)
             {BYTES_LOADED = BYTES_TOBE_LOAD;}
 
-            _hmi.writeString("progressTotal.val=" + String((int)((BYTES_LOADED*100)/(BYTES_TOBE_LOAD))));
+            //_hmi.writeString("progressTotal.val=" + String((int)((BYTES_LOADED*100)/(BYTES_TOBE_LOAD))));
             // //_hmi.updateInformationMainPage();                   
 
-            // ****************
-            // ****************        TERMINADOR
-            // ****************
-
-            int width = 0;
-            // Leemos el ultimo bit (del ultimo uint8_t), y dependiendo de como sea
-            // así cerramos el flanco.
-            // Cogemos el ultimo uint8_t
-            bRead = data[size-1];
-
-            // Vemos como es el último bit MSB es la posición 0, el ultimo bit
-            if (bitRead(bRead, 0) == 1)
+            if (isThelastBlock)
             {
-                width = BIT_1;
-            }
-            else
-            {
-                width = BIT_0;
-            }
-            
-            // Metemos un pulso de cambio de estado
-            // para asegurar el cambio de flanco alto->bajo, del ultimo bit
-            float freq = (1 / (width * tState));    
-            generatePulse(freq, samplingRate,1,true);
+                // ****************
+                // ****************        TERMINADOR
+                // ****************
 
-            // El ultimo flanco siempre es HIGH
-            LAST_EDGE_IS = 1;    
-
+                // Leemos el ultimo bit (del ultimo uint8_t), y dependiendo de como sea
+                // así cerramos el flanco.
+                // Cogemos el ultimo uint8_t
+                bRead = data[size-1];
+                // Metemos un pulse de finalización.
+                terminatorPulse(bitRead(bRead, 0));
+            }
         }
         else
         {
@@ -1208,35 +1210,38 @@ class ZXProcessor
 
         void playPureData(uint8_t* bBlock, int lenBlock)
         {
+            // Se usa para reproducir los datos del ultimo bloque o bloque completo sin particionar, ID 0x14.
+            // por tanto deben meter un terminador al final.
+            sendDataArrayEdge(bBlock, lenBlock,true);
 
-            // Send data
-            sendDataArrayEdge(bBlock, lenBlock);
-            //log("Pure data " + String(lenBlock));
-
-            //log("Send DATA");
             if (LOADING_STATE == 2)
             {
                 return;
             }
-                        
+
+            // Ahora enviamos el silencio, si aplica.
             if (silent!=0)
             {
                 // Silent tone
                 silenceEdge(silent);
-                //log("Silencio: " + String(silent));
 
-                //log("Send SILENCE");
                 if (LOADING_STATE == 2)
                 {
                     return;
                 }
             }
-            else
+        }        
+
+        void playPureDataPartition(uint8_t* bBlock, int lenBlock)
+        {
+            // Se envia a reproducir el bloque sin terminador ni silencio
+            // ya que es parte de un bloque completo que ha sido partido en varios
+            sendDataArrayEdge(bBlock, lenBlock, false);
+
+            if (LOADING_STATE == 2)
             {
-                //log("No hay silencio");
+                return;
             }
-            
-            //log("Fin del PLAY");
         }        
 
         void playDataBegin(uint8_t* bBlock, int lenBlock, int pulse_pilot_duration)

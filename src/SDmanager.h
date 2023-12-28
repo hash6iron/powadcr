@@ -126,8 +126,10 @@ class SDmanager
         if (logOn)
         {
             log("SDM - Info");
-            log("   + Offset: " + String(startByte));
-            log("   + Size: " + String(size));
+            SerialHW.print("   + Offset: ");
+            SerialHW.print(startByte,HEX);
+            SerialHW.print(" | Size: ");
+            SerialHW.print(String(size));
         }
     
         // Almacenamos el tamaño del bloque, para información

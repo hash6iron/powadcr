@@ -62,7 +62,8 @@ struct tFileBuffer
 #ifdef MACHINE_ZX
   // Timming estandar de la ROM
   // Frecuencia de la CPU
-  float DfreqCPU = 3476604.8;
+  //float DfreqCPU = 3476604.8;
+  float DfreqCPU = 3450000;
 
   const int DPILOT_HEADER = 8063;
   const int DPILOT_DATA = 3223;
