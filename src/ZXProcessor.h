@@ -53,8 +53,12 @@ class ZXProcessor
     //const float samplingRate = 48000.0;
     const float sampleDuration = (1.0 / samplingRate); //0.0000002267; //
                                                        // segundos para 44.1HKz
+    
+    // Estos valores definen las señales. Otros para el flanco negativo
+    // provocan problemas de lectura en el Spectrum.
     const float maxAmplitude = 32767.0;
-    const float minAmplitude = 0.0;
+    const float minAmplitude = -32768;
+
     float m_amplitude_L = maxAmplitude; 
     float m_amplitude_R = maxAmplitude; 
 
@@ -86,19 +90,20 @@ class ZXProcessor
 
     AudioKit m_kit;
 
-    size_t silenceWave(uint8_t *buffer, size_t samples)
+    size_t silenceWave(uint8_t *buffer, size_t samples, int amplitude)
     {
         int chn = channels;
         size_t result = 0;
         int16_t *ptr = (int16_t*)buffer;
         
         // Amplitud de silencio
-        int A = 0;
+        int A = amplitude;
 
         for (int j=0;j<(samples/2);j++)
         {
             m_amplitude_R = MAIN_VOL_R * A / 100;
             m_amplitude_L = MAIN_VOL_L * A / 100;
+
             int16_t sample_R = (m_amplitude_R / 2);
             int16_t sample_L = (m_amplitude_L / 2);
 
@@ -107,7 +112,7 @@ class ZXProcessor
               //L-OUT
               *ptr++ = sample_R;
               //R-OUT
-              *ptr++ = sample_L * (EN_MUTE) * (1-EN_MUTE_2);
+              *ptr++ = sample_L * (EN_MUTE);
             }
             else
             {
@@ -116,7 +121,6 @@ class ZXProcessor
               //L-OUT
               *ptr++ = sample_R * (EN_MUTE);
             }
-
 
             result+=2*chn;
         }
@@ -382,35 +386,33 @@ class ZXProcessor
         int chn = channels;
         size_t result = 0;
         int16_t *ptr = (int16_t*)buffer;
-        
+
+        int16_t sample_L = 0;
+        int16_t sample_R = 0;
+
+        // slope tomará los valores 1 (se queda el flanco en alto) o distinto de 1 (se queda el flanco en bajo)
+        if (slope==1)
+        {
+            // m_amplitude_R = (MAIN_VOL_R * maxAmplitude * slope) / 100;
+            // m_amplitude_L = (MAIN_VOL_L * maxAmplitude * slope) / 100;
+            m_amplitude_R =  (maxAmplitude/3);
+            m_amplitude_L =  (maxAmplitude/3);
+        }
+        else
+        {
+            // m_amplitude_R = (MAIN_VOL_R * abs(minAmplitude) * slope) / 100;
+            // m_amplitude_L = (MAIN_VOL_L * abs(minAmplitude) * slope) / 100;
+            m_amplitude_R =  (minAmplitude/3);
+            m_amplitude_L =  (minAmplitude/3);
+        }
+
+        sample_R = m_amplitude_R;
+        sample_L = m_amplitude_L;
+
+
         for (int j=0;j<bytes/(2*chn);j++)
         {
-
-            // slope tomará los valores 1 o -1
-            if (slope==1)
-            {
-                m_amplitude_R = (MAIN_VOL_R * maxAmplitude * slope) / 100;
-                m_amplitude_L = (MAIN_VOL_L * maxAmplitude * slope) / 100;
-            }
-            else
-            {
-                m_amplitude_R = (MAIN_VOL_R * abs(minAmplitude) * slope) / 100;
-                m_amplitude_L = (MAIN_VOL_L * abs(minAmplitude) * slope) / 100;
-            }
- 
-            int16_t sample_L = 0;
-            int16_t sample_R = 0;
-
-            sample_R = m_amplitude_R;
-            sample_L = m_amplitude_L;
-         
-            // Aplica un terminador si es el caso
-            if (end)
-            {
-                sample_R = (m_amplitude_R/2) + (m_amplitude_R/4);
-                sample_L = (m_amplitude_L/2) + (m_amplitude_L/4);
-            }
-                       
+                               
             if (!SWAP_EAR_CHANNEL)
             {
               //R-OUT
@@ -610,6 +612,36 @@ class ZXProcessor
 
     public:
 
+    void terminator(uint8_t bit)
+    {
+        int width = 0;
+
+        // Vemos como es el último bit MSB es la posición 0, el ultimo bit
+        if (bitRead(bit, 0) == 1)
+        {
+            width = BIT_1;
+        }
+        else
+        {
+            width = BIT_0;
+        }
+        
+        // Metemos un pulso de cambio de estado
+        // para asegurar el cambio de flanco alto->bajo, del ultimo bit
+        float freq = (1 / (width * tState));    
+        if (LAST_EDGE_IS!=1)
+        {
+            generatePulse(freq, samplingRate,1,true);
+        }
+        else
+        {
+            generatePulse(freq, samplingRate,0,true);
+        }
+        
+    }
+
+
+
     void silence(float duration)
     {
         // Esta onda se genera como el resto sumando trozos de onda
@@ -655,8 +687,9 @@ class ZXProcessor
             }
   
             // Aplicamos la reserva de buffer
-            uint8_t buffer[bufferSize*chn]; 
-            m_kit.write(buffer, silenceWave(buffer, bufferSize));
+            uint8_t buffer[bufferSize*chn];
+            // Generamos una señal de silencio de amplitud 0 
+            m_kit.write(buffer, silenceWave(buffer, bufferSize,0));
         }
     }
 
@@ -713,15 +746,15 @@ class ZXProcessor
         // silent = DSILENT;
     }
 
-    void customPilotTone_old(int lenPulse, int numPulses)
-    {
-        // Calculamos la frecuencia del tono guía.
-        // Hay que tener en cuenta que los T-States dados son de un SEMI-PULSO
-        // es decir de la mitad del periodo. Entonces hay que calcular
-        // el periodo completo que es 2 * T
-        float freq = (1 / (lenPulse * tState)) / 2;   
-        generateWavePulses(freq, numPulses, samplingRate);
-    }
+    // void customPilotTone_old(int lenPulse, int numPulses)
+    // {
+    //     // Calculamos la frecuencia del tono guía.
+    //     // Hay que tener en cuenta que los T-States dados son de un SEMI-PULSO
+    //     // es decir de la mitad del periodo. Entonces hay que calcular
+    //     // el periodo completo que es 2 * T
+    //     float freq = (1 / (lenPulse * tState)) / 2;   
+    //     generateWavePulses(freq, numPulses, samplingRate);
+    // }
 
     void customPilotTone(int lenPulse, int numPulses)
     {
@@ -935,50 +968,50 @@ class ZXProcessor
             if (BYTES_LOADED > BYTES_TOBE_LOAD)
             {BYTES_LOADED = BYTES_TOBE_LOAD;}               
 
-            int width = 0;
-            // Leemos el ultimo bit (del ultimo uint8_t), y dependiendo de como sea
-            // así cerramos el flanco.
-            // Cogemos el ultimo uint8_t
-            bRead = data[size-1];
 
-            // Vemos como es el último bit MSB es la posición 0, el ultimo bit
-            if (bitRead(bRead, 0) == 1)
-            {
-                width = BIT_1;
-            }
-            else
-            {
-                width = BIT_0;
-            }
+            // ********************* TERMINADOR *********************************
+
+
+            // int width = 0;
+            // // Leemos el ultimo bit (del ultimo uint8_t), y dependiendo de como sea
+            // // así cerramos el flanco.
+            // // Cogemos el ultimo uint8_t
+            uint8_t bit = data[size-1];
+
+            // // Vemos como es el último bit MSB es la posición 0, el ultimo bit
+            // if (bitRead(bRead, 0) == 1)
+            // {
+            //     width = BIT_1;
+            // }
+            // else
+            // {
+            //     width = BIT_0;
+            // }
             
-            // Metemos un pulso de cambio de estado
-            // para asegurar el cambio de flanco alto->bajo, del ultimo bit
-            float freq = (1 / (width * tState));    
-            generatePulse(freq, samplingRate,1,true);
+            // // Metemos un pulso de cambio de estado
+            // // para asegurar el cambio de flanco alto->bajo, del ultimo bit
+            // float freq = (1 / (width * tState));    
+            // generatePulse(freq, samplingRate,1,true);
 
             // El ultimo flanco siempre es HIGH
+            terminator(bit);
             LAST_EDGE_IS = 1;
         }
     }
     
-    void terminatorPulse(uint8_t bit)
+    void terminatorPulse()
     {
-            // Vemos como es el último bit MSB es la posición 0, el ultimo bit
-            int width = 0;
-
-            if (bit == 1)
-            {
-                width = BIT_1;
-            }
-            else
-            {
-                width = BIT_0;
-            }
-            
-            // Metemos un pulso de cambio de estado
-            // para asegurar el cambio de flanco alto->bajo, del ultimo bit
-            float freq = (1 / (width * tState));    
-            generatePulse(freq, samplingRate,LAST_EDGE_IS,true);  
+        //Generamos un semipulso de cambio
+        if (LAST_EDGE_IS!=1)
+        {
+            semiPulse(200,1);
+            LAST_EDGE_IS=1;
+        }
+        else
+        {
+            semiPulse(200,0);
+            LAST_EDGE_IS=0;
+        }
     }
 
     void sendDataArrayEdge(uint8_t* data, int size, bool isThelastBlock)
@@ -1109,12 +1142,9 @@ class ZXProcessor
                 // ****************        TERMINADOR
                 // ****************
 
-                // Leemos el ultimo bit (del ultimo uint8_t), y dependiendo de como sea
-                // así cerramos el flanco.
-                // Cogemos el ultimo uint8_t
-                bRead = data[size-1];
-                // Metemos un pulse de finalización.
-                terminatorPulse(bitRead(bRead, 0));
+                // Metemos un pulse de finalización, según acabe el ultimo flanco
+                uint8_t bit = data[size-1];
+                terminator(bit);
             }
         }
         else
@@ -1208,6 +1238,7 @@ class ZXProcessor
                 semiPulse(data[i],slope);
                 LAST_EDGE_IS = slope;   
             }
+
             //log("Flanco: " + String(LAST_EDGE_IS));     
             //log("++++++  End PULSE SQZ");  
         }   

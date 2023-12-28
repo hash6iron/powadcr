@@ -1114,7 +1114,7 @@ void Task0code( void * pvParameters )
       // Control por botones
       //buttonsControl();
       //delay(50);
-      if ((millis() - startTime) > 125)
+      if ((millis() - startTime) > 250)
       {
         startTime = millis();
         hmi.updateInformationMainPage();
