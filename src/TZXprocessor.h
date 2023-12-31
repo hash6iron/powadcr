@@ -1776,6 +1776,97 @@ class TZXprocessor
       _myTZX.descriptor = nullptr;            
     }
 
+    void playBlock(tTZXBlockDescriptor descriptor)
+    {
+        byte* bufferPlay = nullptr;
+        bufferPlay = (byte*)ps_calloc(descriptor.size, sizeof(byte));
+
+        int pulsePilotDuration = descriptor.timming.pulse_pilot * descriptor.timming.pilot_tone;
+        int blockSizeSplit = SIZE_FOR_SPLIT;
+
+        if (descriptor.size > blockSizeSplit)
+        {
+            //log("Partiendo la pana");
+
+            int totalSize = descriptor.size;
+            int offsetBase = descriptor.offsetData;
+            int newOffset = 0;
+            int blocks = totalSize / blockSizeSplit;
+            int lastBlockSize = totalSize - (blocks * blockSizeSplit);
+
+            // log("Información: ");
+            // log(" - Tamaño total del bloque entero: " + String(totalSize));
+            // log(" - Numero de particiones: " + String(blocks));
+            // log(" - Ultimo bloque (size): " + String(lastBlockSize));
+            // log(" - Offset: " + String(offsetBase));
+
+
+            // BTI 0
+            _zxp.BIT_0 = descriptor.timming.bit_0;
+            // BIT1                                          
+            _zxp.BIT_1 = descriptor.timming.bit_1;
+
+            // Reservamos memoria
+            bufferPlay = (byte*)ps_calloc(blockSizeSplit, sizeof(byte));
+
+            // Recorremos el vector de particiones del bloque.
+            for (int n=0;n < blocks;n++)
+            {
+              //log("Particion [" + String(n) + "/" + String(blocks) +  "]");
+
+              // Calculamos el offset del bloque
+              newOffset = offsetBase + (blockSizeSplit*n);
+              // Accedemos a la SD y capturamos el bloque del fichero
+              bufferPlay = sdm.readFileRange32(_mFile, newOffset, blockSizeSplit, true);
+              // Mostramos en la consola los primeros y últimos bytes
+              showBufferPlay(bufferPlay,blockSizeSplit);     
+              
+              // Reproducimos la partición n, del bloque.
+              if (n==0)
+              {
+                _zxp.playDataBegin(bufferPlay, blockSizeSplit,pulsePilotDuration);
+              }
+              else
+              {
+                _zxp.playDataPartition(bufferPlay, blockSizeSplit);
+              }
+            }
+
+            // Ultimo bloque
+            //log("Particion [" + String(blocks) + "/" + String(blocks) + "]");
+
+            // Calculamos el offset del último bloque
+            newOffset = offsetBase + (blockSizeSplit*blocks);
+            blockSizeSplit = lastBlockSize + 1;
+            // Accedemos a la SD y capturamos el bloque del fichero
+            bufferPlay = sdm.readFileRange32(_mFile, newOffset,blockSizeSplit, true);
+            // Mostramos en la consola los primeros y últimos bytes
+            showBufferPlay(bufferPlay,blockSizeSplit);         
+            
+            // Reproducimos el ultimo bloque con su terminador y silencio si aplica
+            _zxp.playDataEnd(bufferPlay, blockSizeSplit);                                    
+
+            free(bufferPlay);       
+        }
+        else
+        {
+            // Si es mas pequeño que el SPLIT, se reproduce completo.
+            bufferPlay = (byte*)ps_calloc(blockSizeSplit, sizeof(byte));
+            bufferPlay = sdm.readFileRange32(_mFile, descriptor.offsetData, descriptor.size, true);
+
+            showBufferPlay(bufferPlay,descriptor.size);
+            verifyChecksum(_mFile,descriptor.offsetData,descriptor.size);    
+
+            // BTI 0
+            _zxp.BIT_0 = descriptor.timming.bit_0;
+            // BIT1                                          
+            _zxp.BIT_1 = descriptor.timming.bit_1;
+            //
+            _zxp.playData(bufferPlay, descriptor.size, pulsePilotDuration);
+            free(bufferPlay);           
+        }
+    }
+
     void play()
     {
 
@@ -1971,14 +2062,14 @@ class TZXprocessor
                           //
                           // Llevan una cabecera y después un bloque de datos
 
-                          bufferPlay = (byte*)ps_calloc(_myTZX.descriptor[i].size, sizeof(byte));
-                          bufferPlay = sdm.readFileRange32(_mFile, _myTZX.descriptor[i].offsetData, _myTZX.descriptor[i].size, false);
-                          showBufferPlay(bufferPlay,_myTZX.descriptor[i].size);
-                          verifyChecksum(_mFile,_myTZX.descriptor[i].offsetData,_myTZX.descriptor[i].size);
+                          // bufferPlay = (byte*)ps_calloc(_myTZX.descriptor[i].size, sizeof(byte));
+                          // bufferPlay = sdm.readFileRange32(_mFile, _myTZX.descriptor[i].offsetData, _myTZX.descriptor[i].size, false);
+                          // showBufferPlay(bufferPlay,_myTZX.descriptor[i].size);
+                          // verifyChecksum(_mFile,_myTZX.descriptor[i].offsetData,_myTZX.descriptor[i].size);
 
-                          int pt = 0;
-                          int pp = 0;
-                          int si = 0;
+                          // int pt = 0;
+                          // int pp = 0;
+                          // int si = 0;
 
                           switch (_myTZX.descriptor[i].ID)
                           {
@@ -1989,14 +2080,15 @@ class TZXprocessor
 
                               // Llamamos a la clase de reproducción
                               // Cabecera PROGRAM
-                              pt = _myTZX.descriptor[i].timming.pilot_tone;
-                              pp = _myTZX.descriptor[i].timming.pulse_pilot;
-                              si = _myTZX.descriptor[i].size;
+                              // pt = _myTZX.descriptor[i].timming.pilot_tone;
+                              // pp = _myTZX.descriptor[i].timming.pulse_pilot;
+                              // si = _myTZX.descriptor[i].size;
 
                               
                               // Reproducimos el bloque - PLAY
-                              _zxp.playData(bufferPlay, si, pt * pp);
-                              free(bufferPlay);
+                              //_zxp.playData(bufferPlay, si, pt * pp);
+                              playBlock(_myTZX.descriptor[i]);
+                              //free(bufferPlay);
                               break;
 
                             case 17:
@@ -2004,13 +2096,14 @@ class TZXprocessor
                               _zxp.PILOT_TONE = _myTZX.descriptor[i].timming.pilot_tone;
                               // Llamamos a la clase de reproducción
                               // Cabecera PROGRAM
-                              pt = _myTZX.descriptor[i].timming.pilot_tone;
-                              pp = _myTZX.descriptor[i].timming.pulse_pilot;
-                              si = _myTZX.descriptor[i].size;
+                              // pt = _myTZX.descriptor[i].timming.pilot_tone;
+                              // pp = _myTZX.descriptor[i].timming.pulse_pilot;
+                              // si = _myTZX.descriptor[i].size;
                               
                               // Reproducimos el bloque - PLAY
-                              _zxp.playData(bufferPlay, si, pt * pp);
-                              free(bufferPlay);
+                              //_zxp.playData(bufferPlay, si, pt * pp);
+                              //free(bufferPlay);
+                              playBlock(_myTZX.descriptor[i]);
                               break;
                           }
 
@@ -2034,15 +2127,17 @@ class TZXprocessor
                               //Standard data - ID-10
                               _myTZX.descriptor[i].timming.pilot_tone = DPILOT_HEADER;
                               _zxp.PILOT_TONE = _myTZX.descriptor[i].timming.pilot_tone;
-                              _zxp.playData(bufferPlay, _myTZX.descriptor[i].size,_myTZX.descriptor[i].timming.pilot_tone * _myTZX.descriptor[i].timming.pulse_pilot);
-                              free(bufferPlay);
+                              playBlock(_myTZX.descriptor[i]);
+                              //_zxp.playData(bufferPlay, _myTZX.descriptor[i].size,_myTZX.descriptor[i].timming.pilot_tone * _myTZX.descriptor[i].timming.pulse_pilot);
+                              //free(bufferPlay);
                               break;
 
                             case 17:
                               // Speed data - ID-11
                               _zxp.PILOT_TONE = _myTZX.descriptor[i].timming.pilot_tone;
-                              _zxp.playData(bufferPlay, _myTZX.descriptor[i].size,_myTZX.descriptor[i].timming.pilot_tone * _myTZX.descriptor[i].timming.pulse_pilot);
-                              free(bufferPlay);
+                              playBlock(_myTZX.descriptor[i]);
+                              //_zxp.playData(bufferPlay, _myTZX.descriptor[i].size,_myTZX.descriptor[i].timming.pilot_tone * _myTZX.descriptor[i].timming.pulse_pilot);
+                              //free(bufferPlay);
                               break;
                           }
                                                 
@@ -2169,9 +2264,10 @@ class TZXprocessor
                               //PULSE PILOT
                               _myTZX.descriptor[i].timming.pilot_tone = DPILOT_DATA;
                               _zxp.PILOT_TONE = _myTZX.descriptor[i].timming.pilot_tone;
+                              playBlock(_myTZX.descriptor[i]);
                               // Bloque de datos BYTE
-                              _zxp.playData(bufferPlay, _myTZX.descriptor[i].size,_myTZX.descriptor[i].timming.pilot_tone * _myTZX.descriptor[i].timming.pulse_pilot);
-                              free(bufferPlay);
+                              //_zxp.playData(bufferPlay, _myTZX.descriptor[i].size,_myTZX.descriptor[i].timming.pilot_tone * _myTZX.descriptor[i].timming.pulse_pilot);
+                              //free(bufferPlay);
                               break;
 
                             case 17:
@@ -2179,9 +2275,10 @@ class TZXprocessor
 
                               //PULSE PILOT
                               _zxp.PILOT_TONE = _myTZX.descriptor[i].timming.pilot_tone;
+                              playBlock(_myTZX.descriptor[i]);
                               // Bloque de datos BYTE
-                              _zxp.playData(bufferPlay, _myTZX.descriptor[i].size,_myTZX.descriptor[i].timming.pilot_tone * _myTZX.descriptor[i].timming.pulse_pilot);
-                              free(bufferPlay);
+                              //_zxp.playData(bufferPlay, _myTZX.descriptor[i].size,_myTZX.descriptor[i].timming.pilot_tone * _myTZX.descriptor[i].timming.pulse_pilot);
+                              //free(bufferPlay);
                               break;
                           }
 
