@@ -56,8 +56,8 @@ class ZXProcessor
     
     // Estos valores definen las señales. Otros para el flanco negativo
     // provocan problemas de lectura en el Spectrum.
-    const float maxAmplitude = 32767.0;
-    const float minAmplitude = -32768;
+    const int maxAmplitude = 32767;
+    const int minAmplitude = -32768;
 
     float m_amplitude_L = maxAmplitude; 
     float m_amplitude_R = maxAmplitude; 
@@ -230,11 +230,22 @@ class ZXProcessor
         size_t result = 0;
         int16_t *ptr = (int16_t*)buffer;
 
+        int A = maxAmplitude;
+     
+        if (LAST_EDGE_IS==up)
+        {
+            A = minAmplitude;
+        }
+        else
+        {
+            A = maxAmplitude;
+        }
+
         // Pulso alto (mitad del periodo)
         for (int j=0;j<bytes/(4*chn);j++){
 
-            m_amplitude_R = MAIN_VOL_R * maxAmplitude / 100;
-            m_amplitude_L = MAIN_VOL_L * maxAmplitude / 100;
+            m_amplitude_R = MAIN_VOL_R * A / 100;
+            m_amplitude_L = MAIN_VOL_L * A / 100;
 
             int16_t sample_L = m_amplitude_L;
             int16_t sample_R = m_amplitude_R;
@@ -257,11 +268,22 @@ class ZXProcessor
             result +=2*chn;
         }
 
+        if (LAST_EDGE_IS==up)
+        {
+            A = maxAmplitude;
+            LAST_EDGE_IS = up;
+        }
+        else
+        {
+            A = minAmplitude;
+            LAST_EDGE_IS = down;
+        }
+
         // Pulso bajo (la otra mitad)
         for (int j=bytes/(4*chn);j<bytes/(2*chn);j++){
             
-            m_amplitude_R = MAIN_VOL_R * minAmplitude / 100;
-            m_amplitude_L = MAIN_VOL_L * minAmplitude / 100;
+            m_amplitude_R = MAIN_VOL_R * A / 100;
+            m_amplitude_L = MAIN_VOL_L * A / 100;
 
             int16_t sample_L = m_amplitude_L;
             int16_t sample_R = m_amplitude_R;          
@@ -287,7 +309,7 @@ class ZXProcessor
         return result;
     }
 
-    size_t createWaveEdge(uint8_t *buffer, size_t bytes, int slope)
+    size_t makeWaveEdge(uint8_t *buffer, size_t bytes, edge lastSlope)
     {
         
         // Procedimiento para generar un tren de pulsos cuadrados completo
@@ -298,12 +320,15 @@ class ZXProcessor
         int16_t *ptr = (int16_t*)buffer;
         int A = maxAmplitude;
 
-        if (slope==1)
+        
+        if (lastSlope==down)
         {
+            // Si el ultimo edge ha quedado en bajo entonces genera un alto
             A=maxAmplitude;
         }
         else
         {
+            // Lo contrario
             A=minAmplitude;
         }
 
@@ -334,14 +359,14 @@ class ZXProcessor
             result +=2*chn;
         }
 
-
-        if (slope==1)
+        // El siguiente semi-pulso es contrario al anterior
+        if (lastSlope==down)
         {
-            A = minAmplitude;
+            A=minAmplitude;
         }
         else
         {
-            A = maxAmplitude;
+            A=maxAmplitude;
         }
 
         // Pulso bajo (la otra mitad) es invertida
@@ -374,12 +399,12 @@ class ZXProcessor
         }
 
         // slope tomará los valores 1 (el ultimo flanco va de alto --> bajo) o distinto de 1 (el ultimo flanco va de bajo --> alto)
-        LAST_EDGE_IS = slope;
+        LAST_EDGE_IS = lastSlope;
 
         return result;
     }
 
-    size_t readPulse(uint8_t *buffer, size_t bytes, int slope, bool end)
+    size_t makeSampledSemiPulse(uint8_t *buffer, size_t bytes, edge lastSlope, bool end)
     {
 
         // Procedimiento para genera un pulso 
@@ -391,47 +416,48 @@ class ZXProcessor
         int16_t sample_L = 0;
         int16_t sample_R = 0;
 
-        // slope tomará los valores 1 (el ultimo flanco va de alto --> bajo) o distinto de 1 (el ultimo flanco va de bajo --> alto)
+        // slope tomará los valores 1 (el ultimo flanco va de alto --> bajo) o distinto de 1 (el ultimo flanco va de bajo --> alto)        
         if (end)
         {
             // Terminador
-            if (slope==1)
+            if (lastSlope==up)
             {
                 // Volvemos a pasar por cero (de bajo --> alto) para que el semi-pulso en bajo se entienda
-                m_amplitude_R =  (maxAmplitude/3);
-                m_amplitude_L =  (maxAmplitude/3);
+                m_amplitude_R = (maxAmplitude/2);
+                m_amplitude_L = (maxAmplitude/2);
             }
             else
             {
                 // Volvemos a pasar por cero (de alto --> bajo) para que el semi-pulso en alto se entienda
-                m_amplitude_R =  (minAmplitude/3);
-                m_amplitude_L =  (minAmplitude/3);
+                m_amplitude_R = (minAmplitude/2);
+                m_amplitude_L = (minAmplitude/2);
             }            
         }
         else
         {
-            if (slope==1)
+            if (lastSlope==up)
             {
                 // Volvemos a pasar por cero (de bajo --> alto) para que el semi-pulso en bajo se entienda
-                m_amplitude_R =  MAIN_VOL_R * maxAmplitude / 100;
-                m_amplitude_L =  MAIN_VOL_L * maxAmplitude / 100;
+                m_amplitude_R = MAIN_VOL_R * maxAmplitude / 100;
+                m_amplitude_L = MAIN_VOL_L * maxAmplitude / 100;
             }
             else
             {
                 // Volvemos a pasar por cero (de alto --> bajo) para que el semi-pulso en alto se entienda
-                m_amplitude_R =  MAIN_VOL_R * minAmplitude / 100;
-                m_amplitude_L =  MAIN_VOL_L * minAmplitude / 100;
+                m_amplitude_R = MAIN_VOL_R * minAmplitude / 100;
+                m_amplitude_L = MAIN_VOL_L * minAmplitude / 100;
             }
         }
 
+        //log("Sample: " + String(m_amplitude_L) + " - " + String(m_amplitude_R));
 
         sample_R = m_amplitude_R;
-        sample_L = m_amplitude_L;
+        sample_L = m_amplitude_L; 
 
 
         for (int j=0;j<bytes/(2*chn);j++)
         {
-                               
+
             if (!SWAP_EAR_CHANNEL)
             {
               //R-OUT
@@ -450,13 +476,10 @@ class ZXProcessor
             result+=2*chn;
         }
 
-        // slope tomará los valores 1 (el ultimo flanco va de alto --> bajo) o distinto de 1 (el ultimo flanco va de bajo --> alto)
-        LAST_EDGE_IS = slope;
-
         return result;          
     }
 
-    void generatePulse(float freq, int samplingRate, int slope, bool end)
+    void generatePulse(float freq, int samplingRate, edge lastSlope, bool end)
     {
 
         // Obtenemos el periodo de muestreo
@@ -470,7 +493,7 @@ class ZXProcessor
         for (int m=0;m < 1;m++)
         {
           // Escribimos el tren de pulsos en el procesador de Audio
-          m_kit.write(buffer, readPulse(buffer, bytes, slope, end));
+          m_kit.write(buffer, makeSampledSemiPulse(buffer, bytes, lastSlope, end));
         } 
     }
 
@@ -502,7 +525,7 @@ class ZXProcessor
         }
     }
 
-    void generateOneWaveEdge(float freq, int samplingRate, int edge)
+    void generateOneWaveEdge(float freq, int samplingRate, edge slope)
     {
         // Obtenemos el periodo de muestreo
         // Tsr = 1 / samplingRate
@@ -513,7 +536,7 @@ class ZXProcessor
 
         uint8_t buffer[bytes*chn];
 
-        m_kit.write(buffer, createWaveEdge(buffer, bytes,edge));
+        m_kit.write(buffer, makeWaveEdge(buffer, bytes,slope));
                 
         if (LOADING_STATE == 1)
         {
@@ -529,72 +552,6 @@ class ZXProcessor
             }
         }
     }
-
-    void generateWavePulses(float freq, int numPulses, int samplingRate)
-    {
-
-        // Obtenemos el periodo de muestreo
-        // Tsr = 1 / samplingRate
-        float Tsr = (1.0 / samplingRate);
-        int bytes = int(round((1.0 / ((freq / 4.0))) / Tsr));
-        int chn = channels;
-
-        uint8_t buffer[bytes*chn];
-
-
-        for (int m=0;m < numPulses;m++)
-        {
-            if (LOADING_STATE == 1)
-            {
-                if (STOP==true)
-                {
-                    LOADING_STATE = 2; // Parada del bloque actual
-                    return;
-                }
-                else if (PAUSE==true)
-                {
-                    LOADING_STATE = 3; // Parada del bloque actual
-                    return;
-                }
-            }            
-
-          // Escribimos el tren de pulsos en el procesador de Audio
-          m_kit.write(buffer, createWave(buffer, bytes));
-        } 
-    }
-
-    void generateWavePulsesEdge(float freq, int numPulses, int samplingRate,int edge)
-    {
-
-        // Obtenemos el periodo de muestreo
-        // Tsr = 1 / samplingRate
-        float Tsr = (1.0 / samplingRate);
-        int bytes = int(round((1.0 / ((freq / 4.0))) / Tsr));
-        int chn = channels;
-
-        uint8_t buffer[bytes*chn];
-
-
-        for (int m=0;m < numPulses;m++)
-        {
-            if (LOADING_STATE == 1)
-            {
-                if (STOP==true)
-                {
-                    LOADING_STATE = 2; // Parada del bloque actual
-                    return;
-                }
-                else if (PAUSE==true)
-                {
-                    LOADING_STATE = 3; // Parada del bloque actual
-                    return;
-                }
-            }            
-
-          // Escribimos el tren de pulsos en el procesador de Audio
-          m_kit.write(buffer, createWaveEdge(buffer, bytes,edge));
-        } 
-    }    
 
     void generateWaveDuration(float freq, float duration, int samplingRate)
     {
@@ -632,30 +589,29 @@ class ZXProcessor
 
     public:
 
-    void terminator(uint8_t bit)
+    void terminator()
     {
-        int width = 0;
+        int width = 50;
 
         // Vemos como es el último bit MSB es la posición 0, el ultimo bit
-        if (bitRead(bit, 0) == 1)
-        {
-            width = BIT_1;
-        }
-        else
-        {
-            width = BIT_0;
-        }
         
         // Metemos un pulso de cambio de estado
         // para asegurar el cambio de flanco alto->bajo, del ultimo bit
-        float freq = (1 / (width * tState));    
-        if (LAST_EDGE_IS==1)
+        float freq = (1 / (width * tState));  
+
+        if (LAST_EDGE_IS==up)
         {
-            generatePulse(freq, samplingRate,1,true);
+            // Si el ultimo flanco acabó en ALTO entonces el terminador
+            // debe acabar en BAJO
+            generatePulse(freq, samplingRate,down,true);
+            LAST_EDGE_IS = down;
+
         }
         else
         {
-            generatePulse(freq, samplingRate,0,true);
+            // Lo contrario
+            generatePulse(freq, samplingRate,up,true);
+            LAST_EDGE_IS = up;
         }
         
     }
@@ -766,16 +722,6 @@ class ZXProcessor
         // silent = DSILENT;
     }
 
-    // void customPilotTone_old(int lenPulse, int numPulses)
-    // {
-    //     // Calculamos la frecuencia del tono guía.
-    //     // Hay que tener en cuenta que los T-States dados son de un SEMI-PULSO
-    //     // es decir de la mitad del periodo. Entonces hay que calcular
-    //     // el periodo completo que es 2 * T
-    //     float freq = (1 / (lenPulse * tState)) / 2;   
-    //     generateWavePulses(freq, numPulses, samplingRate);
-    // }
-
     void customPilotTone(int lenPulse, int numPulses)
     {
         //
@@ -784,30 +730,27 @@ class ZXProcessor
         
         // Iniciamos el flanco dependiendo de como fuera el ultimo
         // slope tomará los valores 1 (el ultimo flanco va de alto --> bajo) o distinto de 1 (el ultimo flanco va de bajo --> alto)        
-        int slope = LAST_EDGE_IS;
+        edge slope = up;
+
+        if (LAST_EDGE_IS==up)
+        {
+            slope = down;
+        }
+        else
+        {
+            slope = up;            
+        }
 
         // Repetimos el número de pulsos solicitados con un ancho "lenPulse"
         for (int i = 0; i < numPulses;i++)
         {
-            // Cambiamos slope de 0 a 1, para indicar si es 
-            // pulso alto o bajo
-            if (LAST_EDGE_IS==1)
-            {
-                slope=1;
-            }
-            else
-            {
-                slope=-1;
-            }
-
             semiPulse(lenPulse,slope);
-            LAST_EDGE_IS = slope;          
         }
         //log("Flanco: " + String(LAST_EDGE_IS));       
 
     }
 
-    void semiPulse(int nTStates, int slope)
+    void semiPulse(int nTStates, edge slope)
     {
         // Procedimiento que genera un pulso de sincronismo, según los
         // T-States pasados por parámetro.
@@ -815,7 +758,22 @@ class ZXProcessor
         // El ZX Spectrum tiene dos tipo de sincronismo, uno al finalizar el tono piloto
         // y otro al final de la recepción de los datos, que serán SYNC1 y SYNC2 respectivamente.
         float freq = (1 / (nTStates * tState));   
+        // Cambiamos slope de 0 a 1, para indicar si es 
+        // pulso alto o bajo
+        // Este generador de semipulsos, hay que ir cambiando el slope por cada
+        // semipulso
+        if (LAST_EDGE_IS==up)
+        {
+            slope=down;
+        }
+        else
+        {
+            slope=up;
+        }
+        
         generatePulse(freq, samplingRate,slope, false);        
+        LAST_EDGE_IS = slope;  
+
     }
 
     void pilotTone(float duration)
@@ -857,15 +815,29 @@ class ZXProcessor
         generateOneWave(freq, samplingRate);
     }
 
-    void syncTone(int nTStates, int slope)
+    void syncTone(int nTStates)
     {
         // Procedimiento que genera un pulso de sincronismo, según los
         // T-States pasados por parámetro.
         //
         // El ZX Spectrum tiene dos tipo de sincronismo, uno al finalizar el tono piloto
         // y otro al final de la recepción de los datos, que serán SYNC1 y SYNC2 respectivamente.
-        float freq = (1 / (nTStates * tState));    
+        float freq = (1 / (nTStates * tState));  
+        
+        edge slope = up;
+
+        if (LAST_EDGE_IS==up)
+        {
+            slope=down;
+        }
+        else
+        {
+            slope=up;
+        }
+
         generatePulse(freq, samplingRate,slope, false);        
+
+        LAST_EDGE_IS = slope;
     }
 
     private:
@@ -992,49 +964,10 @@ class ZXProcessor
 
             // ********************* TERMINADOR *********************************
 
-
-            // int width = 0;
-            // // Leemos el ultimo bit (del ultimo uint8_t), y dependiendo de como sea
-            // // así cerramos el flanco.
-            // // Cogemos el ultimo uint8_t
-            uint8_t bit = data[size-1];
-
-            // // Vemos como es el último bit MSB es la posición 0, el ultimo bit
-            // if (bitRead(bRead, 0) == 1)
-            // {
-            //     width = BIT_1;
-            // }
-            // else
-            // {
-            //     width = BIT_0;
-            // }
-            
-            // // Metemos un pulso de cambio de estado
-            // // para asegurar el cambio de flanco alto->bajo, del ultimo bit
-            // float freq = (1 / (width * tState));    
-            // generatePulse(freq, samplingRate,1,true);
-
-            // El ultimo flanco siempre es HIGH
-            terminator(bit);
-            LAST_EDGE_IS = 1;
+            terminator();
         }
     }
     
-    // void terminatorPulse()
-    // {
-    //     //Generamos un semipulso de cambio
-    //     if (LAST_EDGE_IS==1)
-    //     {
-    //         semiPulse(200,1);
-    //         LAST_EDGE_IS=1;
-    //     }
-    //     else
-    //     {
-    //         semiPulse(200,0);
-    //         LAST_EDGE_IS=0;
-    //     }
-    // }
-
     void sendDataArrayEdge(uint8_t* data, int size, bool isThelastBlock)
     {
         uint8_t _mask = 8;   // Para el last_byte
@@ -1164,8 +1097,8 @@ class ZXProcessor
                 // ****************
 
                 // Metemos un pulse de finalización, según acabe el ultimo flanco
-                uint8_t bit = data[size-1];
-                terminator(bit);
+                //uint8_t bit = data[size-1];
+                terminator();
             }
         }
         else
@@ -1197,18 +1130,19 @@ class ZXProcessor
             {return;}
 
             // syncronization for end short leader tone
-            syncTone(SYNC1,1);
+            syncTone(SYNC1);
             //log("SYNC 1");
             if (LOADING_STATE == 2)
             {return;}
 
-            syncTone(SYNC2,0);
+            syncTone(SYNC2);
             //log("SYNC 2");
             if (LOADING_STATE == 2)
             {return;}
 
             // Send data
-            sendDataArray(bBlock, lenBlock);
+            //sendDataArray(bBlock, lenBlock);
+            sendDataArrayEdge(bBlock, lenBlock,true);
             //log("Send DATA");
             if (LOADING_STATE == 2)
             {return;}
@@ -1239,27 +1173,13 @@ class ZXProcessor
 
             // Reproduce una secuencia de pulsos totalmente customizada
             // cada pulso tiene su timming y viene dado en un array (data)
-            int slope = LAST_EDGE_IS;
+            edge slope = LAST_EDGE_IS;
 
             //log("------  Start PULSE SQZ");
 
             for (int i = 0; i < numPulses;i++)
             {
-                // Cambiamos slope de 0 a 1, para indicar si es 
-                // pulso alto o bajo
-                if (LAST_EDGE_IS==1)
-                {
-                    slope=1;
-                }
-                else
-                {
-                    slope=-1;
-                }
-
                 semiPulse(data[i],slope);
-                
-                // slope tomará los valores 1 (el ultimo flanco va de alto --> bajo) o distinto de 1 (el ultimo flanco va de bajo --> alto)                
-                LAST_EDGE_IS = slope;   
             }
 
             //log("Flanco: " + String(LAST_EDGE_IS));     
@@ -1309,8 +1229,8 @@ class ZXProcessor
             // syncronize with short leader tone
             pilotTone(duration);
             // syncronization for end short leader tone
-            syncTone(SYNC1,1);
-            syncTone(SYNC2,0);
+            syncTone(SYNC1);
+            syncTone(SYNC2);
 
             // Send data
             sendDataArray(bBlock, lenBlock);
@@ -1347,8 +1267,8 @@ class ZXProcessor
             //HEADER PILOT TONE
             pilotTone(durationHeader);
             // SYNC TONE
-            syncTone(SYNC1,1);
-            syncTone(SYNC2,0);
+            syncTone(SYNC1);
+            syncTone(SYNC2);
 
             sendDataArray(header, len_header);
 
@@ -1367,8 +1287,8 @@ class ZXProcessor
             // syncronize with short leader tone
             pilotTone(durationData);
             // syncronization for end short leader tone
-            syncTone(SYNC1,1);
-            syncTone(SYNC2,0);
+            syncTone(SYNC1);
+            syncTone(SYNC2);
 
             // Send data
             sendDataArray(data, len_data);       
@@ -1381,27 +1301,27 @@ class ZXProcessor
             
         }
 
-        void playHeaderOnly(uint8_t* header, int len_header, int pulse_pilot_duration)
-        {           
+        // void playHeaderOnly(uint8_t* header, int len_header, int pulse_pilot_duration)
+        // {           
 
-            float duration = tState * pulse_pilot_duration;
-            //
-            // PROGRAM
-            //HEADER PILOT TONE
-            pilotTone(duration);
-            // SYNC TONE
-            syncTone(SYNC1,1);
-            syncTone(SYNC2,0);
+        //     float duration = tState * pulse_pilot_duration;
+        //     //
+        //     // PROGRAM
+        //     //HEADER PILOT TONE
+        //     pilotTone(duration);
+        //     // SYNC TONE
+        //     syncTone(SYNC1);
+        //     syncTone(SYNC2);
 
-            sendDataArray(header, len_header);
+        //     sendDataArray(header, len_header);
 
-            // Silent tone
-            // if (silent!=0)
-            // {
-                silence(silent);
-            // }
+        //     // Silent tone
+        //     // if (silent!=0)
+        //     // {
+        //         silence(silent);
+        //     // }
             
-        }        
+        // }        
 
         void set_ESP32kit(AudioKit kit)
         { 

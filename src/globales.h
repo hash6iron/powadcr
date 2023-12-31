@@ -107,10 +107,16 @@ char LASTYPE6[] = "ARRAY.CHR\0";
 
 bool ID_NOT_IMPLEMENTED = false;
 
+enum edge
+{
+  up,
+  down
+};
+
 // ZXProcessor
-// 0: low
-// 1: high
-int LAST_EDGE_IS = 0;
+// Inicialmente se define como flando upToDown
+edge LAST_EDGE_IS = down;
+
 // Tamaño del fichero abierto
 int FILE_LENGTH = 0;
 

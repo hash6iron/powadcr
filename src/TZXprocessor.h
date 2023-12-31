@@ -1946,7 +1946,7 @@ class TZXprocessor
                         //SerialHW.println("");
                         //SerialHW.println("LOADING_STATE 2"); 
                         loopPlayed = 0;
-                        LAST_EDGE_IS = 0;
+                        LAST_EDGE_IS = down;
                         LOOP_START = 0;
                         LOOP_END = 0;
                         LOOP_COUNT = 0;
@@ -2209,7 +2209,7 @@ class TZXprocessor
 
               // Cerrando
               // reiniciamos el edge del ultimo pulse
-              LAST_EDGE_IS = 0;
+              LAST_EDGE_IS = down;
               LOOP_START = 0;
               LOOP_END = 0;
               LOOP_COUNT = 0;
