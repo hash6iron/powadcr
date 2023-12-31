@@ -1560,27 +1560,69 @@ class TZXprocessor
         }      
     }
 
-    void showBufferPlay(byte* buffer, int size)
+    void showBufferPlay(byte* buffer, int size, int offset)
     {
-        
-        // if (size > 10)
-        // {
-        //   log("");
-        //   SerialHW.println("Listing bufferplay.");
-        //   // for (int n=0;n<size;n++)
-        //   // {
 
-        //   SerialHW.print(buffer[0],HEX);
-        //   SerialHW.print(",");
-        //   SerialHW.print(buffer[1],HEX);
-        //   SerialHW.print(" ... ");
-        //   SerialHW.print(buffer[size-2],HEX);
-        //   SerialHW.print(",");
-        //   SerialHW.print(buffer[size-1],HEX);
+        char hexs[20];
+        if (size > 10)
+        {
+          log("");
+          SerialHW.println("Listing bufferplay.");
+          // for (int n=0;n<size;n++)
+          // {
 
-        //   // }
-        //   log("");
-        // }
+          SerialHW.print(buffer[0],HEX);
+          SerialHW.print(",");
+          SerialHW.print(buffer[1],HEX);
+          SerialHW.print(" ... ");
+          SerialHW.print(buffer[size-2],HEX);
+          SerialHW.print(",");
+          SerialHW.print(buffer[size-1],HEX);
+
+          sprintf(hexs, "%X", buffer[size-1]);
+          dataOffset4 = hexs;
+          sprintf(hexs, "%X", buffer[size-2]);
+          dataOffset3 = hexs;
+          sprintf(hexs, "%X", buffer[1]);
+          dataOffset2 = hexs;
+          sprintf(hexs, "%X", buffer[0]);
+          dataOffset1 = hexs;
+
+          sprintf(hexs, "%X", offset+(size-1));
+          Offset4 = hexs;
+          sprintf(hexs, "%X", offset+(size-2));
+          Offset3 = hexs;
+          sprintf(hexs, "%X", offset+1);
+          Offset2 = hexs;
+          sprintf(hexs, "%X", offset);
+          Offset1 = hexs;
+
+
+          // }
+          log("");
+        }
+        else
+        {
+            // Solo mostramos la ultima parte
+            log("");
+            SerialHW.println("Listing bufferplay.");
+
+            SerialHW.print(buffer[size-2],HEX);
+            SerialHW.print(",");
+            SerialHW.print(buffer[size-1],HEX);
+
+            sprintf(hexs, "%X", buffer[size-1]);
+            dataOffset4 = hexs;
+            sprintf(hexs, "%X", buffer[size-2]);
+            dataOffset3 = hexs;
+
+            sprintf(hexs, "%X", offset+(size-1));
+            Offset4 = hexs;
+            sprintf(hexs, "%X", offset+(size-2));
+            Offset3 = hexs;
+
+            log("");
+        }
     }
 
     public:
@@ -1808,18 +1850,19 @@ class TZXprocessor
 
             // Reservamos memoria
             bufferPlay = (byte*)ps_calloc(blockSizeSplit, sizeof(byte));
-
+            TOTAL_PARTS = blocks;
+            
             // Recorremos el vector de particiones del bloque.
             for (int n=0;n < blocks;n++)
             {
-              //log("Particion [" + String(n) + "/" + String(blocks) +  "]");
+              PARTITION_BLOCK = n;
 
               // Calculamos el offset del bloque
               newOffset = offsetBase + (blockSizeSplit*n);
               // Accedemos a la SD y capturamos el bloque del fichero
               bufferPlay = sdm.readFileRange32(_mFile, newOffset, blockSizeSplit, true);
               // Mostramos en la consola los primeros y últimos bytes
-              showBufferPlay(bufferPlay,blockSizeSplit);     
+              showBufferPlay(bufferPlay,blockSizeSplit,newOffset);     
               
               // Reproducimos la partición n, del bloque.
               if (n==0)
@@ -1837,11 +1880,11 @@ class TZXprocessor
 
             // Calculamos el offset del último bloque
             newOffset = offsetBase + (blockSizeSplit*blocks);
-            blockSizeSplit = lastBlockSize + 1;
+            blockSizeSplit = lastBlockSize;
             // Accedemos a la SD y capturamos el bloque del fichero
             bufferPlay = sdm.readFileRange32(_mFile, newOffset,blockSizeSplit, true);
             // Mostramos en la consola los primeros y últimos bytes
-            showBufferPlay(bufferPlay,blockSizeSplit);         
+            showBufferPlay(bufferPlay,blockSizeSplit,newOffset);         
             
             // Reproducimos el ultimo bloque con su terminador y silencio si aplica
             _zxp.playDataEnd(bufferPlay, blockSizeSplit);                                    
@@ -1854,7 +1897,7 @@ class TZXprocessor
             bufferPlay = (byte*)ps_calloc(blockSizeSplit, sizeof(byte));
             bufferPlay = sdm.readFileRange32(_mFile, descriptor.offsetData, descriptor.size, true);
 
-            showBufferPlay(bufferPlay,descriptor.size);
+            showBufferPlay(bufferPlay,descriptor.size,descriptor.offsetData);
             verifyChecksum(_mFile,descriptor.offsetData,descriptor.size);    
 
             // BTI 0
@@ -2116,7 +2159,7 @@ class TZXprocessor
                           bufferPlay = (byte*)ps_calloc(_myTZX.descriptor[i].size, sizeof(byte));
                           bufferPlay = sdm.readFileRange32(_mFile, _myTZX.descriptor[i].offsetData, _myTZX.descriptor[i].size, false);
 
-                          showBufferPlay(bufferPlay,_myTZX.descriptor[i].size);
+                          showBufferPlay(bufferPlay,_myTZX.descriptor[i].size,_myTZX.descriptor[i].offsetData);
                           verifyChecksum(_mFile,_myTZX.descriptor[i].offsetData,_myTZX.descriptor[i].size);
 
 
@@ -2202,7 +2245,7 @@ class TZXprocessor
                                       // Accedemos a la SD y capturamos el bloque del fichero
                                       bufferPlay = sdm.readFileRange32(_mFile, newOffset, blockSizeSplit, true);
                                       // Mostramos en la consola los primeros y últimos bytes
-                                      showBufferPlay(bufferPlay,blockSizeSplit);     
+                                      showBufferPlay(bufferPlay,blockSizeSplit,newOffset);     
                                       
                                       // Reproducimos la partición n, del bloque.
                                       _zxp.playPureDataPartition(bufferPlay, blockSizeSplit);                                      
@@ -2217,7 +2260,7 @@ class TZXprocessor
                                     // Accedemos a la SD y capturamos el bloque del fichero
                                     bufferPlay = sdm.readFileRange32(_mFile, newOffset,blockSizeSplit, true);
                                     // Mostramos en la consola los primeros y últimos bytes
-                                    showBufferPlay(bufferPlay,blockSizeSplit);         
+                                    showBufferPlay(bufferPlay,blockSizeSplit,newOffset);         
                                     
                                     // Reproducimos el ultimo bloque con su terminador y silencio si aplica
                                     _zxp.playPureData(bufferPlay, blockSizeSplit);                                    
@@ -2229,7 +2272,7 @@ class TZXprocessor
                                     bufferPlay = (byte*)ps_calloc(_myTZX.descriptor[i].size, sizeof(byte));
                                     bufferPlay = sdm.readFileRange32(_mFile, _myTZX.descriptor[i].offsetData, _myTZX.descriptor[i].size, true);
     
-                                    showBufferPlay(bufferPlay,_myTZX.descriptor[i].size);
+                                    showBufferPlay(bufferPlay,_myTZX.descriptor[i].size,_myTZX.descriptor[i].offsetData);
                                     verifyChecksum(_mFile,_myTZX.descriptor[i].offsetData,_myTZX.descriptor[i].size);    
 
                                     // BTI 0
@@ -2253,7 +2296,7 @@ class TZXprocessor
                           bufferPlay = (byte*)ps_calloc(_myTZX.descriptor[i].size, sizeof(byte));
                           bufferPlay = sdm.readFileRange32(_mFile, _myTZX.descriptor[i].offsetData, _myTZX.descriptor[i].size, true);
 
-                          showBufferPlay(bufferPlay,_myTZX.descriptor[i].size);
+                          showBufferPlay(bufferPlay,_myTZX.descriptor[i].size,_myTZX.descriptor[i].offsetData);
                           verifyChecksum(_mFile,_myTZX.descriptor[i].offsetData,_myTZX.descriptor[i].size);
 
                           switch (_myTZX.descriptor[i].ID)

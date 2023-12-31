@@ -147,8 +147,22 @@ String RECORDING_DIR = "/REC";
 String LAST_COMMAND = "";
 bool TURBOMODE = false;
 //bool TIMMING_STABLISHED = false;
-// Variables para intercambio de información con el HMI
 
+// Variables para intercambio de información con el HMI
+// DEBUG
+int BLOCK_SELECTED = 0;
+int PARTITION_BLOCK = 0;
+int TOTAL_PARTS = 0;
+String dataOffset1 = "";
+String dataOffset2 = "";
+String dataOffset3 = "";
+String dataOffset4 = "";
+String Offset1 = "";
+String Offset2 = "";
+String Offset3 = "";
+String Offset4 = "";
+
+// OTRAS
 bool TEST_RUNNING = false;
 int LOADING_STATE = 0;
 int CURRENT_BLOCK_IN_PROGRESS = 0;
@@ -156,7 +170,6 @@ int PROGRESS_BAR_REFRESH = 256;
 int PROGRESS_BAR_REFRESH_2 = 32;
 int PROGRESS_BAR_BLOCK_VALUE = 0;
 int PROGRESS_BAR_TOTAL_VALUE = 0;
-int BLOCK_SELECTED = 0;
 bool BLOCK_PLAYED = false;
 String TYPE_FILE_LOAD = "";
 char LAST_NAME[15];

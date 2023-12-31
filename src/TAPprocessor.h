@@ -1093,6 +1093,73 @@ class TAPprocessor
             }
         }
 
+    void showBufferPlay(byte* buffer, int size, int offset)
+    {
+
+        char hexs[20];
+        if (size > 10)
+        {
+          log("");
+          SerialHW.println("Listing bufferplay.");
+          // for (int n=0;n<size;n++)
+          // {
+
+          SerialHW.print(buffer[0],HEX);
+          SerialHW.print(",");
+          SerialHW.print(buffer[1],HEX);
+          SerialHW.print(" ... ");
+          SerialHW.print(buffer[size-2],HEX);
+          SerialHW.print(",");
+          SerialHW.print(buffer[size-1],HEX);
+
+          sprintf(hexs, "%X", buffer[size-1]);
+          dataOffset4 = hexs;
+          sprintf(hexs, "%X", buffer[size-2]);
+          dataOffset3 = hexs;
+          sprintf(hexs, "%X", buffer[1]);
+          dataOffset2 = hexs;
+          sprintf(hexs, "%X", buffer[0]);
+          dataOffset1 = hexs;
+
+          sprintf(hexs, "%X", offset+(size-1));
+          Offset4 = hexs;
+          sprintf(hexs, "%X", offset+(size-2));
+          Offset3 = hexs;
+          sprintf(hexs, "%X", offset+1);
+          Offset2 = hexs;
+          sprintf(hexs, "%X", offset);
+          Offset1 = hexs;
+
+
+          // }
+          log("");
+        }
+        else
+        {
+            // Solo mostramos la ultima parte
+            log("");
+            SerialHW.println("Listing bufferplay.");
+
+            SerialHW.print(buffer[size-2],HEX);
+            SerialHW.print(",");
+            SerialHW.print(buffer[size-1],HEX);
+
+            sprintf(hexs, "%X", buffer[size-1]);
+            dataOffset4 = hexs;
+            sprintf(hexs, "%X", buffer[size-2]);
+            dataOffset3 = hexs;
+
+            sprintf(hexs, "%X", offset+(size-1));
+            Offset4 = hexs;
+            sprintf(hexs, "%X", offset+(size-2));
+            Offset3 = hexs;
+
+            log("");
+        }
+    }
+
+
+
         void play() 
         {
 
@@ -1215,51 +1282,7 @@ class TAPprocessor
                         } 
                         else 
                         {
-                            // *** Bloque de DATA
-                            //int blockSize = _myTAP.descriptor[i].size;
-
-                            // Si el SPLIT esta activado y el bloque es mayor de 20KB hacemos Split.
-                            //if (blockSize > SIZE_FOR_SPLIT)
-                            //{
-                            //     // Lanzamos dos bloques
-                            //     int bl1 = blockSize / 2;
-                            //     int bl2 = blockSize - bl1;
-                            //     int blockPlaySize = 0;
-                            //     int offsetPlay = 0;
-
-                            //     for (int j = 0; j < 2; j++) 
-                            //     {
-
-                            //         if (j == 0) 
-                            //         {
-                                        
-                            //             // Cortamos la primera mitad del bloque
-                            //             blockPlaySize = bl1;
-                            //             bufferPlay = (uint8_t*)(malloc(blockPlaySize * sizeof(uint8_t)));
-                            //             offsetPlay = _myTAP.descriptor[i].offset;
-                            //             bufferPlay = sdm.readFileRange32(_mFile, offsetPlay, blockPlaySize, true);
-                                        
-                            //             // Reproducimos la primera mitad
-                            //             _zxp.playDataBegin(bufferPlay, blockPlaySize,DPILOT_DATA * DPULSE_PILOT);
-                                        
-                            //             // Liberamos el buffer de reproducción
-                            //             free(bufferPlay);                                      
-                            //         } 
-                            //         else 
-                            //         {
-                            //             // Cortamos el final del bloque
-                            //             blockPlaySize = bl2;
-                            //             offsetPlay = offsetPlay + bl1;
-                            //             bufferPlay = (uint8_t*)(malloc(blockPlaySize * sizeof(uint8_t)));
-                            //             bufferPlay = sdm.readFileRange32(_mFile, offsetPlay, blockPlaySize, true);
-
-                            //             // Reproducimos la ultima mitad
-                            //             _zxp.playDataEnd(bufferPlay, blockPlaySize);
-
-                            //             // Liberamos el buffer de reproducción
-                            //             free(bufferPlay);
-                            //         }
-                            //     }
+                            // *** Bloque de DATA / BASIC
 
                             int blockSizeSplit = SIZE_FOR_SPLIT;
 
@@ -1281,36 +1304,43 @@ class TAPprocessor
 
                                 // Reservamos memoria
                                 bufferPlay = (byte*)ps_calloc(blockSizeSplit, sizeof(byte));
-
+                                TOTAL_PARTS = blocks;
+                                
                                 // Recorremos el vector de particiones del bloque.
                                 for (int n=0;n < blocks;n++)
                                 {
+                                    PARTITION_BLOCK = n;
                                     //log("Particion [" + String(n) + "/" + String(blocks) +  "]");
 
                                     // Calculamos el offset del bloque
                                     newOffset = offsetBase + (blockSizeSplit*n);
                                     // Accedemos a la SD y capturamos el bloque del fichero
                                     bufferPlay = sdm.readFileRange32(_mFile, newOffset, blockSizeSplit, true);  
+                                    showBufferPlay(bufferPlay,blockSizeSplit,newOffset);
                                     
                                     // Reproducimos la partición n, del bloque.
                                     if (n==0)
                                     {
-                                    // Primer bloque con tono guia y syncs
-                                    _zxp.playDataBegin(bufferPlay,blockSizeSplit,DPILOT_DATA * DPULSE_PILOT);
+                                        // Primer bloque con tono guia y syncs
+                                        _zxp.playDataBegin(bufferPlay,blockSizeSplit,DPILOT_DATA * DPULSE_PILOT);
                                     }
                                     else
                                     {
-                                    // Bloque partido. Particiones
-                                    _zxp.playDataPartition(bufferPlay, blockSizeSplit);                                      
+                                        // Bloque partido. Particiones
+                                        _zxp.playDataPartition(bufferPlay, blockSizeSplit);                                      
                                     }
                                 }
 
                                 // Ultimo bloque
+                                //
+                                
                                 // Calculamos el offset del último bloque
                                 newOffset = offsetBase + (blockSizeSplit*blocks);
-                                blockSizeSplit = lastBlockSize + 1;
+                                blockSizeSplit = lastBlockSize;
+
                                 // Accedemos a la SD y capturamos el bloque del fichero
-                                bufferPlay = sdm.readFileRange32(_mFile, newOffset,blockSizeSplit, true);    
+                                bufferPlay = sdm.readFileRange32(_mFile, newOffset, blockSizeSplit, true);   
+                                showBufferPlay(bufferPlay,blockSizeSplit,newOffset); 
                                 
                                 // Reproducimos el ultimo bloque con su terminador y silencio si aplica
                                 _zxp.playDataEnd(bufferPlay, blockSizeSplit);                                    
@@ -1320,7 +1350,8 @@ class TAPprocessor
                             } 
                             else 
                             {
-                                // En el caso de NO USAR SPLIT o el bloque es menor de 20K
+                                // En el caso de NO USAR SPLIT o el bloque es menor de "SIZE_FOR_SPLIT"
+                                //
                                 bufferPlay = (uint8_t*)(malloc((_myTAP.descriptor[i].size) * sizeof(uint8_t)));
                                 bufferPlay = sdm.readFileRange32(_mFile, _myTAP.descriptor[i].offset, _myTAP.descriptor[i].size, false);
                                 
