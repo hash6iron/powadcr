@@ -2052,14 +2052,13 @@ class TZXprocessor
                           //
                           // Son bloques especiales de TONO GUIA o SECUENCIAS para SYNC
                           //
-                          int blockSize = 0;
                           int num_pulses = 0;
 
                           switch (_myTZX.descriptor[i].ID)
                           {
                               case 18:
                                 // ID 0x12 - Reproducimos un tono puro. Pulso repetido n veces
-                                _zxp.playPureTone(_myTZX.descriptor[i].timming.pure_tone_len,_myTZX.descriptor[i].timming.pure_tone_num_pulses);                            break;
+                                _zxp.playPureTone(_myTZX.descriptor[i].timming.pure_tone_len,_myTZX.descriptor[i].timming.pure_tone_num_pulses);
                                 break;
 
                               case 19:
@@ -2071,18 +2070,17 @@ class TZXprocessor
                               case 20:
 
                                 // ID 0x14
-                                blockSize = _myTZX.descriptor[i].size;
-                                int blockSize = 10000;
+                                int blockSizeSplit = SIZE_FOR_SPLIT;
 
-                                if (_myTZX.descriptor[i].size > blockSize)
+                                if (_myTZX.descriptor[i].size > blockSizeSplit)
                                 {
                                     //log("Partiendo la pana");
 
                                     int totalSize = _myTZX.descriptor[i].size;
                                     int offsetBase = _myTZX.descriptor[i].offsetData;
                                     int newOffset = 0;
-                                    int blocks = totalSize / blockSize;
-                                    int lastBlockSize = totalSize - (blocks * blockSize);
+                                    int blocks = totalSize / blockSizeSplit;
+                                    int lastBlockSize = totalSize - (blocks * blockSizeSplit);
 
                                     // log("Información: ");
                                     // log(" - Tamaño total del bloque entero: " + String(totalSize));
@@ -2097,7 +2095,7 @@ class TZXprocessor
                                     _zxp.BIT_1 = _myTZX.descriptor[i].timming.bit_1;
 
                                     // Reservamos memoria
-                                    bufferPlay = (byte*)ps_calloc(blockSize, sizeof(byte));
+                                    bufferPlay = (byte*)ps_calloc(blockSizeSplit, sizeof(byte));
 
                                     // Recorremos el vector de particiones del bloque.
                                     for (int n=0;n < blocks;n++)
@@ -2105,29 +2103,29 @@ class TZXprocessor
                                       //log("Particion [" + String(n) + "/" + String(blocks) +  "]");
 
                                       // Calculamos el offset del bloque
-                                      newOffset = offsetBase + (blockSize*n);
+                                      newOffset = offsetBase + (blockSizeSplit*n);
                                       // Accedemos a la SD y capturamos el bloque del fichero
-                                      bufferPlay = sdm.readFileRange32(_mFile, newOffset, blockSize, true);
+                                      bufferPlay = sdm.readFileRange32(_mFile, newOffset, blockSizeSplit, true);
                                       // Mostramos en la consola los primeros y últimos bytes
-                                      showBufferPlay(bufferPlay,blockSize);     
+                                      showBufferPlay(bufferPlay,blockSizeSplit);     
                                       
                                       // Reproducimos la partición n, del bloque.
-                                      _zxp.playPureDataPartition(bufferPlay, blockSize);                                      
+                                      _zxp.playPureDataPartition(bufferPlay, blockSizeSplit);                                      
                                     }
 
                                     // Ultimo bloque
                                     //log("Particion [" + String(blocks) + "/" + String(blocks) + "]");
 
                                     // Calculamos el offset del último bloque
-                                    newOffset = offsetBase + (blockSize*blocks);
-                                    blockSize = lastBlockSize + 1;
+                                    newOffset = offsetBase + (blockSizeSplit*blocks);
+                                    blockSizeSplit = lastBlockSize + 1;
                                     // Accedemos a la SD y capturamos el bloque del fichero
-                                    bufferPlay = sdm.readFileRange32(_mFile, newOffset,blockSize, true);
+                                    bufferPlay = sdm.readFileRange32(_mFile, newOffset,blockSizeSplit, true);
                                     // Mostramos en la consola los primeros y últimos bytes
-                                    showBufferPlay(bufferPlay,blockSize);         
+                                    showBufferPlay(bufferPlay,blockSizeSplit);         
                                     
                                     // Reproducimos el ultimo bloque con su terminador y silencio si aplica
-                                    _zxp.playPureData(bufferPlay, blockSize);                                    
+                                    _zxp.playPureData(bufferPlay, blockSizeSplit);                                    
 
                                     free(bufferPlay); 
                                 }

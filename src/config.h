@@ -83,6 +83,7 @@
 // si superan el tamaño (en bytes) definido por SIZE_TO_ACTIVATE_SPLIT
 #define SPLIT_ENABLED 0
 #define SIZE_TO_ACTIVATE_SPLIT 20000
+#define SIZE_FOR_SPLIT 10000
 
 // Maximo número de bloques para el descriptor.
 #define MAX_BLOCKS_IN_TAP 4000

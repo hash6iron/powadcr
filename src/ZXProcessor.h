@@ -1222,6 +1222,18 @@ class ZXProcessor
             }
         }        
 
+        void playDataPartition(uint8_t* bBlock, int lenBlock)
+        {
+            // Se envia a reproducir el bloque sin terminador ni silencio
+            // ya que es parte de un bloque completo que ha sido partido en varios
+            sendDataArrayEdge(bBlock, lenBlock, false);
+
+            if (LOADING_STATE == 2)
+            {
+                return;
+            }
+        } 
+
         void playDataBegin(uint8_t* bBlock, int lenBlock, int pulse_pilot_duration)
         {
             // PROGRAM
@@ -1233,23 +1245,17 @@ class ZXProcessor
             syncTone(SYNC2);
 
             // Send data
-            sendDataArray(bBlock, lenBlock);
+            sendDataArrayEdge(bBlock, lenBlock,false);
                    
         }
 
-        void playDataEnd(uint8_t* bBlock, int lenBlock, int pulse_pilot_duration)
+        void playDataEnd(uint8_t* bBlock, int lenBlock)
         {
-
-            float duration = tState * pulse_pilot_duration;
             // Send data
-            sendDataArray(bBlock, lenBlock);        
+            sendDataArrayEdge(bBlock, lenBlock,true);        
             
             // Silent tone
-            // if (silent!=0)
-            // {
-                silence(silent);
-            // }
-            
+            silence(silent);
         }
 
         void playBlock(uint8_t* header, int len_header, uint8_t* data, int len_data, int pulse_pilot_duration_header, int pulse_pilot_duration_data)
@@ -1270,7 +1276,8 @@ class ZXProcessor
             syncTone(SYNC1);
             syncTone(SYNC2);
 
-            sendDataArray(header, len_header);
+            sendDataArrayEdge(header, len_header,true);
+            //sendDataArray(header, len_header);
 
             // Silent tone
             // if (silent!=0)
@@ -1291,7 +1298,7 @@ class ZXProcessor
             syncTone(SYNC2);
 
             // Send data
-            sendDataArray(data, len_data);       
+            sendDataArrayEdge(data, len_data, true);       
             
             // Silent tone
             // if (silent!=0)
