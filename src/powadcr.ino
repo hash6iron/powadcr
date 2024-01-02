@@ -582,6 +582,13 @@ void setup()
   // Si true  --> Si esperamos
   waitForHMI(CFG_FORZE_SINC_HMI);
 
+  // Inicializa volumen en HMI
+  hmi.writeString("menuAudio.volL.val=" + String(MAIN_VOL_L));
+  hmi.writeString("menuAudio.volR.val=" + String(MAIN_VOL_R));
+  hmi.writeString("menuAudio.volLevelL.val=" + String(MAIN_VOL_L));
+  hmi.writeString("menuAudio.volLevel.val=" + String(MAIN_VOL_R));
+
+  //
   pTAP.set_HMI(hmi);
   pTZX.set_HMI(hmi);
 

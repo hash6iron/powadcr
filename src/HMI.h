@@ -1633,6 +1633,7 @@ class HMI
 
           // DEBUG Information
           writeString("debug.blockLoading.txt=\"" + String(BLOCK_SELECTED) +"\"");
+          // Esto falla
           writeString("debug.partLoading.txt=\"" + String(PARTITION_BLOCK) +"\"");
           writeString("debug.totalParts.txt=\"" + String(TOTAL_PARTS) +"\"");
 

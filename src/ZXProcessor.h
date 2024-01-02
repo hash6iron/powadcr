@@ -68,6 +68,13 @@ class ZXProcessor
 
     public:
     // Parametrizado para el ZX Spectrum - Timming de la ROM
+    // Esto es un factor para el calculo de la duración de onda
+    float alpha = 4.0;
+    // Este es un factor de división para la amplitud del flanco terminador
+    float amplitudeFactor = 1.0;
+    // T-states del ancho del terminador
+    int maxTerminatorWidth = 30;
+    // otros parámetros
     float freqCPU = DfreqCPU;
     float tState = (1.0 / freqCPU); //0.00000028571 --> segundos Z80 
                                           //T-State period (1 / 3.5MHz)
@@ -96,16 +103,13 @@ class ZXProcessor
         size_t result = 0;
         int16_t *ptr = (int16_t*)buffer;
         
-        // Amplitud de silencio
-        int A = amplitude;
-
         for (int j=0;j<(samples/2);j++)
         {
-            m_amplitude_R = MAIN_VOL_R * A / 100;
-            m_amplitude_L = MAIN_VOL_L * A / 100;
+            m_amplitude_R = MAIN_VOL_R * amplitude / 100;
+            m_amplitude_L = MAIN_VOL_L * amplitude / 100;
 
-            int16_t sample_R = (m_amplitude_R / 2);
-            int16_t sample_L = (m_amplitude_L / 2);
+            int16_t sample_R = m_amplitude_R;
+            int16_t sample_L = m_amplitude_L;
 
             if (!SWAP_EAR_CHANNEL)
             {
@@ -128,27 +132,28 @@ class ZXProcessor
         return result;
     }
 
-    size_t silenceWaveEdge(uint8_t *buffer, size_t samples)
+    size_t silenceWaveEdge(uint8_t *buffer, size_t samples, int amplitude)
     {
         int chn = channels;
         size_t result = 0;
         int16_t *ptr = (int16_t*)buffer;
-        int A = 0;
+        
+        int A = amplitude;
 
         for (int j=0;j<(samples/2);j++)
         {
 
             m_amplitude_R = MAIN_VOL_R * A / 100;
             m_amplitude_L = MAIN_VOL_L * A / 100;
-            int16_t sample_R = (m_amplitude_R / 2);
-            int16_t sample_L = (m_amplitude_L / 2);
+            int16_t sample_R = m_amplitude_R;
+            int16_t sample_L = m_amplitude_L;
 
             if (!SWAP_EAR_CHANNEL)
             {
               //L-OUT
               *ptr++ = sample_R;
               //R-OUT
-              *ptr++ = sample_L * (EN_MUTE) * (1-EN_MUTE_2);
+              *ptr++ = sample_L * (EN_MUTE);
             }
             else
             {
@@ -165,60 +170,60 @@ class ZXProcessor
         return result;
     }
 
-    size_t clearBuffer(uint8_t *buffer, size_t bytes)
-    {
-        int chn = channels;
-        size_t result = 0;
-        int16_t *ptr = (int16_t*)buffer;
+    // size_t clearBuffer(uint8_t *buffer, size_t bytes)
+    // {
+    //     int chn = channels;
+    //     size_t result = 0;
+    //     int16_t *ptr = (int16_t*)buffer;
 
-        for (int j=0;j<bytes/(2*chn);j++){
+    //     for (int j=0;j<bytes/(2*chn);j++){
 
-            int16_t sample = 0;
+    //         int16_t sample = 0;
 
-            if (!SWAP_EAR_CHANNEL)
-            {
-              //L-OUT
-              *ptr++ = sample * (1-EN_MUTE);
-              //R-OUT
-              *ptr++ = sample * EN_MUTE;
-            }
-            else
-            {
-              //R-OUT
-              *ptr++ = sample * EN_MUTE;
-              //L-OUT
-              *ptr++ = sample * (1-EN_MUTE);
-            }
+    //         if (!SWAP_EAR_CHANNEL)
+    //         {
+    //           //L-OUT
+    //           *ptr++ = sample * (1-EN_MUTE);
+    //           //R-OUT
+    //           *ptr++ = sample * EN_MUTE;
+    //         }
+    //         else
+    //         {
+    //           //R-OUT
+    //           *ptr++ = sample * EN_MUTE;
+    //           //L-OUT
+    //           *ptr++ = sample * (1-EN_MUTE);
+    //         }
 
 
-            result+=2*chn;
-        }
+    //         result+=2*chn;
+    //     }
 
-        return result;
-    }
+    //     return result;
+    // }
 
-    size_t readSin(uint8_t *buffer, size_t bytes, float freq, bool stereo)
-    {
+    // size_t readSin(uint8_t *buffer, size_t bytes, float freq, bool stereo)
+    // {
 
-        // Antes de iniciar la reproducción ajustamos el volumen de carga.
-        m_amplitude_R = MAIN_VOL_R * maxAmplitude / 100;
-        m_amplitude_L = MAIN_VOL_L * maxAmplitude / 100;
+    //     // Antes de iniciar la reproducción ajustamos el volumen de carga.
+    //     m_amplitude_R = MAIN_VOL_R * maxAmplitude / 100;
+    //     m_amplitude_L = MAIN_VOL_L * maxAmplitude / 100;
 
-        float double_Pi = PI * 2.0;
-        float angle = double_Pi * freq * m_time + 0;
-        if (stereo)
-        {
-            int16_t result = m_amplitude_R * sin(angle);
-            m_time += 1.0 / samplingRate; 
-        }
-        else
-        {
-            int16_t result = m_amplitude_L * sin(angle);
-            m_time += 1.0 / samplingRate; 
-        }
+    //     float double_Pi = PI * 2.0;
+    //     float angle = double_Pi * freq * m_time + 0;
+    //     if (stereo)
+    //     {
+    //         int16_t result = m_amplitude_R * sin(angle);
+    //         m_time += 1.0 / samplingRate; 
+    //     }
+    //     else
+    //     {
+    //         int16_t result = m_amplitude_L * sin(angle);
+    //         m_time += 1.0 / samplingRate; 
+    //     }
 
-        return m_time;     
-    }
+    //     return m_time;     
+    // }
 
     size_t createWave(uint8_t *buffer, size_t bytes)
     {
@@ -423,14 +428,14 @@ class ZXProcessor
             if (lastSlope==up)
             {
                 // Volvemos a pasar por cero (de bajo --> alto) para que el semi-pulso en bajo se entienda
-                m_amplitude_R = (maxAmplitude/2);
-                m_amplitude_L = (maxAmplitude/2);
+                m_amplitude_R = (maxAmplitude/amplitudeFactor);
+                m_amplitude_L = (maxAmplitude/amplitudeFactor);
             }
             else
             {
                 // Volvemos a pasar por cero (de alto --> bajo) para que el semi-pulso en alto se entienda
-                m_amplitude_R = (minAmplitude/2);
-                m_amplitude_L = (minAmplitude/2);
+                m_amplitude_R = (minAmplitude/amplitudeFactor);
+                m_amplitude_L = (minAmplitude/amplitudeFactor);
             }            
         }
         else
@@ -485,7 +490,7 @@ class ZXProcessor
         // Obtenemos el periodo de muestreo
         // Tsr = 1 / samplingRate
         float Tsr = (1.0 / samplingRate);
-        int bytes = int(round((1.0 / ((freq / 4.0))) / Tsr));
+        int bytes = int(round((1.0 / ((freq / alpha))) / Tsr));
         int chn = channels;
 
         uint8_t buffer[bytes*chn];
@@ -503,7 +508,7 @@ class ZXProcessor
         // Tsr = 1 / samplingRate
 
         float Tsr = (1.0 / samplingRate);
-        int bytes = int(round((1.0 / ((freq / 4.0))) / Tsr));
+        int bytes = int(round((1.0 / ((freq / alpha))) / Tsr));
         int chn = channels;
 
         uint8_t buffer[bytes*chn];
@@ -531,7 +536,7 @@ class ZXProcessor
         // Tsr = 1 / samplingRate
 
         float Tsr = (1.0 / samplingRate);
-        int bytes = int(round((1.0 / ((freq / 4.0))) / Tsr));
+        int bytes = int(round((1.0 / ((freq / alpha))) / Tsr));
         int chn = channels;
 
         uint8_t buffer[bytes*chn];
@@ -559,7 +564,7 @@ class ZXProcessor
         // Obtenemos el periodo de muestreo
         // Tsr = 1 / samplingRate
         float Tsr = (1.0 / samplingRate);
-        int bytes = int((1.0 / ((freq / 4.0))) / Tsr);
+        int bytes = int((1.0 / ((freq / alpha))) / Tsr);
         int numPulses = 4 * int(duration / (bytes*Tsr));
         int chn = channels;
 
@@ -591,29 +596,28 @@ class ZXProcessor
 
     void terminator()
     {
-        int width = 50;
+        // int width = maxTerminatorWidth;
 
-        // Vemos como es el último bit MSB es la posición 0, el ultimo bit
+        // // Vemos como es el último bit MSB es la posición 0, el ultimo bit
         
-        // Metemos un pulso de cambio de estado
-        // para asegurar el cambio de flanco alto->bajo, del ultimo bit
-        float freq = (1 / (width * tState));  
+        // // Metemos un pulso de cambio de estado
+        // // para asegurar el cambio de flanco alto->bajo, del ultimo bit
+        // float freq = (1 / (width * tState));  
 
-        if (LAST_EDGE_IS==up)
-        {
-            // Si el ultimo flanco acabó en ALTO entonces el terminador
-            // debe acabar en BAJO
-            generatePulse(freq, samplingRate,down,true);
-            LAST_EDGE_IS = down;
+        // if (LAST_EDGE_IS==up)
+        // {
+        //     // Si el ultimo flanco acabó en ALTO entonces el terminador
+        //     // debe acabar en BAJO
+        //     generatePulse(freq, samplingRate,down,true);
+        //     LAST_EDGE_IS = down;     
 
-        }
-        else
-        {
-            // Lo contrario
-            generatePulse(freq, samplingRate,up,true);
-            LAST_EDGE_IS = up;
-        }
-        
+        // }
+        // else
+        // {
+        //     // Lo contrario
+        //     generatePulse(freq, samplingRate,up,true);
+        //     LAST_EDGE_IS = up;       
+        // }
     }
 
 
@@ -651,6 +655,18 @@ class ZXProcessor
     
         // Rellenamos repitiendo el patron varias veces
         // porque el buffer es limitado
+        int silenceAmp = 0;
+        if (LAST_EDGE_IS==up)
+        {
+            silenceAmp = minAmplitude;
+            LAST_EDGE_IS = down;
+        }
+        else
+        {
+            silenceAmp = maxAmplitude;
+            LAST_EDGE_IS = up;
+        }        
+
         for (int n=0;n<frames;n++)
         {
             // El ultimo frame que compone la señal tendrá el restante
@@ -665,7 +681,9 @@ class ZXProcessor
             // Aplicamos la reserva de buffer
             uint8_t buffer[bufferSize*chn];
             // Generamos una señal de silencio de amplitud 0 
-            m_kit.write(buffer, silenceWave(buffer, bufferSize,0));
+
+            m_kit.write(buffer, silenceWave(buffer, bufferSize,silenceAmp));
+
         }
     }
 
@@ -702,6 +720,24 @@ class ZXProcessor
     
         // Rellenamos repitiendo el patron varias veces
         // porque el buffer es limitado
+
+        // Rellenamos repitiendo el patron varias veces
+        // porque el buffer es limitado
+        int silenceAmp = 0;
+
+        if (LAST_EDGE_IS==up)
+        {
+            silenceAmp = minAmplitude;
+            LAST_EDGE_IS = down;
+        }
+        else
+        {
+            silenceAmp = maxAmplitude;
+            LAST_EDGE_IS = up;
+        }        
+
+        //log("Silencio: " + String(silenceAmp));
+
         for (int n=0;n<frames;n++)
         {
             // El ultimo frame que compone la señal tendrá el restante
@@ -715,11 +751,9 @@ class ZXProcessor
   
             // Aplicamos la reserva de buffer
             uint8_t buffer[bufferSize*chn]; 
-            m_kit.write(buffer, silenceWaveEdge(buffer, bufferSize));
+            m_kit.write(buffer, silenceWaveEdge(buffer, bufferSize, silenceAmp));
         }
         
-        // Reiniciamos el silencio para evitar historias.
-        // silent = DSILENT;
     }
 
     void customPilotTone(int lenPulse, int numPulses)
@@ -732,6 +766,7 @@ class ZXProcessor
         // slope tomará los valores 1 (el ultimo flanco va de alto --> bajo) o distinto de 1 (el ultimo flanco va de bajo --> alto)        
         edge slope = up;
 
+        // Cogemos el flanco del LAST_EDGE_IS para el primero
         if (LAST_EDGE_IS==up)
         {
             slope = down;
@@ -745,9 +780,20 @@ class ZXProcessor
         for (int i = 0; i < numPulses;i++)
         {
             semiPulse(lenPulse,slope);
-        }
-        //log("Flanco: " + String(LAST_EDGE_IS));       
 
+            // Vamos cambiando
+            if (slope==up)
+            {
+                slope=down;
+            }
+            else
+            {
+                slope=up;
+            }
+        }
+
+        // Guardamos el ultimo estado
+        LAST_EDGE_IS = slope;
     }
 
     void semiPulse(int nTStates, edge slope)
@@ -758,22 +804,7 @@ class ZXProcessor
         // El ZX Spectrum tiene dos tipo de sincronismo, uno al finalizar el tono piloto
         // y otro al final de la recepción de los datos, que serán SYNC1 y SYNC2 respectivamente.
         float freq = (1 / (nTStates * tState));   
-        // Cambiamos slope de 0 a 1, para indicar si es 
-        // pulso alto o bajo
-        // Este generador de semipulsos, hay que ir cambiando el slope por cada
-        // semipulso
-        if (LAST_EDGE_IS==up)
-        {
-            slope=down;
-        }
-        else
-        {
-            slope=up;
-        }
-        
-        generatePulse(freq, samplingRate,slope, false);        
-        LAST_EDGE_IS = slope;  
-
+        generatePulse(freq, samplingRate,slope, false);   
     }
 
     void pilotTone(float duration)
@@ -1171,17 +1202,39 @@ class ZXProcessor
             // Esto lo usamos para el PULSE_SEQUENCE ID-13
             //
 
-            // Reproduce una secuencia de pulsos totalmente customizada
-            // cada pulso tiene su timming y viene dado en un array (data)
-            edge slope = LAST_EDGE_IS;
+            // Iniciamos el flanco dependiendo de como fuera el ultimo
+            // slope tomará los valores 1 (el ultimo flanco va de alto --> bajo) o distinto de 1 (el ultimo flanco va de bajo --> alto)        
+            edge slope = up;
+
+            if (LAST_EDGE_IS==up)
+            {
+                slope = down;
+            }
+            else
+            {
+                slope = up;
+            }
 
             //log("------  Start PULSE SQZ");
 
             for (int i = 0; i < numPulses;i++)
             {
+                // Vamos cambiando
+                if (slope==up)
+                {
+                    slope=down;
+                }
+                else
+                {
+                    slope=up;
+                }                
+
+                // Generamos los semipulsos
                 semiPulse(data[i],slope);
             }
 
+            LAST_EDGE_IS = slope;
+            
             //log("Flanco: " + String(LAST_EDGE_IS));     
             //log("++++++  End PULSE SQZ");  
         }   

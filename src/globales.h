@@ -65,6 +65,7 @@ struct tFileBuffer
   //float DfreqCPU = 3476604.8;
   //float DfreqCPU = 3450000;
   float DfreqCPU = 3500000;
+  //float DfreqCPU = 3250000;
 
   const int DPILOT_HEADER = 8063;
   const int DPILOT_DATA = 3223;
@@ -153,6 +154,7 @@ bool TURBOMODE = false;
 int BLOCK_SELECTED = 0;
 int PARTITION_BLOCK = 0;
 int TOTAL_PARTS = 0;
+
 String dataOffset1 = "";
 String dataOffset2 = "";
 String dataOffset3 = "";
@@ -254,12 +256,12 @@ const int END_ST = 4;
 const int ACK_LCD = 5;
 const int RESET = 6;
 //
-int MAIN_VOL = 97;
-int MAIN_VOL_R = 97;
-int MAIN_VOL_L = 97;
-int LAST_MAIN_VOL = 97;
-int LAST_MAIN_VOL_R = 97;
-int LAST_MAIN_VOL_L = 97;
+int MAIN_VOL = 90;
+int MAIN_VOL_R = 90;
+int MAIN_VOL_L = 90;
+int LAST_MAIN_VOL = 90;
+int LAST_MAIN_VOL_R = 90;
+int LAST_MAIN_VOL_L = 90;
 int MAX_MAIN_VOL = 100;
 int MAX_MAIN_VOL_R = 100;
 int MAX_MAIN_VOL_L = 100;
