@@ -1568,8 +1568,6 @@ class TZXprocessor
         {
           log("");
           SerialHW.println("Listing bufferplay.");
-          // for (int n=0;n<size;n++)
-          // {
 
           SerialHW.print(buffer[0],HEX);
           SerialHW.print(",");
@@ -1624,6 +1622,71 @@ class TZXprocessor
             log("");
         }
     }
+
+    // void showBufferPlay(byte* buffer, int size, int offset)
+    // {
+
+    //     char hexs[20];
+    //     if (size > 10)
+    //     {
+    //       log("");
+    //       SerialHW.println("Listing bufferplay.");
+    //       // for (int n=0;n<size;n++)
+    //       // {
+
+    //       SerialHW.print(buffer[0],HEX);
+    //       SerialHW.print(",");
+    //       SerialHW.print(buffer[1],HEX);
+    //       SerialHW.print(" ... ");
+    //       SerialHW.print(buffer[size-2],HEX);
+    //       SerialHW.print(",");
+    //       SerialHW.print(buffer[size-1],HEX);
+
+    //       sprintf(hexs, "%X", buffer[size-1]);
+    //       dataOffset4 = hexs;
+    //       sprintf(hexs, "%X", buffer[size-2]);
+    //       dataOffset3 = hexs;
+    //       sprintf(hexs, "%X", buffer[1]);
+    //       dataOffset2 = hexs;
+    //       sprintf(hexs, "%X", buffer[0]);
+    //       dataOffset1 = hexs;
+
+    //       sprintf(hexs, "%X", offset+(size-1));
+    //       Offset4 = hexs;
+    //       sprintf(hexs, "%X", offset+(size-2));
+    //       Offset3 = hexs;
+    //       sprintf(hexs, "%X", offset+1);
+    //       Offset2 = hexs;
+    //       sprintf(hexs, "%X", offset);
+    //       Offset1 = hexs;
+
+
+    //       // }
+    //       log("");
+    //     }
+    //     else
+    //     {
+    //         // Solo mostramos la ultima parte
+    //         log("");
+    //         SerialHW.println("Listing bufferplay.");
+
+    //         SerialHW.print(buffer[size-2],HEX);
+    //         SerialHW.print(",");
+    //         SerialHW.print(buffer[size-1],HEX);
+
+    //         sprintf(hexs, "%X", buffer[size-1]);
+    //         dataOffset4 = hexs;
+    //         sprintf(hexs, "%X", buffer[size-2]);
+    //         dataOffset3 = hexs;
+
+    //         sprintf(hexs, "%X", offset+(size-1));
+    //         Offset4 = hexs;
+    //         sprintf(hexs, "%X", offset+(size-2));
+    //         Offset3 = hexs;
+
+    //         log("");
+    //     }
+    // }
 
     public:
 
@@ -1851,12 +1914,13 @@ class TZXprocessor
             // Reservamos memoria
             bufferPlay = (byte*)ps_calloc(blockSizeSplit, sizeof(byte));
             TOTAL_PARTS = blocks;
-            
+
             // Recorremos el vector de particiones del bloque.
             for (int n=0;n < blocks;n++)
             {
               PARTITION_BLOCK = n;
-
+              log("Envio el partition");
+              
               // Calculamos el offset del bloque
               newOffset = offsetBase + (blockSizeSplit*n);
               // Accedemos a la SD y capturamos el bloque del fichero

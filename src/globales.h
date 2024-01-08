@@ -115,8 +115,8 @@ enum edge
 };
 
 // ZXProcessor
-// Inicialmente se define como flando upToDown
-edge LAST_EDGE_IS = down;
+// Inicialmente se define como flanco up para que empiece en down.
+edge LAST_EDGE_IS = up;
 
 // Tamaño del fichero abierto
 int FILE_LENGTH = 0;

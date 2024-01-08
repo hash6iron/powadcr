@@ -1624,18 +1624,10 @@ class HMI
       void updateInformationMainPage() 
       {
         
-
-
         if (PLAY)
         {
           writeString("progression.val=" + String(PROGRESS_BAR_BLOCK_VALUE));
           writeString("progressTotal.val=" + String(PROGRESS_BAR_TOTAL_VALUE));
-
-          // DEBUG Information
-          writeString("debug.blockLoading.txt=\"" + String(BLOCK_SELECTED) +"\"");
-          // Esto falla
-          writeString("debug.partLoading.txt=\"" + String(PARTITION_BLOCK) +"\"");
-          writeString("debug.totalParts.txt=\"" + String(TOTAL_PARTS) +"\"");
 
           writeString("debug.dataOffset1.txt=\"" + dataOffset1 +"\"");
           writeString("debug.dataOffset2.txt=\"" + dataOffset2 +"\"");
@@ -1646,6 +1638,12 @@ class HMI
           writeString("debug.offset2.txt=\"" + Offset2 +"\"");
           writeString("debug.offset3.txt=\"" + Offset3 +"\"");
           writeString("debug.offset4.txt=\"" + Offset4 +"\"");
+
+          // DEBUG Information
+          writeString("debug.blockLoading.txt=\"" + String(BLOCK_SELECTED) +"\"");
+          // Esto falla
+          writeString("debug.partLoading.txt=\"" + String(PARTITION_BLOCK) +"\"");
+          writeString("debug.totalParts.txt=\"" + String(TOTAL_PARTS) +"\"");
         }
 
         if (TOTAL_BLOCKS != 0 || REC || EJECT) 
