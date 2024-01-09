@@ -109,36 +109,6 @@ class TZXprocessor
 
     int CURRENT_LOADING_BLOCK = 0;
 
-    static void tryAllocateSRamThenPSRam(tTZXBlockDescriptor*& ds,int size)
-    {
-        // Liberamos
-        // if (ds != nullptr)
-        // {
-        //   free(ds);
-        // }
-
-        // only try allocating in SRAM when there are 96K free at least
-        if (ESP.getFreeHeap() >= 256*1024)
-        {
-            ds = (tTZXBlockDescriptor*)calloc(size, sizeof(tTZXBlockDescriptor));
-            if (ds != nullptr)
-            {
-                //SerialHW.printf("Ds allocated into SRAM (fast)");
-                return;
-            }
-        }
-        
-        ds = (tTZXBlockDescriptor*)ps_calloc(size, sizeof(tTZXBlockDescriptor));
-        if (ds != nullptr) 
-        {
-            //SerialHW.printf("Ds allocated into PSRAM (slow)");
-            return;
-        }
-        //
-        //SerialHW.printf("ERROR: unable to allocate ds");
-    }
-
-
     byte calculateChecksum(byte* bBlock, int startByte, int numBytes)
     {
         // Calculamos el checksum de un bloque de bytes
@@ -225,7 +195,7 @@ class TZXprocessor
            bBlock = sdm.readFileRange32(tzxFile,0,10,false);
 
           // Obtenemos la firma del TZX
-          char* signTZXHeader = (char*)ps_calloc(8+1,sizeof(char));
+          char signTZXHeader[9];// = (char*)ps_calloc(8+1,sizeof(char));
 
           // Analizamos la cabecera
           // Extraemos el nombre del programa
@@ -234,6 +204,8 @@ class TZXprocessor
                signTZXHeader[n] = (char)bBlock[n];
            }
            
+           free(bBlock);
+
            //Aplicamos un terminador a la cadena de char
            signTZXHeader[7] = '\0';
            //Convertimos a String
@@ -265,12 +237,8 @@ class TZXprocessor
             // Capturamos el nombre del fichero en szName
             char* szName = (char*)ps_calloc(255,sizeof(char));
             tzxFile.getName(szName,254);
-            
-            //String szNameStr = sdm.getFileName(tzxFileName);
             String fileName = String(szName);
-
-            //SerialHW.println("");
-            //SerialHW.println("Name " + fileName);
+            free(szName);
 
             if (fileName != "")
             {
@@ -1018,7 +986,8 @@ class TZXprocessor
 
           // Hacemos allocation in memory
 
-          tryAllocateSRamThenPSRam(_myTZX.descriptor,maxAllocationBlocks);
+          //tryAllocateSRamThenPSRam(_myTZX.descriptor,maxAllocationBlocks);
+          _myTZX.descriptor = (tTZXBlockDescriptor*)ps_calloc(maxAllocationBlocks, sizeof(tTZXBlockDescriptor));
           
           // Inicializamos
           ID_NOT_IMPLEMENTED = false;
@@ -1884,7 +1853,7 @@ class TZXprocessor
     void playBlock(tTZXBlockDescriptor descriptor)
     {
         byte* bufferPlay = nullptr;
-        bufferPlay = (byte*)ps_calloc(descriptor.size, sizeof(byte));
+        //bufferPlay = (byte*)ps_calloc(descriptor.size, sizeof(byte));
 
         int pulsePilotDuration = descriptor.timming.pulse_pilot * descriptor.timming.pilot_tone;
         int blockSizeSplit = SIZE_FOR_SPLIT;
@@ -1920,7 +1889,7 @@ class TZXprocessor
             {
               PARTITION_BLOCK = n;
               log("Envio el partition");
-              
+
               // Calculamos el offset del bloque
               newOffset = offsetBase + (blockSizeSplit*n);
               // Accedemos a la SD y capturamos el bloque del fichero
@@ -2218,33 +2187,36 @@ class TZXprocessor
                       else if (_myTZX.descriptor[i].type == 1 || _myTZX.descriptor[i].type == 7) 
                       {
 
-                          // Estos bloques pueden ser BYTE o SCREEN
-
-                          bufferPlay = (byte*)ps_calloc(_myTZX.descriptor[i].size, sizeof(byte));
-                          bufferPlay = sdm.readFileRange32(_mFile, _myTZX.descriptor[i].offsetData, _myTZX.descriptor[i].size, false);
-
-                          showBufferPlay(bufferPlay,_myTZX.descriptor[i].size,_myTZX.descriptor[i].offsetData);
-                          verifyChecksum(_mFile,_myTZX.descriptor[i].offsetData,_myTZX.descriptor[i].size);
-
-
                           // Llamamos a la clase de reproducción
                           switch (_myTZX.descriptor[i].ID)
                           {
                             case 16:
                               //Standard data - ID-10
+                              bufferPlay = (byte*)ps_calloc(_myTZX.descriptor[i].size, sizeof(byte));
+                              bufferPlay = sdm.readFileRange32(_mFile, _myTZX.descriptor[i].offsetData, _myTZX.descriptor[i].size, false);
+
+                              showBufferPlay(bufferPlay,_myTZX.descriptor[i].size,_myTZX.descriptor[i].offsetData);
+                              verifyChecksum(_mFile,_myTZX.descriptor[i].offsetData,_myTZX.descriptor[i].size);                              
+
                               _myTZX.descriptor[i].timming.pilot_tone = DPILOT_HEADER;
                               _zxp.PILOT_TONE = _myTZX.descriptor[i].timming.pilot_tone;
                               playBlock(_myTZX.descriptor[i]);
                               //_zxp.playData(bufferPlay, _myTZX.descriptor[i].size,_myTZX.descriptor[i].timming.pilot_tone * _myTZX.descriptor[i].timming.pulse_pilot);
-                              //free(bufferPlay);
+                              free(bufferPlay);
                               break;
 
                             case 17:
                               // Speed data - ID-11
+                              bufferPlay = (byte*)ps_calloc(_myTZX.descriptor[i].size, sizeof(byte));
+                              bufferPlay = sdm.readFileRange32(_mFile, _myTZX.descriptor[i].offsetData, _myTZX.descriptor[i].size, false);
+
+                              showBufferPlay(bufferPlay,_myTZX.descriptor[i].size,_myTZX.descriptor[i].offsetData);
+                              verifyChecksum(_mFile,_myTZX.descriptor[i].offsetData,_myTZX.descriptor[i].size);                              
+
                               _zxp.PILOT_TONE = _myTZX.descriptor[i].timming.pilot_tone;
                               playBlock(_myTZX.descriptor[i]);
                               //_zxp.playData(bufferPlay, _myTZX.descriptor[i].size,_myTZX.descriptor[i].timming.pilot_tone * _myTZX.descriptor[i].timming.pulse_pilot);
-                              //free(bufferPlay);
+                              free(bufferPlay);
                               break;
                           }
                                                 
@@ -2260,13 +2232,28 @@ class TZXprocessor
                           {
                               case 18:
                                 // ID 0x12 - Reproducimos un tono puro. Pulso repetido n veces
+                                // bufferPlay = (byte*)ps_calloc(_myTZX.descriptor[i].size, sizeof(byte));
+                                // bufferPlay = sdm.readFileRange32(_mFile, _myTZX.descriptor[i].offsetData, _myTZX.descriptor[i].size, false);
+
+                                // showBufferPlay(bufferPlay,_myTZX.descriptor[i].size,_myTZX.descriptor[i].offsetData);
+                                // verifyChecksum(_mFile,_myTZX.descriptor[i].offsetData,_myTZX.descriptor[i].size);                              
+
                                 _zxp.playPureTone(_myTZX.descriptor[i].timming.pure_tone_len,_myTZX.descriptor[i].timming.pure_tone_num_pulses);
+                                //free(bufferPlay);
                                 break;
 
                               case 19:
                                 // ID 0x13 - Reproducimos una secuencia. Pulsos de longitud contenidos en un array y repetición
+                                //bufferPlay = (byte*)ps_calloc(_myTZX.descriptor[i].size, sizeof(byte));
+                                //bufferPlay = sdm.readFileRange32(_mFile, _myTZX.descriptor[i].offsetData, _myTZX.descriptor[i].size, false);
+
+                                //showBufferPlay(bufferPlay,_myTZX.descriptor[i].size,_myTZX.descriptor[i].offsetData);
+                                //verifyChecksum(_mFile,_myTZX.descriptor[i].offsetData,_myTZX.descriptor[i].size);                              
+
                                 num_pulses = _myTZX.descriptor[i].timming.pulse_seq_num_pulses;
                                 _zxp.playCustomSequence(_myTZX.descriptor[i].timming.pulse_seq_array,num_pulses);
+                                free(_myTZX.descriptor[i].timming.pulse_seq_array);
+                                
                                 break;                          
 
                               case 20:
@@ -2357,35 +2344,39 @@ class TZXprocessor
                           //
 
                           int blockSize = _myTZX.descriptor[i].size;
-                          bufferPlay = (byte*)ps_calloc(_myTZX.descriptor[i].size, sizeof(byte));
-                          bufferPlay = sdm.readFileRange32(_mFile, _myTZX.descriptor[i].offsetData, _myTZX.descriptor[i].size, true);
 
-                          showBufferPlay(bufferPlay,_myTZX.descriptor[i].size,_myTZX.descriptor[i].offsetData);
-                          verifyChecksum(_mFile,_myTZX.descriptor[i].offsetData,_myTZX.descriptor[i].size);
 
                           switch (_myTZX.descriptor[i].ID)
                           {
                             case 16:
                               // ID 0x10
+                              bufferPlay = (byte*)ps_calloc(_myTZX.descriptor[i].size, sizeof(byte));
+                              bufferPlay = sdm.readFileRange32(_mFile, _myTZX.descriptor[i].offsetData, _myTZX.descriptor[i].size, true);
 
+                              showBufferPlay(bufferPlay,_myTZX.descriptor[i].size,_myTZX.descriptor[i].offsetData);
+                              verifyChecksum(_mFile,_myTZX.descriptor[i].offsetData,_myTZX.descriptor[i].size);
                               //PULSE PILOT
                               _myTZX.descriptor[i].timming.pilot_tone = DPILOT_DATA;
                               _zxp.PILOT_TONE = _myTZX.descriptor[i].timming.pilot_tone;
                               playBlock(_myTZX.descriptor[i]);
                               // Bloque de datos BYTE
                               //_zxp.playData(bufferPlay, _myTZX.descriptor[i].size,_myTZX.descriptor[i].timming.pilot_tone * _myTZX.descriptor[i].timming.pulse_pilot);
-                              //free(bufferPlay);
+                              free(bufferPlay);
                               break;
 
                             case 17:
                               // ID 0x11
+                              bufferPlay = (byte*)ps_calloc(_myTZX.descriptor[i].size, sizeof(byte));
+                              bufferPlay = sdm.readFileRange32(_mFile, _myTZX.descriptor[i].offsetData, _myTZX.descriptor[i].size, true);
 
+                              showBufferPlay(bufferPlay,_myTZX.descriptor[i].size,_myTZX.descriptor[i].offsetData);
+                              verifyChecksum(_mFile,_myTZX.descriptor[i].offsetData,_myTZX.descriptor[i].size);
                               //PULSE PILOT
                               _zxp.PILOT_TONE = _myTZX.descriptor[i].timming.pilot_tone;
                               playBlock(_myTZX.descriptor[i]);
                               // Bloque de datos BYTE
                               //_zxp.playData(bufferPlay, _myTZX.descriptor[i].size,_myTZX.descriptor[i].timming.pilot_tone * _myTZX.descriptor[i].timming.pulse_pilot);
-                              //free(bufferPlay);
+                              free(bufferPlay);
                               break;
                           }
 

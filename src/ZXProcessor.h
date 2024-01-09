@@ -73,7 +73,7 @@ class ZXProcessor
     // Este es un factor de división para la amplitud del flanco terminador
     float amplitudeFactor = 1.0;
     // T-states del ancho del terminador
-    int maxTerminatorWidth = 200;
+    int maxTerminatorWidth = 200; //200
     // otros parámetros
     float freqCPU = DfreqCPU;
     float tState = (1.0 / freqCPU); //0.00000028571 --> segundos Z80 
@@ -587,37 +587,46 @@ class ZXProcessor
     void silence(float duration)
     {
         // Paso la duración a T-States
-        int tStateSilence = (duration/1000) / (1/freqCPU);       
-        int minSilenceFrame = 5000;
-
-        int parts = 0;
-        int lastPart = 0;
-
-        // Esto lo hacemos para acabar bien un ultimo flanco en down.
-        if (LAST_EDGE_IS==down)
+        if (duration>0)
         {
-            terminator();
-        }
+            int tStateSilence = (duration/1000) / (1/freqCPU);       
+            int minSilenceFrame = 5000;
 
-        if (tStateSilence > minSilenceFrame)
-        {
-            parts = tStateSilence / minSilenceFrame;
-            lastPart = tStateSilence - (parts * minSilenceFrame);
+            int parts = 0;
+            int lastPart = 0;
 
-            // Lo partimos
-            for (int n=0;n<parts;n++)
+            // Esto lo hacemos para acabar bien un ultimo flanco en down.
+            edge edgeSelected = down;
+            if (LAST_EDGE_IS==down)
             {
-                semiPulse(minSilenceFrame, down);
+                terminator();
+                edgeSelected = down;
             }
-        }
-        else
-        {
-            lastPart = tStateSilence;
-        }
+            else
+            {
+                edgeSelected = down;
+            }
 
-        semiPulse(lastPart, down);
+            if (tStateSilence > minSilenceFrame)
+            {
+                parts = tStateSilence / minSilenceFrame;
+                lastPart = tStateSilence - (parts * minSilenceFrame);
 
-        LAST_EDGE_IS = down;
+                // Lo partimos
+                for (int n=0;n<parts;n++)
+                {
+                    semiPulse(minSilenceFrame, edgeSelected);
+                }
+            }
+            else
+            {
+                lastPart = tStateSilence;
+            }
+
+            semiPulse(lastPart, edgeSelected);
+
+            LAST_EDGE_IS = edgeSelected;
+        }
 
         
     }
