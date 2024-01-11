@@ -1331,9 +1331,9 @@ class ZXProcessor
         void playBlock(uint8_t* header, int len_header, uint8_t* data, int len_data, int pulse_pilot_duration_header, int pulse_pilot_duration_data)
         {           
             #if LOG==3
-              SerialHW.println("******* PROGRAM HEADER");
-              SerialHW.println("*******  - HEADER size " + String(len_header));
-              SerialHW.println("*******  - DATA   size " + String(len_data));
+              //SerialHW.println("******* PROGRAM HEADER");
+              //SerialHW.println("*******  - HEADER size " + String(len_header));
+              //SerialHW.println("*******  - DATA   size " + String(len_data));
             #endif
 
             float durationHeader = tState * pulse_pilot_duration_header;
@@ -1353,7 +1353,7 @@ class ZXProcessor
             silence(silent);           
 
             #if LOG==3
-              SerialHW.println("******* PROGRAM DATA");
+              //SerialHW.println("******* PROGRAM DATA");
             #endif
 
             // Put now code block

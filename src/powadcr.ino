@@ -118,7 +118,7 @@ TAPrecorder taprec;
 // Procesador de TAP
 TAPprocessor::tTAP myTAP;
 // Procesador de TZX
-//TZXprocessor::tTZX myTZX;
+TZXprocessor::tTZX myTZX;
 
 bool last_headPhoneDetection = false;
 uint8_t tapeState = 0;
@@ -162,6 +162,8 @@ void proccesingTAP(char* file_ch)
 
 void proccesingTZX(char* file_ch)
 {
+    pTZX.initialize();
+
     pTZX.getInfoFileTZX(file_ch);
 
     if (ABORT)
@@ -240,13 +242,13 @@ void setSDFrequency(int SD_Speed)
       
       sdFile32.close();
 
-      SerialHW.println("");
-      SerialHW.println("");
-      SerialHW.println("SD card error!");
+      //SerialHW.println("");
+      //SerialHW.println("");
+      //SerialHW.println("SD card error!");
 
-      SerialHW.println("");
-      SerialHW.println("");
-      SerialHW.println("SD downgrade at " + String(SD_Speed) + "MHz");
+      //SerialHW.println("");
+      //SerialHW.println("");
+      //SerialHW.println("SD downgrade at " + String(SD_Speed) + "MHz");
 
       hmi.writeString("statusLCD.txt=\"SD FREQ. AT " + String(SD_Speed) + " MHz\"" );
 
@@ -266,9 +268,9 @@ void setSDFrequency(int SD_Speed)
           {
               // Error fatal
               // La SD no es accesible. Entonces no es problema de la frecuencia de acceso.
-              SerialHW.println("");
-              SerialHW.println("");
-              SerialHW.println("Fatal error. SD card not compatible. Change SD");      
+              //SerialHW.println("");
+              //SerialHW.println("");
+              //SerialHW.println("Fatal error. SD card not compatible. Change SD");      
               
               // loop infinito
               while(true)
@@ -284,9 +286,9 @@ void setSDFrequency(int SD_Speed)
     else 
     {
         // La SD ha aceptado la frecuencia de acceso
-        SerialHW.println("");
-        SerialHW.println("");
-        SerialHW.println("SD card initialized at " + String(SD_Speed) + " MHz");
+        //SerialHW.println("");
+        //SerialHW.println("");
+        //SerialHW.println("SD card initialized at " + String(SD_Speed) + " MHz");
 
         hmi.writeString("statusLCD.txt=\"SD DETECTED AT " + String(SD_Speed) + " MHz\"" );
 
@@ -297,9 +299,9 @@ void setSDFrequency(int SD_Speed)
             SD_ok = false;
             lastStatus = false;
 
-            SerialHW.println("");
-            SerialHW.println("");
-            SerialHW.println("Listing files. Error!");
+            //SerialHW.println("");
+            //SerialHW.println("");
+            //SerialHW.println("Listing files. Error!");
 
             // loop infinito
             while(true)
@@ -320,9 +322,9 @@ void setSDFrequency(int SD_Speed)
                 SD_ok = false;
                 lastStatus = false;
 
-                SerialHW.println("");
-                SerialHW.println("");
-                SerialHW.println("File creation. Error!");
+                //SerialHW.println("");
+                //SerialHW.println("");
+                //SerialHW.println("File creation. Error!");
 
                 // loop infinito
                 while(true)
@@ -351,16 +353,16 @@ void test()
     // Si queremos activar el test que hay en memoria, para chequear con el ordenador
     #ifdef MACHINE_ZX
       //ZX Spectrum
-      SerialHW.println();
-      SerialHW.println();
-      SerialHW.println("----- TEST ACTIVE ------");
+      //SerialHW.println();
+      //SerialHW.println();
+      //SerialHW.println("----- TEST ACTIVE ------");
 
       zxp.playBlock(testHeader, 19, testData, 154, DPILOT_HEADER,DPILOT_DATA);
       zxp.playBlock(testScreenHeader, 19, testScreenData, 6914, DPILOT_HEADER,DPILOT_DATA);
 
-      SerialHW.println();
-      SerialHW.println();
-      SerialHW.println("------ END TEST -------");
+      //SerialHW.println();
+      //SerialHW.println();
+      //SerialHW.println("------ END TEST -------");
     #endif
 }
 
@@ -383,9 +385,9 @@ void waitForHMI(bool waitAndNotForze)
 
       LCD_ON = true;
 
-      SerialHW.println("");
-      SerialHW.println("LCD READY");
-      SerialHW.println("");
+      //SerialHW.println("");
+      //SerialHW.println("LCD READY");
+      //SerialHW.println("");
 
       sendStatus(ACK_LCD, 1);  
     }
@@ -396,7 +398,7 @@ void setAudioOutput()
 {
   auto cfg = ESP32kit.defaultConfig(KitOutput);
 
-  //SerialHW.println("Initialized Audiokit. Output - Playing");
+  ////SerialHW.println("Initialized Audiokit. Output - Playing");
 
   ESP32kit.begin(cfg);
   ESP32kit.setVolume(MAX_MAIN_VOL);
@@ -433,9 +435,9 @@ void pauseRecording()
     LAST_MESSAGE = "Recording paused.";
     //
 
-    SerialHW.println("");
-    SerialHW.println("REC. Procces paused.");
-    SerialHW.println("");
+    //SerialHW.println("");
+    //SerialHW.println("REC. Procces paused.");
+    //SerialHW.println("");
 }
 
 void stopRecording()
@@ -499,9 +501,9 @@ void stopRecording()
     // Actualizamos mensaje en HMI
     //taprec.prepareHMI();
 
-    SerialHW.println("");        
-    SerialHW.println("Recording procces finish.");
-    SerialHW.println("");    
+    //SerialHW.println("");        
+    //SerialHW.println("Recording procces finish.");
+    //SerialHW.println("");    
 
 }
 
@@ -512,9 +514,9 @@ void setup()
     // rtc_wdt_enable();         // Turn it on manually
     // rtc_wdt_set_time(RTC_WDT_STAGE0, 20000);  // Define how long you desire to let dog wait.
   // Configuramos el nivel de log
-  SerialHW.setRxBufferSize(2048);
+  //SerialHW.setRxBufferSize(2048);
 
-  SerialHW.begin(921600);
+  //SerialHW.begin(921600);
   delay(250);
 
   //myNex.begin(921600);
@@ -531,7 +533,7 @@ void setup()
   
   delay(1250);
 
-  SerialHW.println("Setting Audiokit.");
+  //SerialHW.println("Setting Audiokit.");
 
   // Configuramos los pulsadores
   configureButtons();
@@ -542,9 +544,9 @@ void setup()
   // Configuracion de las librerias del AudioKit
   setAudioOutput();
 
-  SerialHW.println("Done!");
+  //SerialHW.println("Done!");
 
-  SerialHW.println("Initializing SD SLOT.");
+  //SerialHW.println("Initializing SD SLOT.");
   
   // Configuramos acceso a la SD
   hmi.writeString("statusLCD.txt=\"WAITING FOR SD CARD\"" );
@@ -559,19 +561,19 @@ void setup()
   // Le pasamos al HMI el gestor de SD
   hmi.set_sdf(sdf);
 
-  SerialHW.println("Done!");
+  //SerialHW.println("Done!");
 
   // Esperamos finalmente a la pantalla
-  SerialHW.println("");
-  SerialHW.println("Waiting for LCD.");
-  SerialHW.println("");
+  //SerialHW.println("");
+  //SerialHW.println("Waiting for LCD.");
+  //SerialHW.println("");
 
   if(psramInit()){
-    SerialHW.println("\nPSRAM is correctly initialized");
+    //SerialHW.println("\nPSRAM is correctly initialized");
     hmi.writeString("statusLCD.txt=\"PSRAM OK\"" );
 
   }else{
-    SerialHW.println("PSRAM not available");
+    //SerialHW.println("PSRAM not available");
     hmi.writeString("statusLCD.txt=\"PSRAM FAILED!\"" );
   }    
   delay(750);
@@ -632,22 +634,23 @@ void setup()
 
   LAST_MESSAGE = "Press EJECT to select a file.";
 
-  #ifdef TESTDEV
-      SerialHW.println("");
-      SerialHW.println("");
-      SerialHW.println("Testing readFileRange32(..)"); 
+  // #ifdef TESTDEV
+  //     //SerialHW.println("");
+  //     //SerialHW.println("");
+  //     //SerialHW.println("Testing readFileRange32(..)"); 
 
-      uint8_t* buffer = (uint8_t*)calloc(11,sizeof(uint8_t));
-      char fileTest[65];
-      strncpy(fileTest,"/Correcaminos - Nifty Lifty (1984)(Visions Software Factory).tzx",64);
-      sdFile32 = sdm.openFile32(sdFile32,fileTest);
-      buffer = sdm.readFileRange32(sdFile32,0,10,true);
-      free(buffer);
+  //     uint8_t* buffer = (uint8_t*)calloc(11,sizeof(uint8_t));
+  //     char fileTest[65];
+  //     strncpy(fileTest,"/Correcaminos - Nifty Lifty (1984)(Visions Software Factory).tzx",64);
+  //     sdFile32 = sdm.openFile32(sdFile32,fileTest);
+  //     uint8_t* bufferFile = (uint8_t*)ps_calloc((10)+1,sizeof(uint8_t));    
+  //     buffer = sdm.readFileRange32(sdFile32,bufferFile,0,10,true);
+  //     free(buffer);
 
-      SerialHW.println("");
-      SerialHW.println("");
-      SerialHW.println("Test OK");  
-  #endif
+  //     //SerialHW.println("");
+  //     //SerialHW.println("");
+  //     //SerialHW.println("Test OK");  
+  // #endif
 
   // Call the Task0code primitive function to avoid the error of Task0code not defined
   void Task0code( void * pvParameters );
@@ -741,12 +744,8 @@ void loadingFile()
 
     if (FILE_TO_LOAD.indexOf(".TAP") != -1)
     {
-        // PROGRESS_BAR_REFRESH = 32;
-        // PROGRESS_BAR_REFRESH_2 = 16;
-
         // Reservamos memoria
         myTAP.descriptor = (TAPprocessor::tBlockDescriptor*)ps_malloc(MAX_BLOCKS_IN_TAP * sizeof(struct TAPprocessor::tBlockDescriptor));        
-    
         // Pasamos el control a la clase
         pTAP.setTAP(myTAP);
     
@@ -756,13 +755,10 @@ void loadingFile()
     }
     else if (FILE_TO_LOAD.indexOf(".TZX") != -1)    
     {
-        // PROGRESS_BAR_REFRESH = 256;
-        // PROGRESS_BAR_REFRESH_2 = 32;
-
         // Reservamos memoria
-        //myTZX.descriptor = (TZXprocessor::tTZXBlockDescriptor*)ps_malloc(MAX_BLOCKS_IN_TZX * sizeof(struct TZXprocessor::tTZXBlockDescriptor));        
+        myTZX.descriptor = (TZXprocessor::tTZXBlockDescriptor*)ps_malloc(MAX_BLOCKS_IN_TZX * sizeof(struct TZXprocessor::tTZXBlockDescriptor));        
         // Pasamos el control a la clase
-        //pTZX.setTZX(myTZX);
+        pTZX.setTZX(myTZX);
 
         // Lo procesamos. Para ZX Spectrum
         proccesingTZX(file_ch);
@@ -815,7 +811,7 @@ void ejectingFile()
   {
       // Solicitamos el puntero _myTZX de la clase
       // para liberarlo
-      //free(pTZX.getDescriptor());
+      free(pTZX.getDescriptor());
       // Finalizamos
       pTZX.terminate();
   }  
@@ -873,8 +869,8 @@ void recordingFile()
             // - El fichero para grabar el TAP no fue creado
             // - La grabación fue parada pero fue correcta (no hay errores)
             // - La grabación fue parada pero fue incorrecta (hay errores)
-            SerialHW.println("");
-            SerialHW.println("STOP 2 - REC");
+            //SerialHW.println("");
+            //SerialHW.println("STOP 2 - REC");
 
             LOADING_STATE = 0;
 
@@ -942,7 +938,7 @@ void tapeControl()
         LOADING_STATE = 1;          
         playingFile();
         tapeState = 2;
-        SerialHW.println(tapeState);
+        //SerialHW.println(tapeState);
       }
       else if(EJECT)
       {
@@ -979,7 +975,7 @@ void tapeControl()
         stopFile();
         tapeState = 4;
         LOADING_STATE = 0;          
-        SerialHW.println(tapeState);
+        //SerialHW.println(tapeState);
       }
       else if(EJECT)
       {

@@ -1622,12 +1622,10 @@ class HMI
       }
 
       void updateInformationMainPage() 
-      {
-        
+      {            
+
         if (PLAY)
         {
-          writeString("progression.val=" + String(PROGRESS_BAR_BLOCK_VALUE));
-          writeString("progressTotal.val=" + String(PROGRESS_BAR_TOTAL_VALUE));
 
           writeString("debug.dataOffset1.txt=\"" + dataOffset1 +"\"");
           writeString("debug.dataOffset2.txt=\"" + dataOffset2 +"\"");
@@ -1676,16 +1674,20 @@ class HMI
               writeString("name.txt=\"" + PROGRAM_NAME + " : " + String(LAST_NAME) + "\"");           
           }
       
-          writeString("totalBlocks.val=" + String(TOTAL_BLOCKS));
-          writeString("currentBlock.val=" + String(BLOCK_SELECTED + 1));
+          //writeString("totalBlocks.val=" + String(TOTAL_BLOCKS));
+          //writeString("currentBlock.val=" + String(BLOCK_SELECTED + 1));
         }
         else if (TOTAL_BLOCKS == 0)
         {
-          writeString("totalBlocks.val=0");
-          writeString("currentBlock.val=0");
+          //writeString("totalBlocks.val=0");
+          //writeString("currentBlock.val=0");
         }
       
         writeString("g0.txt=\"" + LAST_MESSAGE + "\"");
+        writeString("progression.val=" + String(PROGRESS_BAR_BLOCK_VALUE));
+        writeString("progressTotal.val=" + String(PROGRESS_BAR_TOTAL_VALUE)); 
+        writeString("totalBlocks.val=" + String(TOTAL_BLOCKS));
+        writeString("currentBlock.val=" + String(BLOCK_SELECTED + 1));         
 
         updateMem();
       }

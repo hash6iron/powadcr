@@ -46,23 +46,23 @@ class SDmanager
 
     File32 openFile32(File32 fFile, char *path) 
     { 
-        SerialHW.println();
-        SerialHW.println("Open file:");
-        SerialHW.println(path);
+        //SerialHW.println();
+        //SerialHW.println("Open file:");
+        //SerialHW.println(path);
     
         if (fFile != 0)
         {
             fFile.close();
-            SerialHW.println("closing file");
+            //SerialHW.println("closing file");
         }
     
         if (!fFile.open(path, FILE_READ)) 
         {
-            SerialHW.println("open failed");
+            //SerialHW.println("open failed");
         }
         else
         {
-            SerialHW.println("open success");
+            //SerialHW.println("open success");
         }
     
         return fFile;
@@ -73,63 +73,62 @@ class SDmanager
         if (fFile != 0)
         {
             fFile.close();
-            SerialHW.println("closing file");
+            //SerialHW.println("closing file");
         } 
     }
     
-    uint8_t* readFile32(File32 mFile)
-    {
-        uint8_t* bufferFile = NULL;
+    // uint8_t* readFile32(File32 mFile)
+    // {
+    //     uint8_t* bufferFile = NULL;
     
-        mFile.rewind();
+    //     mFile.rewind();
     
-        if (mFile) 
-        {
-            int rlen = mFile.available();
-            FILE_LENGTH = rlen;
+    //     if (mFile) 
+    //     {
+    //         int rlen = mFile.available();
+    //         FILE_LENGTH = rlen;
     
-            //SerialHW.print("Len: ");
-            //SerialHW.print(String(rlen));
+    //         ////SerialHW.print("Len: ");
+    //         ////SerialHW.print(String(rlen));
     
-            //Redimensionamos el buffer al tamaño acordado del fichero
-            bufferFile = (uint8_t*)ps_calloc(rlen+1,sizeof(uint8_t));
-            mFile.read(bufferFile,rlen);
+    //         //Redimensionamos el buffer al tamaño acordado del fichero
+    //         bufferFile = (uint8_t*)ps_calloc(rlen+1,sizeof(uint8_t));
+    //         mFile.read(bufferFile,rlen);
             
-            // int i=0;
-            // while(i < rlen)
-            // {
-            //     bufferFile[i] = (uint8_t)mFile.read();
-            //     i++;
-            // }
-        } 
-        else 
-        {
-            SerialHW.print(F("SD Card: error opening file. Please check SD frequency."));
-        }
+    //         // int i=0;
+    //         // while(i < rlen)
+    //         // {
+    //         //     bufferFile[i] = (uint8_t)mFile.read();
+    //         //     i++;
+    //         // }
+    //     } 
+    //     else 
+    //     {
+    //         //SerialHW.print(F("SD Card: error opening file. Please check SD frequency."));
+    //     }
     
-        return bufferFile;
-    }
+    //     return bufferFile;
+    // }
     
     uint8_t* readFileRange32(File32 mFile, int startByte, int size, bool logOn)
     {
         //Redimensionamos el buffer al tamaño acordado del rango
-        uint8_t* bufferFile = NULL;
-        bufferFile = (uint8_t*)ps_calloc(size+1,sizeof(uint8_t));
-    
+        uint8_t* bufferFile = (uint8_t*)ps_calloc(size+1,sizeof(uint8_t));
+            
         // Ponemos a cero el puntero de lectura del fichero
         mFile.rewind();
         // Nos posicionamos en el uint8_t definido
         mFile.seek(startByte);
     
-        //SerialHW.println("***** readFileRange32 *****");
+        ////SerialHW.println("***** readFileRange32 *****");
         
         if (logOn)
         {
             log("SDM - Info");
-            SerialHW.print("   + Offset: ");
-            SerialHW.print(startByte,HEX);
-            SerialHW.print(" | Size: ");
-            SerialHW.print(String(size));
+            //SerialHW.print("   + Offset: ");
+            //SerialHW.print(startByte,HEX);
+            //SerialHW.print(" | Size: ");
+            //SerialHW.print(String(size));
         }
     
         // Almacenamos el tamaño del bloque, para información
@@ -143,8 +142,8 @@ class SDmanager
             FILE_LENGTH = rlen;
 
             #if LOG > 3
-              SerialHW.println("");
-              SerialHW.println("LENGTH: " + String(rlen));            
+              //SerialHW.println("");
+              //SerialHW.println("LENGTH: " + String(rlen));            
             #endif
 
             if (rlen != 0)
@@ -152,27 +151,29 @@ class SDmanager
                 mFile.read(bufferFile,size);
                 
                 #if LOG > 3
-                  SerialHW.println(" - Block red");
+                  //SerialHW.println(" - Block red");
                 #endif
             }
 
         } 
         else 
         {
-            SerialHW.print(F("SD Card: error opening file. Please check SD frequency."));
+            //SerialHW.print(F("SD Card: error opening file. Please check SD frequency."));
         }
     
         return bufferFile;
     }
 
-    String getFileName(File32 f)
-    {
-          char* szName = (char*)ps_calloc(255,sizeof(char));
-          szName = &INITCHAR[0];
-          f.getName(szName,255);
+    // String getFileName(File32 f)
+    // {
+    //       char* szName[255] = (char*)ps_calloc(255,sizeof(char));
+    //       szName = &INITCHAR[0];
+    //       f.getName(szName,255);
+    //       String name = String(szName);
+    //       free(szName);
 
-          return String(szName);
-    }
+    //       return name;
+    // }
     
     // Constructor de la clase
     SDmanager()
