@@ -514,9 +514,8 @@ void setup()
     // rtc_wdt_enable();         // Turn it on manually
     // rtc_wdt_set_time(RTC_WDT_STAGE0, 20000);  // Define how long you desire to let dog wait.
   // Configuramos el nivel de log
-  //SerialHW.setRxBufferSize(2048);
-
-  //SerialHW.begin(921600);
+  SerialHW.setRxBufferSize(2048);
+  SerialHW.begin(921600);
   delay(250);
 
   //myNex.begin(921600);
