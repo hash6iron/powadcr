@@ -132,99 +132,6 @@ class ZXProcessor
         return result;
     }
 
-    // size_t silenceWaveEdge(uint8_t *buffer, size_t samples, int amplitude)
-    // {
-    //     int chn = channels;
-    //     size_t result = 0;
-    //     int16_t *ptr = (int16_t*)buffer;
-        
-    //     int A = amplitude;
-
-    //     for (int j=0;j<(samples/2);j++)
-    //     {
-
-    //         m_amplitude_R = MAIN_VOL_R * A / 100;
-    //         m_amplitude_L = MAIN_VOL_L * A / 100;
-    //         int16_t sample_R = m_amplitude_R;
-    //         int16_t sample_L = m_amplitude_L;
-
-    //         if (!SWAP_EAR_CHANNEL)
-    //         {
-    //           //L-OUT
-    //           *ptr++ = sample_R;
-    //           //R-OUT
-    //           *ptr++ = sample_L * (EN_MUTE);
-    //         }
-    //         else
-    //         {
-    //           //R-OUT
-    //           *ptr++ = sample_L;
-    //           //L-OUT
-    //           *ptr++ = sample_R * (EN_MUTE);
-    //         }
-
-
-    //         result+=2*chn;
-    //     }
-
-    //     return result;
-    // }
-
-    // size_t clearBuffer(uint8_t *buffer, size_t bytes)
-    // {
-    //     int chn = channels;
-    //     size_t result = 0;
-    //     int16_t *ptr = (int16_t*)buffer;
-
-    //     for (int j=0;j<bytes/(2*chn);j++){
-
-    //         int16_t sample = 0;
-
-    //         if (!SWAP_EAR_CHANNEL)
-    //         {
-    //           //L-OUT
-    //           *ptr++ = sample * (1-EN_MUTE);
-    //           //R-OUT
-    //           *ptr++ = sample * EN_MUTE;
-    //         }
-    //         else
-    //         {
-    //           //R-OUT
-    //           *ptr++ = sample * EN_MUTE;
-    //           //L-OUT
-    //           *ptr++ = sample * (1-EN_MUTE);
-    //         }
-
-
-    //         result+=2*chn;
-    //     }
-
-    //     return result;
-    // }
-
-    // size_t readSin(uint8_t *buffer, size_t bytes, float freq, bool stereo)
-    // {
-
-    //     // Antes de iniciar la reproducción ajustamos el volumen de carga.
-    //     m_amplitude_R = MAIN_VOL_R * maxAmplitude / 100;
-    //     m_amplitude_L = MAIN_VOL_L * maxAmplitude / 100;
-
-    //     float double_Pi = PI * 2.0;
-    //     float angle = double_Pi * freq * m_time + 0;
-    //     if (stereo)
-    //     {
-    //         int16_t result = m_amplitude_R * sin(angle);
-    //         m_time += 1.0 / samplingRate; 
-    //     }
-    //     else
-    //     {
-    //         int16_t result = m_amplitude_L * sin(angle);
-    //         m_time += 1.0 / samplingRate; 
-    //     }
-
-    //     return m_time;     
-    // }
-
     size_t createWave(uint8_t *buffer, size_t bytes)
     {
         
@@ -571,7 +478,7 @@ class ZXProcessor
 
     public:
 
-    void terminator()
+    void terminator(edge slope)
     {
         int width = maxTerminatorWidth;
 
@@ -580,13 +487,14 @@ class ZXProcessor
         // Metemos un pulso de cambio de estado
         // para asegurar el cambio de flanco alto->bajo, del ultimo bit
         float freq = (1 / (width * tState));  
-        generatePulse(freq, samplingRate,up);
+        generatePulse(freq, samplingRate,slope);
 
     }
 
     void silence(float duration)
     {
         // Paso la duración a T-States
+        edge edgeSelected = down;
         if (duration>0)
         {
             int tStateSilence = (duration/1000) / (1/freqCPU);       
@@ -596,10 +504,10 @@ class ZXProcessor
             int lastPart = 0;
 
             // Esto lo hacemos para acabar bien un ultimo flanco en down.
-            edge edgeSelected = down;
+            edgeSelected = down;
             if (LAST_EDGE_IS==down)
             {
-                terminator();
+                terminator(up);
                 edgeSelected = down;
             }
             else
@@ -627,150 +535,23 @@ class ZXProcessor
 
             LAST_EDGE_IS = edgeSelected;
         }
-
-        
+        else
+        {
+            if (LAST_EDGE_IS==down)
+            {
+                terminator(up);
+                edgeSelected = down;
+            }
+            else
+            {
+                terminator(down);
+                edgeSelected = up;
+            }
+            
+            LAST_EDGE_IS = edgeSelected;
+        }
+       
     }
-
-    // void silence(float duration)
-    // {
-    //     // Esta onda se genera como el resto sumando trozos de onda
-    //     // esto es debido al limite del buffer
-    //     // no podemos hacer un buffer muy grande, peta el ESP32
-
-    //     // Obtenemos el periodo de muestreo
-    //     // Tsr = 1 / samplingRate
-    //     //float Td = 4 * (duration / 1000);
-
-    //     // int chn = channels;
-    //     // float Td = (duration / 1000); // Hay que calcular samples para 2 canales y cada uno de 16 bits(2*bits)
-    //     // float Tsr = (1.0 / samplingRate);
-    //     // int samples = int(Td / Tsr);
-
-    //     int chn = channels;
-    //     float Td = 4 * (duration / 1000);
-    //     float Tsr = (1.0 / samplingRate);
-    //     int samples = int(Td / Tsr);
-
-    //     // Inicializamos con un tamaño de bloque de 256 muestras cada vez
-    //     // NOTA: Si esto es muy grande PETA EL ESP32
-    //     int bufferSize = 256; //bytes (8 bits)
-
-    //     // Calculamos cuantos bloques tenemos que concatenar. Si el valor de
-    //     // samples es menor, saldrá 0
-    //     int frames = samples / (bufferSize * chn);
-    //     int lastFrame = samples - (bufferSize * chn * frames);
-
-    //     // Si es cero, entonces el buffer será igual de grande que el 
-    //     // numero de samples a rellenar para formar la onda
-    //     if (frames == 0)
-    //     {
-    //         bufferSize = samples;
-    //         frames = 1;
-    //     }
-    
-    //     // Rellenamos repitiendo el patron varias veces
-    //     // porque el buffer es limitado
-    //     int silenceAmp = 0;
-        
-    //     if (LAST_EDGE_IS==up)
-    //     {
-    //         silenceAmp = minAmplitude;
-    //         LAST_EDGE_IS = down;
-    //     }
-    //     else
-    //     {
-    //         terminator();
-    //         silenceAmp = minAmplitude;
-    //         LAST_EDGE_IS = down;
-    //     }        
-
-    //     for (int n=0;n<frames;n++)
-    //     {
-    //         // El ultimo frame que compone la señal tendrá el restante
-    //         // ya que el ancho de la señal no siempre será multiplo exacto
-    //         // del bufferSize, por lo tanto el ultimo tendrá ese restante 
-    //         // (delta)
-    //         if (n == (frames-1))
-    //         {
-    //             bufferSize = lastFrame;
-    //         }
-  
-    //         // Aplicamos la reserva de buffer
-    //         uint8_t buffer[bufferSize];
-    //         // Generamos una señal de silencio de amplitud 0 
-
-    //         m_kit.write(buffer, silenceWave(buffer, bufferSize,silenceAmp));
-    //     }
-    // }
-
-    // void silenceEdge(float duration)
-    // {
-    //     // Esta onda se genera como el resto sumando trozos de onda
-    //     // esto es debido al limite del buffer
-    //     // no podemos hacer un buffer muy grande, peta el ESP32
-
-    //     // Obtenemos el periodo de muestreo
-    //     // Tsr = 1 / samplingRate
-    //     //float Td = 4 * (duration / 1000);
-    //     float Td = 4 * (duration / 1000);
-    //     float Tsr = (1.0 / samplingRate);
-    //     int samples = int(Td / Tsr);
-    //     int chn = channels;
-
-    //     // Inicializamos con un tamaño de bloque de 256 muestras cada vez
-    //     // NOTA: Si esto es muy grande PETA EL ESP32
-    //     int bufferSize = 256;
-
-    //     // Calculamos cuantos bloques tenemos que concatenar. Si el valor de
-    //     // samples es menor, saldrá 0
-    //     int frames = samples / (bufferSize * chn);
-    //     int delta = abs(samples - (bufferSize * frames * chn));
-
-    //     // Si es cero, entonces el buffer será igual de grande que el 
-    //     // numero de samples a rellenar para formar la onda
-    //     if (frames == 0)
-    //     {
-    //         bufferSize = samples;
-    //         frames = 1;
-    //     }
-    
-    //     // Rellenamos repitiendo el patron varias veces
-    //     // porque el buffer es limitado
-
-    //     // Rellenamos repitiendo el patron varias veces
-    //     // porque el buffer es limitado
-    //     int silenceAmp = 0;
-
-    //     if (LAST_EDGE_IS==up)
-    //     {
-    //         silenceAmp = minAmplitude;
-    //         LAST_EDGE_IS = down;
-    //     }
-    //     else
-    //     {
-    //         silenceAmp = maxAmplitude;
-    //         LAST_EDGE_IS = up;
-    //     }        
-
-    //     //log("Silencio: " + String(silenceAmp));
-
-    //     for (int n=0;n<frames;n++)
-    //     {
-    //         // El ultimo frame que compone la señal tendrá el restante
-    //         // ya que el ancho de la señal no siempre será multiplo exacto
-    //         // del bufferSize, por lo tanto el ultimo tendrá ese restante 
-    //         // (delta)
-    //         if (n == (frames-1))
-    //         {
-    //             bufferSize = bufferSize + delta;
-    //         }
-  
-    //         // Aplicamos la reserva de buffer
-    //         uint8_t buffer[bufferSize*chn]; 
-    //         m_kit.write(buffer, silenceWaveEdge(buffer, bufferSize, silenceAmp));
-    //     }
-        
-    // }
 
     void customPilotTone(int lenPulse, int numPulses)
     {
@@ -1369,29 +1150,7 @@ class ZXProcessor
             // Silent tone
             silence(silent);
             
-        }
-
-        // void playHeaderOnly(uint8_t* header, int len_header, int pulse_pilot_duration)
-        // {           
-
-        //     float duration = tState * pulse_pilot_duration;
-        //     //
-        //     // PROGRAM
-        //     //HEADER PILOT TONE
-        //     pilotTone(duration);
-        //     // SYNC TONE
-        //     syncTone(SYNC1);
-        //     syncTone(SYNC2);
-
-        //     sendDataArray(header, len_header);
-
-        //     // Silent tone
-        //     // if (silent!=0)
-        //     // {
-        //         silence(silent);
-        //     // }
-            
-        // }        
+        }   
 
         void set_ESP32kit(AudioKit kit)
         { 
