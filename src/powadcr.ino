@@ -948,7 +948,14 @@ void tapeControl()
       else if (FFWIND || RWIND)
       {
         // Actualizamos el HMI
-        hmi.setBasicFileInformation(myTAP.descriptor[BLOCK_SELECTED].name,myTAP.descriptor[BLOCK_SELECTED].typeName,myTAP.descriptor[BLOCK_SELECTED].size);
+        if (TYPE_FILE_LOAD=="TAP")
+        {
+          hmi.setBasicFileInformation(myTAP.descriptor[BLOCK_SELECTED].name,myTAP.descriptor[BLOCK_SELECTED].typeName,myTAP.descriptor[BLOCK_SELECTED].size);
+        }
+        else if(TYPE_FILE_LOAD=="TZX")
+        {
+          hmi.setBasicFileInformation(myTZX.descriptor[BLOCK_SELECTED].name,myTZX.descriptor[BLOCK_SELECTED].typeName,myTZX.descriptor[BLOCK_SELECTED].size);
+        }        
         //
         tapeState = 1;
         FFWIND = false;
@@ -1018,7 +1025,14 @@ void tapeControl()
       else if (FFWIND || RWIND)
       {
         // Actualizamos el HMI
-        hmi.setBasicFileInformation(myTAP.descriptor[BLOCK_SELECTED].name,myTAP.descriptor[BLOCK_SELECTED].typeName,myTAP.descriptor[BLOCK_SELECTED].size);
+        if (TYPE_FILE_LOAD=="TAP")
+        {
+          hmi.setBasicFileInformation(myTAP.descriptor[BLOCK_SELECTED].name,myTAP.descriptor[BLOCK_SELECTED].typeName,myTAP.descriptor[BLOCK_SELECTED].size);
+        }
+        else if(TYPE_FILE_LOAD=="TZX")
+        {
+          hmi.setBasicFileInformation(myTZX.descriptor[BLOCK_SELECTED].name,myTZX.descriptor[BLOCK_SELECTED].typeName,myTZX.descriptor[BLOCK_SELECTED].size);
+        }
         //
         tapeState = 3;
         FFWIND = false;

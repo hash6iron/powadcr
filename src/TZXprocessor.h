@@ -2112,7 +2112,7 @@ class TZXprocessor
                                 num_pulses = _myTZX.descriptor[i].timming.pulse_seq_num_pulses;
                                 _zxp.playCustomSequence(_myTZX.descriptor[i].timming.pulse_seq_array,num_pulses);
                                 
-                                free(_myTZX.descriptor[i].timming.pulse_seq_array);
+                                //free(_myTZX.descriptor[i].timming.pulse_seq_array);
                                 
                                 break;                          
 

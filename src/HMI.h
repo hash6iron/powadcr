@@ -665,7 +665,7 @@ class HMI
           writeString("tape.progressTotal.val=0");
           writeString("tape.progression.val=0");
 
-          updateInformationMainPage();        
+          //updateInformationMainPage();        
 
           TOTAL_BLOCKS = 0;
           BLOCK_SELECTED = 0;
@@ -721,7 +721,7 @@ class HMI
             FFWIND=true;
             RWIND=true;
             
-            updateInformationMainPage();
+            //updateInformationMainPage();
         }
 
         if (strCmd.indexOf("PAG=") != -1) 
@@ -1161,7 +1161,7 @@ class HMI
               BLOCK_SELECTED = 0;
             }
 
-            updateInformationMainPage();
+            //updateInformationMainPage();
 
             FFWIND = true;
             RWIND = false;
@@ -1184,7 +1184,7 @@ class HMI
               BLOCK_SELECTED = TOTAL_BLOCKS - 1;
             }
       
-            updateInformationMainPage();
+            //updateInformationMainPage();
 
             FFWIND = false;
             RWIND = true;
@@ -1218,7 +1218,7 @@ class HMI
           ABORT = true;
       
           LAST_MESSAGE = "Tape paused. Press play to continue load or select block.";
-          updateInformationMainPage();
+          //updateInformationMainPage();
         }
       
         if (strCmd.indexOf("STOP") != -1) 
@@ -1618,7 +1618,7 @@ class HMI
           strncpy(LAST_NAME,"",1);
           strncpy(LAST_TYPE,"",1);
 
-          updateInformationMainPage();
+          //updateInformationMainPage();
       }
 
       void updateInformationMainPage() 
@@ -1842,5 +1842,5 @@ class HMI
 
       // Constructor
       HMI()
-      {     }
+      {}
 };

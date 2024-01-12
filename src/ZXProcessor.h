@@ -497,6 +497,12 @@ class ZXProcessor
         edge edgeSelected = down;
         if (duration>0)
         {
+            if (duration > 1500)
+            {
+                log("Duration is " + String(duration) + " ms");
+                duration = duration + 200;
+            }
+
             int tStateSilence = (duration/1000) / (1/freqCPU);       
             int minSilenceFrame = 5000;
 
@@ -524,6 +530,19 @@ class ZXProcessor
                 for (int n=0;n<parts;n++)
                 {
                     semiPulse(minSilenceFrame, edgeSelected);
+                    if (LOADING_STATE == 1)
+                    {
+                        if (STOP==true)
+                        {
+                            LOADING_STATE = 2; // Parada del bloque actual
+                            return;
+                        }
+                        else if (PAUSE==true)
+                        {
+                            LOADING_STATE = 3; // Parada del bloque actual
+                            return;
+                        }
+                    }                    
                 }
             }
             else
@@ -574,6 +593,8 @@ class ZXProcessor
         }
 
         // Repetimos el número de pulsos solicitados con un ancho "lenPulse"
+        //log("Pure tone " + String(numPulses) + "/ len: " + String(lenPulse));
+
         for (int i = 0; i < numPulses;i++)
         {
             semiPulse(lenPulse,slope);
@@ -730,7 +751,6 @@ class ZXProcessor
 
                         return;
                     }
-
                 }
               }
 
