@@ -497,11 +497,11 @@ class ZXProcessor
         edge edgeSelected = down;
         if (duration>0)
         {
-            if (duration > 1500)
-            {
-                log("Duration is " + String(duration) + " ms");
-                duration = duration + 200;
-            }
+            // if (duration > 1500)
+            // {
+            //     log("Duration is " + String(duration) + " ms");
+            //     duration = duration + 200;
+            // }
 
             int tStateSilence = (duration/1000) / (1/freqCPU);       
             int minSilenceFrame = 5000;
