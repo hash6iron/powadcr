@@ -1447,7 +1447,9 @@ class TZXprocessor
                 if(currentBlock > maxAllocationBlocks)
                 {
                   ////SerialHW.println("Error. TZX not possible to allocate in memory");
-                  LAST_MESSAGE = "Not enough memory for TZX";  
+                  LAST_MESSAGE = "Error. Not enough memory for TZX";
+                  // Salimos
+                  return;  
                 }
                 else
                 {}

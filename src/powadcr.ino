@@ -54,6 +54,39 @@
     To Contact the dev team you can write to hash6iron@gmail.com
 
  +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
+
+// Setup for audiokitHAL
+
+// typedef enum {
+//     MIC_GAIN_MIN = -1,
+//     MIC_GAIN_0DB = 0,
+//     MIC_GAIN_3DB = 3,
+//     MIC_GAIN_6DB = 6,
+//     MIC_GAIN_9DB = 9,
+//     MIC_GAIN_12DB = 12,
+//     MIC_GAIN_15DB = 15,
+//     MIC_GAIN_18DB = 18,
+//     MIC_GAIN_21DB = 21,
+//     MIC_GAIN_24DB = 24,
+//     MIC_GAIN_MAX,
+// } es_mic_gain_t;
+
+// Seleccionamos la placa. Puede ser 5 o 7.
+#define AUDIOKIT_BOARD  5
+
+// Ganancia de entrada por defecto. Al máximo
+#define ES8388_DEFAULT_INPUT_GAIN MIC_GAIN_MAX
+
+// Definimos la ganancia de la entrada de linea (para RECORDING)
+#define WORKAROUND_ES8388_LINE1_GAIN MIC_GAIN_MAX
+
+// Mezcla LINE 1 and LINE 2.
+#define WORKAROUND_MIC_LINEIN_MIXED false
+
+// Esencial para poder variar la ganancia de salida de HPLINE y ROUT, LOUT
+#define AI_THINKER_ES8388_VOLUME_HACK 1
+
+
 #include <Arduino.h>
 #include "esp32-hal-psram.h"
 // Librerias (mantener este orden)
@@ -401,16 +434,14 @@ void setAudioOutput()
   ////SerialHW.println("Initialized Audiokit. Output - Playing");
 
   ESP32kit.begin(cfg);
-  ESP32kit.setVolume(MAX_MAIN_VOL);
-  //ESP32kit.setVolume(MAX_MAIN_VOL);   
-  
+  ESP32kit.setVolume(MAX_MAIN_VOL);  
 }
 
 void setAudioInput()
 {
   auto cfg = ESP32kit.defaultConfig(KitInput);
 
-  cfg.adc_input = AUDIO_HAL_ADC_INPUT_LINE2; // microphone?
+  cfg.adc_input = AUDIO_HAL_ADC_INPUT_LINE2; // Line with high gain
   cfg.sample_rate = AUDIO_HAL_48K_SAMPLES;
 
   ESP32kit.begin(cfg);
@@ -419,7 +450,7 @@ void setAudioInput()
 void setAudioInOut()
 {
   auto cfg = ESP32kit.defaultConfig(KitInputOutput);
-  cfg.adc_input = AUDIO_HAL_ADC_INPUT_LINE2; // microphone
+  cfg.adc_input = AUDIO_HAL_ADC_INPUT_LINE2; // Line with high gain
   cfg.sample_rate = AUDIO_HAL_48K_SAMPLES;
   ESP32kit.begin(cfg);
   ESP32kit.setVolume(MAX_MAIN_VOL);  

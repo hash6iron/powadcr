@@ -73,7 +73,7 @@ class ZXProcessor
     // Este es un factor de división para la amplitud del flanco terminador
     float amplitudeFactor = 1.0;
     // T-states del ancho del terminador
-    int maxTerminatorWidth = 200; //200
+    int maxTerminatorWidth = 25000; //200
     // otros parámetros
     float freqCPU = DfreqCPU;
     float tState = (1.0 / freqCPU); //0.00000028571 --> segundos Z80 
@@ -488,7 +488,6 @@ class ZXProcessor
         // para asegurar el cambio de flanco alto->bajo, del ultimo bit
         float freq = (1 / (width * tState));  
         generatePulse(freq, samplingRate,slope);
-
     }
 
     void silence(float duration)
@@ -497,12 +496,6 @@ class ZXProcessor
         edge edgeSelected = down;
         if (duration>0)
         {
-            // if (duration > 1500)
-            // {
-            //     log("Duration is " + String(duration) + " ms");
-            //     duration = duration + 200;
-            // }
-
             int tStateSilence = (duration/1000) / (1/freqCPU);       
             int minSilenceFrame = 5000;
 
@@ -513,8 +506,8 @@ class ZXProcessor
             edgeSelected = down;
             if (LAST_EDGE_IS==down)
             {
-                terminator(up);
-                edgeSelected = down;
+                //terminator(up);
+                edgeSelected = up;
             }
             else
             {
@@ -622,7 +615,6 @@ class ZXProcessor
         // El ZX Spectrum tiene dos tipo de sincronismo, uno al finalizar el tono piloto
         // y otro al final de la recepción de los datos, que serán SYNC1 y SYNC2 respectivamente.
         float freq = (1 / (nTStates * tState));   
-
         generatePulse(freq, samplingRate,slope);   
     }
 
