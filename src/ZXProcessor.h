@@ -872,7 +872,7 @@ class ZXProcessor
 
                 if (LOADING_STATE==1 || TEST_RUNNING)
                 {
-                    if (i == size-1)
+                    if ((i == size-1) && isThelastBlock)
                     {
                         // Aplicamos la mascara
                         _mask = _mask_last_byte;
@@ -885,13 +885,22 @@ class ZXProcessor
                         _mask = 8;
                     }
                 
+                    // Calculamos el byte enmascarado
+                    uint8_t powMask = (256 - pow(2,8 - _mask));
+                    uint8_t masked = bRead & powMask;
+                    //
+                    //log("Mascara:     " + String(_mask) + " - Dato: " + String(bRead));
+                    //log("Byte masked: " + String(masked));
+
                     // Ahora vamos a descomponer el byte leido
                     // si hay mascara entonces solo se leerán n bits de los 8 que componen un BYTE.
-                    for (int n=0;n < _mask;n++)
+                    for (int n=0;n < 8;n++)
                     {
+                        // Calculamos el bit resultante de aplicar la mascara                        
+                        uint8_t bitMasked = bitRead(masked, 7-n);
 
                         // Si el bit leido del BYTE es un "1"
-                        if(bitRead(bRead, 7-n) == 1)
+                        if(bitMasked == 1)
                         {
                             // Procesamos "1"
                             oneToneEdge();
