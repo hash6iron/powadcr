@@ -116,6 +116,8 @@ enum edge
 
 // ZXProcessor
 // Inicialmente se define como flanco up para que empiece en down.
+// Polarización de la señal.
+edge POLARIZATION = up;
 edge LAST_EDGE_IS = up;
 
 // Tamaño del fichero abierto

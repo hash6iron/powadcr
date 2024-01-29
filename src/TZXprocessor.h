@@ -1485,15 +1485,8 @@ class TZXprocessor
 
         if (isFileTZX(tzxFileName))
         {
-            ////SerialHW.println();
-            ////SerialHW.println("Is TZX file");
-
-            ////SerialHW.println();
-            ////SerialHW.println("Size: " + String(_sizeTZX));
-
             // Esto lo hacemos para poder abortar
             ABORT=false;
-
             getBlockDescriptor(_mFile,_sizeTZX);
         }      
     }
@@ -1857,6 +1850,9 @@ class TZXprocessor
 
         if (_myTZX.descriptor != nullptr)
         {         
+              // Inicializamos la polarización de la señal
+              LAST_EDGE_IS = POLARIZATION;              
+  
               // Inicializamos el buffer de reproducción. Memoria dinamica
               uint8_t* bufferPlay = nullptr;
 

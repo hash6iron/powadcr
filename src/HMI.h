@@ -1316,6 +1316,27 @@ class HMI
         }
 
         // Enable Schmitt Trigger threshold adjust
+        if (strCmd.indexOf("PLZ=") != -1) 
+        {
+          //Cogemos el valor
+          uint8_t buff[8];
+          strCmd.getBytes(buff, 7);
+          int valEn = (int)buff[4];
+          //
+          if (valEn==1)
+          {
+              // Empieza en UP
+              POLARIZATION = down;
+          }
+          else
+          {
+              // Empieza en DOWN
+              POLARIZATION = up;
+          }
+          SerialHW.println("Polarization =" + String(POLARIZATION));
+        }
+
+        // Enable Schmitt Trigger threshold adjust
         if (strCmd.indexOf("ESH=") != -1) 
         {
           //Cogemos el valor
