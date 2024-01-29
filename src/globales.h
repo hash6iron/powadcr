@@ -118,7 +118,11 @@ enum edge
 // Inicialmente se define como flanco up para que empiece en down.
 // Polarización de la señal.
 edge POLARIZATION = up;
+bool INVERSETRAIN = false;
+bool ZEROLEVEL = false;
 edge LAST_EDGE_IS = up;
+int LEVELUP = 32767;
+int LEVELDOWN = -32768;
 
 // Tamaño del fichero abierto
 int FILE_LENGTH = 0;

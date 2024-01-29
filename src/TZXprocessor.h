@@ -1851,7 +1851,36 @@ class TZXprocessor
         if (_myTZX.descriptor != nullptr)
         {         
               // Inicializamos la polarización de la señal
-              LAST_EDGE_IS = POLARIZATION;              
+              LAST_EDGE_IS = POLARIZATION;  
+
+              if (INVERSETRAIN)            
+              {
+                  LEVELDOWN = 32767;
+                  
+                  if (ZEROLEVEL)
+                  {
+                    LEVELUP = 0;
+                  }
+                  else
+                  {
+                    LEVELUP = -32768;
+                  }
+                  
+              }
+              else
+              {
+                  LEVELUP = 32767;
+
+                  if (ZEROLEVEL)
+                  {
+                    LEVELDOWN = 0;
+                  }
+                  else
+                  {
+                    LEVELDOWN = -32768;
+                  }
+                  
+              }
   
               // Inicializamos el buffer de reproducción. Memoria dinamica
               uint8_t* bufferPlay = nullptr;

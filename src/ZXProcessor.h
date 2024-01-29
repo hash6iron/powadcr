@@ -56,8 +56,8 @@ class ZXProcessor
     
     // Estos valores definen las señales. Otros para el flanco negativo
     // provocan problemas de lectura en el Spectrum.
-    const int maxAmplitude = 32767;
-    const int minAmplitude = 0;
+    int maxAmplitude = LEVELUP;
+    int minAmplitude = LEVELDOWN;
 
     float m_amplitude_L = maxAmplitude * MAIN_VOL_L / 100; 
     float m_amplitude_R = maxAmplitude * MAIN_VOL_R / 100; 
@@ -96,6 +96,32 @@ class ZXProcessor
     uint8_t _mask_last_byte = 8;
 
     AudioKit m_kit;
+
+    edge getPolarizeEdge(edge currentEdge)
+    {
+        if (currentEdge==up)
+        {
+            if(INVERSETRAIN)
+            {
+                return down;
+            }
+            else
+            {
+                return up;
+            }
+        }
+        else
+        {
+            if(INVERSETRAIN)
+            {
+                return up;
+            }
+            else
+            {
+                return down;
+            }
+        }
+    }
 
     size_t silenceWave(uint8_t *buffer, size_t samples, int amplitude)
     {
@@ -143,14 +169,29 @@ class ZXProcessor
         int16_t *ptr = (int16_t*)buffer;
 
         int A = maxAmplitude;
-     
-        if (LAST_EDGE_IS==up)
+        edge polEdge = up;
+
+        if (LAST_EDGE_IS==getPolarizeEdge(up))
         {
-            A = minAmplitude;
+            if (!INVERSETRAIN)
+            {
+                A=minAmplitude;
+            }
+            else
+            {
+                A=maxAmplitude;
+            }
         }
         else
         {
-            A = maxAmplitude;
+            if (!INVERSETRAIN)
+            {
+                A=maxAmplitude;
+            }
+            else
+            {
+                A=minAmplitude;
+            }
         }
 
         // Pulso alto (mitad del periodo)
@@ -179,16 +220,32 @@ class ZXProcessor
 
             result +=2*chn;
         }
-
-        if (LAST_EDGE_IS==up)
+                
+        if (LAST_EDGE_IS==getPolarizeEdge(up))
         {
-            A = maxAmplitude;
-            LAST_EDGE_IS = up;
+            if (!INVERSETRAIN)
+            {
+                A=maxAmplitude;
+                LAST_EDGE_IS = up;
+            }
+            else
+            {
+                A=minAmplitude;
+                LAST_EDGE_IS = down;
+            }
         }
         else
         {
-            A = minAmplitude;
-            LAST_EDGE_IS = down;
+            if (!INVERSETRAIN)
+            {
+                A=minAmplitude;
+                LAST_EDGE_IS = down;
+            }
+            else
+            {
+                A=maxAmplitude;
+                LAST_EDGE_IS = up;
+            }
         }
 
         // Pulso bajo (la otra mitad)
@@ -233,15 +290,29 @@ class ZXProcessor
         int A = maxAmplitude;
 
         
-        if (lastSlope==down)
+        if (lastSlope==getPolarizeEdge(down))
         {
             // Si el ultimo edge ha quedado en bajo entonces genera un alto
-            A=maxAmplitude;
+            if (!INVERSETRAIN)
+            {
+                A=maxAmplitude;
+            }
+            else
+            {
+                A=minAmplitude;
+            }
         }
         else
         {
             // Lo contrario
-            A=minAmplitude;
+            if (!INVERSETRAIN)
+            {
+                A=minAmplitude;
+            }
+            else
+            {
+                A=maxAmplitude;
+            }
         }
 
         // Pulso alto (mitad del periodo)
@@ -272,13 +343,27 @@ class ZXProcessor
         }
 
         // El siguiente semi-pulso es contrario al anterior
-        if (lastSlope==down)
+        if (lastSlope==getPolarizeEdge(down))
         {
-            A=minAmplitude;
+            if (!INVERSETRAIN)
+            {
+                A=minAmplitude;
+            }
+            else
+            {
+                A=maxAmplitude;
+            }
         }
         else
         {
-            A=maxAmplitude;
+            if (!INVERSETRAIN)
+            {
+                A=maxAmplitude;
+            }
+            else
+            {
+                A=minAmplitude;
+            }
         }
 
         // Pulso bajo (la otra mitad) es invertida
@@ -327,18 +412,36 @@ class ZXProcessor
 
         int16_t sample_L = 0;
         int16_t sample_R = 0;
+        int A = 0;
 
-        if (thisSlopeIs==up)
+        if (thisSlopeIs==getPolarizeEdge(up))
         {
             // Hacemos el edge de down --> up
-            m_amplitude_R = MAIN_VOL_R * maxAmplitude / 100;
-            m_amplitude_L = MAIN_VOL_L * maxAmplitude / 100;
+            if (!INVERSETRAIN)
+            {
+                A=maxAmplitude;
+            }
+            else
+            {
+                A=minAmplitude;
+            }
+            
+            m_amplitude_R = MAIN_VOL_R * A / 100;
+            m_amplitude_L = MAIN_VOL_L * A / 100;
         }
         else
         {
             // Hacemos el edge de up --> down
-            m_amplitude_R = MAIN_VOL_R * minAmplitude / 100;
-            m_amplitude_L = MAIN_VOL_L * minAmplitude / 100;
+            if (!INVERSETRAIN)
+            {
+                A=minAmplitude;
+            }
+            else
+            {
+                A=maxAmplitude;
+            }            
+            m_amplitude_R = MAIN_VOL_R * A / 100;
+            m_amplitude_L = MAIN_VOL_L * A / 100;
         }
 
         //log("Sample: " + String(m_amplitude_L) + " - " + String(m_amplitude_R));
@@ -504,14 +607,14 @@ class ZXProcessor
 
             // Esto lo hacemos para acabar bien un ultimo flanco en down.
             edgeSelected = down;
-            if (LAST_EDGE_IS==down)
+            if (LAST_EDGE_IS==getPolarizeEdge(down))
             {
                 //terminator(up);
-                edgeSelected = up;
+                edgeSelected = getPolarizeEdge(up);
             }
             else
             {
-                edgeSelected = down;
+                edgeSelected = getPolarizeEdge(down);
             }
 
             if (tStateSilence > minSilenceFrame)
@@ -549,15 +652,15 @@ class ZXProcessor
         }
         else
         {
-            if (LAST_EDGE_IS==down)
+            if (LAST_EDGE_IS==getPolarizeEdge(down))
             {
-                terminator(up);
-                edgeSelected = down;
+                terminator(getPolarizeEdge(up));
+                edgeSelected = getPolarizeEdge(down);
             }
             else
             {
-                terminator(down);
-                edgeSelected = up;
+                terminator(getPolarizeEdge(down));
+                edgeSelected = getPolarizeEdge(up);
             }
             
             LAST_EDGE_IS = edgeSelected;
@@ -576,13 +679,13 @@ class ZXProcessor
         edge slope = up;
 
         // Cogemos el flanco del LAST_EDGE_IS para el primero
-        if (LAST_EDGE_IS==up)
+        if (LAST_EDGE_IS==getPolarizeEdge(up))
         {
-            slope = down;
+            slope = getPolarizeEdge(down);
         }
         else
         {
-            slope = up;            
+            slope = getPolarizeEdge(up);            
         }
 
         // Repetimos el número de pulsos solicitados con un ancho "lenPulse"
@@ -593,13 +696,13 @@ class ZXProcessor
             semiPulse(lenPulse,slope);
 
             //Vamos cambiando
-            if (slope==up)
+            if (slope==getPolarizeEdge(up))
             {
-                slope=down;
+                slope=getPolarizeEdge(down);
             }
             else
             {
-                slope=up;
+                slope=getPolarizeEdge(up);
             }
         }
 
@@ -668,13 +771,13 @@ class ZXProcessor
         
         edge slope = up;
 
-        if (LAST_EDGE_IS==up)
+        if (LAST_EDGE_IS==getPolarizeEdge(up))
         {
-            slope=down;
+            slope=getPolarizeEdge(down);
         }
         else
         {
-            slope=up;
+            slope=getPolarizeEdge(up);
         }
 
         generatePulse(freq, samplingRate,slope);        
@@ -1025,13 +1128,13 @@ class ZXProcessor
             // slope tomará los valores 1 (el ultimo flanco va de alto --> bajo) o distinto de 1 (el ultimo flanco va de bajo --> alto)        
             edge slope = up;
 
-            if (LAST_EDGE_IS==up)
+            if (LAST_EDGE_IS==getPolarizeEdge(up))
             {
-                slope = down;
+                slope = getPolarizeEdge(down);
             }
             else
             {
-                slope = up;
+                slope = getPolarizeEdge(up);
             }
 
             //log("------  Start PULSE SQZ");
@@ -1039,13 +1142,13 @@ class ZXProcessor
             for (int i = 0; i < numPulses;i++)
             {
                 // Vamos cambiando
-                if (slope==up)
+                if (slope==getPolarizeEdge(up))
                 {
-                    slope=down;
+                    slope=getPolarizeEdge(down);
                 }
                 else
                 {
-                    slope=up;
+                    slope=getPolarizeEdge(up);
                 }                
 
                 // Generamos los semipulsos

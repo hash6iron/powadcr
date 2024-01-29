@@ -1315,7 +1315,7 @@ class HMI
           // }
         }
 
-        // Enable Schmitt Trigger threshold adjust
+        // Polarización de la señal
         if (strCmd.indexOf("PLZ=") != -1) 
         {
           //Cogemos el valor
@@ -1327,13 +1327,35 @@ class HMI
           {
               // Empieza en UP
               POLARIZATION = down;
+              INVERSETRAIN = true;
           }
           else
           {
               // Empieza en DOWN
               POLARIZATION = up;
+              INVERSETRAIN = false;
           }
-          SerialHW.println("Polarization =" + String(POLARIZATION));
+          SerialHW.println("Polarization =" + String(INVERSETRAIN));
+        }
+
+        if (strCmd.indexOf("ZER=") != -1) 
+        {
+          //Cogemos el valor
+          uint8_t buff[8];
+          strCmd.getBytes(buff, 7);
+          int valEn = (int)buff[4];
+          //
+          if (valEn==1)
+          {
+              // El nivel bajo es 0
+              ZEROLEVEL = true;
+          }
+          else
+          {
+              // El nivel bajo es -32768
+              ZEROLEVEL = false;
+          }
+          SerialHW.println("Down level is ZERO =" + String(ZEROLEVEL));
         }
 
         // Enable Schmitt Trigger threshold adjust
@@ -1367,7 +1389,6 @@ class HMI
 
           log("Mute enable=" + String(EN_MUTE));
         }
-
 
         // Enable MIC left channel - Option
         if (strCmd.indexOf("EMI=") != -1) 
