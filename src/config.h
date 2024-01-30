@@ -37,6 +37,10 @@
 
 #define VERSION "v0.3.31"
 #define MACHINE_ZX
+
+// Para activa el modo debug
+//#define DEBUGMODE
+
 //#define MACHINE_AMSTRAD
 
 // Descomentar para test de reproducción en memoria

@@ -1170,6 +1170,15 @@ void Task0code( void * pvParameters )
           hmi.updateInformationMainPage();
         }
       #endif
+
+      #ifdef DEBUGMODE
+        if ((millis() - startTime) > 250)
+        {
+          startTime = millis();
+          log("Ch R: " + String(DEBUG_AMP_R));
+          log("Ch L: " + String(DEBUG_AMP_L));
+        }
+      #endif
   }
 }
 

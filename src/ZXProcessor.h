@@ -56,15 +56,15 @@ class ZXProcessor
     
     // Estos valores definen las señales. Otros para el flanco negativo
     // provocan problemas de lectura en el Spectrum.
-    int maxAmplitude = LEVELUP;
-    int minAmplitude = LEVELDOWN;
+    float maxAmplitude = LEVELUP;
+    float minAmplitude = LEVELDOWN;
 
-    float m_amplitude_L = maxAmplitude * MAIN_VOL_L / 100; 
-    float m_amplitude_R = maxAmplitude * MAIN_VOL_R / 100; 
+    float m_amplitude_L = MAIN_VOL_L * maxAmplitude; 
+    float m_amplitude_R = MAIN_VOL_R * maxAmplitude; 
 
     // Al poner 2 canales - Falla. Solucionar
     const int channels = 2;  
-    const float speakerOutPower = 0.002;
+    //const float speakerOutPower = 0.002;
 
     public:
     // Parametrizado para el ZX Spectrum - Timming de la ROM
@@ -123,6 +123,34 @@ class ZXProcessor
         }
     }
 
+    float getVolumenSwap(bool R_Channel)
+    {
+        if (SWAP_EAR_CHANNEL)
+        {
+            if(R_Channel)
+            {
+                //Entonces ahora es el Left
+                return (MAIN_VOL_L / MAIN_VOL_FACTOR);
+            }
+            else
+            {
+                return (MAIN_VOL_R / MAIN_VOL_FACTOR);
+            }
+        }
+        else
+        {
+            if(R_Channel)
+            {
+                //Entonces es el suyo R
+                return (MAIN_VOL_R / MAIN_VOL_FACTOR);
+            }
+            else
+            {
+                return (MAIN_VOL_L / MAIN_VOL_FACTOR);
+            }
+        }
+    }
+
     size_t silenceWave(uint8_t *buffer, size_t samples, int amplitude)
     {
         int chn = channels;
@@ -131,26 +159,19 @@ class ZXProcessor
         
         for (int j=0;j<(samples/(2*chn));j++)
         {
-            m_amplitude_R = MAIN_VOL_R * amplitude / 100;
-            m_amplitude_L = MAIN_VOL_L * amplitude / 100;
+            m_amplitude_R = getVolumenSwap(true) * amplitude;
+            m_amplitude_L = getVolumenSwap(false) * amplitude;
 
             int16_t sample_R = m_amplitude_R;
             int16_t sample_L = m_amplitude_L;
 
-            if (!SWAP_EAR_CHANNEL)
-            {
-              //L-OUT
-              *ptr++ = sample_R;
-              //R-OUT
-              *ptr++ = sample_L * (EN_STEREO);
-            }
-            else
-            {
-              //R-OUT
-              *ptr++ = sample_L;
-              //L-OUT
-              *ptr++ = sample_R * (EN_STEREO);
-            }
+            DEBUG_AMP_R = sample_R;
+            DEBUG_AMP_L = sample_L;
+
+            //L-OUT
+            *ptr++ = sample_R;
+            //R-OUT
+            *ptr++ = sample_L * (EN_STEREO);
 
             result+=2*chn;
         }
@@ -195,28 +216,22 @@ class ZXProcessor
         }
 
         // Pulso alto (mitad del periodo)
-        for (int j=0;j<bytes/(4*chn);j++){
+        for (int j=0;j<bytes/(4*chn);j++)
+        {
 
-            m_amplitude_R = MAIN_VOL_R * A / 100;
-            m_amplitude_L = MAIN_VOL_L * A / 100;
+            m_amplitude_R = getVolumenSwap(true) * A;
+            m_amplitude_L = getVolumenSwap(false) * A;
 
             int16_t sample_L = m_amplitude_L;
             int16_t sample_R = m_amplitude_R;
 
-            if (!SWAP_EAR_CHANNEL)
-            {
-              //R-OUT
-              *ptr++ = sample_R;
-              //L-OUT
-              *ptr++ = sample_L * EN_STEREO;
-            }
-            else
-            {
-              //R-OUT
-              *ptr++ = sample_R * EN_STEREO;
-              //L-OUT
-              *ptr++ = sample_L;
-            }
+            DEBUG_AMP_R = sample_R;
+            DEBUG_AMP_L = sample_L;
+
+            //R-OUT
+            *ptr++ = sample_R;
+            //L-OUT
+            *ptr++ = sample_L * EN_STEREO;
 
             result +=2*chn;
         }
@@ -251,26 +266,19 @@ class ZXProcessor
         // Pulso bajo (la otra mitad)
         for (int j=bytes/(4*chn);j<bytes/(2*chn);j++){
             
-            m_amplitude_R = MAIN_VOL_R * A / 100;
-            m_amplitude_L = MAIN_VOL_L * A / 100;
+            m_amplitude_R = getVolumenSwap(true) * A;
+            m_amplitude_L = getVolumenSwap(false) * A;
 
             int16_t sample_L = m_amplitude_L;
             int16_t sample_R = m_amplitude_R;          
 
-            if (!SWAP_EAR_CHANNEL)
-            {
-              //R-OUT
-              *ptr++ = sample_R;
-              //L-OUT
-              *ptr++ = sample_L * EN_STEREO;
-            }
-            else
-            {
-              //R-OUT
-              *ptr++ = sample_R * EN_STEREO;
-              //L-OUT
-              *ptr++ = sample_L;
-            }
+            DEBUG_AMP_R = sample_R;
+            DEBUG_AMP_L = sample_L;
+
+            //R-OUT
+            *ptr++ = sample_R;
+            //L-OUT
+            *ptr++ = sample_L * EN_STEREO;
 
             result +=2*chn;
         }
@@ -318,26 +326,19 @@ class ZXProcessor
         // Pulso alto (mitad del periodo)
         for (int j=0;j<bytes/(4*chn);j++)
         {
-            m_amplitude_R = MAIN_VOL_R * A / 100;
-            m_amplitude_L = MAIN_VOL_L * A / 100;
+            m_amplitude_R = getVolumenSwap(true) * A;
+            m_amplitude_L = getVolumenSwap(false) * A;
 
             int16_t sample_L = m_amplitude_L;
             int16_t sample_R = m_amplitude_R;
 
-            if (!SWAP_EAR_CHANNEL)
-            {
-              //R-OUT
-              *ptr++ = sample_R;
-              //L-OUT
-              *ptr++ = sample_L * EN_STEREO;
-            }
-            else
-            {
-              //R-OUT
-              *ptr++ = sample_R * EN_STEREO;
-              //L-OUT
-              *ptr++ = sample_L;
-            }
+            DEBUG_AMP_R = sample_R;
+            DEBUG_AMP_L = sample_L;
+
+            //R-OUT
+            *ptr++ = sample_R;
+            //L-OUT
+            *ptr++ = sample_L * EN_STEREO;
 
             result +=2*chn;
         }
@@ -370,27 +371,19 @@ class ZXProcessor
         for (int j=bytes/(4*chn);j<bytes/(2*chn);j++)
         {
             
-            m_amplitude_R = MAIN_VOL_R * A / 100;
-            m_amplitude_L = MAIN_VOL_L * A / 100;
+            m_amplitude_R = getVolumenSwap(true) * A;
+            m_amplitude_L = getVolumenSwap(false) * A;
 
             int16_t sample_L = m_amplitude_L;
-            int16_t sample_R = m_amplitude_R;
-            
+            int16_t sample_R = m_amplitude_R;     
 
-            if (!SWAP_EAR_CHANNEL)
-            {
-              //R-OUT
-              *ptr++ = sample_R;
-              //L-OUT
-              *ptr++ = sample_L * EN_STEREO;
-            }
-            else
-            {
-              //R-OUT
-              *ptr++ = sample_R * EN_STEREO;
-              //L-OUT
-              *ptr++ = sample_L;
-            }
+            DEBUG_AMP_R = sample_R;
+            DEBUG_AMP_L = sample_L;
+
+            //R-OUT
+            *ptr++ = sample_R;
+            //L-OUT
+            *ptr++ = sample_L * EN_STEREO;
 
             result +=2*chn;
         }
@@ -427,8 +420,8 @@ class ZXProcessor
                 A=minAmplitude;
             }
             
-            m_amplitude_R = MAIN_VOL_R * A / 100;
-            m_amplitude_L = MAIN_VOL_L * A / 100;
+            m_amplitude_R = getVolumenSwap(true) * A;
+            m_amplitude_L = getVolumenSwap(false) * A;
         }
         else
         {
@@ -441,8 +434,8 @@ class ZXProcessor
             {
                 A=maxAmplitude;
             }            
-            m_amplitude_R = MAIN_VOL_R * A / 100;
-            m_amplitude_L = MAIN_VOL_L * A / 100;
+            m_amplitude_R = getVolumenSwap(true) * A;
+            m_amplitude_L = getVolumenSwap(false) * A;
         }
 
         //log("Sample: " + String(m_amplitude_L) + " - " + String(m_amplitude_R));
@@ -450,24 +443,16 @@ class ZXProcessor
         sample_R = m_amplitude_R;
         sample_L = m_amplitude_L; 
 
+        DEBUG_AMP_R = sample_R;
+        DEBUG_AMP_L = sample_L;
 
         for (int j=0;j<bytes/(2*chn);j++)
         {
 
-            if (!SWAP_EAR_CHANNEL)
-            {
-              //R-OUT
-              *ptr++ = sample_R;
-              //L-OUT
-              *ptr++ = sample_L * EN_STEREO;
-            }
-            else
-            {
-              //R-OUT
-              *ptr++ = sample_R * EN_STEREO;
-              //L-OUT
-              *ptr++ = sample_L;
-            }
+            //R-OUT
+            *ptr++ = sample_R;
+            //L-OUT
+            *ptr++ = sample_L * EN_STEREO;
 
             result+=2*chn;
         }

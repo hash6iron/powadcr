@@ -121,8 +121,13 @@ edge POLARIZATION = up;
 bool INVERSETRAIN = false;
 bool ZEROLEVEL = false;
 edge LAST_EDGE_IS = up;
+
+// Limites de la señal
 int LEVELUP = 32767;
 int LEVELDOWN = -32768;
+
+int DEBUG_AMP_L = 0;
+int DEBUG_AMP_R = 0;
 
 // Tamaño del fichero abierto
 int FILE_LENGTH = 0;
@@ -262,15 +267,17 @@ const int END_ST = 4;
 const int ACK_LCD = 5;
 const int RESET = 6;
 //
-int MAIN_VOL = 90;
-int MAIN_VOL_R = 90;
-int MAIN_VOL_L = 90;
-int LAST_MAIN_VOL = 90;
-int LAST_MAIN_VOL_R = 90;
-int LAST_MAIN_VOL_L = 90;
-int MAX_MAIN_VOL = 100;
-int MAX_MAIN_VOL_R = 100;
-int MAX_MAIN_VOL_L = 100;
+float MAIN_VOL_FACTOR = 255;
+
+float MAIN_VOL = 0.9 * MAIN_VOL_FACTOR;
+float MAIN_VOL_R = 0.9 * MAIN_VOL_FACTOR;
+float MAIN_VOL_L = 0.9 * MAIN_VOL_FACTOR;
+float LAST_MAIN_VOL = 0.9 * MAIN_VOL_FACTOR;
+float LAST_MAIN_VOL_R = 0.9 * MAIN_VOL_FACTOR;
+float LAST_MAIN_VOL_L = 0.9 * MAIN_VOL_FACTOR;
+float MAX_MAIN_VOL = 1 * MAIN_VOL_FACTOR;
+float MAX_MAIN_VOL_R = 1 * MAIN_VOL_FACTOR;
+float MAX_MAIN_VOL_L = 1 * MAIN_VOL_FACTOR;
 int EN_STEREO = 0;
 bool wasHeadphoneDetected = false;
 bool wasHeadphoneAmpDetected = false;
