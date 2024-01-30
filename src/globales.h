@@ -123,8 +123,10 @@ bool ZEROLEVEL = false;
 edge LAST_EDGE_IS = up;
 
 // Limites de la señal
-int LEVELUP = 32767;
-int LEVELDOWN = -32768;
+int maxLevelUP = 32767;
+int maxLevelDown = -32767
+int LEVELUP = maxLevelUP;
+int LEVELDOWN = maxLevelDown;
 
 int DEBUG_AMP_L = 0;
 int DEBUG_AMP_R = 0;
@@ -267,7 +269,7 @@ const int END_ST = 4;
 const int ACK_LCD = 5;
 const int RESET = 6;
 //
-float MAIN_VOL_FACTOR = 255;
+float MAIN_VOL_FACTOR = 100;
 
 float MAIN_VOL = 0.9 * MAIN_VOL_FACTOR;
 float MAIN_VOL_R = 0.9 * MAIN_VOL_FACTOR;

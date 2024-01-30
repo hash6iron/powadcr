@@ -1861,7 +1861,7 @@ class TZXprocessor
 
               if (INVERSETRAIN)            
               {
-                  LEVELDOWN = 32767;
+                  LEVELDOWN = maxLevelUP;
                   
                   if (ZEROLEVEL)
                   {
@@ -1869,13 +1869,13 @@ class TZXprocessor
                   }
                   else
                   {
-                    LEVELUP = -32768;
+                    LEVELUP = maxLevelDown;
                   }
                   
               }
               else
               {
-                  LEVELUP = 32767;
+                  LEVELUP = maxLevelUP;
 
                   if (ZEROLEVEL)
                   {
@@ -1883,7 +1883,7 @@ class TZXprocessor
                   }
                   else
                   {
-                    LEVELDOWN = -32768;
+                    LEVELDOWN = maxLevelDown;
                   }
                   
               }
