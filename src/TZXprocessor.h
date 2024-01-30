@@ -989,13 +989,18 @@ class TZXprocessor
               // El objetivo es ENCONTRAR IDs y ultimo byte, y analizar el bloque completo para el descriptor.
               currentID = getID(mFile, currentOffset);
               
-              //SerialHW.println("");
-              //SerialHW.println("-----------------------------------------------");
-              //SerialHW.print("TZX ID: 0x");
-              //SerialHW.print(currentID, HEX);
-              //SerialHW.println("");
-              //SerialHW.println("block: " + String(currentBlock));
-              //SerialHW.println("");
+              #ifdef DEBUGMODE
+                SerialHW.println("");
+                SerialHW.println("-----------------------------------------------");
+                SerialHW.print("TZX ID: 0x");
+                SerialHW.print(currentID, HEX);
+                SerialHW.println("");
+                SerialHW.println("block: " + String(currentBlock));
+                SerialHW.println("");
+                SerialHW.print("offset: 0x");
+                SerialHW.print(currentOffset, HEX);
+                SerialHW.println("");
+              #endif
 
               // Ahora dependiendo del ID analizamos. Los ID están en HEX
               // y la rutina devolverá la posición del siguiente ID, así hasta
@@ -1009,11 +1014,8 @@ class TZXprocessor
                   {
                       // Obtenemos la dirección del siguiente offset
                       analyzeID16(mFile,currentOffset, currentBlock);
-
                       nextIDoffset = currentOffset + _myTZX.descriptor[currentBlock].size + 5;
-                      
                       strncpy(_myTZX.descriptor[currentBlock].typeName,ID10STR,35);
-
                       currentBlock++;
                   }
                   else
@@ -1151,7 +1153,7 @@ class TZXprocessor
                       // Obtenemos la dirección del siguiente offset
                       analyzeID32(mFile,currentOffset, currentBlock);
 
-                      nextIDoffset = currentOffset + _myTZX.descriptor[currentBlock].size + 3;
+                      nextIDoffset = currentOffset + 3;
                       //_myTZX.descriptor[currentBlock].typeName = "ID 20 - Pause TAPE";   
                       strncpy(_myTZX.descriptor[currentBlock].typeName,IDXXSTR,35);
                       
@@ -1421,7 +1423,7 @@ class TZXprocessor
                 // ID 5A - "Glue" block (90 dec, ASCII Letter 'Z')
                 case 90:
                   analyzeBlockUnknow(currentID,currentOffset, currentBlock);
-                  nextIDoffset = currentOffset + 1;            
+                  nextIDoffset = currentOffset + 8;            
 
                   //_myTZX.descriptor[currentBlock].typeName = "ID 5A - Glue block";
                   strncpy(_myTZX.descriptor[currentBlock].typeName,IDXXSTR,35);
@@ -1446,8 +1448,12 @@ class TZXprocessor
 
                 if(currentBlock > maxAllocationBlocks)
                 {
-                  ////SerialHW.println("Error. TZX not possible to allocate in memory");
+                  #ifdef DEBUGMODE
+                    SerialHW.println("Error. TZX not possible to allocate in memory");
+                  #endif
+
                   LAST_MESSAGE = "Error. Not enough memory for TZX";
+                  endTZX = true;
                   // Salimos
                   return;  
                 }

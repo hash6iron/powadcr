@@ -71,6 +71,8 @@
 //     MIC_GAIN_MAX,
 // } es_mic_gain_t;
 
+//#define DEBUGMODE
+
 // Seleccionamos la placa. Puede ser 5 o 7.
 #define AUDIOKIT_BOARD  5
 
@@ -1161,12 +1163,13 @@ void Task0code( void * pvParameters )
       // Control por botones
       //buttonsControl();
       //delay(50);
-      if ((millis() - startTime) > 250)
-      {
-        startTime = millis();
-        hmi.updateInformationMainPage();
-      }
-      
+      #ifndef DEBUGMODE
+        if ((millis() - startTime) > 250)
+        {
+          startTime = millis();
+          hmi.updateInformationMainPage();
+        }
+      #endif
   }
 }
 

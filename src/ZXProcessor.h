@@ -412,6 +412,7 @@ class ZXProcessor
 
         int16_t sample_L = 0;
         int16_t sample_R = 0;
+        
         int A = 0;
 
         if (thisSlopeIs==getPolarizeEdge(up))
@@ -597,6 +598,7 @@ class ZXProcessor
     {
         // Paso la duración a T-States
         edge edgeSelected = down;
+
         if (duration>0)
         {
             int tStateSilence = (duration/1000) / (1/freqCPU);       
@@ -606,7 +608,6 @@ class ZXProcessor
             int lastPart = 0;
 
             // Esto lo hacemos para acabar bien un ultimo flanco en down.
-            edgeSelected = down;
             if (LAST_EDGE_IS==getPolarizeEdge(down))
             {
                 //terminator(up);
