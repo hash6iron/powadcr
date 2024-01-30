@@ -1377,17 +1377,17 @@ class HMI
           SerialHW.println("Threshold enable=" + String(EN_SCHMITT_CHANGE));
         }
 
-        // Enable Schmitt Trigger threshold adjust
-        if (strCmd.indexOf("MUT=") != -1) 
+        // Habilita los dos canales
+        if (strCmd.indexOf("STE=") != -1) 
         {
           //Cogemos el valor
           uint8_t buff[8];
           strCmd.getBytes(buff, 7);
           int valEn = (int)buff[4];
           //
-          EN_MUTE = valEn;
+          EN_STEREO = valEn;
 
-          log("Mute enable=" + String(EN_MUTE));
+          log("Mute enable=" + String(EN_STEREO));
         }
 
         // Enable MIC left channel - Option

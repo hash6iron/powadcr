@@ -142,14 +142,14 @@ class ZXProcessor
               //L-OUT
               *ptr++ = sample_R;
               //R-OUT
-              *ptr++ = sample_L * (EN_MUTE);
+              *ptr++ = sample_L * (EN_STEREO);
             }
             else
             {
               //R-OUT
               *ptr++ = sample_L;
               //L-OUT
-              *ptr++ = sample_R * (EN_MUTE);
+              *ptr++ = sample_R * (EN_STEREO);
             }
 
             result+=2*chn;
@@ -208,14 +208,14 @@ class ZXProcessor
               //R-OUT
               *ptr++ = sample_R;
               //L-OUT
-              *ptr++ = sample_L * EN_MUTE;
+              *ptr++ = sample_L * EN_STEREO;
             }
             else
             {
+              //R-OUT
+              *ptr++ = sample_R * EN_STEREO;
               //L-OUT
               *ptr++ = sample_L;
-              //R-OUT
-              *ptr++ = sample_R * EN_MUTE;
             }
 
             result +=2*chn;
@@ -262,14 +262,14 @@ class ZXProcessor
               //R-OUT
               *ptr++ = sample_R;
               //L-OUT
-              *ptr++ = sample_L * EN_MUTE;
+              *ptr++ = sample_L * EN_STEREO;
             }
             else
             {
+              //R-OUT
+              *ptr++ = sample_R * EN_STEREO;
               //L-OUT
               *ptr++ = sample_L;
-              //R-OUT
-              *ptr++ = sample_R * EN_MUTE;
             }
 
             result +=2*chn;
@@ -329,14 +329,14 @@ class ZXProcessor
               //R-OUT
               *ptr++ = sample_R;
               //L-OUT
-              *ptr++ = sample_L * EN_MUTE;
+              *ptr++ = sample_L * EN_STEREO;
             }
             else
             {
+              //R-OUT
+              *ptr++ = sample_R * EN_STEREO;
               //L-OUT
               *ptr++ = sample_L;
-              //R-OUT
-              *ptr++ = sample_R * EN_MUTE;
             }
 
             result +=2*chn;
@@ -382,14 +382,14 @@ class ZXProcessor
               //R-OUT
               *ptr++ = sample_R;
               //L-OUT
-              *ptr++ = sample_L * EN_MUTE;
+              *ptr++ = sample_L * EN_STEREO;
             }
             else
             {
+              //R-OUT
+              *ptr++ = sample_R * EN_STEREO;
               //L-OUT
               *ptr++ = sample_L;
-              //R-OUT
-              *ptr++ = sample_R * EN_MUTE;
             }
 
             result +=2*chn;
@@ -459,14 +459,14 @@ class ZXProcessor
               //R-OUT
               *ptr++ = sample_R;
               //L-OUT
-              *ptr++ = sample_L * EN_MUTE;
+              *ptr++ = sample_L * EN_STEREO;
             }
             else
             {
+              //R-OUT
+              *ptr++ = sample_R * EN_STEREO;
               //L-OUT
               *ptr++ = sample_L;
-              //R-OUT
-              *ptr++ = sample_R * EN_MUTE;
             }
 
             result+=2*chn;
