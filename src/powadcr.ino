@@ -432,10 +432,21 @@ void waitForHMI(bool waitAndNotForze)
 void setAudioOutput()
 {
   auto cfg = ESP32kit.defaultConfig(KitOutput);
-  cfg.sample_rate = AUDIO_HAL_44K_SAMPLES;
 
-  ESP32kit.begin(cfg);
-  ESP32kit.setVolume(100);  
+  if(!ESP32kit.begin(cfg))
+  {
+    log("Error in Audiokit output setting");
+  }
+
+  if(!ESP32kit.setSampleRate(AUDIO_HAL_44K_SAMPLES))
+  {
+    log("Error in Audiokit sampling rate setting");
+  }
+
+  if (!ESP32kit.setVolume(100))
+  {
+    log("Error in volumen setting");
+  }  
 }
 
 void setAudioInput()
@@ -445,16 +456,36 @@ void setAudioInput()
   cfg.adc_input = AUDIO_HAL_ADC_INPUT_LINE2; // Line with high gain
   cfg.sample_rate = AUDIO_HAL_44K_SAMPLES;
 
-  ESP32kit.begin(cfg);
+  if(!ESP32kit.begin(cfg))
+  {
+    log("Error in Audiokit input setting");
+  }
+
+  if(!ESP32kit.setSampleRate(AUDIO_HAL_44K_SAMPLES))
+  {
+    log("Error in Audiokit sampling rate setting");
+  }
 }
 
 void setAudioInOut()
 {
   auto cfg = ESP32kit.defaultConfig(KitInputOutput);
   cfg.adc_input = AUDIO_HAL_ADC_INPUT_LINE2; // Line with high gain
-  cfg.sample_rate = AUDIO_HAL_44K_SAMPLES;
-  ESP32kit.begin(cfg);
-  ESP32kit.setVolume(MAX_MAIN_VOL);  
+  
+  if(!ESP32kit.begin(cfg))
+  {
+    log("Error in Audiokit output setting");
+  }
+
+  if(!ESP32kit.setSampleRate(AUDIO_HAL_44K_SAMPLES))
+  {
+    log("Error in Audiokit sampling rate setting");
+  }
+
+  if (!ESP32kit.setVolume(100))
+  {
+    log("Error in volumen setting");
+  }   
 }
 
 void pauseRecording()
