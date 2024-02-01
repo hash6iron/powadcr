@@ -443,7 +443,7 @@ void setAudioInput()
   auto cfg = ESP32kit.defaultConfig(KitInput);
 
   cfg.adc_input = AUDIO_HAL_ADC_INPUT_LINE2; // Line with high gain
-  cfg.sample_rate = AUDIO_HAL_48K_SAMPLES;
+  cfg.sample_rate = AUDIO_HAL_44K_SAMPLES;
 
   ESP32kit.begin(cfg);
 }
@@ -452,7 +452,7 @@ void setAudioInOut()
 {
   auto cfg = ESP32kit.defaultConfig(KitInputOutput);
   cfg.adc_input = AUDIO_HAL_ADC_INPUT_LINE2; // Line with high gain
-  cfg.sample_rate = AUDIO_HAL_48K_SAMPLES;
+  cfg.sample_rate = AUDIO_HAL_44K_SAMPLES;
   ESP32kit.begin(cfg);
   ESP32kit.setVolume(MAX_MAIN_VOL);  
 }
