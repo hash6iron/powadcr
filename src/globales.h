@@ -177,6 +177,15 @@ String Offset2 = "";
 String Offset3 = "";
 String Offset4 = "";
 
+String dbgBlkInfo = "";
+String dbgPauseAB = "";
+String dbgSync1 = "";
+String dbgSync2 = "";
+String dbgBit1 = "";
+String dbgBit0 = "";
+String dbgTState = "";
+String dbgRep = "";
+
 // OTRAS
 bool TEST_RUNNING = false;
 int LOADING_STATE = 0;

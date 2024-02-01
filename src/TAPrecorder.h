@@ -1261,6 +1261,26 @@ class TAPrecorder
                             SerialHW.print("] ");
                           }
 
+                          if (showDataDebug)
+                          {
+                            // Info en pantalla
+                            if (state==20)                         
+                            {
+                              dbgSync1="OK";
+                            }
+
+                            if (state==21)
+                            {
+                              dbgSync1="OK";
+                              dbgSync2="OK";
+                            }
+
+                            if(state==1)
+                            {
+                              dbgRep="LEAD";
+                            }
+                          }
+
                           
                           // Mostramos información de la cabecera
                           proccesByteData();   
@@ -1575,6 +1595,27 @@ class TAPrecorder
         LAST_SIZE = 0;
         strncpy(LAST_TYPE,"",1);
         strncpy(LAST_NAME,"",1);
+
+        if (SHOW_DATA_DEBUG)
+        {
+          // Info en pantalla
+          if (state==20)                         
+          {
+            dbgSync1="WAIT";
+          }
+
+          if (state==21)
+          {
+            dbgSync1="WAIT";
+            dbgSync2="WAIT";
+          }
+
+          if(state==1)
+          {
+            dbgRep="WAIT";
+          }
+        }
+
       }
 
       void initialize()
@@ -1682,7 +1723,7 @@ class TAPrecorder
 
       void terminate(bool removeFile)
       {
-          
+
           if (!wasFileNotCreated)
           {
               // El fichero inicialmente fue creado con exito

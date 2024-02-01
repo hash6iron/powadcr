@@ -77,16 +77,17 @@
 #define AUDIOKIT_BOARD  5
 
 // Ganancia de entrada por defecto. Al máximo
-#define ES8388_DEFAULT_INPUT_GAIN MIC_GAIN_MAX
+//#define ES8388_DEFAULT_INPUT_GAIN MIC_GAIN_MAX
 
 // Definimos la ganancia de la entrada de linea (para RECORDING)
-#define WORKAROUND_ES8388_LINE1_GAIN MIC_GAIN_MAX
+//#define WORKAROUND_ES8388_LINE1_GAIN MIC_GAIN_MAX
+//#define WORKAROUND_ES8388_LINE2_GAIN MIC_GAIN_3DB
 
 // Mezcla LINE 1 and LINE 2.
-#define WORKAROUND_MIC_LINEIN_MIXED false
+//#define WORKAROUND_MIC_LINEIN_MIXED false
 
 // Esencial para poder variar la ganancia de salida de HPLINE y ROUT, LOUT
-#define AI_THINKER_ES8388_VOLUME_HACK 1
+//#define AI_THINKER_ES8388_VOLUME_HACK 1
 
 
 #include <Arduino.h>
@@ -454,7 +455,7 @@ void setAudioInput()
   auto cfg = ESP32kit.defaultConfig(KitInput);
 
   cfg.adc_input = AUDIO_HAL_ADC_INPUT_LINE2; // Line with high gain
-  cfg.sample_rate = AUDIO_HAL_44K_SAMPLES;
+  cfg.sample_rate = AUDIO_HAL_48K_SAMPLES;
 
   if(!ESP32kit.begin(cfg))
   {

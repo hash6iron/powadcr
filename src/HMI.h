@@ -1667,7 +1667,6 @@ class HMI
 
         if (PLAY)
         {
-
           writeString("debug.dataOffset1.txt=\"" + dataOffset1 +"\"");
           writeString("debug.dataOffset2.txt=\"" + dataOffset2 +"\"");
           writeString("debug.dataOffset3.txt=\"" + dataOffset3 +"\"");
@@ -1683,6 +1682,15 @@ class HMI
           // Esto falla
           writeString("debug.partLoading.txt=\"" + String(PARTITION_BLOCK) +"\"");
           writeString("debug.totalParts.txt=\"" + String(TOTAL_PARTS) +"\"");
+
+          writeString("debug.dbgBlkInfo.txt=\"" + dbgBlkInfo +"\"");
+          writeString("debug.dbgPauseAB.txt=\"" + dbgPauseAB +"\"");
+          writeString("debug.dbgSync1.txt=\"" + dbgSync1 +"\"");
+          writeString("debug.dbgSync2.txt=\"" + dbgSync2 +"\"");
+          writeString("debug.dbgBit1.txt=\"" + dbgBit1 +"\"");
+          writeString("debug.dbgBit0.txt=\"" + dbgBit0 +"\"");
+          writeString("debug.dbgTState.txt=\"" + dbgTState +"\"");
+          writeString("debug.dbgRep.txt=\"" + dbgRep +"\"");
         }
 
         if (TOTAL_BLOCKS != 0 || REC || EJECT) 
