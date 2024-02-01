@@ -121,8 +121,8 @@ class TAPrecorder
       const int silence = 0;
 
       // Definimos el sampling rate real de la placa.
-      const float samplingRate = 44099.988;
-      //const float samplingRate = 48000.0;
+      //const float samplingRate = 44099.988;
+      const float samplingRate = 48000.0;
       // Calculamos el T sampling_rate en us
       const float TsamplingRate = (1 / samplingRate) * 1000 * 1000;
 
