@@ -124,7 +124,7 @@ edge LAST_EDGE_IS = up;
 
 // Limites de la señal
 int maxLevelUP = 32767;
-int maxLevelDown = -32767
+int maxLevelDown = -32767;
 int LEVELUP = maxLevelUP;
 int LEVELDOWN = maxLevelDown;
 
