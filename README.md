@@ -3,7 +3,7 @@ TAP/TZX Digital cassette recorder for 8-bit machines
 -----
 
 ![plot](./doc/powadcr_sp.jpg)
-This project pretend to implement a Digital Cassette Recorder (for TAP/TZX files playing and recording on TAP) for ZX Spectrum machines on ESP32 Audio kit development board and using HMI over touch 3.5" screen.
+This project pretend to implement a Digital Cassette Recorder (for TAP/TZX files playing and recording on TAP) for ZX Spectrum machines based on ESP32 Audio kit development board and using HMI over touch 3.5" screen.
 
 The launcher was this board below, ESP32 Audio Kit equipped with ESP32 v3 microcontroller and ES8388 Audio proccesor 
 made by AI-Thinker Technology.
