@@ -17,6 +17,7 @@
       - Guillermo
       - Pedro Pelaez
       - Carlos Palmero [shaeon]
+      - Carlos Martinez [TxarlyM69]
     
     
     Descripción:
@@ -29,12 +30,9 @@
     v.0.2 - New update to develop branch
     
 
-    Configuración en ARDUINO IDE
-    ----------------------------
-    1. Seleccionar la placa ESP32 Dev Module 
-    2. Acceder al menú "Herramientas" --> 
-      - Configuración del ESP32 por defecto 
-      - PSRAM = Enabled
+    Configuración en platformIO
+    ---------------------------
+    Ver en github - readme
 
     Derechos de autor y distribución
     --------------------------------

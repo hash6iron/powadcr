@@ -123,6 +123,21 @@ class ZXProcessor
         }
     }
 
+    void getLowLimitSigal()
+    {
+
+        maxAmplitude = LEVELUP;
+
+        if (ZEROLEVEL)
+        {
+            minAmplitude = 0;
+        }
+        else
+        {
+            minAmplitude = LEVELDOWN;
+        }
+    }
+
     float getVolumenSwap(bool R_Channel)
     {
         if (SWAP_EAR_CHANNEL)
@@ -151,33 +166,33 @@ class ZXProcessor
         }
     }
 
-    size_t silenceWave(uint8_t *buffer, size_t samples, int amplitude)
-    {
-        int chn = channels;
-        size_t result = 0;
-        int16_t *ptr = (int16_t*)buffer;
+    // size_t silenceWave(uint8_t *buffer, size_t samples, int amplitude)
+    // {
+    //     int chn = channels;
+    //     size_t result = 0;
+    //     int16_t *ptr = (int16_t*)buffer;
         
-        for (int j=0;j<(samples/(2*chn));j++)
-        {
-            m_amplitude_R = getVolumenSwap(true) * amplitude;
-            m_amplitude_L = getVolumenSwap(false) * amplitude;
+    //     for (int j=0;j<(samples/(2*chn));j++)
+    //     {
+    //         m_amplitude_R = getVolumenSwap(true) * amplitude;
+    //         m_amplitude_L = getVolumenSwap(false) * amplitude;
 
-            int16_t sample_R = m_amplitude_R;
-            int16_t sample_L = m_amplitude_L;
+    //         int16_t sample_R = m_amplitude_R;
+    //         int16_t sample_L = m_amplitude_L;
 
-            DEBUG_AMP_R = sample_R;
-            DEBUG_AMP_L = sample_L;
+    //         DEBUG_AMP_R = sample_R;
+    //         DEBUG_AMP_L = sample_L;
 
-            //L-OUT
-            *ptr++ = sample_R;
-            //R-OUT
-            *ptr++ = sample_L * (EN_STEREO);
+    //         //L-OUT
+    //         *ptr++ = sample_R;
+    //         //R-OUT
+    //         *ptr++ = sample_L * (EN_STEREO);
 
-            result+=2*chn;
-        }
+    //         result+=2*chn;
+    //     }
 
-        return result;
-    }
+    //     return result;
+    // }
 
     size_t createWave(uint8_t *buffer, size_t bytes)
     {
@@ -191,6 +206,8 @@ class ZXProcessor
 
         int A = maxAmplitude;
         edge polEdge = up;
+
+        getLowLimitSigal();
 
         if (LAST_EDGE_IS==getPolarizeEdge(up))
         {
@@ -297,6 +314,7 @@ class ZXProcessor
         int16_t *ptr = (int16_t*)buffer;
         int A = maxAmplitude;
 
+        getLowLimitSigal();
         
         if (lastSlope==getPolarizeEdge(down))
         {
@@ -407,6 +425,8 @@ class ZXProcessor
         int16_t sample_R = 0;
         
         int A = 0;
+
+        getLowLimitSigal();
 
         if (thisSlopeIs==getPolarizeEdge(up))
         {
