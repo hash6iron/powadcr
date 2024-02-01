@@ -432,11 +432,10 @@ void waitForHMI(bool waitAndNotForze)
 void setAudioOutput()
 {
   auto cfg = ESP32kit.defaultConfig(KitOutput);
-
-  ////SerialHW.println("Initialized Audiokit. Output - Playing");
+  cfg.sample_rate = AUDIO_HAL_44K_SAMPLES;
 
   ESP32kit.begin(cfg);
-  ESP32kit.setVolume(MAX_MAIN_VOL);  
+  ESP32kit.setVolume(100);  
 }
 
 void setAudioInput()
