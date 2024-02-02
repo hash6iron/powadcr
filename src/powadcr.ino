@@ -102,9 +102,6 @@ TaskHandle_t Task1;
 #include <HardwareSerial.h>
 HardwareSerial SerialHW(0);
 
-// #include "EasyNextionLibrary.h"
-// EasyNex myNex(SerialHW);
-
 #include "config.h"
 
 #include "SdFat.h"
@@ -1197,15 +1194,6 @@ void Task0code( void * pvParameters )
         {
           startTime = millis();
           hmi.updateInformationMainPage();
-        }
-      #endif
-
-      #ifdef DEBUGMODE
-        if ((millis() - startTime) > 250)
-        {
-          startTime = millis();
-          log("Ch R: " + String(DEBUG_AMP_R));
-          log("Ch L: " + String(DEBUG_AMP_L));
         }
       #endif
   }

@@ -73,7 +73,7 @@ class ZXProcessor
     // Este es un factor de división para la amplitud del flanco terminador
     float amplitudeFactor = 1.0;
     // T-states del ancho del terminador
-    int maxTerminatorWidth = 25000; //200
+    int maxTerminatorWidth = 50; //200
     // otros parámetros
     float freqCPU = DfreqCPU;
     float tState = (1.0 / freqCPU); //0.00000028571 --> segundos Z80 
@@ -125,16 +125,15 @@ class ZXProcessor
 
     void getLowLimitSigal()
     {
-
-        maxAmplitude = LEVELUP;
-
         if (ZEROLEVEL)
         {
             minAmplitude = 0;
+            maxAmplitude = LEVELUP;
         }
         else
         {
             minAmplitude = LEVELDOWN;
+            maxAmplitude = LEVELUP;
         }
     }
 
@@ -608,6 +607,8 @@ class ZXProcessor
         {
             int tStateSilence = (duration/1000) / (1/freqCPU);       
             int minSilenceFrame = 5000;
+
+            LAST_MESSAGE = "Silence: " + String(duration/1000) + " s";
 
             int parts = 0;
             int lastPart = 0;

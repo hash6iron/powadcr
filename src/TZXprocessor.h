@@ -859,6 +859,24 @@ class TZXprocessor
         _myTZX.descriptor[currentBlock].pauseAfterThisBlock = getDWORD(mFile,currentOffset+1);          
     }
 
+    void analyzeID40(File32 mFile, int currentOffset, int currentBlock)
+    {
+        // Size block
+        int sizeBlock = 0;
+        int numSelections = 0;
+
+        // Obtenemos la dirección del siguiente offset
+        _myTZX.descriptor[currentBlock].ID = 40;
+        _myTZX.descriptor[currentBlock].playeable = false;
+        _myTZX.descriptor[currentBlock].offset = currentOffset + 2;
+
+        sizeBlock = getDWORD(mFile,currentOffset+1);
+        numSelections = getBYTE(mFile,currentOffset+3);
+
+        _myTZX.descriptor[currentBlock].size = sizeBlock+2;
+        
+    }
+
     void analyzeID50(File32 mFile, int currentOffset, int currentBlock)
     {
         // Information block
@@ -1283,6 +1301,7 @@ class TZXprocessor
                   }                
                   break;
 
+                // ID 26 - Call sequence
                 case 38:
                   ID_NOT_IMPLEMENTED = true;
                   // analyzeBlockUnknow(currentID,currentOffset, currentBlock);
@@ -1304,12 +1323,25 @@ class TZXprocessor
 
                 // ID 28 - Select block
                 case 40:
-                  ID_NOT_IMPLEMENTED = true;
-                  // analyzeBlockUnknow(currentID,currentOffset, currentBlock);
-                  // nextIDoffset = currentOffset + 1;            
+                  if (_myTZX.descriptor != nullptr)
+                  {
+                      // Obtenemos la dirección del siguiente offset
+                      analyzeID40(mFile,currentOffset, currentBlock);
 
-                  // _myTZX.descriptor[currentBlock].typeName = "ID 28 - Select block";
-                  // currentBlock++;
+                      nextIDoffset = currentOffset + _myTZX.descriptor[currentBlock].size + 1;
+                      
+                      //"ID 14 - Pure Data block";
+                      strncpy(_myTZX.descriptor[currentBlock].typeName,ID14STR,35);
+
+                      currentBlock++;                      
+                  }
+                  else
+                  {
+                      ////SerialHW.println("");
+                      ////SerialHW.println("Error: Not allocation memory for block ID 0x22");
+                      endTZX = true;
+                      endWithErrors = true;
+                  }                
                   break;
 
                 // ID 2A - Stop the tape if in 48K mode
@@ -1332,7 +1364,7 @@ class TZXprocessor
                   // currentBlock++;
                   break;
 
-                // ID 30 - Information
+                // ID 30 - Text description
                 case 48:
                   // No hacemos nada solamente coger el siguiente offset
                   if (_myTZX.descriptor != nullptr)
