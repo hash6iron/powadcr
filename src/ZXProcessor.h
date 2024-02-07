@@ -333,7 +333,7 @@ class ZXProcessor
             // El ZX Spectrum tiene dos tipo de sincronismo, uno al finalizar el tono piloto
             // y otro al final de la recepción de los datos, que serán SYNC1 y SYNC2 respectivamente.
             float freq = (1 / (nTStates * tState));   
-            generatePulse(freq, samplingRate,slope, changeNextEdge); 
+            generatePulse(freq, samplingRate,slope,changeNextEdge); 
         }
 
         void customPilotTone(int lenPulse, int numPulses)
@@ -548,10 +548,10 @@ class ZXProcessor
 
         void silence(float duration)
         {
-            #define TERMINATOR_ACTIVE
-
+            
             // Paso la duración a T-States
             edge edgeSelected = down;
+            int thereIsTerminator = 0;
 
             // El silencio siempre acaba en un pulso de nivel bajo
             // Si no hay silencio, se pasas tres kilos del silencio y salimos
@@ -575,57 +575,87 @@ class ZXProcessor
                 //
 
                 // Aplicamos un cambio a alto, para leer el ultimo bit
-                terminator(LAST_EDGE_IS);
-                
-                // Le restamos al silencio el terminador
-                if (tStateSilence > maxTerminatorWidth)
+                if (LAST_EDGE_IS==getPolarizeEdge(down))
                 {
-                    // Ahora calculamos el resto del silencio
-                    tStateSilence = tStateSilence - maxTerminatorWidth;
-
-                    // Vemos si hay que partirlo
-                    if (tStateSilence > minSilenceFrame)
-                    {
-                        // Calculamos los frames
-                        parts = tStateSilence / minSilenceFrame;
-                        // Calculamos el ultimo frame
-                        lastPart = tStateSilence - (parts * minSilenceFrame);
-
-                        // Generamos el silencio
-                        for (int n=0;n<parts;n++)
-                        {
-                            // Generamos el silencio
-                            semiPulse(minSilenceFrame, LAST_EDGE_IS, false);
-                            if (LOADING_STATE == 1)
-                            {
-                                if (STOP==true)
-                                {
-                                    LOADING_STATE = 2; // Parada del bloque actual
-                                    return;
-                                }
-                                else if (PAUSE==true)
-                                {
-                                    LOADING_STATE = 3; // Parada del bloque actual
-                                    return;
-                                }
-                            }                    
-                        }
-                    }
-                    else
-                    {
-                        lastPart = tStateSilence;
-                    }
-
-                    if (lastPart != 0)
-                    {
-                        semiPulse(lastPart, LAST_EDGE_IS,false);
-                    }
-
+                    // El primer milisegundo es el contrario al ultimo flanco
+                    terminator(LAST_EDGE_IS);
+                    thereIsTerminator = 1;
                 }
                 else
                 {
-                    tStateSilence = 0;
-                }                    
+                    // No se necesita terminador
+                    thereIsTerminator = 0;
+                }
+                
+                // Le restamos al silencio el terminador, si es que hubo
+                if (tStateSilence > maxTerminatorWidth)
+                {
+                    // Ahora calculamos el resto del silencio
+                    tStateSilence = tStateSilence - (maxTerminatorWidth * thereIsTerminator);
+                }
+
+                // Vemos si hay que partirlo
+                if (tStateSilence > minSilenceFrame)
+                {
+                    // Calculamos los frames
+                    parts = tStateSilence / minSilenceFrame;
+                    // Calculamos el ultimo frame
+                    lastPart = tStateSilence - (parts * minSilenceFrame);
+
+                    // Generamos el silencio
+                    for (int n=0;n<parts;n++)
+                    {
+                        // Generamos el silencio ya en down
+                        // Indicamos que el pulso anterior fue UP, porque o bien el terminador
+                        // o bien el ultimo pulso, así estuvo, y cuando se genere el silencio
+                        // se generará un down en la funcion makeSemiPulse
+
+                        semiPulse(minSilenceFrame, up, false);
+
+                        if (LOADING_STATE == 1)
+                        {
+                            if (STOP==true)
+                            {
+                                LOADING_STATE = 2; // Parada del bloque actual
+                                return;
+                            }
+                            else if (PAUSE==true)
+                            {
+                                LOADING_STATE = 3; // Parada del bloque actual
+                                return;
+                            }
+                        }                    
+                    }
+                }
+                else
+                {
+                    lastPart = tStateSilence;
+                }
+
+                if (lastPart != 0)
+                {
+                    // ultimo trozo del silencio
+                    
+                    // Generamos el silencio ya en down
+                    // Indicamos que el pulso anterior fue UP, porque o bien el terminador
+                    // o bien el ultimo pulso, así estuvo, y cuando se genere el silencio
+                    // se generará un down en la funcion makeSemiPulse
+                    semiPulse(lastPart,up,false);
+
+                    if (LOADING_STATE == 1)
+                    {
+                        if (STOP==true)
+                        {
+                            LOADING_STATE = 2; // Parada del bloque actual
+                            return;
+                        }
+                        else if (PAUSE==true)
+                        {
+                            LOADING_STATE = 3; // Parada del bloque actual
+                            return;
+                        }
+                    }                     
+                }                   
 
             }       
         }
