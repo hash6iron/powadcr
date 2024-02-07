@@ -381,20 +381,7 @@ void setSDFrequency(int SD_Speed)
 
 void test() 
 {
-    // Si queremos activar el test que hay en memoria, para chequear con el ordenador
-    #ifdef MACHINE_ZX
-      //ZX Spectrum
-      //SerialHW.println();
-      //SerialHW.println();
-      //SerialHW.println("----- TEST ACTIVE ------");
-
-      zxp.playBlock(testHeader, 19, testData, 154, DPILOT_HEADER,DPILOT_DATA);
-      zxp.playBlock(testScreenHeader, 19, testScreenData, 6914, DPILOT_HEADER,DPILOT_DATA);
-
-      //SerialHW.println();
-      //SerialHW.println();
-      //SerialHW.println("------ END TEST -------");
-    #endif
+  // Bloque de pruebas
 }
 
 void waitForHMI(bool waitAndNotForze)

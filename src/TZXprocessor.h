@@ -40,10 +40,8 @@ class TZXprocessor
       {
         int bit_0 = 855;
         int bit_1 = 1710;
-        int pulse_pilot = 2168;
-        int pilot_tone = 8063;
-        int pilot_header = 8063;
-        int pilot_data = 3223;
+        int pilot_len = 2168;
+        int pilot_num_pulses = 0;
         int sync_1 = 667;
         int sync_2 = 735;
         int pure_tone_len = 0;
@@ -385,7 +383,7 @@ class TZXprocessor
         // No contamos el ID. Entonces:
         
         // Timming de la ROM
-        _myTZX.descriptor[currentBlock].timming.pulse_pilot = DPULSE_PILOT;
+        _myTZX.descriptor[currentBlock].timming.pilot_len = DPULSE_PILOT;
         _myTZX.descriptor[currentBlock].timming.sync_1 = DSYNC1;
         _myTZX.descriptor[currentBlock].timming.sync_2 = DSYNC2;
         _myTZX.descriptor[currentBlock].timming.bit_0 = DBIT_0;
@@ -420,6 +418,9 @@ class TZXprocessor
         // Si el flagbyte es menor a 0x80
         if (flagByte < 128)
         {
+
+            _myTZX.descriptor[currentBlock].timming.pilot_num_pulses = DPILOT_HEADER;
+            
             // Es una cabecera
             if (typeBlock == 0)
             {
@@ -481,6 +482,8 @@ class TZXprocessor
         }
         else
         {
+            _myTZX.descriptor[currentBlock].timming.pilot_num_pulses = DPILOT_DATA;
+
             if (typeBlock == 3)
             {
 
@@ -528,7 +531,7 @@ class TZXprocessor
 
         // Entonces
         // Timming de PULSE PILOT
-        _myTZX.descriptor[currentBlock].timming.pulse_pilot = getDWORD(mFile,currentOffset+1);
+        _myTZX.descriptor[currentBlock].timming.pilot_len = getDWORD(mFile,currentOffset+1);
 
         ////SerialHW.println("");
         ////SerialHW.print("PULSE PILOT=");
@@ -563,11 +566,11 @@ class TZXprocessor
           ////SerialHW.print(_myTZX.descriptor[currentBlock].timming.bit_1, HEX);
 
         // Timming de PILOT TONE
-        _myTZX.descriptor[currentBlock].timming.pilot_tone = getDWORD(mFile,currentOffset+11);
+        _myTZX.descriptor[currentBlock].timming.pilot_num_pulses = getDWORD(mFile,currentOffset+11);
 
           //////SerialHW.println("");
           ////SerialHW.print(",PILOT TONE=");
-          ////SerialHW.print(_myTZX.descriptor[currentBlock].timming.pilot_tone, HEX);
+          ////SerialHW.print(_myTZX.descriptor[currentBlock].timming.pilot_num_pulses, HEX);
 
         // Cogemos el byte de bits of the last byte
         _myTZX.descriptor[currentBlock].maskLastByte = getBYTE(mFile,currentOffset+13);
@@ -759,7 +762,7 @@ class TZXprocessor
 
 
         // Timming de la ROM
-        _myTZX.descriptor[currentBlock].timming.pulse_pilot = DPULSE_PILOT;
+        _myTZX.descriptor[currentBlock].timming.pilot_len = DPULSE_PILOT;
         _myTZX.descriptor[currentBlock].timming.sync_1 = DSYNC1;
         _myTZX.descriptor[currentBlock].timming.sync_2 = DSYNC2;
 
@@ -1796,9 +1799,13 @@ class TZXprocessor
 
     void playBlock(tTZXBlockDescriptor descriptor)
     {
+
+        log("Pulse len: " + String(descriptor.timming.pilot_len));
+        log("Pulse nums: " + String(descriptor.timming.pilot_num_pulses));
+
         uint8_t* bufferPlay = nullptr;
 
-        int pulsePilotDuration = descriptor.timming.pulse_pilot * descriptor.timming.pilot_tone;
+        //int pulsePilotDuration = descriptor.timming.pulse_pilot * descriptor.timming.pilot_num_pulses;
         int blockSizeSplit = SIZE_FOR_SPLIT;
 
         if (descriptor.size > blockSizeSplit)
@@ -1841,7 +1848,7 @@ class TZXprocessor
               // Reproducimos la partición n, del bloque.
               if (n==0)
               {
-                _zxp.playDataBegin(bufferPlay, blockSizeSplit,pulsePilotDuration);
+                _zxp.playDataBegin(bufferPlay, blockSizeSplit,descriptor.timming.pilot_len,descriptor.timming.pilot_num_pulses);
               }
               else
               {
@@ -1878,7 +1885,7 @@ class TZXprocessor
             // BIT1                                          
             _zxp.BIT_1 = descriptor.timming.bit_1;
             //
-            _zxp.playData(bufferPlay, descriptor.size, pulsePilotDuration);
+            _zxp.playData(bufferPlay, descriptor.size, descriptor.timming.pilot_len,descriptor.timming.pilot_num_pulses);
             free(bufferPlay);           
         }
     }
@@ -2020,8 +2027,8 @@ class TZXprocessor
                       _zxp.SYNC1 = _myTZX.descriptor[i].timming.sync_1;
                       //SYNC2
                       _zxp.SYNC2 = _myTZX.descriptor[i].timming.sync_2;
-                      //PULSE PILOT
-                      _zxp.PULSE_PILOT = _myTZX.descriptor[i].timming.pulse_pilot;
+                      //PULSE PILOT (longitud del pulso)
+                      _zxp.PULSE_PILOT = _myTZX.descriptor[i].timming.pilot_len;
                       // BTI 0
                       _zxp.BIT_0 = _myTZX.descriptor[i].timming.bit_0;
                       // BIT1                                          
@@ -2087,8 +2094,9 @@ class TZXprocessor
                           {
                             case 16:
                               //PULSE PILOT
-                              _myTZX.descriptor[i].timming.pilot_tone = DPILOT_HEADER;
-                              _zxp.PILOT_TONE = _myTZX.descriptor[i].timming.pilot_tone;
+                              _myTZX.descriptor[i].timming.pilot_len = DPULSE_PILOT;
+
+                              //_zxp.pilot_num_pulses = _myTZX.descriptor[i].timming.pilot_num_pulses;
                               
                               // Reproducimos el bloque - PLAY
                               playBlock(_myTZX.descriptor[i]);
@@ -2097,7 +2105,7 @@ class TZXprocessor
 
                             case 17:
                               //PULSE PILOT
-                              _zxp.PILOT_TONE = _myTZX.descriptor[i].timming.pilot_tone;
+                              //_zxp.pilot_num_pulses = _myTZX.descriptor[i].timming.pilot_num_pulses;
                               // Llamamos a la clase de reproducción
                               playBlock(_myTZX.descriptor[i]);
                               break;
@@ -2112,16 +2120,16 @@ class TZXprocessor
                           {
                             case 16:
                               //Standard data - ID-10                          
-
-                              _myTZX.descriptor[i].timming.pilot_tone = DPILOT_HEADER;
-                              _zxp.PILOT_TONE = _myTZX.descriptor[i].timming.pilot_tone;
+                              _myTZX.descriptor[i].timming.pilot_len = DPULSE_PILOT;
+                              
+                              //_zxp.pilot_num_pulses = _myTZX.descriptor[i].timming.pilot_num_pulses;
                               playBlock(_myTZX.descriptor[i]);
                               break;
 
                             case 17:
                               // Speed data - ID-11                            
 
-                              _zxp.PILOT_TONE = _myTZX.descriptor[i].timming.pilot_tone;
+                              //_zxp.pilot_num_pulses = _myTZX.descriptor[i].timming.pilot_num_pulses;
                               playBlock(_myTZX.descriptor[i]);
                               break;
                           }
@@ -2192,7 +2200,7 @@ class TZXprocessor
                                       showBufferPlay(bufferPlay,blockSizeSplit,newOffset);     
                                       
                                       // Reproducimos la partición n, del bloque.
-                                      _zxp.playPureDataPartition(bufferPlay, blockSizeSplit);                                      
+                                      _zxp.playDataPartition(bufferPlay, blockSizeSplit);                                      
                                     }
 
                                     // Ultimo bloque
@@ -2244,15 +2252,16 @@ class TZXprocessor
                               // ID 0x10
 
                               //PULSE PILOT
-                              _myTZX.descriptor[i].timming.pilot_tone = DPILOT_DATA;
-                              _zxp.PILOT_TONE = _myTZX.descriptor[i].timming.pilot_tone;
+                              _myTZX.descriptor[i].timming.pilot_len = DPULSE_PILOT;
+
+                              //_zxp.pilot_num_pulses = _myTZX.descriptor[i].timming.pilot_num_pulses;
                               playBlock(_myTZX.descriptor[i]);
                               break;
 
                             case 17:
                               // ID 0x11
                               //PULSE PILOT
-                              _zxp.PILOT_TONE = _myTZX.descriptor[i].timming.pilot_tone;
+                              //_zxp.pilot_num_pulses = _myTZX.descriptor[i].timming.pilot_num_pulses;
                               playBlock(_myTZX.descriptor[i]);
                               // Bloque de datos BYTE
                               break;
