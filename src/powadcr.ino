@@ -421,7 +421,7 @@ void setAudioOutput()
     log("Error in Audiokit output setting");
   }
 
-  if(!ESP32kit.setSampleRate(AUDIO_HAL_44K_SAMPLES))
+  if(!ESP32kit.setSampleRate(AUDIO_HAL_32K_SAMPLES))
   {
     log("Error in Audiokit sampling rate setting");
   }
@@ -444,7 +444,7 @@ void setAudioInput()
     log("Error in Audiokit input setting");
   }
 
-  if(!ESP32kit.setSampleRate(AUDIO_HAL_44K_SAMPLES))
+  if(!ESP32kit.setSampleRate(AUDIO_HAL_48K_SAMPLES))
   {
     log("Error in Audiokit sampling rate setting");
   }
@@ -460,7 +460,7 @@ void setAudioInOut()
     log("Error in Audiokit output setting");
   }
 
-  if(!ESP32kit.setSampleRate(AUDIO_HAL_44K_SAMPLES))
+  if(!ESP32kit.setSampleRate(AUDIO_HAL_48K_SAMPLES))
   {
     log("Error in Audiokit sampling rate setting");
   }
