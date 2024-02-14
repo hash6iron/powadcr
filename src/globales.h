@@ -64,7 +64,7 @@ struct tFileBuffer
   // Frecuencia de la CPU
   //float DfreqCPU = 3476604.8;
   //float DfreqCPU = 3450000;
-  float DfreqCPU = 3540000;
+  float DfreqCPU = 3500000;
   //float DfreqCPU = 3250000;
 
   const int DPILOT_HEADER = 8063;
@@ -117,10 +117,10 @@ enum edge
 // ZXProcessor
 // Inicialmente se define como flanco up para que empiece en down.
 // Polarización de la señal.
-edge POLARIZATION = up;
+edge POLARIZATION = down;
+edge LAST_EDGE_IS = down;
 bool INVERSETRAIN = false;
 bool ZEROLEVEL = false;
-edge LAST_EDGE_IS = up;
 
 // Limites de la señal
 int maxLevelUP = 32767;

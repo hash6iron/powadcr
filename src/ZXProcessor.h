@@ -49,10 +49,10 @@ class ZXProcessor
     uint8_t buffer[0];
     
     // Parametrizado para el ES8388 a 44.1KHz
-    //const float samplingRate = 44099.988;
+    const float samplingRate = 44099.988;
     //const float samplingRate = 44100.0;
     //const float samplingRate = 48000.0;
-    const float samplingRate = 32000.0;
+    //const float samplingRate = 32000.0;
     //const float sampleDuration = (1.0 / samplingRate); //0.0000002267; //
                                                        // segundos para 44.1HKz
     
@@ -284,7 +284,7 @@ class ZXProcessor
         //     return result;          
         // }
 
-        size_t makeSemiPulse(uint8_t *buffer, size_t bytes, edge thisSlopeIs, bool changeNextEdge)
+        size_t makeSemiPulse(uint8_t *buffer, size_t bytes, edge lastSlopeWas, bool changeNextEdge)
         {
 
             // Procedimiento para genera un pulso 
@@ -300,35 +300,45 @@ class ZXProcessor
 
             //getLowLimitSigal();
 
-            if (thisSlopeIs==down)
+            // Esta rutina genera el pulso dependiendo de como es el ultimo
+            if (lastSlopeWas==down)
             {
                 // Hacemos el edge de down --> up
                 A=maxAmplitude;
 
+                // ¿El próximo flanco se cambiará?
                 if (changeNextEdge)
                 {
+                    // Indicamos que este actualmente ha sido UP
                     LAST_EDGE_IS = up;
                 }
                 else
                 {
+                    // Indicamos el contrario para que otra vez sea UP
+                    // y así el flanco no cambia.
                     LAST_EDGE_IS = down;
                 }
             }
             else
             {
+                // Hacemos el edge de up --> downs
                 A=minAmplitude;
 
+                // ¿El próximo flanco se cambiará?
                 if (changeNextEdge)
                 {
+                    // Indicamos que este actualmente ha sido DOWN
                     LAST_EDGE_IS = down;
                 }
                 else
                 {
+                    // Indicamos el contrario para que otra vez sea DOWN
+                    // y así el flanco no cambia.                    
                     LAST_EDGE_IS = up;
                 }
             }
 
-            // Asignamos el nivel de amplitud que le corresponde ahora                
+            // Asignamos el nivel de amplitud que le corresponde a cada canal.             
             m_amplitude_R = A;
             m_amplitude_L = A;
             
@@ -340,6 +350,7 @@ class ZXProcessor
             DEBUG_AMP_R = sample_R;
             DEBUG_AMP_L = sample_L;
 
+            // Generamos la señal en el buffer del chip de audio.
             for (int j=0;j<bytes/(2*chn);j++)
             {
 
@@ -396,7 +407,7 @@ class ZXProcessor
         //     generateSemiPulse(nTStates, samplingRate,slope,changeNextEdge); 
         // }
 
-        void terminator(edge slope)
+        void terminator()
         {
             int width = maxTerminatorWidth;
 
@@ -404,7 +415,7 @@ class ZXProcessor
             
             // Metemos un pulso de cambio de estado
             // para asegurar el cambio de flanco alto->bajo, del ultimo bit
-            semiPulse(width,slope,true);
+            semiPulse(width,LAST_EDGE_IS,true);
         }
 
         void customPilotTone(int lenPulse, int numPulses)
@@ -473,7 +484,7 @@ class ZXProcessor
             semiPulse(nTStates,LAST_EDGE_IS,true);        
         }
       
-        void sendDataArray(uint8_t* data, int size, bool isThelastBlock)
+        void sendDataArray(uint8_t* data, int size, bool isThelastDataPart)
         {
             uint8_t _mask = 8;   // Para el last_byte
             uint8_t bRead = 0x00;
@@ -536,7 +547,8 @@ class ZXProcessor
 
                     if (LOADING_STATE==1 || TEST_RUNNING)
                     {
-                        if ((i == size-1) && isThelastBlock)
+                        // Vemos si es el ultimo byte de la ultima partición de datos del bloque
+                        if ((i == size-1) && isThelastDataPart)
                         {
                             // Aplicamos la mascara
                             _mask = _mask_last_byte;
@@ -549,19 +561,14 @@ class ZXProcessor
                             _mask = 8;
                         }
                     
-                        // Calculamos el byte enmascarado
-                        uint8_t powMask = (256 - pow(2,8 - _mask));
-                        uint8_t masked = bRead & powMask;
-                        //
-                        //log("Mascara:     " + String(_mask) + " - Dato: " + String(bRead));
-                        //log("Byte masked: " + String(masked));
-
                         // Ahora vamos a descomponer el byte leido
-                        // si hay mascara entonces solo se leerán n bits de los 8 que componen un BYTE.
-                        for (int n=0;n < 8;n++)
+                        // y le aplicamos la mascara. Es decir SOLO SE TRANSMITE el nº de bits que indica
+                        // la mascara, para el último byte del bloque
+
+                        for (int n=0;n < _mask;n++)
                         {
-                            // Calculamos el bit resultante de aplicar la mascara                        
-                            uint8_t bitMasked = bitRead(masked, 7-n);
+                            // Obtenemos el bit a transmitir
+                            uint8_t bitMasked = bitRead(bRead, 7-n);
 
                             // Si el bit leido del BYTE es un "1"
                             if(bitMasked == 1)
@@ -595,8 +602,7 @@ class ZXProcessor
                 if (BYTES_LOADED > BYTES_TOBE_LOAD)
                 {BYTES_LOADED = BYTES_TOBE_LOAD;}
 
-            }
-       
+            }       
         }
 
 
@@ -727,18 +733,22 @@ class ZXProcessor
             // Paso la duración a T-States
             edge edgeSelected = down;
             int thereIsTerminator = 0;
+            int parts = 0;
+            int lastPart = 0; 
+            int tStateSilence = 0;       
+            int minSilenceFrame = 0;   // Minimo para partir es 500 ms                       
 
             // El silencio siempre acaba en un pulso de nivel bajo
             // Si no hay silencio, se pasas tres kilos del silencio y salimos
             if (duration > 0)
             {
-                int tStateSilence = (duration/1000) / (1/freqCPU);       
-                int minSilenceFrame = 5000;
+                tStateSilence = (duration/1000) / (1/freqCPU);       
+                minSilenceFrame = 5 * maxTerminatorWidth;   // Minimo para partir es 500 ms
 
                 LAST_MESSAGE = "Silence: " + String(duration/1000) + " s";
 
-                int parts = 0;
-                int lastPart = 0;
+                parts = 0;
+                lastPart = 0;
 
                 // Esto lo hacemos para acabar bien un ultimo flanco en down.
                 // Hay que tener en cuenta que el terminador se quita del tiempo de PAUSA
@@ -753,7 +763,9 @@ class ZXProcessor
                 if (LAST_EDGE_IS==down)
                 {
                     // El primer milisegundo es el contrario al ultimo flanco
-                    terminator(LAST_EDGE_IS);
+                    // el terminador se genera en base al ultimo flanco que indique
+                    // LAST_EDGE_IS
+                    terminator();
                     thereIsTerminator = 1;
                 }
                 else
@@ -762,20 +774,32 @@ class ZXProcessor
                     thereIsTerminator = 0;
                 }
                 
-                // Le restamos al silencio el terminador, si es que hubo
-                if (tStateSilence > maxTerminatorWidth)
+                if (thereIsTerminator)
                 {
-                    // Ahora calculamos el resto del silencio
-                    tStateSilence = tStateSilence - (maxTerminatorWidth * thereIsTerminator);
+                    // Le restamos al silencio el terminador, si es que hubo
+                    if (tStateSilence > maxTerminatorWidth)
+                    {
+                        // Ahora calculamos el resto del silencio
+                        tStateSilence = tStateSilence - maxTerminatorWidth;
+                        #ifdef DEBUGMODE
+                            
+                        #endif
+                    }
                 }
 
                 // Vemos si hay que partirlo
                 if (tStateSilence > minSilenceFrame)
                 {
                     // Calculamos los frames
-                    parts = tStateSilence / minSilenceFrame;
+                    parts = (int)(tStateSilence / minSilenceFrame);
                     // Calculamos el ultimo frame
                     lastPart = tStateSilence - (parts * minSilenceFrame);
+
+                    #ifdef DEBUGMODE
+                        log("Tiempo de silencio (sin terminador): " + String(tStateSilence));                    
+                        log("Partes:   " + String(parts));
+                        log("LastPart: " + String(lastPart));
+                    #endif
 
                     // Generamos el silencio
                     for (int n=0;n<parts;n++)
@@ -785,7 +809,7 @@ class ZXProcessor
                         // o bien el ultimo pulso, así estuvo, y cuando se genere el silencio
                         // se generará un down en la funcion makeSemiPulse
 
-                        semiPulse(minSilenceFrame, up, false);
+                        semiPulse(minSilenceFrame, LAST_EDGE_IS, false);
 
                         if (LOADING_STATE == 1)
                         {
@@ -815,7 +839,7 @@ class ZXProcessor
                     // Indicamos que el pulso anterior fue UP, porque o bien el terminador
                     // o bien el ultimo pulso, así estuvo, y cuando se genere el silencio
                     // se generará un down en la funcion makeSemiPulse
-                    semiPulse(lastPart,up,false);
+                    semiPulse(lastPart,LAST_EDGE_IS,true);
 
                     if (LOADING_STATE == 1)
                     {

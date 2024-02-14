@@ -69,7 +69,7 @@
 //     MIC_GAIN_MAX,
 // } es_mic_gain_t;
 
-//#define DEBUGMODE
+#define DEBUGMODE
 
 // Seleccionamos la placa. Puede ser 5 o 7.
 #define AUDIOKIT_BOARD  5
@@ -130,7 +130,7 @@ ZXProcessor zxp;
 #include "TZXprocessor.h"
 #include "TAPprocessor.h"
 
-#include "test.h"
+//#include "test.h"
 
 // Declaraciones para SdFat
 SdFat sd;
@@ -421,7 +421,7 @@ void setAudioOutput()
     log("Error in Audiokit output setting");
   }
 
-  if(!ESP32kit.setSampleRate(AUDIO_HAL_32K_SAMPLES))
+  if(!ESP32kit.setSampleRate(AUDIO_HAL_44K_SAMPLES))
   {
     log("Error in Audiokit sampling rate setting");
   }
