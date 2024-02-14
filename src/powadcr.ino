@@ -69,7 +69,7 @@
 //     MIC_GAIN_MAX,
 // } es_mic_gain_t;
 
-#define DEBUGMODE
+//#define DEBUGMODE
 
 // Seleccionamos la placa. Puede ser 5 o 7.
 #define AUDIOKIT_BOARD  5
