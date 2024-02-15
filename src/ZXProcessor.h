@@ -49,36 +49,33 @@ class ZXProcessor
     uint8_t buffer[0];
     
     // Parametrizado para el ES8388 a 44.1KHz
-    const float samplingRate = 44099.988;
-    //const float samplingRate = 44100.0;
-    //const float samplingRate = 48000.0;
-    //const float samplingRate = 32000.0;
-    //const float sampleDuration = (1.0 / samplingRate); //0.0000002267; //
+    const double samplingRate = 44100.0;
+    //const double samplingRate = 44100.0;
+    //const double samplingRate = 48000.0;
+    //const double samplingRate = 32000.0;
+    //const double sampleDuration = (1.0 / samplingRate); //0.0000002267; //
                                                        // segundos para 44.1HKz
     
     // Estos valores definen las señales. Otros para el flanco negativo
     // provocan problemas de lectura en el Spectrum.
-    float maxAmplitude = LEVELUP;
-    float minAmplitude = LEVELDOWN;
-
-    float m_amplitude_L = MAIN_VOL_L * maxAmplitude; 
-    float m_amplitude_R = MAIN_VOL_R * maxAmplitude; 
+    double maxAmplitude = LEVELUP;
+    double minAmplitude = LEVELDOWN;
 
     // Al poner 2 canales - Falla. Solucionar
     const int channels = 2;  
-    //const float speakerOutPower = 0.002;
+    //const double speakerOutPower = 0.002;
 
     public:
     // Parametrizado para el ZX Spectrum - Timming de la ROM
     // Esto es un factor para el calculo de la duración de onda
-    float alpha = 4.0;
+    const double alpha = 4.0;
     // Este es un factor de división para la amplitud del flanco terminador
-    float amplitudeFactor = 1.0;
+    const double amplitudeFactor = 1.0;
     // T-states del ancho del terminador
-    int maxTerminatorWidth = 3500; //Minimo debe ser 1ms
+    const int maxTerminatorWidth = 3500; //Minimo debe ser 1ms
     // otros parámetros
-    float freqCPU = DfreqCPU;
-    float tState = (1.0 / freqCPU); //0.00000028571 --> segundos Z80 
+    const double freqCPU = DfreqCPU;
+    const double tState = (1.0 / freqCPU); //0.00000028571 --> segundos Z80 
                                           //T-State period (1 / 3.5MHz)
     int SYNC1 = DSYNC1;
     int SYNC2 = DSYNC2;
@@ -90,8 +87,8 @@ class ZXProcessor
     int PULSE_PILOT_DURATION = PULSE_PILOT * PILOT_TONE;
     //int PULSE_PILOT_DURATION = PULSE_PILOT * DPILOT_DATA;
 
-    float silent = DSILENT;
-    float m_time = 0;
+    double silent = DSILENT;
+    double m_time = 0;
 
     private:
 
@@ -99,200 +96,16 @@ class ZXProcessor
 
         AudioKit m_kit;
 
-        // edge invPulse(edge currentEdge)
-        // {
-        //     if (currentEdge==up)
-        //     {
-        //         return down;
-        //     }
-        //     else
-        //     {
-        //         return up;
-        //     }
-        // }
-
-        // edge getPolarizeEdge(edge currentEdge)
-        // {
-        //     if (currentEdge==up)
-        //     {
-        //         if(INVERSETRAIN)
-        //         {
-        //             return down;
-        //         }
-        //         else
-        //         {
-        //             return up;
-        //         }
-        //     }
-        //     else
-        //     {
-        //         if(INVERSETRAIN)
-        //         {
-        //             return up;
-        //         }
-        //         else
-        //         {
-        //             return down;
-        //         }
-        //     }
-        // }
-
-        // void getLowLimitSigal()
-        // {
-        //     if (ZEROLEVEL)
-        //     {
-        //         minAmplitude = 0;
-        //         maxAmplitude = LEVELUP;
-        //     }
-        //     else
-        //     {
-        //         minAmplitude = LEVELDOWN;
-        //         maxAmplitude = LEVELUP;
-        //     }
-        // }
-
-        // float getVolumenSwap(bool R_Channel)
-        // {
-        //     if (SWAP_EAR_CHANNEL)
-        //     {
-        //         if(R_Channel)
-        //         {
-        //             //Entonces ahora es el Left
-        //             return (MAIN_VOL_L / MAIN_VOL_FACTOR);
-        //         }
-        //         else
-        //         {
-        //             return (MAIN_VOL_R / MAIN_VOL_FACTOR);
-        //         }
-        //     }
-        //     else
-        //     {
-        //         if(R_Channel)
-        //         {
-        //             //Entonces es el suyo R
-        //             return (MAIN_VOL_R / MAIN_VOL_FACTOR);
-        //         }
-        //         else
-        //         {
-        //             return (MAIN_VOL_L / MAIN_VOL_FACTOR);
-        //         }
-        //     }
-        // }
-
-        // size_t makeSemiPulse_ori(uint8_t *buffer, size_t bytes, edge thisSlopeIs, bool changeNextEdge)
-        // {
-
-        //     // Procedimiento para genera un pulso 
-
-        //     int chn = channels;
-        //     size_t result = 0;
-        //     int16_t *ptr = (int16_t*)buffer;
-
-        //     int16_t sample_L = 0;
-        //     int16_t sample_R = 0;
-            
-        //     int A = 0;
-
-        //     getLowLimitSigal();
-
-        //     if (thisSlopeIs==getPolarizeEdge(down))
-        //     {
-        //         // Hacemos el edge de down --> up
-        //         if (!INVERSETRAIN)
-        //         {
-        //             A=maxAmplitude;
-
-        //             if (changeNextEdge)
-        //             {
-        //                 LAST_EDGE_IS = up;
-        //             }
-        //             else
-        //             {
-        //                 LAST_EDGE_IS = down;
-        //             }
-
-        //         }
-        //         else
-        //         {
-        //             A=minAmplitude;
-
-        //             if (changeNextEdge)
-        //             {
-        //                 LAST_EDGE_IS = down;
-        //             }
-        //             else
-        //             {
-        //                 LAST_EDGE_IS = up;
-        //             }
-        //         }
-                
-        //         m_amplitude_R = getVolumenSwap(true) * A;
-        //         m_amplitude_L = getVolumenSwap(false) * A;
-        //     }
-        //     else
-        //     {
-        //         // Hacemos el edge de up --> down
-        //         if (!INVERSETRAIN)
-        //         {
-        //             A=minAmplitude;
-                    
-        //             if (changeNextEdge)
-        //             {
-        //                 LAST_EDGE_IS = down;
-        //             }
-        //             else
-        //             {
-        //                 LAST_EDGE_IS = up;
-        //             }
-        //         }
-        //         else
-        //         {
-        //             A=maxAmplitude;
-                    
-        //             if (changeNextEdge)
-        //             {
-        //                 LAST_EDGE_IS = up;
-        //             }
-        //             else
-        //             {
-        //                 LAST_EDGE_IS = down;
-        //             }
-        //         }            
-        //         m_amplitude_R = getVolumenSwap(true) * A;
-        //         m_amplitude_L = getVolumenSwap(false) * A;
-        //     }
-
-        //     //log("Sample: " + String(m_amplitude_L) + " - " + String(m_amplitude_R));
-
-        //     sample_R = m_amplitude_R;
-        //     sample_L = m_amplitude_L; 
-
-        //     DEBUG_AMP_R = sample_R;
-        //     DEBUG_AMP_L = sample_L;
-
-        //     for (int j=0;j<bytes/(2*chn);j++)
-        //     {
-
-        //         //R-OUT
-        //         *ptr++ = sample_R;
-        //         //L-OUT
-        //         *ptr++ = sample_L * EN_STEREO;
-
-        //         result+=2*chn;
-        //     }
-
-        //     return result;          
-        // }
-
-        size_t makeSemiPulse(uint8_t *buffer, size_t bytes, edge lastSlopeWas, bool changeNextEdge)
+        size_t makeSemiPulse(uint8_t *buffer, int samples, bool changeNextEARedge)
         {
 
-            // Procedimiento para genera un pulso 
+            double m_amplitude_L = MAIN_VOL_L * maxAmplitude; 
+            double m_amplitude_R = MAIN_VOL_R * maxAmplitude;
 
+            // Procedimiento para genera un pulso 
             int chn = channels;
             size_t result = 0;
             int16_t *ptr = (int16_t*)buffer;
-
             int16_t sample_L = 0;
             int16_t sample_R = 0;
             
@@ -301,22 +114,22 @@ class ZXProcessor
             //getLowLimitSigal();
 
             // Esta rutina genera el pulso dependiendo de como es el ultimo
-            if (lastSlopeWas==down)
+            if (LAST_EAR_IS==down)
             {
                 // Hacemos el edge de down --> up
                 A=maxAmplitude;
 
                 // ¿El próximo flanco se cambiará?
-                if (changeNextEdge)
+                if (changeNextEARedge)
                 {
                     // Indicamos que este actualmente ha sido UP
-                    LAST_EDGE_IS = up;
+                    LAST_EAR_IS = up;
                 }
                 else
                 {
                     // Indicamos el contrario para que otra vez sea UP
                     // y así el flanco no cambia.
-                    LAST_EDGE_IS = down;
+                    LAST_EAR_IS = down;
                 }
             }
             else
@@ -325,16 +138,16 @@ class ZXProcessor
                 A=minAmplitude;
 
                 // ¿El próximo flanco se cambiará?
-                if (changeNextEdge)
+                if (changeNextEARedge)
                 {
                     // Indicamos que este actualmente ha sido DOWN
-                    LAST_EDGE_IS = down;
+                    LAST_EAR_IS = down;
                 }
                 else
                 {
                     // Indicamos el contrario para que otra vez sea DOWN
                     // y así el flanco no cambia.                    
-                    LAST_EDGE_IS = up;
+                    LAST_EAR_IS = up;
                 }
             }
 
@@ -342,44 +155,56 @@ class ZXProcessor
             m_amplitude_R = A;
             m_amplitude_L = A;
             
-            //log("Sample: " + String(m_amplitude_L) + " - " + String(m_amplitude_R));
-
+            // Convertimos a int16_t
             sample_R = m_amplitude_R;
             sample_L = m_amplitude_L; 
 
+            // Pasamos los datos para el modo DEBUG
             DEBUG_AMP_R = sample_R;
             DEBUG_AMP_L = sample_L;
 
             // Generamos la señal en el buffer del chip de audio.
-            for (int j=0;j<bytes/(2*chn);j++)
+            for (int j=0;j<samples;j++)
             {
-
                 //R-OUT
                 *ptr++ = sample_R;
                 //L-OUT
                 *ptr++ = sample_L * EN_STEREO;
-
                 result+=2*chn;
             }
 
             return result;          
         }
 
-        void semiPulse(int tStateWidth, edge lastSlope, bool changeNextEdge)
+        void semiPulse(double tStateWidth, bool changeNextEARedge)
         {
 
             // Obtenemos el periodo de muestreo
             // Tsr = 1 / samplingRate
-            float freq = 1/(tStateWidth * tState);
-            float Tsr = (1.0 / samplingRate);
+            //double freq = 1.0 / (tStateWidth * tState);
+            double Tsr = (1.0 / samplingRate);
+            double samples = (tStateWidth * tState) / Tsr;
+            int bytes = samples * 2.0 * channels; //Cada muestra ocupa 2 bytes (16 bits)
 
-            int bytes = int(round((1.0 / ((freq / alpha))) / Tsr));
-            int chn = channels;
+            #ifdef DEBUGMODE
+                if (SILENCEDEBUG)
+                {
+                    log(" > frame:   " + String(tStateWidth));
+                    log(" --> samp:  " + String(samples));
+                    log(" --> Tsr:   " + String(Tsr,10));
+                    log(" --> bytes: " + String(bytes));
+                    log(" --> Chns:  " + String(channels));
+                }
+            #endif
 
-            uint8_t buffer[bytes*chn];
+            // El buffer se dimensiona para 16 bits
+            uint8_t buffer[bytes];
 
             // Escribimos el tren de pulsos en el procesador de Audio
-            m_kit.write(buffer, makeSemiPulse(buffer, bytes, lastSlope, changeNextEdge));
+            m_kit.write(buffer, makeSemiPulse(buffer, samples, changeNextEARedge));
+
+            // Acumulamos el error producido
+            ACU_ERROR += modf(samples, &INTPART);
 
             if (LOADING_STATE == 1)
             {
@@ -397,25 +222,25 @@ class ZXProcessor
             
         }
 
-        // void semiPulse(int nTStates, edge slope, bool changeNextEdge)
-        // {
-        //     // Procedimiento que genera un pulso de sincronismo, según los
-        //     // T-States pasados por parámetro.
-        //     //
-        //     // El ZX Spectrum tiene dos tipo de sincronismo, uno al finalizar el tono piloto
-        //     // y otro al final de la recepción de los datos, que serán SYNC1 y SYNC2 respectivamente. 
-        //     generateSemiPulse(nTStates, samplingRate,slope,changeNextEdge); 
-        // }
+        void insertSamplesError(int samples, bool changeNextEARedge)
+        {
+            // El buffer se dimensiona para 16 bits
+            uint8_t buffer[samples*2*channels];
+
+            LAST_MESSAGE = "ACU_ERROR: " + String(samples);
+
+            // Escribimos el tren de pulsos en el procesador de Audio
+            m_kit.write(buffer, makeSemiPulse(buffer, samples, changeNextEARedge));
+        }
 
         void terminator()
         {
-            int width = maxTerminatorWidth;
-
             // Vemos como es el último bit MSB es la posición 0, el ultimo bit
             
             // Metemos un pulso de cambio de estado
             // para asegurar el cambio de flanco alto->bajo, del ultimo bit
-            semiPulse(width,LAST_EDGE_IS,true);
+            semiPulse(maxTerminatorWidth,true);
+            ACU_ERROR = 0;
         }
 
         void customPilotTone(int lenPulse, int numPulses)
@@ -426,7 +251,7 @@ class ZXProcessor
             
             for (int i = 0; i < numPulses;i++)
             {
-                semiPulse(lenPulse,LAST_EDGE_IS,true);
+                semiPulse(lenPulse,true);
 
                 if (LOADING_STATE == 1)
                 {
@@ -444,6 +269,8 @@ class ZXProcessor
                     }
                 }
             }
+
+            ACU_ERROR = 0;
         }
 
         void pilotTone(int lenpulse, int numpulses)
@@ -454,24 +281,26 @@ class ZXProcessor
             // Hay que tener en cuenta que los T-States dados son de un SEMI-PULSO
             // es decir de la mitad del periodo. Entonces hay que calcular
             // el periodo completo que es 2 * T
-            // float freq = (1 / (PULSE_PILOT * tState)) / 2;   
+            // double freq = (1 / (PULSE_PILOT * tState)) / 2;   
             // generateWaveDuration(freq, duration, samplingRate);
             
             customPilotTone(lenpulse, numpulses);
         }
-
         void zeroTone()
         {
             // Procedimiento que genera un bit "0"        
-            semiPulse(BIT_0, LAST_EDGE_IS,true);
-            semiPulse(BIT_0, LAST_EDGE_IS,true);
-        }
+            semiPulse(BIT_0, true);
+            semiPulse(BIT_0, true);
 
+            ACU_ERROR = 0;
+        }
         void oneTone()
         {
             // Procedimiento que genera un bit "1"
-            semiPulse(BIT_1, LAST_EDGE_IS,true);
-            semiPulse(BIT_1, LAST_EDGE_IS,true);       
+            semiPulse(BIT_1, true);
+            semiPulse(BIT_1, true);      
+
+            ACU_ERROR = 0; 
         }
 
         void syncTone(int nTStates)
@@ -481,7 +310,9 @@ class ZXProcessor
             //
             // El ZX Spectrum tiene dos tipo de sincronismo, uno al finalizar el tono piloto
             // y otro al final de la recepción de los datos, que serán SYNC1 y SYNC2 respectivamente.
-            semiPulse(nTStates,LAST_EDGE_IS,true);        
+            semiPulse(nTStates,true);    
+
+            ACU_ERROR = 0;    
         }
       
         void sendDataArray(uint8_t* data, int size, bool isThelastDataPart)
@@ -613,139 +444,27 @@ class ZXProcessor
             _mask_last_byte = mask;
         }
 
-        // void silence_ori(float duration)
-        // {
-            
-        //     // Paso la duración a T-States
-        //     edge edgeSelected = down;
-        //     int thereIsTerminator = 0;
-
-        //     // El silencio siempre acaba en un pulso de nivel bajo
-        //     // Si no hay silencio, se pasas tres kilos del silencio y salimos
-        //     if (duration > 0)
-        //     {
-        //         int tStateSilence = (duration/1000) / (1/freqCPU);       
-        //         int minSilenceFrame = 5000;
-
-        //         LAST_MESSAGE = "Silence: " + String(duration/1000) + " s";
-
-        //         int parts = 0;
-        //         int lastPart = 0;
-
-        //         // Esto lo hacemos para acabar bien un ultimo flanco en down.
-        //         // Hay que tener en cuenta que el terminador se quita del tiempo de PAUSA
-        //         // la pausa puede ir desde 0 ms a 0x9999 ms
-        //         // 1ms = 3500 T-States
-        //         //
-        //         // Según la especificación al menos 1ms debe estar en un flanco contrario al ultimo flanco para reconocer este ultimo, y después aplicar
-        //         // el resto, como pausa.
-        //         //
-
-        //         // Aplicamos un cambio a alto, para leer el ultimo bit
-        //         if (LAST_EDGE_IS==getPolarizeEdge(down))
-        //         {
-        //             // El primer milisegundo es el contrario al ultimo flanco
-        //             terminator(LAST_EDGE_IS);
-        //             thereIsTerminator = 1;
-        //         }
-        //         else
-        //         {
-        //             // No se necesita terminador
-        //             thereIsTerminator = 0;
-        //         }
-                
-        //         // Le restamos al silencio el terminador, si es que hubo
-        //         if (tStateSilence > maxTerminatorWidth)
-        //         {
-        //             // Ahora calculamos el resto del silencio
-        //             tStateSilence = tStateSilence - (maxTerminatorWidth * thereIsTerminator);
-        //         }
-
-        //         // Vemos si hay que partirlo
-        //         if (tStateSilence > minSilenceFrame)
-        //         {
-        //             // Calculamos los frames
-        //             parts = tStateSilence / minSilenceFrame;
-        //             // Calculamos el ultimo frame
-        //             lastPart = tStateSilence - (parts * minSilenceFrame);
-
-        //             // Generamos el silencio
-        //             for (int n=0;n<parts;n++)
-        //             {
-        //                 // Generamos el silencio ya en down
-        //                 // Indicamos que el pulso anterior fue UP, porque o bien el terminador
-        //                 // o bien el ultimo pulso, así estuvo, y cuando se genere el silencio
-        //                 // se generará un down en la funcion makeSemiPulse
-
-        //                 semiPulse(minSilenceFrame, up, false);
-
-        //                 if (LOADING_STATE == 1)
-        //                 {
-        //                     if (STOP==true)
-        //                     {
-        //                         LOADING_STATE = 2; // Parada del bloque actual
-        //                         return;
-        //                     }
-        //                     else if (PAUSE==true)
-        //                     {
-        //                         LOADING_STATE = 3; // Parada del bloque actual
-        //                         return;
-        //                     }
-        //                 }                    
-        //             }
-        //         }
-        //         else
-        //         {
-        //             lastPart = tStateSilence;
-        //         }
-
-        //         if (lastPart != 0)
-        //         {
-        //             // ultimo trozo del silencio
-                    
-        //             // Generamos el silencio ya en down
-        //             // Indicamos que el pulso anterior fue UP, porque o bien el terminador
-        //             // o bien el ultimo pulso, así estuvo, y cuando se genere el silencio
-        //             // se generará un down en la funcion makeSemiPulse
-        //             semiPulse(lastPart,up,false);
-
-        //             if (LOADING_STATE == 1)
-        //             {
-        //                 if (STOP==true)
-        //                 {
-        //                     LOADING_STATE = 2; // Parada del bloque actual
-        //                     return;
-        //                 }
-        //                 else if (PAUSE==true)
-        //                 {
-        //                     LOADING_STATE = 3; // Parada del bloque actual
-        //                     return;
-        //                 }
-        //             }                     
-        //         }                   
-
-        //     }       
-        // }
-
-        void silence(float duration)
+        void silence(double duration)
         {
             
             // Paso la duración a T-States
             edge edgeSelected = down;
             int thereIsTerminator = 0;
-            int parts = 0;
+            double parts = 0, fractPart, intPart;
             int lastPart = 0; 
-            int tStateSilence = 0;       
-            int minSilenceFrame = 0;   // Minimo para partir es 500 ms                       
+            int tStateSilence = 0;  
+            int tStateSilenceOri = 0;     
+            double minSilenceFrame = 5 * maxTerminatorWidth;   // Minimo para partir es 500 ms   
+
+            const double OneSecondTo_ms = 1000.0;                    
 
             // El silencio siempre acaba en un pulso de nivel bajo
             // Si no hay silencio, se pasas tres kilos del silencio y salimos
             if (duration > 0)
             {
-                tStateSilence = (duration/1000) / (1/freqCPU);       
-                minSilenceFrame = 5 * maxTerminatorWidth;   // Minimo para partir es 500 ms
-
-                LAST_MESSAGE = "Silence: " + String(duration/1000) + " s";
+                tStateSilenceOri = tStateSilence;
+                tStateSilence = (duration / OneSecondTo_ms) / (1.0 / freqCPU);       
+                //LAST_MESSAGE = "Silence: " + String(duration / OneSecondTo_ms) + " s";
 
                 parts = 0;
                 lastPart = 0;
@@ -760,11 +479,11 @@ class ZXProcessor
                 //
 
                 // Aplicamos un cambio a alto, para leer el ultimo bit
-                if (LAST_EDGE_IS==down)
+                if (LAST_EAR_IS==down)
                 {
                     // El primer milisegundo es el contrario al ultimo flanco
                     // el terminador se genera en base al ultimo flanco que indique
-                    // LAST_EDGE_IS
+                    // LAST_EAR_IS
                     terminator();
                     thereIsTerminator = 1;
                 }
@@ -781,9 +500,6 @@ class ZXProcessor
                     {
                         // Ahora calculamos el resto del silencio
                         tStateSilence = tStateSilence - maxTerminatorWidth;
-                        #ifdef DEBUGMODE
-                            
-                        #endif
                     }
                 }
 
@@ -791,25 +507,34 @@ class ZXProcessor
                 if (tStateSilence > minSilenceFrame)
                 {
                     // Calculamos los frames
-                    parts = (int)(tStateSilence / minSilenceFrame);
+                    parts = tStateSilence / minSilenceFrame;
+	                fractPart = modf(parts, &intPart);
+
                     // Calculamos el ultimo frame
-                    lastPart = tStateSilence - (parts * minSilenceFrame);
+                    lastPart = fractPart * minSilenceFrame;
+
+                    //LAST_MESSAGE = "Silence: " + String(tStateSilence) + ":" + String(parts) + " / " + String(fractPart) + "|" + String(lastPart);  
 
                     #ifdef DEBUGMODE
+                        log("Bloque: " + String(CURRENT_BLOCK_IN_PROGRESS));
+                        log("------------------------------------------------------");
+                        log("Terminador: " + String(thereIsTerminator));
+                        log("Tiempo de silencio: " + String(tStateSilenceOri));
                         log("Tiempo de silencio (sin terminador): " + String(tStateSilence));                    
                         log("Partes:   " + String(parts));
-                        log("LastPart: " + String(lastPart));
+                        logln("LastPart: " + String(lastPart));
+                        SILENCEDEBUG = true;
                     #endif
 
                     // Generamos el silencio
-                    for (int n=0;n<parts;n++)
+                    for (int n=0;n<intPart;n++)
                     {
                         // Generamos el silencio ya en down
                         // Indicamos que el pulso anterior fue UP, porque o bien el terminador
                         // o bien el ultimo pulso, así estuvo, y cuando se genere el silencio
                         // se generará un down en la funcion makeSemiPulse
 
-                        semiPulse(minSilenceFrame, LAST_EDGE_IS, false);
+                        semiPulse(minSilenceFrame, false);
 
                         if (LOADING_STATE == 1)
                         {
@@ -825,21 +550,25 @@ class ZXProcessor
                             }
                         }                    
                     }
+
+
                 }
                 else
                 {
+                    // Caso en el que no es necesario fraccionar
                     lastPart = tStateSilence;
                 }
 
                 if (lastPart != 0)
                 {
-                    // ultimo trozo del silencio
+                    // ultimo trozo del silencio                    
+                    semiPulse(lastPart,false);
+
+                    if (ACU_ERROR != 0)
+                    {
+                        insertSamplesError(ACU_ERROR, true);
+                    }
                     
-                    // Generamos el silencio ya en down
-                    // Indicamos que el pulso anterior fue UP, porque o bien el terminador
-                    // o bien el ultimo pulso, así estuvo, y cuando se genere el silencio
-                    // se generará un down en la funcion makeSemiPulse
-                    semiPulse(lastPart,LAST_EDGE_IS,true);
 
                     if (LOADING_STATE == 1)
                     {
@@ -854,12 +583,15 @@ class ZXProcessor
                             return;
                         }
                     }                     
-                }                   
+                }   
 
+                #ifdef DEBUGMODE
+                    SILENCEDEBUG = false;                
+                #endif
+
+                ACU_ERROR = 0;
             }       
         }
-
-
 
         void playPureTone(int lenPulse, int numPulses)
         {
@@ -877,7 +609,7 @@ class ZXProcessor
             for (int i = 0; i < numPulses;i++)
             {
                 // Generamos los semipulsos
-                semiPulse(data[i],LAST_EDGE_IS,true);
+                semiPulse(data[i],true);
             }
 
         }   
@@ -965,7 +697,7 @@ class ZXProcessor
         void playDataBegin(uint8_t* bBlock, int lenBlock, int pulse_len ,int pulse_pilot_duration)
         {
             // PROGRAM
-            //float duration = tState * pulse_pilot_duration;
+            //double duration = tState * pulse_pilot_duration;
             // syncronize with short leader tone
 
             pilotTone(pulse_len,pulse_pilot_duration);

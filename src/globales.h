@@ -59,13 +59,17 @@ struct tFileBuffer
 // ZX Proccesor config
 // ********************************************************************
 //
+bool SILENCEDEBUG = false;
+double ACU_ERROR = 0.0;
+double INTPART = 0.0;
+
 #ifdef MACHINE_ZX
   // Timming estandar de la ROM
   // Frecuencia de la CPU
-  //float DfreqCPU = 3476604.8;
-  //float DfreqCPU = 3450000;
-  float DfreqCPU = 3500000;
-  //float DfreqCPU = 3250000;
+  //double DfreqCPU = 3476604.8;
+  //double DfreqCPU = 3450000;
+  double DfreqCPU = 3500000;
+  //double DfreqCPU = 3250000;
 
   const int DPILOT_HEADER = 8063;
   const int DPILOT_DATA = 3223;
@@ -110,15 +114,15 @@ bool ID_NOT_IMPLEMENTED = false;
 
 enum edge
 {
-  up,
-  down
+  up=1,
+  down=0
 };
 
 // ZXProcessor
 // Inicialmente se define como flanco up para que empiece en down.
 // Polarización de la señal.
 edge POLARIZATION = down;
-edge LAST_EDGE_IS = down;
+edge LAST_EAR_IS = down;
 bool INVERSETRAIN = false;
 bool ZEROLEVEL = false;
 
@@ -278,17 +282,17 @@ const int END_ST = 4;
 const int ACK_LCD = 5;
 const int RESET = 6;
 //
-float MAIN_VOL_FACTOR = 100;
+double MAIN_VOL_FACTOR = 100;
 
-float MAIN_VOL = 0.9 * MAIN_VOL_FACTOR;
-float MAIN_VOL_R = 0.9 * MAIN_VOL_FACTOR;
-float MAIN_VOL_L = 0.9 * MAIN_VOL_FACTOR;
-float LAST_MAIN_VOL = 0.9 * MAIN_VOL_FACTOR;
-float LAST_MAIN_VOL_R = 0.9 * MAIN_VOL_FACTOR;
-float LAST_MAIN_VOL_L = 0.9 * MAIN_VOL_FACTOR;
-float MAX_MAIN_VOL = 1 * MAIN_VOL_FACTOR;
-float MAX_MAIN_VOL_R = 1 * MAIN_VOL_FACTOR;
-float MAX_MAIN_VOL_L = 1 * MAIN_VOL_FACTOR;
+double MAIN_VOL = 0.9 * MAIN_VOL_FACTOR;
+double MAIN_VOL_R = 0.9 * MAIN_VOL_FACTOR;
+double MAIN_VOL_L = 0.9 * MAIN_VOL_FACTOR;
+double LAST_MAIN_VOL = 0.9 * MAIN_VOL_FACTOR;
+double LAST_MAIN_VOL_R = 0.9 * MAIN_VOL_FACTOR;
+double LAST_MAIN_VOL_L = 0.9 * MAIN_VOL_FACTOR;
+double MAX_MAIN_VOL = 1 * MAIN_VOL_FACTOR;
+double MAX_MAIN_VOL_R = 1 * MAIN_VOL_FACTOR;
+double MAX_MAIN_VOL_L = 1 * MAIN_VOL_FACTOR;
 int EN_STEREO = 0;
 bool wasHeadphoneDetected = false;
 bool wasHeadphoneAmpDetected = false;
@@ -302,8 +306,13 @@ int nMENU = 0;
 
 void log(String txt)
 {
-  SerialHW.println("");
   SerialHW.println(txt);
+}
+
+void logln(String txt)
+{
+  SerialHW.println(txt);
+  SerialHW.println("");
 }
 
 // void logMemory() 

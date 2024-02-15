@@ -1907,7 +1907,7 @@ class TZXprocessor
         if (_myTZX.descriptor != nullptr)
         {         
               // Inicializamos la polarización de la señal
-              LAST_EDGE_IS = POLARIZATION;  
+              LAST_EAR_IS = POLARIZATION;  
   
               // Entregamos información por consola
               TOTAL_BLOCKS = _myTZX.numBlocks;
@@ -2062,7 +2062,7 @@ class TZXprocessor
                               i = _myTZX.numBlocks+1;
 
                               loopPlayed = 0;
-                              LAST_EDGE_IS = down;
+                              LAST_EAR_IS = down;
                               LOOP_START = 0;
                               LOOP_END = 0;
                               LOOP_COUNT = 0;
@@ -2261,7 +2261,7 @@ class TZXprocessor
               // Cerrando
               // reiniciamos el edge del ultimo pulse
               loopPlayed = 0;
-              LAST_EDGE_IS = down;
+              LAST_EAR_IS = down;
               LOOP_START = 0;
               LOOP_END = 0;
               LOOP_COUNT = 0;

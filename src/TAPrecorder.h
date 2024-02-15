@@ -76,7 +76,7 @@ class TAPrecorder
 
       // Estamos suponiendo que el ZX Spectrum genera signal para grabar
       // con timming estandar entonces
-      float tState = 1/3500000;
+      double tState = 1/3500000;
       int pilotPulse = 2168; // t-states
       int sync1 = 667;
       int sync2 = 735;
@@ -121,10 +121,10 @@ class TAPrecorder
       const int silence = 0;
 
       // Definimos el sampling rate real de la placa.
-      //const float samplingRate = 44099.988;
-      const float samplingRate = 48000.0;
+      //const double samplingRate = 44099.988;
+      const double samplingRate = 48000.0;
       // Calculamos el T sampling_rate en us
-      const float TsamplingRate = (1 / samplingRate) * 1000 * 1000;
+      const double TsamplingRate = (1 / samplingRate) * 1000 * 1000;
 
       // Controlamos el estado del TAP
       int state = 0;
@@ -188,7 +188,7 @@ class TAPrecorder
 
       // Timming
       unsigned long startTime = 0;
-      float timeBuffer = 0;
+      double timeBuffer = 0;
       bool countTimeEnable = false;
       bool startTimeWasLoaded = false;
       bool measureTimeWasLoaded = false;
@@ -198,8 +198,8 @@ class TAPrecorder
       // Porcentaje de error del comparador de tiempo (%)
       const int timeToEdgeThreshold = 2;
       // Tiempo que se ha tardado en encontrar el flanco
-      float timeToEdge1 = 0;
-      float timeToEdge2 = 0;
+      double timeToEdge1 = 0;
+      double timeToEdge2 = 0;
       // Crossing por cero
       int16_t lastFinalValue = 0;
 
@@ -223,10 +223,10 @@ class TAPrecorder
       int detectStateSchmitt = 0;
 
       //
-      float TON = 0;
-      float TOFF = 0;
-      float TSI = 0;
-      float TControl = 0;
+      double TON = 0;
+      double TOFF = 0;
+      double TSI = 0;
+      double TControl = 0;
       unsigned long TCycle = 0;
 
       // Notifications
@@ -258,10 +258,10 @@ class TAPrecorder
 
       // Calculamos las muestras que tiene cada pulso
       // segun el tiempo de muestreo
-      // long getSamples(int signalTStates, float tState, int samplingRate)
+      // long getSamples(int signalTStates, double tState, int samplingRate)
       // {
-      //     float tSampling = 1/samplingRate;
-      //     float tPeriod = signalTStates * tState;
+      //     double tSampling = 1/samplingRate;
+      //     double tPeriod = signalTStates * tState;
       //     long samples = tPeriod / tSampling;
 
       //     return samples; 
@@ -677,9 +677,9 @@ class TAPrecorder
         }
       }
 
-      float readTimer()
+      double readTimer()
       {
-        float ti = timeBuffer;
+        double ti = timeBuffer;
         return ti;
       }
 
@@ -693,7 +693,7 @@ class TAPrecorder
         countTimeEnable = true;
       }
 
-      float timeThreshold(int value, float per)
+      double timeThreshold(int value, double per)
       {
         // Calcula el time menos un % de error
         return (value - (value*per));
