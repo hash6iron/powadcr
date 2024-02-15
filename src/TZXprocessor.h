@@ -1907,7 +1907,7 @@ class TZXprocessor
         if (_myTZX.descriptor != nullptr)
         {         
               // Inicializamos la polarización de la señal
-              LAST_EAR_IS = POLARIZATION;  
+              //LAST_EAR_IS = POLARIZATION;  
   
               // Entregamos información por consola
               TOTAL_BLOCKS = _myTZX.numBlocks;
