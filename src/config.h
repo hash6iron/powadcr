@@ -35,7 +35,7 @@
 //
 // 0 for ZX Spectrum
 
-#define VERSION "v0.3.35"
+#define VERSION "v0.3.36"
 #define MACHINE_ZX
 
 // Para activa el modo debug

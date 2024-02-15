@@ -111,14 +111,34 @@ class ZXProcessor
             
             int A = 0;
 
-            //getLowLimitSigal();
+            // Si está seleccionada la opción de nivel bajo a 0
+            // cambiamos el low_level amplitude
+            if (ZEROLEVEL)
+            {
+                minAmplitude = 0;
+            }
+            else
+            {
+                minAmplitude = maxLevelDown;
+            }
 
             // Esta rutina genera el pulso dependiendo de como es el ultimo
             if (LAST_EAR_IS==down)
             {
                 // Hacemos el edge de down --> up
-                A=maxAmplitude;
 
+                // Si está seleccionada la opción de INVERSE TRAIN (Change polarization)
+                // cambiamos la polarización. Invertimos la señal.
+
+                if (!INVERSETRAIN)
+                {
+                    A=maxAmplitude;
+                }
+                else
+                {
+                    A=minAmplitude;
+                }
+                
                 // ¿El próximo flanco se cambiará?
                 if (changeNextEARedge)
                 {
@@ -135,7 +155,14 @@ class ZXProcessor
             else
             {
                 // Hacemos el edge de up --> downs
-                A=minAmplitude;
+                if (INVERSETRAIN)
+                {
+                    A=maxAmplitude;
+                }
+                else
+                {
+                    A=minAmplitude;
+                }
 
                 // ¿El próximo flanco se cambiará?
                 if (changeNextEARedge)
