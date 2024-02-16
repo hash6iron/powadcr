@@ -108,6 +108,8 @@ class ZXProcessor
             int16_t *ptr = (int16_t*)buffer;
             int16_t sample_L = 0;
             int16_t sample_R = 0;
+
+            edge selected = down;
             
             int A = 0;
 
@@ -123,11 +125,15 @@ class ZXProcessor
             }
 
             // Esta rutina genera el pulso dependiendo de como es el ultimo
-            edge selected = down;
+
 
             if (INVERSETRAIN)
             {
                 selected = up;
+            }
+            else
+            {
+                selected = down;
             }
 
             if (LAST_EAR_IS==selected)
