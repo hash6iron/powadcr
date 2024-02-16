@@ -603,12 +603,18 @@ class ZXProcessor
 
                 if (lastPart != 0)
                 {
-                    // ultimo trozo del silencio                    
-                    semiPulse(lastPart,false);
 
                     if (ACU_ERROR != 0)
                     {
+                        // ultimo trozo del silencio                    
+                        // mas los samples perdidos
+                        semiPulse(lastPart,false);
                         insertSamplesError(ACU_ERROR, true);
+                    }
+                    else
+                    {
+                        // solo el ultimo trozo
+                        semiPulse(lastPart,true);
                     }
                     
 
