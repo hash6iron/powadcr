@@ -72,7 +72,7 @@ class ZXProcessor
     // Este es un factor de división para la amplitud del flanco terminador
     const double amplitudeFactor = 1.0;
     // T-states del ancho del terminador
-    const int maxTerminatorWidth = 3500; //Minimo debe ser 1ms
+    const int maxTerminatorWidth = 5250; //Minimo debe ser 1ms (3500 TStates)
     // otros parámetros
     const double freqCPU = DfreqCPU;
     const double tState = (1.0 / freqCPU); //0.00000028571 --> segundos Z80 

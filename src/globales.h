@@ -128,7 +128,7 @@ bool ZEROLEVEL = false;
 
 // Limites de la señal
 int maxLevelUP = 32767;
-int maxLevelDown = -32767;
+int maxLevelDown = -32768;
 int LEVELUP = maxLevelUP;
 int LEVELDOWN = maxLevelDown;
 
