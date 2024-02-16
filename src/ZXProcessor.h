@@ -570,9 +570,12 @@ class ZXProcessor
                     lastPart = tStateSilence;
                 }
 
+                // Si al fraccionar el silencio quedó una ultima parte no completa
+                // para cubrir un minSilenceFrame se añade ahora
                 if (lastPart != 0)
                 {
 
+                    // y si hay error acumulado lo insertamos también.
                     if (ACU_ERROR != 0)
                     {
                         // ultimo trozo del silencio                    
@@ -589,8 +592,8 @@ class ZXProcessor
                 }
                 else
                 {
-                    //La ultima parte puede ser cero pero puede haber error acumulado
-                    //asi que lo insertamos.
+                    // En el caso de no haber una ultima parte no completa
+                    // solo insertamos el error acumulado si hubiese.
                     if (ACU_ERROR != 0)
                     {
                         // ultimo trozo del silencio                    
