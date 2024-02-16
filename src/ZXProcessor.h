@@ -110,7 +110,9 @@ class ZXProcessor
                     LOADING_STATE = 3; // Parada del bloque actual
                     return true;
                 }
-            }         
+            }      
+
+            return false;   
         }
 
         size_t makeSemiPulse(uint8_t *buffer, int samples, bool changeNextEARedge)
