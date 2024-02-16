@@ -123,7 +123,14 @@ class ZXProcessor
             }
 
             // Esta rutina genera el pulso dependiendo de como es el ultimo
-            if (LAST_EAR_IS==down)
+            edge selected = down;
+
+            if (INVERSETRAIN)
+            {
+                selected = up;
+            }
+
+            if (LAST_EAR_IS==selected)
             {
                 // Hacemos el edge de down --> up
 
@@ -143,13 +150,28 @@ class ZXProcessor
                 if (changeNextEARedge)
                 {
                     // Indicamos que este actualmente ha sido UP
-                    LAST_EAR_IS = up;
+                    if (!INVERSETRAIN)
+                    {
+                        LAST_EAR_IS = up;
+                    }
+                    else
+                    {
+                        LAST_EAR_IS = down;
+                    }
                 }
                 else
                 {
                     // Indicamos el contrario para que otra vez sea UP
                     // y así el flanco no cambia.
-                    LAST_EAR_IS = down;
+                    if (INVERSETRAIN)
+                    {
+                        LAST_EAR_IS = up;
+                    }
+                    else
+                    {
+                        LAST_EAR_IS = down;
+                    }
+
                 }
             }
             else
@@ -168,13 +190,28 @@ class ZXProcessor
                 if (changeNextEARedge)
                 {
                     // Indicamos que este actualmente ha sido DOWN
-                    LAST_EAR_IS = down;
+                    if (INVERSETRAIN)
+                    {
+                        LAST_EAR_IS = up;
+                    }
+                    else
+                    {
+                        LAST_EAR_IS = down;
+                    }
+
                 }
                 else
                 {
                     // Indicamos el contrario para que otra vez sea DOWN
                     // y así el flanco no cambia.                    
-                    LAST_EAR_IS = up;
+                    if (!INVERSETRAIN)
+                    {
+                        LAST_EAR_IS = up;
+                    }
+                    else
+                    {
+                        LAST_EAR_IS = down;
+                    }
                 }
             }
 
