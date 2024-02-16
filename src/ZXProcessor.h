@@ -511,13 +511,28 @@ class ZXProcessor
                     // El primer milisegundo es el contrario al ultimo flanco
                     // el terminador se genera en base al ultimo flanco que indique
                     // LAST_EAR_IS
-                    terminator();
-                    thereIsTerminator = 1;
+                    if (!INVERSETRAIN)
+                    {
+                        terminator();
+                        thereIsTerminator = 1;
+                    }
+                    else
+                    {
+                        thereIsTerminator = 0;
+                    }
                 }
                 else
                 {
                     // No se necesita terminador
-                    thereIsTerminator = 0;
+                    if (INVERSETRAIN)
+                    {
+                        terminator();
+                        thereIsTerminator = 1;
+                    }
+                    else
+                    {
+                        thereIsTerminator = 0;
+                    }
                 }
                 
                 if (thereIsTerminator)
