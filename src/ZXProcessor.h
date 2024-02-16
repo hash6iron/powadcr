@@ -96,6 +96,23 @@ class ZXProcessor
 
         AudioKit m_kit;
 
+        bool stopOrPauseRequest()
+        {
+            if (LOADING_STATE == 1)
+            {
+                if (STOP==true)
+                {
+                    LOADING_STATE = 2; // Parada del bloque actual
+                    return true;
+                }
+                else if (PAUSE==true)
+                {
+                    LOADING_STATE = 3; // Parada del bloque actual
+                    return true;
+                }
+            }         
+        }
+
         size_t makeSemiPulse(uint8_t *buffer, int samples, bool changeNextEARedge)
         {
 
@@ -237,20 +254,11 @@ class ZXProcessor
             // Acumulamos el error producido
             ACU_ERROR += modf(samples, &INTPART);
 
-            if (LOADING_STATE == 1)
+            if (stopOrPauseRequest())
             {
-                if (STOP==true)
-                {
-                    LOADING_STATE = 2; // Parada del bloque actual
-                    return;
-                }
-                else if (PAUSE==true)
-                {
-                    LOADING_STATE = 3; // Pausa del bloque actual
-                    return;
-                }
+                // Salimos
+                return;
             }
-            
         }
 
         void insertSamplesError(int samples, bool changeNextEARedge)
@@ -289,21 +297,12 @@ class ZXProcessor
                 // Enviamos semi-pulsos alternando el cambio de flanco
                 semiPulse(lenPulse,true);
 
-                if (LOADING_STATE == 1)
+                if (stopOrPauseRequest())
                 {
-                    if (STOP==true)
-                    {
-                        LOADING_STATE = 2; // Parada del bloque actual
-                        //log("Aqui he parado - STOP");
-                        return;
-                    }
-                    else if (PAUSE==true)
-                    {
-                        LOADING_STATE = 3; // Parada del bloque actual
-                        //log("Aqui he parado - PAUSA");
-                        return;
-                    }
+                    // Salimos
+                    return;
                 }
+
             }
 
             ACU_ERROR = 0;
@@ -376,27 +375,13 @@ class ZXProcessor
                         // Informacion para la barra de progreso total
                         PROGRESS_BAR_TOTAL_VALUE = (int)((BYTES_LOADED*100)/(BYTES_TOBE_LOAD));
                         
-                        if (LOADING_STATE == 1)
+                        if (stopOrPauseRequest())
                         {
-                            if (STOP==true)
-                            {
-                                LOADING_STATE = 2; // Parada del bloque actual
-                                i=size;
-                                //log("Aqui he parado - STOP");
-                                return;
-                            }
-                            else if (PAUSE==true)
-                            {
-                                LOADING_STATE = 3; // Parada del bloque actual
-                                i=size;
-                                //log("Aqui he parado - PAUSA");
-                                return;
-                            }
+                            // Salimos
+                            i=size;
+                            return;
                         }
-                        else
-                        {
-                            //log("Me lo he saltado 1");
-                        }
+
                     }
 
 
@@ -570,24 +555,14 @@ class ZXProcessor
                         // o bien el ultimo pulso, así estuvo, y cuando se genere el silencio
                         // se generará un down en la funcion makeSemiPulse
 
-                        semiPulse(minSilenceFrame, false);
-
-                        if (LOADING_STATE == 1)
+                        if (stopOrPauseRequest())
                         {
-                            if (STOP==true)
-                            {
-                                LOADING_STATE = 2; // Parada del bloque actual
-                                return;
-                            }
-                            else if (PAUSE==true)
-                            {
-                                LOADING_STATE = 3; // Parada del bloque actual
-                                return;
-                            }
-                        }                    
+                            // Salimos
+                            return;
+                        }
+
+                        semiPulse(minSilenceFrame, false);                  
                     }
-
-
                 }
                 else
                 {
@@ -610,22 +585,19 @@ class ZXProcessor
                         // solo el ultimo trozo
                         semiPulse(lastPart,true);
                     }
-                    
-
-                    if (LOADING_STATE == 1)
+                                        
+                }
+                else
+                {
+                    //La ultima parte puede ser cero pero puede haber error acumulado
+                    //asi que lo insertamos.
+                    if (ACU_ERROR != 0)
                     {
-                        if (STOP==true)
-                        {
-                            LOADING_STATE = 2; // Parada del bloque actual
-                            return;
-                        }
-                        else if (PAUSE==true)
-                        {
-                            LOADING_STATE = 3; // Parada del bloque actual
-                            return;
-                        }
-                    }                     
-                }   
+                        // ultimo trozo del silencio                    
+                        // mas los samples perdidos
+                        insertSamplesError(ACU_ERROR, true);
+                    }                    
+                }
 
                 #ifdef DEBUGMODE
                     SILENCEDEBUG = false;                
