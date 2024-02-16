@@ -127,16 +127,7 @@ class ZXProcessor
             // Esta rutina genera el pulso dependiendo de como es el ultimo
 
 
-            if (INVERSETRAIN)
-            {
-                selected = up;
-            }
-            else
-            {
-                selected = down;
-            }
-
-            if (LAST_EAR_IS==selected)
+            if (LAST_EAR_IS==down)
             {
                 // Hacemos el edge de down --> up
 
@@ -156,28 +147,13 @@ class ZXProcessor
                 if (changeNextEARedge)
                 {
                     // Indicamos que este actualmente ha sido UP
-                    if (!INVERSETRAIN)
-                    {
-                        LAST_EAR_IS = up;
-                    }
-                    else
-                    {
-                        LAST_EAR_IS = down;
-                    }
+                    LAST_EAR_IS = up;
                 }
                 else
                 {
                     // Indicamos el contrario para que otra vez sea UP
                     // y así el flanco no cambia.
-                    if (INVERSETRAIN)
-                    {
-                        LAST_EAR_IS = up;
-                    }
-                    else
-                    {
-                        LAST_EAR_IS = down;
-                    }
-
+                    LAST_EAR_IS = down;
                 }
             }
             else
@@ -196,28 +172,13 @@ class ZXProcessor
                 if (changeNextEARedge)
                 {
                     // Indicamos que este actualmente ha sido DOWN
-                    if (INVERSETRAIN)
-                    {
-                        LAST_EAR_IS = up;
-                    }
-                    else
-                    {
-                        LAST_EAR_IS = down;
-                    }
-
+                    LAST_EAR_IS = down;
                 }
                 else
                 {
                     // Indicamos el contrario para que otra vez sea DOWN
                     // y así el flanco no cambia.                    
-                    if (!INVERSETRAIN)
-                    {
-                        LAST_EAR_IS = up;
-                    }
-                    else
-                    {
-                        LAST_EAR_IS = down;
-                    }
+                    LAST_EAR_IS = up;
                 }
             }
 
@@ -518,7 +479,6 @@ class ZXProcessor
         {
             
             // Paso la duración a T-States
-            edge edgeSelected = down;
             int thereIsTerminator = 0;
             double parts = 0, fractPart, intPart;
             int lastPart = 0; 
@@ -549,33 +509,19 @@ class ZXProcessor
                 //
 
                 // Aplicamos un cambio a alto, para leer el ultimo bit
+
                 if (LAST_EAR_IS==down)
                 {
                     // El primer milisegundo es el contrario al ultimo flanco
                     // el terminador se genera en base al ultimo flanco que indique
                     // LAST_EAR_IS
-                    if (!INVERSETRAIN)
-                    {
-                        terminator();
-                        thereIsTerminator = 1;
-                    }
-                    else
-                    {
-                        thereIsTerminator = 0;
-                    }
+                    terminator();
+                    thereIsTerminator = 1;
                 }
                 else
                 {
                     // No se necesita terminador
-                    if (INVERSETRAIN)
-                    {
-                        terminator();
-                        thereIsTerminator = 1;
-                    }
-                    else
-                    {
-                        thereIsTerminator = 0;
-                    }
+                    thereIsTerminator = 0;
                 }
                 
                 if (thereIsTerminator)
