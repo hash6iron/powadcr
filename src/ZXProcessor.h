@@ -216,6 +216,12 @@ class ZXProcessor
             // Generamos la señal en el buffer del chip de audio.
             for (int j=0;j<samples;j++)
             {
+                if (stopOrPauseRequest())
+                {
+                    // Salimos
+                    break;
+                }
+
                 //R-OUT
                 *ptr++ = sample_R;
                 //L-OUT
