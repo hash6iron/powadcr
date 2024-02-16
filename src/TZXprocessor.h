@@ -1984,6 +1984,9 @@ class TZXprocessor
                           //Pausamos la reproducción a través
                           //del HMI 
 
+                          // Finalizamos el ultimo bit
+                          _zxp.closeBlock();
+
                           hmi.writeString("click btnPause,1"); 
                           PLAY = false;
                           STOP = false;
@@ -2001,6 +2004,8 @@ class TZXprocessor
                               CURRENT_BLOCK_IN_PROGRESS = 1;
                               BLOCK_SELECTED = 1;
                           }
+                          
+
 
                           _hmi.setBasicFileInformation(_myTZX.descriptor[BLOCK_SELECTED].name,_myTZX.descriptor[BLOCK_SELECTED].typeName,_myTZX.descriptor[BLOCK_SELECTED].size);                        
                           return;
@@ -2249,6 +2254,11 @@ class TZXprocessor
               // la reproducción
               if (LOADING_STATE == 1) 
               {
+
+                // Finalizamos el ultimo bit antes de parar MUY IMPORTANTE
+                _zxp.closeBlock();
+
+                // Paramos
                 PLAY = false;
                 STOP = true;
                 PAUSE = false;

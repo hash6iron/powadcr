@@ -744,6 +744,11 @@ class ZXProcessor
             silence(silent);
         }
 
+        void closeBlock()
+        {
+            terminator();
+        }
+
         void set_ESP32kit(AudioKit kit)
         { 
           m_kit = kit;
