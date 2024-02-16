@@ -255,10 +255,14 @@ class ZXProcessor
 
         void insertSamplesError(int samples, bool changeNextEARedge)
         {
+            // Este procedimiento permite insertar en la señal
+            // las muestras acumuladas por error generado en la conversión
+            // de double a int
+
             // El buffer se dimensiona para 16 bits
             uint8_t buffer[samples*2*channels];
 
-            LAST_MESSAGE = "ACU_ERROR: " + String(samples);
+            //LAST_MESSAGE = "ACU_ERROR: " + String(samples);
 
             // Escribimos el tren de pulsos en el procesador de Audio
             m_kit.write(buffer, makeSemiPulse(buffer, samples, changeNextEARedge));
@@ -282,6 +286,7 @@ class ZXProcessor
             
             for (int i = 0; i < numPulses;i++)
             {
+                // Enviamos semi-pulsos alternando el cambio de flanco
                 semiPulse(lenPulse,true);
 
                 if (LOADING_STATE == 1)
