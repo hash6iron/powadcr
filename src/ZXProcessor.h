@@ -52,8 +52,8 @@ class ZXProcessor
     // Parametrizado para el ES8388 a 44.1KHz
     #ifdef SAMPLING44
         //const double samplingRate = 44995.39639;
-        //const double samplingRate = 44100.0;
-        const double samplingRate = 44099.988;
+        const double samplingRate = 44100.0;
+        //const double samplingRate = 44099.988;
         //const double samplingRate = 43204.57961;
     #else
         const double samplingRate = 32000.0;
