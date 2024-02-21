@@ -38,6 +38,12 @@
 #define VERSION "v0.3.36"
 #define MACHINE_ZX
 
+// Define sampling rate a 44.1KHz. En otro caso será a 32KHz
+#define SAMPLING44
+
+// Activa el test de sampling para calibrado de la salida ES83883
+//#define SAMPLINGTESTACTIVE
+
 // Para activa el modo debug
 //#define DEBUGMODE
 

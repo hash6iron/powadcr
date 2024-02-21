@@ -1927,7 +1927,7 @@ class TZXprocessor
               {
                 BYTES_TOBE_LOAD = _rlen - _myTZX.descriptor[BLOCK_SELECTED - 1].offset;
               }
-
+            
 
               // Recorremos ahora todos los bloques que hay en el descriptor
               for (int i = firstBlockToBePlayed; i < _myTZX.numBlocks; i++) 

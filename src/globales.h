@@ -122,7 +122,7 @@ enum edge
 // Inicialmente se define como flanco up para que empiece en down.
 // Polarización de la señal.
 edge POLARIZATION = down;
-edge LAST_EAR_IS = down;
+edge LAST_EAR_IS = up;
 bool INVERSETRAIN = false;
 bool ZEROLEVEL = false;
 
@@ -281,6 +281,7 @@ const int READY_ST = 3;
 const int END_ST = 4;
 const int ACK_LCD = 5;
 const int RESET = 6;
+const int SAMPLINGTEST = 8;
 //
 double MAIN_VOL_FACTOR = 100;
 

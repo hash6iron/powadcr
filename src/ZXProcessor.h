@@ -34,6 +34,7 @@
  +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
 
 //#include <stdint.h>
+#include <math.h>
 
 #pragma once
 
@@ -49,10 +50,16 @@ class ZXProcessor
     uint8_t buffer[0];
     
     // Parametrizado para el ES8388 a 44.1KHz
-    const double samplingRate = 44100.0;
-    //const double samplingRate = 44100.0;
-    //const double samplingRate = 48000.0;
-    //const double samplingRate = 32000.0;
+    #ifdef SAMPLING44
+        //const double samplingRate = 44995.39639;
+        //const double samplingRate = 44100.0;
+        const double samplingRate = 44099.988;
+        //const double samplingRate = 43204.57961;
+    #else
+        const double samplingRate = 32000.0;
+    #endif
+
+    
     //const double sampleDuration = (1.0 / samplingRate); //0.0000002267; //
                                                        // segundos para 44.1HKz
     
@@ -72,7 +79,7 @@ class ZXProcessor
     // Este es un factor de división para la amplitud del flanco terminador
     const double amplitudeFactor = 1.0;
     // T-states del ancho del terminador
-    const int maxTerminatorWidth = 5250; //Minimo debe ser 1ms (3500 TStates)
+    const int maxTerminatorWidth = 3500; //Minimo debe ser 1ms (3500 TStates)
     // otros parámetros
     const double freqCPU = DfreqCPU;
     const double tState = (1.0 / freqCPU); //0.00000028571 --> segundos Z80 
@@ -235,12 +242,11 @@ class ZXProcessor
         void semiPulse(double tStateWidth, bool changeNextEARedge)
         {
 
-            // Obtenemos el periodo de muestreo
-            // Tsr = 1 / samplingRate
-            //double freq = 1.0 / (tStateWidth * tState);
-            double Tsr = (1.0 / samplingRate);
-            double samples = (tStateWidth * tState) / Tsr;
-            int bytes = samples * 2.0 * channels; //Cada muestra ocupa 2 bytes (16 bits)
+            // Obtenemos los samples
+            double samples = (tStateWidth / freqCPU) * samplingRate;
+            int rsamples = round(samples);
+            // Calculamos el tamaño del buffer
+            int bytes = rsamples * 2.0 * channels; //Cada muestra ocupa 2 bytes (16 bits)
 
             #ifdef DEBUGMODE
                 if (SILENCEDEBUG)
@@ -257,10 +263,10 @@ class ZXProcessor
             uint8_t buffer[bytes];
 
             // Escribimos el tren de pulsos en el procesador de Audio
-            m_kit.write(buffer, makeSemiPulse(buffer, samples, changeNextEARedge));
-
+            m_kit.write(buffer, makeSemiPulse(buffer, rsamples, changeNextEARedge));
+                  
             // Acumulamos el error producido
-            ACU_ERROR += modf(samples, &INTPART);
+            ACU_ERROR += modf(rsamples, &INTPART);
 
             if (stopOrPauseRequest())
             {
@@ -507,6 +513,8 @@ class ZXProcessor
                 //
 
                 // Aplicamos un cambio a alto, para leer el ultimo bit
+                // terminator();
+                // thereIsTerminator = 1;
 
                 if (LAST_EAR_IS==down)
                 {
@@ -757,6 +765,54 @@ class ZXProcessor
         void set_HMI(HMI hmi)
         {
           _hmi = hmi;
+        }
+
+        size_t createTestSignal(uint8_t *buffer, int samples, int amplitude)
+        {
+
+            // Procedimiento para genera un pulso 
+            int chn = channels;
+            size_t result = 0;
+            
+            int16_t *ptr = (int16_t*)buffer;
+            
+            int16_t sample_L = amplitude;
+            int16_t sample_R = amplitude;
+
+            for (int j=0;j<samples;j++)
+            {
+                //R-OUT
+                *ptr++ = sample_R;
+                //L-OUT
+                *ptr++ = sample_L;
+                result+=2*chn;
+            }
+
+            return result;            
+        }
+        void samplingtest()
+        {
+            // Se genera un pulso cuadrado de T = 1.00015s
+
+            while(true)
+            {
+                int samples = 441;
+                uint8_t buffer[samples*2*channels];
+
+                //LAST_MESSAGE = "ACU_ERROR: " + String(samples);
+                for (int i=0;i<49;i++)
+                {
+                    // Escribimos el tren de pulsos en el procesador de Audio
+                    m_kit.write(buffer, createTestSignal(buffer, samples, 30000));            
+                }
+
+                for (int j=0;j<49;j++)
+                {
+                    // Escribimos el tren de pulsos en el procesador de Audio
+                    m_kit.write(buffer, createTestSignal(buffer, samples, -30000));            
+                }
+            }         
+
         }
 
         // Constructor
