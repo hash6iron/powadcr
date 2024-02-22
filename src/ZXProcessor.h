@@ -239,14 +239,10 @@ class ZXProcessor
             return result;          
         }
 
-        void semiPulse(double tStateWidth, bool changeNextEARedge)
+        void semiPulse(double samples, bool changeNextEARedge)
         {
-
-            // Obtenemos los samples
-            double samples = (tStateWidth / freqCPU) * samplingRate;
-            int rsamples = round(samples);
             // Calculamos el tamaño del buffer
-            int bytes = rsamples * 2.0 * channels; //Cada muestra ocupa 2 bytes (16 bits)
+            int bytes = samples * 2.0 * channels; //Cada muestra ocupa 2 bytes (16 bits)
 
             #ifdef DEBUGMODE
                 if (SILENCEDEBUG)
@@ -263,10 +259,10 @@ class ZXProcessor
             uint8_t buffer[bytes];
 
             // Escribimos el tren de pulsos en el procesador de Audio
-            m_kit.write(buffer, makeSemiPulse(buffer, rsamples, changeNextEARedge));
+            m_kit.write(buffer, makeSemiPulse(buffer, samples, changeNextEARedge));
                   
             // Acumulamos el error producido
-            ACU_ERROR += modf(rsamples, &INTPART);
+            ACU_ERROR += modf(samples, &INTPART);
 
             if (stopOrPauseRequest())
             {
@@ -296,7 +292,11 @@ class ZXProcessor
             
             // Metemos un pulso de cambio de estado
             // para asegurar el cambio de flanco alto->bajo, del ultimo bit
-            semiPulse(maxTerminatorWidth,true);
+            // Obtenemos los samples
+            double samples = (maxTerminatorWidth / freqCPU) * samplingRate;
+            double rsamples = round(samples);
+
+            semiPulse(rsamples,true);
             ACU_ERROR = 0;
         }
 
@@ -305,11 +305,13 @@ class ZXProcessor
             //
             // Esto se usa para el ID 0x13 del TZX
             //
+            double samples = (lenPulse / freqCPU) * samplingRate;
+            double rsamples = round(samples);            
             
             for (int i = 0; i < numPulses;i++)
             {
                 // Enviamos semi-pulsos alternando el cambio de flanco
-                semiPulse(lenPulse,true);
+                semiPulse(rsamples,true);
 
                 if (stopOrPauseRequest())
                 {
@@ -337,17 +339,23 @@ class ZXProcessor
         }
         void zeroTone()
         {
-            // Procedimiento que genera un bit "0"        
-            semiPulse(BIT_0, true);
-            semiPulse(BIT_0, true);
+            // Procedimiento que genera un bit "0"  
+            double samples = (BIT_0 / freqCPU) * samplingRate;
+            double rsamples = round(samples); 
+
+            semiPulse(rsamples, true);
+            semiPulse(rsamples, true);
 
             ACU_ERROR = 0;
         }
         void oneTone()
         {
             // Procedimiento que genera un bit "1"
-            semiPulse(BIT_1, true);
-            semiPulse(BIT_1, true);      
+            double samples = (BIT_1 / freqCPU) * samplingRate;
+            double rsamples = round(samples); 
+
+            semiPulse(rsamples, true);
+            semiPulse(rsamples, true);      
 
             ACU_ERROR = 0; 
         }
@@ -359,7 +367,10 @@ class ZXProcessor
             //
             // El ZX Spectrum tiene dos tipo de sincronismo, uno al finalizar el tono piloto
             // y otro al final de la recepción de los datos, que serán SYNC1 y SYNC2 respectivamente.
-            semiPulse(nTStates,true);    
+            double samples = (nTStates / freqCPU) * samplingRate;
+            double rsamples = round(samples); 
+
+            semiPulse(rsamples,true);    
 
             ACU_ERROR = 0;    
         }
@@ -489,6 +500,7 @@ class ZXProcessor
             int tStateSilence = 0;  
             int tStateSilenceOri = 0;     
             double minSilenceFrame = 5 * maxTerminatorWidth;   // Minimo para partir es 500 ms   
+            double samples = 0;
 
             const double OneSecondTo_ms = 1000.0;                    
 
@@ -563,6 +575,8 @@ class ZXProcessor
                         SILENCEDEBUG = true;
                     #endif
 
+                    samples = (minSilenceFrame / freqCPU) * samplingRate;
+
                     // Generamos el silencio
                     for (int n=0;n<intPart;n++)
                     {
@@ -576,8 +590,7 @@ class ZXProcessor
                             // Salimos
                             return;
                         }
-
-                        semiPulse(minSilenceFrame, false);                  
+                        semiPulse(samples, false);                  
                     }
                 }
                 else
@@ -596,13 +609,15 @@ class ZXProcessor
                     {
                         // ultimo trozo del silencio                    
                         // mas los samples perdidos
-                        semiPulse(lastPart,false);
+                        samples = (lastPart / freqCPU) * samplingRate;                        
+                        semiPulse(samples,false);
                         insertSamplesError(ACU_ERROR, true);
                     }
                     else
                     {
                         // solo el ultimo trozo
-                        semiPulse(lastPart,true);
+                        samples = (lastPart / freqCPU) * samplingRate;
+                        semiPulse(samples,true);
                     }
                                         
                 }
@@ -629,8 +644,11 @@ class ZXProcessor
         void playPureTone(int lenPulse, int numPulses)
         {
             // Put now code block
+            double samples = (lenPulse / freqCPU) * samplingRate;
+            double rsamples = round(samples); 
+
             // syncronize with short leader tone
-            customPilotTone(lenPulse, numPulses);          
+            customPilotTone(rsamples, numPulses);          
         }
 
         void playCustomSequence(int* data, int numPulses)
