@@ -661,10 +661,15 @@ class ZXProcessor
             // Esto lo usamos para el PULSE_SEQUENCE ID-13
             //
 
+            double samples = 0;
+            double rsamples = 0; 
+
             for (int i = 0; i < numPulses;i++)
             {
                 // Generamos los semipulsos
-                semiPulse(data[i],true);
+                samples = (data[i] / freqCPU) * samplingRate;
+                rsamples = round(samples);                 
+                semiPulse(rsamples,true);
             }
 
         }   
