@@ -96,6 +96,7 @@ TaskHandle_t Task1;
 #define SerialHWDataBits 921600
 
 #include <esp_task_wdt.h>
+#define WDT_TIMEOUT 360000  
 
 #include <HardwareSerial.h>
 HardwareSerial SerialHW(0);
@@ -151,6 +152,12 @@ TZXprocessor::tTZX myTZX;
 
 bool last_headPhoneDetection = false;
 uint8_t tapeState = 0;
+
+bool taskStop = true;
+
+#if !(USING_DEFAULT_ARDUINO_LOOP_STACK_SIZE)
+  uint16_t USER_CONFIG_ARDUINO_LOOP_STACK_SIZE = 16384;
+#endif
 
 void proccesingTAP(char* file_ch)
 {    
@@ -432,7 +439,21 @@ void setAudioOutput()
       hmi.writeString("statusLCD.txt=\"SAMPLING RATE 44.1KHz\"" );
       delay(750);
     }
-  #else
+  #endif
+  
+  #ifdef SAMPLING48
+    if(!ESP32kit.setSampleRate(AUDIO_HAL_48K_SAMPLES))
+    {
+      log("Error in Audiokit sampling rate setting");
+    }
+    else
+    {
+      hmi.writeString("statusLCD.txt=\"SAMPLING RATE 48KHz\"" );
+      delay(750);
+    }
+  #endif
+
+  #ifdef SAMPLING32
     if(!ESP32kit.setSampleRate(AUDIO_HAL_32K_SAMPLES))
     {
       log("Error in Audiokit sampling rate setting");
@@ -575,6 +596,8 @@ void stopRecording()
 void setup() 
 {
 
+
+
     //rtc_wdt_protect_off();    // Turns off the automatic wdt service
     // rtc_wdt_enable();         // Turn it on manually
     // rtc_wdt_set_time(RTC_WDT_STAGE0, 20000);  // Define how long you desire to let dog wait.
@@ -695,42 +718,28 @@ void setup()
 
 
   LAST_MESSAGE = "Press EJECT to select a file.";
-
-  // #ifdef TESTDEV
-  //     //SerialHW.println("");
-  //     //SerialHW.println("");
-  //     //SerialHW.println("Testing readFileRange32(..)"); 
-
-  //     uint8_t* buffer = (uint8_t*)calloc(11,sizeof(uint8_t));
-  //     char fileTest[65];
-  //     strncpy(fileTest,"/Correcaminos - Nifty Lifty (1984)(Visions Software Factory).tzx",64);
-  //     sdFile32 = sdm.openFile32(sdFile32,fileTest);
-  //     uint8_t* bufferFile = (uint8_t*)ps_calloc((10)+1,sizeof(uint8_t));    
-  //     buffer = sdm.readFileRange32(sdFile32,bufferFile,0,10,true);
-  //     free(buffer);
-
-  //     //SerialHW.println("");
-  //     //SerialHW.println("");
-  //     //SerialHW.println("Test OK");  
-  // #endif
-
-  // Call the Task0code primitive function to avoid the error of Task0code not defined
-  void Task0code( void * pvParameters );
-    
-  // Control de la UART - HMI
-  xTaskCreatePinnedToCore(Task0code, "TaskCORE0", 4096, NULL, 5, &Task0,  0);
+   
+  esp_task_wdt_init(WDT_TIMEOUT, true);  // enable panic so ESP32 restarts
+  // Control del tape
+  xTaskCreatePinnedToCore(Task1code, "TaskCORE1", 16834, NULL, 5|portPRIVILEGE_BIT, &Task1,  tskNO_AFFINITY);
+  esp_task_wdt_add(&Task1);  
   delay(500);
-
-  // Deshabilitamos el WDT en cada core
-  disableCore0WDT();
-  disableCore1WDT();
+  
+  // Control de la UART - HMI
+  xTaskCreatePinnedToCore(Task0code, "TaskCORE0", 4096, NULL, 5|portPRIVILEGE_BIT, &Task0, tskNO_AFFINITY);
+  esp_task_wdt_add(&Task0);  
+  delay(500);
 
   // Inicializamos el modulo de recording
   taprec.set_HMI(hmi);
   taprec.set_SdFat32(sdf);
   
   //hmi.getMemFree();
+  taskStop = false;
 }
+
+
+
 
 void setSTOP()
 {
@@ -1187,18 +1196,35 @@ bool headPhoneDetection()
   return !gpio_get_level((gpio_num_t)HEADPHONE_DETECT);
 }
 
+
+
+
+
+
 // ******************************************************************
 //
 //            Gestión de nucleos del procesador
 //
 // ******************************************************************
 
+void Task1code( void * pvParameters )
+{
+    //setup();
+    for(;;) {
+        tapeControl();
+        if (serialEventRun) serialEventRun();
+        // Deshabilitamos el WDT en cada core
+        esp_task_wdt_reset();
+    }
+}
+
 void Task0code( void * pvParameters )
 {
+
   #ifndef SAMPLINGTEST
     // Core 0 - Para el HMI
     int startTime = millis();
-    while(true)
+    for(;;)
     {
         hmi.readUART();
         // Control por botones
@@ -1208,15 +1234,17 @@ void Task0code( void * pvParameters )
           if ((millis() - startTime) > 250)
           {
             startTime = millis();
+            stackFreeCore1 = uxTaskGetStackHighWaterMark(Task1);    
+            stackFreeCore0 = uxTaskGetStackHighWaterMark(Task0);        
             hmi.updateInformationMainPage();
           }
         #endif
+        esp_task_wdt_reset();
     }
   #endif
 }
 
-void loop() 
+void loop()
 {
-    // CORE1
-    tapeControl();
+  
 }

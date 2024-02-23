@@ -35,11 +35,12 @@
 //
 // 0 for ZX Spectrum
 
-#define VERSION "v0.3.36"
+#define VERSION "v0.230224.r1"
 #define MACHINE_ZX
 
 // Define sampling rate a 44.1KHz. En otro caso será a 32KHz
-#define SAMPLING44
+//#define SAMPLING44
+#define SAMPLING48
 
 // Activa el test de sampling para calibrado de la salida ES83883
 //#define SAMPLINGTESTACTIVE

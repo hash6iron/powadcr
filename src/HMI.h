@@ -1885,8 +1885,8 @@ class HMI
 
       void updateMem()
       {
-          writeString("menu.totalPSRAM.txt=\""+ String(ESP.getPsramSize() / 1024) + " | " + String(ESP.getHeapSize() / 1024) + " KB\"");
-          writeString("menu.freePSRAM.txt=\"" + String(ESP.getFreePsram() / 1024)  + " | " + String(ESP.getFreeHeap() / 1024) + " KB\"");
+          writeString("menu.totalPSRAM.txt=\"StTsk0: " + String(stackFreeCore0) + "KB | " + String(ESP.getPsramSize() / 1024) + " | " + String(ESP.getHeapSize() / 1024) + " KB\"");
+          writeString("menu.freePSRAM.txt=\"StTsk1: "  + String(stackFreeCore1) + "KB | " + String(ESP.getFreePsram() / 1024) + " | " + String(ESP.getFreeHeap() / 1024) + " KB\"");
       }
 
       // Constructor

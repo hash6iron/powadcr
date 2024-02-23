@@ -55,7 +55,13 @@ class ZXProcessor
         const double samplingRate = 44100.0;
         //const double samplingRate = 44099.988;
         //const double samplingRate = 43204.57961;
-    #else
+    #endif
+
+    #ifdef SAMPLING48
+        const double samplingRate = 48000.0;
+    #endif
+
+    #ifdef SAMPLING32
         const double samplingRate = 32000.0;
     #endif
 
@@ -124,6 +130,8 @@ class ZXProcessor
 
         size_t makeSemiPulse(uint8_t *buffer, int samples, bool changeNextEARedge)
         {
+
+            //samples = samples + 1;
 
             double m_amplitude_L = MAIN_VOL_L * maxAmplitude; 
             double m_amplitude_R = MAIN_VOL_R * maxAmplitude;
@@ -256,7 +264,7 @@ class ZXProcessor
             #endif
 
             // El buffer se dimensiona para 16 bits
-            uint8_t buffer[bytes];
+            uint8_t buffer[bytes+10];
 
             // Escribimos el tren de pulsos en el procesador de Audio
             m_kit.write(buffer, makeSemiPulse(buffer, samples, changeNextEARedge));
@@ -333,7 +341,7 @@ class ZXProcessor
             // es decir de la mitad del periodo. Entonces hay que calcular
             // el periodo completo que es 2 * T
             // double freq = (1 / (PULSE_PILOT * tState)) / 2;   
-            // generateWaveDuration(freq, duration, samplingRate);
+            // generateWaveDuration(freq, duration, samplingRate);            
             
             customPilotTone(lenpulse, numpulses);
         }
@@ -499,7 +507,7 @@ class ZXProcessor
             int lastPart = 0; 
             int tStateSilence = 0;  
             int tStateSilenceOri = 0;     
-            double minSilenceFrame = 5 * maxTerminatorWidth;   // Minimo para partir es 500 ms   
+            double minSilenceFrame = maxTerminatorWidth;   // Minimo para partir es 500 ms   
             double samples = 0;
 
             const double OneSecondTo_ms = 1000.0;                    
@@ -509,7 +517,7 @@ class ZXProcessor
             if (duration > 0)
             {
                 tStateSilenceOri = tStateSilence;
-                tStateSilence = (duration / OneSecondTo_ms) / (1.0 / freqCPU);       
+                tStateSilence = (duration / OneSecondTo_ms) * freqCPU;       
                 //LAST_MESSAGE = "Silence: " + String(duration / OneSecondTo_ms) + " s";
 
                 parts = 0;
@@ -643,12 +651,8 @@ class ZXProcessor
 
         void playPureTone(int lenPulse, int numPulses)
         {
-            // Put now code block
-            double samples = (lenPulse / freqCPU) * samplingRate;
-            double rsamples = round(samples); 
-
             // syncronize with short leader tone
-            customPilotTone(rsamples, numPulses);          
+            customPilotTone(lenPulse, numPulses);          
         }
 
         void playCustomSequence(int* data, int numPulses)
