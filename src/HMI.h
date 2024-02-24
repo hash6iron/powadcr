@@ -1325,13 +1325,13 @@ class HMI
           if (valEn==1)
           {
               // Empieza en UP
-              POLARIZATION = down;
+              LAST_EAR_IS = down;
               INVERSETRAIN = true;
           }
           else
           {
               // Empieza en DOWN
-              POLARIZATION = up;
+              LAST_EAR_IS = up;
               INVERSETRAIN = false;
           }
           SerialHW.println("Polarization =" + String(INVERSETRAIN));

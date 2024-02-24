@@ -294,14 +294,14 @@ class ZXProcessor
             m_kit.write(buffer, makeSemiPulse(buffer, samples, changeNextEARedge));
         }
 
-        void terminator()
+        void terminator(int width)
         {
             // Vemos como es el último bit MSB es la posición 0, el ultimo bit
             
             // Metemos un pulso de cambio de estado
             // para asegurar el cambio de flanco alto->bajo, del ultimo bit
             // Obtenemos los samples
-            double samples = (maxTerminatorWidth / freqCPU) * samplingRate;
+            double samples = (width / freqCPU) * samplingRate;
             double rsamples = round(samples);
 
             semiPulse(rsamples,true);
@@ -541,7 +541,7 @@ class ZXProcessor
                     // El primer milisegundo es el contrario al ultimo flanco
                     // el terminador se genera en base al ultimo flanco que indique
                     // LAST_EAR_IS
-                    terminator();
+                    terminator(maxTerminatorWidth);
                     thereIsTerminator = 1;
                 }
                 else
@@ -781,7 +781,9 @@ class ZXProcessor
 
         void closeBlock()
         {
-            terminator();
+            // Marcamos 3ms de terminador de cinta
+            terminator(maxTerminatorWidth*3);
+            terminator(maxTerminatorWidth);
         }
 
         void set_ESP32kit(AudioKit kit)

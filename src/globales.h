@@ -126,8 +126,10 @@ enum edge
 // ZXProcessor
 // Inicialmente se define como flanco up para que empiece en down.
 // Polarización de la señal.
-edge POLARIZATION = down;
-edge LAST_EAR_IS = up;
+
+// Con esto hacemos que el primer pulso sea UP 
+// (porque el ultimo era DOWN supuestamente)
+edge LAST_EAR_IS = down;
 bool INVERSETRAIN = false;
 bool ZEROLEVEL = false;
 
