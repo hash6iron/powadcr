@@ -128,7 +128,7 @@ class ZXProcessor
             return false;   
         }
 
-        size_t makeSemiPulse(uint8_t *buffer, int samples, bool changeNextEARedge)
+        size_t makeSemiPulse(uint8_t *buffer, int samples, bool changeNextEARedge, bool isSilence)
         {
 
             //samples = samples + 1;
@@ -151,11 +151,26 @@ class ZXProcessor
             // cambiamos el low_level amplitude
             if (ZEROLEVEL)
             {
-                minAmplitude = 0;
+                if(isSilence)
+                {
+                    minAmplitude = maxLevelUp / 2;
+                }
+                else
+                {
+                    minAmplitude = 0;
+                }
+
             }
             else
             {
-                minAmplitude = maxLevelDown;
+                if(isSilence)
+                {
+                    minAmplitude = 0;
+                }
+                else
+                {
+                    minAmplitude = maxLevelDown;
+                }
             }
 
             // Esta rutina genera el pulso dependiendo de como es el ultimo
@@ -247,7 +262,7 @@ class ZXProcessor
             return result;          
         }
 
-        void semiPulse(double samples, bool changeNextEARedge)
+        void semiPulse(double samples, bool changeNextEARedge, bool isSilence=false)
         {
             // Calculamos el tamaño del buffer
             int bytes = samples * 2.0 * channels; //Cada muestra ocupa 2 bytes (16 bits)
@@ -267,7 +282,7 @@ class ZXProcessor
             uint8_t buffer[bytes+10];
 
             // Escribimos el tren de pulsos en el procesador de Audio
-            m_kit.write(buffer, makeSemiPulse(buffer, samples, changeNextEARedge));
+            m_kit.write(buffer, makeSemiPulse(buffer, samples, changeNextEARedge, isSilence));
                   
             // Acumulamos el error producido
             ACU_ERROR += modf(samples, &INTPART);
@@ -279,7 +294,7 @@ class ZXProcessor
             }
         }
 
-        void insertSamplesError(int samples, bool changeNextEARedge)
+        void insertSamplesError(int samples, bool changeNextEARedge, bool isSilence)
         {
             // Este procedimiento permite insertar en la señal
             // las muestras acumuladas por error generado en la conversión
@@ -291,7 +306,7 @@ class ZXProcessor
             //LAST_MESSAGE = "ACU_ERROR: " + String(samples);
 
             // Escribimos el tren de pulsos en el procesador de Audio
-            m_kit.write(buffer, makeSemiPulse(buffer, samples, changeNextEARedge));
+            m_kit.write(buffer, makeSemiPulse(buffer, samples, changeNextEARedge, isSilence));
         }
 
         void terminator(int width)
@@ -598,7 +613,7 @@ class ZXProcessor
                             // Salimos
                             return;
                         }
-                        semiPulse(samples, false);                  
+                        semiPulse(samples, false, true);                  
                     }
                 }
                 else
@@ -619,13 +634,13 @@ class ZXProcessor
                         // mas los samples perdidos
                         samples = (lastPart / freqCPU) * samplingRate;                        
                         semiPulse(samples,false);
-                        insertSamplesError(ACU_ERROR, true);
+                        insertSamplesError(ACU_ERROR, true, true);
                     }
                     else
                     {
                         // solo el ultimo trozo
                         samples = (lastPart / freqCPU) * samplingRate;
-                        semiPulse(samples,true);
+                        semiPulse(samples,true, true);
                     }
                                         
                 }
@@ -637,7 +652,7 @@ class ZXProcessor
                     {
                         // ultimo trozo del silencio                    
                         // mas los samples perdidos
-                        insertSamplesError(ACU_ERROR, true);
+                        insertSamplesError(ACU_ERROR, true, true);
                     }                    
                 }
 
@@ -669,7 +684,7 @@ class ZXProcessor
                 // Generamos los semipulsos
                 samples = (data[i] / freqCPU) * samplingRate;
                 rsamples = round(samples);                 
-                semiPulse(rsamples,true);
+                semiPulse(rsamples,true,false);
             }
 
         }   
