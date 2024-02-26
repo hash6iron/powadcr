@@ -151,26 +151,11 @@ class ZXProcessor
             // cambiamos el low_level amplitude
             if (ZEROLEVEL)
             {
-                if(isSilence)
-                {
-                    minAmplitude = maxLevelUp / 2;
-                }
-                else
-                {
-                    minAmplitude = 0;
-                }
-
+                minAmplitude = 0;
             }
             else
             {
-                if(isSilence)
-                {
-                    minAmplitude = 0;
-                }
-                else
-                {
-                    minAmplitude = maxLevelDown;
-                }
+                minAmplitude = maxLevelDown;
             }
 
             // Esta rutina genera el pulso dependiendo de como es el ultimo
