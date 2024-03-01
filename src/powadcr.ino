@@ -721,12 +721,12 @@ void setup()
    
   esp_task_wdt_init(WDT_TIMEOUT, true);  // enable panic so ESP32 restarts
   // Control del tape
-  xTaskCreatePinnedToCore(Task1code, "TaskCORE1", 16834, NULL, 5|portPRIVILEGE_BIT, &Task1,  tskNO_AFFINITY);
+  xTaskCreatePinnedToCore(Task1code, "TaskCORE1", 16834, NULL, 5|portPRIVILEGE_BIT, &Task1,  0);
   esp_task_wdt_add(&Task1);  
   delay(500);
   
   // Control de la UART - HMI
-  xTaskCreatePinnedToCore(Task0code, "TaskCORE0", 4096, NULL, 5|portPRIVILEGE_BIT, &Task0, tskNO_AFFINITY);
+  xTaskCreatePinnedToCore(Task0code, "TaskCORE0", 4096, NULL, 5|portPRIVILEGE_BIT, &Task0, 1);
   esp_task_wdt_add(&Task0);  
   delay(500);
 
@@ -1224,6 +1224,9 @@ void Task0code( void * pvParameters )
   #ifndef SAMPLINGTEST
     // Core 0 - Para el HMI
     int startTime = millis();
+    int tClock = millis();
+    int ho=0;int mi=0;int se=0;
+
     for(;;)
     {
         hmi.readUART();
@@ -1238,6 +1241,19 @@ void Task0code( void * pvParameters )
             stackFreeCore0 = uxTaskGetStackHighWaterMark(Task0);        
             hmi.updateInformationMainPage();
           }
+
+          if ((millis() - tClock) > 1000)
+          {
+            tClock = millis();     
+            se++;
+            if (se>59)
+            {
+              se=0;
+            }
+            LAST_MESSAGE = String(se) + " s";
+            hmi.updateInformationMainPage();
+          }
+
         #endif
         esp_task_wdt_reset();
     }

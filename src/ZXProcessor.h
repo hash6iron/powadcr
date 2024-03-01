@@ -507,7 +507,7 @@ class ZXProcessor
             int lastPart = 0; 
             int tStateSilence = 0;  
             int tStateSilenceOri = 0;     
-            double minSilenceFrame = maxTerminatorWidth;   // Minimo para partir es 500 ms   
+            double minSilenceFrame = 3500;   // Minimo para partir es 500 ms   
             double samples = 0;
 
             const double OneSecondTo_ms = 1000.0;                    
@@ -557,6 +557,7 @@ class ZXProcessor
                     {
                         // Ahora calculamos el resto del silencio
                         tStateSilence = tStateSilence - maxTerminatorWidth;
+                        //tStateSilence = tStateSilence + maxTerminatorWidth;
                     }
                 }
 
@@ -668,7 +669,7 @@ class ZXProcessor
             {
                 // Generamos los semipulsos
                 samples = (data[i] / freqCPU) * samplingRate;
-                rsamples = round(samples);                 
+                rsamples = samples;                 
                 semiPulse(rsamples,true,false);
             }
 
