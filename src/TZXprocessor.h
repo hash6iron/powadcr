@@ -1259,7 +1259,6 @@ class TZXprocessor
                       nextIDoffset = currentOffset + 3;                      
                       //_myTZX.descriptor[currentBlock].typeName = "ID 24 - Loop start";
                       strncpy(_myTZX.descriptor[currentBlock].typeName,IDXXSTR,35);
-                      //BL_LOOP_START = currentBlock;
                       currentBlock++;
                   }
                   else
@@ -1285,7 +1284,6 @@ class TZXprocessor
                       nextIDoffset = currentOffset + 1;                      
                       //_myTZX.descriptor[currentBlock].typeName = "ID 25 - Loop end";
                       strncpy(_myTZX.descriptor[currentBlock].typeName,IDXXSTR,35);
-                      //BL_LOOP_END = currentBlock;
                       currentBlock++;
                   }
                   else
@@ -1946,7 +1944,7 @@ class TZXprocessor
                 
 
                 // Ahora lo voy actualizando a medida que van avanzando los bloques.
-                PROGRAM_NAME_2 = _myTZX.descriptor[BLOCK_SELECTED].name;
+                //PROGRAM_NAME_2 = _myTZX.descriptor[BLOCK_SELECTED].name;
 
                 switch (_myTZX.descriptor[i].ID)
                 {
@@ -1967,11 +1965,11 @@ class TZXprocessor
                         i = BL_LOOP_START;
                         loopPlayed++;
                       }
-                      else
-                      {
-                        // Avanzamos a otro bloque
-                        i++;
-                      }                
+                      // else
+                      // {
+                      //   // Avanzamos a otro bloque
+                      //   i++;
+                      // }                
                       break;
 
                     case 32:
