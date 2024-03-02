@@ -1144,7 +1144,7 @@ class TZXprocessor
                   // nextIDoffset = currentOffset + 1;            
 
                   // _myTZX.descriptor[currentBlock].typeName = "ID 15 - Direct REC";
-                  // currentBlock++;
+                  currentBlock++;
                   break;
 
                 // ID 18 - CSW Recording
@@ -1154,7 +1154,7 @@ class TZXprocessor
                   // nextIDoffset = currentOffset + 1;            
 
                   // _myTZX.descriptor[currentBlock].typeName = "ID 18 - CSW Rec";
-                  // currentBlock++;
+                  currentBlock++;
                   break;
 
                 // ID 19 - Generalized Data Block
@@ -1164,7 +1164,7 @@ class TZXprocessor
                   // nextIDoffset = currentOffset + 1;            
 
                   // _myTZX.descriptor[currentBlock].typeName = "ID 19 - General Data block";
-                  // currentBlock++;
+                  currentBlock++;
                   break;
 
                 // ID 20 - Pause and Stop Tape
@@ -1201,7 +1201,7 @@ class TZXprocessor
                       nextIDoffset = currentOffset + 2 + _myTZX.descriptor[currentBlock].size;
                       strncpy(_myTZX.descriptor[currentBlock].typeName,IDXXSTR,35);
                       //_myTZX.descriptor[currentBlock].typeName = "ID 21 - Group start";
-                      //currentBlock++;
+                      currentBlock++;
                   }
                   else
                   {
@@ -1224,7 +1224,7 @@ class TZXprocessor
                       nextIDoffset = currentOffset + 1;                      
                       //_myTZX.descriptor[currentBlock].typeName = "ID 22 - Group end";
                       strncpy(_myTZX.descriptor[currentBlock].typeName,IDXXSTR,35);
-                      //currentBlock++;
+                      currentBlock++;
                   }
                   else
                   {
@@ -1242,7 +1242,7 @@ class TZXprocessor
                   // nextIDoffset = currentOffset + 1;            
 
                   // _myTZX.descriptor[currentBlock].typeName = "ID 23 - Jump to block";
-                  // currentBlock++;
+                  currentBlock++;
                   break;
 
                 // ID 24 - Loop start
@@ -1259,7 +1259,7 @@ class TZXprocessor
                       nextIDoffset = currentOffset + 3;                      
                       //_myTZX.descriptor[currentBlock].typeName = "ID 24 - Loop start";
                       strncpy(_myTZX.descriptor[currentBlock].typeName,IDXXSTR,35);
-                      BL_LOOP_START = currentBlock;
+                      //BL_LOOP_START = currentBlock;
                       currentBlock++;
                   }
                   else
@@ -1270,12 +1270,6 @@ class TZXprocessor
                       endWithErrors = true;
                   }                
                   break;
-                  //ID_NOT_IMPLEMENTED = true;
-                  // analyzeBlockUnknow(currentID,currentOffset, currentBlock);
-                  // nextIDoffset = currentOffset + 1;            
-
-                  // _myTZX.descriptor[currentBlock].typeName = "ID 23 - Jump to block";
-                  // currentBlock++;
 
 
                 // ID 25 - Loop end
@@ -1291,7 +1285,7 @@ class TZXprocessor
                       nextIDoffset = currentOffset + 1;                      
                       //_myTZX.descriptor[currentBlock].typeName = "ID 25 - Loop end";
                       strncpy(_myTZX.descriptor[currentBlock].typeName,IDXXSTR,35);
-                      BL_LOOP_END = currentBlock;
+                      //BL_LOOP_END = currentBlock;
                       currentBlock++;
                   }
                   else
@@ -1310,7 +1304,7 @@ class TZXprocessor
                   // nextIDoffset = currentOffset + 1;            
 
                   // _myTZX.descriptor[currentBlock].typeName = "ID 26 - Call seq.";
-                  // currentBlock++;
+                  currentBlock++;
                   break;
 
                 // ID 27 - Return from sequence
@@ -1320,7 +1314,7 @@ class TZXprocessor
                   // nextIDoffset = currentOffset + 1;            
 
                   // _myTZX.descriptor[currentBlock].typeName = "ID 27 - Return from seq.";
-                  // currentBlock++;
+                  currentBlock++;
                   break;
 
                 // ID 28 - Select block
@@ -1363,7 +1357,7 @@ class TZXprocessor
                   // nextIDoffset = currentOffset + 1;            
 
                   // _myTZX.descriptor[currentBlock].typeName = "ID 2B - Set signal level";
-                  // currentBlock++;
+                  currentBlock++;
                   break;
 
                 // ID 30 - Text description
@@ -1377,7 +1371,7 @@ class TZXprocessor
                       nextIDoffset = currentOffset + _myTZX.descriptor[currentBlock].size + 1;
                       //_myTZX.descriptor[currentBlock].typeName = "ID 30 - Information";
                       strncpy(_myTZX.descriptor[currentBlock].typeName,IDXXSTR,35);
-                      //currentBlock++;
+                      currentBlock++;
                   }
                   else
                   {
@@ -1395,7 +1389,7 @@ class TZXprocessor
 
                   strncpy(_myTZX.descriptor[currentBlock].typeName,IDXXSTR,35);
                   //_myTZX.descriptor[currentBlock].typeName = "ID 31 - Message block";
-                  //currentBlock++;
+                  currentBlock++;
                   break;
 
                 // ID 32 - Archive info
@@ -1410,7 +1404,7 @@ class TZXprocessor
                       nextIDoffset = currentOffset + 3 + _myTZX.descriptor[currentBlock].size;
                       //_myTZX.descriptor[currentBlock].typeName = "ID 32 - Archive info";
                       strncpy(_myTZX.descriptor[currentBlock].typeName,IDXXSTR,35);
-                      //currentBlock++;
+                      currentBlock++;
                   }
                   else
                   {
@@ -1433,7 +1427,7 @@ class TZXprocessor
                       nextIDoffset = currentOffset + 3 + _myTZX.descriptor[currentBlock].size;
                       //_myTZX.descriptor[currentBlock].typeName = "ID 33- Hardware type";
                       strncpy(_myTZX.descriptor[currentBlock].typeName,IDXXSTR,35);
-                      //currentBlock++;
+                      currentBlock++;
                   }
                   else
                   {
@@ -1451,7 +1445,7 @@ class TZXprocessor
 
                   //_myTZX.descriptor[currentBlock].typeName = "ID 35 - Custom info block";
                   strncpy(_myTZX.descriptor[currentBlock].typeName,IDXXSTR,35);
-                  //currentBlock++;
+                  currentBlock++;
                   break;
 
                 // ID 5A - "Glue" block (90 dec, ASCII Letter 'Z')
@@ -1904,6 +1898,13 @@ class TZXprocessor
         int firstBlockToBePlayed = 0;
         int dly = 0;
 
+        // Inicializamos 02.03.2024
+        LOOP_START = 0;
+        LOOP_END = 0;
+        LOOP_COUNT = 0;
+        BL_LOOP_START = 0;
+        BL_LOOP_END = 0;
+
         if (_myTZX.descriptor != nullptr)
         {         
               // Inicializamos la polarización de la señal
@@ -1950,22 +1951,26 @@ class TZXprocessor
                 switch (_myTZX.descriptor[i].ID)
                 {
                     case 36:  
-                      //Loop start
+                      //Loop start ID 0x24
                       // El loop controla el cursor de bloque por tanto debe estar el primero
                       loopPlayed = 0;
-                      i = BL_LOOP_START+1;                
+                      // El primer bloque a repetir es el siguiente. Entonces este bloque
+                      // no se lee mas.
+                      BL_LOOP_START = i+1;
                       break;
 
                     case 37:
-                      //Loop end
+                      //Loop end ID 0x25
                       if (loopPlayed < LOOP_COUNT)
                       {
+                        // Volvemos al primner bloque dentro del loop
                         i = BL_LOOP_START;
                         loopPlayed++;
                       }
                       else
                       {
-                        i = BL_LOOP_END+1;
+                        // Avanzamos a otro bloque
+                        i++;
                       }                
                       break;
 

@@ -255,9 +255,7 @@ class ZXProcessor
             #ifdef DEBUGMODE
                 if (SILENCEDEBUG)
                 {
-                    log(" > frame:   " + String(tStateWidth));
                     log(" --> samp:  " + String(samples));
-                    log(" --> Tsr:   " + String(Tsr,10));
                     log(" --> bytes: " + String(bytes));
                     log(" --> Chns:  " + String(channels));
                 }
