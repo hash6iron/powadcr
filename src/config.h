@@ -47,7 +47,7 @@
 
 // Para activa el modo debug
 
-#define DEBUGMODE
+//#define DEBUGMODE
 
 //#define MACHINE_AMSTRAD
 
