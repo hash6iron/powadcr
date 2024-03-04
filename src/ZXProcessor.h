@@ -94,11 +94,11 @@ class ZXProcessor
     int SYNC2 = DSYNC2;
     int BIT_0 = DBIT_0;
     int BIT_1 = DBIT_1;
-    int PULSE_PILOT = DPULSE_PILOT;
-    int PILOT_TONE = DPILOT_TONE;
+    int PILOT_PULSE_LEN = DPILOT_LEN;
+    // int PILOT_TONE = DPILOT_TONE;
 
-    int PULSE_PILOT_DURATION = PULSE_PILOT * PILOT_TONE;
-    //int PULSE_PILOT_DURATION = PULSE_PILOT * DPILOT_DATA;
+    //int PULSE_PILOT_DURATION = PILOT_PULSE_LEN * PILOT_TONE;
+    //int PULSE_PILOT_DURATION = PILOT_PULSE_LEN * DPILOT_DATA;
 
     double silent = DSILENT;
     double m_time = 0;
@@ -253,12 +253,12 @@ class ZXProcessor
             int bytes = samples * 2.0 * channels; //Cada muestra ocupa 2 bytes (16 bits)
 
             #ifdef DEBUGMODE
-                if (SILENCEDEBUG)
-                {
-                    log(" --> samp:  " + String(samples));
-                    log(" --> bytes: " + String(bytes));
-                    log(" --> Chns:  " + String(channels));
-                }
+                // if (SILENCEDEBUG)
+                // {
+                //     log(" --> samp:  " + String(samples));
+                //     log(" --> bytes: " + String(bytes));
+                //     log(" --> Chns:  " + String(channels));
+                // }
             #endif
 
             // El buffer se dimensiona para 16 bits
@@ -338,7 +338,7 @@ class ZXProcessor
             // Hay que tener en cuenta que los T-States dados son de un SEMI-PULSO
             // es decir de la mitad del periodo. Entonces hay que calcular
             // el periodo completo que es 2 * T
-            // double freq = (1 / (PULSE_PILOT * tState)) / 2;   
+            // double freq = (1 / (PILOT_PULSE_LEN * tState)) / 2;   
             // generateWaveDuration(freq, duration, samplingRate);            
             
             customPilotTone(lenpulse, numpulses);
@@ -348,6 +348,8 @@ class ZXProcessor
             // Procedimiento que genera un bit "0"  
             double samples = (BIT_0 / freqCPU) * samplingRate;
             double rsamples = round(samples); 
+
+            LAST_BIT_WIDTH = rsamples;
 
             semiPulse(rsamples, true);
             semiPulse(rsamples, true);
@@ -359,6 +361,8 @@ class ZXProcessor
             // Procedimiento que genera un bit "1"
             double samples = (BIT_1 / freqCPU) * samplingRate;
             double rsamples = round(samples); 
+
+            LAST_BIT_WIDTH = rsamples;
 
             semiPulse(rsamples, true);
             semiPulse(rsamples, true);      
@@ -673,7 +677,7 @@ class ZXProcessor
 
         }   
 
-        void playData(uint8_t* bBlock, int lenBlock, int pulse_len, int pulse_pilot_duration)
+        void playData(uint8_t* bBlock, int lenBlock, int pulse_len, int num_pulses)
         {
             //
             // Este procedimiento es usado por TAP
@@ -684,7 +688,7 @@ class ZXProcessor
 
             // Put now code block
             // syncronize with short leader tone
-            pilotTone(pulse_len, pulse_pilot_duration);
+            pilotTone(pulse_len, num_pulses);
             //log("Pilot tone");
             if (LOADING_STATE == 2)
             {return;}
@@ -753,13 +757,13 @@ class ZXProcessor
             }
         } 
 
-        void playDataBegin(uint8_t* bBlock, int lenBlock, int pulse_len ,int pulse_pilot_duration)
+        void playDataBegin(uint8_t* bBlock, int lenBlock, int pulse_len ,int num_pulses)
         {
             // PROGRAM
             //double duration = tState * pulse_pilot_duration;
             // syncronize with short leader tone
 
-            pilotTone(pulse_len,pulse_pilot_duration);
+            pilotTone(pulse_len,num_pulses);
             // syncronization for end short leader tone
             syncTone(SYNC1);
             syncTone(SYNC2);

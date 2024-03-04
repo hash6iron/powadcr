@@ -1268,7 +1268,7 @@ class TAPprocessor
 
                             // *** Cabecera PROGRAM
                             // Llamamos a la clase de reproducción
-                            _zxp.playData(bufferPlay, _myTAP.descriptor[i].size,DPULSE_PILOT,DPILOT_HEADER);
+                            _zxp.playData(bufferPlay, _myTAP.descriptor[i].size,DPILOT_LEN,DPULSES_HEADER);
 
                             // Liberamos el buffer de reproducción
                             free(bufferPlay);
@@ -1281,7 +1281,7 @@ class TAPprocessor
 
                             // *** Cabecera BYTE
                             // Llamamos a la clase de reproducción
-                            _zxp.playData(bufferPlay, _myTAP.descriptor[i].size,DPULSE_PILOT,DPILOT_HEADER);
+                            _zxp.playData(bufferPlay, _myTAP.descriptor[i].size,DPILOT_LEN,DPULSES_HEADER);
 
                             // Liberamos el buffer de reproducción
                             free(bufferPlay);
@@ -1328,7 +1328,7 @@ class TAPprocessor
                                     if (n==0)
                                     {
                                         // Primer bloque con tono guia y syncs
-                                        _zxp.playDataBegin(bufferPlay,blockSizeSplit,DPULSE_PILOT,DPILOT_DATA);
+                                        _zxp.playDataBegin(bufferPlay,blockSizeSplit,DPILOT_LEN,DPULSES_DATA);
                                     }
                                     else
                                     {
@@ -1362,7 +1362,7 @@ class TAPprocessor
                                 bufferPlay = sdm.readFileRange32(_mFile, _myTAP.descriptor[i].offset, _myTAP.descriptor[i].size, false);
                                 
                                 // Reproducimos el bloque de datos
-                                _zxp.playData(bufferPlay, _myTAP.descriptor[i].size,DPULSE_PILOT,DPILOT_DATA);
+                                _zxp.playData(bufferPlay, _myTAP.descriptor[i].size,DPILOT_LEN,DPULSES_DATA);
 
                                 // Liberamos el buffer de reproducción
                                 free(bufferPlay);

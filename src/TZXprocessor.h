@@ -72,6 +72,8 @@ class TZXprocessor
         bool hasMaskLastByte = false;
         tTimming timming;
         char typeName[36];
+        int group = 0;
+        int loop_count = 0;
       };
 
       // Estructura tipo TZX
@@ -299,7 +301,6 @@ class TZXprocessor
         return ID;      
     }
 
-
     uint8_t* getBlock(File32 mFile, int offset, int size)
     {
         //Entonces recorremos el TZX. 
@@ -374,7 +375,7 @@ class TZXprocessor
         // //SYNC2
         // _zxp.SYNC2 = DSYNC2;
         // //PULSE PILOT
-        // _zxp.PULSE_PILOT = DPULSE_PILOT;                              
+        // _zxp.PILOT_PULSE_LEN = DPILOT_LEN;                              
         // // BTI 0
         // _zxp.BIT_0 = DBIT_0;
         // // BIT1                                          
@@ -382,7 +383,7 @@ class TZXprocessor
         // No contamos el ID. Entonces:
         
         // Timming de la ROM
-        _myTZX.descriptor[currentBlock].timming.pilot_len = DPULSE_PILOT;
+        _myTZX.descriptor[currentBlock].timming.pilot_len = DPILOT_LEN;
         _myTZX.descriptor[currentBlock].timming.sync_1 = DSYNC1;
         _myTZX.descriptor[currentBlock].timming.sync_2 = DSYNC2;
         _myTZX.descriptor[currentBlock].timming.bit_0 = DBIT_0;
@@ -418,7 +419,7 @@ class TZXprocessor
         if (flagByte < 128)
         {
 
-            _myTZX.descriptor[currentBlock].timming.pilot_num_pulses = DPILOT_HEADER;
+            _myTZX.descriptor[currentBlock].timming.pilot_num_pulses = DPULSES_HEADER;
             
             // Es una cabecera
             if (typeBlock == 0)
@@ -481,7 +482,7 @@ class TZXprocessor
         }
         else
         {
-            _myTZX.descriptor[currentBlock].timming.pilot_num_pulses = DPILOT_DATA;
+            _myTZX.descriptor[currentBlock].timming.pilot_num_pulses = DPULSES_DATA;
 
             if (typeBlock == 3)
             {
@@ -761,7 +762,7 @@ class TZXprocessor
 
 
         // Timming de la ROM
-        _myTZX.descriptor[currentBlock].timming.pilot_len = DPULSE_PILOT;
+        _myTZX.descriptor[currentBlock].timming.pilot_len = DPILOT_LEN;
         _myTZX.descriptor[currentBlock].timming.sync_1 = DSYNC1;
         _myTZX.descriptor[currentBlock].timming.sync_2 = DSYNC2;
 
@@ -951,6 +952,8 @@ class TZXprocessor
         _myTZX.descriptor[currentBlock].ID = 33;
         _myTZX.descriptor[currentBlock].playeable = false;
         _myTZX.descriptor[currentBlock].offset = currentOffset+2;
+        _myTZX.descriptor[currentBlock].group = MULTIGROUP_COUNT;
+        MULTIGROUP_COUNT++;
 
         sizeTextInformation = getBYTE(mFile,currentOffset+1);
 
@@ -968,6 +971,444 @@ class TZXprocessor
         _myTZX.descriptor[currentBlock].ID = id_num;
         _myTZX.descriptor[currentBlock].playeable = false;
         _myTZX.descriptor[currentBlock].offset = currentOffset;   
+    }
+
+    bool getTZXBlock(File32 mFile, int currentBlock, int currentID, int currentOffset, int &nextIDoffset)
+    {
+        bool res = true;
+
+        switch (currentID)
+        {
+          // ID 10 - Standard Speed Data Block
+          case 16:
+
+            if (_myTZX.descriptor != nullptr)
+            {
+                // Obtenemos la dirección del siguiente offset
+                analyzeID16(mFile,currentOffset, currentBlock);
+                nextIDoffset = currentOffset + _myTZX.descriptor[currentBlock].size + 5;
+                strncpy(_myTZX.descriptor[currentBlock].typeName,ID10STR,35);
+                  
+            }
+            else
+            {
+                ////SerialHW.println("");
+                ////SerialHW.println("Error: Not allocation memory for block ID 0x10");
+                res = false;
+            }
+            break;
+
+          // ID 11- Turbo Speed Data Block
+          case 17:
+            
+            //TIMMING_STABLISHED = true;
+            
+            if (_myTZX.descriptor != nullptr)
+            {
+                // Obtenemos la dirección del siguiente offset
+                analyzeID17(mFile,currentOffset, currentBlock);
+                nextIDoffset = currentOffset + _myTZX.descriptor[currentBlock].size + 19;
+                //_myTZX.descriptor[currentBlock].typeName = "ID 11 - Speed block";
+                strncpy(_myTZX.descriptor[currentBlock].typeName,ID11STR,35);
+                  
+            }
+            else
+            {
+                ////SerialHW.println("");
+                ////SerialHW.println("Error: Not allocation memory for block ID 0x11");
+                res = false;
+
+            }
+            break;
+
+          // ID 12 - Pure Tone
+          case 18:
+            if (_myTZX.descriptor != nullptr)
+            {
+                // Obtenemos la dirección del siguiente offset
+                analyzeID18(mFile,currentOffset, currentBlock);
+                nextIDoffset = currentOffset + _myTZX.descriptor[currentBlock].size + 1;
+                //_myTZX.descriptor[currentBlock].typeName = "ID 12 - Pure tone";
+                strncpy(_myTZX.descriptor[currentBlock].typeName,ID12STR,35);
+                  
+            }
+            else
+            {
+                ////SerialHW.println("");
+                ////SerialHW.println("Error: Not allocation memory for block ID 0x12");
+                res = false;
+
+            }
+            break;
+
+          // ID 13 - Pulse sequence
+          case 19:
+            if (_myTZX.descriptor != nullptr)
+            {
+                // Obtenemos la dirección del siguiente offset
+                analyzeID19(mFile,currentOffset, currentBlock);
+                nextIDoffset = currentOffset + _myTZX.descriptor[currentBlock].size + 1;
+                //_myTZX.descriptor[currentBlock].typeName = "ID 13 - Pulse seq.";
+                strncpy(_myTZX.descriptor[currentBlock].typeName,ID13STR,35);
+                  
+            }
+            else
+            {
+                ////SerialHW.println("");
+                ////SerialHW.println("Error: Not allocation memory for block ID 0x12");
+                res = false;
+
+            }
+            break;                  
+
+          // ID 14 - Pure Data Block
+          case 20:
+            
+            //TIMMING_STABLISHED = true;
+            
+            if (_myTZX.descriptor != nullptr)
+            {
+                // Obtenemos la dirección del siguiente offset
+                analyzeID20(mFile,currentOffset, currentBlock);
+
+                nextIDoffset = currentOffset + _myTZX.descriptor[currentBlock].size + 10 + 1;
+                
+                //"ID 14 - Pure Data block";
+                strncpy(_myTZX.descriptor[currentBlock].typeName,ID14STR,35);
+
+            }
+            else
+            {
+                ////SerialHW.println("");
+                ////SerialHW.println("Error: Not allocation memory for block ID 0x11");
+                res = false;
+
+            }
+            break;                  
+
+          // ID 15 - Direct Recording
+          case 21:
+            ID_NOT_IMPLEMENTED = true;
+            // analyzeBlockUnknow(currentID,currentOffset, currentBlock);
+            // nextIDoffset = currentOffset + 1;            
+
+            // _myTZX.descriptor[currentBlock].typeName = "ID 15 - Direct REC";
+            res=false;              
+            break;
+
+          // ID 18 - CSW Recording
+          case 24:
+            ID_NOT_IMPLEMENTED = true;
+            // analyzeBlockUnknow(currentID,currentOffset, currentBlock);
+            // nextIDoffset = currentOffset + 1;            
+
+            // _myTZX.descriptor[currentBlock].typeName = "ID 18 - CSW Rec";
+            res=false;              
+            break;
+
+          // ID 19 - Generalized Data Block
+          case 25:
+            ID_NOT_IMPLEMENTED = true;
+            // analyzeBlockUnknow(currentID,currentOffset, currentBlock);
+            // nextIDoffset = currentOffset + 1;            
+
+            // _myTZX.descriptor[currentBlock].typeName = "ID 19 - General Data block";
+            res=false;              
+            break;
+
+          // ID 20 - Pause and Stop Tape
+          case 32:
+            if (_myTZX.descriptor != nullptr)
+            {
+                // Obtenemos la dirección del siguiente offset
+                analyzeID32(mFile,currentOffset, currentBlock);
+
+                nextIDoffset = currentOffset + 3;  
+                strncpy(_myTZX.descriptor[currentBlock].typeName,IDXXSTR,35);
+                
+                ////SerialHW.println("");
+                ////SerialHW.println("--> PAUSE / STOP TAPE");
+
+                  
+            }
+            else
+            {
+                ////SerialHW.println("");
+                ////SerialHW.println("Error: Not allocation memory for block ID 0x20");
+                res = false;
+
+            }
+            break;
+
+          // ID 21 - Group start
+          case 33:
+            if (_myTZX.descriptor != nullptr)
+            {
+                // Obtenemos la dirección del siguiente offset
+                analyzeID33(mFile,currentOffset, currentBlock);
+
+                nextIDoffset = currentOffset + 2 + _myTZX.descriptor[currentBlock].size;
+                strncpy(_myTZX.descriptor[currentBlock].typeName,IDXXSTR,35);
+                //_myTZX.descriptor[currentBlock].typeName = "ID 21 - Group start";
+                  
+            }
+            else
+            {
+                ////SerialHW.println("");
+                ////SerialHW.println("Error: Not allocation memory for block ID 0x21");
+                res = false;
+
+            }
+            break;                
+
+          // ID 22 - Group end
+          case 34:
+            if (_myTZX.descriptor != nullptr)
+            {
+                // Obtenemos la dirección del siguiente offset
+                _myTZX.descriptor[currentBlock].ID = 34;
+                _myTZX.descriptor[currentBlock].playeable = false;
+                _myTZX.descriptor[currentBlock].offset = currentOffset;
+
+                nextIDoffset = currentOffset + 1;                      
+                //_myTZX.descriptor[currentBlock].typeName = "ID 22 - Group end";
+                strncpy(_myTZX.descriptor[currentBlock].typeName,IDXXSTR,35);
+                  
+            }
+            else
+            {
+                ////SerialHW.println("");
+                ////SerialHW.println("Error: Not allocation memory for block ID 0x22");
+                res = false;
+
+            }
+            break;
+
+          // ID 23 - Jump to block
+          case 35:
+            ID_NOT_IMPLEMENTED = true;
+            // analyzeBlockUnknow(currentID,currentOffset, currentBlock);
+            // nextIDoffset = currentOffset + 1;            
+
+            // _myTZX.descriptor[currentBlock].typeName = "ID 23 - Jump to block";
+            res=false;
+            break;
+
+          // ID 24 - Loop start
+          case 36:
+            if (_myTZX.descriptor != nullptr)
+            {
+                // Obtenemos la dirección del siguiente offset
+                _myTZX.descriptor[currentBlock].ID = 36;
+                _myTZX.descriptor[currentBlock].playeable = false;
+                _myTZX.descriptor[currentBlock].offset = currentOffset;
+                _myTZX.descriptor[currentBlock].loop_count = getDWORD(mFile,currentOffset+1);
+
+                #ifdef DEBUGMODE
+                    log("LOOP GET: " + String(_myTZX.descriptor[currentBlock].loop_count));
+                #endif
+
+                nextIDoffset = currentOffset + 3;                      
+                //_myTZX.descriptor[currentBlock].typeName = "ID 24 - Loop start";
+                strncpy(_myTZX.descriptor[currentBlock].typeName,IDXXSTR,35);
+                  
+            }
+            else
+            {
+                ////SerialHW.println("");
+                ////SerialHW.println("Error: Not allocation memory for block ID 0x22");
+                res = false;
+
+            }                
+            break;
+
+
+          // ID 25 - Loop end
+          case 37:
+            if (_myTZX.descriptor != nullptr)
+            {
+                // Obtenemos la dirección del siguiente offset
+                _myTZX.descriptor[currentBlock].ID = 37;
+                _myTZX.descriptor[currentBlock].playeable = false;
+                _myTZX.descriptor[currentBlock].offset = currentOffset;
+                LOOP_END = currentOffset;
+                
+                nextIDoffset = currentOffset + 1;                      
+                //_myTZX.descriptor[currentBlock].typeName = "ID 25 - Loop end";
+                strncpy(_myTZX.descriptor[currentBlock].typeName,IDXXSTR,35);
+                  
+            }
+            else
+            {
+                ////SerialHW.println("");
+                ////SerialHW.println("Error: Not allocation memory for block ID 0x22");
+                res = false;
+
+            }                
+            break;
+
+          // ID 26 - Call sequence
+          case 38:
+            ID_NOT_IMPLEMENTED = true;
+            // analyzeBlockUnknow(currentID,currentOffset, currentBlock);
+            // nextIDoffset = currentOffset + 1;            
+
+            // _myTZX.descriptor[currentBlock].typeName = "ID 26 - Call seq.";
+            res=false;
+            break;
+
+          // ID 27 - Return from sequence
+          case 39:
+            ID_NOT_IMPLEMENTED = true;
+            // analyzeBlockUnknow(currentID,currentOffset, currentBlock);
+            // nextIDoffset = currentOffset + 1;            
+
+            // _myTZX.descriptor[currentBlock].typeName = "ID 27 - Return from seq.";
+            res=false;              
+            break;
+
+          // ID 28 - Select block
+          case 40:
+            if (_myTZX.descriptor != nullptr)
+            {
+                // Obtenemos la dirección del siguiente offset
+                analyzeID40(mFile,currentOffset, currentBlock);
+
+                nextIDoffset = currentOffset + _myTZX.descriptor[currentBlock].size + 1;
+                
+                //"ID 14 - Pure Data block";
+                strncpy(_myTZX.descriptor[currentBlock].typeName,ID14STR,35);
+                                        
+            }
+            else
+            {
+                ////SerialHW.println("");
+                ////SerialHW.println("Error: Not allocation memory for block ID 0x22");
+                res = false;
+
+            }                
+            break;
+
+          // ID 2A - Stop the tape if in 48K mode
+          case 42:
+            analyzeBlockUnknow(currentID,currentOffset, currentBlock);
+            nextIDoffset = currentOffset + 1;            
+
+            //_myTZX.descriptor[currentBlock].typeName = "ID 2A - Stop TAPE (48k mode)";
+            strncpy(_myTZX.descriptor[currentBlock].typeName,IDXXSTR,35);
+              
+            break;
+
+          // ID 2B - Set signal level
+          case 43:
+            ID_NOT_IMPLEMENTED = true;
+            // analyzeBlockUnknow(currentID,currentOffset, currentBlock);
+            // nextIDoffset = currentOffset + 1;            
+
+            // _myTZX.descriptor[currentBlock].typeName = "ID 2B - Set signal level";
+            res=false;              
+            break;
+
+          // ID 30 - Text description
+          case 48:
+            // No hacemos nada solamente coger el siguiente offset
+            if (_myTZX.descriptor != nullptr)
+            {
+                // Obtenemos la dirección del siguiente offset
+                analyzeID48(mFile,currentOffset,currentBlock);
+                // Siguiente ID
+                nextIDoffset = currentOffset + _myTZX.descriptor[currentBlock].size + 1;
+                //_myTZX.descriptor[currentBlock].typeName = "ID 30 - Information";
+                strncpy(_myTZX.descriptor[currentBlock].typeName,IDXXSTR,35);
+                  
+            }
+            else
+            {
+                ////SerialHW.println("");
+                ////SerialHW.println("Error: Not allocation memory for block ID 0x30");
+                res = false;
+            }                  
+            break;
+
+          // ID 31 - Message block
+          case 49:
+            analyzeBlockUnknow(currentID,currentOffset, currentBlock);
+            nextIDoffset = currentOffset + 1;                  
+
+            strncpy(_myTZX.descriptor[currentBlock].typeName,IDXXSTR,35);
+            //_myTZX.descriptor[currentBlock].typeName = "ID 31 - Message block";
+            break;
+
+          // ID 32 - Archive info
+          case 50:
+            // No hacemos nada solamente coger el siguiente offset
+            if (_myTZX.descriptor != nullptr)
+            {
+                // Obtenemos la dirección del siguiente offset
+                analyzeID50(mFile,currentOffset,currentBlock);
+
+                // Siguiente ID
+                nextIDoffset = currentOffset + 3 + _myTZX.descriptor[currentBlock].size;
+                //_myTZX.descriptor[currentBlock].typeName = "ID 32 - Archive info";
+                strncpy(_myTZX.descriptor[currentBlock].typeName,IDXXSTR,35);
+            }
+            else
+            {
+                ////SerialHW.println("");
+                ////SerialHW.println("Error: Not allocation memory for block ID 0x32");
+                res = false;
+            }                  
+            break;
+
+          // ID 33 - Hardware type
+          case 51:
+            // No hacemos nada solamente coger el siguiente offset
+            if (_myTZX.descriptor != nullptr)
+            {
+                // Obtenemos la dirección del siguiente offset
+                analyzeID51(mFile,currentOffset,currentBlock);
+
+                // Siguiente ID
+                nextIDoffset = currentOffset + 3 + _myTZX.descriptor[currentBlock].size;
+                //_myTZX.descriptor[currentBlock].typeName = "ID 33- Hardware type";
+                strncpy(_myTZX.descriptor[currentBlock].typeName,IDXXSTR,35);
+                  
+            }
+            else
+            {
+                ////SerialHW.println("");
+                ////SerialHW.println("Error: Not allocation memory for block ID 0x33");
+                res = false;
+            }                  
+            break;
+
+          // ID 35 - Custom info block
+          case 53:
+            analyzeBlockUnknow(currentID,currentOffset, currentBlock);
+            nextIDoffset = currentOffset + 1;            
+
+            //_myTZX.descriptor[currentBlock].typeName = "ID 35 - Custom info block";
+            strncpy(_myTZX.descriptor[currentBlock].typeName,IDXXSTR,35);
+            break;
+
+          // ID 5A - "Glue" block (90 dec, ASCII Letter 'Z')
+          case 90:
+            analyzeBlockUnknow(currentID,currentOffset, currentBlock);
+            nextIDoffset = currentOffset + 8;            
+
+            //_myTZX.descriptor[currentBlock].typeName = "ID 5A - Glue block";
+            strncpy(_myTZX.descriptor[currentBlock].typeName,IDXXSTR,35);
+            break;
+
+          default:
+            ////SerialHW.println("");
+            ////SerialHW.println("ID unknow " + currentID);
+            ID_NOT_IMPLEMENTED = true;
+            res = false;
+            break;
+      }
+
+      return res;
     }
 
     void getBlockDescriptor(File32 mFile, int sizeTZX)
@@ -1026,446 +1467,16 @@ class TZXprocessor
               // Ahora dependiendo del ID analizamos. Los ID están en HEX
               // y la rutina devolverá la posición del siguiente ID, así hasta
               // completar todo el fichero
-              switch (currentID)
+              if (  getTZXBlock(mFile, currentBlock, currentID, currentOffset, nextIDoffset))
               {
-                // ID 10 - Standard Speed Data Block
-                case 16:
-
-                  if (_myTZX.descriptor != nullptr)
-                  {
-                      // Obtenemos la dirección del siguiente offset
-                      analyzeID16(mFile,currentOffset, currentBlock);
-                      nextIDoffset = currentOffset + _myTZX.descriptor[currentBlock].size + 5;
-                      strncpy(_myTZX.descriptor[currentBlock].typeName,ID10STR,35);
-                      currentBlock++;
-                  }
-                  else
-                  {
-                      ////SerialHW.println("");
-                      ////SerialHW.println("Error: Not allocation memory for block ID 0x10");
-                      endTZX = true;
-                      endWithErrors = true;
-                  }
-                  break;
-
-                // ID 11- Turbo Speed Data Block
-                case 17:
-                  
-                  //TIMMING_STABLISHED = true;
-                  
-                  if (_myTZX.descriptor != nullptr)
-                  {
-                      // Obtenemos la dirección del siguiente offset
-                      analyzeID17(mFile,currentOffset, currentBlock);
-                      nextIDoffset = currentOffset + _myTZX.descriptor[currentBlock].size + 19;
-                      //_myTZX.descriptor[currentBlock].typeName = "ID 11 - Speed block";
-                      strncpy(_myTZX.descriptor[currentBlock].typeName,ID11STR,35);
-                      currentBlock++;
-                  }
-                  else
-                  {
-                      ////SerialHW.println("");
-                      ////SerialHW.println("Error: Not allocation memory for block ID 0x11");
-                      endTZX = true;
-                      endWithErrors = true;
-                  }
-                  break;
-
-                // ID 12 - Pure Tone
-                case 18:
-                  if (_myTZX.descriptor != nullptr)
-                  {
-                      // Obtenemos la dirección del siguiente offset
-                      analyzeID18(mFile,currentOffset, currentBlock);
-                      nextIDoffset = currentOffset + _myTZX.descriptor[currentBlock].size + 1;
-                      //_myTZX.descriptor[currentBlock].typeName = "ID 12 - Pure tone";
-                      strncpy(_myTZX.descriptor[currentBlock].typeName,ID12STR,35);
-                      currentBlock++;
-                  }
-                  else
-                  {
-                      ////SerialHW.println("");
-                      ////SerialHW.println("Error: Not allocation memory for block ID 0x12");
-                      endTZX = true;
-                      endWithErrors = true;
-                  }
-                  break;
-
-                // ID 13 - Pulse sequence
-                case 19:
-                  if (_myTZX.descriptor != nullptr)
-                  {
-                      // Obtenemos la dirección del siguiente offset
-                      analyzeID19(mFile,currentOffset, currentBlock);
-                      nextIDoffset = currentOffset + _myTZX.descriptor[currentBlock].size + 1;
-                      //_myTZX.descriptor[currentBlock].typeName = "ID 13 - Pulse seq.";
-                      strncpy(_myTZX.descriptor[currentBlock].typeName,ID13STR,35);
-                      currentBlock++;
-                  }
-                  else
-                  {
-                      ////SerialHW.println("");
-                      ////SerialHW.println("Error: Not allocation memory for block ID 0x12");
-                      endTZX = true;
-                      endWithErrors = true;
-                  }
-                  break;                  
-
-                // ID 14 - Pure Data Block
-                case 20:
-                  
-                  //TIMMING_STABLISHED = true;
-                  
-                  if (_myTZX.descriptor != nullptr)
-                  {
-                      // Obtenemos la dirección del siguiente offset
-                      analyzeID20(mFile,currentOffset, currentBlock);
-
-                      nextIDoffset = currentOffset + _myTZX.descriptor[currentBlock].size + 10 + 1;
-                      
-                      //"ID 14 - Pure Data block";
-                      strncpy(_myTZX.descriptor[currentBlock].typeName,ID14STR,35);
-
-                      currentBlock++;
-                  }
-                  else
-                  {
-                      ////SerialHW.println("");
-                      ////SerialHW.println("Error: Not allocation memory for block ID 0x11");
-                      endTZX = true;
-                      endWithErrors = true;
-                  }
-                  break;                  
-
-                // ID 15 - Direct Recording
-                case 21:
-                  ID_NOT_IMPLEMENTED = true;
-                  // analyzeBlockUnknow(currentID,currentOffset, currentBlock);
-                  // nextIDoffset = currentOffset + 1;            
-
-                  // _myTZX.descriptor[currentBlock].typeName = "ID 15 - Direct REC";
-                  currentBlock++;
-                  break;
-
-                // ID 18 - CSW Recording
-                case 24:
-                  ID_NOT_IMPLEMENTED = true;
-                  // analyzeBlockUnknow(currentID,currentOffset, currentBlock);
-                  // nextIDoffset = currentOffset + 1;            
-
-                  // _myTZX.descriptor[currentBlock].typeName = "ID 18 - CSW Rec";
-                  currentBlock++;
-                  break;
-
-                // ID 19 - Generalized Data Block
-                case 25:
-                  ID_NOT_IMPLEMENTED = true;
-                  // analyzeBlockUnknow(currentID,currentOffset, currentBlock);
-                  // nextIDoffset = currentOffset + 1;            
-
-                  // _myTZX.descriptor[currentBlock].typeName = "ID 19 - General Data block";
-                  currentBlock++;
-                  break;
-
-                // ID 20 - Pause and Stop Tape
-                case 32:
-                  if (_myTZX.descriptor != nullptr)
-                  {
-                      // Obtenemos la dirección del siguiente offset
-                      analyzeID32(mFile,currentOffset, currentBlock);
-
-                      nextIDoffset = currentOffset + 3;  
-                      strncpy(_myTZX.descriptor[currentBlock].typeName,IDXXSTR,35);
-                      
-                      ////SerialHW.println("");
-                      ////SerialHW.println("--> PAUSE / STOP TAPE");
-
-                      currentBlock++;
-                  }
-                  else
-                  {
-                      ////SerialHW.println("");
-                      ////SerialHW.println("Error: Not allocation memory for block ID 0x20");
-                      endTZX = true;
-                      endWithErrors = true;
-                  }
-                  break;
-
-                // ID 21 - Group start
-                case 33:
-                  if (_myTZX.descriptor != nullptr)
-                  {
-                      // Obtenemos la dirección del siguiente offset
-                      analyzeID33(mFile,currentOffset, currentBlock);
-
-                      nextIDoffset = currentOffset + 2 + _myTZX.descriptor[currentBlock].size;
-                      strncpy(_myTZX.descriptor[currentBlock].typeName,IDXXSTR,35);
-                      //_myTZX.descriptor[currentBlock].typeName = "ID 21 - Group start";
-                      currentBlock++;
-                  }
-                  else
-                  {
-                      ////SerialHW.println("");
-                      ////SerialHW.println("Error: Not allocation memory for block ID 0x21");
-                      endTZX = true;
-                      endWithErrors = true;
-                  }
-                  break;                
-
-                // ID 22 - Group end
-                case 34:
-                  if (_myTZX.descriptor != nullptr)
-                  {
-                      // Obtenemos la dirección del siguiente offset
-                      _myTZX.descriptor[currentBlock].ID = 34;
-                      _myTZX.descriptor[currentBlock].playeable = false;
-                      _myTZX.descriptor[currentBlock].offset = currentOffset;
-
-                      nextIDoffset = currentOffset + 1;                      
-                      //_myTZX.descriptor[currentBlock].typeName = "ID 22 - Group end";
-                      strncpy(_myTZX.descriptor[currentBlock].typeName,IDXXSTR,35);
-                      currentBlock++;
-                  }
-                  else
-                  {
-                      ////SerialHW.println("");
-                      ////SerialHW.println("Error: Not allocation memory for block ID 0x22");
-                      endTZX = true;
-                      endWithErrors = true;
-                  }
-                  break;
-
-                // ID 23 - Jump to block
-                case 35:
-                  ID_NOT_IMPLEMENTED = true;
-                  // analyzeBlockUnknow(currentID,currentOffset, currentBlock);
-                  // nextIDoffset = currentOffset + 1;            
-
-                  // _myTZX.descriptor[currentBlock].typeName = "ID 23 - Jump to block";
-                  currentBlock++;
-                  break;
-
-                // ID 24 - Loop start
-                case 36:
-                  if (_myTZX.descriptor != nullptr)
-                  {
-                      // Obtenemos la dirección del siguiente offset
-                      _myTZX.descriptor[currentBlock].ID = 35;
-                      _myTZX.descriptor[currentBlock].playeable = false;
-                      _myTZX.descriptor[currentBlock].offset = currentOffset;
-                      LOOP_START = currentOffset;
-                      LOOP_COUNT = getDWORD(mFile,currentOffset+1);
-
-                      nextIDoffset = currentOffset + 3;                      
-                      //_myTZX.descriptor[currentBlock].typeName = "ID 24 - Loop start";
-                      strncpy(_myTZX.descriptor[currentBlock].typeName,IDXXSTR,35);
-                      currentBlock++;
-                  }
-                  else
-                  {
-                      ////SerialHW.println("");
-                      ////SerialHW.println("Error: Not allocation memory for block ID 0x22");
-                      endTZX = true;
-                      endWithErrors = true;
-                  }                
-                  break;
-
-
-                // ID 25 - Loop end
-                case 37:
-                  if (_myTZX.descriptor != nullptr)
-                  {
-                      // Obtenemos la dirección del siguiente offset
-                      _myTZX.descriptor[currentBlock].ID = 37;
-                      _myTZX.descriptor[currentBlock].playeable = false;
-                      _myTZX.descriptor[currentBlock].offset = currentOffset;
-                      LOOP_END = currentOffset;
-                      
-                      nextIDoffset = currentOffset + 1;                      
-                      //_myTZX.descriptor[currentBlock].typeName = "ID 25 - Loop end";
-                      strncpy(_myTZX.descriptor[currentBlock].typeName,IDXXSTR,35);
-                      currentBlock++;
-                  }
-                  else
-                  {
-                      ////SerialHW.println("");
-                      ////SerialHW.println("Error: Not allocation memory for block ID 0x22");
-                      endTZX = true;
-                      endWithErrors = true;
-                  }                
-                  break;
-
-                // ID 26 - Call sequence
-                case 38:
-                  ID_NOT_IMPLEMENTED = true;
-                  // analyzeBlockUnknow(currentID,currentOffset, currentBlock);
-                  // nextIDoffset = currentOffset + 1;            
-
-                  // _myTZX.descriptor[currentBlock].typeName = "ID 26 - Call seq.";
-                  currentBlock++;
-                  break;
-
-                // ID 27 - Return from sequence
-                case 39:
-                  ID_NOT_IMPLEMENTED = true;
-                  // analyzeBlockUnknow(currentID,currentOffset, currentBlock);
-                  // nextIDoffset = currentOffset + 1;            
-
-                  // _myTZX.descriptor[currentBlock].typeName = "ID 27 - Return from seq.";
-                  currentBlock++;
-                  break;
-
-                // ID 28 - Select block
-                case 40:
-                  if (_myTZX.descriptor != nullptr)
-                  {
-                      // Obtenemos la dirección del siguiente offset
-                      analyzeID40(mFile,currentOffset, currentBlock);
-
-                      nextIDoffset = currentOffset + _myTZX.descriptor[currentBlock].size + 1;
-                      
-                      //"ID 14 - Pure Data block";
-                      strncpy(_myTZX.descriptor[currentBlock].typeName,ID14STR,35);
-
-                      currentBlock++;                      
-                  }
-                  else
-                  {
-                      ////SerialHW.println("");
-                      ////SerialHW.println("Error: Not allocation memory for block ID 0x22");
-                      endTZX = true;
-                      endWithErrors = true;
-                  }                
-                  break;
-
-                // ID 2A - Stop the tape if in 48K mode
-                case 42:
-                  analyzeBlockUnknow(currentID,currentOffset, currentBlock);
-                  nextIDoffset = currentOffset + 1;            
-
-                  //_myTZX.descriptor[currentBlock].typeName = "ID 2A - Stop TAPE (48k mode)";
-                  strncpy(_myTZX.descriptor[currentBlock].typeName,IDXXSTR,35);
-                  currentBlock++;
-                  break;
-
-                // ID 2B - Set signal level
-                case 43:
-                  ID_NOT_IMPLEMENTED = true;
-                  // analyzeBlockUnknow(currentID,currentOffset, currentBlock);
-                  // nextIDoffset = currentOffset + 1;            
-
-                  // _myTZX.descriptor[currentBlock].typeName = "ID 2B - Set signal level";
-                  currentBlock++;
-                  break;
-
-                // ID 30 - Text description
-                case 48:
-                  // No hacemos nada solamente coger el siguiente offset
-                  if (_myTZX.descriptor != nullptr)
-                  {
-                      // Obtenemos la dirección del siguiente offset
-                      analyzeID48(mFile,currentOffset,currentBlock);
-                      // Siguiente ID
-                      nextIDoffset = currentOffset + _myTZX.descriptor[currentBlock].size + 1;
-                      //_myTZX.descriptor[currentBlock].typeName = "ID 30 - Information";
-                      strncpy(_myTZX.descriptor[currentBlock].typeName,IDXXSTR,35);
-                      currentBlock++;
-                  }
-                  else
-                  {
-                      ////SerialHW.println("");
-                      ////SerialHW.println("Error: Not allocation memory for block ID 0x30");
-                      endTZX = true;
-                      endWithErrors = true;
-                  }                  
-                  break;
-
-                // ID 31 - Message block
-                case 49:
-                  analyzeBlockUnknow(currentID,currentOffset, currentBlock);
-                  nextIDoffset = currentOffset + 1;                  
-
-                  strncpy(_myTZX.descriptor[currentBlock].typeName,IDXXSTR,35);
-                  //_myTZX.descriptor[currentBlock].typeName = "ID 31 - Message block";
-                  currentBlock++;
-                  break;
-
-                // ID 32 - Archive info
-                case 50:
-                  // No hacemos nada solamente coger el siguiente offset
-                  if (_myTZX.descriptor != nullptr)
-                  {
-                      // Obtenemos la dirección del siguiente offset
-                      analyzeID50(mFile,currentOffset,currentBlock);
-
-                      // Siguiente ID
-                      nextIDoffset = currentOffset + 3 + _myTZX.descriptor[currentBlock].size;
-                      //_myTZX.descriptor[currentBlock].typeName = "ID 32 - Archive info";
-                      strncpy(_myTZX.descriptor[currentBlock].typeName,IDXXSTR,35);
-                      currentBlock++;
-                  }
-                  else
-                  {
-                      ////SerialHW.println("");
-                      ////SerialHW.println("Error: Not allocation memory for block ID 0x32");
-                      endTZX = true;
-                      endWithErrors = true;
-                  }                  
-                  break;
-
-                // ID 33 - Hardware type
-                case 51:
-                  // No hacemos nada solamente coger el siguiente offset
-                  if (_myTZX.descriptor != nullptr)
-                  {
-                      // Obtenemos la dirección del siguiente offset
-                      analyzeID51(mFile,currentOffset,currentBlock);
-
-                      // Siguiente ID
-                      nextIDoffset = currentOffset + 3 + _myTZX.descriptor[currentBlock].size;
-                      //_myTZX.descriptor[currentBlock].typeName = "ID 33- Hardware type";
-                      strncpy(_myTZX.descriptor[currentBlock].typeName,IDXXSTR,35);
-                      currentBlock++;
-                  }
-                  else
-                  {
-                      ////SerialHW.println("");
-                      ////SerialHW.println("Error: Not allocation memory for block ID 0x33");
-                      endTZX = true;
-                      endWithErrors = true;
-                  }                  
-                  break;
-
-                // ID 35 - Custom info block
-                case 53:
-                  analyzeBlockUnknow(currentID,currentOffset, currentBlock);
-                  nextIDoffset = currentOffset + 1;            
-
-                  //_myTZX.descriptor[currentBlock].typeName = "ID 35 - Custom info block";
-                  strncpy(_myTZX.descriptor[currentBlock].typeName,IDXXSTR,35);
-                  currentBlock++;
-                  break;
-
-                // ID 5A - "Glue" block (90 dec, ASCII Letter 'Z')
-                case 90:
-                  analyzeBlockUnknow(currentID,currentOffset, currentBlock);
-                  nextIDoffset = currentOffset + 8;            
-
-                  //_myTZX.descriptor[currentBlock].typeName = "ID 5A - Glue block";
-                  strncpy(_myTZX.descriptor[currentBlock].typeName,IDXXSTR,35);
-                  currentBlock++;
-                  break;
-
-                default:
-                  ////SerialHW.println("");
-                  ////SerialHW.println("ID unknow " + currentID);
-                  ID_NOT_IMPLEMENTED = true;
-                  // analyzeBlockUnknow(currentID,currentOffset, currentBlock);
-                  // nextIDoffset = currentOffset + 1;            
-
-                  // _myTZX.descriptor[currentBlock].typeName = "Unknown block";
-                  break;
-                }
+                currentBlock++;
+              }
+              else
+              {
+                LAST_MESSAGE = "ID block not implemented. Aborting";
+                forzeEnd = true;
+                endWithErrors = true;
+              }
 
                 //SerialHW.println("");
                 //SerialHW.print("Next ID offset: 0x");
@@ -1719,6 +1730,8 @@ class TZXprocessor
 
       LAST_MESSAGE = "Analyzing file";
     
+      MULTIGROUP_COUNT = 0;
+
       // Abrimos el fichero
       tzxFile = sdm.openFile32(tzxFile, path);
 
@@ -1899,14 +1912,13 @@ class TZXprocessor
         // Inicializamos 02.03.2024
         LOOP_START = 0;
         LOOP_END = 0;
-        LOOP_COUNT = 0;
         BL_LOOP_START = 0;
         BL_LOOP_END = 0;
 
         if (_myTZX.descriptor != nullptr)
         {         
               // Inicializamos la polarización de la señal
-              //LAST_EAR_IS = POLARIZATION;  
+              LAST_EAR_IS = POLARIZATION;  
   
               // Entregamos información por consola
               TOTAL_BLOCKS = _myTZX.numBlocks;
@@ -1955,10 +1967,16 @@ class TZXprocessor
                       // El primer bloque a repetir es el siguiente. Entonces este bloque
                       // no se lee mas.
                       BL_LOOP_START = i+1;
+                      LOOP_COUNT = _myTZX.descriptor[i].loop_count;
                       break;
 
                     case 37:
                       //Loop end ID 0x25
+                      #ifdef DEBUGMODE
+                          log("LOOP: " + String(loopPlayed) + " / " + String(LOOP_COUNT));
+                          log("------------------------------------------------------");
+                      #endif
+
                       if (loopPlayed < LOOP_COUNT)
                       {
                         // Volvemos al primner bloque dentro del loop
@@ -2022,7 +2040,7 @@ class TZXprocessor
 
                     case 33:
                       // Comienza multigrupo
-                      LAST_TZX_GROUP = "[G: " + String(i) + "]";
+                      LAST_TZX_GROUP = "[GRP: " + String(_myTZX.descriptor[BLOCK_SELECTED].group) + "]";
                       break;
 
                     case 34:
@@ -2041,7 +2059,7 @@ class TZXprocessor
                             //SYNC2
                             _zxp.SYNC2 = _myTZX.descriptor[i].timming.sync_2;
                             //PULSE PILOT (longitud del pulso)
-                            _zxp.PULSE_PILOT = _myTZX.descriptor[i].timming.pilot_len;
+                            _zxp.PILOT_PULSE_LEN = _myTZX.descriptor[i].timming.pilot_len;
                             // BTI 0
                             _zxp.BIT_0 = _myTZX.descriptor[i].timming.bit_0;
                             // BIT1                                          
@@ -2073,7 +2091,6 @@ class TZXprocessor
                               LAST_EAR_IS = down;
                               LOOP_START = 0;
                               LOOP_END = 0;
-                              LOOP_COUNT = 0;
                               BL_LOOP_START = 0;
                               BL_LOOP_END = 0;
 
@@ -2096,7 +2113,7 @@ class TZXprocessor
                                 {
                                   case 16:
                                     //PULSE PILOT
-                                    _myTZX.descriptor[i].timming.pilot_len = DPULSE_PILOT;
+                                    _myTZX.descriptor[i].timming.pilot_len = DPILOT_LEN;
                                     
                                     // Reproducimos el bloque - PLAY
                                     playBlock(_myTZX.descriptor[i]);
@@ -2119,7 +2136,7 @@ class TZXprocessor
                                 {
                                   case 16:
                                     //Standard data - ID-10                          
-                                    _myTZX.descriptor[i].timming.pilot_len = DPULSE_PILOT;                                  
+                                    _myTZX.descriptor[i].timming.pilot_len = DPILOT_LEN;                                  
                                     playBlock(_myTZX.descriptor[i]);
                                     break;
 
@@ -2230,7 +2247,7 @@ class TZXprocessor
                                     // ID 0x10
 
                                     //PULSE PILOT
-                                    _myTZX.descriptor[i].timming.pilot_len = DPULSE_PILOT;
+                                    _myTZX.descriptor[i].timming.pilot_len = DPILOT_LEN;
                                     playBlock(_myTZX.descriptor[i]);
                                     break;
 
@@ -2280,6 +2297,7 @@ class TZXprocessor
               LOOP_COUNT = 0;
               BL_LOOP_START = 0;
               BL_LOOP_END = 0;
+              MULTIGROUP_COUNT = 0;
         }
         else
         {

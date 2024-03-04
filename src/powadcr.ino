@@ -1242,17 +1242,17 @@ void Task0code( void * pvParameters )
             hmi.updateInformationMainPage();
           }
 
-          if ((millis() - tClock) > 1000)
-          {
-            tClock = millis();     
-            se++;
-            if (se>59)
-            {
-              se=0;
-            }
-            LAST_MESSAGE = String(se) + " s";
-            hmi.updateInformationMainPage();
-          }
+          // if ((millis() - tClock) > 1000)
+          // {
+          //   tClock = millis();     
+          //   se++;
+          //   if (se>59)
+          //   {
+          //     se=0;
+          //   }
+          //   LAST_MESSAGE = String(se) + " s";
+          //   hmi.updateInformationMainPage();
+          // }
 
         #endif
         esp_task_wdt_reset();

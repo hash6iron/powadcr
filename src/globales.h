@@ -76,8 +76,8 @@ double INTPART = 0.0;
   double DfreqCPU = 3500000;
   //double DfreqCPU = 3250000;
 
-  const int DPILOT_HEADER = 8063;
-  const int DPILOT_DATA = 3223;
+  const int DPULSES_HEADER = 8063;
+  const int DPULSES_DATA = 3223;
   // Señales de sincronismo
   int DSYNC1 = 667;
   int DSYNC2 = 735;
@@ -85,9 +85,7 @@ double INTPART = 0.0;
   int DBIT_0 = 855;
   int DBIT_1 = 1710;
   // Pulsos guia
-  int DPULSE_PILOT = 2168;
-  int DPILOT_TONE = DPILOT_HEADER;
-  
+  int DPILOT_LEN = 2168;  
   // Definición del silencio entre bloques en ms
   int DSILENT = 1000;
 #endif
@@ -127,15 +125,16 @@ enum edge
 // Inicialmente se define como flanco up para que empiece en down.
 // Polarización de la señal.
 
-// Con esto hacemos que el primer pulso sea UP 
+// Con esto hacemos que el primer pulso sea DOWN 
 // (porque el ultimo era DOWN supuestamente)
-edge LAST_EAR_IS = down;
+edge POLARIZATION = up;
+edge LAST_EAR_IS = POLARIZATION;
 bool INVERSETRAIN = false;
 bool ZEROLEVEL = false;
 
 // Limites de la señal
 int maxLevelUp = 32767;
-int maxLevelDown = -32768;
+int maxLevelDown = -32767;
 int LEVELUP = maxLevelUp;
 int LEVELDOWN = maxLevelDown;
 
@@ -214,6 +213,10 @@ String LAST_MESSAGE = "";
 String PROGRAM_NAME = "";
 String PROGRAM_NAME_2 = "";
 int LAST_SIZE = 0;
+
+int LAST_BIT_WIDTH = 0;
+int MULTIGROUP_COUNT = 0;
+
 int BYTES_LOADED = 0;
 int BYTES_TOBE_LOAD = 0;
 int BYTES_LAST_BLOCK = 0;
@@ -223,6 +226,7 @@ int BL_LOOP_START = 0;
 int LOOP_COUNT=0;
 int LOOP_END = 0;
 int BL_LOOP_END = 0;
+
 // Screen
 bool SCREEN_LOADING = 0;
 int SCREEN_LINE = 0;

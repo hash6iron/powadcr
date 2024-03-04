@@ -35,7 +35,7 @@
 //
 // 0 for ZX Spectrum
 
-#define VERSION "v0.020324.3"
+#define VERSION "v0.040324.3"
 #define MACHINE_ZX
 
 // Define sampling rate a 44.1KHz. En otro caso será a 32KHz
@@ -46,7 +46,8 @@
 //#define SAMPLINGTESTACTIVE
 
 // Para activa el modo debug
-//#define DEBUGMODE
+
+#define DEBUGMODE
 
 //#define MACHINE_AMSTRAD
 
