@@ -2022,10 +2022,10 @@ class TZXprocessor
                           //del HMI 
 
                           // Finalizamos el ultimo bit
-                          _zxp.closeBlock();
+                          //_zxp.closeBlock();
 
                           hmi.writeString("click btnPause,1"); 
-                          
+
                           PLAY = false;
                           STOP = false;
                           PAUSE = true;
@@ -2327,7 +2327,7 @@ class TZXprocessor
               {
 
                 // Finalizamos el ultimo bit antes de parar MUY IMPORTANTE
-                _zxp.closeBlock();
+                //_zxp.closeBlock();
 
                 // Paramos
                 PLAY = false;
