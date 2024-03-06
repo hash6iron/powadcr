@@ -121,16 +121,15 @@ class SDmanager
         mFile.seek(startByte);
     
         ////SerialHW.println("***** readFileRange32 *****");
+
+        #ifdef DEBUGMODE
+            log("..SDM - Info");
+            SerialHW.print("   + Offset: ");
+            SerialHW.print(startByte,HEX);
+            SerialHW.print(" | Size: ");
+            SerialHW.print(String(size));
+        #endif
         
-        if (logOn)
-        {
-            log("SDM - Info");
-            //SerialHW.print("   + Offset: ");
-            //SerialHW.print(startByte,HEX);
-            //SerialHW.print(" | Size: ");
-            //SerialHW.print(String(size));
-        }
-    
         // Almacenamos el tamaño del bloque, para información
         //LAST_SIZE = size;
         // Actualizamos HMI

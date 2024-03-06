@@ -116,11 +116,13 @@ class ZXProcessor
                 if (STOP==true)
                 {
                     LOADING_STATE = 2; // Parada del bloque actual
+                    ACU_ERROR = 0;
                     return true;
                 }
                 else if (PAUSE==true)
                 {
                     LOADING_STATE = 3; // Parada del bloque actual
+                    ACU_ERROR = 0;
                     return true;
                 }
             }      
@@ -128,39 +130,58 @@ class ZXProcessor
             return false;   
         }
 
-        size_t makeSemiPulse(uint8_t *buffer, int samples, bool changeNextEARedge, bool isSilence)
+        void insertSamplesError(int samples, bool changeNextEARedge)
         {
+            // Este procedimiento permite insertar en la señal
+            // las muestras acumuladas por error generado en la conversión
+            // de double a int
 
-            //samples = samples + 1;
+            // El buffer se dimensiona para 16 bits
+            uint8_t buffer[samples*2*channels];
+            uint16_t *ptr = (uint16_t*)buffer;
 
-            double m_amplitude_L = MAIN_VOL_L * maxAmplitude; 
-            double m_amplitude_R = MAIN_VOL_R * maxAmplitude;
-
-            // Procedimiento para genera un pulso 
-            int chn = channels;
             size_t result = 0;
-            int16_t *ptr = (int16_t*)buffer;
-            int16_t sample_L = 0;
-            int16_t sample_R = 0;
+            uint16_t sample_R = 0;
+            uint16_t sample_L = 0;
 
-            edge selected = down;
-            
-            int A = 0;
+            sample_R = getChannelAmplitude(changeNextEARedge);
+            sample_L = getChannelAmplitude(changeNextEARedge); 
+
+            // Escribimos el tren de pulsos en el procesador de Audio
+            // Generamos la señal en el buffer del chip de audio.
+            for (int j=0;j<samples;j++)
+            {
+                //R-OUT
+                *ptr++ = sample_R;
+                //L-OUT
+                *ptr++ = sample_L * EN_STEREO;
+                result+=2*channels;
+
+                if (stopOrPauseRequest())
+                {
+                    // Salimos
+                    break;
+                }
+            }
+
+            m_kit.write(buffer, result);
+
+            // Reiniciamos
+            ACU_ERROR = 0;
+        }
+
+        double getChannelAmplitude(bool changeNextEARedge)
+        {
+            double A = 0;
 
             // Si está seleccionada la opción de nivel bajo a 0
             // cambiamos el low_level amplitude
             if (ZEROLEVEL)
-            {
-                minAmplitude = 0;
-            }
+            {minAmplitude = 0;}
             else
-            {
-                minAmplitude = maxLevelDown;
-            }
+            {minAmplitude = maxLevelDown;}
 
             // Esta rutina genera el pulso dependiendo de como es el ultimo
-
-
             if (LAST_EAR_IS==down)
             {
                 // Hacemos el edge de down --> up
@@ -169,18 +190,13 @@ class ZXProcessor
                 // cambiamos la polarización. Invertimos la señal.
 
                 if (!INVERSETRAIN)
-                {
-                    A=maxAmplitude;
-                }
+                {A=maxAmplitude;}
                 else
-                {
-                    A=minAmplitude;
-                }
+                {A=minAmplitude;}
                 
                 // ¿El próximo flanco se cambiará?
                 if (changeNextEARedge)
-                {
-                    // Indicamos que este actualmente ha sido UP
+                {   // Indicamos que este actualmente ha sido UP
                     LAST_EAR_IS = up;
                 }
                 else
@@ -194,13 +210,9 @@ class ZXProcessor
             {
                 // Hacemos el edge de up --> downs
                 if (INVERSETRAIN)
-                {
-                    A=maxAmplitude;
-                }
+                {A=maxAmplitude;}
                 else
-                {
-                    A=minAmplitude;
-                }
+                {A=minAmplitude;}
 
                 // ¿El próximo flanco se cambiará?
                 if (changeNextEARedge)
@@ -217,40 +229,22 @@ class ZXProcessor
             }
 
             // Asignamos el nivel de amplitud que le corresponde a cada canal.             
-            m_amplitude_R = A;
-            m_amplitude_L = A;
-            
-            // Convertimos a int16_t
-            sample_R = m_amplitude_R;
-            sample_L = m_amplitude_L; 
-
-            // Pasamos los datos para el modo DEBUG
-            DEBUG_AMP_R = sample_R;
-            DEBUG_AMP_L = sample_L;
-
-            // Generamos la señal en el buffer del chip de audio.
-            for (int j=0;j<samples;j++)
-            {
-                //R-OUT
-                *ptr++ = sample_R;
-                //L-OUT
-                *ptr++ = sample_L * EN_STEREO;
-                result+=2*chn;
-
-                if (stopOrPauseRequest())
-                {
-                    // Salimos
-                    break;
-                }
-            }
-
-            return result;          
+            return(A);
         }
 
-        void semiPulse(double samples, bool changeNextEARedge, bool isSilence=false)
+        void semiPulse(double samples, bool changeNextEARedge)
         {
             // Calculamos el tamaño del buffer
-            int bytes = samples * 2.0 * channels; //Cada muestra ocupa 2 bytes (16 bits)
+            int bytes = 0; //Cada muestra ocupa 2 bytes (16 bits)
+            int chn = channels;
+            size_t result = 0;
+            // El buffer se dimensiona para 16 bits
+            int16_t sample_L = 0;
+            int16_t sample_R = 0;
+            // Amplitud de la señal
+            double amplitude = 0;
+
+            ACU_ERROR = 0;
 
             #ifdef DEBUGMODE
                 // if (SILENCEDEBUG)
@@ -261,35 +255,102 @@ class ZXProcessor
                 // }
             #endif
 
-            // El buffer se dimensiona para 16 bits
-            uint8_t buffer[bytes+10];
+            //
+            // Generamos el semi-pulso
+            //
 
-            // Escribimos el tren de pulsos en el procesador de Audio
-            m_kit.write(buffer, makeSemiPulse(buffer, samples, changeNextEARedge, isSilence));
-                  
+            // Obtenemos la amplitud de la señal según la configuración de polarización,
+            // nivel low, etc.
+            amplitude = getChannelAmplitude(changeNextEARedge);
+            sample_R = amplitude;
+            sample_L = amplitude;
+
+            // Pasamos los datos para el modo DEBUG
+            DEBUG_AMP_R = sample_R;
+            DEBUG_AMP_L = sample_L;
+          
+            // Definiciones necesarias para el splitter
+
+            int minFrame = 256;
+ 
+            // Si el semi-pulso tiene un numero 
+            // menor de muestras que el minFrame, entonces
+            // el minFrame será ese numero de muestras
+            if (samples < minFrame)
+            {minFrame = samples;}
+
+            // Definimos los terminadores de cada frame para el splitter
+            int T0 = 0;
+            int T1 = minFrame;
+
+            // Definimos los buffers
+            bytes = minFrame * 2 * channels;
+            //
+
+
+
+            // Splitter
+            // Calculamos la frecuencia de la onda
+            #ifdef SINSAMPLES
+                double Fs = samplingRate / samples;
+            #endif
+
+
+
+            // Dividimos la onda en trozos
+            int framesCounter = 0;
+
+            while(T1<=samples)
+            {
+                uint8_t buffer[bytes+256];                
+                int16_t *ptr = (int16_t*)buffer;
+
+                for (int j=T0;j<T1;j++)
+                {
+                    #ifdef SINSAMPLES
+                    //R-OUT
+                    // *ptr++ = (sample_R + sin(Fs*j));
+                    // //L-OUT
+                    // *ptr++ = (sample_L + sin(Fs*j)) * EN_STEREO;
+                    #else
+                    //R-OUT
+                    *ptr++ = sample_R;
+                    //L-OUT
+                    *ptr++ = sample_L * EN_STEREO;
+                    #endif
+                    //
+                    result+=2*chn;                        
+                }
+
+                T0 = T1;
+                T1 += minFrame;
+
+                if (stopOrPauseRequest())
+                {
+                    // Salimos
+                    break;
+                }
+
+                // Volcamos en el buffer
+                m_kit.write(buffer, result); 
+
+                result = 0;
+                framesCounter++;
+
+            }
+
             // Acumulamos el error producido
-            ACU_ERROR += modf(samples, &INTPART);
+            ACU_ERROR = (samples - (minFrame*framesCounter));
+            
+            #ifdef DEBUGMODE
+                log("ACU_ERROR: "+ String(ACU_ERROR));
+            #endif
 
             if (stopOrPauseRequest())
             {
                 // Salimos
                 return;
             }
-        }
-
-        void insertSamplesError(int samples, bool changeNextEARedge, bool isSilence)
-        {
-            // Este procedimiento permite insertar en la señal
-            // las muestras acumuladas por error generado en la conversión
-            // de double a int
-
-            // El buffer se dimensiona para 16 bits
-            uint8_t buffer[samples*2*channels];
-
-            //LAST_MESSAGE = "ACU_ERROR: " + String(samples);
-
-            // Escribimos el tren de pulsos en el procesador de Audio
-            m_kit.write(buffer, makeSemiPulse(buffer, samples, changeNextEARedge, isSilence));
         }
 
         void terminator(int width)
@@ -300,10 +361,9 @@ class ZXProcessor
             // para asegurar el cambio de flanco alto->bajo, del ultimo bit
             // Obtenemos los samples
             double samples = (width / freqCPU) * samplingRate;
-            double rsamples = round(samples);
+            double rsamples = (samples);
 
             semiPulse(rsamples,true);
-            ACU_ERROR = 0;
         }
 
         void customPilotTone(int lenPulse, int numPulses)
@@ -312,8 +372,14 @@ class ZXProcessor
             // Esto se usa para el ID 0x13 del TZX
             //
             double samples = (lenPulse / freqCPU) * samplingRate;
-            double rsamples = round(samples);            
+            double rsamples = (samples);            
             
+            #ifdef DEBUGMODE
+                log("..Custom pilot tone");
+                log("  --> lenPulse:  " + String(lenPulse));
+                log("  --> numPulses: " + String(numPulses));
+            #endif                
+
             for (int i = 0; i < numPulses;i++)
             {
                 // Enviamos semi-pulsos alternando el cambio de flanco
@@ -326,8 +392,6 @@ class ZXProcessor
                 }
 
             }
-
-            ACU_ERROR = 0;
         }
 
         void pilotTone(int lenpulse, int numpulses)
@@ -343,31 +407,29 @@ class ZXProcessor
             
             customPilotTone(lenpulse, numpulses);
         }
+        
         void zeroTone()
         {
             // Procedimiento que genera un bit "0"  
             double samples = (BIT_0 / freqCPU) * samplingRate;
-            double rsamples = round(samples); 
+            double rsamples = (samples); 
 
             LAST_BIT_WIDTH = rsamples;
 
             semiPulse(rsamples, true);
             semiPulse(rsamples, true);
-
-            ACU_ERROR = 0;
         }
+        
         void oneTone()
         {
             // Procedimiento que genera un bit "1"
             double samples = (BIT_1 / freqCPU) * samplingRate;
-            double rsamples = round(samples); 
+            double rsamples = (samples); 
 
             LAST_BIT_WIDTH = rsamples;
 
             semiPulse(rsamples, true);
             semiPulse(rsamples, true);      
-
-            ACU_ERROR = 0; 
         }
 
         void syncTone(int nTStates)
@@ -378,11 +440,9 @@ class ZXProcessor
             // El ZX Spectrum tiene dos tipo de sincronismo, uno al finalizar el tono piloto
             // y otro al final de la recepción de los datos, que serán SYNC1 y SYNC2 respectivamente.
             double samples = (nTStates / freqCPU) * samplingRate;
-            double rsamples = round(samples); 
+            double rsamples = (samples); 
 
-            semiPulse(rsamples,true);    
-
-            ACU_ERROR = 0;    
+            semiPulse(rsamples,true);      
         }
       
         void sendDataArray(uint8_t* data, int size, bool isThelastDataPart)
@@ -509,7 +569,6 @@ class ZXProcessor
             int lastPart = 0; 
             int tStateSilence = 0;  
             int tStateSilenceOri = 0;     
-            double minSilenceFrame = 3500;   // Minimo para partir es 500 ms   
             double samples = 0;
 
             const double OneSecondTo_ms = 1000.0;                    
@@ -520,10 +579,6 @@ class ZXProcessor
             {
                 tStateSilenceOri = tStateSilence;
                 tStateSilence = (duration / OneSecondTo_ms) * freqCPU;       
-                //LAST_MESSAGE = "Silence: " + String(duration / OneSecondTo_ms) + " s";
-
-                parts = 0;
-                lastPart = 0;
 
                 // Esto lo hacemos para acabar bien un ultimo flanco en down.
                 // Hay que tener en cuenta que el terminador se quita del tiempo de PAUSA
@@ -563,92 +618,20 @@ class ZXProcessor
                     }
                 }
 
-                // Vemos si hay que partirlo
-                if (tStateSilence > minSilenceFrame)
-                {
-                    // Calculamos los frames
-                    parts = tStateSilence / minSilenceFrame;
-	                fractPart = modf(parts, &intPart);
+                samples = (tStateSilence / freqCPU) * samplingRate;
+                semiPulse(samples, false); 
+                
+                //insertamos el error de silencio calculado                 
+                #ifdef DEBUGMODE
+                    log("..ACU_ERROR: " + String(ACU_ERROR));
+                #endif
 
-                    // Calculamos el ultimo frame
-                    lastPart = fractPart * minSilenceFrame;
+                insertSamplesError(ACU_ERROR,true);
 
-                    //LAST_MESSAGE = "Silence: " + String(tStateSilence) + ":" + String(parts) + " / " + String(fractPart) + "|" + String(lastPart);  
-
-                    #ifdef DEBUGMODE
-                        log("Bloque: " + String(CURRENT_BLOCK_IN_PROGRESS));
-                        log("------------------------------------------------------");
-                        log("Terminador: " + String(thereIsTerminator));
-                        log("Tiempo de silencio: " + String(tStateSilenceOri));
-                        log("Tiempo de silencio (sin terminador): " + String(tStateSilence));                    
-                        log("Partes:   " + String(parts));
-                        logln("LastPart: " + String(lastPart));
-                        SILENCEDEBUG = true;
-                    #endif
-
-                    samples = (minSilenceFrame / freqCPU) * samplingRate;
-
-                    // Generamos el silencio
-                    for (int n=0;n<intPart;n++)
-                    {
-                        // Generamos el silencio ya en down
-                        // Indicamos que el pulso anterior fue UP, porque o bien el terminador
-                        // o bien el ultimo pulso, así estuvo, y cuando se genere el silencio
-                        // se generará un down en la funcion makeSemiPulse
-
-                        if (stopOrPauseRequest())
-                        {
-                            // Salimos
-                            return;
-                        }
-                        semiPulse(samples, false, true);                  
-                    }
-                }
-                else
-                {
-                    // Caso en el que no es necesario fraccionar
-                    lastPart = tStateSilence;
-                }
-
-                // Si al fraccionar el silencio quedó una ultima parte no completa
-                // para cubrir un minSilenceFrame se añade ahora
-                if (lastPart != 0)
-                {
-
-                    // y si hay error acumulado lo insertamos también.
-                    if (ACU_ERROR != 0)
-                    {
-                        // ultimo trozo del silencio                    
-                        // mas los samples perdidos
-                        samples = (lastPart / freqCPU) * samplingRate;                        
-                        semiPulse(samples,false);
-                        insertSamplesError(ACU_ERROR, true, true);
-                    }
-                    else
-                    {
-                        // solo el ultimo trozo
-                        samples = (lastPart / freqCPU) * samplingRate;
-                        semiPulse(samples,true, true);
-                    }
-                                        
-                }
-                else
-                {
-                    // En el caso de no haber una ultima parte no completa
-                    // solo insertamos el error acumulado si hubiese.
-                    if (ACU_ERROR != 0)
-                    {
-                        // ultimo trozo del silencio                    
-                        // mas los samples perdidos
-                        insertSamplesError(ACU_ERROR, true, true);
-                    }                    
-                }
 
                 #ifdef DEBUGMODE
                     SILENCEDEBUG = false;                
                 #endif
-
-                ACU_ERROR = 0;
             }       
         }
 
@@ -672,7 +655,7 @@ class ZXProcessor
                 // Generamos los semipulsos
                 samples = (data[i] / freqCPU) * samplingRate;
                 rsamples = samples;                 
-                semiPulse(rsamples,true,false);
+                semiPulse(rsamples,true);
             }
 
         }   
@@ -823,6 +806,7 @@ class ZXProcessor
 
             return result;            
         }
+
         void samplingtest()
         {
             // Se genera un pulso cuadrado de T = 1.00015s
@@ -832,7 +816,6 @@ class ZXProcessor
                 int samples = 441;
                 uint8_t buffer[samples*2*channels];
 
-                //LAST_MESSAGE = "ACU_ERROR: " + String(samples);
                 for (int i=0;i<49;i++)
                 {
                     // Escribimos el tren de pulsos en el procesador de Audio
@@ -852,6 +835,7 @@ class ZXProcessor
         ZXProcessor()
         {
           // Constructor de la clase
+          ACU_ERROR = 0;
         }
 
 };

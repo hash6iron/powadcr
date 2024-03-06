@@ -693,12 +693,14 @@ class TZXprocessor
         _myTZX.descriptor[currentBlock].timming.pure_tone_len = getDWORD(mFile,currentOffset+1);
         _myTZX.descriptor[currentBlock].timming.pure_tone_num_pulses = getDWORD(mFile,currentOffset+3); 
 
-            //SerialHW.println("");
-            //SerialHW.print("Pure tone setting: Ts: ");
-            //SerialHW.print(_myTZX.descriptor[currentBlock].timming.pure_tone_len,HEX);
-            //SerialHW.print(" / Np: ");
-            //SerialHW.print(_myTZX.descriptor[currentBlock].timming.pure_tone_num_pulses,HEX);        
-            //SerialHW.println("");
+        #ifdef DEBUGMODE
+            SerialHW.println("");
+            SerialHW.print("Pure tone setting: Ts: ");
+            SerialHW.print(_myTZX.descriptor[currentBlock].timming.pure_tone_len,HEX);
+            SerialHW.print(" / Np: ");
+            SerialHW.print(_myTZX.descriptor[currentBlock].timming.pure_tone_num_pulses,HEX);        
+            SerialHW.println("");
+        #endif
 
         // Esto es para que tome los bloques como especiales
         _myTZX.descriptor[currentBlock].type = 99;     
@@ -733,9 +735,12 @@ class TZXprocessor
         {
           int lenPulse = getDWORD(mFile,coff);
           _myTZX.descriptor[currentBlock].timming.pulse_seq_array[i]=lenPulse;
-          //SerialHW.print("[" +String(i) + "]=0x");
-          //SerialHW.print(lenPulse,HEX);
-          //SerialHW.print("; ");
+
+        #ifdef DEBUGMODE
+          SerialHW.print("[" +String(i) + "]=0x");
+          SerialHW.print(lenPulse,HEX);
+          SerialHW.print("; ");
+        #endif
 
           // Adelantamos 2 bytes
           coff+=2;
@@ -976,6 +981,19 @@ class TZXprocessor
     bool getTZXBlock(File32 mFile, int currentBlock, int currentID, int currentOffset, int &nextIDoffset)
     {
         bool res = true;
+        
+        // Inicializamos el descriptor
+        _myTZX.descriptor[currentBlock].group = 0;
+        _myTZX.descriptor[currentBlock].chk = 0;
+        _myTZX.descriptor[currentBlock].delay = 1000;
+        _myTZX.descriptor[currentBlock].hasMaskLastByte = false;
+        _myTZX.descriptor[currentBlock].header = false;
+        _myTZX.descriptor[currentBlock].ID = 0;
+        _myTZX.descriptor[currentBlock].lengthOfData = 0;
+        _myTZX.descriptor[currentBlock].loop_count = 0;
+        _myTZX.descriptor[currentBlock].maskLastByte = 8;
+        _myTZX.descriptor[currentBlock].nameDetected = false;
+        _myTZX.descriptor[currentBlock].offset = 0;;
 
         switch (currentID)
         {
@@ -1964,9 +1982,9 @@ class TZXprocessor
                       //Loop start ID 0x24
                       // El loop controla el cursor de bloque por tanto debe estar el primero
                       loopPlayed = 0;
-                      // El primer bloque a repetir es el siguiente. Entonces este bloque
-                      // no se lee mas.
-                      BL_LOOP_START = i+1;
+                      // El primer bloque a repetir es el siguiente, pero ponemos "i" porque el FOR lo incrementa. 
+                      // Entonces este bloque no se lee mas, ya se continua repitiendo el bucle.
+                      BL_LOOP_START = i;
                       LOOP_COUNT = _myTZX.descriptor[i].loop_count;
                       break;
 
@@ -2073,28 +2091,28 @@ class TZXprocessor
                             // Almacenmas el bloque en curso para un posible PAUSE
                             if (LOADING_STATE != 2) 
                             {
-                              CURRENT_BLOCK_IN_PROGRESS = i;
-                              BLOCK_SELECTED = i;
-                              PROGRESS_BAR_BLOCK_VALUE = 0;
+                                CURRENT_BLOCK_IN_PROGRESS = i;
+                                BLOCK_SELECTED = i;
+                                PROGRESS_BAR_BLOCK_VALUE = 0;
                             }
-
-                            //Paramos la reproducción.
-                            if (LOADING_STATE == 2) 
+                            else
                             {
-                              PAUSE = false;
-                              STOP = true;
-                              PLAY = false;
+                                //Paramos la reproducción.
 
-                              i = _myTZX.numBlocks+1;
+                                PAUSE = false;
+                                STOP = true;
+                                PLAY = false;
 
-                              loopPlayed = 0;
-                              LAST_EAR_IS = down;
-                              LOOP_START = 0;
-                              LOOP_END = 0;
-                              BL_LOOP_START = 0;
-                              BL_LOOP_END = 0;
+                                i = _myTZX.numBlocks+1;
 
-                              return;
+                                loopPlayed = 0;
+                                LAST_EAR_IS = down;
+                                LOOP_START = 0;
+                                LOOP_END = 0;
+                                BL_LOOP_START = 0;
+                                BL_LOOP_END = 0;
+
+                                return;
                             }
 
                             //Ahora vamos lanzando bloques dependiendo de su tipo
@@ -2152,20 +2170,28 @@ class TZXprocessor
                                 //
                                 // Son bloques especiales de TONO GUIA o SECUENCIAS para SYNC
                                 //
-                                int num_pulses = 0;
+                                //int num_pulses = 0;
 
                                 switch (_myTZX.descriptor[i].ID)
                                 {
                                     case 18:
-                                      // ID 0x12 - Reproducimos un tono puro. Pulso repetido n veces                          
+                                      // ID 0x12 - Reproducimos un tono puro. Pulso repetido n veces       
+                                      #ifdef DEBUGMODE
+                                          log("ID 0x12:");
+                                      #endif                    
                                       _zxp.playPureTone(_myTZX.descriptor[i].timming.pure_tone_len,_myTZX.descriptor[i].timming.pure_tone_num_pulses);
                                       break;
 
                                     case 19:
-                                      // ID 0x13 - Reproducimos una secuencia. Pulsos de longitud contenidos en un array y repetición                              
-                                      num_pulses = _myTZX.descriptor[i].timming.pulse_seq_num_pulses;
-                                      _zxp.playCustomSequence(_myTZX.descriptor[i].timming.pulse_seq_array,num_pulses);
-                                                                           
+                                      // ID 0x13 - Reproducimos una secuencia. Pulsos de longitud contenidos en un array y repetición 
+                                      #ifdef DEBUGMODE
+                                          log("ID 0x13:");
+                                          for(int j=0;j<_myTZX.descriptor[i].timming.pulse_seq_num_pulses;j++)
+                                          {
+                                            log(" -->" + String(_myTZX.descriptor[i].timming.pulse_seq_array[j]));
+                                          }
+                                      #endif                                                                     
+                                      _zxp.playCustomSequence(_myTZX.descriptor[i].timming.pulse_seq_array,_myTZX.descriptor[i].timming.pulse_seq_num_pulses);                                                                           
                                       break;                          
 
                                     case 20:
