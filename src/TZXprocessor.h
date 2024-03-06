@@ -74,6 +74,7 @@ class TZXprocessor
         char typeName[36];
         int group = 0;
         int loop_count = 0;
+        bool jump_this_ID = false;
       };
 
       // Estructura tipo TZX
@@ -993,7 +994,8 @@ class TZXprocessor
         _myTZX.descriptor[currentBlock].loop_count = 0;
         _myTZX.descriptor[currentBlock].maskLastByte = 8;
         _myTZX.descriptor[currentBlock].nameDetected = false;
-        _myTZX.descriptor[currentBlock].offset = 0;;
+        _myTZX.descriptor[currentBlock].offset = 0;
+        _myTZX.descriptor[currentBlock].jump_this_ID = false;
 
         switch (currentID)
         {
@@ -1005,8 +1007,7 @@ class TZXprocessor
                 // Obtenemos la dirección del siguiente offset
                 analyzeID16(mFile,currentOffset, currentBlock);
                 nextIDoffset = currentOffset + _myTZX.descriptor[currentBlock].size + 5;
-                strncpy(_myTZX.descriptor[currentBlock].typeName,ID10STR,35);
-                  
+                strncpy(_myTZX.descriptor[currentBlock].typeName,ID10STR,35);                  
             }
             else
             {
@@ -1072,18 +1073,13 @@ class TZXprocessor
             }
             else
             {
-                ////SerialHW.println("");
-                ////SerialHW.println("Error: Not allocation memory for block ID 0x12");
                 res = false;
-
             }
             break;                  
 
           // ID 14 - Pure Data Block
           case 20:
-            
-            //TIMMING_STABLISHED = true;
-            
+                       
             if (_myTZX.descriptor != nullptr)
             {
                 // Obtenemos la dirección del siguiente offset
@@ -1097,10 +1093,7 @@ class TZXprocessor
             }
             else
             {
-                ////SerialHW.println("");
-                ////SerialHW.println("Error: Not allocation memory for block ID 0x11");
                 res = false;
-
             }
             break;                  
 
@@ -1109,7 +1102,6 @@ class TZXprocessor
             ID_NOT_IMPLEMENTED = true;
             // analyzeBlockUnknow(currentID,currentOffset, currentBlock);
             // nextIDoffset = currentOffset + 1;            
-
             // _myTZX.descriptor[currentBlock].typeName = "ID 15 - Direct REC";
             res=false;              
             break;
@@ -1119,7 +1111,6 @@ class TZXprocessor
             ID_NOT_IMPLEMENTED = true;
             // analyzeBlockUnknow(currentID,currentOffset, currentBlock);
             // nextIDoffset = currentOffset + 1;            
-
             // _myTZX.descriptor[currentBlock].typeName = "ID 18 - CSW Rec";
             res=false;              
             break;
@@ -1129,7 +1120,6 @@ class TZXprocessor
             ID_NOT_IMPLEMENTED = true;
             // analyzeBlockUnknow(currentID,currentOffset, currentBlock);
             // nextIDoffset = currentOffset + 1;            
-
             // _myTZX.descriptor[currentBlock].typeName = "ID 19 - General Data block";
             res=false;              
             break;
@@ -1146,14 +1136,12 @@ class TZXprocessor
                 
                 log("ID 0x20 - PAUSE / STOP TAPE");
                 log("-- value: " + String(_myTZX.descriptor[currentBlock].pauseAfterThisBlock));
-                  
             }
             else
             {
                 ////SerialHW.println("");
                 ////SerialHW.println("Error: Not allocation memory for block ID 0x20");
                 res = false;
-
             }
             break;
 
@@ -1166,8 +1154,11 @@ class TZXprocessor
 
                 nextIDoffset = currentOffset + 2 + _myTZX.descriptor[currentBlock].size;
                 strncpy(_myTZX.descriptor[currentBlock].typeName,IDXXSTR,35);
+                
+                // Esto le indica a los bloque de control de flujo que puede saltarse
+                _myTZX.descriptor[currentBlock].jump_this_ID = true;
+
                 //_myTZX.descriptor[currentBlock].typeName = "ID 21 - Group start";
-                  
             }
             else
             {
@@ -1190,6 +1181,9 @@ class TZXprocessor
                 nextIDoffset = currentOffset + 1;                      
                 //_myTZX.descriptor[currentBlock].typeName = "ID 22 - Group end";
                 strncpy(_myTZX.descriptor[currentBlock].typeName,IDXXSTR,35);
+
+                // Esto le indica a los bloque de control de flujo que puede saltarse
+                _myTZX.descriptor[currentBlock].jump_this_ID = true;
                   
             }
             else
@@ -1337,7 +1331,8 @@ class TZXprocessor
                 nextIDoffset = currentOffset + _myTZX.descriptor[currentBlock].size + 1;
                 //_myTZX.descriptor[currentBlock].typeName = "ID 30 - Information";
                 strncpy(_myTZX.descriptor[currentBlock].typeName,IDXXSTR,35);
-                  
+                // Esto le indica a los bloque de control de flujo que puede saltarse
+                _myTZX.descriptor[currentBlock].jump_this_ID = true;                  
             }
             else
             {
@@ -1354,6 +1349,8 @@ class TZXprocessor
 
             strncpy(_myTZX.descriptor[currentBlock].typeName,IDXXSTR,35);
             //_myTZX.descriptor[currentBlock].typeName = "ID 31 - Message block";
+            // Esto le indica a los bloque de control de flujo que puede saltarse
+            _myTZX.descriptor[currentBlock].jump_this_ID = true;
             break;
 
           // ID 32 - Archive info
@@ -1368,6 +1365,8 @@ class TZXprocessor
                 nextIDoffset = currentOffset + 3 + _myTZX.descriptor[currentBlock].size;
                 //_myTZX.descriptor[currentBlock].typeName = "ID 32 - Archive info";
                 strncpy(_myTZX.descriptor[currentBlock].typeName,IDXXSTR,35);
+                // Esto le indica a los bloque de control de flujo que puede saltarse
+                _myTZX.descriptor[currentBlock].jump_this_ID = true;
             }
             else
             {
@@ -1389,7 +1388,8 @@ class TZXprocessor
                 nextIDoffset = currentOffset + 3 + _myTZX.descriptor[currentBlock].size;
                 //_myTZX.descriptor[currentBlock].typeName = "ID 33- Hardware type";
                 strncpy(_myTZX.descriptor[currentBlock].typeName,IDXXSTR,35);
-                  
+                // Esto le indica a los bloque de control de flujo que puede saltarse
+                _myTZX.descriptor[currentBlock].jump_this_ID = true;                  
             }
             else
             {
@@ -1406,6 +1406,10 @@ class TZXprocessor
 
             //_myTZX.descriptor[currentBlock].typeName = "ID 35 - Custom info block";
             strncpy(_myTZX.descriptor[currentBlock].typeName,IDXXSTR,35);
+
+            // Esto le indica a los bloque de control de flujo que puede saltarse
+            _myTZX.descriptor[currentBlock].jump_this_ID = true;
+
             break;
 
           // ID 5A - "Glue" block (90 dec, ASCII Letter 'Z')
@@ -1484,9 +1488,9 @@ class TZXprocessor
               // Ahora dependiendo del ID analizamos. Los ID están en HEX
               // y la rutina devolverá la posición del siguiente ID, así hasta
               // completar todo el fichero
-              if (  getTZXBlock(mFile, currentBlock, currentID, currentOffset, nextIDoffset))
+              if (getTZXBlock(mFile, currentBlock, currentID, currentOffset, nextIDoffset))
               {
-                currentBlock++;
+                  currentBlock++;               
               }
               else
               {
@@ -1746,7 +1750,7 @@ class TZXprocessor
 
       LAST_MESSAGE = "Analyzing file";
     
-      MULTIGROUP_COUNT = 0;
+      MULTIGROUP_COUNT = 1;
 
       // Abrimos el fichero
       tzxFile = sdm.openFile32(tzxFile, path);
@@ -2017,12 +2021,12 @@ class TZXprocessor
                           // En el caso de cero. Paramos el TAPE (lo ponemos en PAUSA, porque esto es para poder cargar bloques después)
                           //i = _myTZX.numBlocks;
 
+                          // Finalizamos el ultimo bit
+                          _zxp.silence(1000);
+
                           // PAUSE
                           //Pausamos la reproducción a través
                           //del HMI 
-
-                          // Finalizamos el ultimo bit
-                          //_zxp.closeBlock();
 
                           hmi.writeString("click btnPause,1"); 
 
@@ -2031,6 +2035,7 @@ class TZXprocessor
                           PAUSE = true;
 
                           LAST_MESSAGE = "Playing PAUSE.";
+                          LAST_TZX_GROUP = "[STOP BLOCK]";
 
                           // Dejamos preparado el sieguiente bloque
                           CURRENT_BLOCK_IN_PROGRESS++;
@@ -2042,7 +2047,12 @@ class TZXprocessor
                               CURRENT_BLOCK_IN_PROGRESS = 1;
                               BLOCK_SELECTED = 1;
                           }
-                          
+
+                          // Inicializamos la polarización de la señal
+                          // para empezar el siguiente bloque otra vez normal
+                          LAST_EAR_IS = POLARIZATION;
+
+                          // Enviamos info al HMI.
                           _hmi.setBasicFileInformation(_myTZX.descriptor[BLOCK_SELECTED].name,_myTZX.descriptor[BLOCK_SELECTED].typeName,_myTZX.descriptor[BLOCK_SELECTED].size);                        
                           return;
                       }
@@ -2055,11 +2065,12 @@ class TZXprocessor
 
                     case 33:
                       // Comienza multigrupo
-                      LAST_TZX_GROUP = "[GRP: " + String(_myTZX.descriptor[BLOCK_SELECTED].group) + "]";
+                      LAST_TZX_GROUP = "[META BLOCK: " + String(_myTZX.descriptor[i].group) + "]";
                       break;
 
                     case 34:
-                      LAST_TZX_GROUP = &INITCHAR[0];
+                      //LAST_TZX_GROUP = &INITCHAR[0];
+                      LAST_TZX_GROUP = "[GROUP END]";
                       break;
 
                     default:
@@ -2348,7 +2359,7 @@ class TZXprocessor
               LOOP_COUNT = 0;
               BL_LOOP_START = 0;
               BL_LOOP_END = 0;
-              MULTIGROUP_COUNT = 0;
+              MULTIGROUP_COUNT = 1;
         }
         else
         {

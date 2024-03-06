@@ -765,6 +765,12 @@ class ZXProcessor
             silence(silent);
         }
 
+        void closeBlock()
+        {
+            // Añadimos un silencio de 3.5M T-States (1s)
+            silence(1000);
+        }
+
         void set_ESP32kit(AudioKit kit)
         { 
           m_kit = kit;

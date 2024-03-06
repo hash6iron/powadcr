@@ -114,6 +114,7 @@ char LASTYPE5[] = "ARRAY.NUM\0";
 char LASTYPE6[] = "ARRAY.CHR\0";
 
 bool ID_NOT_IMPLEMENTED = false;
+bool NOT_CAPTURE_ID = false;
 
 enum edge
 {
@@ -215,7 +216,7 @@ String PROGRAM_NAME_2 = "";
 int LAST_SIZE = 0;
 
 int LAST_BIT_WIDTH = 0;
-int MULTIGROUP_COUNT = 0;
+int MULTIGROUP_COUNT = 1;
 
 int BYTES_LOADED = 0;
 int BYTES_TOBE_LOAD = 0;
