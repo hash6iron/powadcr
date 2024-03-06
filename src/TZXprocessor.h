@@ -1144,9 +1144,8 @@ class TZXprocessor
                 nextIDoffset = currentOffset + 3;  
                 strncpy(_myTZX.descriptor[currentBlock].typeName,IDXXSTR,35);
                 
-                ////SerialHW.println("");
-                ////SerialHW.println("--> PAUSE / STOP TAPE");
-
+                log("ID 0x20 - PAUSE / STOP TAPE");
+                log("-- value: " + String(_myTZX.descriptor[currentBlock].pauseAfterThisBlock));
                   
             }
             else
@@ -1558,16 +1557,18 @@ class TZXprocessor
         char hexs[20];
         if (size > 10)
         {
-          log("");
-          //SerialHW.println("Listing bufferplay.");
-
-          //SerialHW.print(buffer[0],HEX);
-          //SerialHW.print(",");
-          //SerialHW.print(buffer[1],HEX);
-          //SerialHW.print(" ... ");
-          //SerialHW.print(buffer[size-2],HEX);
-          //SerialHW.print(",");
-          //SerialHW.print(buffer[size-1],HEX);
+          #ifdef DEBUGMODE
+            log("");
+            SerialHW.println("Listing bufferplay.");
+            SerialHW.print(buffer[0],HEX);
+            SerialHW.print(",");
+            SerialHW.print(buffer[1],HEX);
+            SerialHW.print(" ... ");
+            SerialHW.print(buffer[size-2],HEX);
+            SerialHW.print(",");
+            SerialHW.print(buffer[size-1],HEX);
+            log("");            
+          #endif
 
           sprintf(hexs, "%X", buffer[size-1]);
           dataOffset4 = hexs;
@@ -1587,19 +1588,16 @@ class TZXprocessor
           sprintf(hexs, "%X", offset);
           Offset1 = hexs;
 
-
-          // }
-          log("");
         }
         else
         {
-            // Solo mostramos la ultima parte
-            log("");
-            //SerialHW.println("Listing bufferplay.");
-
-            //SerialHW.print(buffer[size-2],HEX);
-            //SerialHW.print(",");
-            //SerialHW.print(buffer[size-1],HEX);
+            #ifdef DEBUGMODE
+              // Solo mostramos la ultima parte
+              SerialHW.println("Listing bufferplay. SHORT");
+              SerialHW.print(buffer[size-2],HEX);
+              SerialHW.print(",");
+              SerialHW.print(buffer[size-1],HEX);
+            #endif
 
             sprintf(hexs, "%X", buffer[size-1]);
             dataOffset4 = hexs;
@@ -2044,8 +2042,6 @@ class TZXprocessor
                               BLOCK_SELECTED = 1;
                           }
                           
-
-
                           _hmi.setBasicFileInformation(_myTZX.descriptor[BLOCK_SELECTED].name,_myTZX.descriptor[BLOCK_SELECTED].typeName,_myTZX.descriptor[BLOCK_SELECTED].size);                        
                           return;
                       }
@@ -2188,7 +2184,8 @@ class TZXprocessor
                                           log("ID 0x13:");
                                           for(int j=0;j<_myTZX.descriptor[i].timming.pulse_seq_num_pulses;j++)
                                           {
-                                            log(" -->" + String(_myTZX.descriptor[i].timming.pulse_seq_array[j]));
+                                            SerialHW.print(_myTZX.descriptor[i].timming.pulse_seq_array[j],HEX);
+                                            SerialHW.print(",");
                                           }
                                       #endif                                                                     
                                       _zxp.playCustomSequence(_myTZX.descriptor[i].timming.pulse_seq_array,_myTZX.descriptor[i].timming.pulse_seq_num_pulses);                                                                           
@@ -2204,7 +2201,7 @@ class TZXprocessor
                                           int totalSize = _myTZX.descriptor[i].size;
                                           int offsetBase = _myTZX.descriptor[i].offsetData;
                                           int newOffset = 0;
-                                          int blocks = totalSize / blockSizeSplit;
+                                          double blocks = totalSize / blockSizeSplit;
                                           int lastBlockSize = totalSize - (blocks * blockSizeSplit);
 
                                           // BTI 0
@@ -2221,22 +2218,49 @@ class TZXprocessor
                                             bufferPlay = sdm.readFileRange32(_mFile, newOffset, blockSizeSplit, true);
                                             // Mostramos en la consola los primeros y últimos bytes
                                             showBufferPlay(bufferPlay,blockSizeSplit,newOffset);     
-                                            
-                                            // Reproducimos la partición n, del bloque.
-                                            _zxp.playDataPartition(bufferPlay, blockSizeSplit);                                      
+
+                                            #ifdef DEBUGMODE                                            
+                                              log("Block. " + String(n));
+                                              SerialHW.print(newOffset,HEX);                                              
+                                              SerialHW.print(" - ");                                              
+                                              SerialHW.print(newOffset+blockSizeSplit,HEX);                                              
+                                              log("");
+                                              for (int j=0;j<blockSizeSplit;j++)
+                                              {
+                                                  SerialHW.print(bufferPlay[j],HEX);
+                                                  SerialHW.print(",");                                              
+                                              }
+                                            #else
+                                              // Reproducimos la partición n, del bloque.
+                                              _zxp.playDataPartition(bufferPlay, blockSizeSplit);                                      
+                                            #endif
+
                                           }
 
                                           // Ultimo bloque
                                           // Calculamos el offset del último bloque
                                           newOffset = offsetBase + (blockSizeSplit*blocks);
-                                          blockSizeSplit = lastBlockSize + 1;
+                                          blockSizeSplit = lastBlockSize;
                                           // Accedemos a la SD y capturamos el bloque del fichero
                                           bufferPlay = sdm.readFileRange32(_mFile, newOffset,blockSizeSplit, true);
                                           // Mostramos en la consola los primeros y últimos bytes
                                           showBufferPlay(bufferPlay,blockSizeSplit,newOffset);         
-                                          
-                                          // Reproducimos el ultimo bloque con su terminador y silencio si aplica
-                                          _zxp.playPureData(bufferPlay, blockSizeSplit);                                    
+
+                                          #ifdef DEBUGMODE                                            
+                                            log("Block. LAST");
+                                            SerialHW.print(newOffset,HEX);
+                                            SerialHW.print(" - ");                                              
+                                            SerialHW.print(newOffset+blockSizeSplit,HEX);                                              
+                                            log("");
+                                            for (int j=0;j<blockSizeSplit;j++)
+                                            {
+                                                SerialHW.print(bufferPlay[j],HEX);
+                                                SerialHW.print(",");                                              
+                                            }
+                                          #else
+                                            // Reproducimos el ultimo bloque con su terminador y silencio si aplica
+                                            _zxp.playPureData(bufferPlay, blockSizeSplit);                                     
+                                          #endif
 
                                           free(bufferPlay); 
                                       }

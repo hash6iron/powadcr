@@ -343,7 +343,7 @@ class ZXProcessor
             ACU_ERROR = (samples - (minFrame*framesCounter));
             
             #ifdef DEBUGMODE
-                log("ACU_ERROR: "+ String(ACU_ERROR));
+                //log("ACU_ERROR: "+ String(ACU_ERROR));
             #endif
 
             if (stopOrPauseRequest())
