@@ -768,9 +768,9 @@ class ZXProcessor
         void closeBlock()
         {
             // Marcamos 3ms de terminador de cinta UP
-            terminator(maxTerminatorWidth*3);
-            // otro down de 9 TStates (aprox. 30 us)
-            terminator(9);
+            // terminator(maxTerminatorWidth*3);
+            // // otro down de 9 TStates (aprox. 30 us)
+            // terminator(9);
         }
 
         void set_ESP32kit(AudioKit kit)

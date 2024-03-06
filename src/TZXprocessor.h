@@ -2025,6 +2025,7 @@ class TZXprocessor
                           _zxp.closeBlock();
 
                           hmi.writeString("click btnPause,1"); 
+                          
                           PLAY = false;
                           STOP = false;
                           PAUSE = true;
