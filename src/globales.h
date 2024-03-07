@@ -225,8 +225,10 @@ int TOTAL_BLOCKS = 0;
 int LOOP_START = 0;
 int BL_LOOP_START = 0;
 int LOOP_COUNT=0;
+int LOOP_PLAYED=0;
 int LOOP_END = 0;
 int BL_LOOP_END = 0;
+bool WAITING_FOR_USER_ACTION = false;
 
 // Screen
 bool SCREEN_LOADING = 0;

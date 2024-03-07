@@ -232,7 +232,7 @@ class ZXProcessor
             return(A);
         }
 
-        void semiPulse(double samples, bool changeNextEARedge)
+        void semiPulse(double rsamples, bool changeNextEARedge)
         {
             // Calculamos el tamaño del buffer
             int bytes = 0; //Cada muestra ocupa 2 bytes (16 bits)
@@ -243,6 +243,9 @@ class ZXProcessor
             int16_t sample_R = 0;
             // Amplitud de la señal
             double amplitude = 0;
+
+            // Ajustamos
+            double samples = round(rsamples);
 
             ACU_ERROR = 0;
 

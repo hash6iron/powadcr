@@ -111,6 +111,25 @@ class TZXprocessor
 
     int CURRENT_LOADING_BLOCK = 0;
 
+    bool stopOrPauseRequest()
+    {
+        if (LOADING_STATE == 1)
+        {
+            if (STOP==true)
+            {
+                LOADING_STATE = 2; // Parada del bloque actual
+                return true;
+            }
+            else if (PAUSE==true)
+            {
+                LOADING_STATE = 3; // Parada del bloque actual
+                return true;
+            }
+        }      
+
+        return false;   
+    }
+
     uint8_t calculateChecksum(uint8_t* bBlock, int startByte, int numBytes)
     {
         // Calculamos el checksum de un bloque de bytes
@@ -163,101 +182,101 @@ class TZXprocessor
 
       }
 
-     bool isHeaderTZX(File32 tzxFile)
-     {
+    bool isHeaderTZX(File32 tzxFile)
+    {
+      if (tzxFile != 0)
+      {
+
+          ////SerialHW.println("");
+          ////SerialHW.println("Begin isHeaderTZX");
+
+          // Capturamos la cabecera
+
+          uint8_t* bBlock = sdm.readFileRange32(tzxFile,0,10,false); 
+
+        // Obtenemos la firma del TZX
+        char signTZXHeader[9];
+
+        // Analizamos la cabecera
+        // Extraemos el nombre del programa
+          for (int n=0;n<7;n++)
+          {   
+              signTZXHeader[n] = (char)bBlock[n];
+          }
+          
+          free(bBlock);
+
+          //Aplicamos un terminador a la cadena de char
+          signTZXHeader[7] = '\0';
+          //Convertimos a String
+          String signStr = String(signTZXHeader);
+          
+          ////SerialHW.println("");
+          ////SerialHW.println("Sign: " + signStr);
+
+          if (signStr.indexOf("ZXTape!") != -1)
+          {
+              return true;
+          }
+          else
+          {
+              return false;
+          }
+      }
+      else
+      { 
+        return false;
+      }
+    }
+
+    bool isFileTZX(File32 tzxFile)
+    {
         if (tzxFile != 0)
         {
+          // Capturamos el nombre del fichero en szName
+          char* szName = (char*)ps_calloc(255,sizeof(char));
+          tzxFile.getName(szName,254);
+          String fileName = String(szName);
+          free(szName);
 
-           ////SerialHW.println("");
-           ////SerialHW.println("Begin isHeaderTZX");
+          if (fileName != "")
+          {
+                //String fileExtension = szNameStr.substring(szNameStr.length()-3);
+                fileName.toUpperCase();
+                
+                if (fileName.indexOf(".TZX") != -1)
+                {
+                    //La extensión es TZX pero ahora vamos a comprobar si internamente también lo es
+                    if (isHeaderTZX(tzxFile))
+                    { 
+                      //Cerramos el fichero porque no se usará mas.
+                      tzxFile.close();
+                      return true;
+                    }
+                    else
+                    {
+                      //Cerramos el fichero porque no se usará mas.
+                      tzxFile.close();
+                      return false;
+                    }
+                }
+                else
+                {
+                    return false;
+                }
+            }
+            else
+            {
+                return false;
+            }        
 
-           // Capturamos la cabecera
-
-           uint8_t* bBlock = sdm.readFileRange32(tzxFile,0,10,false); 
-
-          // Obtenemos la firma del TZX
-          char signTZXHeader[9];
-
-          // Analizamos la cabecera
-          // Extraemos el nombre del programa
-           for (int n=0;n<7;n++)
-           {   
-               signTZXHeader[n] = (char)bBlock[n];
-           }
-           
-           free(bBlock);
-
-           //Aplicamos un terminador a la cadena de char
-           signTZXHeader[7] = '\0';
-           //Convertimos a String
-           String signStr = String(signTZXHeader);
-           
-           ////SerialHW.println("");
-           ////SerialHW.println("Sign: " + signStr);
-
-           if (signStr.indexOf("ZXTape!") != -1)
-           {
-               return true;
-           }
-           else
-           {
-               return false;
-           }
         }
         else
-        { 
+        {
           return false;
         }
-     }
 
-     bool isFileTZX(File32 tzxFile)
-     {
-         if (tzxFile != 0)
-         {
-            // Capturamos el nombre del fichero en szName
-            char* szName = (char*)ps_calloc(255,sizeof(char));
-            tzxFile.getName(szName,254);
-            String fileName = String(szName);
-            free(szName);
-
-            if (fileName != "")
-            {
-                  //String fileExtension = szNameStr.substring(szNameStr.length()-3);
-                  fileName.toUpperCase();
-                  
-                  if (fileName.indexOf(".TZX") != -1)
-                  {
-                      //La extensión es TZX pero ahora vamos a comprobar si internamente también lo es
-                      if (isHeaderTZX(tzxFile))
-                      { 
-                        //Cerramos el fichero porque no se usará mas.
-                        tzxFile.close();
-                        return true;
-                      }
-                      else
-                      {
-                        //Cerramos el fichero porque no se usará mas.
-                        tzxFile.close();
-                        return false;
-                      }
-                  }
-                  else
-                  {
-                      return false;
-                  }
-              }
-              else
-              {
-                  return false;
-              }        
-
-         }
-         else
-         {
-            return false;
-         }
-  
-     }
+    }
 
     int getDWORD(File32 mFile, int offset)
     {
@@ -1920,12 +1939,387 @@ class TZXprocessor
         }
     }
 
+    bool isPlayeable(int id)
+    {
+      // Definimos los ID playeables (en decimal)
+      bool res = false;
+      int playeableListID[] = {16, 17, 18, 19, 20, 21, 24, 25, 32, 35, 36, 37, 38, 39, 40, 42, 43, 90};
+      for (int i = 0; i < 18; i++) 
+      {
+        if (playeableListID[i] == id) 
+        { 
+          res = true; //Inidicamos que lo hemos encontrado
+          break;
+        }
+      }
+
+      return res;
+    }
+
+    void getIdAndPlay(int i)
+    {
+        // Inicializamos el buffer de reproducción. Memoria dinamica
+        uint8_t* bufferPlay = nullptr;
+        int dly = 0;
+        
+        // Cogemos la mascara del ultimo byte
+        if (_myTZX.descriptor[i].hasMaskLastByte)
+        {
+          _zxp.set_maskLastByte(_myTZX.descriptor[i].maskLastByte);
+        }
+        else
+        {
+          _zxp.set_maskLastByte(8);
+        }
+        
+
+        // Ahora lo voy actualizando a medida que van avanzando los bloques.
+        //PROGRAM_NAME_2 = _myTZX.descriptor[BLOCK_SELECTED].name;
+
+        switch (_myTZX.descriptor[i].ID)
+        {
+            case 36:  
+              //Loop start ID 0x24
+              // El loop controla el cursor de bloque por tanto debe estar el primero
+              LOOP_PLAYED = 0;
+              // El primer bloque a repetir es el siguiente, pero ponemos "i" porque el FOR lo incrementa. 
+              // Entonces este bloque no se lee mas, ya se continua repitiendo el bucle.
+              BL_LOOP_START = i;
+              LOOP_COUNT = _myTZX.descriptor[i].loop_count;
+              break;
+
+            case 37:
+              //Loop end ID 0x25
+              #ifdef DEBUGMODE
+                  log("LOOP: " + String(loopPlayed) + " / " + String(LOOP_COUNT));
+                  log("------------------------------------------------------");
+              #endif
+
+              if (LOOP_PLAYED < LOOP_COUNT)
+              {
+                // Volvemos al primner bloque dentro del loop
+                i = BL_LOOP_START;
+                LOOP_PLAYED++;
+              }             
+              break;
+
+            case 32:
+              // ID 0x20 - Pause or STOP the TAP
+              // Hacemos un delay
+              dly = _myTZX.descriptor[i].pauseAfterThisBlock;
+
+              // Vemos si es una PAUSA o una parada del TAPE
+              if (dly == 0)
+              {                       
+                  // Finalizamos el ultimo bit
+                  _zxp.silence(1000);
+
+                  // PAUSE
+                  // Pausamos la reproducción a través del HMI 
+
+                  hmi.writeString("click btnPause,1"); 
+
+                  PLAY = false;
+                  STOP = false;
+                  PAUSE = true;
+
+                  LAST_MESSAGE = "Playing PAUSE.";
+                  LAST_TZX_GROUP = "[STOP BLOCK]";
+
+                  // Dejamos preparado el sieguiente bloque
+                  CURRENT_BLOCK_IN_PROGRESS++;
+                  BLOCK_SELECTED++;
+                  //WAITING_FOR_USER_ACTION = true;
+
+                  if (BLOCK_SELECTED >= _myTZX.numBlocks)
+                  {
+                      // Reiniciamos
+                      CURRENT_BLOCK_IN_PROGRESS = 1;
+                      BLOCK_SELECTED = 1;
+                  }
+
+                  // Enviamos info al HMI.
+                  _hmi.setBasicFileInformation(_myTZX.descriptor[BLOCK_SELECTED].name,_myTZX.descriptor[BLOCK_SELECTED].typeName,_myTZX.descriptor[BLOCK_SELECTED].size);                        
+                  return;
+              }
+              else
+              {
+                  // En otro caso. delay
+                  _zxp.silence(dly);                        
+              }                    
+              break;
+
+            case 33:
+              // Comienza multigrupo
+              LAST_TZX_GROUP = "[META BLOCK: " + String(_myTZX.descriptor[i].group) + "]";
+              break;
+
+            case 34:
+              //LAST_TZX_GROUP = &INITCHAR[0];
+              LAST_TZX_GROUP = "[GROUP END]";
+              break;
+
+            default:
+              // Cualquier otro bloque entra por aquí, pero
+              // hay que comprobar que sea REPRODUCIBLE
+              if (_myTZX.descriptor[i].playeable)
+              {
+                    //Silent
+                    _zxp.silent = _myTZX.descriptor[i].pauseAfterThisBlock;        
+                    //SYNC1
+                    _zxp.SYNC1 = _myTZX.descriptor[i].timming.sync_1;
+                    //SYNC2
+                    _zxp.SYNC2 = _myTZX.descriptor[i].timming.sync_2;
+                    //PULSE PILOT (longitud del pulso)
+                    _zxp.PILOT_PULSE_LEN = _myTZX.descriptor[i].timming.pilot_len;
+                    // BTI 0
+                    _zxp.BIT_0 = _myTZX.descriptor[i].timming.bit_0;
+                    // BIT1                                          
+                    _zxp.BIT_1 = _myTZX.descriptor[i].timming.bit_1;
+
+                    // Obtenemos el nombre del bloque
+                    strncpy(LAST_NAME,_myTZX.descriptor[i].name,14);
+                    LAST_SIZE = _myTZX.descriptor[i].size;
+                    strncpy(LAST_TYPE,_myTZX.descriptor[i].typeName,35);
+
+                    // Almacenmas el bloque en curso para un posible PAUSE
+                    if (LOADING_STATE != 2) 
+                    {
+                        CURRENT_BLOCK_IN_PROGRESS = i;
+                        BLOCK_SELECTED = i;
+                        PROGRESS_BAR_BLOCK_VALUE = 0;
+                    }
+                    else
+                    {
+                        //Paramos la reproducción.
+
+                        PAUSE = false;
+                        STOP = true;
+                        PLAY = false;
+
+                        i = _myTZX.numBlocks+1;
+
+                        LOOP_PLAYED = 0;
+                        LAST_EAR_IS = down;
+                        LOOP_START = 0;
+                        LOOP_END = 0;
+                        BL_LOOP_START = 0;
+                        BL_LOOP_END = 0;
+
+                        return;
+                    }
+
+                    //Ahora vamos lanzando bloques dependiendo de su tipo
+                    // Actualizamos HMI
+                    _hmi.setBasicFileInformation(_myTZX.descriptor[i].name,_myTZX.descriptor[i].typeName,_myTZX.descriptor[i].size);
+
+                    // Reproducimos el fichero
+                    if (_myTZX.descriptor[i].type == 0) 
+                    {
+                        //
+                        // LOS BLOQUES TYPE == 0 
+                        //
+                        // Llevan una cabecera y después un bloque de datos
+
+                        switch (_myTZX.descriptor[i].ID)
+                        {
+                          case 16:
+                            //PULSE PILOT
+                            _myTZX.descriptor[i].timming.pilot_len = DPILOT_LEN;
+                            
+                            // Reproducimos el bloque - PLAY
+                            playBlock(_myTZX.descriptor[i]);
+                            //free(bufferPlay);
+                            break;
+
+                          case 17:
+                            //PULSE PILOT
+                            // Llamamos a la clase de reproducción
+                            playBlock(_myTZX.descriptor[i]);
+                            break;
+                        }
+
+                    } 
+                    else if (_myTZX.descriptor[i].type == 1 || _myTZX.descriptor[i].type == 7) 
+                    {
+
+                        // Llamamos a la clase de reproducción
+                        switch (_myTZX.descriptor[i].ID)
+                        {
+                          case 16:
+                            //Standard data - ID-10                          
+                            _myTZX.descriptor[i].timming.pilot_len = DPILOT_LEN;                                  
+                            playBlock(_myTZX.descriptor[i]);
+                            break;
+
+                          case 17:
+                            // Speed data - ID-11                            
+                            playBlock(_myTZX.descriptor[i]);
+                            break;
+                        }
+                                              
+                    } 
+                    else if (_myTZX.descriptor[i].type == 99)
+                    {
+                        //
+                        // Son bloques especiales de TONO GUIA o SECUENCIAS para SYNC
+                        //
+                        //int num_pulses = 0;
+
+                        switch (_myTZX.descriptor[i].ID)
+                        {
+                            case 18:
+                              // ID 0x12 - Reproducimos un tono puro. Pulso repetido n veces       
+                              #ifdef DEBUGMODE
+                                  log("ID 0x12:");
+                              #endif                    
+                              _zxp.playPureTone(_myTZX.descriptor[i].timming.pure_tone_len,_myTZX.descriptor[i].timming.pure_tone_num_pulses);
+                              break;
+
+                            case 19:
+                              // ID 0x13 - Reproducimos una secuencia. Pulsos de longitud contenidos en un array y repetición 
+                              #ifdef DEBUGMODE
+                                  log("ID 0x13:");
+                                  for(int j=0;j<_myTZX.descriptor[i].timming.pulse_seq_num_pulses;j++)
+                                  {
+                                    SerialHW.print(_myTZX.descriptor[i].timming.pulse_seq_array[j],HEX);
+                                    SerialHW.print(",");
+                                  }
+                              #endif                                                                     
+                              _zxp.playCustomSequence(_myTZX.descriptor[i].timming.pulse_seq_array,_myTZX.descriptor[i].timming.pulse_seq_num_pulses);                                                                           
+                              break;                          
+
+                            case 20:
+                              // ID 0x14
+                              int blockSizeSplit = SIZE_FOR_SPLIT;
+
+                              if (_myTZX.descriptor[i].size > blockSizeSplit)
+                              {
+
+                                  int totalSize = _myTZX.descriptor[i].size;
+                                  int offsetBase = _myTZX.descriptor[i].offsetData;
+                                  int newOffset = 0;
+                                  double blocks = totalSize / blockSizeSplit;
+                                  int lastBlockSize = totalSize - (blocks * blockSizeSplit);
+
+                                  // BTI 0
+                                  _zxp.BIT_0 = _myTZX.descriptor[i].timming.bit_0;
+                                  // BIT1                                          
+                                  _zxp.BIT_1 = _myTZX.descriptor[i].timming.bit_1;
+
+                                  // Recorremos el vector de particiones del bloque.
+                                  for (int n=0;n < blocks;n++)
+                                  {
+                                    // Calculamos el offset del bloque
+                                    newOffset = offsetBase + (blockSizeSplit*n);
+                                    // Accedemos a la SD y capturamos el bloque del fichero
+                                    bufferPlay = sdm.readFileRange32(_mFile, newOffset, blockSizeSplit, true);
+                                    // Mostramos en la consola los primeros y últimos bytes
+                                    showBufferPlay(bufferPlay,blockSizeSplit,newOffset);     
+
+                                    #ifdef DEBUGMODE                                            
+                                      log("Block. " + String(n));
+                                      SerialHW.print(newOffset,HEX);                                              
+                                      SerialHW.print(" - ");                                              
+                                      SerialHW.print(newOffset+blockSizeSplit,HEX);                                              
+                                      log("");
+                                      for (int j=0;j<blockSizeSplit;j++)
+                                      {
+                                          SerialHW.print(bufferPlay[j],HEX);
+                                          SerialHW.print(",");                                              
+                                      }
+                                    #else
+                                      // Reproducimos la partición n, del bloque.
+                                      _zxp.playDataPartition(bufferPlay, blockSizeSplit);                                      
+                                    #endif
+
+                                  }
+
+                                  // Ultimo bloque
+                                  // Calculamos el offset del último bloque
+                                  newOffset = offsetBase + (blockSizeSplit*blocks);
+                                  blockSizeSplit = lastBlockSize;
+                                  // Accedemos a la SD y capturamos el bloque del fichero
+                                  bufferPlay = sdm.readFileRange32(_mFile, newOffset,blockSizeSplit, true);
+                                  // Mostramos en la consola los primeros y últimos bytes
+                                  showBufferPlay(bufferPlay,blockSizeSplit,newOffset);         
+
+                                  #ifdef DEBUGMODE                                            
+                                    log("Block. LAST");
+                                    SerialHW.print(newOffset,HEX);
+                                    SerialHW.print(" - ");                                              
+                                    SerialHW.print(newOffset+blockSizeSplit,HEX);                                              
+                                    log("");
+                                    for (int j=0;j<blockSizeSplit;j++)
+                                    {
+                                        SerialHW.print(bufferPlay[j],HEX);
+                                        SerialHW.print(",");                                              
+                                    }
+                                  #else
+                                    // Reproducimos el ultimo bloque con su terminador y silencio si aplica
+                                    _zxp.playPureData(bufferPlay, blockSizeSplit);                                     
+                                  #endif
+
+                                  free(bufferPlay); 
+                              }
+                              else
+                              {
+                                  bufferPlay = sdm.readFileRange32(_mFile, _myTZX.descriptor[i].offsetData, _myTZX.descriptor[i].size, true);
+
+                                  showBufferPlay(bufferPlay,_myTZX.descriptor[i].size,_myTZX.descriptor[i].offsetData);
+                                  verifyChecksum(_mFile,_myTZX.descriptor[i].offsetData,_myTZX.descriptor[i].size);    
+
+                                  // BTI 0
+                                  _zxp.BIT_0 = _myTZX.descriptor[i].timming.bit_0;
+                                  // BIT1                                          
+                                  _zxp.BIT_1 = _myTZX.descriptor[i].timming.bit_1;
+                                  //
+                                  _zxp.playPureData(bufferPlay, _myTZX.descriptor[i].size);
+                                  free(bufferPlay);                                  
+                              }                               
+                              break;                          
+                        }
+                    }
+                    else 
+                    {
+                        //
+                        // Otros bloques de datos SIN cabecera no contemplados anteriormente - DATA
+                        //
+
+                        int blockSize = _myTZX.descriptor[i].size;
+
+
+                        switch (_myTZX.descriptor[i].ID)
+                        {
+                          case 16:
+                            // ID 0x10
+
+                            //PULSE PILOT
+                            _myTZX.descriptor[i].timming.pilot_len = DPILOT_LEN;
+                            playBlock(_myTZX.descriptor[i]);
+                            break;
+
+                          case 17:
+                            // ID 0x11
+                            //PULSE PILOT
+                            playBlock(_myTZX.descriptor[i]);
+                            // Bloque de datos BYTE
+                            break;
+                        }
+
+                    }                  
+            }                
+            break;
+
+        }      
+    }
+
     void play()
     {
 
-        int loopPlayed = 0;
+        LOOP_PLAYED = 0;
         // Inicializamos el buffer de reproducción. Memoria dinamica
-        uint8_t* bufferPlay = nullptr;
+        //uint8_t* bufferPlay = nullptr;
         int firstBlockToBePlayed = 0;
         int dly = 0;
 
@@ -1963,382 +2357,40 @@ class TZXprocessor
               // Recorremos ahora todos los bloques que hay en el descriptor
               for (int i = firstBlockToBePlayed; i < _myTZX.numBlocks; i++) 
               {               
-                
-                // Cogemos la mascara del ultimo byte
-                if (_myTZX.descriptor[i].hasMaskLastByte)
+
+                BLOCK_SELECTED = i;                
+
+                // if (WAITING_FOR_USER_ACTION)
+                // {
+                //     // Seguimos saltando IDs hasta llegar al playeable.
+                //     if(isPlayeable(_myTZX.descriptor[i].ID))
+                //     {
+                //         WAITING_FOR_USER_ACTION = false;
+                //         getIdAndPlay(i);
+                //     }
+                // }
+                // else
+                // {
+                getIdAndPlay(i);
+                // }
+
+                if (LOADING_STATE == 2 || LOADING_STATE == 3)
                 {
-                  _zxp.set_maskLastByte(_myTZX.descriptor[i].maskLastByte);
-                }
-                else
-                {
-                  _zxp.set_maskLastByte(8);
-                }
-                
-
-                // Ahora lo voy actualizando a medida que van avanzando los bloques.
-                //PROGRAM_NAME_2 = _myTZX.descriptor[BLOCK_SELECTED].name;
-
-                switch (_myTZX.descriptor[i].ID)
-                {
-                    case 36:  
-                      //Loop start ID 0x24
-                      // El loop controla el cursor de bloque por tanto debe estar el primero
-                      loopPlayed = 0;
-                      // El primer bloque a repetir es el siguiente, pero ponemos "i" porque el FOR lo incrementa. 
-                      // Entonces este bloque no se lee mas, ya se continua repitiendo el bucle.
-                      BL_LOOP_START = i;
-                      LOOP_COUNT = _myTZX.descriptor[i].loop_count;
-                      break;
-
-                    case 37:
-                      //Loop end ID 0x25
-                      #ifdef DEBUGMODE
-                          log("LOOP: " + String(loopPlayed) + " / " + String(LOOP_COUNT));
-                          log("------------------------------------------------------");
-                      #endif
-
-                      if (loopPlayed < LOOP_COUNT)
-                      {
-                        // Volvemos al primner bloque dentro del loop
-                        i = BL_LOOP_START;
-                        loopPlayed++;
-                      }
-                      // else
-                      // {
-                      //   // Avanzamos a otro bloque
-                      //   i++;
-                      // }                
-                      break;
-
-                    case 32:
-                      // ID 0x20 - Pause or STOP the TAP
-                      // Hacemos un delay
-                      dly = _myTZX.descriptor[i].pauseAfterThisBlock;
-
-                      // Vemos si es una PAUSA o una parada del TAPE
-                      if (dly == 0)
-                      {                       
-                          // En el caso de cero. Paramos el TAPE (lo ponemos en PAUSA, porque esto es para poder cargar bloques después)
-                          //i = _myTZX.numBlocks;
-
-                          // Finalizamos el ultimo bit
-                          _zxp.silence(1000);
-
-                          // PAUSE
-                          //Pausamos la reproducción a través
-                          //del HMI 
-
-                          hmi.writeString("click btnPause,1"); 
-
-                          PLAY = false;
-                          STOP = false;
-                          PAUSE = true;
-
-                          LAST_MESSAGE = "Playing PAUSE.";
-                          LAST_TZX_GROUP = "[STOP BLOCK]";
-
-                          // Dejamos preparado el sieguiente bloque
-                          CURRENT_BLOCK_IN_PROGRESS++;
-                          BLOCK_SELECTED++;
-
-                          if (BLOCK_SELECTED >= _myTZX.numBlocks)
-                          {
-                              // Reiniciamos
-                              CURRENT_BLOCK_IN_PROGRESS = 1;
-                              BLOCK_SELECTED = 1;
-                          }
-
-                          // Inicializamos la polarización de la señal
-                          // para empezar el siguiente bloque otra vez normal
-                          LAST_EAR_IS = POLARIZATION;
-
-                          // Enviamos info al HMI.
-                          _hmi.setBasicFileInformation(_myTZX.descriptor[BLOCK_SELECTED].name,_myTZX.descriptor[BLOCK_SELECTED].typeName,_myTZX.descriptor[BLOCK_SELECTED].size);                        
-                          return;
-                      }
-                      else
-                      {
-                          // En otro caso. delay
-                          _zxp.silence(dly);                        
-                      }                    
-                      break;
-
-                    case 33:
-                      // Comienza multigrupo
-                      LAST_TZX_GROUP = "[META BLOCK: " + String(_myTZX.descriptor[i].group) + "]";
-                      break;
-
-                    case 34:
-                      //LAST_TZX_GROUP = &INITCHAR[0];
-                      LAST_TZX_GROUP = "[GROUP END]";
-                      break;
-
-                    default:
-                      // Cualquier otro bloque entra por aquí, pero
-                      // hay que comprobar que sea REPRODUCIBLE
-                      if (_myTZX.descriptor[i].playeable)
-                      {
-                            //Silent
-                            _zxp.silent = _myTZX.descriptor[i].pauseAfterThisBlock;        
-                            //SYNC1
-                            _zxp.SYNC1 = _myTZX.descriptor[i].timming.sync_1;
-                            //SYNC2
-                            _zxp.SYNC2 = _myTZX.descriptor[i].timming.sync_2;
-                            //PULSE PILOT (longitud del pulso)
-                            _zxp.PILOT_PULSE_LEN = _myTZX.descriptor[i].timming.pilot_len;
-                            // BTI 0
-                            _zxp.BIT_0 = _myTZX.descriptor[i].timming.bit_0;
-                            // BIT1                                          
-                            _zxp.BIT_1 = _myTZX.descriptor[i].timming.bit_1;
-
-                            // Obtenemos el nombre del bloque
-                            strncpy(LAST_NAME,_myTZX.descriptor[i].name,14);
-                            LAST_SIZE = _myTZX.descriptor[i].size;
-                            strncpy(LAST_TYPE,_myTZX.descriptor[i].typeName,35);
-
-                            // Almacenmas el bloque en curso para un posible PAUSE
-                            if (LOADING_STATE != 2) 
-                            {
-                                CURRENT_BLOCK_IN_PROGRESS = i;
-                                BLOCK_SELECTED = i;
-                                PROGRESS_BAR_BLOCK_VALUE = 0;
-                            }
-                            else
-                            {
-                                //Paramos la reproducción.
-
-                                PAUSE = false;
-                                STOP = true;
-                                PLAY = false;
-
-                                i = _myTZX.numBlocks+1;
-
-                                loopPlayed = 0;
-                                LAST_EAR_IS = down;
-                                LOOP_START = 0;
-                                LOOP_END = 0;
-                                BL_LOOP_START = 0;
-                                BL_LOOP_END = 0;
-
-                                return;
-                            }
-
-                            //Ahora vamos lanzando bloques dependiendo de su tipo
-                            // Actualizamos HMI
-                            _hmi.setBasicFileInformation(_myTZX.descriptor[i].name,_myTZX.descriptor[i].typeName,_myTZX.descriptor[i].size);
-
-                            // Reproducimos el fichero
-                            if (_myTZX.descriptor[i].type == 0) 
-                            {
-                                //
-                                // LOS BLOQUES TYPE == 0 
-                                //
-                                // Llevan una cabecera y después un bloque de datos
-
-                                switch (_myTZX.descriptor[i].ID)
-                                {
-                                  case 16:
-                                    //PULSE PILOT
-                                    _myTZX.descriptor[i].timming.pilot_len = DPILOT_LEN;
-                                    
-                                    // Reproducimos el bloque - PLAY
-                                    playBlock(_myTZX.descriptor[i]);
-                                    //free(bufferPlay);
-                                    break;
-
-                                  case 17:
-                                    //PULSE PILOT
-                                    // Llamamos a la clase de reproducción
-                                    playBlock(_myTZX.descriptor[i]);
-                                    break;
-                                }
-
-                            } 
-                            else if (_myTZX.descriptor[i].type == 1 || _myTZX.descriptor[i].type == 7) 
-                            {
-
-                                // Llamamos a la clase de reproducción
-                                switch (_myTZX.descriptor[i].ID)
-                                {
-                                  case 16:
-                                    //Standard data - ID-10                          
-                                    _myTZX.descriptor[i].timming.pilot_len = DPILOT_LEN;                                  
-                                    playBlock(_myTZX.descriptor[i]);
-                                    break;
-
-                                  case 17:
-                                    // Speed data - ID-11                            
-                                    playBlock(_myTZX.descriptor[i]);
-                                    break;
-                                }
-                                                      
-                            } 
-                            else if (_myTZX.descriptor[i].type == 99)
-                            {
-                                //
-                                // Son bloques especiales de TONO GUIA o SECUENCIAS para SYNC
-                                //
-                                //int num_pulses = 0;
-
-                                switch (_myTZX.descriptor[i].ID)
-                                {
-                                    case 18:
-                                      // ID 0x12 - Reproducimos un tono puro. Pulso repetido n veces       
-                                      #ifdef DEBUGMODE
-                                          log("ID 0x12:");
-                                      #endif                    
-                                      _zxp.playPureTone(_myTZX.descriptor[i].timming.pure_tone_len,_myTZX.descriptor[i].timming.pure_tone_num_pulses);
-                                      break;
-
-                                    case 19:
-                                      // ID 0x13 - Reproducimos una secuencia. Pulsos de longitud contenidos en un array y repetición 
-                                      #ifdef DEBUGMODE
-                                          log("ID 0x13:");
-                                          for(int j=0;j<_myTZX.descriptor[i].timming.pulse_seq_num_pulses;j++)
-                                          {
-                                            SerialHW.print(_myTZX.descriptor[i].timming.pulse_seq_array[j],HEX);
-                                            SerialHW.print(",");
-                                          }
-                                      #endif                                                                     
-                                      _zxp.playCustomSequence(_myTZX.descriptor[i].timming.pulse_seq_array,_myTZX.descriptor[i].timming.pulse_seq_num_pulses);                                                                           
-                                      break;                          
-
-                                    case 20:
-                                      // ID 0x14
-                                      int blockSizeSplit = SIZE_FOR_SPLIT;
-
-                                      if (_myTZX.descriptor[i].size > blockSizeSplit)
-                                      {
-
-                                          int totalSize = _myTZX.descriptor[i].size;
-                                          int offsetBase = _myTZX.descriptor[i].offsetData;
-                                          int newOffset = 0;
-                                          double blocks = totalSize / blockSizeSplit;
-                                          int lastBlockSize = totalSize - (blocks * blockSizeSplit);
-
-                                          // BTI 0
-                                          _zxp.BIT_0 = _myTZX.descriptor[i].timming.bit_0;
-                                          // BIT1                                          
-                                          _zxp.BIT_1 = _myTZX.descriptor[i].timming.bit_1;
-
-                                          // Recorremos el vector de particiones del bloque.
-                                          for (int n=0;n < blocks;n++)
-                                          {
-                                            // Calculamos el offset del bloque
-                                            newOffset = offsetBase + (blockSizeSplit*n);
-                                            // Accedemos a la SD y capturamos el bloque del fichero
-                                            bufferPlay = sdm.readFileRange32(_mFile, newOffset, blockSizeSplit, true);
-                                            // Mostramos en la consola los primeros y últimos bytes
-                                            showBufferPlay(bufferPlay,blockSizeSplit,newOffset);     
-
-                                            #ifdef DEBUGMODE                                            
-                                              log("Block. " + String(n));
-                                              SerialHW.print(newOffset,HEX);                                              
-                                              SerialHW.print(" - ");                                              
-                                              SerialHW.print(newOffset+blockSizeSplit,HEX);                                              
-                                              log("");
-                                              for (int j=0;j<blockSizeSplit;j++)
-                                              {
-                                                  SerialHW.print(bufferPlay[j],HEX);
-                                                  SerialHW.print(",");                                              
-                                              }
-                                            #else
-                                              // Reproducimos la partición n, del bloque.
-                                              _zxp.playDataPartition(bufferPlay, blockSizeSplit);                                      
-                                            #endif
-
-                                          }
-
-                                          // Ultimo bloque
-                                          // Calculamos el offset del último bloque
-                                          newOffset = offsetBase + (blockSizeSplit*blocks);
-                                          blockSizeSplit = lastBlockSize;
-                                          // Accedemos a la SD y capturamos el bloque del fichero
-                                          bufferPlay = sdm.readFileRange32(_mFile, newOffset,blockSizeSplit, true);
-                                          // Mostramos en la consola los primeros y últimos bytes
-                                          showBufferPlay(bufferPlay,blockSizeSplit,newOffset);         
-
-                                          #ifdef DEBUGMODE                                            
-                                            log("Block. LAST");
-                                            SerialHW.print(newOffset,HEX);
-                                            SerialHW.print(" - ");                                              
-                                            SerialHW.print(newOffset+blockSizeSplit,HEX);                                              
-                                            log("");
-                                            for (int j=0;j<blockSizeSplit;j++)
-                                            {
-                                                SerialHW.print(bufferPlay[j],HEX);
-                                                SerialHW.print(",");                                              
-                                            }
-                                          #else
-                                            // Reproducimos el ultimo bloque con su terminador y silencio si aplica
-                                            _zxp.playPureData(bufferPlay, blockSizeSplit);                                     
-                                          #endif
-
-                                          free(bufferPlay); 
-                                      }
-                                      else
-                                      {
-                                          bufferPlay = sdm.readFileRange32(_mFile, _myTZX.descriptor[i].offsetData, _myTZX.descriptor[i].size, true);
-          
-                                          showBufferPlay(bufferPlay,_myTZX.descriptor[i].size,_myTZX.descriptor[i].offsetData);
-                                          verifyChecksum(_mFile,_myTZX.descriptor[i].offsetData,_myTZX.descriptor[i].size);    
-
-                                          // BTI 0
-                                          _zxp.BIT_0 = _myTZX.descriptor[i].timming.bit_0;
-                                          // BIT1                                          
-                                          _zxp.BIT_1 = _myTZX.descriptor[i].timming.bit_1;
-                                          //
-                                          _zxp.playPureData(bufferPlay, _myTZX.descriptor[i].size);
-                                          free(bufferPlay);                                  
-                                      }                               
-                                      break;                          
-                                }
-                            }
-                            else 
-                            {
-                                //
-                                // Otros bloques de datos SIN cabecera no contemplados anteriormente - DATA
-                                //
-
-                                int blockSize = _myTZX.descriptor[i].size;
-
-
-                                switch (_myTZX.descriptor[i].ID)
-                                {
-                                  case 16:
-                                    // ID 0x10
-
-                                    //PULSE PILOT
-                                    _myTZX.descriptor[i].timming.pilot_len = DPILOT_LEN;
-                                    playBlock(_myTZX.descriptor[i]);
-                                    break;
-
-                                  case 17:
-                                    // ID 0x11
-                                    //PULSE PILOT
-                                    playBlock(_myTZX.descriptor[i]);
-                                    // Bloque de datos BYTE
-                                    break;
-                                }
-
-                            }                  
-                    }                
-                    break;
-
+                  break;
                 }
 
-                
-                
-
+                if (stopOrPauseRequest())
+                {
+                  // Forzamos la salida
+                  i = _myTZX.numBlocks + 1;
+                  break;
+                }
               }
 
               // En el caso de no haber parado manualmente, es por finalizar
               // la reproducción
               if (LOADING_STATE == 1) 
               {
-
-                // Finalizamos el ultimo bit antes de parar MUY IMPORTANTE
-                //_zxp.closeBlock();
 
                 // Paramos
                 PLAY = false;
@@ -2352,14 +2404,15 @@ class TZXprocessor
 
               // Cerrando
               // reiniciamos el edge del ultimo pulse
-              loopPlayed = 0;
-              LAST_EAR_IS = down;
+              LOOP_PLAYED = 0;
+              //LAST_EAR_IS = down;
               LOOP_START = 0;
               LOOP_END = 0;
               LOOP_COUNT = 0;
               BL_LOOP_START = 0;
               BL_LOOP_END = 0;
               MULTIGROUP_COUNT = 1;
+              WAITING_FOR_USER_ACTION = false;
         }
         else
         {

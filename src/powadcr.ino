@@ -1078,12 +1078,13 @@ void tapeControl()
         if (PLAY)
         {
           // Lo reproducimos
-          LOADING_STATE = 1;          
-          playingFile();          
-          tapeState = 2;
-
+          LOADING_STATE = 1; 
+          PAUSE = false;         
           FFWIND = false;
           RWIND = false;        
+
+          tapeState = 2;
+          playingFile();          
         }
         else if(STOP)
         {
