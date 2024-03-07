@@ -2051,7 +2051,7 @@ class TZXprocessor
 
             case 33:
               // Comienza multigrupo
-              LAST_TZX_GROUP = "[META BLOCK: " + String(_myTZX.descriptor[i].group) + "]";
+              LAST_TZX_GROUP = "[META BLK: " + String(_myTZX.descriptor[i].group) + "]";
               break;
 
             case 34:
