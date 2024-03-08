@@ -130,6 +130,7 @@ enum edge
 // (porque el ultimo era DOWN supuestamente)
 edge POLARIZATION = up;
 edge LAST_EAR_IS = POLARIZATION;
+edge SCOPE = down;
 bool INVERSETRAIN = false;
 bool ZEROLEVEL = false;
 

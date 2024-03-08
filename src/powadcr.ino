@@ -529,7 +529,7 @@ void pauseRecording()
 void stopRecording()
 {
     //Paramos la animación
-    hmi.writeString("tape.tmAnimation.en=0");    
+    hmi.writeString("tape2.tmAnimation.en=0");    
     
     //Configuramos ya en modo Output.
     setAudioOutput();
@@ -736,6 +736,9 @@ void setup()
   
   //hmi.getMemFree();
   taskStop = false;
+
+  // Ponemos el color del scope en amarillo
+  hmi.writeString("tape.scope.pco0=60868");
 }
 
 
@@ -750,7 +753,7 @@ void setSTOP()
 
   BLOCK_SELECTED = 0;
   
-  hmi.writeString("tape.tmAnimation.en=0"); 
+  hmi.writeString("tape2.tmAnimation.en=0"); 
   LAST_MESSAGE = "Tape stop.";
   //
   
@@ -775,7 +778,7 @@ void playingFile()
   sendStatus(REC_ST, 0);
 
   //Activamos la animación
-  hmi.writeString("tape.tmAnimation.en=1"); 
+  hmi.writeString("tape2.tmAnimation.en=1"); 
 
   // Reproducimos el fichero
   LAST_MESSAGE = "Loading in progress. Please wait.";
@@ -786,7 +789,7 @@ void playingFile()
       //hmi.getMemFree();
       pTAP.play();
       //Paramos la animación
-      hmi.writeString("tape.tmAnimation.en=0"); 
+      hmi.writeString("tape2.tmAnimation.en=0"); 
       //pTAP.updateMemIndicator();
   }
   else if (TYPE_FILE_LOAD = "TZX")
@@ -794,7 +797,7 @@ void playingFile()
       //hmi.getMemFree();
       pTZX.play();
       //Paramos la animación
-      hmi.writeString("tape.tmAnimation.en=0"); 
+      hmi.writeString("tape2.tmAnimation.en=0"); 
   }
 }
 
@@ -854,7 +857,7 @@ void stopFile()
 {
   //Paramos la animación
   setSTOP();     
-  hmi.writeString("tape.tmAnimation.en=0"); 
+  hmi.writeString("tape2.tmAnimation.en=0"); 
 }
 
 void pauseFile()
@@ -899,7 +902,7 @@ void prepareRecording()
     // Preparamos para recording
 
     //Activamos la animación
-    hmi.writeString("tape.tmAnimation.en=1"); 
+    hmi.writeString("tape2.tmAnimation.en=1"); 
 
     // Inicializamos audio input
     setAudioInput();
@@ -1225,6 +1228,7 @@ void Task0code( void * pvParameters )
   #ifndef SAMPLINGTEST
     // Core 0 - Para el HMI
     int startTime = millis();
+    int startTime2 = millis();
     int tClock = millis();
     int ho=0;int mi=0;int se=0;
 
@@ -1241,6 +1245,21 @@ void Task0code( void * pvParameters )
             stackFreeCore1 = uxTaskGetStackHighWaterMark(Task1);    
             stackFreeCore0 = uxTaskGetStackHighWaterMark(Task0);        
             hmi.updateInformationMainPage();
+          }
+
+          if((millis() - startTime2) > 125)
+          {
+            startTime2 = millis();
+            if (SCOPE==up)
+            {
+              hmi.writeString("add 34,0,10");
+              hmi.writeString("add 34,0,10");
+            }
+            else
+            {
+              hmi.writeString("add 34,0,4");
+              hmi.writeString("add 34,0,4");
+            }     
           }
 
           // if ((millis() - tClock) > 1000)

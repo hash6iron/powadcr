@@ -323,6 +323,16 @@ class ZXProcessor
                     #endif
                     //
                     result+=2*chn;                        
+
+                    if (sample_R > 0)
+                    {
+                        SCOPE=up;
+                    }
+                    else
+                    {
+                        SCOPE=down;
+                    }
+                    
                 }
 
                 T0 = T1;

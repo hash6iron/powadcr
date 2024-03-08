@@ -1702,13 +1702,16 @@ class HMI
           if (TYPE_FILE_LOAD == "TZX" || REC)
           {
               writeString("name.txt=\"" + PROGRAM_NAME + " : " + PROGRAM_NAME_2 + "\"");
+              writeString("tape2.name.txt=\"" + PROGRAM_NAME + " : " + PROGRAM_NAME_2 + "\"");
           }
           else
           {
               writeString("name.txt=\"" + PROGRAM_NAME + "\"");
+              writeString("tape2.name.txt=\"" + PROGRAM_NAME + "\"");
           }
           
           writeString("size.txt=\"" + String(LAST_SIZE) + " bytes\"");
+          writeString("tape2.size.txt=\"" + String(LAST_SIZE) + " bytes\"");
 
           String cmpTypeStr = String(LAST_NAME);
           cmpTypeStr.trim();
@@ -1717,12 +1720,15 @@ class HMI
           if (TYPE_FILE_LOAD == "TZX" || REC)
           {
               writeString("type.txt=\"" + String(LAST_TYPE) + " " + LAST_TZX_GROUP + "\"");
+              writeString("tape2.type.txt=\"" + String(LAST_TYPE) + " " + LAST_TZX_GROUP + "\"");
           }
           else
           {
               writeString("type.txt=\"" + String(LAST_TYPE) + "\"");
+              writeString("tape2.type.txt=\"" + String(LAST_TYPE) + "\"");
                    
               writeString("name.txt=\"" + PROGRAM_NAME + " : " + String(LAST_NAME) + "\"");           
+              writeString("tape2.name.txt=\"" + PROGRAM_NAME + " : " + String(LAST_NAME) + "\"");           
           }
       
           //writeString("totalBlocks.val=" + String(TOTAL_BLOCKS));
