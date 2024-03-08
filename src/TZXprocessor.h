@@ -1991,7 +1991,7 @@ class TZXprocessor
             case 37:
               //Loop end ID 0x25
               #ifdef DEBUGMODE
-                  log("LOOP: " + String(loopPlayed) + " / " + String(LOOP_COUNT));
+                  log("LOOP: " + String(LOOP_PLAYED) + " / " + String(LOOP_COUNT));
                   log("------------------------------------------------------");
               #endif
 

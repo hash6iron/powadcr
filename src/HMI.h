@@ -1727,8 +1727,11 @@ class HMI
               writeString("type.txt=\"" + String(LAST_TYPE) + "\"");
               writeString("tape2.type.txt=\"" + String(LAST_TYPE) + "\"");
                    
-              writeString("name.txt=\"" + PROGRAM_NAME + " : " + String(LAST_NAME) + "\"");           
-              writeString("tape2.name.txt=\"" + PROGRAM_NAME + " : " + String(LAST_NAME) + "\"");           
+              // writeString("name.txt=\"" + PROGRAM_NAME + " : " + String(LAST_NAME) + "\"");           
+              // writeString("tape2.name.txt=\"" + PROGRAM_NAME + " : " + String(LAST_NAME) + "\"");     
+
+              writeString("name.txt=\"" + PROGRAM_NAME + "\"");           
+              writeString("tape2.name.txt=\"" + PROGRAM_NAME + "\"");
           }
       
           //writeString("totalBlocks.val=" + String(TOTAL_BLOCKS));

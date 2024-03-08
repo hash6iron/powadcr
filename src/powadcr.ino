@@ -1247,19 +1247,22 @@ void Task0code( void * pvParameters )
             hmi.updateInformationMainPage();
           }
 
-          if((millis() - startTime2) > 125)
+          if (LOADING_STATE==1)
           {
-            startTime2 = millis();
-            if (SCOPE==up)
+            if((millis() - startTime2) > 125)
             {
-              hmi.writeString("add 34,0,10");
-              hmi.writeString("add 34,0,10");
+              startTime2 = millis();
+              if (SCOPE==up)
+              {
+                hmi.writeString("add 34,0,10");
+                hmi.writeString("add 34,0,10");
+              }
+              else
+              {
+                hmi.writeString("add 34,0,4");
+                hmi.writeString("add 34,0,4");
+              }     
             }
-            else
-            {
-              hmi.writeString("add 34,0,4");
-              hmi.writeString("add 34,0,4");
-            }     
           }
 
           // if ((millis() - tClock) > 1000)

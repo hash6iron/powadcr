@@ -458,11 +458,13 @@ class ZXProcessor
             semiPulse(rsamples,true);      
         }
       
+      
+
         void sendDataArray(uint8_t* data, int size, bool isThelastDataPart)
         {
             uint8_t _mask = 8;   // Para el last_byte
             uint8_t bRead = 0x00;
-            int bytes_in_this_block = 0;        
+            int bytes_in_this_block = 0;     
 
             // Procedimiento para enviar datos desde un array.
             // si estamos reproduciendo, nos mantenemos.
@@ -495,6 +497,8 @@ class ZXProcessor
 
                     // Vamos a ir leyendo los bytes y generando el sonido
                     bRead = data[i];
+
+
                     //log("Dato: " + String(i) + " - " + String(data[i]));
 
                     // Para la protección con mascara ID 0x11 - 0x0C

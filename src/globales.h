@@ -314,11 +314,17 @@ bool wasHeadphoneDetected = false;
 bool wasHeadphoneAmpDetected = false;
 bool preparingTestInOut = false;
 
+bool SCREEN_IS_LOADING = false;
+
 // Gestion de menú
 bool MENU = false;
 bool menuOn = false;
 int nMENU = 0;
 
+void logHEX(int n)
+{
+  SerialHW.print(n,HEX);
+}
 
 void log(String txt)
 {

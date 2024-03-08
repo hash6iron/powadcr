@@ -1099,6 +1099,73 @@ class TAPprocessor
             }
         }
 
+    void paintPixel(uint8_t px, int posX, int posY)
+    {
+        String strTx = "";
+        // Vamos a ir pintando la pantalla
+        for (int p;p<8;p++)
+        {
+            int pOn = bitRead(px, 7-p);
+            if (pOn==1)
+            {
+                strTx += "fill " + String((int)(posX)) + "," + String((int)(posY)) + ",1,1," + String(65535);
+                _hmi.writeString(strTx);
+            }
+            posX++;
+        }
+
+
+    }
+    void paintLoadingScreen(uint8_t* data)
+    {
+        // Variables para generar la pantalla de carga
+        // pos inicial del cuadro para screen
+        double posXScrOri = 335;
+        double posYScrOri = 100;
+        double posXScr = .0;
+        double posYScr = .0;
+        double pxScale = 1;
+        // color del pixel
+        int colorPx = 65535; 
+        int dataR = 0;
+        int posRow = 0;
+        int posLineInRow = 0;
+        int scanArea=0;
+
+        for (int i=0;i<6914;i++)
+        {
+            dataR = data[i];
+
+            if (i < 6144)
+            {
+                if(posXScr>255)
+                {
+                    posXScr=0;
+                    posRow+=8;
+
+                    if(posRow>(64*(scanArea+1)))
+                    {
+                        posRow=(64*scanArea);
+                        posLineInRow++;
+
+                        if(posLineInRow>8)
+                        {
+                            scanArea++;
+                            posLineInRow=0;
+                            posRow=(64*scanArea);
+                        }
+                    }
+                }
+
+               posYScr=(posRow+posLineInRow);
+               paintPixel(data[i],posXScrOri+posXScr,posYScrOri+posYScr);
+               posXScr++;                
+            }
+
+        }
+        // En el caso de pantalla de carga
+    }
+
     void showBufferPlay(byte* buffer, int size, int offset)
     {
 
@@ -1361,6 +1428,12 @@ class TAPprocessor
                                 //bufferPlay = (uint8_t*)(malloc((_myTAP.descriptor[i].size) * sizeof(uint8_t)));
                                 bufferPlay = sdm.readFileRange32(_mFile, _myTAP.descriptor[i].offset, _myTAP.descriptor[i].size, false);
                                 
+                                // if (_myTAP.descriptor[i].size==6914)
+                                // {
+                                //     // Es una pantalla de carga
+                                //     paintLoadingScreen(bufferPlay);
+                                // }
+
                                 // Reproducimos el bloque de datos
                                 _zxp.playData(bufferPlay, _myTAP.descriptor[i].size,DPILOT_LEN,DPULSES_DATA);
 
