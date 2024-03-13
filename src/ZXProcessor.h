@@ -147,8 +147,8 @@ class ZXProcessor
             uint16_t sample_R = 0;
             uint16_t sample_L = 0;
 
-            sample_R = getChannelAmplitude(changeNextEARedge);
-            sample_L = getChannelAmplitude(changeNextEARedge); 
+            sample_R = getChannelAmplitude(changeNextEARedge,true);
+            sample_L = getChannelAmplitude(changeNextEARedge,true); 
 
             // Escribimos el tren de pulsos en el procesador de Audio
             // Generamos la señal en el buffer del chip de audio.
@@ -173,52 +173,61 @@ class ZXProcessor
             ACU_ERROR = 0;
         }
 
-        double getChannelAmplitude(bool changeNextEARedge)
+        double getChannelAmplitude(bool changeNextEARedge, bool isError=false)
         {
             double A = 0;
 
             // Si está seleccionada la opción de nivel bajo a 0
             // cambiamos el low_level amplitude
-            if (ZEROLEVEL)
-            {
-                minAmplitude = 0;
-            }
-            else
-            {
-                minAmplitude = maxLevelDown;
-            }
 
             // Esta rutina genera el pulso dependiendo de como es el ultimo
-            if (LAST_EAR_IS==down)
+            if(isError)
             {
-                // Hacemos el edge de down --> up               
-                // ¿El próximo flanco se cambiará?
-                if (changeNextEARedge)
+                if (LAST_EAR_IS==down)
                 {
-                    A=maxAmplitude;
-                    LAST_EAR_IS = up;
+                    // Hacemos el edge de down --> up               
+                    // ¿El próximo flanco se cambiará?
+                    A=minAmplitude;
+                    LAST_EAR_IS = down;
                 }
                 else
                 {
-                    A=minAmplitude;
-                    LAST_EAR_IS = down;
+                    A=maxAmplitude;
+                    LAST_EAR_IS = up;
                 }
             }
             else
             {
-                // Hacemos el edge de up --> downs
-                if (!changeNextEARedge)
+                if (LAST_EAR_IS==down)
                 {
-                    A=maxAmplitude;
-                    LAST_EAR_IS = up;
+                    // Hacemos el edge de down --> up               
+                    // ¿El próximo flanco se cambiará?
+                    if (changeNextEARedge)
+                    {
+                        A=maxAmplitude;
+                        LAST_EAR_IS = up;
+                    }
+                    else
+                    {
+                        A=minAmplitude;
+                        LAST_EAR_IS = down;
+                    }
                 }
                 else
                 {
-                    A=minAmplitude;
-                    LAST_EAR_IS = down;
+                    // Hacemos el edge de up --> downs
+                    if (changeNextEARedge)
+                    {
+                        A=minAmplitude;
+                        LAST_EAR_IS = down;
+                    }
+                    else
+                    {
+                        A=maxAmplitude;
+                        LAST_EAR_IS = up;
+                    }
                 }
             }
-
             // Asignamos el nivel de amplitud que le corresponde a cada canal.
             // Vemos si hay inversion de onda  
             if(INVERSETRAIN)
@@ -232,6 +241,17 @@ class ZXProcessor
                     A=maxAmplitude;
                 }
             }           
+
+            // Vemos si el nivel low se aplica a cero
+            if (ZEROLEVEL)
+            {
+                minAmplitude = 0;
+            }
+            else
+            {
+                minAmplitude = maxLevelDown;
+            }
+
 
             return(A);
         }
@@ -267,7 +287,7 @@ class ZXProcessor
                 m_kit.write(buffer, result);                
         }
 
-        void semiPulse(double rsamples, bool changeNextEARedge)
+        void semiPulse(double rsamples, bool changeNextEARedge = true)
         {
             // Calculamos el tamaño del buffer
             int bytes = 0; //Cada muestra ocupa 2 bytes (16 bits)
@@ -650,7 +670,7 @@ class ZXProcessor
 
 
                 // Aplicamos ahora el silencio
-                semiPulse(samples, false); 
+                semiPulse(samples, true); 
                 
                 
                 #ifdef DEBUGMODE
