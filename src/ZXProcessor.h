@@ -88,7 +88,7 @@ class ZXProcessor
     // Este es un factor de división para la amplitud del flanco terminador
     const double amplitudeFactor = 1.0;
     // T-states del ancho del terminador
-    const int maxTerminatorWidth = 3500; //Minimo debe ser 1ms (3500 TStates)
+    const int maxTerminatorWidth = 7000; //Minimo debe ser 1ms (3500 TStates)
     // otros parámetros
     const double freqCPU = DfreqCPU;
     const double tState = (1.0 / freqCPU); //0.00000028571 --> segundos Z80 
@@ -302,7 +302,7 @@ class ZXProcessor
             double amplitude = 0;
 
             // Ajustamos
-            int samples = int(rsamples);
+            int samples = round(rsamples);
             //double samples = rsamples;
 
             ACU_ERROR = 0;
@@ -657,7 +657,7 @@ class ZXProcessor
                     terminator_samples = terminator(maxTerminatorWidth);
                     
                     // El terminador ocupa 1ms
-                    if (duration > 1)
+                    if (duration > 2)
                     {
                         // Si es mayor de 1ms, entonces se lo restamos.
                         samples -= terminator_samples;
