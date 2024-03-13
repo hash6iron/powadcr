@@ -8,6 +8,7 @@
         "initializer_list": "cpp",
         "utility": "cpp",
         "*.tcc": "cpp",
-        "cmath": "cpp"
+        "cmath": "cpp",
+        "functional": "cpp"
     }
 }

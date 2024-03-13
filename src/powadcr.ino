@@ -465,6 +465,30 @@ void setAudioOutput()
     }
   #endif
 
+  #ifdef SAMPLING24
+    if(!ESP32kit.setSampleRate(AUDIO_HAL_24K_SAMPLES))
+    {
+      log("Error in Audiokit sampling rate setting");
+    }
+    else
+    {
+      hmi.writeString("statusLCD.txt=\"SAMPLING RATE 24KHz\"" );
+      delay(750);
+    }
+  #endif
+
+  #ifdef SAMPLING22
+    if(!ESP32kit.setSampleRate(AUDIO_HAL_22K_SAMPLES))
+    {
+      log("Error in Audiokit sampling rate setting");
+    }
+    else
+    {
+      hmi.writeString("statusLCD.txt=\"SAMPLING RATE 22.5KHz\"" );
+      delay(750);
+    }
+  #endif
+
 
   if (!ESP32kit.setVolume(100))
   {

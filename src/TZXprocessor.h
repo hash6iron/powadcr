@@ -2012,7 +2012,8 @@ class TZXprocessor
               if (dly == 0)
               {                       
                   // Finalizamos el ultimo bit
-                  _zxp.silence(1000);
+                  //_zxp.silence(1000);
+                  _zxp.closeBlock();
 
                   // PAUSE
                   // Pausamos la reproducción a través del HMI 
