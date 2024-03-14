@@ -88,7 +88,7 @@ class ZXProcessor
     // Este es un factor de división para la amplitud del flanco terminador
     const double amplitudeFactor = 1.0;
     // T-states del ancho del terminador
-    const int maxTerminatorWidth = 7000; //Minimo debe ser 1ms (3500 TStates)
+    const int maxTerminatorWidth = 3500; //Minimo debe ser 1ms (3500 TStates)
     // otros parámetros
     const double freqCPU = DfreqCPU;
     const double tState = (1.0 / freqCPU); //0.00000028571 --> segundos Z80 
@@ -179,6 +179,14 @@ class ZXProcessor
 
             // Si está seleccionada la opción de nivel bajo a 0
             // cambiamos el low_level amplitude
+            if (ZEROLEVEL)
+            {
+                minAmplitude = 0;
+            }
+            else
+            {
+                minAmplitude = maxLevelDown;
+            }
 
             // Esta rutina genera el pulso dependiendo de como es el ultimo
             if(isError)
@@ -230,28 +238,20 @@ class ZXProcessor
             }
             // Asignamos el nivel de amplitud que le corresponde a cada canal.
             // Vemos si hay inversion de onda  
-            if(INVERSETRAIN)
-            {
-                if(A==maxAmplitude)
-                {
-                    A=minAmplitude;
-                }
-                else
-                {
-                    A=maxAmplitude;
-                }
-            }           
 
-            // Vemos si el nivel low se aplica a cero
-            if (ZEROLEVEL)
-            {
-                minAmplitude = 0;
-            }
-            else
-            {
-                minAmplitude = maxLevelDown;
-            }
 
+
+            // if(INVERSETRAIN)
+            // {
+            //     if(A==maxAmplitude)
+            //     {
+            //         A=minAmplitude;
+            //     }
+            //     else
+            //     {
+            //         A=maxAmplitude;
+            //     }
+            // }           
 
             return(A);
         }
@@ -287,7 +287,7 @@ class ZXProcessor
                 m_kit.write(buffer, result);                
         }
 
-        void semiPulse(double rsamples, bool changeNextEARedge = true)
+        void semiPulse(int width, bool changeNextEARedge = true)
         {
             // Calculamos el tamaño del buffer
             int bytes = 0; //Cada muestra ocupa 2 bytes (16 bits)
@@ -300,21 +300,12 @@ class ZXProcessor
             int16_t sample_R = 0;
             // Amplitud de la señal
             double amplitude = 0;
-
+            
+            double rsamples = (width / freqCPU) * _samplingRate;
             // Ajustamos
-            int samples = round(rsamples);
-            //double samples = rsamples;
+            int samples = rsamples;
 
             ACU_ERROR = 0;
-
-            #ifdef DEBUGMODE
-                // if (SILENCEDEBUG)
-                // {
-                //     log(" --> samp:  " + String(samples));
-                //     log(" --> bytes: " + String(bytes));
-                //     log(" --> Chns:  " + String(channels));
-                // }
-            #endif
 
             //
             // Generamos el semi-pulso
@@ -405,11 +396,9 @@ class ZXProcessor
             // Metemos un pulso de cambio de estado
             // para asegurar el cambio de flanco alto->bajo, del ultimo bit
             // Obtenemos los samples
-            double samples = (width / freqCPU) * _samplingRate;
-            double rsamples = (samples);
-
-            semiPulse(rsamples,true);
-
+            semiPulse(width,true);
+            
+            double rsamples = (width / freqCPU) * _samplingRate;
             return rsamples;
         }
 
@@ -418,9 +407,7 @@ class ZXProcessor
             //
             // Esto se usa para el ID 0x13 del TZX
             //
-            double samples = (lenPulse / freqCPU) * _samplingRate;
-            double rsamples = round(samples);            
-            
+                   
             #ifdef DEBUGMODE
                 log("..Custom pilot tone");
                 log("  --> lenPulse:  " + String(lenPulse));
@@ -430,7 +417,7 @@ class ZXProcessor
             for (int i = 0; i < numPulses;i++)
             {
                 // Enviamos semi-pulsos alternando el cambio de flanco
-                semiPulse(rsamples,true);
+                semiPulse(lenPulse,true);
 
                 if (stopOrPauseRequest())
                 {
@@ -458,25 +445,15 @@ class ZXProcessor
         void zeroTone()
         {
             // Procedimiento que genera un bit "0"  
-            double samples = (BIT_0 / freqCPU) * _samplingRate;
-            double rsamples = (samples); 
-
-            LAST_BIT_WIDTH = rsamples;
-
-            semiPulse(rsamples, true);
-            semiPulse(rsamples, true);
+            semiPulse(BIT_0, true);
+            semiPulse(BIT_0, true);
         }
         
         void oneTone()
         {
             // Procedimiento que genera un bit "1"
-            double samples = (BIT_1 / freqCPU) * _samplingRate;
-            double rsamples = (samples); 
-
-            LAST_BIT_WIDTH = rsamples;
-
-            semiPulse(rsamples, true);
-            semiPulse(rsamples, true);      
+            semiPulse(BIT_1, true);
+            semiPulse(BIT_1, true);      
         }
 
         void syncTone(int nTStates)
@@ -486,10 +463,8 @@ class ZXProcessor
             //
             // El ZX Spectrum tiene dos tipo de sincronismo, uno al finalizar el tono piloto
             // y otro al final de la recepción de los datos, que serán SYNC1 y SYNC2 respectivamente.
-            double samples = (nTStates / freqCPU) * _samplingRate;
-            double rsamples = (samples); 
 
-            semiPulse(rsamples,true);      
+            semiPulse(nTStates,true);      
         }
       
       
@@ -645,32 +620,36 @@ class ZXProcessor
                 // el resto, como pausa.
                 //
 
-                if (LAST_EAR_IS==down)
+                if (APPLY_END)
                 {
-                    // El primer milisegundo es el contrario al ultimo flanco
-                    // el terminador se genera en base al ultimo flanco que indique
-                    // LAST_EAR_IS
-                    #ifdef DEBUGMODE
-                        log("Añado TERMINATOR +1ms");
-                    #endif
-
-                    terminator_samples = terminator(maxTerminatorWidth);
-                    
-                    // El terminador ocupa 1ms
-                    if (duration > 2)
+                    if (LAST_EAR_IS==down)
                     {
-                        // Si es mayor de 1ms, entonces se lo restamos.
-                        samples -= terminator_samples;
+                        // El primer milisegundo es el contrario al ultimo flanco
+                        // el terminador se genera en base al ultimo flanco que indique
+                        // LAST_EAR_IS
+                        #ifdef DEBUGMODE
+                            log("Añado TERMINATOR +1ms");
+                        #endif
+
+                        terminator_samples = terminator(maxTerminatorWidth);
+                        
+                        // El terminador ocupa 1ms
+                        if (duration > 1)
+                        {
+                            // Si es mayor de 1ms, entonces se lo restamos.
+                            samples -= terminator_samples;
+                        }
                     }
                 }
-
                 #ifdef DEBUGMODE
                     log("Samples: " + String(samples));
                 #endif
 
 
                 // Aplicamos ahora el silencio
-                semiPulse(samples, true); 
+                double width = (samples / _samplingRate) * freqCPU;
+
+                semiPulse(width, true); 
                 
                 
                 #ifdef DEBUGMODE
@@ -700,10 +679,8 @@ class ZXProcessor
 
             for (int i = 0; i < numPulses;i++)
             {
-                // Generamos los semipulsos
-                samples = (data[i] / freqCPU) * _samplingRate;
-                rsamples = samples;                 
-                semiPulse(rsamples,true);
+                // Generamos los semipulsos        
+                semiPulse(data[i],true);
             }
 
         }   

@@ -131,6 +131,8 @@ enum edge
 edge POLARIZATION = up;
 edge LAST_EAR_IS = POLARIZATION;
 edge SCOPE = down;
+bool APPLY_END = false;
+
 bool INVERSETRAIN = false;
 bool ZEROLEVEL = false;
 

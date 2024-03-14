@@ -484,7 +484,7 @@ void setAudioOutput()
     }
     else
     {
-      hmi.writeString("statusLCD.txt=\"SAMPLING RATE 22.5KHz\"" );
+      hmi.writeString("statusLCD.txt=\"SAMPLING RATE 22.05KHz\"" );
       delay(750);
     }
   #endif

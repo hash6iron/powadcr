@@ -1956,7 +1956,7 @@ class TZXprocessor
       return res;
     }
 
-    void getIdAndPlay(int i)
+    int getIdAndPlay(int i)
     {
         // Inicializamos el buffer de reproducción. Memoria dinamica
         uint8_t* bufferPlay = nullptr;
@@ -1998,7 +1998,7 @@ class TZXprocessor
               if (LOOP_PLAYED < LOOP_COUNT)
               {
                 // Volvemos al primner bloque dentro del loop
-                i = BL_LOOP_START;
+                i = BL_LOOP_START + 1;
                 LOOP_PLAYED++;
               }             
               break;
@@ -2041,7 +2041,7 @@ class TZXprocessor
 
                   // Enviamos info al HMI.
                   _hmi.setBasicFileInformation(_myTZX.descriptor[BLOCK_SELECTED].name,_myTZX.descriptor[BLOCK_SELECTED].typeName,_myTZX.descriptor[BLOCK_SELECTED].size);                        
-                  return;
+                  return i;
               }
               else
               {
@@ -2107,7 +2107,7 @@ class TZXprocessor
                         BL_LOOP_START = 0;
                         BL_LOOP_END = 0;
 
-                        return;
+                        return i;
                     }
 
                     //Ahora vamos lanzando bloques dependiendo de su tipo
@@ -2313,6 +2313,8 @@ class TZXprocessor
             break;
 
         }      
+
+        return i;
     }
 
     void play()
@@ -2356,42 +2358,32 @@ class TZXprocessor
             
 
               // Recorremos ahora todos los bloques que hay en el descriptor
+              //-------------------------------------------------------------
               for (int i = firstBlockToBePlayed; i < _myTZX.numBlocks; i++) 
               {               
+                  BLOCK_SELECTED = i;                
+                  i = getIdAndPlay(i);
 
-                BLOCK_SELECTED = i;                
+                  if (LOADING_STATE == 2 || LOADING_STATE == 3)
+                  {
+                    break;
+                  }
 
-                // if (WAITING_FOR_USER_ACTION)
-                // {
-                //     // Seguimos saltando IDs hasta llegar al playeable.
-                //     if(isPlayeable(_myTZX.descriptor[i].ID))
-                //     {
-                //         WAITING_FOR_USER_ACTION = false;
-                //         getIdAndPlay(i);
-                //     }
-                // }
-                // else
-                // {
-                getIdAndPlay(i);
-                // }
-
-                if (LOADING_STATE == 2 || LOADING_STATE == 3)
-                {
-                  break;
-                }
-
-                if (stopOrPauseRequest())
-                {
-                  // Forzamos la salida
-                  i = _myTZX.numBlocks + 1;
-                  break;
-                }
+                  if (stopOrPauseRequest())
+                  {
+                    // Forzamos la salida
+                    i = _myTZX.numBlocks + 1;
+                    break;
+                  }
               }
+              //---------------------------------------------------------------
 
               // En el caso de no haber parado manualmente, es por finalizar
               // la reproducción
               if (LOADING_STATE == 1) 
               {
+
+                _zxp.silence(2000);
 
                 // Paramos
                 PLAY = false;
