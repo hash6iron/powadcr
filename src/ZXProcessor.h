@@ -588,15 +588,14 @@ class ZXProcessor
 
         void silence(double duration)
         {
-            
+            LAST_SILENCE_DURATION = duration;
+
             // Paso la duración a T-States
             double parts = 0, fractPart, intPart, terminator_samples = 0;
             int lastPart = 0; 
             int tStateSilence = 0;  
             int tStateSilenceOri = 0;     
-            double samples = 0;
-
-            const double OneSecondTo_ms = 1000.0;        
+            double samples = 0;     
 
             #ifdef DEBUGMODE
                 log("Silencio: " + String(duration) + " ms");
@@ -641,6 +640,7 @@ class ZXProcessor
                         }
                     }
                 }
+
                 #ifdef DEBUGMODE
                     log("Samples: " + String(samples));
                 #endif

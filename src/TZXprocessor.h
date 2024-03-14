@@ -2012,7 +2012,9 @@ class TZXprocessor
               if (dly == 0)
               {                       
                   // Finalizamos el ultimo bit
-                  _zxp.silence(2000);
+                  if(LAST_SILENCE_DURATION==0)
+                  {_zxp.silence(2000);}
+                  
                   //_zxp.closeBlock();
 
                   // PAUSE
@@ -2383,7 +2385,8 @@ class TZXprocessor
               if (LOADING_STATE == 1) 
               {
 
-                _zxp.silence(2000);
+                if(LAST_SILENCE_DURATION==0)
+                {_zxp.silence(2000);}
 
                 // Paramos
                 PLAY = false;

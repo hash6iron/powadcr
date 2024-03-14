@@ -232,6 +232,7 @@ int LOOP_PLAYED=0;
 int LOOP_END = 0;
 int BL_LOOP_END = 0;
 bool WAITING_FOR_USER_ACTION = false;
+int LAST_SILENCE_DURATION = 0;
 
 // Screen
 bool SCREEN_LOADING = 0;
