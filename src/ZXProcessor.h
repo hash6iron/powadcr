@@ -147,8 +147,8 @@ class ZXProcessor
             uint16_t sample_R = 0;
             uint16_t sample_L = 0;
 
-            sample_R = getChannelAmplitude(changeNextEARedge,true);
-            sample_L = getChannelAmplitude(changeNextEARedge,true); 
+            sample_R = getChannelAmplitude(changeNextEARedge,true) * (MAIN_VOL_R / 100);
+            sample_L = getChannelAmplitude(changeNextEARedge,true) * (MAIN_VOL_L / 100); 
 
             // Escribimos el tren de pulsos en el procesador de Audio
             // Generamos la señal en el buffer del chip de audio.
@@ -314,8 +314,10 @@ class ZXProcessor
             // Obtenemos la amplitud de la señal según la configuración de polarización,
             // nivel low, etc.
             amplitude = getChannelAmplitude(changeNextEARedge);
-            sample_R = amplitude;
-            sample_L = amplitude;
+
+            // Ajustamos el volumen
+            sample_R = amplitude * (MAIN_VOL_R / 100);
+            sample_L = amplitude * (MAIN_VOL_L / 100);
 
             // Pasamos los datos para el modo DEBUG
             DEBUG_AMP_R = sample_R;
