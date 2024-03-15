@@ -118,8 +118,8 @@ class HMI
           
           if (!sdm.dir.open(FILE_LAST_DIR.c_str())) 
           {
-              SerialHW.println("");
-              SerialHW.println("dir.open failed - " + String(FILE_LAST_DIR));
+              log("");
+              log("dir.open failed - " + String(FILE_LAST_DIR));
               FILE_DIR_OPEN_FAILED = true;
           }
           else
@@ -127,8 +127,8 @@ class HMI
               sdm.dir.rewindDirectory();
               sdm.file.rewind();
       
-              // SerialHW.println("");
-              // SerialHW.println("dir.open OK");
+              // log("");
+              // log("dir.open OK");
       
               FILE_DIR_OPEN_FAILED = false;
       
@@ -558,9 +558,9 @@ class HMI
               String fileRead = "";
               int j = 1;
       
-              // SerialHW.println();
-              // SerialHW.println();
-              // SerialHW.println(FILE_TXT_TO_SEARCH);
+              // log();
+              // log();
+              // log(FILE_TXT_TO_SEARCH);
       
               for (int i=1;i<FILE_TOTAL_FILES;i++)
               {
@@ -580,7 +580,7 @@ class HMI
                           FILES_FOUND_BUFF[j].type = FILES_BUFF[i].type;
                           FILES_FOUND_BUFF[j].isDir = FILES_BUFF[i].isDir;
                           
-                          //SerialHW.println(fileRead);
+                          //log(fileRead);
                           
                           j++;
                       }
@@ -742,8 +742,8 @@ class HMI
                 totalPages+=1;
             }            
 
-            // SerialHW.println("");
-            // SerialHW.println("Pagina seleccionada");
+            // log("");
+            // log("Pagina seleccionada");
             // SerialHW.print(String(pageSelected));
             // SerialHW.print("/");
             // SerialHW.print(String(totalPages));
@@ -781,11 +781,11 @@ class HMI
             // Con este comando nos indica la pantalla que 
             // está en modo FILEBROWSER
             FILE_BROWSER_SEARCHING = true;
-            // SerialHW.println("");
-            // SerialHW.println("");
-            // SerialHW.println(" ---------- Buscando ficheros");
+            // log("");
+            // log("");
+            // log(" ---------- Buscando ficheros");
             findTheTextInFiles();
-            // SerialHW.println(" ----------------------------");
+            // log(" ----------------------------");
       
         }
       
@@ -799,9 +799,9 @@ class HMI
                 //FILE_LAST_DIR_LAST =  &INITCHAR[0];
                 FILE_BROWSER_OPEN = false;
 
-                // SerialHW.println("");
-                // SerialHW.println("");
-                // SerialHW.println("No file was SELECTED: ");
+                // log("");
+                // log("");
+                // log("No file was SELECTED: ");
             }
         }
       
@@ -823,9 +823,9 @@ class HMI
                 if (sdm.dir.isOpen())
                 {
                     sdm.dir.close();
-                    // SerialHW.println("");
-                    // SerialHW.println("");
-                    // SerialHW.println(" Closing file before new browsing.");                
+                    // log("");
+                    // log("");
+                    // log(" Closing file before new browsing.");                
                 }              
 
                 getFilesFromSD();
@@ -834,9 +834,9 @@ class HMI
             if (!FILE_DIR_OPEN_FAILED)
             {
 
-                // SerialHW.println("");
-                // SerialHW.println("");
-                // SerialHW.println("I'm here");
+                // log("");
+                // log("");
+                // log("I'm here");
 
                 clearFilesInScreen();
                 putFilesInScreen();
@@ -900,18 +900,18 @@ class HMI
                     clearFilesInScreen();
                     putFilesInScreen(); 
 
-                    // SerialHW.println("");
-                    // SerialHW.println("");
-                    // SerialHW.println("I'm in BROWSER mode yet.");
+                    // log("");
+                    // log("");
+                    // log("I'm in BROWSER mode yet.");
                 }
                 else
                 {
                     clearFilesInScreen();
                     putFilesFoundInScreen(); 
 
-                    // SerialHW.println("");
-                    // SerialHW.println("");
-                    // SerialHW.println("I'm in SEARCH mode yet.");
+                    // log("");
+                    // log("");
+                    // log("I'm in SEARCH mode yet.");
                 }
             }
         }
@@ -1024,18 +1024,18 @@ class HMI
             {
                 FILE_TO_DELETE = FILE_LAST_DIR + FILES_BUFF[FILE_IDX_SELECTED + FILE_PTR_POS].path;     
       
-                SerialHW.println();
-                SerialHW.println();
-                SerialHW.println("File to delete: " + FILE_TO_DELETE);  
+                log();
+                log();
+                log("File to delete: " + FILE_TO_DELETE);  
                 FILE_SELECTED_DELETE = true; 
             }
             else
             {
                 FILE_TO_DELETE = FILE_LAST_DIR + FILES_FOUND_BUFF[FILE_IDX_SELECTED + FILE_PTR_POS].path;     
       
-                SerialHW.println();
-                SerialHW.println();
-                SerialHW.println("File to delete in buffer: " + FILE_TO_DELETE); 
+                log();
+                log();
+                log("File to delete in buffer: " + FILE_TO_DELETE); 
                 FILE_SELECTED_DELETE = true;  
             }
 
@@ -1044,7 +1044,7 @@ class HMI
               // Lo Borramos
                 if (!_sdf.remove(FILE_TO_DELETE))
                 {
-                  SerialHW.println("Error to remove file. " + FILE_TO_DELETE);
+                  log("Error to remove file. " + FILE_TO_DELETE);
                   writeString("currentDir.txt=\">> Error. File not removed <<\"");
                   delay(1500);
                   writeString("currentDir.txt=\"" + String(FILE_LAST_DIR_LAST) + "\"");                  
@@ -1052,7 +1052,7 @@ class HMI
                 else
                 {
                   FILE_SELECTED_DELETE = false;
-                  SerialHW.println("File remove. " + FILE_TO_DELETE);
+                  log("File remove. " + FILE_TO_DELETE);
                   getFilesFromSD();       
                   refreshFiles();
                 }
@@ -1076,9 +1076,9 @@ class HMI
             {
                 FILE_TO_LOAD = FILE_LAST_DIR + FILES_BUFF[FILE_IDX_SELECTED + FILE_PTR_POS].path;     
       
-                // SerialHW.println();
-                // SerialHW.println();
-                // SerialHW.println("File to load: " + FILE_TO_LOAD);    
+                // log();
+                // log();
+                // log("File to load: " + FILE_TO_LOAD);    
       
                 // Ya no me hace falta. Lo libero
                 // if (FILES_BUFF!=NULL)
@@ -1256,7 +1256,7 @@ class HMI
           MAIN_VOL = valVol;
           
           // Ajustamos el volumen
-          SerialHW.println("Main volume value=" + String(MAIN_VOL));
+          log("Main volume value=" + String(MAIN_VOL));
 
           //ESP32kit.setVolume(MAIN_VOL);
           //ESP32kit.maxAmplitude = 
@@ -1303,7 +1303,7 @@ class HMI
           strCmd.getBytes(buff, 7);
           int valThr = (int)buff[4];
           SCHMITT_THR = valThr;
-          SerialHW.println("Threshold value=" + String(SCHMITT_THR));
+          log("Threshold value=" + String(SCHMITT_THR));
           
           // value = byte1+byte2*256+byte3*65536+byte4*16777216
 
@@ -1312,6 +1312,27 @@ class HMI
           //   size_t len = _kit.read(buffer, BUFFER_SIZE);
           //   analyzeSamplesForThreshold(len);
           // }
+        }
+
+        // Polarización de la señal
+        if (strCmd.indexOf("TERM=") != -1) 
+        {
+          //Cogemos el valor
+          uint8_t buff[8];
+          strCmd.getBytes(buff, 7);
+          int valEn = (int)buff[4];
+          //
+          if (valEn==1)
+          {
+              // Habilita terminadores
+              APPLY_END = true;
+          }
+          else
+          {
+              // Deshabilita terminadores
+              APPLY_END = false;
+          }
+          log("Terminadores =" + String(INVERSETRAIN));
         }
 
         // Polarización de la señal
@@ -1336,9 +1357,10 @@ class HMI
               LAST_EAR_IS = up;
               INVERSETRAIN = false;
           }
-          SerialHW.println("Polarization =" + String(INVERSETRAIN));
+          log("Polarization =" + String(INVERSETRAIN));
         }
 
+        // Nivel LOW a cero
         if (strCmd.indexOf("ZER=") != -1) 
         {
           //Cogemos el valor
@@ -1356,7 +1378,7 @@ class HMI
               // El nivel bajo es -32768
               ZEROLEVEL = false;
           }
-          SerialHW.println("Down level is ZERO =" + String(ZEROLEVEL));
+          log("Down level is ZERO =" + String(ZEROLEVEL));
         }
 
         // Enable Schmitt Trigger threshold adjust
@@ -1375,7 +1397,7 @@ class HMI
           {
               EN_SCHMITT_CHANGE = false;
           }
-          SerialHW.println("Threshold enable=" + String(EN_SCHMITT_CHANGE));
+          log("Threshold enable=" + String(EN_SCHMITT_CHANGE));
         }
 
         // Habilita los dos canales
@@ -1407,7 +1429,7 @@ class HMI
           {
               SWAP_MIC_CHANNEL = false;
           }
-          SerialHW.println("MIC LEFT enable=" + String(SWAP_MIC_CHANNEL));
+          log("MIC LEFT enable=" + String(SWAP_MIC_CHANNEL));
         }
 
         // Enable MIC left channel - Option
@@ -1426,7 +1448,7 @@ class HMI
           {
               SWAP_EAR_CHANNEL = false;
           }
-          SerialHW.println("EAR LEFT enable=" + String(SWAP_EAR_CHANNEL));
+          log("EAR LEFT enable=" + String(SWAP_EAR_CHANNEL));
         }
 
         // Show data debug by serial console
@@ -1445,7 +1467,7 @@ class HMI
           {
               SHOW_DATA_DEBUG = false;
           }
-          SerialHW.println("SHOW_DATA_DEBUG enable=" + String(SHOW_DATA_DEBUG));
+          log("SHOW_DATA_DEBUG enable=" + String(SHOW_DATA_DEBUG));
         }
 
         // // Pulses width
@@ -1467,7 +1489,7 @@ class HMI
           int val = (int)buff[4];
           //
           MIN_SYNC=val;
-          SerialHW.println("MP1=" + String(MIN_SYNC));
+          log("MP1=" + String(MIN_SYNC));
         }
 
         if (strCmd.indexOf("MP2=") != -1) 
@@ -1478,7 +1500,7 @@ class HMI
           int val = (int)buff[4];
           //
           MAX_SYNC=val;
-          SerialHW.println("MP2=" + String(MAX_SYNC));
+          log("MP2=" + String(MAX_SYNC));
         }
 
         if (strCmd.indexOf("MP3=") != -1) 
@@ -1489,7 +1511,7 @@ class HMI
           int val = (int)buff[4];
           //
           MIN_BIT0=val;
-          SerialHW.println("MP3=" + String(MIN_BIT0));
+          log("MP3=" + String(MIN_BIT0));
         }
 
         if (strCmd.indexOf("MP4=") != -1) 
@@ -1500,7 +1522,7 @@ class HMI
           int val = (int)buff[4];
           //
           MAX_BIT0=val;
-          SerialHW.println("MP4=" + String(MAX_BIT0));
+          log("MP4=" + String(MAX_BIT0));
         }
 
         if (strCmd.indexOf("MP5=") != -1) 
@@ -1511,7 +1533,7 @@ class HMI
           int val = (int)buff[4];
           //
           MIN_BIT1=val;
-          SerialHW.println("MP5=" + String(MIN_BIT1));
+          log("MP5=" + String(MIN_BIT1));
         }
 
         if (strCmd.indexOf("MP6=") != -1) 
@@ -1522,7 +1544,7 @@ class HMI
           int val = (int)buff[4];
           //
           MAX_BIT1=val;
-          SerialHW.println("MP6=" + String(MAX_BIT1));
+          log("MP6=" + String(MAX_BIT1));
         }
 
         if (strCmd.indexOf("MP7=") != -1) 
@@ -1531,19 +1553,19 @@ class HMI
           uint8_t buff[8];
           strCmd.getBytes(buff, 7);
 
-          // SerialHW.println("0: " + String((char)buff[0]));
-          // SerialHW.println("1: " + String((char)buff[1]));
-          // SerialHW.println("2: " + String((char)buff[2]));
-          // SerialHW.println("3: " + String((char)buff[3]));
-          // SerialHW.println("4: " + String(buff[4]));
-          // SerialHW.println("5: " + String(buff[5]));
-          // SerialHW.println("6: " + String(buff[6]));
-          // SerialHW.println("7: " + String(buff[7]));
+          // log("0: " + String((char)buff[0]));
+          // log("1: " + String((char)buff[1]));
+          // log("2: " + String((char)buff[2]));
+          // log("3: " + String((char)buff[3]));
+          // log("4: " + String(buff[4]));
+          // log("5: " + String(buff[5]));
+          // log("6: " + String(buff[6]));
+          // log("7: " + String(buff[7]));
 
           long val = (long)((int)buff[4] + (256*(int)buff[5]) + (65536*(int)buff[6]));
           //
           MAX_PULSES_LEAD=val;
-          SerialHW.println("MP7=" + String(MAX_PULSES_LEAD));
+          log("MP7=" + String(MAX_PULSES_LEAD));
         }
 
         if (strCmd.indexOf("MP8=") != -1) 
@@ -1554,7 +1576,7 @@ class HMI
           int val = (int)buff[4];
           //
           MIN_LEAD=val;
-          SerialHW.println("MP8=" + String(MIN_LEAD));
+          log("MP8=" + String(MIN_LEAD));
         }
 
         if (strCmd.indexOf("MP9=") != -1) 
@@ -1565,7 +1587,7 @@ class HMI
           int val = buff[4];
           //
           MAX_LEAD=val;
-          SerialHW.println("MP9=" + String(MAX_LEAD));
+          log("MP9=" + String(MAX_LEAD));
         }
 
         if (strCmd.indexOf("VOLUP") != -1) 
@@ -1577,9 +1599,9 @@ class HMI
             MAIN_VOL = 100;
 
           }
-          // SerialHW.println("");
-          // SerialHW.println("VOL UP");
-          // SerialHW.println("");
+          // log("");
+          // log("VOL UP");
+          // log("");
         }        
 
         if (strCmd.indexOf("VOLDW") != -1) 
@@ -1590,9 +1612,9 @@ class HMI
           {
             MAIN_VOL = 30;
           }
-          // SerialHW.println("");
-          // SerialHW.println("VOL DOWN");
-          // SerialHW.println("");
+          // log("");
+          // log("VOL DOWN");
+          // log("");
         }
       
         if (strCmd.indexOf("TXTF=") != -1) 
@@ -1754,13 +1776,13 @@ class HMI
       
       int getEndCharPosition(String str,int start)
       {
-        //SerialHW.println(">> " + str);
+        //log(">> " + str);
         int pos=-1;
         int stateCr=0;
         for (int i = start; i < str.length(); i++) 
         {
           char cr = str[i];
-          //SerialHW.println(String(cr) + " - " + String(int(cr)));
+          //log(String(cr) + " - " + String(int(cr)));
 
           // Buscamos 0xFF 0xFF 0xFF
           switch(stateCr)
@@ -1808,7 +1830,7 @@ class HMI
 
         }
 
-        //SerialHW.println("Pos: " + String(pos));
+        //log("Pos: " + String(pos));
         return pos;
       }
 
@@ -1828,7 +1850,7 @@ class HMI
           if (cPos==-1)
           {
             // Solo hay un comando
-            //SerialHW.println("Only one command");
+            //log("Only one command");
             verifyCommand(strCmd);
           }
           else
@@ -1836,10 +1858,10 @@ class HMI
             // Hay varios
             while(cPos < strCmd.length() && cPos!=-1)
             {
-              //SerialHW.println("Start,pos,last: " + String(cStart) + "," + String(cPos) + "," + String(lastcStart));
+              //log("Start,pos,last: " + String(cStart) + "," + String(cPos) + "," + String(lastcStart));
 
               str=strCmd.substring(cStart,cPos-3);
-              //SerialHW.println("Command: " + str);
+              //log("Command: " + str);
               // Verificamos el comando
               verifyCommand(str);
               // Adelantamos el puntero
@@ -1860,7 +1882,7 @@ class HMI
             String strCmd = SerialHW.readString();
 
             //ECHO
-            //SerialHW.println(strCmd);
+            //log(strCmd);
             getSeveralCommands(strCmd);
           }
           //SerialHW.flush();
