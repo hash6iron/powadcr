@@ -88,6 +88,9 @@
 
 #include <Arduino.h>
 #include "esp32-hal-psram.h"
+
+#include "EasyNextionLibrary.h"
+
 // Librerias (mantener este orden)
 //   -- En esta se encuentran las variables globales a todo el proyecto
 TaskHandle_t Task0;
@@ -100,6 +103,8 @@ TaskHandle_t Task1;
 
 #include <HardwareSerial.h>
 HardwareSerial SerialHW(0);
+
+EasyNex myNex(SerialHW);
 
 #include "config.h"
 
@@ -429,65 +434,60 @@ void setAudioOutput()
     log("Error in Audiokit output setting");
   }
 
-  #ifdef SAMPLING44
-    if(!ESP32kit.setSampleRate(AUDIO_HAL_44K_SAMPLES))
-    {
-      log("Error in Audiokit sampling rate setting");
-    }
-    else
-    {
-      hmi.writeString("statusLCD.txt=\"SAMPLING RATE 44.1KHz\"" );
-      delay(750);
-    }
-  #endif
-  
-  #ifdef SAMPLING48
-    if(!ESP32kit.setSampleRate(AUDIO_HAL_48K_SAMPLES))
-    {
-      log("Error in Audiokit sampling rate setting");
-    }
-    else
-    {
-      hmi.writeString("statusLCD.txt=\"SAMPLING RATE 48KHz\"" );
-      delay(750);
-    }
-  #endif
+  switch (SAMPLING_RATE)
+  {
+      case 48000:
+        if(!ESP32kit.setSampleRate(AUDIO_HAL_48K_SAMPLES))
+        {
+          log("Error in Audiokit sampling rate setting");
+        }
+        else
+        {
+          hmi.writeString("tape.g0.txt=\"SAMPLING RATE 48 KHz\"" );
+          hmi.writeString("statusLCD.txt=\"SAMPLING RATE 48 KHz\"" );
+          delay(750);
+        }    
+        break;
 
-  #ifdef SAMPLING32
-    if(!ESP32kit.setSampleRate(AUDIO_HAL_32K_SAMPLES))
-    {
-      log("Error in Audiokit sampling rate setting");
-    }
-    else
-    {
-      hmi.writeString("statusLCD.txt=\"SAMPLING RATE 32KHz\"" );
-      delay(750);
-    }
-  #endif
+      case 44100:
+        if(!ESP32kit.setSampleRate(AUDIO_HAL_44K_SAMPLES))
+        {
+          log("Error in Audiokit sampling rate setting");
+        }
+        else
+        {
+          hmi.writeString("tape.g0.txt=\"SAMPLING RATE 44.1 KHz\"" );
+          hmi.writeString("statusLCD.txt=\"SAMPLING RATE 44.1 KHz\"" );          
+          delay(750);
+        }            
+        break;
 
-  #ifdef SAMPLING24
-    if(!ESP32kit.setSampleRate(AUDIO_HAL_24K_SAMPLES))
-    {
-      log("Error in Audiokit sampling rate setting");
-    }
-    else
-    {
-      hmi.writeString("statusLCD.txt=\"SAMPLING RATE 24KHz\"" );
-      delay(750);
-    }
-  #endif
+      case 32000:
+        if(!ESP32kit.setSampleRate(AUDIO_HAL_32K_SAMPLES))
+        {
+          log("Error in Audiokit sampling rate setting");
+        }
+        else
+        {
+          hmi.writeString("tape.g0.txt=\"SAMPLING RATE 32 KHz\"" );
+          hmi.writeString("statusLCD.txt=\"SAMPLING RATE 32 KHz\"" );          
+          delay(750);
+        }            
+        break;
 
-  #ifdef SAMPLING22
-    if(!ESP32kit.setSampleRate(AUDIO_HAL_22K_SAMPLES))
-    {
-      log("Error in Audiokit sampling rate setting");
-    }
-    else
-    {
-      hmi.writeString("statusLCD.txt=\"SAMPLING RATE 22.05KHz\"" );
-      delay(750);
-    }
-  #endif
+      default:
+        if(!ESP32kit.setSampleRate(AUDIO_HAL_22K_SAMPLES))
+        {
+          log("Error in Audiokit sampling rate setting");
+        }
+        else
+        {
+          hmi.writeString("tape.g0.txt=\"SAMPLING RATE 22.05 KHz\"" );
+          hmi.writeString("statusLCD.txt=\"SAMPLING RATE 22.05 KHz\"" );          
+          delay(750);
+        }            
+        break;
+  }
 
 
   if (!ESP32kit.setVolume(100))
@@ -978,6 +978,37 @@ void recordingFile()
     }
 }
 
+void getAudioSettingFromHMI()
+{
+    if(myNex.readNumber("menuAdio.enTerm.val")==1)
+    {
+      APPLY_END = true;
+    }
+    else
+    {
+      APPLY_END = false;
+    }
+
+    if(myNex.readNumber("menuAdio.polValue.val")==1)
+    {
+      POLARIZATION = down;
+    }
+    else
+    {
+      POLARIZATION = up;
+    }
+
+    if(myNex.readNumber("menuAdio.lvlLowZero.val")==1)
+    {
+      ZEROLEVEL = true;
+    }
+    else
+    {
+      ZEROLEVEL = false;
+    }
+
+}
+
 void tapeControl()
 { 
   #ifdef SAMPLINGTESTACTIVE
@@ -1037,6 +1068,11 @@ void tapeControl()
         // Esperando que hacer con el fichero cargado
         if (PLAY)
         {
+          // Inicializamos la polarización de la señal al iniciar la reproducción.
+          LAST_EAR_IS = POLARIZATION; 
+          //
+          //getAudioSettingFromHMI();
+
           // Lo reproducimos
           FFWIND = false;
           RWIND = false;        
@@ -1271,22 +1307,19 @@ void Task0code( void * pvParameters )
             hmi.updateInformationMainPage();
           }
 
-          if (LOADING_STATE==1)
+          if((millis() - startTime2) > 125)
           {
-            if((millis() - startTime2) > 125)
+            startTime2 = millis();
+            if (SCOPE==up)
             {
-              startTime2 = millis();
-              if (SCOPE==up)
-              {
-                hmi.writeString("add 34,0,10");
-                hmi.writeString("add 34,0,10");
-              }
-              else
-              {
-                hmi.writeString("add 34,0,4");
-                hmi.writeString("add 34,0,4");
-              }     
+              hmi.writeString("add 34,0,10");
+              hmi.writeString("add 34,0,10");
             }
+            else
+            {
+              hmi.writeString("add 34,0,4");
+              hmi.writeString("add 34,0,4");
+            }     
           }
 
           // if ((millis() - tClock) > 1000)

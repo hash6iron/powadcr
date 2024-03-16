@@ -132,6 +132,7 @@ edge POLARIZATION = up;
 edge LAST_EAR_IS = POLARIZATION;
 edge SCOPE = down;
 bool APPLY_END = false;
+int SAMPLING_RATE = 22050;
 
 bool INVERSETRAIN = false;
 bool ZEROLEVEL = false;

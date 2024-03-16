@@ -1314,8 +1314,8 @@ class HMI
           // }
         }
 
-        // Polarización de la señal
-        if (strCmd.indexOf("TERM=") != -1) 
+        // Habilitar terminadores para forzar siguiente pulso a HIGH
+        if (strCmd.indexOf("TER=") != -1) 
         {
           //Cogemos el valor
           uint8_t buff[8];
@@ -1332,7 +1332,8 @@ class HMI
               // Deshabilita terminadores
               APPLY_END = false;
           }
-          SerialHW.println("Terminadores =" + String(INVERSETRAIN));
+
+          log("Terminadores =" + String(APPLY_END));
         }
 
         // Polarización de la señal
@@ -1449,6 +1450,33 @@ class HMI
               SWAP_EAR_CHANNEL = false;
           }
           SerialHW.println("EAR LEFT enable=" + String(SWAP_EAR_CHANNEL));
+        }
+
+        // Sampling rate
+        if (strCmd.indexOf("SAM=") != -1) 
+        {
+          //Cogemos el valor
+          uint8_t buff[8];
+          strCmd.getBytes(buff, 7);
+          int valEn = (int)buff[4];
+          //
+          if (valEn==0)
+          {
+              SAMPLING_RATE = 48000;
+          }
+          else if(valEn==1)
+          {
+              SAMPLING_RATE = 44100;
+          }
+          else if(valEn==2)
+          {
+              SAMPLING_RATE = 32000;
+          }
+          else if(valEn==3)
+          {
+              SAMPLING_RATE = 22050;
+          }
+          log("Sampling rate =" + String(SAMPLING_RATE));
         }
 
         // Show data debug by serial console

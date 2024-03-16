@@ -1961,6 +1961,7 @@ class TZXprocessor
         // Inicializamos el buffer de reproducción. Memoria dinamica
         uint8_t* bufferPlay = nullptr;
         int dly = 0;
+        int newPosition = -1;
         
         // Cogemos la mascara del ultimo byte
         if (_myTZX.descriptor[i].hasMaskLastByte)
@@ -1998,9 +1999,10 @@ class TZXprocessor
               if (LOOP_PLAYED < LOOP_COUNT)
               {
                 // Volvemos al primner bloque dentro del loop
-                i = BL_LOOP_START + 1;
+                newPosition = BL_LOOP_START;
                 LOOP_PLAYED++;
-              }             
+                //return newPosition;        
+              }     
               break;
 
             case 32:
@@ -2013,8 +2015,13 @@ class TZXprocessor
               {                       
                   // Finalizamos el ultimo bit
                   if(LAST_SILENCE_DURATION==0)
-                  {_zxp.silence(2000);}
-                  
+                  {
+                    _zxp.silence(2000);
+                  }
+
+                  // Inicializamos la polarización de la señal
+                  LAST_EAR_IS = POLARIZATION;   
+
                   //_zxp.closeBlock();
 
                   // PAUSE
@@ -2043,7 +2050,7 @@ class TZXprocessor
 
                   // Enviamos info al HMI.
                   _hmi.setBasicFileInformation(_myTZX.descriptor[BLOCK_SELECTED].name,_myTZX.descriptor[BLOCK_SELECTED].typeName,_myTZX.descriptor[BLOCK_SELECTED].size);                        
-                  return i;
+                  //return newPosition;
               }
               else
               {
@@ -2109,7 +2116,7 @@ class TZXprocessor
                         BL_LOOP_START = 0;
                         BL_LOOP_END = 0;
 
-                        return i;
+                        //return newPosition;
                     }
 
                     //Ahora vamos lanzando bloques dependiendo de su tipo
@@ -2316,7 +2323,7 @@ class TZXprocessor
 
         }      
 
-        return i;
+        return newPosition;
     }
 
     void play()
@@ -2335,10 +2342,7 @@ class TZXprocessor
         BL_LOOP_END = 0;
 
         if (_myTZX.descriptor != nullptr)
-        {         
-              // Inicializamos la polarización de la señal
-              LAST_EAR_IS = POLARIZATION;  
-  
+        {           
               // Entregamos información por consola
               TOTAL_BLOCKS = _myTZX.numBlocks;
               strcpy(LAST_NAME,"              ");
@@ -2364,7 +2368,12 @@ class TZXprocessor
               for (int i = firstBlockToBePlayed; i < _myTZX.numBlocks; i++) 
               {               
                   BLOCK_SELECTED = i;                
-                  i = getIdAndPlay(i);
+                  int new_i = getIdAndPlay(i);
+                  // Entonces viene cambiada de un loop
+                  if (new_i != -1)
+                  {
+                    i = new_i;
+                  }
 
                   if (LOADING_STATE == 2 || LOADING_STATE == 3)
                   {
@@ -2387,6 +2396,9 @@ class TZXprocessor
 
                 if(LAST_SILENCE_DURATION==0)
                 {_zxp.silence(2000);}
+
+                // Inicializamos la polarización de la señal
+                LAST_EAR_IS = POLARIZATION;       
 
                 // Paramos
                 PLAY = false;

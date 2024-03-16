@@ -48,28 +48,8 @@ class ZXProcessor
     
     // Definición de variables internas y constantes
     uint8_t buffer[0];
-    
-    // Parametrizado para el ES8388 a 44.1KHz
-    #ifdef SAMPLING44
-        //const double _samplingRate = 44995.39639;
-        const double _samplingRate = 44100.0;
-        //const double _samplingRate = 44099.988;
-        //const double _samplingRate = 43204.57961;
-    #endif
-
-    #ifdef SAMPLING48
-        const double _samplingRate = 48000.0;
-    #endif
-
-    #ifdef SAMPLING32
-        const double _samplingRate = 32000.0;
-    #endif
-
-    #ifdef SAMPLING22
-        const double _samplingRate = 22050.0;
-    #endif
-    
-    //const double sampleDuration = (1.0 / _samplingRate); //0.0000002267; //
+      
+    //const double sampleDuration = (1.0 / SAMPLING_RATE); //0.0000002267; //
                                                        // segundos para 44.1HKz
     
     // Estos valores definen las señales. Otros para el flanco negativo
@@ -265,12 +245,6 @@ class ZXProcessor
 
                 for (int j=0;j<width;j++)
                 {
-                    //R-OUT
-                    *ptr++ = sample_R;
-                    //L-OUT
-                    *ptr++ = sample_L * EN_STEREO;
-                    //                        
-
                     if (sample_R > 0)
                     {
                         SCOPE=up;
@@ -279,6 +253,12 @@ class ZXProcessor
                     {
                         SCOPE=down;
                     }
+                    
+                    //R-OUT
+                    *ptr++ = sample_R;
+                    //L-OUT
+                    *ptr++ = sample_L * EN_STEREO;
+                    //                        
 
                     result+=2*chn;                    
                 }            
@@ -301,9 +281,9 @@ class ZXProcessor
             // Amplitud de la señal
             double amplitude = 0;
             
-            double rsamples = (width / freqCPU) * _samplingRate;
+            double rsamples = (width / freqCPU) * SAMPLING_RATE;
             // Ajustamos
-            int samples = rsamples;
+            int samples = (rsamples);
 
             ACU_ERROR = 0;
 
@@ -400,7 +380,7 @@ class ZXProcessor
             // Obtenemos los samples
             semiPulse(width,true);
             
-            double rsamples = (width / freqCPU) * _samplingRate;
+            double rsamples = (width / freqCPU) * SAMPLING_RATE;
             return rsamples;
         }
 
@@ -439,7 +419,7 @@ class ZXProcessor
             // es decir de la mitad del periodo. Entonces hay que calcular
             // el periodo completo que es 2 * T
             // double freq = (1 / (PILOT_PULSE_LEN * tState)) / 2;   
-            // generateWaveDuration(freq, duration, _samplingRate);            
+            // generateWaveDuration(freq, duration, SAMPLING_RATE);            
             
             customPilotTone(lenpulse, numpulses);
         }
@@ -610,7 +590,7 @@ class ZXProcessor
                 // tStateSilenceOri = tStateSilence;
                 // tStateSilence = (duration / OneSecondTo_ms) * freqCPU;    
 
-                samples = (duration / 1000.0) * _samplingRate;
+                samples = (duration / 1000.0) * SAMPLING_RATE;
 
                 // Esto lo hacemos para acabar bien un ultimo flanco en down.
                 // Hay que tener en cuenta que el terminador se quita del tiempo de PAUSA
@@ -639,6 +619,8 @@ class ZXProcessor
                         {
                             // Si es mayor de 1ms, entonces se lo restamos.
                             samples -= terminator_samples;
+                            // Inicializamos la polarización de la señal
+                            //LAST_EAR_IS = down;   
                         }
                     }
                 }
@@ -649,7 +631,7 @@ class ZXProcessor
 
 
                 // Aplicamos ahora el silencio
-                double width = (samples / _samplingRate) * freqCPU;
+                double width = (samples / SAMPLING_RATE) * freqCPU;
 
                 semiPulse(width, true); 
                 
