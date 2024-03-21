@@ -117,12 +117,12 @@ class TAPrecorder
 
       // Umbrales de pulso.
       const int high = 32767;
-      const int low = -32768;
+      const int low = -32767;
       const int silence = 0;
 
       // Definimos el sampling rate real de la placa.
       //const double samplingRate = 44099.988;
-      const double samplingRate = 48000.0;
+      const double samplingRate = 44100.0;
       // Calculamos el T sampling_rate en us
       const double TsamplingRate = (1 / samplingRate) * 1000 * 1000;
 
@@ -294,10 +294,10 @@ class TAPrecorder
               // 3 - Code file
               header.type = byteRead;
               
-              SerialHW.println("");              
-              SerialHW.println("HEADER TYPE");              
-              SerialHW.println(String(header.type));
-              SerialHW.println("");      
+              //SerialHW.println("");              
+              //SerialHW.println("HEADER TYPE");              
+              //SerialHW.println(String(header.type));
+              //SerialHW.println("");      
 
               proccesInfoBlockType();
 
@@ -336,7 +336,7 @@ class TAPrecorder
         String prgName = "";
         for (int n=0;n<10;n++)
         {
-          SerialHW.print(header.name[n]);
+          //SerialHW.print(header.name[n]);
           prgName += header.name[n];
         }
 
@@ -354,8 +354,8 @@ class TAPrecorder
       void proccesInfoBlockType()
       {
           
-          SerialHW.println("");
-          SerialHW.println("State info block: " + String(stateInfoBlock));
+          //SerialHW.println("");
+          //SerialHW.println("State info block: " + String(stateInfoBlock));
 
           // Si el conjunto leido es de 19 bytes. Es una cabecera.
           if (header.blockSize == 19 && stateInfoBlock==0)
@@ -387,7 +387,7 @@ class TAPrecorder
             if (header.blockSize == 6912)
             {
               strncpy(LAST_TYPE,"SCREEN.DATA",sizeof("SCREEN.DATA"));
-              SerialHW.println("SCREEN");
+              //SerialHW.println("SCREEN");
             }
             else
             {
@@ -395,13 +395,13 @@ class TAPrecorder
               {
                   // Es un bloque de datos BYTE
                   strncpy(LAST_TYPE,"BYTE.DATA",sizeof("BYTE.DATA"));
-                  SerialHW.println("BYTE.DATA");
+                  //SerialHW.println("BYTE.DATA");
               }
               else if (header.type == 0)
               {
                   // Es un bloque BASIC
                   strncpy(LAST_TYPE,"BASIC.DATA",sizeof("BASIC.DATA"));
-                  SerialHW.println("BASIC.DATA");
+                  //SerialHW.println("BASIC.DATA");
               }
             }
           }   
@@ -419,23 +419,23 @@ class TAPrecorder
         // porque mFile contiene el original
         strcat(cPath,fileNameRename);
 
-        SerialHW.println("");
-        SerialHW.println("File searching? " + String(cPath));
-        SerialHW.println("");
+        //SerialHW.println("");
+        //SerialHW.println("File searching? " + String(cPath));
+        //SerialHW.println("");
 
         if (_sdf32.exists(cPath))
         {
           _sdf32.remove(cPath);
-          SerialHW.println("");
-          SerialHW.println("File removed --> " + String(cPath));
-          SerialHW.println("");
+          //SerialHW.println("");
+          //SerialHW.println("File removed --> " + String(cPath));
+          //SerialHW.println("");
         }
 
         if (_mFile.rename(cPath))
         {
-          SerialHW.println("");
-          SerialHW.println("File renamed --> " + String(cPath));
-          SerialHW.println("");
+          //SerialHW.println("");
+          //SerialHW.println("File renamed --> " + String(cPath));
+          //SerialHW.println("");
           
           wasRenamed = true;
         }
@@ -475,11 +475,11 @@ class TAPrecorder
       void proccessInfoBlock()
       {
 
-        SerialHW.println("");
-        SerialHW.print("Checksum: ");
-        SerialHW.print(lastChk,HEX);
-        SerialHW.println("");
-        SerialHW.println("Block read: " + String(blockCount));
+        //SerialHW.println("");
+        //SerialHW.print("Checksum: ");
+        //SerialHW.print(lastChk,HEX);
+        //SerialHW.println("");
+        //SerialHW.println("Block read: " + String(blockCount));
 
         checksum = 0;
 
@@ -511,7 +511,7 @@ class TAPrecorder
                 _mFile.write(LSB);
                 _mFile.write(MSB);
 
-                SerialHW.print("PROGRAM: ");
+                //SerialHW.print("PROGRAM: ");
 
                 // Mostramos el nombre del programa en el display
                 // ojo que el marcador "nameFileRead" debe estar
@@ -523,10 +523,10 @@ class TAPrecorder
                 // Obtenemos el nombre que se le pondrá al .TAP
                 getFileName();
 
-                SerialHW.println("");
-                SerialHW.println("Block size: " + String(size) + " bytes");
-                SerialHW.println("");
-                SerialHW.println("");
+                //SerialHW.println("");
+                //SerialHW.println("Block size: " + String(size) + " bytes");
+                //SerialHW.println("");
+                //SerialHW.println("");
 
                 headState = 1;
             }
@@ -546,9 +546,9 @@ class TAPrecorder
             }
             else
             {
-                SerialHW.println("");
-                SerialHW.println("Error in head information. Only " + String(byteCount) + " bytes were read.");
-                SerialHW.println("");
+                //SerialHW.println("");
+                //SerialHW.println("Error in head information. Only " + String(byteCount) + " bytes were read.");
+                //SerialHW.println("");
 
                 // Marcamos el error de cabecera
                 errorInDataRecording = true;
@@ -560,19 +560,19 @@ class TAPrecorder
                 header.blockSize = 19;                
             }
 
-            SerialHW.println("");
-            SerialHW.println("Block data ------------------------");
-            SerialHW.println("");
-            SerialHW.println("Total bytes: " + String(byteCount));
-            SerialHW.println("");
+            //SerialHW.println("");
+            //SerialHW.println("Block data ------------------------");
+            //SerialHW.println("");
+            //SerialHW.println("Total bytes: " + String(byteCount));
+            //SerialHW.println("");
 
             //LAST_SIZE = header.blockSize;  
             ////_hmi.updateInformationMainPage();
         }
         else
         {
-          SerialHW.println("");
-          SerialHW.println("Unknow error in proccess info block");
+          //SerialHW.println("");
+          //SerialHW.println("Unknow error in proccess info block");
         }  
       }
 
@@ -606,8 +606,8 @@ class TAPrecorder
 
         averageThreshold += (average / averageSamples);
 
-        //SerialHW.println("Media: ");
-        //SerialHW.println(String(averageThreshold));
+        ////SerialHW.println("Media: ");
+        ////SerialHW.println(String(averageThreshold));
 
       }
 
@@ -632,72 +632,7 @@ class TAPrecorder
           return returnValue;
       }
 
-      void setTimer(int value)
-      {
-          if (!startTimeWasLoaded)
-          {
-              timeBuffer = value;
-              startTimeWasLoaded = true;
-              //SerialHW.println("Loading timer: " + String(value) + " us");
-              startTimer();
-          }
-          else
-          {}
-      }
 
-      void resetTimer()
-      {
-        startTimeWasLoaded = false;
-      }
-
-      void countTime()
-      {
-        // Contamos el tiempo de una muestra
-        if (countTimeEnable)
-        {
-          timeBuffer -= TsamplingRate;
-          //timeBuffer -= 22.4;
-          if (timeBuffer <= 0)
-          {
-            timeBuffer = 0;
-          }
-        }
-      }
-
-      bool timeOut()
-      {
-        if (timeBuffer==0)
-        {
-          stopTimer();
-          return true;
-        }
-        else
-        {
-          return false;
-        }
-      }
-
-      double readTimer()
-      {
-        double ti = timeBuffer;
-        return ti;
-      }
-
-      void stopTimer()
-      {
-        countTimeEnable = false;
-      }
-
-      void startTimer()
-      {
-        countTimeEnable = true;
-      }
-
-      double timeThreshold(int value, double per)
-      {
-        // Calcula el time menos un % de error
-        return (value - (value*per));
-      }
 
       bool detectZeroCrossing(int16_t value)
       {
@@ -732,7 +667,7 @@ class TAPrecorder
             {
               detectState=2;
               zeroCrossing = true;
-              //SerialHW.println("pw: " + String(samplesCrossing));                           
+              ////SerialHW.println("pw: " + String(samplesCrossing));                           
             }
             else if (value==low)
             {
@@ -761,7 +696,7 @@ class TAPrecorder
               // para eso exigimos que tenga al menos un mínimo de ancho
               detectState=1;
               zeroCrossing = true;   
-              //SerialHW.println("pw: " + String(samplesCrossing));              
+              ////SerialHW.println("pw: " + String(samplesCrossing));              
             }
             else
             {
@@ -783,98 +718,7 @@ class TAPrecorder
         return zeroCrossing;    
       }
 
-      // int16_t schmittDetector(int16_t value, int16_t thH, int16_t thL, bool reset)
-      // {
 
-      //   int16_t switchStatus = lastSwitchStatus;
-      //   // Si hay un cambio, este no afecta hasta pasadas
-      //   // las responseSamples
-      //   const int responseSamples = 5;
-
-      //   if (reset)
-      //   {
-      //     detectStateSchmitt = 0;
-      //     switchStatus=0;
-      //   }
-
-      //   switch (detectStateSchmitt)
-      //   {
-      //     case 0:
-      //       // Estado inicial
-      //       nResponse=0;
-
-      //       if (value > thH)
-      //       {
-      //         // HIGH
-      //         detectStateSchmitt = 1;              
-      //       }
-      //       else if (value < thL)
-      //       {
-      //         // LOW
-      //         detectStateSchmitt = 2;              
-      //       }
-      //       else
-      //       {
-      //         detectStateSchmitt = 0;
-      //       }
-      //       break;
-
-      //     case 1:
-      //       // Estado en HIGH
-      //       if (value < thL)
-      //       {
-      //         if (nResponse>=responseSamples)
-      //         {
-      //           switchStatus = low;
-      //           detectStateSchmitt = 2;
-      //           nResponse=0;
-      //         }
-      //         else
-      //         {
-      //           nResponse++;
-      //         }
-      //       }
-      //       else if (value > thH)
-      //       {              
-      //         detectStateSchmitt = 1;
-      //         nResponse=0;
-      //       }
-      //       else
-      //       {
-      //         detectStateSchmitt = 1;
-      //       }
-      //       break;
-
-      //     case 2:
-      //       // Estado en LOW
-      //       if (value < thL)
-      //       {
-      //         detectStateSchmitt = 2;              
-      //       }
-      //       else if (value > thH)
-      //       {
-      //         if (nResponse>=responseSamples)
-      //         {
-      //           switchStatus = high;
-      //           detectStateSchmitt = 1;
-      //           nResponse=0;
-      //         }
-      //         else
-      //         {
-      //           nResponse++;
-      //         }
-      //       }
-      //       else
-      //       {
-      //         detectStateSchmitt = 2;
-      //         nResponse=0;
-      //       }            
-      //       break;
-      //   }
-        
-      //   lastSwitchStatus = switchStatus;
-      //   return switchStatus;
-      // }
 
       int16_t schmittDetector(int16_t value, int16_t thH, int16_t thL, bool reset)
       {
@@ -996,7 +840,7 @@ class TAPrecorder
 
               if (LAST_SCHMITT_THR != SCHMITT_THR)   
               {
-                SerialHW.println("Thr modified: " + String(threshold_high));
+                //SerialHW.println("Thr modified: " + String(threshold_high));
               }
               // Actualizamos el ultimo cambio
               LAST_SCHMITT_THR = SCHMITT_THR;
@@ -1035,7 +879,7 @@ class TAPrecorder
                       isSilence = true;
                       if (showDataDebug)
                       {
-                        SerialHW.println("Silence");                            
+                        //SerialHW.println("Silence");                            
                       }                      
                     }
                     else
@@ -1051,7 +895,7 @@ class TAPrecorder
                           
                           if (showDataDebug)
                           {
-                            SerialHW.println("Pilot count: " + String(pilotPulseCount));                            
+                            //SerialHW.println("Pilot count: " + String(pilotPulseCount));                            
                           }
 
                           pwLead1 = pulseWidth;
@@ -1085,8 +929,8 @@ class TAPrecorder
 
                                     if (showDataDebug)
                                     {
-                                      SerialHW.println("REC. Wait for SYNC1");
-                                      SerialHW.println("");
+                                      //SerialHW.println("REC. Wait for SYNC1");
+                                      //SerialHW.println("");
                                     }
 
                                     // Escribimos los primeros bytes
@@ -1101,9 +945,9 @@ class TAPrecorder
 
                                         if (showDataDebug)
                                         {
-                                          SerialHW.println("");
-                                          SerialHW.println("Writting first bytes.");
-                                          SerialHW.println("");
+                                          //SerialHW.println("");
+                                          //SerialHW.println("Writting first bytes.");
+                                          //SerialHW.println("");
                                         }
                                     }
                                 }                          
@@ -1128,8 +972,8 @@ class TAPrecorder
 
                             if (showDataDebug)
                             {
-                              SerialHW.println("REC. Wait for SYNC2");
-                              SerialHW.println("");
+                              //SerialHW.println("REC. Wait for SYNC2");
+                              //SerialHW.println("");
                             }
                         }                      
                         break;
@@ -1145,8 +989,8 @@ class TAPrecorder
 
                               if (showDataDebug)
                               {
-                                SerialHW.println("REC. Wait for DATA");
-                                SerialHW.println("");
+                                //SerialHW.println("REC. Wait for DATA");
+                                //SerialHW.println("");
                               }
                             }
                             else
@@ -1196,15 +1040,15 @@ class TAPrecorder
                             // Es silencio
                             if (showDataDebug)
                             {
-                              SerialHW.println("");
-                              SerialHW.println("-- Silence -- " + String(delta * 0.0224) + " ms");
+                              //SerialHW.println("");
+                              //SerialHW.println("-- Silence -- " + String(delta * 0.0224) + " ms");
                             }
                           }
                           else
                           {
                             if (showDataDebug)
                             { 
-                              SerialHW.println("[ Bit, " + String(bitCount) + " from uint8_t, " + String(byteCount) + " error. Delta: " + String(delta) + " ]");                            
+                              //SerialHW.println("[ Bit, " + String(bitCount) + " from uint8_t, " + String(byteCount) + " error. Delta: " + String(delta) + " ]");                            
                             }
                           }
                           state = 21;
@@ -1232,33 +1076,33 @@ class TAPrecorder
                           checksum = checksum ^ byteRead;
 
                           // Lo representamos
-                          //SerialHW.print(bitString + " - ");
+                          ////SerialHW.print(bitString + " - ");
                           if (showDataDebug)
                           {
                             if (byteRead < 16)
                             {
-                              SerialHW.print("0");
-                              SerialHW.print(byteRead,HEX);
+                              //SerialHW.print("0");
+                              //SerialHW.print(byteRead,HEX);
                             }
                             else
                             {
-                              SerialHW.print(byteRead,HEX);
+                              //SerialHW.print(byteRead,HEX);
                             }
-                            SerialHW.print(" ");
+                            //SerialHW.print(" ");
 
                             bytesXlinea++;
                             if (bytesXlinea>15)
                             {
                               bytesXlinea =0;
-                              SerialHW.println("");                    
+                              //SerialHW.println("");                    
                             }
                           }
 
                           if (showDataDebug)
                           {
-                            SerialHW.print(" [");
-                            SerialHW.print(checksum,HEX);
-                            SerialHW.print("] ");
+                            //SerialHW.print(" [");
+                            //SerialHW.print(checksum,HEX);
+                            //SerialHW.print("] ");
                           }
 
                           if (showDataDebug)
@@ -1300,7 +1144,7 @@ class TAPrecorder
                         }
                         break;
                     }
-                    //SerialHW.println("Pulse width: " + String(pulseWidth));
+                    ////SerialHW.println("Pulse width: " + String(pulseWidth));
                 }
 
                 // ***********************************************************
@@ -1329,8 +1173,8 @@ class TAPrecorder
                     // si se hace XOR sobre este mismo da 0
                     // e indica que todo es correcto
 
-                    SerialHW.println("");
-                    SerialHW.println("Block capture correctly.");
+                    //SerialHW.println("");
+                    //SerialHW.println("Block capture correctly.");
 
                     // Informamos de los bytes salvados
                     LAST_SIZE = blkSize; 
@@ -1345,17 +1189,17 @@ class TAPrecorder
                     // Incrementamos un bloque  
                     blockCount++;      
                   } 
-                  else if ((byteCount!=0 && byteCount!=blkSize && checksum !=0) || (byteCount==blkSize && checksum !=0))
+                  else if ((byteCount!=0 && byteCount!=blkSize && checksum!=0) || (byteCount==blkSize && checksum!=0))
                   {
-                    SerialHW.println("");
-                    SerialHW.println("Corrupted data detected. Error.");
-                    SerialHW.println("");
+                    // Paramos la grabación.
+                    STOP = true;
+                    REC = false;
+                    RECORDING_ERROR = 1;  // Corrupted data
 
-                    LAST_MESSAGE = "Error. Corrupted data.";
-                    // Actualizamos el HMI.
-                    //_hmi.updateInformationMainPage();
-                    delay(1000);
-
+                    //SerialHW.println("");
+                    //SerialHW.println("Corrupted data detected. Error.");
+                    //SerialHW.println("");
+                    
                     // Reiniciamos todo
                     state = 0;
                     byteCount = 0;      
@@ -1381,6 +1225,7 @@ class TAPrecorder
                     // ------------------------------
                     errorInDataRecording = true;
                     stopRecordingProccess = true;
+
                     //
                     // Finalizamos
                     break;
@@ -1412,22 +1257,19 @@ class TAPrecorder
                     // ------------------------------
                     errorInDataRecording = true;
                     stopRecordingProccess = true;
-
-                    LAST_MESSAGE = "Unknow  error.";
-                    // Actualizamos el HMI.
-                    //_hmi.updateInformationMainPage();  
-                    delay(1000);
-
+                    STOP = true;
+                    REC = false;
+                    RECORDING_ERROR = 4;
                     // Finalizamos
                     break;                  
                   }
 
-                  SerialHW.println("");
-                  SerialHW.println("Bytes transfered: " + String(byteCount));
-                  SerialHW.println("");
+                  //SerialHW.println("");
+                  //SerialHW.println("Bytes transfered: " + String(byteCount));
+                  //SerialHW.println("");
 
                   // Hacemos una pausa para estabilizar buffer
-                  delay(25);
+                  //delay(25);
                   
                   // --------------------------------------------------------
                   //
@@ -1456,7 +1298,7 @@ class TAPrecorder
             }
             else
             {
-              SerialHW.println(String(finalValue));              
+              //SerialHW.println(String(finalValue));              
             }
 
             // Leemos el siguiente valor del buffer canal R
@@ -1489,14 +1331,14 @@ class TAPrecorder
         {
           if (!wasSelectedThreshold)
           {
-            SerialHW.println("");
-            SerialHW.println("Fixed threshold from HMI");
+            //SerialHW.println("");
+            //SerialHW.println("Fixed threshold from HMI");
             
             threshold_high = (SCHMITT_THR * 32767)/100;
             threshold_low = (-1)*(SCHMITT_THR * 32768)/100;            
 
-            SerialHW.println("TH+ = " + String(threshold_high));
-            SerialHW.println("TH- = " + String(threshold_low));
+            //SerialHW.println("TH+ = " + String(threshold_high));
+            //SerialHW.println("TH- = " + String(threshold_low));
 
             wasSelectedThreshold = true;                 
           }       
@@ -1535,54 +1377,6 @@ class TAPrecorder
             return false;
           }
       }
-
-      // void testOutput()
-      // {
-          
-      //     size_t len = _kit.read(bufferIn, BUFFER_SIZE_IN_OUT);
-      //     //SerialHW.println("BufferIn len: " + String(len));
-
-
-      //     int16_t *value_ptr = (int16_t*)bufferIn;
-      //     int16_t *ptrOut = (int16_t*)bufferOut;
-      //     int16_t oneValue = *value_ptr++;
-      //     int16_t oneValue2 = *value_ptr++;
-         
-      //     int16_t sample = 0;
-      //     int16_t sample2 = 0;
-
-      //     for (int j=0;j<len/4;j++)
-      //     {
-      //       // Leemos el siguiente valor del buffer canal R
-      //       oneValue = *value_ptr++;
-      //       // Leemos el siguiente valor del buffer canal L
-      //       oneValue2 = *value_ptr++; 
-      //       // Almacenamos en el buffer de salida
-      //       sample = schmittDetector(oneValue,defaultThH,defaultThL,false);
-
-      //       if (detectZeroCrossing(sample))
-      //       {
-      //         if (sample > defaultThH)
-      //         {
-      //           sample2 = 32767;
-      //         }
-      //         else if (sample < defaultThL)
-      //         {
-      //           sample2 = -32768;
-      //         }
-      //         else
-      //         {
-      //           sample2 = 0;
-      //         }
-      //       }
-
-      //       *ptrOut++=sample2;
-      //       *ptrOut++=oneValue2;
-      //     }
-      //     // Sacamos el buffer procesado
-      //     _kit.write(bufferOut, len);                     
-
-      // }
 
       void prepareHMI()
       {
@@ -1636,12 +1430,12 @@ class TAPrecorder
         
         if (!_sdf32.mkdir(RECORDING_DIR))
         {
-          SerialHW.println("Error. Recording dir wasn't create or exist.");
+          //SerialHW.println("Error. Recording dir wasn't create or exist.");
         }
 
         // Se crea un nuevo fichero temporal con la ruta del REC
         strcat(recDir, fileName);
-        SerialHW.println("Dir for REC: " + String(recDir));
+        //SerialHW.println("Dir for REC: " + String(recDir));
 
         // Inicializo bit string
         bitChStr = (char*)ps_calloc(8, sizeof(char));
@@ -1685,7 +1479,7 @@ class TAPrecorder
             if (!_mFile.open(recDir, O_WRITE | O_CREAT)) 
             {
               // El fichero no fue creado. Entonces no está abierto
-              SerialHW.println("Error in file for REC.");
+              //SerialHW.println("Error in file for REC.");
               wasFileNotCreated = true;
               stopRecordingProccess = true;
               return false;
@@ -1693,7 +1487,7 @@ class TAPrecorder
             else
             {
               // El fichero fue creado. Entonces está abierto
-              SerialHW.println("File for REC prepared.");
+              //SerialHW.println("File for REC prepared.");
               wasFileNotCreated = false;
               stopRecordingProccess = false;
               return true;
@@ -1705,7 +1499,7 @@ class TAPrecorder
             // pero lo controlamos por si acaso.
 
             // El fichero fue creado. Entonces está abierto
-            SerialHW.println("File for REC prepared.");
+            //SerialHW.println("File for REC prepared.");
             wasFileNotCreated = false;            
             stopRecordingProccess = false;
             return true;
@@ -1714,7 +1508,7 @@ class TAPrecorder
         else
         {
           // El fichero fue creado. Entonces está abierto
-          SerialHW.println("File for REC prepared.");
+          //SerialHW.println("File for REC prepared.");
           wasFileNotCreated = false;
           stopRecordingProccess = false;
           return true;
@@ -1760,8 +1554,8 @@ class TAPrecorder
               {
                 // Tiene 0 bytes. Meto algo y lo cierro
                 // es un error
-                SerialHW.println("");
-                SerialHW.println("Error. 0 uint8_t file");
+                //SerialHW.println("");
+                //SerialHW.println("Error. 0 bytes file");
                 _mFile.write(0xFF);
                 _mFile.close();
                 _mFile.remove();

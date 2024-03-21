@@ -131,7 +131,7 @@ enum edge
 edge POLARIZATION = up;
 edge LAST_EAR_IS = POLARIZATION;
 edge SCOPE = down;
-bool APPLY_END = false;
+bool APPLY_END = true;
 int SAMPLING_RATE = 22050;
 
 bool INVERSETRAIN = false;
@@ -148,6 +148,7 @@ int DEBUG_AMP_R = 0;
 
 // Tamaño del fichero abierto
 int FILE_LENGTH = 0;
+bool FILE_IS_OPEN = false;
 
 // Schmitt trigger
 int SCHMITT_THR = 18;
@@ -171,6 +172,8 @@ bool SWAP_MIC_CHANNEL = false;
 bool SWAP_EAR_CHANNEL = false;
 //
 String RECORDING_DIR = "/REC";
+
+int RECORDING_ERROR = 0;
 
 //
 String LAST_COMMAND = "";

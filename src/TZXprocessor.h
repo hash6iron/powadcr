@@ -1331,12 +1331,28 @@ class TZXprocessor
 
           // ID 2B - Set signal level
           case 43:
-            ID_NOT_IMPLEMENTED = true;
-            // analyzeBlockUnknow(currentID,currentOffset, currentBlock);
-            // nextIDoffset = currentOffset + 1;            
+            if (_myTZX.descriptor != nullptr)
+            {
+              int signalLevel = getBYTE(mFile,currentOffset+4);
+              if(signalLevel==0)
+              {
+                // Para que empiece en DOWN tiene que ser UP
+                POLARIZATION = up;
+              }
+              else
+              {
+                POLARIZATION = down;
+              }
+              LAST_EAR_IS = POLARIZATION;
+              nextIDoffset = currentOffset + 5;            
 
-            // _myTZX.descriptor[currentBlock].typeName = "ID 2B - Set signal level";
-            res=false;              
+              //_myTZX.descriptor[currentBlock].typeName = "ID 2B - Set signal level";
+              strncpy(_myTZX.descriptor[currentBlock].typeName,IDXXSTR,35);
+            }
+            else
+            {
+              res=false;              
+            }
             break;
 
           // ID 30 - Text description
@@ -1778,33 +1794,36 @@ class TZXprocessor
       _mFile = tzxFile;
       _rlen = tzxFile.available();
 
-      // creamos un objeto TZXproccesor
-      set_file(tzxFile, _rlen);
-      proccess_tzx(tzxFile);
-      
-      ////SerialHW.println("");
-      ////SerialHW.println("END PROCCESING TZX: ");
-
-      if (_myTZX.descriptor != nullptr && !ID_NOT_IMPLEMENTED)
+      if (_rlen != 0)
       {
-          // Entregamos información por consola
-          //PROGRAM_NAME = _myTZX.name;
-          strcpy(LAST_NAME,"              ");
-    
-          ////SerialHW.println("");
-          ////SerialHW.println("TZX");
-          ////SerialHW.println("PROGRAM_NAME: " + PROGRAM_NAME);
-          ////SerialHW.println("TOTAL_BLOCKS: " + String(TOTAL_BLOCKS));
-    
-          // Pasamos el descriptor           
-          //_hmi.setBasicFileInformation(_myTZX.descriptor[BLOCK_SELECTED].name,_myTZX.descriptor[BLOCK_SELECTED].typeName,_myTZX.descriptor[BLOCK_SELECTED].size);
+        FILE_IS_OPEN = true;
+
+        // creamos un objeto TZXproccesor
+        set_file(tzxFile, _rlen);
+        proccess_tzx(tzxFile);
+        
+        ////SerialHW.println("");
+        ////SerialHW.println("END PROCCESING TZX: ");
+
+        if (_myTZX.descriptor != nullptr && !ID_NOT_IMPLEMENTED)
+        {
+            // Entregamos información por consola
+            //PROGRAM_NAME = _myTZX.name;
+            strcpy(LAST_NAME,"              ");
+        }
+        else
+        {
+          LAST_MESSAGE = "Error in TZX or ID not supported";
           //_hmi.updateInformationMainPage();
+        }
+
       }
       else
       {
-        LAST_MESSAGE = "Error in TZX or ID not supported";
-        //_hmi.updateInformationMainPage();
+        FILE_IS_OPEN = false;
+        LAST_MESSAGE = "Error in TZX file has 0 bytes";
       }
+
 
     }
 

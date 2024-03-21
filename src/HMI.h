@@ -700,6 +700,15 @@ class HMI
         resetBlockIndicators();
       }
 
+      void saveID2B(int valEn)
+      {
+        // Almacena la polarizacion en el fichero abierto en un bloque ID 0x2B
+        if(FILE_SELECTED)
+        {
+          // 
+        }
+      }
+
       void verifyCommand(String strCmd) 
       {
         
@@ -1450,6 +1459,19 @@ class HMI
               SWAP_EAR_CHANNEL = false;
           }
           SerialHW.println("EAR LEFT enable=" + String(SWAP_EAR_CHANNEL));
+        }
+
+        // Save polarization in ID 0x2B
+        if (strCmd.indexOf("I2B=") != -1) 
+        {
+          //Cogemos el valor
+          uint8_t buff[8];
+          strCmd.getBytes(buff, 7);
+          int valEn = (int)buff[4];
+          //
+          saveID2B(valEn);
+
+          log("ID 0x2B = " + String(valEn));
         }
 
         // Sampling rate

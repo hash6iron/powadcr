@@ -77,38 +77,38 @@ class SDmanager
         } 
     }
     
-    // uint8_t* readFile32(File32 mFile)
-    // {
-    //     uint8_t* bufferFile = NULL;
+    uint8_t* readFile32(File32 mFile)
+    {
+        uint8_t* bufferFile = NULL;
     
-    //     mFile.rewind();
+        mFile.rewind();
     
-    //     if (mFile) 
-    //     {
-    //         int rlen = mFile.available();
-    //         FILE_LENGTH = rlen;
+        if (mFile) 
+        {
+            int rlen = mFile.available();
+            FILE_LENGTH = rlen;
     
-    //         ////SerialHW.print("Len: ");
-    //         ////SerialHW.print(String(rlen));
+            ////SerialHW.print("Len: ");
+            ////SerialHW.print(String(rlen));
     
-    //         //Redimensionamos el buffer al tamaño acordado del fichero
-    //         bufferFile = (uint8_t*)ps_calloc(rlen+1,sizeof(uint8_t));
-    //         mFile.read(bufferFile,rlen);
+            //Redimensionamos el buffer al tamaño acordado del fichero
+            bufferFile = (uint8_t*)ps_calloc(rlen+1,sizeof(uint8_t));
+            mFile.read(bufferFile,rlen);
             
-    //         // int i=0;
-    //         // while(i < rlen)
-    //         // {
-    //         //     bufferFile[i] = (uint8_t)mFile.read();
-    //         //     i++;
-    //         // }
-    //     } 
-    //     else 
-    //     {
-    //         //SerialHW.print(F("SD Card: error opening file. Please check SD frequency."));
-    //     }
+            // int i=0;
+            // while(i < rlen)
+            // {
+            //     bufferFile[i] = (uint8_t)mFile.read();
+            //     i++;
+            // }
+        } 
+        else 
+        {
+            //SerialHW.print(F("SD Card: error opening file. Please check SD frequency."));
+        }
     
-    //     return bufferFile;
-    // }
+        return bufferFile;
+    }
     
     uint8_t* readFileRange32(File32 mFile, int startByte, int size, bool logOn)
     {

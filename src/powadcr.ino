@@ -431,7 +431,7 @@ void setAudioOutput()
 
   if(!ESP32kit.begin(cfg))
   {
-    log("Error in Audiokit output setting");
+    //log("Error in Audiokit output setting");
   }
 
   switch (SAMPLING_RATE)
@@ -439,7 +439,7 @@ void setAudioOutput()
       case 48000:
         if(!ESP32kit.setSampleRate(AUDIO_HAL_48K_SAMPLES))
         {
-          log("Error in Audiokit sampling rate setting");
+          //log("Error in Audiokit sampling rate setting");
         }
         else
         {
@@ -452,7 +452,7 @@ void setAudioOutput()
       case 44100:
         if(!ESP32kit.setSampleRate(AUDIO_HAL_44K_SAMPLES))
         {
-          log("Error in Audiokit sampling rate setting");
+          //log("Error in Audiokit sampling rate setting");
         }
         else
         {
@@ -465,7 +465,7 @@ void setAudioOutput()
       case 32000:
         if(!ESP32kit.setSampleRate(AUDIO_HAL_32K_SAMPLES))
         {
-          log("Error in Audiokit sampling rate setting");
+          //log("Error in Audiokit sampling rate setting");
         }
         else
         {
@@ -478,7 +478,7 @@ void setAudioOutput()
       default:
         if(!ESP32kit.setSampleRate(AUDIO_HAL_22K_SAMPLES))
         {
-          log("Error in Audiokit sampling rate setting");
+          //log("Error in Audiokit sampling rate setting");
         }
         else
         {
@@ -492,7 +492,7 @@ void setAudioOutput()
 
   if (!ESP32kit.setVolume(100))
   {
-    log("Error in volumen setting");
+    //log("Error in volumen setting");
   }  
 }
 
@@ -501,16 +501,16 @@ void setAudioInput()
   auto cfg = ESP32kit.defaultConfig(KitInput);
 
   cfg.adc_input = AUDIO_HAL_ADC_INPUT_LINE2; // Line with high gain
-  cfg.sample_rate = AUDIO_HAL_48K_SAMPLES;
+  cfg.sample_rate = AUDIO_HAL_44K_SAMPLES;
 
   if(!ESP32kit.begin(cfg))
   {
-    log("Error in Audiokit input setting");
+    //log("Error in Audiokit input setting");
   }
 
-  if(!ESP32kit.setSampleRate(AUDIO_HAL_48K_SAMPLES))
+  if(!ESP32kit.setSampleRate(AUDIO_HAL_44K_SAMPLES))
   {
-    log("Error in Audiokit sampling rate setting");
+    //log("Error in Audiokit sampling rate setting");
   }
 }
 
@@ -521,17 +521,17 @@ void setAudioInOut()
   
   if(!ESP32kit.begin(cfg))
   {
-    log("Error in Audiokit output setting");
+    //log("Error in Audiokit output setting");
   }
 
   if(!ESP32kit.setSampleRate(AUDIO_HAL_48K_SAMPLES))
   {
-    log("Error in Audiokit sampling rate setting");
+    //log("Error in Audiokit sampling rate setting");
   }
 
   if (!ESP32kit.setVolume(100))
   {
-    log("Error in volumen setting");
+    //log("Error in volumen setting");
   }   
 }
 
@@ -588,8 +588,26 @@ void stopRecording()
       // entonces NO salvamos el fichero, lo borramos
       // Recording STOP
       //
+      switch (RECORDING_ERROR)
+      {
+        case 1: //corrupted data
+        LAST_MESSAGE = "Recording STOP. Corrupted data."; 
+        break;
+
+        case 2:
+        LAST_MESSAGE = "Recording STOP. ERROR 2"; 
+        break;
+
+        case 3:
+        LAST_MESSAGE = "Recording STOP. ERROR 3"; 
+        break;
+
+        case 4:
+        LAST_MESSAGE = "Recording STOP. Unknow error"; 
+        break;
+      }
+
       taprec.terminate(true);
-      LAST_MESSAGE = "Recording STOP. No file saved."; 
       // Actualizamos la pantalla
       //      
       delay(1000);
@@ -599,6 +617,7 @@ void stopRecording()
         // Si no se crea el fichero no se puede seguir grabando
         taprec.terminate(false);
         LAST_MESSAGE = "Error in filesystem or SD.";
+
         // Actualizamos la pantalla
         //        
         delay(1000);
@@ -606,6 +625,7 @@ void stopRecording()
 
     // Inicializamos variables de control
     waitingRecMessageShown = false;
+    STOP = true;
     REC = false;
 
     // Actualizamos mensaje en HMI
@@ -894,7 +914,7 @@ void pauseFile()
 
 void ejectingFile()
 {
-  log("Eject executing");
+  //log("Eject executing");
 
   // Terminamos los players
   if (TYPE_FILE_LOAD == "TAP")
@@ -1055,7 +1075,7 @@ void tapeControl()
           RWIND = false;   
                   
           prepareRecording();
-          log("REC. Waiting for guide tone");
+          //log("REC. Waiting for guide tone");
           tapeState = 200;
         }
         else
@@ -1116,7 +1136,7 @@ void tapeControl()
           //pauseFile();
           LOADING_STATE = 3;
           tapeState = 3;
-          log("Estoy en PAUSA.");
+          //log("Estoy en PAUSA.");
         }
         else if(STOP)
         {
@@ -1206,7 +1226,7 @@ void tapeControl()
           RWIND = false;   
                   
           prepareRecording();
-          log("REC. Waiting for guide tone");
+          //log("REC. Waiting for guide tone");
           tapeState = 200;
         }
         else
@@ -1239,6 +1259,7 @@ void tapeControl()
           stopRecording();
           setSTOP();
           tapeState = 0;
+          STOP=false;
         }
         else
         {
