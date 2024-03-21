@@ -155,7 +155,7 @@ int SCHMITT_THR = 18;
 int LAST_SCHMITT_THR = 0;
 bool EN_SCHMITT_CHANGE = false;
 
-// Pulses width
+// Pulses width 44100
 int MIN_SYNC = 6;
 int MAX_SYNC = 19;
 int MIN_BIT0 = 1;
@@ -165,6 +165,18 @@ int MAX_BIT1 = 48;
 int MIN_LEAD = 54;
 int MAX_LEAD = 62;
 int MAX_PULSES_LEAD = 255;
+
+// // Pulses width 48000
+// int MIN_SYNC = 6;
+// int MAX_SYNC = 24;
+// int MIN_BIT0 = 1;
+// int MAX_BIT0 = 36;
+// int MIN_BIT1 = 37;
+// int MAX_BIT1 = 52;
+// int MIN_LEAD = 58;
+// int MAX_LEAD = 67;
+// int MAX_PULSES_LEAD = 255;
+
 
 bool SHOW_DATA_DEBUG = false;
 // Seleccion del canal para grabación izquierdo. Por defecto es el derecho

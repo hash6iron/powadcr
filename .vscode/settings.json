@@ -9,6 +9,7 @@
         "utility": "cpp",
         "*.tcc": "cpp",
         "cmath": "cpp",
-        "functional": "cpp"
+        "functional": "cpp",
+        "exception": "cpp"
     }
 }

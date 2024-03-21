@@ -111,7 +111,6 @@ EasyNex myNex(SerialHW);
 #include "SdFat.h"
 #include "globales.h"
 
-//
 #include "AudioKitHAL.h"
 AudioKit ESP32kit;
 
@@ -798,7 +797,12 @@ void setSTOP()
   BLOCK_SELECTED = 0;
   
   hmi.writeString("tape2.tmAnimation.en=0"); 
-  LAST_MESSAGE = "Tape stop.";
+
+  if (!taprec.errorInDataRecording && !taprec.wasFileNotCreated)
+  {
+    LAST_MESSAGE = "Tape stop.";
+  }
+
   //
   
   hmi.writeString("currentBlock.val=1");
@@ -992,8 +996,8 @@ void recordingFile()
 
             LOADING_STATE = 0;
 
-            stopRecording();
-            setSTOP();
+            //stopRecording();
+            //setSTOP();
         }
     }
 }

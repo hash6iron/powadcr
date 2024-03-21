@@ -1216,7 +1216,6 @@ class HMI
           STOP = false;
           REC = true;
           ABORT = false;
-
         }
 
         if (strCmd.indexOf("PAUSE") != -1) 

@@ -122,6 +122,7 @@ class TAPrecorder
 
       // Definimos el sampling rate real de la placa.
       //const double samplingRate = 44099.988;
+      //const double samplingRate = 48000.0;
       const double samplingRate = 44100.0;
       // Calculamos el T sampling_rate en us
       const double TsamplingRate = (1 / samplingRate) * 1000 * 1000;
@@ -1228,7 +1229,7 @@ class TAPrecorder
 
                     //
                     // Finalizamos
-                    break;
+                    return;
                   } 
                   else
                   {
@@ -1261,7 +1262,7 @@ class TAPrecorder
                     REC = false;
                     RECORDING_ERROR = 4;
                     // Finalizamos
-                    break;                  
+                    return;                  
                   }
 
                   //SerialHW.println("");
