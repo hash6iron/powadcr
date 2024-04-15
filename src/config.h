@@ -35,7 +35,7 @@
 //
 // 0 for ZX Spectrum
 
-#define VERSION "v0.160324.2"
+#define VERSION "v0.010424.2"
 #define MACHINE_ZX
 
 // Define sampling rate a 44.1KHz. En otro caso será a 32KHz
@@ -47,8 +47,7 @@
 // Activa el test de sampling para calibrado de la salida ES83883
 //#define SAMPLINGTESTACTIVE
 
-// Para activa el modo debug
-//
+// Para activar el modo debug
 //#define DEBUGMODE
 
 //#define MACHINE_AMSTRAD

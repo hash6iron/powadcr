@@ -151,20 +151,34 @@ int FILE_LENGTH = 0;
 bool FILE_IS_OPEN = false;
 
 // Schmitt trigger
-int SCHMITT_THR = 18;
+int SCHMITT_THR = 20;
 int LAST_SCHMITT_THR = 0;
 bool EN_SCHMITT_CHANGE = false;
 
 // Pulses width 44100
-int MIN_SYNC = 6;
-int MAX_SYNC = 19;
-int MIN_BIT0 = 1;
-int MAX_BIT0 = 31;
-int MIN_BIT1 = 32;
-int MAX_BIT1 = 48;
-int MIN_LEAD = 54;
-int MAX_LEAD = 62;
-int MAX_PULSES_LEAD = 255;
+// ROM timming
+// -------------------
+//  DSYNC1 = 667;
+//  DSYNC2 = 735;
+// Bits 0 y 1
+//  DBIT_0 = 855;
+//  DBIT_1 = 1710;
+// Pulsos guia
+//  DPILOT_LEN = 2168; 
+
+int MIN_SYNC = 10;   //6
+int MAX_SYNC = 18;  //19  -- S1: 190.6us + S2: 210us 
+
+int MIN_BIT0 = 19;   //1
+int MAX_BIT0 = 22;  //31  -- 2442.8 us * 2
+
+int MIN_BIT1 = 24;  //32
+int MAX_BIT1 = 44;  //48  -- 4885.7 us * 2
+
+int MIN_LEAD = 50;  //54
+int MAX_LEAD = 55;  //62  -- 619.4us * 2
+
+int MAX_PULSES_LEAD = 256;
 
 // // Pulses width 48000
 // int MIN_SYNC = 6;

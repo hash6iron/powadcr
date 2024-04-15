@@ -2091,6 +2091,11 @@ class TZXprocessor
             default:
               // Cualquier otro bloque entra por aquí, pero
               // hay que comprobar que sea REPRODUCIBLE
+
+              // Reseteamos el indicador de META BLOCK
+              // (añadido el 26/03/2024)
+              LAST_TZX_GROUP = "...";
+
               if (_myTZX.descriptor[i].playeable)
               {
                     //Silent
@@ -2257,6 +2262,10 @@ class TZXprocessor
                                           SerialHW.print(bufferPlay[j],HEX);
                                           SerialHW.print(",");                                              
                                       }
+                                      // (añadido el 26/03/2024)
+                                      // Reproducimos la partición n, del bloque.
+                                      _zxp.playDataPartition(bufferPlay, blockSizeSplit);                                      
+
                                     #else
                                       // Reproducimos la partición n, del bloque.
                                       _zxp.playDataPartition(bufferPlay, blockSizeSplit);                                      

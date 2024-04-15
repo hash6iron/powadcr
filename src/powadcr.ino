@@ -442,8 +442,8 @@ void setAudioOutput()
         }
         else
         {
-          hmi.writeString("tape.g0.txt=\"SAMPLING RATE 48 KHz\"" );
-          hmi.writeString("statusLCD.txt=\"SAMPLING RATE 48 KHz\"" );
+          hmi.writeString("tape.g0.txt=\"SAMPLING AT 48 KHz\"" );
+          hmi.writeString("statusLCD.txt=\"SAMPLING AT 48 KHz\"" );
           delay(750);
         }    
         break;
@@ -455,8 +455,8 @@ void setAudioOutput()
         }
         else
         {
-          hmi.writeString("tape.g0.txt=\"SAMPLING RATE 44.1 KHz\"" );
-          hmi.writeString("statusLCD.txt=\"SAMPLING RATE 44.1 KHz\"" );          
+          hmi.writeString("tape.g0.txt=\"SAMPLING AT 44.1 KHz\"" );
+          hmi.writeString("statusLCD.txt=\"SAMPLING AT 44.1 KHz\"" );          
           delay(750);
         }            
         break;
@@ -468,8 +468,8 @@ void setAudioOutput()
         }
         else
         {
-          hmi.writeString("tape.g0.txt=\"SAMPLING RATE 32 KHz\"" );
-          hmi.writeString("statusLCD.txt=\"SAMPLING RATE 32 KHz\"" );          
+          hmi.writeString("tape.g0.txt=\"SAMPLING AT 32 KHz\"" );
+          hmi.writeString("statusLCD.txt=\"SAMPLING AT 32 KHz\"" );          
           delay(750);
         }            
         break;
@@ -481,8 +481,8 @@ void setAudioOutput()
         }
         else
         {
-          hmi.writeString("tape.g0.txt=\"SAMPLING RATE 22.05 KHz\"" );
-          hmi.writeString("statusLCD.txt=\"SAMPLING RATE 22.05 KHz\"" );          
+          hmi.writeString("tape.g0.txt=\"SAMPLING AT 22.05 KHz\"" );
+          hmi.writeString("statusLCD.txt=\"SAMPLING AT 22.05 KHz\"" );          
           delay(750);
         }            
         break;
@@ -523,7 +523,7 @@ void setAudioInOut()
     //log("Error in Audiokit output setting");
   }
 
-  if(!ESP32kit.setSampleRate(AUDIO_HAL_48K_SAMPLES))
+  if(!ESP32kit.setSampleRate(AUDIO_HAL_44K_SAMPLES))
   {
     //log("Error in Audiokit sampling rate setting");
   }
@@ -594,7 +594,8 @@ void stopRecording()
         break;
 
         case 2:
-        LAST_MESSAGE = "Recording STOP. ERROR 2"; 
+        // Todos los bytes fueron capturados pero el checksum es incorrecto
+        LAST_MESSAGE = "Recording STOP. Error in checksum."; 
         break;
 
         case 3:
@@ -602,8 +603,9 @@ void stopRecording()
         break;
 
         case 4:
-        LAST_MESSAGE = "Recording STOP. Unknow error"; 
+        LAST_MESSAGE = "Recording STOP. Unknow  ERROR"; 
         break;
+
       }
 
       taprec.terminate(true);
@@ -953,7 +955,9 @@ void prepareRecording()
     hmi.writeString("tape2.tmAnimation.en=1"); 
 
     // Inicializamos audio input
-    setAudioInput();
+    //setAudioInput();
+    setAudioInOut();
+    
     taprec.set_kit(ESP32kit);    
     taprec.initialize(); 
 
@@ -1257,7 +1261,7 @@ void tapeControl()
         break;
 
       case 200:
-        // REC estados
+        // modo REC
         if(STOP)
         {
           stopRecording();
