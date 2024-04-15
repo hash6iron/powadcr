@@ -842,12 +842,7 @@ class TAPrecorder
         bitString = "";
         //?¿?¿? Añadido - 01/04/2024
         stateInfoBlock = 0;    
-        SCOPE = down;
-
-        // p1count = 0;
-        // p2count = 0;
-        // p3count = 0;
-        // p4count = 0;                  
+        SCOPE = down;              
       }
 
       // bool getChangesInEARport(int16_t value, int controlSamples)
@@ -1050,18 +1045,13 @@ class TAPrecorder
               // LAST_MESSAGE = "GP: " + String(p1count) + " / SP: " + String(p2count) + " / B0: " + String(p3count) + " / B1: " + String(p4count) + " / Si: " + String(silencePulses);
 
               // Detección de silencio (tiempo > 3500 T-States (1ms) - 44 muestras)
-              if (_lastMeasuredWidth > 2400 && byteCount > 0)
+              if (_lastMeasuredWidth > 500 && byteCount > 0)
               {
                 // Si estamos capturando datos
                 // y el width es grande entonces es silencio
                 isSilence = true;
-                lostPulses = 0;
-                //pulseCount = 0;
-
-                silencePulses++;
                 state = 0;
-
-                prepareNewBlock();
+                //prepareNewBlock();
               }
               else
               {
@@ -1309,7 +1299,7 @@ class TAPrecorder
             }
             else
             {
-              LAST_MESSAGE = "Error -> BLK: " + String(blkSize) + " / BC: " + String(byteCount) + " / CHK: " + String(checksum); 
+              //LAST_MESSAGE = "Error -> BLK: " + String(blkSize) + " / BC: " + String(byteCount) + " / CHK: " + String(checksum); 
 
               // Paramos la grabación.
               STOP = true;
@@ -1341,6 +1331,9 @@ class TAPrecorder
             // Guardamos los bloques transferidos
             totalBlockTransfered = blockCount;
         }
+
+        TOTAL_BLOCKS = blockCount;
+
     }
     public:
 
