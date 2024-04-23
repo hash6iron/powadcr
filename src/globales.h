@@ -1,5 +1,5 @@
 /* +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-    Nombre: config.h
+    Nombre: globales.h
     
     Creado por:
       Copyright (c) Antonio Tamairón. 2023  / https://github.com/hash6iron/powadcr

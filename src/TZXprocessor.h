@@ -903,9 +903,49 @@ class TZXprocessor
         
     }
 
+    void analyzeID48(File32 mFile, int currentOffset, int currentBlock)
+    {
+        // 0x30 - Text Description
+        int sizeTextInformation = 0;
+
+        _myTZX.descriptor[currentBlock].ID = 48;
+        _myTZX.descriptor[currentBlock].playeable = false;
+        _myTZX.descriptor[currentBlock].offset = currentOffset;
+
+        sizeTextInformation = getBYTE(mFile,currentOffset+1);
+
+        ////SerialHW.println("");
+        ////SerialHW.println("ID48 - TextSize: " + String(sizeTextInformation));
+        
+        // El tamaño del bloque es "1 byte de longitud de texto + TAMAÑO_TEXTO"
+        // el bloque comienza en el offset del ID y acaba en
+        // offset[ID] + tamaño_bloque
+        _myTZX.descriptor[currentBlock].size = sizeTextInformation + 1;
+    }
+
+    void analyzeID49(File32 mFile, int currentOffset, int currentBlock)
+        {
+            // 0x31 - Message block
+            int sizeTextInformation = 0;
+
+            _myTZX.descriptor[currentBlock].ID = 49;
+            _myTZX.descriptor[currentBlock].playeable = false;
+            _myTZX.descriptor[currentBlock].offset = currentOffset;
+
+            sizeTextInformation = getBYTE(mFile,currentOffset+2);
+
+            ////SerialHW.println("");
+            ////SerialHW.println("ID48 - TextSize: " + String(sizeTextInformation));
+            
+            // El tamaño del bloque es "1 byte de longitud de texto + TAMAÑO_TEXTO"
+            // el bloque comienza en el offset del ID y acaba en
+            // offset[ID] + tamaño_bloque
+            _myTZX.descriptor[currentBlock].size = sizeTextInformation + 1;
+        }
+
     void analyzeID50(File32 mFile, int currentOffset, int currentBlock)
     {
-        // Information block
+        // ID 0x32 - Archive Info
         int sizeBlock = 0;
 
         _myTZX.descriptor[currentBlock].ID = 50;
@@ -927,7 +967,7 @@ class TZXprocessor
 
     void analyzeID51(File32 mFile, int currentOffset, int currentBlock)
     {
-        // Hardware Information block
+        // 0x33 - Hardware Information block
         int sizeBlock = 0;
 
         _myTZX.descriptor[currentBlock].ID = 51;
@@ -949,25 +989,6 @@ class TZXprocessor
         _myTZX.descriptor[currentBlock].size = sizeBlock-1;         
     }
 
-    void analyzeID48(File32 mFile, int currentOffset, int currentBlock)
-    {
-        // Information block
-        int sizeTextInformation = 0;
-
-        _myTZX.descriptor[currentBlock].ID = 48;
-        _myTZX.descriptor[currentBlock].playeable = false;
-        _myTZX.descriptor[currentBlock].offset = currentOffset;
-
-        sizeTextInformation = getBYTE(mFile,currentOffset+1);
-
-        ////SerialHW.println("");
-        ////SerialHW.println("ID48 - TextSize: " + String(sizeTextInformation));
-        
-        // El tamaño del bloque es "1 byte de longitud de texto + TAMAÑO_TEXTO"
-        // el bloque comienza en el offset del ID y acaba en
-        // offset[ID] + tamaño_bloque
-        _myTZX.descriptor[currentBlock].size = sizeTextInformation + 1;
-    }
 
     void analyzeID33(File32 mFile, int currentOffset, int currentBlock)
     {
@@ -1379,13 +1400,24 @@ class TZXprocessor
 
           // ID 31 - Message block
           case 49:
-            analyzeBlockUnknow(currentID,currentOffset, currentBlock);
-            nextIDoffset = currentOffset + 1;                  
-
-            strncpy(_myTZX.descriptor[currentBlock].typeName,IDXXSTR,35);
-            //_myTZX.descriptor[currentBlock].typeName = "ID 31 - Message block";
-            // Esto le indica a los bloque de control de flujo que puede saltarse
-            _myTZX.descriptor[currentBlock].jump_this_ID = true;
+            // No hacemos nada solamente coger el siguiente offset
+            if (_myTZX.descriptor != nullptr)
+            {
+                // Obtenemos la dirección del siguiente offset
+                analyzeID49(mFile,currentOffset,currentBlock);
+                // Siguiente ID
+                nextIDoffset = currentOffset + _myTZX.descriptor[currentBlock].size + 2;
+                //_myTZX.descriptor[currentBlock].typeName = "ID 30 - Information";
+                strncpy(_myTZX.descriptor[currentBlock].typeName,IDXXSTR,35);
+                // Esto le indica a los bloque de control de flujo que puede saltarse
+                _myTZX.descriptor[currentBlock].jump_this_ID = true;                  
+            }
+            else
+            {
+                ////SerialHW.println("");
+                ////SerialHW.println("Error: Not allocation memory for block ID 0x30");
+                res = false;
+            }       
             break;
 
           // ID 32 - Archive info

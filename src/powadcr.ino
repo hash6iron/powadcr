@@ -571,14 +571,14 @@ void stopRecording()
         taprec.terminate(false);
         LAST_MESSAGE = "Recording STOP. File succesfully saved.";
         //
-        delay(1000);
+        //delay(1000);
       }
       else
       {
         taprec.terminate(true);
-        LAST_MESSAGE = "Recording STOP. No file saved";
+        //LAST_MESSAGE = "Recording STOP. No file saved";
         //      
-        delay(1000);
+        //delay(1000);
       }
     }
     else if (taprec.errorInDataRecording)
