@@ -992,7 +992,7 @@ class TAPrecorder
             {
                 // Detectamos que el bloque ha acabado
                 // ahora comprobamos si es correcto o no.
-                if (byteCount==blkSize) // && checksum==0)
+                if (byteCount==blkSize && checksum==0)
                 {
                       // NOTA: El ultimo uint8_t es el checksum
                       // si se hace XOR sobre este mismo da 0
@@ -1261,14 +1261,14 @@ class TAPrecorder
                       renameFile();        
 
                       LAST_MESSAGE="File rename!";
-                      delay(5000);                       
+                      delay(1500);                       
                     }          
 
                     // Lo cerramos
                     _mFile.close();
                     
                     LAST_MESSAGE="File closed!";
-                    delay(5000);
+                    delay(1500);
 
                     delay(125);
 
@@ -1296,8 +1296,8 @@ class TAPrecorder
                 _mFile.close();
                 delay(1000);
                 _mFile.remove();
-                LAST_MESSAGE="File violated!";
-                delay(5000);                       
+                LAST_MESSAGE="File writed and removed.";
+                delay(1500);                       
 
               }
           }
