@@ -669,29 +669,29 @@ class TAPrecorder
       }
 
 
-      void resetEARdetector()
-      {
-        // Reinicio de contadores de flancos y de control
-        _samplesCount = 0;
-        bitCount = 0;
-        byteCount = 0;
-        checksum = 0;        
-        state=0;
-        SCOPE = down;
+      // void resetEARdetector()
+      // {
+      //   // Reinicio de contadores de flancos y de control
+      //   _samplesCount = 0;
+      //   bitCount = 0;
+      //   byteCount = 0;
+      //   checksum = 0;        
+      //   state=0;
+      //   SCOPE = down;
 
-        //?¿?¿?¿?¿?¿ 16/04/2024
-        // _measureState = 0;
-        // _lastMeasuredWidth = 0;
-        // _measuredPulseUpWidth = 0;
-        // _measuredPulseDownWidth = 0;
-        // _measuredWidth = 0;
+      //   //?¿?¿?¿?¿?¿ 16/04/2024
+      //   // _measureState = 0;
+      //   // _lastMeasuredWidth = 0;
+      //   // _measuredPulseUpWidth = 0;
+      //   // _measuredPulseDownWidth = 0;
+      //   // _measuredWidth = 0;
 
-        // p1count = 0;
-        // p2count = 0;
-        // p3count = 0;
-        // p4count = 0;
+      //   // p1count = 0;
+      //   // p2count = 0;
+      //   // p3count = 0;
+      //   // p4count = 0;
 
-      }
+      // }
 
       void prepareNewBlock()
       {
@@ -794,7 +794,12 @@ class TAPrecorder
             //Aplicamos filtrado y corrección de pulso para estudiar los cambios de flanco
             if((finalValue < (SCHMITT_THR * 10)) && (finalValue > (-SCHMITT_THR * 10)))
             {
-              finalValue = 0;
+                finalValue = 0;
+                SCOPE = down;
+            }
+            else
+            {
+                SCOPE = up;
             }
 
             // Trabajamos ahora las muestras
@@ -806,18 +811,15 @@ class TAPrecorder
               if (_lastMeasuredWidth > 1024)
               {
                   isSilence = true;
-                  SCOPE = down;
               }
               else
               {
                   isSilence = false;
-                  SCOPE = up;
               }
             } 
             else
             {
               isSilence = false;
-              SCOPE = up;
             }
 
             switch (state)
@@ -899,7 +901,7 @@ class TAPrecorder
                           // Contabilizamos un bit
                           bitCount++;
                       }
-                      else if ((_measuredPulseUpWidth >= 17))
+                      else if ((_measuredPulseUpWidth >= 17) && (_measuredPulseUpWidth <= 256))
                       {
                           // Es un 1
                           bitString += "1";
@@ -1027,7 +1029,9 @@ class TAPrecorder
                   // Corrupted data
                   RECORDING_ERROR = 1;  
 
-                  LAST_MESSAGE = "Error 1: Bytes=" + String(byteCount) + " / " + String(blkSize) + " / CHK=" + String(checksum);
+                  LAST_MESSAGE = "Error: Bytes=" + String(byteCount) + ".[" + String(bitCount) + "] / " + String(blkSize) + " / CHK=" + String(checksum);
+                  SCOPE = down;
+
                   // Reiniciamos todo
                   prepareNewBlock();   
                   //
