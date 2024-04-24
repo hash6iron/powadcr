@@ -130,7 +130,7 @@ class TAPrecorder
       const double TsamplingRate = (1 / samplingRate) * 1000 * 1000;
 
       // Controlamos el estado del TAP
-      int state = 0;
+      int stateRecording = 0;
       // Contamos los pulsos del tono piloto
       int pulseCount = 0;
       int lostPulses = 0;
@@ -204,10 +204,6 @@ class TAPrecorder
       double timeToEdge2 = 0;
       // Crossing por cero
       int16_t lastFinalValue = 0;
-
-      // Estabilizador del buffer del DSP
-      bool stabilizationPhaseFinish = false;
-      int countStabilizationSteps = 0;
 
       // Zero crossing routine
       int _samplesCount = 0;
@@ -543,7 +539,7 @@ class TAPrecorder
                   // Guardamos ahora en fichero
                   errorInDataRecording = false;
                   waitingHead = true;
-                  stopRecordingProccess = false;
+                  //stopRecordingProccess = false;
 
                   // Inicializamos para el siguiente bloque
                   header.blockSize = 19;  
@@ -699,13 +695,11 @@ class TAPrecorder
 
       void prepareNewBlock()
       {
-        state = 0;
+        stateRecording = 0;
         byteCount = 0;      
         bitCount = 0;        
         checksum = 0; 
         bitString = "";
-        //_measureState = 0;
-        isSilence = false;
       }
 
       void writeTAPHeader()
@@ -771,6 +765,7 @@ class TAPrecorder
           header.blockSize = 19;
           headState = 0;
           _measureState = 0;
+          _pulseWasMeasured = false;
           //
           LAST_MESSAGE = "Recorder ready. Play source data.";
           // Ya no pasamos por aquí hasta parar el recorder
@@ -797,17 +792,7 @@ class TAPrecorder
             }
 
             //Aplicamos filtrado y corrección de pulso para estudiar los cambios de flanco
-            // if((finalValue < (SCHMITT_THR * 10)) && (finalValue > (-SCHMITT_THR * 10)))
-            // {
-            //     finalValue = 0;
-            //     SCOPE = down;
-            // }
-            // else
-            // {
-            //     SCOPE = up;
-            // }
-
-            if((finalValue < (200)) && (finalValue > (-200)))
+            if((finalValue < (SCHMITT_THR * 10)) && (finalValue > (-SCHMITT_THR * 10)))
             {
                 finalValue = 0;
                 SCOPE = down;
@@ -821,8 +806,7 @@ class TAPrecorder
             // Medimos el pulso
             measurePulseWidth(finalValue);
 
-
-            switch (state)
+            switch (stateRecording)
             {
               
               // Detección de tono guía
@@ -852,7 +836,7 @@ class TAPrecorder
                             }
 
                             // Saltamos a la espera de SYNC
-                            state = 1;
+                            stateRecording = 1;
                             pulseCount = 0;
                         }
                     }
@@ -871,7 +855,7 @@ class TAPrecorder
 
                     if ((_lastMeasuredWidth >= 6) && (_lastMeasuredWidth <= 20))
                     {
-                      state = 2;
+                      stateRecording = 2;
                       LAST_MESSAGE = "Waiting for DATA.";
                     }
                     else
@@ -886,14 +870,12 @@ class TAPrecorder
                   //
                   // Verifico si es 0, 1 o silencio de fin de bloque
                   //
+
                   if (_pulseWasMeasured)
                   {
-                      //_pulseWasMeasured = false;
-                      //isSilence = false;
+                      _pulseWasMeasured = false;
 
-                      //LAST_MESSAGE = "W: " + String(_measuredSemiPulseWidth);
-
-                      if ((_measuredPulseUpWidth > 6) && (_measuredPulseUpWidth <= 16))
+                      if ((_measuredPulseUpWidth > 2) && (_measuredPulseUpWidth <= 16))
                       {
                           // Es un 0
                           bitString += "0";
@@ -1089,6 +1071,8 @@ class TAPrecorder
           }
           else
           {
+            STOP = true;
+            REC = false;
             return true;
           }
       }
@@ -1105,25 +1089,25 @@ class TAPrecorder
         strncpy(LAST_TYPE,"",1);
         strncpy(LAST_NAME,"",1);
 
-        if (SHOW_DATA_DEBUG)
-        {
-          // Info en pantalla
-          if (state==20)                         
-          {
-            dbgSync1="WAIT";
-          }
+        // if (SHOW_DATA_DEBUG)
+        // {
+        //   // Info en pantalla
+        //   if (state==20)                         
+        //   {
+        //     dbgSync1="WAIT";
+        //   }
 
-          if (state==21)
-          {
-            dbgSync1="WAIT";
-            dbgSync2="WAIT";
-          }
+        //   if (state==21)
+        //   {
+        //     dbgSync1="WAIT";
+        //     dbgSync2="WAIT";
+        //   }
 
-          if(state==1)
-          {
-            dbgRep="WAIT";
-          }
-        }
+        //   if(state==1)
+        //   {
+        //     dbgRep="WAIT";
+        //   }
+        // }
 
       }
 
@@ -1170,12 +1154,9 @@ class TAPrecorder
         wasRenamed = false;
         blockCount = 0;
         waitingHead = true;
-        wasSelectedThreshold = false;
-        stabilizationPhaseFinish = false;
-        countStabilizationSteps=0;        
-        state = 0;
-        //_detectState = 0;
-        //detectStateSchmitt = 0;   
+        wasSelectedThreshold = false;    
+        stateRecording = 0;
+
         _pulseWidth = 0;      
         stopRecordingProccess = false; 
         stateInfoBlock = 0;
@@ -1203,7 +1184,7 @@ class TAPrecorder
               // El fichero fue creado. Entonces está abierto
               //SerialHW.println("File for REC prepared.");
               wasFileNotCreated = false;
-              stopRecordingProccess = false;
+              //stopRecordingProccess = false;
               return true;
             }             
           }
@@ -1215,7 +1196,7 @@ class TAPrecorder
             // El fichero fue creado. Entonces está abierto
             //SerialHW.println("File for REC prepared.");
             wasFileNotCreated = false;            
-            stopRecordingProccess = false;
+            //stopRecordingProccess = false;
             return true;
           }  
         }
@@ -1224,7 +1205,7 @@ class TAPrecorder
           // El fichero fue creado. Entonces está abierto
           //SerialHW.println("File for REC prepared.");
           wasFileNotCreated = false;
-          stopRecordingProccess = false;
+          //stopRecordingProccess = false;
           return true;
         }        
       }
@@ -1232,7 +1213,7 @@ class TAPrecorder
       void terminate(bool removeFile)
       {
 
-          if (!wasFileNotCreated)
+          if (!wasFileNotCreated && totalBlockTransfered!=0)
           {
               // El fichero inicialmente fue creado con exito
               // en la SD, pero ...
@@ -1292,33 +1273,24 @@ class TAPrecorder
           else
           {
             // El fichero no fue creado
-            _mFile.close();
-            delay(125);
+            //_mFile.close();
+            //delay(125);
           }
+
           wasRenamed = false;
           nameFileRead = false;
 
           _hmi.writeString("progression.val=0");     
-          //_hmi.updateInformationMainPage();     
-          
-          // Reiniciamos flags
-          // Hay que reiniciar para el disparador de Schmitt
-          ///detectStateSchmitt=0;                                         
-          // Reiniciamos el detector de paso por cero
-          //_detectState=0;
-          // Otros que inicializamos
-          //_pulseWidth = 0;
 
           // Para el mensaje de READY listening
           WasfirstStepInTheRecordingProccess = false;
 
           // Reseteamos los controles del reproductor
-          STOP = false;
+          STOP = true;
           REC = false;
 
           // Reiniciamos flags de recording errors
           errorInDataRecording = false;
-          stopRecordingProccess = false;
           wasFileNotCreated = true;
       }
 

@@ -538,7 +538,7 @@ void pauseRecording()
 {
     // Desconectamos la entrada para evitar interferencias
     setAudioOutput();
-    waitingRecMessageShown = false;
+    //waitingRecMessageShown = false;
     REC = false;
 
     LAST_MESSAGE = "Recording paused.";
@@ -551,91 +551,100 @@ void pauseRecording()
 
 void stopRecording()
 {
-    //Paramos la animación
-    hmi.writeString("tape2.tmAnimation.en=0");    
-    
-    //Configuramos ya en modo Output.
-    setAudioOutput();
 
     // Verificamos cual fue el motivo de la parada
-    if (!taprec.errorInDataRecording && !taprec.wasFileNotCreated)
+    if (REC)
     {
-      // La grabación fue parada pero no hubo errores
-      // entonces salvamos el fichero sin borrarlo
-      
+
       // No quitar esto, permite leer la variable totalBlockTransfered
-      int tbt = taprec.totalBlockTransfered;
-      
+      int tbt = taprec.totalBlockTransfered;          
       if (tbt > 1)
       {
-        taprec.terminate(false);
-        LAST_MESSAGE = "Recording STOP. File succesfully saved.";
-        //
-        //delay(1000);
+
+          if (!taprec.errorInDataRecording && !taprec.wasFileNotCreated)
+          {
+          // La grabación fue parada pero no hubo errores
+          // entonces salvamos el fichero sin borrarlo
+          
+            taprec.terminate(false);
+            LAST_MESSAGE = "Recording STOP. File succesfully saved.";
+            //
+            REC = false;
+            taprec.totalBlockTransfered = 0;
+            delay(1000);
+          }
+          else
+          {
+
+              if (taprec.errorInDataRecording)
+              {
+                // La grabación fue parada porque hubo errores
+                // entonces NO salvamos el fichero, lo borramos
+                // Recording STOP
+                //
+                // switch (RECORDING_ERROR)
+                // {
+                //   case 1: //corrupted data
+                //   LAST_MESSAGE = "Recording STOP. Corrupted data."; 
+                //   //      
+                //   delay(1000);        
+                //   break;
+
+                //   case 2:
+                //   // Todos los bytes fueron capturados pero el checksum es incorrecto
+                //   LAST_MESSAGE = "Recording STOP. Error in checksum."; 
+                //   //      
+                //   delay(1000);        
+                //   break;
+
+                //   case 3:
+                //   LAST_MESSAGE = "Recording STOP. ERROR 3"; 
+                //   //      
+                //   delay(1000);
+                //   break;
+
+                //   case 4:
+                //   LAST_MESSAGE = "Recording STOP. Unknow  ERROR"; 
+                //   //      
+                //   delay(1000);        
+                //   break;
+
+                // }
+
+                taprec.terminate(true);
+
+              }
+              else if (taprec.wasFileNotCreated)
+              {
+                  // Si no se crea el fichero no se puede seguir grabando
+                  taprec.terminate(false);
+                  LAST_MESSAGE = "Error in filesystem or SD.";
+                  delay(1000);
+              }
+
+          }
+
       }
       else
       {
-        taprec.terminate(true);
-        //LAST_MESSAGE = "Recording STOP. No file saved";
-        //      
-        //delay(1000);
-      }
-    }
-    else if (taprec.errorInDataRecording)
-    {
-      // La grabación fue parada porque hubo errores
-      // entonces NO salvamos el fichero, lo borramos
-      // Recording STOP
-      //
-      switch (RECORDING_ERROR)
-      {
-        case 1: //corrupted data
-        LAST_MESSAGE = "Recording STOP. Corrupted data."; 
-        break;
-
-        case 2:
-        // Todos los bytes fueron capturados pero el checksum es incorrecto
-        LAST_MESSAGE = "Recording STOP. Error in checksum."; 
-        break;
-
-        case 3:
-        LAST_MESSAGE = "Recording STOP. ERROR 3"; 
-        break;
-
-        case 4:
-        LAST_MESSAGE = "Recording STOP. Unknow  ERROR"; 
-        break;
-
+          taprec.terminate(true);
+          LAST_MESSAGE = "Recording STOP. No file saved";
+          //      
+          delay(1000);
       }
 
-      taprec.terminate(true);
-      // Actualizamos la pantalla
-      //      
-      delay(1000);
-    }
-    else if (taprec.wasFileNotCreated)
-    {
-        // Si no se crea el fichero no se puede seguir grabando
-        taprec.terminate(false);
-        LAST_MESSAGE = "Error in filesystem or SD.";
-
-        // Actualizamos la pantalla
-        //        
-        delay(1000);
     }
 
     // Inicializamos variables de control
-    waitingRecMessageShown = false;
+    //waitingRecMessageShown = false;
     STOP = true;
     REC = false;
+    taprec.totalBlockTransfered = 0;
+    //Paramos la animación
+    hmi.writeString("tape2.tmAnimation.en=0");    
 
-    // Actualizamos mensaje en HMI
-    //taprec.prepareHMI();
-
-    //SerialHW.println("");        
-    //SerialHW.println("Recording procces finish.");
-    //SerialHW.println("");    
-
+    //Configuramos ya en modo Output.
+    setAudioOutput();
 }
 
 void setup() 
@@ -968,7 +977,7 @@ void prepareRecording()
     }
     else
     {
-      LAST_MESSAGE = "Recorder listening.";
+      //LAST_MESSAGE = "Recorder listening.";
 
       //writeString("");
       hmi.writeString("currentBlock.val=1");
@@ -1265,9 +1274,11 @@ void tapeControl()
         if(STOP)
         {
           stopRecording();
-          setSTOP();
+          taprec.stopRecordingProccess = false;
+          //setSTOP();
           tapeState = 0;
-          STOP=false;
+          STOP=true;
+          REC=false;
         }
         else
         {

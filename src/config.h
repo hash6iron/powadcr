@@ -35,7 +35,7 @@
 //
 // 0 for ZX Spectrum
 
-#define VERSION "v0.230424"
+#define VERSION "v0.240424"
 #define MACHINE_ZX
 
 // Define sampling rate a 44.1KHz. En otro caso será a 32KHz
