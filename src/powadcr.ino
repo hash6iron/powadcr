@@ -537,7 +537,7 @@ void setAudioInOut()
 void pauseRecording()
 {
     // Desconectamos la entrada para evitar interferencias
-    setAudioOutput();
+    //setAudioOutput();
     //waitingRecMessageShown = false;
     REC = false;
 
@@ -557,8 +557,11 @@ void stopRecording()
     {
 
       // No quitar esto, permite leer la variable totalBlockTransfered
-      int tbt = taprec.totalBlockTransfered;          
-      if (tbt > 1)
+      int tbt = taprec.totalBlockTransfered;
+      LAST_MESSAGE = "Total blocks: " + String(tbt);
+      delay(2000);
+
+      if (tbt >= 1)
       {
 
           if (!taprec.errorInDataRecording && !taprec.wasFileNotCreated)
@@ -568,9 +571,6 @@ void stopRecording()
           
             taprec.terminate(false);
             LAST_MESSAGE = "Recording STOP. File succesfully saved.";
-            //
-            REC = false;
-            taprec.totalBlockTransfered = 0;
             delay(1000);
           }
           else
@@ -635,164 +635,167 @@ void stopRecording()
 
     }
 
-    // Inicializamos variables de control
-    //waitingRecMessageShown = false;
+    // Una vez hemos cerrado la sesión de recording
+    // ahora cambiamos el estado de los controles
+
     STOP = true;
     REC = false;
-    taprec.totalBlockTransfered = 0;
-    //Paramos la animación
-    hmi.writeString("tape2.tmAnimation.en=0");    
 
-    //Configuramos ya en modo Output.
-    setAudioOutput();
+    // Reiniciamos variables
+    taprec.totalBlockTransfered = 0;
+    taprec.WasfirstStepInTheRecordingProccess = false;
+    // Reiniciamos flags de recording errors
+    taprec.errorInDataRecording = false;
+    taprec.wasFileNotCreated = true;
+
+    //Paramos la animación del indicador de recording
+    hmi.writeString("tape2.tmAnimation.en=0");    
 }
 
 void setup() 
 {
-
-
-
     //rtc_wdt_protect_off();    // Turns off the automatic wdt service
     // rtc_wdt_enable();         // Turn it on manually
     // rtc_wdt_set_time(RTC_WDT_STAGE0, 20000);  // Define how long you desire to let dog wait.
-  // Configuramos el nivel de log
-  SerialHW.setRxBufferSize(2048);
-  SerialHW.begin(921600);
-  delay(250);
 
-  //myNex.begin(921600);
+    // Configuramos el nivel de log
+    SerialHW.setRxBufferSize(2048);
+    SerialHW.begin(921600);
+    delay(250);
 
-  // Forzamos un reinicio de la pantalla
-  hmi.writeString("rest");
-  delay(250);
+    //myNex.begin(921600);
 
-  // Indicamos que estamos haciendo reset
-  sendStatus(RESET, 1);
-  delay(750);
+    // Forzamos un reinicio de la pantalla
+    hmi.writeString("rest");
+    delay(250);
 
-  hmi.writeString("statusLCD.txt=\"POWADCR " + String(VERSION) + "\"" );
-  
-  delay(1250);
+    // Indicamos que estamos haciendo reset
+    sendStatus(RESET, 1);
+    delay(750);
 
-  //SerialHW.println("Setting Audiokit.");
+    hmi.writeString("statusLCD.txt=\"POWADCR " + String(VERSION) + "\"" );
+    
+    delay(1250);
 
-  // Configuramos los pulsadores
-  configureButtons();
+    //SerialHW.println("Setting Audiokit.");
 
-  // Configuramos el ESP32kit
-  LOGLEVEL_AUDIOKIT = AudioKitError;
+    // Configuramos los pulsadores
+    configureButtons();
 
-  // Configuracion de las librerias del AudioKit
-  setAudioOutput();
+    // Configuramos el ESP32kit
+    LOGLEVEL_AUDIOKIT = AudioKitError;
 
-  //SerialHW.println("Done!");
+    // Configuracion de las librerias del AudioKit
+    setAudioOutput();
 
-  //SerialHW.println("Initializing SD SLOT.");
-  
-  // Configuramos acceso a la SD
-  hmi.writeString("statusLCD.txt=\"WAITING FOR SD CARD\"" );
-  delay(750);
+    //SerialHW.println("Done!");
 
-  int SD_Speed = SD_FRQ_MHZ_INITIAL;  // Velocidad en MHz (config.h)
-  setSDFrequency(SD_Speed);
+    //SerialHW.println("Initializing SD SLOT.");
+    
+    // Configuramos acceso a la SD
+    hmi.writeString("statusLCD.txt=\"WAITING FOR SD CARD\"" );
+    delay(750);
 
-  // Forzamos a 26MHz
-  //sdf.begin(ESP32kit.pinSpiCs(), SD_SCK_MHZ(26));
+    int SD_Speed = SD_FRQ_MHZ_INITIAL;  // Velocidad en MHz (config.h)
+    setSDFrequency(SD_Speed);
 
-  // Le pasamos al HMI el gestor de SD
-  hmi.set_sdf(sdf);
+    // Forzamos a 26MHz
+    //sdf.begin(ESP32kit.pinSpiCs(), SD_SCK_MHZ(26));
 
-  //SerialHW.println("Done!");
+    // Le pasamos al HMI el gestor de SD
+    hmi.set_sdf(sdf);
 
-  // Esperamos finalmente a la pantalla
-  //SerialHW.println("");
-  //SerialHW.println("Waiting for LCD.");
-  //SerialHW.println("");
+    //SerialHW.println("Done!");
 
-  if(psramInit()){
-    //SerialHW.println("\nPSRAM is correctly initialized");
-    hmi.writeString("statusLCD.txt=\"PSRAM OK\"" );
+    // Esperamos finalmente a la pantalla
+    //SerialHW.println("");
+    //SerialHW.println("Waiting for LCD.");
+    //SerialHW.println("");
 
-  }else{
-    //SerialHW.println("PSRAM not available");
-    hmi.writeString("statusLCD.txt=\"PSRAM FAILED!\"" );
-  }    
-  delay(750);
+    if(psramInit()){
+      //SerialHW.println("\nPSRAM is correctly initialized");
+      hmi.writeString("statusLCD.txt=\"PSRAM OK\"" );
 
-  hmi.writeString("statusLCD.txt=\"WAITING FOR HMI\"" );
-  waitForHMI(CFG_FORZE_SINC_HMI);
+    }else{
+      //SerialHW.println("PSRAM not available");
+      hmi.writeString("statusLCD.txt=\"PSRAM FAILED!\"" );
+    }    
+    delay(750);
 
-  // Inicializa volumen en HMI
-  hmi.writeString("menuAudio.volL.val=" + String(MAIN_VOL_L));
-  hmi.writeString("menuAudio.volR.val=" + String(MAIN_VOL_R));
-  hmi.writeString("menuAudio.volLevelL.val=" + String(MAIN_VOL_L));
-  hmi.writeString("menuAudio.volLevel.val=" + String(MAIN_VOL_R));
+    hmi.writeString("statusLCD.txt=\"WAITING FOR HMI\"" );
+    waitForHMI(CFG_FORZE_SINC_HMI);
 
-  //
-  pTAP.set_HMI(hmi);
-  pTZX.set_HMI(hmi);
+    // Inicializa volumen en HMI
+    hmi.writeString("menuAudio.volL.val=" + String(MAIN_VOL_L));
+    hmi.writeString("menuAudio.volR.val=" + String(MAIN_VOL_R));
+    hmi.writeString("menuAudio.volLevelL.val=" + String(MAIN_VOL_L));
+    hmi.writeString("menuAudio.volLevel.val=" + String(MAIN_VOL_R));
 
-  pTAP.set_SDM(sdm);
-  pTZX.set_SDM(sdm);
+    //
+    pTAP.set_HMI(hmi);
+    pTZX.set_HMI(hmi);
 
-  zxp.set_ESP32kit(ESP32kit);
-  //pTZX.setZXP_audio(ESP32kit);
+    pTAP.set_SDM(sdm);
+    pTZX.set_SDM(sdm);
 
-  // Si es test está activo. Lo lanzamos
-  #ifdef TEST
-    TEST_RUNNING = true;
-    hmi.writeString("statusLCD.txt=\"TEST RUNNING\"" );
-    test();
-    hmi.writeString("statusLCD.txt=\"PRESS SCREEN\"" );
-    TEST_RUNNING = false;
-  #endif
+    zxp.set_ESP32kit(ESP32kit);
+    //pTZX.setZXP_audio(ESP32kit);
 
-  // Interrupciones HW
-  // Timer0_Cfg = timerBegin(0, 80, true);
-  // timerAttachInterrupt(Timer0_Cfg, &Timer0_ISR, true);
-  // timerAlarmWrite(Timer0_Cfg, 1000000, true);
-  // timerAlarmEnable(Timer0_Cfg);
-  LOADING_STATE = 0;
-  BLOCK_SELECTED = 0;
-  FILE_SELECTED = false;
+    // Si es test está activo. Lo lanzamos
+    #ifdef TEST
+      TEST_RUNNING = true;
+      hmi.writeString("statusLCD.txt=\"TEST RUNNING\"" );
+      test();
+      hmi.writeString("statusLCD.txt=\"PRESS SCREEN\"" );
+      TEST_RUNNING = false;
+    #endif
 
-  // Inicialmente el POWADCR está en STOP
-  STOP = true;
-  PLAY = false;
-  PAUSE = false;
-  REC = false;
+    // Interrupciones HW
+    // Timer0_Cfg = timerBegin(0, 80, true);
+    // timerAttachInterrupt(Timer0_Cfg, &Timer0_ISR, true);
+    // timerAlarmWrite(Timer0_Cfg, 1000000, true);
+    // timerAlarmEnable(Timer0_Cfg);
+    LOADING_STATE = 0;
+    BLOCK_SELECTED = 0;
+    FILE_SELECTED = false;
 
-  // sendStatus(STOP_ST, 1);
-  // sendStatus(PLAY_ST, 0);
-  // sendStatus(PAUSE_ST, 0);
-  // sendStatus(READY_ST, 1);
-  // sendStatus(END_ST, 0);
-  
-  sendStatus(REC_ST);
+    // Inicialmente el POWADCR está en STOP
+    STOP = true;
+    PLAY = false;
+    PAUSE = false;
+    REC = false;
+
+    // sendStatus(STOP_ST, 1);
+    // sendStatus(PLAY_ST, 0);
+    // sendStatus(PAUSE_ST, 0);
+    // sendStatus(READY_ST, 1);
+    // sendStatus(END_ST, 0);
+    
+    sendStatus(REC_ST);
 
 
-  LAST_MESSAGE = "Press EJECT to select a file.";
-   
-  esp_task_wdt_init(WDT_TIMEOUT, true);  // enable panic so ESP32 restarts
-  // Control del tape
-  xTaskCreatePinnedToCore(Task1code, "TaskCORE1", 16834, NULL, 5|portPRIVILEGE_BIT, &Task1,  0);
-  esp_task_wdt_add(&Task1);  
-  delay(500);
-  
-  // Control de la UART - HMI
-  xTaskCreatePinnedToCore(Task0code, "TaskCORE0", 4096, NULL, 5|portPRIVILEGE_BIT, &Task0, 1);
-  esp_task_wdt_add(&Task0);  
-  delay(500);
+    LAST_MESSAGE = "Press EJECT to select a file.";
+    
+    esp_task_wdt_init(WDT_TIMEOUT, true);  // enable panic so ESP32 restarts
+    // Control del tape
+    xTaskCreatePinnedToCore(Task1code, "TaskCORE1", 16834, NULL, 5|portPRIVILEGE_BIT, &Task1, 0);
+    esp_task_wdt_add(&Task1);  
+    delay(500);
+    
+    // Control de la UART - HMI
+    xTaskCreatePinnedToCore(Task0code, "TaskCORE0", 4096, NULL, 5|portPRIVILEGE_BIT, &Task0, 1);
+    esp_task_wdt_add(&Task0);  
+    delay(500);
 
-  // Inicializamos el modulo de recording
-  taprec.set_HMI(hmi);
-  taprec.set_SdFat32(sdf);
-  
-  //hmi.getMemFree();
-  taskStop = false;
+    // Inicializamos el modulo de recording
+    taprec.set_HMI(hmi);
+    taprec.set_SdFat32(sdf);
+    
+    //hmi.getMemFree();
+    taskStop = false;
 
-  // Ponemos el color del scope en amarillo
-  hmi.writeString("tape.scope.pco0=60868");
+    // Ponemos el color del scope en amarillo
+    hmi.writeString("tape.scope.pco0=60868");
 }
 
 
@@ -998,20 +1001,21 @@ void recordingFile()
     {
         // Ha finalizado la grabación de un bloque
         // ahora estudiamos la causa
-        if (taprec.stopRecordingProccess)   
-        {
-            // Hay tres casos
-            // - El fichero para grabar el TAP no fue creado
-            // - La grabación fue parada pero fue correcta (no hay errores)
-            // - La grabación fue parada pero fue incorrecta (hay errores)
-            //SerialHW.println("");
-            //SerialHW.println("STOP 2 - REC");
+        // if (taprec.stopRecordingProccess)   
+        // {
+        //     // Hay tres casos
+        //     // - El fichero para grabar el TAP no fue creado
+        //     // - La grabación fue parada pero fue correcta (no hay errores)
+        //     // - La grabación fue parada pero fue incorrecta (hay errores)
+        //     //SerialHW.println("");
+        //     //SerialHW.println("STOP 2 - REC");
 
-            LOADING_STATE = 0;
+        //     LOADING_STATE = 0;
 
-            //stopRecording();
-            //setSTOP();
-        }
+        //     //stopRecording();
+        //     //setSTOP();
+        // }
+        LOADING_STATE = 0;
     }
 }
 
@@ -1339,7 +1343,7 @@ void Task0code( void * pvParameters )
         //buttonsControl();
         //delay(50);
         #ifndef DEBUGMODE
-          if ((millis() - startTime) > 250)
+          if ((millis() - startTime) > 350)
           {
             startTime = millis();
             stackFreeCore1 = uxTaskGetStackHighWaterMark(Task1);    
@@ -1347,7 +1351,7 @@ void Task0code( void * pvParameters )
             hmi.updateInformationMainPage();
           }
 
-          if((millis() - startTime2) > 125)
+          if((millis() - startTime2) > 250)
           {
             startTime2 = millis();
             if (SCOPE==up)

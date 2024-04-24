@@ -665,8 +665,6 @@ class HMI
           writeString("tape.progressTotal.val=0");
           writeString("tape.progression.val=0");
 
-          //updateInformationMainPage();        
-
           TOTAL_BLOCKS = 0;
           BLOCK_SELECTED = 0;
           BYTES_LOADED = 0;     

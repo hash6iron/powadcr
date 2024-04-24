@@ -51,6 +51,7 @@ class TAPrecorder
       bool notAudioInNotified = false;
       bool wasSelectedThreshold = false;
       int totalBlockTransfered = 0;
+      bool WasfirstStepInTheRecordingProccess = false;      
       
       
     private:
@@ -760,8 +761,8 @@ class TAPrecorder
         if (!WasfirstStepInTheRecordingProccess)
         {
           prepareNewBlock();
-          isSilence = false;
           // Importante no perder esto
+          // el primer bloque esperado es de 19 bytes
           header.blockSize = 19;
           headState = 0;
           _measureState = 0;
@@ -792,7 +793,7 @@ class TAPrecorder
             }
 
             //Aplicamos filtrado y corrección de pulso para estudiar los cambios de flanco
-            if((finalValue < (SCHMITT_THR * 10)) && (finalValue > (-SCHMITT_THR * 10)))
+            if((finalValue > (-SCHMITT_THR * 20)) && (finalValue < (SCHMITT_THR * 20)))
             {
                 finalValue = 0;
                 SCOPE = down;
@@ -970,16 +971,18 @@ class TAPrecorder
                                   // Paramos la grabación.
                                   STOP = true;
                                   REC = false;
-                                  // Corrupted data
+                                  totalBlockTransfered = 0;                                  
+                                  stopRecordingProccess=true;
                                   RECORDING_ERROR = 1;  
 
+                                  // Damos info en HMI
                                   LAST_MESSAGE = "Error: Bytes=" + String(byteCount) + ".[" + String(bitCount) + "] / " + String(blkSize) + " / CHK=" + String(checksum);
                                   SCOPE = down;
 
                                   // Reiniciamos todo
-                                  prepareNewBlock();   
+                                  //prepareNewBlock();   
                                   //
-                                  totalBlockTransfered = 0;
+
                                   //
                                   // Finalizamos
                                   return;
@@ -1071,8 +1074,6 @@ class TAPrecorder
           }
           else
           {
-            STOP = true;
-            REC = false;
             return true;
           }
       }
@@ -1213,85 +1214,83 @@ class TAPrecorder
       void terminate(bool removeFile)
       {
 
-          if (!wasFileNotCreated && totalBlockTransfered!=0)
-          {
-              // El fichero inicialmente fue creado con exito
-              // en la SD, pero ...
-              //
-              // 
-              if (_mFile.size() !=0)
-              {
-                  if (!removeFile)
-                  {
-                    // Finalmente se graba el contenido  
-                    if (_mFile.isOpen())
-                    {
-                      // Lo renombramos con el nombre del BASIC
-                      renameFile();        
-
-                      LAST_MESSAGE="File rename!";
-                      delay(1500);                       
-                    }          
-
-                    // Lo cerramos
-                    _mFile.close();
-                    
-                    LAST_MESSAGE="File closed!";
-                    delay(1500);
-
-                    delay(125);
-
-                  }
-                  else
-                  {
-                    // SE ELIMINA
-                    // No se renombra porque es erroneo
-                    _mFile.close();
-                    delay(125);
-                    // Se elimina
-                    _mFile.remove();
-                  }
-              }
-              else
-              {
-                // Tiene 0 bytes. Meto algo y lo cierro
-                // es un error
-                // Escribimos 256 bytes
-                for(int i=0;i<256;i++)
+        // Si REC no está activo, no podemos terminar
+        if (REC)
+        {
+            if (!wasFileNotCreated)
+            {
+                // El fichero inicialmente fue creado con exito
+                // en la SD, pero ...
+                //
+                // 
+                if (_mFile.size() !=0)
                 {
-                  _mFile.write(0x01);
+                    LAST_MESSAGE += " size: " + String(_mFile.size());
+
+                    if (!removeFile)
+                    {
+                      // Finalmente se graba el contenido  
+                      if (_mFile.isOpen())
+                      {
+                        // Lo renombramos con el nombre del BASIC
+                        renameFile();        
+
+                        LAST_MESSAGE="File rename!";
+                        delay(1500);                       
+                      }          
+
+                      // Lo cerramos
+                      _mFile.close();
+                      
+                      LAST_MESSAGE="File closed!";
+                      delay(1500);
+
+                      delay(125);
+
+                    }
+                    else
+                    {
+                      // SE ELIMINA
+                      // No se renombra porque es erroneo
+                      _mFile.close();
+                      delay(125);
+                      // Se elimina
+                      _mFile.remove();
+                      LAST_MESSAGE="File removed!";
+                      delay(1500);                     
+                    }
                 }
+                else
+                {
+                  // Tiene 0 bytes. Meto algo y lo cierro
+                  // es un error
+                  // Escribimos 256 bytes
+                  for(int i=0;i<256;i++)
+                  {
+                    _mFile.write(0x01);
+                  }
 
-                _mFile.close();
-                delay(1000);
-                _mFile.remove();
-                LAST_MESSAGE="File writed and removed.";
-                delay(1500);                       
+                  _mFile.close();
+                  delay(1000);
+                  _mFile.remove();
+                  LAST_MESSAGE="File filled and removed.";
+                  delay(1500);                       
 
-              }
-          }
-          else
-          {
-            // El fichero no fue creado
-            //_mFile.close();
-            //delay(125);
-          }
+                }
+            }
+            else
+            {
+              // El fichero no fue creado
+              //_mFile.close();
+              //delay(125);
+            }
+        }
 
-          wasRenamed = false;
-          nameFileRead = false;
+        wasRenamed = false;
+        nameFileRead = false;
 
-          _hmi.writeString("progression.val=0");     
-
-          // Para el mensaje de READY listening
-          WasfirstStepInTheRecordingProccess = false;
-
-          // Reseteamos los controles del reproductor
-          STOP = true;
-          REC = false;
-
-          // Reiniciamos flags de recording errors
-          errorInDataRecording = false;
-          wasFileNotCreated = true;
+        // Ponemos a cero todos los indicadores
+        _hmi.resetIndicators();     
       }
 
       TAPrecorder()
