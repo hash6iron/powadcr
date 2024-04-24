@@ -64,7 +64,7 @@ class TAPrecorder
       SdFat32 _sdf32;
       File32 _mFile;
 
-      const int BUFFER_SIZE_REC = 4; //4 //2048
+      const int BUFFER_SIZE_REC = 1024; //4 //2048
       uint8_t* bufferRec;
 
       // Test Line in/out
