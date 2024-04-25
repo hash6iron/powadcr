@@ -35,7 +35,7 @@
 //
 // 0 for ZX Spectrum
 
-#define VERSION "v0.250424.1"
+#define VERSION "v0.260424.1"
 #define MACHINE_ZX
 
 // Define sampling rate a 44.1KHz. En otro caso será a 32KHz
@@ -111,8 +111,8 @@ bool TEST_LINE_IN_OUT = false;
 //
 // -------------------------------
 const char* HOSTNAME = "powaDCR";
-const char* ssid = "";
-const char* password = "";
+const char* ssid = "cantam_lowi";
+const char* password = "antonioTHEBEST";
 
 // Static IP - 2.4GHz WiFi AP
 const IPAddress local_IP(192, 168, 2, 28); // Your Desired Static IP Address

@@ -733,7 +733,7 @@ class TAPrecorder
         int samplesRefForCtrl = 0;
 
         if (!WasfirstStepInTheRecordingProccess)
-        {
+        {    
           prepareNewBlock();
           // Importante no perder esto
           // el primer bloque esperado es de 19 bytes
@@ -741,8 +741,9 @@ class TAPrecorder
           headState = 0;
           _measureState = 0;
           _pulseWasMeasured = false;
+          BLOCK_REC_COMPLETED = false;
           //
-          LAST_MESSAGE = "Recorder ready. Play source data.";
+          //LAST_MESSAGE = "Recorder ready. Play source data.";
           // Ya no pasamos por aquí hasta parar el recorder
           WasfirstStepInTheRecordingProccess=true;    
         }
@@ -915,6 +916,9 @@ class TAPrecorder
                           {
                               if (checksum==0)
                               {
+                                  
+                                  BLOCK_REC_COMPLETED = true;
+
                                   // NOTA: El ultimo uint8_t es el checksum
                                   // si se hace XOR sobre este mismo da 0
                                   // e indica que todo es correcto
@@ -961,7 +965,11 @@ class TAPrecorder
                                   // Finalizamos
                                   return;
                               }        
-                          }                               
+                          } 
+                          else
+                          {
+                              BLOCK_REC_COMPLETED = false;
+                          }                              
                       }    
                 }  
                 break;
@@ -1193,7 +1201,7 @@ class TAPrecorder
                 // en la SD, pero ...
                 //
                 // 
-                if (_mFile.size() !=0)
+                if (_mFile.size() !=0 && BLOCK_REC_COMPLETED)
                 {
                     LAST_MESSAGE += " size: " + String(_mFile.size());
 
@@ -1205,15 +1213,15 @@ class TAPrecorder
                         // Lo renombramos con el nombre del BASIC
                         renameFile();        
 
-                        LAST_MESSAGE="File rename!";
-                        delay(1500);                       
+                        // LAST_MESSAGE="File rename!";
+                        delay(125);                       
                       }          
 
                       // Lo cerramos
                       _mFile.close();
                       
-                      LAST_MESSAGE="File closed!";
-                      delay(1500);
+                      // LAST_MESSAGE="File closed!";
+                      // delay(1500);
 
                       delay(125);
 

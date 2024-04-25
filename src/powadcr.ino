@@ -85,6 +85,7 @@
 // Esencial para poder variar la ganancia de salida de HPLINE y ROUT, LOUT
 #define AI_THINKER_ES8388_VOLUME_HACK 1
 
+#include "config.h"
 
 // Arduino OTA
 // -----------------------------------------------------------------------
@@ -92,7 +93,6 @@
 #include <ESPmDNS.h>
 #include <WiFiUdp.h>
 #include <ArduinoOTA.h>
-
 // -----------------------------------------------------------------------
 
 #include <Arduino.h>
@@ -114,7 +114,7 @@ HardwareSerial SerialHW(0);
 
 EasyNex myNex(SerialHW);
 
-#include "config.h"
+
 
 #include "SdFat.h"
 #include "globales.h"
@@ -576,7 +576,14 @@ void stopRecording()
           // entonces salvamos el fichero sin borrarlo
           
             taprec.terminate(false);
-            LAST_MESSAGE = "Recording STOP. File succesfully saved.";
+            if (BLOCK_REC_COMPLETED)
+            {
+                LAST_MESSAGE = "Recording STOP. File succesfully saved.";
+            }
+            else
+            {
+                LAST_MESSAGE = "Recording STOP. No file saved";
+            }
             delay(1000);
           }
           else
@@ -1108,7 +1115,7 @@ void prepareRecording()
     }
     else
     {
-      //LAST_MESSAGE = "Recorder listening.";
+      LAST_MESSAGE = "Recorder ready. Play source data.";
 
       //writeString("");
       hmi.writeString("currentBlock.val=1");
@@ -1144,6 +1151,9 @@ void recordingFile()
         //     //setSTOP();
         // }
         LOADING_STATE = 0;
+    }
+    else
+    {
     }
 }
 
@@ -1187,6 +1197,7 @@ void tapeControl()
     sendStatus(SAMPLINGTEST);
     delay(250);
   #else
+
     switch (tapeState)
     {
       case 0:
@@ -1240,6 +1251,10 @@ void tapeControl()
         else
         {
           tapeState = 0;
+          LOADING_STATE = 0;          
+          FILE_SELECTED = false;
+          FFWIND = false;
+          RWIND = false;           
         }
         break;
 
@@ -1396,7 +1411,6 @@ void tapeControl()
           RWIND = false;   
                   
           prepareRecording();
-          //log("REC. Waiting for guide tone");
           tapeState = 200;
         }
         else
@@ -1412,11 +1426,21 @@ void tapeControl()
           LOADING_STATE = 0;          
           tapeState = 0;
         break;
+      
       case 99:
         if (!FILE_BROWSER_OPEN)
         {
           tapeState = 0;
           LOADING_STATE = 0;          
+        }
+        else if (REC)
+        {
+          LOADING_STATE = 0;
+          FFWIND = false;
+          RWIND = false;  
+          FILE_SELECTED = false;                  
+          prepareRecording();
+          tapeState = 200;
         }
         else
         {
@@ -1506,7 +1530,7 @@ void Task0code( void * pvParameters )
             hmi.updateInformationMainPage();
           }
 
-          if((millis() - startTime2) > 250)
+          if((millis() - startTime2) > 125)
           {
             startTime2 = millis();
             if (SCOPE==up)

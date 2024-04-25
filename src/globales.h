@@ -348,6 +348,7 @@ bool wasHeadphoneAmpDetected = false;
 bool preparingTestInOut = false;
 
 bool SCREEN_IS_LOADING = false;
+bool BLOCK_REC_COMPLETED = false;
 
 // Gestion de menú
 bool MENU = false;
