@@ -105,5 +105,21 @@
 // Configuracion del test in/out
 bool TEST_LINE_IN_OUT = false;
 
+// -------------------------------
+//
+// OTA setting
+//
+// -------------------------------
+const char* HOSTNAME = "powaDCR";
+const char* ssid = "";
+const char* password = "";
+
+// Static IP - 2.4GHz WiFi AP
+const IPAddress local_IP(192, 168, 2, 28); // Your Desired Static IP Address
+const IPAddress subnet(255, 255, 255, 0);
+const IPAddress gateway(192, 168, 2, 1);
+const IPAddress primaryDNS(192, 168, 2, 1); // Not Mandatory
+const IPAddress secondaryDNS(192, 168, 1, 1);     // Not Mandatory
+
 
 

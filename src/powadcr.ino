@@ -93,9 +93,6 @@
 #include <WiFiUdp.h>
 #include <ArduinoOTA.h>
 
-const char* ssid = "";
-const char* password = "";
-
 // -----------------------------------------------------------------------
 
 #include <Arduino.h>
@@ -666,14 +663,7 @@ void wifiOTASetup()
   WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, password);
   
-  IPAddress local_IP(192, 168, 2, 28); // Your Desired Static IP Address
-  IPAddress subnet(255, 255, 255, 0);
-  IPAddress gateway(192, 168, 2, 1);
-  IPAddress primaryDNS(192, 168, 2, 1); // Not Mandatory
-  IPAddress secondaryDNS(192, 168, 1, 1);     // Not Mandatory
-
-
-  hmi.writeString("statusLCD.txt=\"Connecting to [" + String(ssid) + "]\"" );
+  hmi.writeString("statusLCD.txt=\"SSID: [" + String(ssid) + "]\"" );
   
   // Configures Static IP Address
   if (!WiFi.config(local_IP, gateway, subnet, primaryDNS, secondaryDNS))
@@ -694,7 +684,7 @@ void wifiOTASetup()
   // ArduinoOTA.setPort(3232);
 
   // Hostname defaults to esp3232-[MAC]
-  ArduinoOTA.setHostname("powaDCR-1");
+  ArduinoOTA.setHostname(HOSTNAME);
 
   // No authentication by default
   // ArduinoOTA.setPassword("admin");
@@ -760,17 +750,6 @@ void wifiOTASetup()
 
   ArduinoOTA.begin();
 
-  // Serial.println("Ready");
-  // Serial.print("IP address: ");
-  // Serial.println(WiFi.localIP()); 
-  
-  // IPAddress ipAddr WiFi.localIP();
-  // String ip1 =ipAddr[0];
-  // String ip2 =ipAddr[1];
-  // String ip3 =ipAddr[2];
-  // String ip4 =ipAddr[3];
-
-  //hmi.writeString("statusLCD.txt=\"IP " + ip1 + "." + ip2 + "." + ip3 + "." + ip4 + "\""); 
   hmi.writeString("statusLCD.txt=\"IP " + WiFi.localIP().toString() + "\""); 
   delay(5000);
 }

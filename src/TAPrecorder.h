@@ -440,7 +440,7 @@ class TAPrecorder
         if (_sdf32.exists(cPath))
         {
           _sdf32.remove(cPath);
-          _hmi.log("File exists then was remove first.");
+          log("File exists then was remove first.");
         }
 
         if (_mFile.rename(cPath))
@@ -1104,7 +1104,7 @@ class TAPrecorder
           
           if (!_sdf32.mkdir(RECORDING_DIR))
           {
-            _hmi.log("Error! Directory exists or wasn't created");
+            log("Error! Directory exists or wasn't created");
           }
 
           // Se crea un nuevo fichero temporal con la ruta del REC
