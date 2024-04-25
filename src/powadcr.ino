@@ -93,6 +93,9 @@
 #include <WiFiUdp.h>
 #include <ArduinoOTA.h>
 
+const char* ssid = "";
+const char* password = "";
+
 // -----------------------------------------------------------------------
 
 #include <Arduino.h>
@@ -660,9 +663,6 @@ void stopRecording()
 
 void wifiOTASetup()
 {
-  const char* ssid = "cantam_lowi";
-  const char* password = "antonioTHEBEST";
-
   WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, password);
   
