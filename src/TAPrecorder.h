@@ -64,7 +64,7 @@ class TAPrecorder
       SdFat32 _sdf32;
       File32 _mFile;
 
-      const int BUFFER_SIZE_REC = 1024; //4 //2048
+      const int BUFFER_SIZE_REC = 256; //4 //2048
       uint8_t* bufferRec;
 
       // Test Line in/out
@@ -440,6 +440,7 @@ class TAPrecorder
         if (_sdf32.exists(cPath))
         {
           _sdf32.remove(cPath);
+          _hmi.log("File exists then was remove first.");
         }
 
         if (_mFile.rename(cPath))
@@ -576,13 +577,11 @@ class TAPrecorder
               if (value > 0)
               {
                 // Cambia a UP
-                _measuredWidth = 0;
                 _measureState = 1;
               }
               else if (value < 0)
               {
                 // Cambia a LOW
-                _measuredWidth = 0;
                 _measureState = 3;
               }
               else
@@ -668,31 +667,6 @@ class TAPrecorder
               break;
           }
       }
-
-
-      // void resetEARdetector()
-      // {
-      //   // Reinicio de contadores de flancos y de control
-      //   _samplesCount = 0;
-      //   bitCount = 0;
-      //   byteCount = 0;
-      //   checksum = 0;        
-      //   state=0;
-      //   SCOPE = down;
-
-      //   //?¿?¿?¿?¿?¿ 16/04/2024
-      //   // _measureState = 0;
-      //   // _lastMeasuredWidth = 0;
-      //   // _measuredPulseUpWidth = 0;
-      //   // _measuredPulseDownWidth = 0;
-      //   // _measuredWidth = 0;
-
-      //   // p1count = 0;
-      //   // p2count = 0;
-      //   // p3count = 0;
-      //   // p4count = 0;
-
-      // }
 
       void prepareNewBlock()
       {
@@ -1114,61 +1088,63 @@ class TAPrecorder
 
       void initialize()
       {
-        prepareHMI();
+          prepareHMI();
 
-        pLead = 0;
-        pSync = 0;
-        state2 = 0;
+          pLead = 0;
+          pSync = 0;
+          state2 = 0;
 
-        // Reservamos memoria
-        fileName = (char*)ps_calloc(20,sizeof(char));
-        fileName = (char*) "_record\0";
+          // Reservamos memoria
+          fileName = (char*)ps_calloc(20,sizeof(char));
+          fileName = (char*) "_record\0";
 
-        recDir = (char*)ps_calloc(55,sizeof(char));
-        String dirR = RECORDING_DIR + "/\0";
-        recDir = strcpy(recDir, dirR.c_str());
-        
-        if (!_sdf32.mkdir(RECORDING_DIR))
-        {
-          //SerialHW.println("Error. Recording dir wasn't create or exist.");
-        }
+          recDir = (char*)ps_calloc(55,sizeof(char));
+          String dirR = RECORDING_DIR + "/\0";
+          recDir = strcpy(recDir, dirR.c_str());
+          
+          if (!_sdf32.mkdir(RECORDING_DIR))
+          {
+            _hmi.log("Error! Directory exists or wasn't created");
+          }
 
-        // Se crea un nuevo fichero temporal con la ruta del REC
-        strcat(recDir, fileName);
-        //SerialHW.println("Dir for REC: " + String(recDir));
+          // Se crea un nuevo fichero temporal con la ruta del REC
+          strcat(recDir, fileName);
+          //SerialHW.println("Dir for REC: " + String(recDir));
 
-        // Inicializo bit string
-        bitChStr = (char*)ps_calloc(8, sizeof(char));
-        datablock = (uint8_t*)ps_calloc(1, sizeof(uint8_t));
-        
-        // Inicializamos el array de nombre del header
-        for (int i=0;i<10;i++)
-        {
-          header.name[i] = ' ';
-        }
+          // Inicializo bit string
+          bitChStr = (char*)ps_calloc(8, sizeof(char));
+          datablock = (uint8_t*)ps_calloc(1, sizeof(uint8_t));
+          
+          // Inicializamos el array de nombre del header
+          for (int i=0;i<10;i++)
+          {
+            header.name[i] = ' ';
+          }
 
-        bufferRec = (uint8_t*)ps_calloc(BUFFER_SIZE_REC,sizeof(uint8_t));
-        initializeBuffer();
+          bufferRec = (uint8_t*)ps_calloc(BUFFER_SIZE_REC,sizeof(uint8_t));
+          initializeBuffer();
 
-        errorInDataRecording = false;
-        nameFileRead = false;
-        wasRenamed = false;
-        blockCount = 0;
-        waitingHead = true;
-        wasSelectedThreshold = false;    
-        stateRecording = 0;
+          errorInDataRecording = false;
+          nameFileRead = false;
+          wasRenamed = false;
+          blockCount = 0;
+          waitingHead = true;
+          wasSelectedThreshold = false;    
+          stateRecording = 0;
 
-        _pulseWidth = 0;      
-        stopRecordingProccess = false; 
-        stateInfoBlock = 0;
-        //
-        headState = 0;
+          _pulseWidth = 0;      
+          stopRecordingProccess = false; 
+          stateInfoBlock = 0;
+          //
+          headState = 0;
       }
 
       bool createTempTAPfile()
       {
+        // Abrimos el fichero en el directorio /REC
         if (!_mFile.open(recDir, O_WRITE | O_CREAT | O_TRUNC)) 
         {
+          // Si está abierto, compruebo que lo está
           if (!_mFile.isOpen())
           {
             // Pruebo otra vez. Pero con otros parámetros
@@ -1183,9 +1159,7 @@ class TAPrecorder
             else
             {
               // El fichero fue creado. Entonces está abierto
-              //SerialHW.println("File for REC prepared.");
               wasFileNotCreated = false;
-              //stopRecordingProccess = false;
               return true;
             }             
           }
@@ -1195,18 +1169,14 @@ class TAPrecorder
             // pero lo controlamos por si acaso.
 
             // El fichero fue creado. Entonces está abierto
-            //SerialHW.println("File for REC prepared.");
             wasFileNotCreated = false;            
-            //stopRecordingProccess = false;
             return true;
           }  
         }
         else
         {
           // El fichero fue creado. Entonces está abierto
-          //SerialHW.println("File for REC prepared.");
           wasFileNotCreated = false;
-          //stopRecordingProccess = false;
           return true;
         }        
       }

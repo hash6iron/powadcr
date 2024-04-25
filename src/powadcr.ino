@@ -86,9 +86,17 @@
 #define AI_THINKER_ES8388_VOLUME_HACK 1
 
 
+// Arduino OTA
+// -----------------------------------------------------------------------
+#include <WiFi.h>
+#include <ESPmDNS.h>
+#include <WiFiUdp.h>
+#include <ArduinoOTA.h>
+
+// -----------------------------------------------------------------------
+
 #include <Arduino.h>
 #include "esp32-hal-psram.h"
-
 #include "EasyNextionLibrary.h"
 
 // Librerias (mantener este orden)
@@ -199,7 +207,6 @@ void proccesingTAP(char* file_ch)
           FILE_NOTIFIED = false;
     }  
 }
-
 void proccesingTZX(char* file_ch)
 {
     pTZX.initialize();
@@ -223,7 +230,6 @@ void proccesingTZX(char* file_ch)
     FILE_NOTIFIED = true;  
 
 }
-
 void sendStatus(int action, int value=0) {
 
   switch (action) {
@@ -652,6 +658,122 @@ void stopRecording()
     hmi.writeString("tape2.tmAnimation.en=0");    
 }
 
+void wifiOTASetup()
+{
+  const char* ssid = "cantam_lowi";
+  const char* password = "antonioTHEBEST";
+
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(ssid, password);
+  
+  IPAddress local_IP(192, 168, 2, 28); // Your Desired Static IP Address
+  IPAddress subnet(255, 255, 255, 0);
+  IPAddress gateway(192, 168, 2, 1);
+  IPAddress primaryDNS(192, 168, 2, 1); // Not Mandatory
+  IPAddress secondaryDNS(192, 168, 1, 1);     // Not Mandatory
+
+
+  hmi.writeString("statusLCD.txt=\"Connecting to [" + String(ssid) + "]\"" );
+  
+  // Configures Static IP Address
+  if (!WiFi.config(local_IP, gateway, subnet, primaryDNS, secondaryDNS))
+  {
+      hmi.writeString("statusLCD.txt=\"WiFi-STA setting failed!\"" );
+      delay(5000);
+      ESP.restart();      
+  }
+
+  while (WiFi.waitForConnectResult() != WL_CONNECTED) 
+  {
+    hmi.writeString("statusLCD.txt=\"WiFi Connection failed!\"" );
+    delay(5000);
+    ESP.restart();
+  }  
+
+  // Port defaults to 3232
+  // ArduinoOTA.setPort(3232);
+
+  // Hostname defaults to esp3232-[MAC]
+  ArduinoOTA.setHostname("powaDCR-1");
+
+  // No authentication by default
+  // ArduinoOTA.setPassword("admin");
+
+  // Password can be set with it's md5 value as well
+  // MD5(admin) = 21232f297a57a5a743894a0e4a801fc3
+  // ArduinoOTA.setPasswordHash("21232f297a57a5a743894a0e4a801fc3");
+
+  ArduinoOTA
+    .onStart([]() {
+      String type;
+      if (ArduinoOTA.getCommand() == U_FLASH)
+        type = "sketch";
+      else // U_SPIFFS
+        type = "filesystem";
+
+      // NOTE: if updating SPIFFS this would be the place to unmount SPIFFS using SPIFFS.end()
+      //Serial.println("Start updating " + type);
+    })
+    .onEnd([]() 
+    {
+      //Serial.println("\nEnd");
+      hmi.writeString("g0.txt=\"Successful Update\"");      
+      hmi.writeString("statusLCD.txt=\"Successful Update\"");
+    })
+    
+    .onProgress([](unsigned int progress, unsigned int total) 
+    {
+      //Serial.printf("Progress: %u%%\r", ();
+      hmi.writeString("g0.txt=\"Firmware updating: " + String(progress / (total / 100)) + "%\"" );      
+      hmi.writeString("statusLCD.txt=\"Firmware updating: " + String(progress / (total / 100)) + "%\"" );      
+    })
+    
+    .onError([](ota_error_t error) 
+    {
+      // Serial.printf("Error[%u]: ", error);
+      if (error == OTA_AUTH_ERROR)
+      {
+         hmi.writeString("g0.txt=\"Auth Failed\"" );
+         hmi.writeString("statusLCD.txt=\"Auth Failed\"" );
+      }
+      else if (error == OTA_BEGIN_ERROR)
+      {
+         hmi.writeString("g0.txt=\"Begin Failed\"" );
+         hmi.writeString("statusLCD.txt=\"Begin Failed\"" );
+      }
+      else if (error == OTA_CONNECT_ERROR)
+      {
+         hmi.writeString("g0.txt=\"Connect Failed\"" );
+         hmi.writeString("statusLCD.txt=\"Connect Failed\"" );
+      }
+      else if (error == OTA_RECEIVE_ERROR)
+      {
+        hmi.writeString("g0.txt=\"Receive Failed\"" );
+        hmi.writeString("statusLCD.txt=\"Receive Failed\"" );
+      }
+      else if (error == OTA_END_ERROR)
+      {
+        hmi.writeString("g0.txt=\"End Failed\"" );
+        hmi.writeString("statusLCD.txt=\"End Failed\"" );
+      }
+    });
+
+  ArduinoOTA.begin();
+
+  // Serial.println("Ready");
+  // Serial.print("IP address: ");
+  // Serial.println(WiFi.localIP()); 
+  
+  // IPAddress ipAddr WiFi.localIP();
+  // String ip1 =ipAddr[0];
+  // String ip2 =ipAddr[1];
+  // String ip3 =ipAddr[2];
+  // String ip4 =ipAddr[3];
+
+  //hmi.writeString("statusLCD.txt=\"IP " + ip1 + "." + ip2 + "." + ip3 + "." + ip4 + "\""); 
+  hmi.writeString("statusLCD.txt=\"IP " + WiFi.localIP().toString() + "\""); 
+  delay(5000);
+}
 void setup() 
 {
     //rtc_wdt_protect_off();    // Turns off the automatic wdt service
@@ -722,8 +844,20 @@ void setup()
     }    
     delay(750);
 
+    // ------------------------------------------------------
+    //
+    //
+    wifiOTASetup();
+    //
+    //
+    // ------------------------------------------------------
+
+    delay(750);
+
     hmi.writeString("statusLCD.txt=\"WAITING FOR HMI\"" );
     waitForHMI(CFG_FORZE_SINC_HMI);
+
+
 
     // Inicializa volumen en HMI
     hmi.writeString("menuAudio.volL.val=" + String(MAIN_VOL_L));
@@ -799,8 +933,6 @@ void setup()
 }
 
 
-
-
 void setSTOP()
 {
   STOP = true;
@@ -863,14 +995,15 @@ void playingFile()
   }
 }
 
-void loadingFile()
+bool loadingFile()
 {
   // Cogemos el fichero seleccionado y lo cargamos              
   char* file_ch = (char*)malloc(256 * sizeof(char));
   FILE_TO_LOAD.toCharArray(file_ch, 256);
 
   // Si no está vacio
-  if (FILE_TO_LOAD != "") {
+  if (FILE_TO_LOAD != "") 
+  {
     
     // Limpiamos los campos del TAPE
     hmi.clearInformationFile();
@@ -907,12 +1040,28 @@ void loadingFile()
 
         // Lo procesamos. Para MSX
         proccesingTZX(file_ch);
-        TYPE_FILE_LOAD = "TSX";      
+        TYPE_FILE_LOAD = "TSX";             
     }   
   }
+  else
+  {
+    LAST_MESSAGE = "No file was selected.";
+    return false;
+  } 
 
   // Liberamos
-  free(file_ch);  
+  free(file_ch); 
+  // Controlamos un posible error si el fichero tiene 0 bytes
+  // o no se cargó correctamente
+  if (TOTAL_BLOCKS!=0)
+  {
+    return true;
+  }
+  else
+  {
+    LAST_MESSAGE = "Error in file.";
+    return false;
+  }
 }
 
 void stopFile()
@@ -1071,15 +1220,25 @@ void tapeControl()
         else if(FILE_SELECTED)
         {
           // FICHERO CARGADO EN TAPE
-          loadingFile();
-          LAST_MESSAGE = "File inside the TAPE.";
-          //  
+          if(loadingFile())
+          {
+            LAST_MESSAGE = "File inside the TAPE.";
+            //  
 
-          tapeState = 1;
-          LOADING_STATE = 0;          
-          FILE_SELECTED = false;
-          FFWIND = false;
-          RWIND = false;           
+            tapeState = 1;
+            LOADING_STATE = 0;          
+            FILE_SELECTED = false;
+            FFWIND = false;
+            RWIND = false;           
+          }
+          else
+          {
+            tapeState = 0;
+            LOADING_STATE = 0;          
+            FILE_SELECTED = false;
+            FFWIND = false;
+            RWIND = false;           
+          }
         }
         else if(PLAY)
         {
@@ -1143,7 +1302,17 @@ void tapeControl()
           tapeState = 1;
           FFWIND = false;
           RWIND = false;         
-        }        
+        }       
+        else if(REC)
+        {
+          LOADING_STATE = 0;
+          FFWIND = false;
+          RWIND = false;   
+                  
+          prepareRecording();
+          //log("REC. Waiting for guide tone");
+          tapeState = 200;
+        }         
         else
         {
           tapeState = 1;
@@ -1243,6 +1412,7 @@ void tapeControl()
         }
         else if(REC)
         {
+          LOADING_STATE = 0;
           FFWIND = false;
           RWIND = false;   
                   
@@ -1255,7 +1425,9 @@ void tapeControl()
           tapeState = 4;
         }
         break;
+      
       case 5:     
+          // Eject
           stopFile();
           ejectingFile();
           LOADING_STATE = 0;          
@@ -1338,7 +1510,11 @@ void Task0code( void * pvParameters )
 
     for(;;)
     {
+
+        ArduinoOTA.handle();      
+
         hmi.readUART();
+
         // Control por botones
         //buttonsControl();
         //delay(50);
