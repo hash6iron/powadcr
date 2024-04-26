@@ -851,6 +851,29 @@ class TAPrecorder
                   {
                       _pulseWasMeasured = false;
 
+                      // if (_measuredWidth == 0)
+                      // {
+                      //   // Error.
+                      //   // Paramos la grabación.
+                      //   STOP = true;
+                      //   REC = false;
+                      //   totalBlockTransfered = 0;                                  
+                      //   stopRecordingProccess=true;
+                      //   RECORDING_ERROR = 1;  
+
+                      //   // Damos info en HMI
+                      //   LAST_MESSAGE = "Error: Signal capture problem.";
+                      //   SCOPE = down;
+
+                      //   // Reiniciamos todo
+                      //   //prepareNewBlock();   
+                      //   //
+
+                      //   //
+                      //   // Finalizamos
+                      //   return;                        
+                      // }
+
                       if ((_measuredPulseUpWidth > 2) && (_measuredPulseUpWidth <= 16))
                       {
                           // Es un 0

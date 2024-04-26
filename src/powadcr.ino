@@ -166,6 +166,7 @@ bool last_headPhoneDetection = false;
 uint8_t tapeState = 0;
 
 bool taskStop = true;
+bool pageScreenIsShown = false;
 
 #if !(USING_DEFAULT_ARDUINO_LOOP_STACK_SIZE)
   uint16_t USER_CONFIG_ARDUINO_LOOP_STACK_SIZE = 16384;
@@ -671,6 +672,7 @@ void wifiOTASetup()
   WiFi.begin(ssid, password);
   
   hmi.writeString("statusLCD.txt=\"SSID: [" + String(ssid) + "]\"" );
+  delay(1500);
   
   // Configures Static IP Address
   if (!WiFi.config(local_IP, gateway, subnet, primaryDNS, secondaryDNS))
@@ -701,7 +703,10 @@ void wifiOTASetup()
   // ArduinoOTA.setPasswordHash("21232f297a57a5a743894a0e4a801fc3");
 
   ArduinoOTA
-    .onStart([]() {
+    .onStart([]() 
+    {
+      pageScreenIsShown = false;
+
       String type;
       if (ArduinoOTA.getCommand() == U_FLASH)
         type = "sketch";
@@ -714,15 +719,23 @@ void wifiOTASetup()
     .onEnd([]() 
     {
       //Serial.println("\nEnd");
-      hmi.writeString("g0.txt=\"Successful Update\"");      
-      hmi.writeString("statusLCD.txt=\"Successful Update\"");
+      //hmi.writeString("g0.txt=\"Successful Update\"");      
+      hmi.writeString("statusLCD.txt=\"SUCCEESSFUL UPDATE\"");
     })
     
     .onProgress([](unsigned int progress, unsigned int total) 
     {
       //Serial.printf("Progress: %u%%\r", ();
-      hmi.writeString("g0.txt=\"Firmware updating: " + String(progress / (total / 100)) + "%\"" );      
-      hmi.writeString("statusLCD.txt=\"Firmware updating: " + String(progress / (total / 100)) + "%\"" );      
+      if(!pageScreenIsShown)
+      {
+        hmi.writeString("page screen");
+        hmi.writeString("screen.updateBar.bco=23275");     
+        pageScreenIsShown = true;
+      }
+
+      //hmi.writeString("g0.txt=\"Firmware updating: " + String(progress / (total / 100)) + "%\"" );      
+      hmi.writeString("statusLCD.txt=\"FIRMWARE UPDATING\""); //+ String(progress / (total / 100)) + "%\"" ); 
+      hmi.writeString("screen.updateBar.val=" + String(progress / (total / 100)));
     })
     
     .onError([](ota_error_t error) 
@@ -730,27 +743,27 @@ void wifiOTASetup()
       // Serial.printf("Error[%u]: ", error);
       if (error == OTA_AUTH_ERROR)
       {
-         hmi.writeString("g0.txt=\"Auth Failed\"" );
+         //hmi.writeString("g0.txt=\"Auth Failed\"" );
          hmi.writeString("statusLCD.txt=\"Auth Failed\"" );
       }
       else if (error == OTA_BEGIN_ERROR)
       {
-         hmi.writeString("g0.txt=\"Begin Failed\"" );
+         //hmi.writeString("g0.txt=\"Begin Failed\"" );
          hmi.writeString("statusLCD.txt=\"Begin Failed\"" );
       }
       else if (error == OTA_CONNECT_ERROR)
       {
-         hmi.writeString("g0.txt=\"Connect Failed\"" );
+         //hmi.writeString("g0.txt=\"Connect Failed\"" );
          hmi.writeString("statusLCD.txt=\"Connect Failed\"" );
       }
       else if (error == OTA_RECEIVE_ERROR)
       {
-        hmi.writeString("g0.txt=\"Receive Failed\"" );
+        //hmi.writeString("g0.txt=\"Receive Failed\"" );
         hmi.writeString("statusLCD.txt=\"Receive Failed\"" );
       }
       else if (error == OTA_END_ERROR)
       {
-        hmi.writeString("g0.txt=\"End Failed\"" );
+        //hmi.writeString("g0.txt=\"End Failed\"" );
         hmi.writeString("statusLCD.txt=\"End Failed\"" );
       }
     });
@@ -758,7 +771,14 @@ void wifiOTASetup()
   ArduinoOTA.begin();
 
   hmi.writeString("statusLCD.txt=\"IP " + WiFi.localIP().toString() + "\""); 
-  delay(5000);
+
+  // Enviamos información al menu
+  hmi.writeString("menu.wifissid.txt=\"" + String(ssid) + + "\"");
+  hmi.writeString("menu.wifipass.txt=\"" + String(password) + + "\"");
+  hmi.writeString("menu.wifiIP.txt=\"" + WiFi.localIP().toString() + "\"");
+  hmi.writeString("menu.wifiEn.val=1");
+
+  delay(1500);
 }
 void setup() 
 {
@@ -1202,6 +1222,8 @@ void tapeControl()
     {
       case 0:
         // Estado inicial
+        SCOPE = down;
+
         if (FILE_BROWSER_OPEN)
         {
           tapeState = 99;
@@ -1320,13 +1342,15 @@ void tapeControl()
           //pauseFile();
           LOADING_STATE = 3;
           tapeState = 3;
+          SCOPE = down;
           //log("Estoy en PAUSA.");
         }
         else if(STOP)
         {
           stopFile();
           tapeState = 4;
-          LOADING_STATE = 0;          
+          LOADING_STATE = 0;     
+          SCOPE = down;
           //SerialHW.println(tapeState);
         }
         else if(EJECT)
@@ -1358,7 +1382,7 @@ void tapeControl()
           stopFile();
           LOADING_STATE = 0;          
           tapeState = 4;
-
+          SCOPE = down;
           FFWIND = false;
           RWIND = false;           
         }
@@ -1425,6 +1449,7 @@ void tapeControl()
           ejectingFile();
           LOADING_STATE = 0;          
           tapeState = 0;
+          SCOPE = down;
         break;
       
       case 99:
@@ -1456,6 +1481,7 @@ void tapeControl()
           taprec.stopRecordingProccess = false;
           //setSTOP();
           tapeState = 0;
+          SCOPE = down;
           STOP=true;
           REC=false;
         }
@@ -1522,7 +1548,7 @@ void Task0code( void * pvParameters )
         //buttonsControl();
         //delay(50);
         #ifndef DEBUGMODE
-          if ((millis() - startTime) > 350)
+          if ((millis() - startTime) > 500)
           {
             startTime = millis();
             stackFreeCore1 = uxTaskGetStackHighWaterMark(Task1);    
@@ -1530,18 +1556,18 @@ void Task0code( void * pvParameters )
             hmi.updateInformationMainPage();
           }
 
-          if((millis() - startTime2) > 125)
+          if((millis() - startTime2) > 250)
           {
             startTime2 = millis();
             if (SCOPE==up)
             {
-              hmi.writeString("add 34,0,10");
-              hmi.writeString("add 34,0,10");
+              hmi.writeString("add 34,0,8");
+              //hmi.writeString("add 34,0,8");
             }
             else
             {
-              hmi.writeString("add 34,0,4");
-              hmi.writeString("add 34,0,4");
+              hmi.writeString("add 34,0,2");
+              //hmi.writeString("add 34,0,2");
             }     
           }
 
