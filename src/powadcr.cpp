@@ -85,17 +85,10 @@
 // Esencial para poder variar la ganancia de salida de HPLINE y ROUT, LOUT
 #define AI_THINKER_ES8388_VOLUME_HACK 1
 
+#include <Arduino.h>
+
 #include "config.h"
 
-// Arduino OTA
-// -----------------------------------------------------------------------
-#include <WiFi.h>
-#include <ESPmDNS.h>
-#include <WiFiUdp.h>
-#include <ArduinoOTA.h>
-// -----------------------------------------------------------------------
-
-#include <Arduino.h>
 #include "esp32-hal-psram.h"
 #include "EasyNextionLibrary.h"
 
@@ -113,8 +106,6 @@ TaskHandle_t Task1;
 HardwareSerial SerialHW(0);
 
 EasyNex myNex(SerialHW);
-
-
 
 #include "SdFat.h"
 #include "globales.h"
@@ -171,6 +162,16 @@ bool pageScreenIsShown = false;
 #if !(USING_DEFAULT_ARDUINO_LOOP_STACK_SIZE)
   uint16_t USER_CONFIG_ARDUINO_LOOP_STACK_SIZE = 16384;
 #endif
+
+// Elegant OTA
+// -----------------------------------------------------------------------
+#include <WiFi.h>
+#include <WiFiClient.h>
+#include <WebServer.h>
+WebServer server(80);
+
+#include <ElegantOTA.h>
+// -----------------------------------------------------------------------
 
 void proccesingTAP(char* file_ch)
 {    
@@ -397,12 +398,10 @@ void setSDFrequency(int SD_Speed)
 
   delay(1250);
 }
-
 void test() 
 {
   // Bloque de pruebas
 }
-
 void waitForHMI(bool waitAndNotForze)
 {
     // Le decimos que no queremos esperar sincronización
@@ -429,8 +428,6 @@ void waitForHMI(bool waitAndNotForze)
       sendStatus(ACK_LCD, 1);  
     }
 }
-
-
 void setAudioOutput()
 {
   auto cfg = ESP32kit.defaultConfig(KitOutput);
@@ -501,7 +498,6 @@ void setAudioOutput()
     //log("Error in volumen setting");
   }  
 }
-
 void setAudioInput()
 {
   auto cfg = ESP32kit.defaultConfig(KitInput);
@@ -519,7 +515,6 @@ void setAudioInput()
     //log("Error in Audiokit sampling rate setting");
   }
 }
-
 void setAudioInOut()
 {
   auto cfg = ESP32kit.defaultConfig(KitInputOutput);
@@ -540,7 +535,6 @@ void setAudioInOut()
     //log("Error in volumen setting");
   }   
 }
-
 void pauseRecording()
 {
     // Desconectamos la entrada para evitar interferencias
@@ -555,7 +549,6 @@ void pauseRecording()
     //SerialHW.println("REC. Procces paused.");
     //SerialHW.println("");
 }
-
 void stopRecording()
 {
 
@@ -666,11 +659,71 @@ void stopRecording()
     hmi.writeString("tape2.tmAnimation.en=0");    
 }
 
+// -------------------------------------------------------------------------------------------------------------------
+unsigned long ota_progress_millis = 0;
+
+void onOTAStart() 
+{
+  // Log when OTA has started
+  pageScreenIsShown = false;
+  // <Add your own code here>
+}
+void onOTAProgress(size_t current, size_t final) 
+{
+  // Log every 1 second
+  if (millis() - ota_progress_millis > 250) 
+  {
+      ota_progress_millis = millis();
+
+      if(!pageScreenIsShown)
+      {
+        hmi.writeString("page screen");
+        hmi.writeString("screen.updateBar.bco=23275");     
+        pageScreenIsShown = true;
+      }
+
+      HTTPUpload &upload = server.upload();
+      size_t fileSize = upload.totalSize;
+      String fileName = upload.filename;
+
+      hmi.writeString("statusLCD.txt=\"FIRMWARE UPDATING " + String(fileSize) + " bytes\"" ); 
+
+      // if(final!=0)
+      // {
+      //   hmi.writeString("screen.updateBar.val=" + String(current / (final / 100)));    
+      // }
+      
+  }
+}
+void onOTAEnd(bool success) 
+{
+  // Log when OTA has finished
+  if (success) 
+  {
+    hmi.writeString("statusLCD.txt=\"SUCCEESSFUL UPDATE\"");
+    // Cerramos la conexión antes de resetear el ESP32
+    server.sendHeader("Connection", "close");
+    server.send(200,"text/plain","OK");    
+
+    // Reiniciamos
+    ESP.restart();
+  } 
+  else 
+  {
+    hmi.writeString("statusLCD.txt=\"UPDATE FAIL\"");
+    server.sendHeader("Connection", "close");
+    server.send(400,"text/plain","Uploading process fail.");     
+  }
+  // <Add your own code here>
+}
 void wifiOTASetup()
 {
   WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, password);
   
+    // Disable Auto Reboot
+  ElegantOTA.setAutoReboot(false);
+    
   hmi.writeString("statusLCD.txt=\"SSID: [" + String(ssid) + "]\"" );
   delay(1500);
   
@@ -689,86 +742,20 @@ void wifiOTASetup()
     ESP.restart();
   }  
 
-  // Port defaults to 3232
-  // ArduinoOTA.setPort(3232);
+  server.on("/", []() {
+    server.send(200, "text/plain", "powaDCR OTA Server. Powered by Elegant OTA");
+  });
 
-  // Hostname defaults to esp3232-[MAC]
-  ArduinoOTA.setHostname(HOSTNAME);
+  ElegantOTA.begin(&server);    // Start ElegantOTA
+  // ElegantOTA callbacks
+  ElegantOTA.onStart(onOTAStart);
+  ElegantOTA.onProgress(onOTAProgress);
+  ElegantOTA.onEnd(onOTAEnd);
 
-  // No authentication by default
-  // ArduinoOTA.setPassword("admin");
+  server.begin();
 
-  // Password can be set with it's md5 value as well
-  // MD5(admin) = 21232f297a57a5a743894a0e4a801fc3
-  // ArduinoOTA.setPasswordHash("21232f297a57a5a743894a0e4a801fc3");
-
-  ArduinoOTA
-    .onStart([]() 
-    {
-      pageScreenIsShown = false;
-
-      String type;
-      if (ArduinoOTA.getCommand() == U_FLASH)
-        type = "sketch";
-      else // U_SPIFFS
-        type = "filesystem";
-
-      // NOTE: if updating SPIFFS this would be the place to unmount SPIFFS using SPIFFS.end()
-      //Serial.println("Start updating " + type);
-    })
-    .onEnd([]() 
-    {
-      //Serial.println("\nEnd");
-      //hmi.writeString("g0.txt=\"Successful Update\"");      
-      hmi.writeString("statusLCD.txt=\"SUCCEESSFUL UPDATE\"");
-    })
-    
-    .onProgress([](unsigned int progress, unsigned int total) 
-    {
-      //Serial.printf("Progress: %u%%\r", ();
-      if(!pageScreenIsShown)
-      {
-        hmi.writeString("page screen");
-        hmi.writeString("screen.updateBar.bco=23275");     
-        pageScreenIsShown = true;
-      }
-
-      //hmi.writeString("g0.txt=\"Firmware updating: " + String(progress / (total / 100)) + "%\"" );      
-      hmi.writeString("statusLCD.txt=\"FIRMWARE UPDATING\""); //+ String(progress / (total / 100)) + "%\"" ); 
-      hmi.writeString("screen.updateBar.val=" + String(progress / (total / 100)));
-    })
-    
-    .onError([](ota_error_t error) 
-    {
-      // Serial.printf("Error[%u]: ", error);
-      if (error == OTA_AUTH_ERROR)
-      {
-         //hmi.writeString("g0.txt=\"Auth Failed\"" );
-         hmi.writeString("statusLCD.txt=\"Auth Failed\"" );
-      }
-      else if (error == OTA_BEGIN_ERROR)
-      {
-         //hmi.writeString("g0.txt=\"Begin Failed\"" );
-         hmi.writeString("statusLCD.txt=\"Begin Failed\"" );
-      }
-      else if (error == OTA_CONNECT_ERROR)
-      {
-         //hmi.writeString("g0.txt=\"Connect Failed\"" );
-         hmi.writeString("statusLCD.txt=\"Connect Failed\"" );
-      }
-      else if (error == OTA_RECEIVE_ERROR)
-      {
-        //hmi.writeString("g0.txt=\"Receive Failed\"" );
-        hmi.writeString("statusLCD.txt=\"Receive Failed\"" );
-      }
-      else if (error == OTA_END_ERROR)
-      {
-        //hmi.writeString("g0.txt=\"End Failed\"" );
-        hmi.writeString("statusLCD.txt=\"End Failed\"" );
-      }
-    });
-
-  ArduinoOTA.begin();
+  hmi.writeString("statusLCD.txt=\"OTA Enabled\"");
+  delay(750);
 
   hmi.writeString("statusLCD.txt=\"IP " + WiFi.localIP().toString() + "\""); 
 
@@ -780,165 +767,8 @@ void wifiOTASetup()
 
   delay(1500);
 }
-void setup() 
-{
-    //rtc_wdt_protect_off();    // Turns off the automatic wdt service
-    // rtc_wdt_enable();         // Turn it on manually
-    // rtc_wdt_set_time(RTC_WDT_STAGE0, 20000);  // Define how long you desire to let dog wait.
 
-    // Configuramos el nivel de log
-    SerialHW.setRxBufferSize(2048);
-    SerialHW.begin(921600);
-    delay(250);
-
-    //myNex.begin(921600);
-
-    // Forzamos un reinicio de la pantalla
-    hmi.writeString("rest");
-    delay(250);
-
-    // Indicamos que estamos haciendo reset
-    sendStatus(RESET, 1);
-    delay(750);
-
-    hmi.writeString("statusLCD.txt=\"POWADCR " + String(VERSION) + "\"" );
-    
-    delay(1250);
-
-    //SerialHW.println("Setting Audiokit.");
-
-    // Configuramos los pulsadores
-    configureButtons();
-
-    // Configuramos el ESP32kit
-    LOGLEVEL_AUDIOKIT = AudioKitError;
-
-    // Configuracion de las librerias del AudioKit
-    setAudioOutput();
-
-    //SerialHW.println("Done!");
-
-    //SerialHW.println("Initializing SD SLOT.");
-    
-    // Configuramos acceso a la SD
-    hmi.writeString("statusLCD.txt=\"WAITING FOR SD CARD\"" );
-    delay(750);
-
-    int SD_Speed = SD_FRQ_MHZ_INITIAL;  // Velocidad en MHz (config.h)
-    setSDFrequency(SD_Speed);
-
-    // Forzamos a 26MHz
-    //sdf.begin(ESP32kit.pinSpiCs(), SD_SCK_MHZ(26));
-
-    // Le pasamos al HMI el gestor de SD
-    hmi.set_sdf(sdf);
-
-    //SerialHW.println("Done!");
-
-    // Esperamos finalmente a la pantalla
-    //SerialHW.println("");
-    //SerialHW.println("Waiting for LCD.");
-    //SerialHW.println("");
-
-    if(psramInit()){
-      //SerialHW.println("\nPSRAM is correctly initialized");
-      hmi.writeString("statusLCD.txt=\"PSRAM OK\"" );
-
-    }else{
-      //SerialHW.println("PSRAM not available");
-      hmi.writeString("statusLCD.txt=\"PSRAM FAILED!\"" );
-    }    
-    delay(750);
-
-    // ------------------------------------------------------
-    //
-    //
-    wifiOTASetup();
-    //
-    //
-    // ------------------------------------------------------
-
-    delay(750);
-
-    hmi.writeString("statusLCD.txt=\"WAITING FOR HMI\"" );
-    waitForHMI(CFG_FORZE_SINC_HMI);
-
-
-
-    // Inicializa volumen en HMI
-    hmi.writeString("menuAudio.volL.val=" + String(MAIN_VOL_L));
-    hmi.writeString("menuAudio.volR.val=" + String(MAIN_VOL_R));
-    hmi.writeString("menuAudio.volLevelL.val=" + String(MAIN_VOL_L));
-    hmi.writeString("menuAudio.volLevel.val=" + String(MAIN_VOL_R));
-
-    //
-    pTAP.set_HMI(hmi);
-    pTZX.set_HMI(hmi);
-
-    pTAP.set_SDM(sdm);
-    pTZX.set_SDM(sdm);
-
-    zxp.set_ESP32kit(ESP32kit);
-    //pTZX.setZXP_audio(ESP32kit);
-
-    // Si es test está activo. Lo lanzamos
-    #ifdef TEST
-      TEST_RUNNING = true;
-      hmi.writeString("statusLCD.txt=\"TEST RUNNING\"" );
-      test();
-      hmi.writeString("statusLCD.txt=\"PRESS SCREEN\"" );
-      TEST_RUNNING = false;
-    #endif
-
-    // Interrupciones HW
-    // Timer0_Cfg = timerBegin(0, 80, true);
-    // timerAttachInterrupt(Timer0_Cfg, &Timer0_ISR, true);
-    // timerAlarmWrite(Timer0_Cfg, 1000000, true);
-    // timerAlarmEnable(Timer0_Cfg);
-    LOADING_STATE = 0;
-    BLOCK_SELECTED = 0;
-    FILE_SELECTED = false;
-
-    // Inicialmente el POWADCR está en STOP
-    STOP = true;
-    PLAY = false;
-    PAUSE = false;
-    REC = false;
-
-    // sendStatus(STOP_ST, 1);
-    // sendStatus(PLAY_ST, 0);
-    // sendStatus(PAUSE_ST, 0);
-    // sendStatus(READY_ST, 1);
-    // sendStatus(END_ST, 0);
-    
-    sendStatus(REC_ST);
-
-
-    LAST_MESSAGE = "Press EJECT to select a file.";
-    
-    esp_task_wdt_init(WDT_TIMEOUT, true);  // enable panic so ESP32 restarts
-    // Control del tape
-    xTaskCreatePinnedToCore(Task1code, "TaskCORE1", 16834, NULL, 3|portPRIVILEGE_BIT, &Task1, 0);
-    esp_task_wdt_add(&Task1);  
-    delay(500);
-    
-    // Control de la UART - HMI
-    xTaskCreatePinnedToCore(Task0code, "TaskCORE0", 4096, NULL, 3|portPRIVILEGE_BIT, &Task0, 1);
-    esp_task_wdt_add(&Task0);  
-    delay(500);
-
-    // Inicializamos el modulo de recording
-    taprec.set_HMI(hmi);
-    taprec.set_SdFat32(sdf);
-    
-    //hmi.getMemFree();
-    taskStop = false;
-
-    // Ponemos el color del scope en amarillo
-    hmi.writeString("tape.scope.pco0=60868");
-}
-
-
+// -------------------------------------------------------------------------------------------------------------------
 void setSTOP()
 {
   STOP = true;
@@ -969,7 +799,6 @@ void setSTOP()
   // sendStatus(END_ST, 1);
   // sendStatus(READY_ST, 1);
 }
-
 void playingFile()
 {
   setAudioOutput();
@@ -1000,7 +829,6 @@ void playingFile()
       hmi.writeString("tape2.tmAnimation.en=0"); 
   }
 }
-
 bool loadingFile()
 {
   // Cogemos el fichero seleccionado y lo cargamos              
@@ -1069,14 +897,12 @@ bool loadingFile()
     return false;
   }
 }
-
 void stopFile()
 {
   //Paramos la animación
   setSTOP();     
   hmi.writeString("tape2.tmAnimation.en=0"); 
 }
-
 void pauseFile()
 {
   STOP = false;
@@ -1084,7 +910,6 @@ void pauseFile()
   PAUSE = true;
   REC = false;
 }
-
 void ejectingFile()
 {
   //log("Eject executing");
@@ -1107,7 +932,6 @@ void ejectingFile()
       pTZX.terminate();
   }  
 }
-
 void prepareRecording()
 {
     // Liberamos myTAP.descriptor de la memoria si existe 
@@ -1147,8 +971,6 @@ void prepareRecording()
     
     //hmi.getMemFree();        
 }
-
-
 void recordingFile()
 {
     // Iniciamos la grabación
@@ -1176,7 +998,6 @@ void recordingFile()
     {
     }
 }
-
 void getAudioSettingFromHMI()
 {
     if(myNex.readNumber("menuAdio.enTerm.val")==1)
@@ -1207,7 +1028,6 @@ void getAudioSettingFromHMI()
     }
 
 }
-
 void tapeControl()
 { 
   #ifdef SAMPLINGTESTACTIVE
@@ -1499,15 +1319,10 @@ void tapeControl()
   #endif
 
 }
-
 bool headPhoneDetection()
 {
   return !gpio_get_level((gpio_num_t)HEADPHONE_DETECT);
 }
-
-
-
-
 
 
 // ******************************************************************
@@ -1540,7 +1355,8 @@ void Task0code( void * pvParameters )
     for(;;)
     {
 
-        ArduinoOTA.handle();      
+        server.handleClient();
+        //ElegantOTA.loop();     
 
         hmi.readUART();
 
@@ -1561,7 +1377,7 @@ void Task0code( void * pvParameters )
             startTime2 = millis();
             if (SCOPE==up)
             {
-              hmi.writeString("add 34,0,8");
+              hmi.writeString("add 34,0,6");
               //hmi.writeString("add 34,0,8");
             }
             else
@@ -1587,6 +1403,164 @@ void Task0code( void * pvParameters )
         esp_task_wdt_reset();
     }
   #endif
+}
+
+void setup() 
+{
+    //rtc_wdt_protect_off();    // Turns off the automatic wdt service
+    // rtc_wdt_enable();         // Turn it on manually
+    // rtc_wdt_set_time(RTC_WDT_STAGE0, 20000);  // Define how long you desire to let dog wait.
+
+    // Configuramos el nivel de log
+    SerialHW.setRxBufferSize(2048);
+    SerialHW.begin(921600);
+    delay(250);
+
+    //myNex.begin(921600);
+
+    // Forzamos un reinicio de la pantalla
+    hmi.writeString("rest");
+    delay(250);
+
+    // Indicamos que estamos haciendo reset
+    sendStatus(RESET, 1);
+    delay(750);
+
+    hmi.writeString("statusLCD.txt=\"POWADCR " + String(VERSION) + "\"" );
+    
+    delay(1250);
+
+    //SerialHW.println("Setting Audiokit.");
+
+    // Configuramos los pulsadores
+    configureButtons();
+
+    // Configuramos el ESP32kit
+    LOGLEVEL_AUDIOKIT = AudioKitError;
+
+    // Configuracion de las librerias del AudioKit
+    setAudioOutput();
+
+    //SerialHW.println("Done!");
+
+    //SerialHW.println("Initializing SD SLOT.");
+    
+    // Configuramos acceso a la SD
+    hmi.writeString("statusLCD.txt=\"WAITING FOR SD CARD\"" );
+    delay(750);
+
+    int SD_Speed = SD_FRQ_MHZ_INITIAL;  // Velocidad en MHz (config.h)
+    setSDFrequency(SD_Speed);
+
+    // Forzamos a 26MHz
+    //sdf.begin(ESP32kit.pinSpiCs(), SD_SCK_MHZ(26));
+
+    // Le pasamos al HMI el gestor de SD
+    hmi.set_sdf(sdf);
+
+    //SerialHW.println("Done!");
+
+    // Esperamos finalmente a la pantalla
+    //SerialHW.println("");
+    //SerialHW.println("Waiting for LCD.");
+    //SerialHW.println("");
+
+    if(psramInit()){
+      //SerialHW.println("\nPSRAM is correctly initialized");
+      hmi.writeString("statusLCD.txt=\"PSRAM OK\"" );
+
+    }else{
+      //SerialHW.println("PSRAM not available");
+      hmi.writeString("statusLCD.txt=\"PSRAM FAILED!\"" );
+    }    
+    delay(750);
+
+    // ------------------------------------------------------
+    //
+    //
+    wifiOTASetup();
+    //
+    //
+    // ------------------------------------------------------
+
+    delay(750);
+
+    hmi.writeString("statusLCD.txt=\"WAITING FOR HMI\"" );
+    waitForHMI(CFG_FORZE_SINC_HMI);
+
+
+
+    // Inicializa volumen en HMI
+    hmi.writeString("menuAudio.volL.val=" + String(MAIN_VOL_L));
+    hmi.writeString("menuAudio.volR.val=" + String(MAIN_VOL_R));
+    hmi.writeString("menuAudio.volLevelL.val=" + String(MAIN_VOL_L));
+    hmi.writeString("menuAudio.volLevel.val=" + String(MAIN_VOL_R));
+
+    //
+    pTAP.set_HMI(hmi);
+    pTZX.set_HMI(hmi);
+
+    pTAP.set_SDM(sdm);
+    pTZX.set_SDM(sdm);
+
+    zxp.set_ESP32kit(ESP32kit);
+    //pTZX.setZXP_audio(ESP32kit);
+
+    // Si es test está activo. Lo lanzamos
+    #ifdef TEST
+      TEST_RUNNING = true;
+      hmi.writeString("statusLCD.txt=\"TEST RUNNING\"" );
+      test();
+      hmi.writeString("statusLCD.txt=\"PRESS SCREEN\"" );
+      TEST_RUNNING = false;
+    #endif
+
+    // Interrupciones HW
+    // Timer0_Cfg = timerBegin(0, 80, true);
+    // timerAttachInterrupt(Timer0_Cfg, &Timer0_ISR, true);
+    // timerAlarmWrite(Timer0_Cfg, 1000000, true);
+    // timerAlarmEnable(Timer0_Cfg);
+    LOADING_STATE = 0;
+    BLOCK_SELECTED = 0;
+    FILE_SELECTED = false;
+
+    // Inicialmente el POWADCR está en STOP
+    STOP = true;
+    PLAY = false;
+    PAUSE = false;
+    REC = false;
+
+    // sendStatus(STOP_ST, 1);
+    // sendStatus(PLAY_ST, 0);
+    // sendStatus(PAUSE_ST, 0);
+    // sendStatus(READY_ST, 1);
+    // sendStatus(END_ST, 0);
+    
+    sendStatus(REC_ST);
+
+
+    LAST_MESSAGE = "Press EJECT to select a file.";
+    
+    esp_task_wdt_init(WDT_TIMEOUT, true);  // enable panic so ESP32 restarts
+    // Control del tape
+    xTaskCreatePinnedToCore(Task1code, "TaskCORE1", 16834, NULL, 3|portPRIVILEGE_BIT, &Task1, 0);
+    esp_task_wdt_add(&Task1);  
+    delay(500);
+    
+    // Control de la UART - HMI
+    xTaskCreatePinnedToCore(Task0code, "TaskCORE0", 4096, NULL, 3|portPRIVILEGE_BIT, &Task0, 1);
+    esp_task_wdt_add(&Task0);  
+    delay(500);
+
+    // Inicializamos el modulo de recording
+    taprec.set_HMI(hmi);
+    taprec.set_SdFat32(sdf);
+    
+    //hmi.getMemFree();
+    taskStop = false;
+
+    // Ponemos el color del scope en amarillo
+    hmi.writeString("tape.scope.pco0=60868");
 }
 
 void loop()

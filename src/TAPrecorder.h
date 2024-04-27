@@ -751,6 +751,7 @@ class TAPrecorder
         // Analizamos todas las muestras del buffer de entrada
         for (int j=0;j<(len/4);j++)
         {  
+            //SAMPLES_READ++;
             // Leemos el siguiente valor del buffer canal R
             oneValue = *value_ptr++;
             // Leemos el siguiente valor del buffer canal L
@@ -833,6 +834,8 @@ class TAPrecorder
                     {
                       stateRecording = 2;
                       LAST_MESSAGE = "Waiting for DATA.";
+                      // SAMPLES_READ = 0;
+                      // SAMPLES_MEASURED = 0;
                     }
                     else
                     {
@@ -851,7 +854,9 @@ class TAPrecorder
                   {
                       _pulseWasMeasured = false;
 
-                      // if (_measuredWidth == 0)
+                      //LAST_MESSAGE = "** " + String(SAMPLES_READ) + " / " + String(SAMPLES_MEASURED);
+
+                      // if ((SAMPLES_READ - SAMPLES_MEASURED) > 16384)
                       // {
                       //   // Error.
                       //   // Paramos la grabación.

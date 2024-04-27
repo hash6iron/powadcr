@@ -349,6 +349,8 @@ bool preparingTestInOut = false;
 
 bool SCREEN_IS_LOADING = false;
 bool BLOCK_REC_COMPLETED = false;
+// int SAMPLES_READ = 0;
+// int SAMPLES_MEASURED = 0;
 
 // Gestion de menú
 bool MENU = false;
