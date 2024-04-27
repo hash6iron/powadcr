@@ -268,9 +268,11 @@ void sendStatus(int action, int value=0) {
       //hmi.writeString("");
       hmi.writeString("tape.LCDACK.val=" + String(value));
       //hmi.writeString("");
-      hmi.writeString("statusLCD.txt=\"READY. PRESS SCREEN\"");
+      //hmi.writeString("statusLCD.txt=\"READY. PRESS SCREEN\"");
+
       // Enviamos la version del firmware del powaDCR
       hmi.writeString("menu.verFirmware.txt=\" PowaDCR " + String(VERSION) + "\"");
+      hmi.writeString("page tape");
       break;
     
     case RESET:
@@ -678,19 +680,20 @@ void onOTAProgress(size_t current, size_t final)
       if(!pageScreenIsShown)
       {
         hmi.writeString("page screen");
-        hmi.writeString("screen.updateBar.bco=23275");     
+        //hmi.writeString("screen.updateBar.bco=23275");     
         pageScreenIsShown = true;
       }
 
       HTTPUpload &upload = server.upload();
-      size_t fileSize = upload.totalSize;
+      size_t fileSize = upload.totalSize / 1024;
+      fileSize = (round(fileSize*10)) / 10;
       String fileName = upload.filename;
 
-      hmi.writeString("statusLCD.txt=\"FIRMWARE UPDATING " + String(fileSize) + " bytes\"" ); 
+      hmi.writeString("statusLCD.txt=\"FIRMWARE UPDATING " + String(fileSize) + " KB\""); 
 
       // if(final!=0)
       // {
-      //   hmi.writeString("screen.updateBar.val=" + String(current / (final / 100)));    
+      //   hmi.writeString("screen.updateBar.val=" + String((current * 100) / final));    
       // }
       
   }
@@ -704,13 +707,14 @@ void onOTAEnd(bool success)
     // Cerramos la conexión antes de resetear el ESP32
     server.sendHeader("Connection", "close");
     server.send(200,"text/plain","OK");    
-
-    // Reiniciamos
+    delay(2000);
+    // Reiniciamos  
     ESP.restart();
   } 
   else 
   {
     hmi.writeString("statusLCD.txt=\"UPDATE FAIL\"");
+    // Cerramos la conexión
     server.sendHeader("Connection", "close");
     server.send(400,"text/plain","Uploading process fail.");     
   }
