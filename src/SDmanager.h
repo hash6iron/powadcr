@@ -44,6 +44,23 @@ class SDmanager
     File32 dir;
     File32 file;
 
+    File32 openFile32(char* path)
+    {
+        File32 fFile;
+        
+        if (!fFile.open(path, O_RDWR)) 
+        {
+            log("open failed");
+        }
+        else
+        {
+            log("open success");
+        }
+
+        return fFile;
+
+    }
+
     File32 openFile32(File32 fFile, char *path) 
     { 
         //SerialHW.println();
@@ -53,16 +70,15 @@ class SDmanager
         if (fFile != 0)
         {
             fFile.close();
-            //SerialHW.println("closing file");
         }
     
         if (!fFile.open(path, FILE_READ)) 
         {
-            //SerialHW.println("open failed");
+            log("open failed");
         }
         else
         {
-            //SerialHW.println("open success");
+            log("open success");
         }
     
         return fFile;
@@ -73,7 +89,7 @@ class SDmanager
         if (fFile != 0)
         {
             fFile.close();
-            //SerialHW.println("closing file");
+            log("closing file");
         } 
     }
     
@@ -161,6 +177,103 @@ class SDmanager
         }
     
         return bufferFile;
+    }
+
+    // void createCfgFile(char* path)
+    // {
+    //     File32 fFile;
+        
+    //     if (!fFile.create(path, O_RDWR)) 
+    //     {
+    //         log("create failed");
+    //         return false;
+    //     }
+    //     else
+    //     {
+    //         log("create success");
+    //         return true;
+    //     }
+    // }
+
+    void writeParamCfg(File32 mFile, String param, String value)
+    {
+        // Escribimos el parámetro en el fichero de configuración
+        if (mFile)
+        {
+            mFile.println("<" + param + ">");
+            mFile.print(value);
+            mFile.print("</" + param + ">");
+        }
+        else
+        {
+            log("Error writing cgf");
+        }
+    }
+
+
+    String getValueOfParam(String line, String param)
+    {
+        logln("Cfg. line: " + line);
+        log(" - Param: " + param);
+        
+        int firstClosingBracket = line.indexOf('>');
+
+        if( firstClosingBracket != -1)
+        {
+            // int paramLen = param.length();
+            int firstOpeningEndLine = line.indexOf("</",firstClosingBracket + 1);  
+            
+            if (firstOpeningEndLine != -1)
+            {
+                String res = line.substring(firstClosingBracket+1, firstOpeningEndLine);
+                log(" / Value = " + res);
+                return res;
+            }
+        }
+        
+        return "null";
+    }
+
+    tConfig* readAllParamCfg(File32 mFile, int maxParameters)
+    {
+        tConfig* cfgData = new tConfig[maxParameters];
+
+        // Vamos a ir linea a linea obteniendo la información de cada parámetro.
+        char line[256];
+        //
+        int n;
+        int i=0;
+
+        // Vemos si el fichero ya está abierto
+        if (mFile.isOpen())
+        {
+            // read lines from the file
+            while ((n = mFile.fgets(line, sizeof(line))) > 0) 
+            {
+
+                // remove '\n'
+                line[n-1] = 0;
+                String strRes = "";
+
+                strRes = line;
+                logln("[" + String(i) + "]" + strRes);
+
+                if (i<=maxParameters)
+                {
+                    cfgData[i].cfgLine = strRes;
+                    cfgData[i].enable = true;
+                }
+                else
+                {
+                    log("Out of space for cfg parameters. Max. " + String(maxParameters));
+                }
+
+                i++;
+
+            }
+        }
+
+        return cfgData;
     }
 
     // String getFileName(File32 f)

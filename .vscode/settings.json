@@ -10,6 +10,17 @@
         "*.tcc": "cpp",
         "cmath": "cpp",
         "functional": "cpp",
-        "exception": "cpp"
+        "exception": "cpp",
+        "optional": "cpp",
+        "istream": "cpp",
+        "ratio": "cpp",
+        "system_error": "cpp",
+        "regex": "cpp",
+        "tuple": "cpp",
+        "type_traits": "cpp",
+        "variant": "cpp",
+        "sstream": "cpp",
+        "random": "cpp",
+        "fstream": "cpp"
     }
 }

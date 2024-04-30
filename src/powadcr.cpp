@@ -86,6 +86,7 @@
 #define AI_THINKER_ES8388_VOLUME_HACK 1
 
 #include <Arduino.h>
+#include <iostream>
 
 #include "config.h"
 
@@ -168,11 +169,144 @@ bool pageScreenIsShown = false;
 #include <WiFi.h>
 #include <WiFiClient.h>
 #include <WebServer.h>
+
 WebServer server(80);
+
+#include <ESPAsyncWebServer.h>
+AsyncWebServer fserver(81);
 
 #include <ElegantOTA.h>
 // -----------------------------------------------------------------------
 
+#include "powaFileServer.h"
+powaFileServer fileServer(&fserver,sdf);
+
+int* strToIPAddress(String strIPAddr)
+{
+    int* ipnum = new int[4];
+    int wc = 0;
+
+    // Parto la cadena en los distintos numeros que componen la IP
+    while (strIPAddr.length() > 0)
+    {
+      int index = strIPAddr.indexOf('.');
+      // Si no se encuentran mas puntos es que es
+      // el ultimo digito.
+      if (index == -1)
+      {
+        ipnum[wc] = strIPAddr.toInt();
+        return ipnum;
+      }
+      else
+      {
+        // Tomo el dato y lo paso a INT
+        ipnum[wc] = (strIPAddr.substring(0, index)).toInt();
+        // Elimino la parte ya leida
+        strIPAddr = strIPAddr.substring(index+1);
+        wc++;
+      }
+    }
+}  
+void loadWifiCfgFile()
+{
+   
+  if(sdf.exists("/wifi.cfg"))
+  {
+    logln("File wifi.cfg exists");
+
+    File32 fWifi = sdm.openFile32("/wifi.cfg"); 
+    int* IP;
+
+    if(fWifi.isOpen())
+    {
+        HOSTNAME = new char[32];
+        ssid = new char[64];
+        password = new char[64];
+
+        char* ip1 = new char[17];
+
+        CFGWIFI = sdm.readAllParamCfg(fWifi,9);
+
+        // WiFi settings
+        // Hostname
+        strcpy(HOSTNAME, (sdm.getValueOfParam(CFGWIFI[0].cfgLine,"hostname")).c_str());
+        log(HOSTNAME);
+        // SSID - Wifi
+        strcpy(ssid, (sdm.getValueOfParam(CFGWIFI[1].cfgLine,"ssid")).c_str());
+        log(ssid);
+        // Password - WiFi
+        strcpy(password, (sdm.getValueOfParam(CFGWIFI[2].cfgLine,"password")).c_str());
+        log(password);
+
+        //Local IP
+        strcpy(ip1, (sdm.getValueOfParam(CFGWIFI[3].cfgLine,"IP")).c_str());
+        logln("ip1: " + String(ip1));
+        IP = strToIPAddress(String(ip1));
+        local_IP = IPAddress(IP[0],IP[1],IP[2],IP[3]);
+        
+        // Subnet
+        strcpy(ip1, (sdm.getValueOfParam(CFGWIFI[4].cfgLine,"SN")).c_str());
+        IP = strToIPAddress(String(ip1));
+        subnet = IPAddress(IP[0],IP[1],IP[2],IP[3]);
+        
+        // gateway
+        strcpy(ip1, (sdm.getValueOfParam(CFGWIFI[5].cfgLine,"GW")).c_str());
+        IP = strToIPAddress(String(ip1));
+        gateway = IPAddress(IP[0],IP[1],IP[2],IP[3]);
+        
+        // DNS1
+        strcpy(ip1, (sdm.getValueOfParam(CFGWIFI[6].cfgLine,"DNS1")).c_str());
+        IP = strToIPAddress(String(ip1));
+        primaryDNS = IPAddress(IP[0],IP[1],IP[2],IP[3]);
+        
+        // DNS2
+        strcpy(ip1, (sdm.getValueOfParam(CFGWIFI[7].cfgLine,"DNS2")).c_str());
+        IP = strToIPAddress(String(ip1));
+        secondaryDNS = IPAddress(IP[0],IP[1],IP[2],IP[3]);
+
+        logln("Open config. WiFi-success");
+        fWifi.close();
+    }
+  }
+  else
+  {
+    // Si no existe lo creo.
+    File32 fWifi;
+    fWifi.open("/wifi.cfg", O_WRITE | O_CREAT);
+
+    if (fWifi.isOpen())
+    {
+
+      fWifi.println("<hostname>powaDCR</hostname>");
+      fWifi.println("<ssid></ssid>");
+      fWifi.println("<password></password>");
+      fWifi.println("<IP>192.168.1.10</IP>");
+      fWifi.println("<SN>255.255.255.0</SN>");
+      fWifi.println("<GW>192.168.1.1</GW>");
+      fWifi.println("<DNS1>192.168.1.1</DNS1>");
+      fWifi.println("<DNS2>192.168.1.1</DNS1>");
+
+      logln("wifi.cfg new file created");
+
+      fWifi.close();
+    }
+  }
+
+
+  
+}
+void loadHMICfgFile()
+{
+  File32 fHMI = sdm.openFile32("/hmi.cfg");
+  
+  //Leemos ahora toda la configuración
+  if(fHMI)
+  {
+      CFGHMI = sdm.readAllParamCfg(fHMI,20);
+      log("Open config. HMI-success");
+  }
+  fHMI.close();
+}
 void proccesingTAP(char* file_ch)
 {    
     //pTAP.set_SdFat32(sdf);
@@ -735,20 +869,24 @@ void wifiOTASetup()
   if (!WiFi.config(local_IP, gateway, subnet, primaryDNS, secondaryDNS))
   {
       hmi.writeString("statusLCD.txt=\"WiFi-STA setting failed!\"" );
-      delay(5000);
+      delay(10000);
       ESP.restart();      
   }
 
   while (WiFi.waitForConnectResult() != WL_CONNECTED) 
   {
     hmi.writeString("statusLCD.txt=\"WiFi Connection failed!\"" );
-    delay(5000);
+    delay(10000);
     ESP.restart();
   }  
 
-  server.on("/", []() {
+  File32 sFile = sdm.openFile32("/html/index.html");
+
+  server.on("/", HTTP_GET,[]()
+  {
     server.send(200, "text/plain", "powaDCR OTA Server. Powered by Elegant OTA");
   });
+
 
   ElegantOTA.begin(&server);    // Start ElegantOTA
   // ElegantOTA callbacks
@@ -1430,9 +1568,9 @@ void setup()
     sendStatus(RESET, 1);
     delay(750);
 
-    hmi.writeString("statusLCD.txt=\"POWADCR " + String(VERSION) + "\"" );
-    
+    hmi.writeString("statusLCD.txt=\"POWADCR " + String(VERSION) + "\"" );   
     delay(1250);
+
 
     //SerialHW.println("Setting Audiokit.");
 
@@ -1482,6 +1620,8 @@ void setup()
     // ------------------------------------------------------
     //
     //
+    // **********************************
+    loadWifiCfgFile();
     wifiOTASetup();
     //
     //

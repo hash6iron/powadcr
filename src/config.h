@@ -35,7 +35,7 @@
 //
 // 0 for ZX Spectrum
 
-#define VERSION "v0.270424.3"
+#define VERSION "v0.300424.1"
 #define MACHINE_ZX
 
 // Define sampling rate a 44.1KHz. En otro caso será a 32KHz
@@ -110,16 +110,31 @@ bool TEST_LINE_IN_OUT = false;
 // OTA setting
 //
 // -------------------------------
-const char* HOSTNAME = "powaDCR";
-const char* ssid = "cantam_lowi";
-const char* password = "antonioTHEBEST";
+// Dejar todo esto tal como está. La configuración se hace en el fichero wifi.cfg
+//
+// Los parámetros a incluir serán estos a continuación y en ese orden:
+//
+// Ejemplo:
+//
+// <hostname>powaDCR</hostname>
+// <ssid>miAPWiFi</ssid>
+// <password>miPasswordDelAp</password>
+// <IP>192.168.2.28</IP>
+// <SN>255.255.255.0</SN>
+// <GW>192.168.2.1</GW>
+// <DNS1>192.168.2.1</DNS1>
+// <DNS2>192.168.2.1</DNS2>
+
+char* HOSTNAME = "";
+char* ssid = "";
+char* password = "";
 
 // Static IP - 2.4GHz WiFi AP
-const IPAddress local_IP(192, 168, 2, 33); // Your Desired Static IP Address
-const IPAddress subnet(255, 255, 255, 0);
-const IPAddress gateway(192, 168, 2, 1);
-const IPAddress primaryDNS(192, 168, 2, 1); // Not Mandatory
-const IPAddress secondaryDNS(192, 168, 2, 1);     // Not Mandatory
+IPAddress local_IP(0, 0, 0, 0); // Your Desired Static IP Address
+IPAddress subnet(0, 0, 0, 0);
+IPAddress gateway(0, 0, 0, 0);
+IPAddress primaryDNS(0, 0, 0, 0); // Not Mandatory
+IPAddress secondaryDNS(0, 0, 0, 0);     // Not Mandatory
 
 
 
