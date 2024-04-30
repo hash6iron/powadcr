@@ -856,6 +856,8 @@ void onOTAEnd(bool success)
 }
 void wifiOTASetup()
 {
+  bool failed = false;
+
   WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, password);
   
@@ -869,43 +871,53 @@ void wifiOTASetup()
   if (!WiFi.config(local_IP, gateway, subnet, primaryDNS, secondaryDNS))
   {
       hmi.writeString("statusLCD.txt=\"WiFi-STA setting failed!\"" );
-      delay(10000);
-      ESP.restart();      
+      failed = true;
+      // delay(10000);
+      // ESP.restart();      
   }
 
   while (WiFi.waitForConnectResult() != WL_CONNECTED) 
   {
     hmi.writeString("statusLCD.txt=\"WiFi Connection failed!\"" );
-    delay(10000);
-    ESP.restart();
+    failed = true;
+    // delay(10000);
+    // ESP.restart();
   }  
 
-  File32 sFile = sdm.openFile32("/html/index.html");
-
-  server.on("/", HTTP_GET,[]()
+  if (!failed)
   {
-    server.send(200, "text/plain", "powaDCR OTA Server. Powered by Elegant OTA");
-  });
+      File32 sFile = sdm.openFile32("/html/index.html");
+
+      server.on("/", HTTP_GET,[]()
+      {
+        server.send(200, "text/plain", "powaDCR OTA Server. Powered by Elegant OTA");
+      });
 
 
-  ElegantOTA.begin(&server);    // Start ElegantOTA
-  // ElegantOTA callbacks
-  ElegantOTA.onStart(onOTAStart);
-  ElegantOTA.onProgress(onOTAProgress);
-  ElegantOTA.onEnd(onOTAEnd);
+      ElegantOTA.begin(&server);    // Start ElegantOTA
+      // ElegantOTA callbacks
+      ElegantOTA.onStart(onOTAStart);
+      ElegantOTA.onProgress(onOTAProgress);
+      ElegantOTA.onEnd(onOTAEnd);
 
-  server.begin();
+      server.begin();
 
-  hmi.writeString("statusLCD.txt=\"OTA Enabled\"");
-  delay(750);
+      hmi.writeString("statusLCD.txt=\"Wifi + OTA - Enabled\"");
+      delay(750);
 
-  hmi.writeString("statusLCD.txt=\"IP " + WiFi.localIP().toString() + "\""); 
+      hmi.writeString("statusLCD.txt=\"IP " + WiFi.localIP().toString() + "\""); 
 
-  // Enviamos información al menu
-  hmi.writeString("menu.wifissid.txt=\"" + String(ssid) + + "\"");
-  hmi.writeString("menu.wifipass.txt=\"" + String(password) + + "\"");
-  hmi.writeString("menu.wifiIP.txt=\"" + WiFi.localIP().toString() + "\"");
-  hmi.writeString("menu.wifiEn.val=1");
+      // Enviamos información al menu
+      hmi.writeString("menu.wifissid.txt=\"" + String(ssid) + + "\"");
+      hmi.writeString("menu.wifipass.txt=\"" + String(password) + + "\"");
+      hmi.writeString("menu.wifiIP.txt=\"" + WiFi.localIP().toString() + "\"");
+      hmi.writeString("menu.wifiEn.val=1");
+  }
+  else
+  {
+      hmi.writeString("statusLCD.txt=\"Wifi disabled\"");
+      delay(750);
+  }
 
   delay(1500);
 }
