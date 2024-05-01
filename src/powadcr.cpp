@@ -1556,6 +1556,7 @@ void tapeControl()
                 // wavfile.close();
 
                 // logln("Recording finish!");
+                LAST_MESSAGE = "Recording STOP.";
                 tapeState = 0;
                 REC = false;
                 STOP = true;
