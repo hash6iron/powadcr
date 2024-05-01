@@ -167,6 +167,10 @@ class HMI
                       {
                           // Es un fichero
                           sdm.file.getName(szName,254);
+                          
+                          //Pasamos todo a minusculas
+                          //strlwr(szName);
+
                           int8_t len = strlen(szName);
                           char* substr = strlwr(szName + (len - 4));    
 
@@ -202,6 +206,12 @@ class HMI
                               FILES_BUFF[j].path = String(szName);
                               j++;
                           } 
+                          else if (strstr(substr, ".wav")) 
+                          {
+                              FILES_BUFF[j].type = "WAV";
+                              FILES_BUFF[j].path = String(szName);
+                              j++;
+                          }                          
                           else
                           {
                               // No se guarda
@@ -1496,6 +1506,28 @@ class HMI
               SAMPLING_RATE = 22050;
           }
           log("Sampling rate =" + String(SAMPLING_RATE));
+        }
+
+        // Habilitar recording sobre WAV file
+        if (strCmd.indexOf("WAV=") != -1) 
+        {
+          //Cogemos el valor
+          uint8_t buff[8];
+          strCmd.getBytes(buff, 7);
+          int valEn = (int)buff[4];
+          //
+          if (valEn==1)
+          {
+              // Habilita terminadores
+              MODEWAV = true;
+          }
+          else
+          {
+              // Deshabilita terminadores
+              MODEWAV = false;
+          }
+
+          logln("Modo WAV =" + String(MODEWAV));
         }
 
         // Show data debug by serial console

@@ -111,6 +111,7 @@ EasyNex myNex(SerialHW);
 #include "SdFat.h"
 #include "globales.h"
 
+// Para WAV recording
 #include "AudioKitHAL.h"
 AudioKit ESP32kit;
 
@@ -181,6 +182,12 @@ AsyncWebServer fserver(81);
 #include "powaFileServer.h"
 powaFileServer fileServer(&fserver,sdf);
 
+#include "AudioTools.h"
+#include "AudioLibs/AudioKit.h"
+
+AudioKitStream kit;
+StreamCopy copier(kit, kit);  // copies data
+
 int* strToIPAddress(String strIPAddr)
 {
     int* ipnum = new int[4];
@@ -192,7 +199,7 @@ int* strToIPAddress(String strIPAddr)
       int index = strIPAddr.indexOf('.');
       // Si no se encuentran mas puntos es que es
       // el ultimo digito.
-      if (index == -1)
+      if(index == -1)
       {
         ipnum[wc] = strIPAddr.toInt();
         return ipnum;
@@ -206,6 +213,9 @@ int* strToIPAddress(String strIPAddr)
         wc++;
       }
     }
+
+    // Si no hay nada para devolver, envio un 0.
+    return 0;
 }  
 void loadWifiCfgFile()
 {
@@ -671,6 +681,66 @@ void setAudioInOut()
     //log("Error in volumen setting");
   }   
 }
+
+void setWavRecording(char* file_name)
+{
+    // AudioLogger::instance().begin(Serial, AudioLogger::Error);
+
+    // // Cleanup if necessary
+    // if (sdf.exists(file_name))
+    // {
+    //     sdf.remove(file_name);
+    // }  
+
+    // // open file for recording WAV
+    // wavfile = sdf.open(file_name, O_WRITE | O_CREAT);
+    // if (!wavfile)
+    // {
+    //     logln("file failed!");
+    //     delay(5000);
+    //     tapeState=0;
+    //     STOP=true;
+    //     REC=false;
+    //     return;
+    // }
+
+    // // Configure WAVEncoder
+    // auto cfg_WAVEncoder = WAVEncoder().defaultConfig();
+    // wavInfo.bits_per_sample = 16;
+    // wavInfo.sample_rate = 44100;
+    // wavInfo.channels = 2;
+    // WAVEncoder().begin(wavInfo);
+
+    // // setup input
+    // kitCfg = kitStrm.defaultConfig(TX_MODE);
+    // kitCfg.driver = AUDIO_CODEC_ES8388_DEFAULT_HANDLE;
+    // kitCfg.is_master = true;
+    // kitCfg.input_device = AUDIO_HAL_ADC_INPUT_LINE2;
+    // kitCfg.bits_per_sample = 16;
+    // kitCfg.sample_rate = 44100;
+    // kitCfg.channels = 2;
+    // kitCfg.sd_active = true;
+    // kitCfg.copyFrom(info);
+
+    // kitStrm.begin(kitCfg);
+    // logln("Setting i2C");
+    // logln("");
+    // delay(10000);
+
+    // // Inicializamos la salida del encoder
+    // AudioInfo out_info(44100,2,16);
+    // out.begin(out_info);
+    // // Inicializamos el copier
+    // copier.setCheckAvailableForWrite(false);
+    // copier.begin(wavfile, kitStrm);  
+    AudioLogger::instance().begin(Serial, AudioLogger::Warning);
+
+    auto cfg = kit.defaultConfig(RXTX_MODE);
+    cfg.input_device = AUDIO_HAL_ADC_INPUT_LINE2;
+    kit.begin(cfg);
+
+}
+
 void pauseRecording()
 {
     // Desconectamos la entrada para evitar interferencias
@@ -871,17 +941,13 @@ void wifiOTASetup()
   if (!WiFi.config(local_IP, gateway, subnet, primaryDNS, secondaryDNS))
   {
       hmi.writeString("statusLCD.txt=\"WiFi-STA setting failed!\"" );
-      failed = true;
-      // delay(10000);
-      // ESP.restart();      
+      failed = true;     
   }
 
   while (WiFi.waitForConnectResult() != WL_CONNECTED) 
   {
     hmi.writeString("statusLCD.txt=\"WiFi Connection failed!\"" );
     failed = true;
-    // delay(10000);
-    // ESP.restart();
   }  
 
   if (!failed)
@@ -1237,12 +1303,23 @@ void tapeControl()
         }    
         else if(REC)
         {
-          FFWIND = false;
-          RWIND = false;   
-                  
-          prepareRecording();
-          //log("REC. Waiting for guide tone");
-          tapeState = 200;
+          if (!MODEWAV)
+          {
+            // Modo .TAP
+            FFWIND = false;
+            RWIND = false;   
+                    
+            prepareRecording();
+            //log("REC. Waiting for guide tone");
+            tapeState = 200;
+          }
+          else
+          {
+            // Modo WAV
+            LAST_MESSAGE = "Recording to WAV file.";
+            setWavRecording("/REC/record.wav");
+            tapeState = 110;
+          }
         }
         else
         {
@@ -1463,6 +1540,30 @@ void tapeControl()
         {
           recordingFile();
           tapeState = 200;
+        }
+        break;
+
+      case 110:
+        // Modo WAV recording
+        if (STOP)
+        {
+            // if (wavfile) 
+            // {
+                // wavfile.flush();
+                // logln("File has ");
+                // logln(String(wavfile.size()));
+                // log(" bytes");
+                // wavfile.close();
+
+                // logln("Recording finish!");
+                tapeState = 0;
+                REC = false;
+                STOP = true;
+            // }        
+        }
+        else
+        {
+          copier.copy();  
         }
         break;
 
