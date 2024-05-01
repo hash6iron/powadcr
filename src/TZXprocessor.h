@@ -1038,52 +1038,53 @@ class TZXprocessor
         
         //Tamaño de los datos
         _myTZX.descriptor[currentBlock].lengthOfData = getNBYTE(mFile,currentOffset+1,4)-12;
-        SerialHW.println("");
-        SerialHW.println("Tamano datos: 0x" + String(_myTZX.descriptor[currentBlock].lengthOfData));
-        SerialHW.print(_myTZX.descriptor[currentBlock].lengthOfData,HEX);
-        SerialHW.println("");
+        _myTZX.descriptor[currentBlock].size=_myTZX.descriptor[currentBlock].lengthOfData;
+        //SerialHW.println("");
+        //SerialHW.println("Tamano datos: 0x" + String(_myTZX.descriptor[currentBlock].lengthOfData));
+        //SerialHW.print(_myTZX.descriptor[currentBlock].lengthOfData,HEX);
+        //SerialHW.println("");
         _myTZX.descriptor[currentBlock].offsetData=currentOffset+17;
 
         //Pausa despues del bloque
         _myTZX.descriptor[currentBlock].pauseAfterThisBlock = getWORD(mFile,currentOffset+5);
 
-        SerialHW.println("");
-        SerialHW.print("Pause after block: " + String(_myTZX.descriptor[currentBlock].pauseAfterThisBlock));
-        SerialHW.print(_myTZX.descriptor[currentBlock].pauseAfterThisBlock);
-        SerialHW.println("");
+        //SerialHW.println("");
+        //SerialHW.print("Pause after block: " + String(_myTZX.descriptor[currentBlock].pauseAfterThisBlock));
+        //SerialHW.print(_myTZX.descriptor[currentBlock].pauseAfterThisBlock);
+        //SerialHW.println("");
         
         // Timming de PULSE PILOT
         _myTZX.descriptor[currentBlock].timming.pilot_len = getWORD(mFile,currentOffset+7);
-        SerialHW.println("");
-        SerialHW.print(",PULSE PILOT=");
-        SerialHW.print(_myTZX.descriptor[currentBlock].timming.pilot_len);
+        //SerialHW.println("");
+        //SerialHW.print(",PULSE PILOT=");
+        //SerialHW.print(_myTZX.descriptor[currentBlock].timming.pilot_len);
         
         // Timming de PILOT TONE
         _myTZX.descriptor[currentBlock].timming.pilot_num_pulses = getWORD(mFile,currentOffset+9);
-        SerialHW.println("");
-        SerialHW.print(",PULSE TONE=");
-        SerialHW.print(_myTZX.descriptor[currentBlock].timming.pilot_num_pulses);
+        //SerialHW.println("");
+        //SerialHW.print(",PULSE TONE=");
+        //SerialHW.print(_myTZX.descriptor[currentBlock].timming.pilot_num_pulses);
 
         // Timming de ZERO
         _myTZX.descriptor[currentBlock].timming.bit_0 = getWORD(mFile,currentOffset+11);
-        SerialHW.println("");
-        SerialHW.print("PULSE ZERO=");
-        SerialHW.print(_myTZX.descriptor[currentBlock].timming.bit_0);
+        //SerialHW.println("");
+        //SerialHW.print("PULSE ZERO=");
+        //SerialHW.print(_myTZX.descriptor[currentBlock].timming.bit_0);
         
         // Timming de ONE
         _myTZX.descriptor[currentBlock].timming.bit_1 = getWORD(mFile,currentOffset+13);
-        SerialHW.println("");
-        SerialHW.print("PULSE ONE=");
-        SerialHW.print(_myTZX.descriptor[currentBlock].timming.bit_1);
+        //SerialHW.println("");
+        //SerialHW.print("PULSE ONE=");
+        //SerialHW.print(_myTZX.descriptor[currentBlock].timming.bit_1);
         
         // Configuracion de los bits
          _myTZX.descriptor[currentBlock].timming.bitcfg = getBYTE(mFile,currentOffset+15);
         int pzero;
         int pone;
         pzero=((_myTZX.descriptor[currentBlock].timming.bitcfg & 0b11110000)>>4);
-        SerialHW.println("PULSES FOR ZERO="+String(pzero));
+        //SerialHW.println("PULSES FOR ZERO="+String(pzero));
         pone=((_myTZX.descriptor[currentBlock].timming.bitcfg & 0b00001111));
-        SerialHW.println("PULSES FOR ONE="+String(pone));
+        //SerialHW.println("PULSES FOR ONE="+String(pone));
       
 
         //configuracion del byte
@@ -1092,21 +1093,21 @@ class TZXprocessor
         int ntb;
         int vtb;
         _myTZX.descriptor[currentBlock].timming.bytecfg = getBYTE(mFile,currentOffset+16);
-        SerialHW.println("");
+        //SerialHW.println("");
         nlb=((_myTZX.descriptor[currentBlock].timming.bytecfg & 0b11000000)>>6);
-        SerialHW.println(",NUMBERS OF LEADING BITS="+String(nlb));
-        SerialHW.println("");
+        //SerialHW.println(",NUMBERS OF LEADING BITS="+String(nlb));
+        //SerialHW.println("");
         vlb=((_myTZX.descriptor[currentBlock].timming.bytecfg & 0b00100000)>>5);    
-        SerialHW.print(",VALUE OF LEADING BITS="+String(vlb));
-        SerialHW.println("");
+        //SerialHW.print(",VALUE OF LEADING BITS="+String(vlb));
+        //SerialHW.println("");
         ntb=((_myTZX.descriptor[currentBlock].timming.bytecfg & 0b00011000)>>3);
-        SerialHW.println(",NUMBER OF TRAILING BITS="+String(ntb));
-        SerialHW.println("");
+        //SerialHW.println(",NUMBER OF TRAILING BITS="+String(ntb));
+        //SerialHW.println("");
         vtb=((_myTZX.descriptor[currentBlock].timming.bitcfg & 0b00000100)>>2);
-        SerialHW.println(",VALUE OF TRAILING BITS="+String(vtb));
-        SerialHW.println("");
-        SerialHW.print(",ENDIANNESS=");
-        SerialHW.print((_myTZX.descriptor[currentBlock].timming.bitcfg & 0b00000001));
+        //SerialHW.println(",VALUE OF TRAILING BITS="+String(vtb));
+        //SerialHW.println("");
+        //SerialHW.print(",ENDIANNESS=");
+        //SerialHW.print((_myTZX.descriptor[currentBlock].timming.bitcfg & 0b00000001));
         
 int ldatos;
 int pulsosmaximos;
@@ -1118,10 +1119,10 @@ vpulse[0]=(_myTZX.descriptor[currentBlock].timming.bit_0);
 vpulse[1]=(_myTZX.descriptor[currentBlock].timming.bit_1);
 ldatos=(_myTZX.descriptor[currentBlock].lengthOfData);
 pulsosmaximos=(_myTZX.descriptor[currentBlock].timming.pilot_num_pulses)+((npulses[vlb]*nlb)+128+(npulses[vtb]*ntb))*_myTZX.descriptor[currentBlock].lengthOfData;
-SerialHW.println("pulsos maximos:"+String(pulsosmaximos));
+//SerialHW.println("pulsos maximos:"+String(pulsosmaximos));
 // Reservamos memoria.
 _myTZX.descriptor[currentBlock].timming.pulse_seq_array = new int[pulsosmaximos];
-SerialHW.println("ldatos"+String(ldatos));
+//SerialHW.println("ldatos"+String(ldatos));
 // metemos el pilot
         int i;
         int p;
@@ -1144,9 +1145,9 @@ SerialHW.println("ldatos"+String(ldatos));
             { lenPulse=vpulse[vlb];
             _myTZX.descriptor[currentBlock].timming.pulse_seq_array[i]=lenPulse;
             
-            SerialHW.println("pos "+String(i)+"valor "+String(vlb)+"pulso "+String(lenPulse));
             i++;
             _myTZX.descriptor[currentBlock].timming.pulse_seq_array[i]=lenPulse;
+            
             i++;
             }
           }
@@ -1168,6 +1169,7 @@ SerialHW.println("ldatos"+String(ldatos));
                                  
                                 i++;
                                  _myTZX.descriptor[currentBlock].timming.pulse_seq_array[i]=vpulse[1];
+                                
                                 i++;
                               } 
                                  
@@ -1181,6 +1183,7 @@ SerialHW.println("ldatos"+String(ldatos));
                                  
                                 i++;
                                 _myTZX.descriptor[currentBlock].timming.pulse_seq_array[i]=vpulse[0];
+                                
                                 i++;
                                 }
                             }
@@ -1192,9 +1195,9 @@ SerialHW.println("ldatos"+String(ldatos));
             { lenPulse=vpulse[vtb];
             _myTZX.descriptor[currentBlock].timming.pulse_seq_array[i]=lenPulse;
             
-            SerialHW.println("pos "+String(i)+"valor "+String(vlb)+"pulso "+String(lenPulse));
             i++;
             _myTZX.descriptor[currentBlock].timming.pulse_seq_array[i]=lenPulse;
+            
             i++;
             }
 
@@ -1203,8 +1206,9 @@ SerialHW.println("ldatos"+String(ldatos));
         // Esto es para que tome los bloques como especiales
         _myTZX.descriptor[currentBlock].type = 99;
         _myTZX.descriptor[currentBlock].timming.pulse_seq_num_pulses=i;
-        SerialHW.println("datos: "+String(ldatos));
-        SerialHW.println("pulsos: "+String(i));
+        //SerialHW.println("datos: "+String(ldatos));
+        //SerialHW.println("pulsos: "+String(i));
+        
 
 
     }
@@ -1667,8 +1671,6 @@ SerialHW.println("ldatos"+String(ldatos));
           case 53:
             analyzeID53(mFile,currentOffset,currentBlock);
             nextIDoffset = currentOffset + 0x15 + _myTZX.descriptor[currentBlock].size;
-            SerialHW.print("next:0x");
-            SerialHW.println(nextIDoffset,HEX);
 
             //_myTZX.descriptor[currentBlock].typeName = "ID 35 - Custom info block";
             strncpy(_myTZX.descriptor[currentBlock].typeName,IDXXSTR,35);
@@ -1686,6 +1688,7 @@ SerialHW.println("ldatos"+String(ldatos));
                 // Obtenemos la dirección del siguiente offset
                 analyzeID75(mFile,currentOffset, currentBlock);
                 nextIDoffset = currentOffset + _myTZX.descriptor[currentBlock].size + 17;
+                //SerialHW.println("nextIDoffset"+String(nextIDoffset));
                 strncpy(_myTZX.descriptor[currentBlock].typeName,ID4BSTR,35);
             }   
             else
@@ -1755,17 +1758,8 @@ SerialHW.println("ldatos"+String(ldatos));
               currentID = getID(mFile, currentOffset);
               
              
-                SerialHW.println("");
-                SerialHW.println("-----------------------------------------------");
-                SerialHW.print("TZX ID: 0x");
-                SerialHW.print(currentID, HEX);
-                SerialHW.println("");
-                SerialHW.println("block: " + String(currentBlock));
-                SerialHW.println("");
-                SerialHW.print("offset: 0x");
-                SerialHW.print(currentOffset, HEX);
-                SerialHW.println("");
-              
+                
+
               // Por defecto el bloque no es reproducible
               _myTZX.descriptor[currentBlock].playeable	= false;
 
@@ -1783,10 +1777,18 @@ SerialHW.println("ldatos"+String(ldatos));
                 endWithErrors = true;
               }
 
-                //SerialHW.println("");
-                //SerialHW.print("Next ID offset: 0x");
-                //SerialHW.print(nextIDoffset, HEX);
-                //SerialHW.println("");
+                SerialHW.println("");
+                SerialHW.println("-----------------------------------------------");
+                SerialHW.print("TZX ID: 0x");
+                SerialHW.print(currentID, HEX);
+                SerialHW.println("");
+                SerialHW.println("block: " + String(currentBlock));
+                SerialHW.println("");
+                SerialHW.print("offset: 0x");
+                SerialHW.print(currentOffset, HEX);
+                SerialHW.println("");
+                SerialHW.print("next offset 0x");
+                SerialHW.println(nextIDoffset,HEX);
 
                 if(currentBlock > maxAllocationBlocks)
                 {
@@ -1801,7 +1803,6 @@ SerialHW.println("ldatos"+String(ldatos));
                 }
                 else
                 {}
-
                 if (nextIDoffset >= sizeTZX)
                 {
                     // Finalizamos
@@ -2110,13 +2111,6 @@ SerialHW.println("ldatos"+String(ldatos));
 
     void playBlock(tTZXBlockDescriptor descriptor)
     {
-        SerialHW.println("");
-        SerialHW.println("");
-        SerialHW.println("");
-        SerialHW.println("Pulse len: " + String(descriptor.timming.pilot_len));
-        SerialHW.println("Pulse nums: " + String(descriptor.timming.pilot_num_pulses));
-        SerialHW.println("");
-        SerialHW.println("");
 
         uint8_t* bufferPlay = nullptr;
 
@@ -2197,10 +2191,6 @@ SerialHW.println("ldatos"+String(ldatos));
         {
             // Si es mas pequeño que el SPLIT, se reproduce completo.
             bufferPlay = sdm.readFileRange32(_mFile, descriptor.offsetData, descriptor.size, true);
-            SerialHW.println("");
-            SerialHW.println(descriptor.offsetData);
-            SerialHW.println(descriptor.size);
-            SerialHW.println("");
             showBufferPlay(bufferPlay,descriptor.size,descriptor.offsetData);
             verifyChecksum(_mFile,descriptor.offsetData,descriptor.size);    
 
