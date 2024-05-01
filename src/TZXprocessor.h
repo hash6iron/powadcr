@@ -93,6 +93,7 @@ class TZXprocessor
     const char ID12STR[35] = "ID 12 - Pure tone                 ";
     const char ID13STR[35] = "ID 13 - Pulse seq.                ";
     const char ID14STR[35] = "ID 14 - Pure data                 ";
+    const char ID4BSTR[35] = "ID 4B - MSX                       ";
     const char IDXXSTR[35] = "ID                                ";
 
     const int maxAllocationBlocks = 4000;
@@ -1011,7 +1012,64 @@ class TZXprocessor
         // offset[ID] + tamaño_bloque
         _myTZX.descriptor[currentBlock].size = sizeTextInformation;
     }
+   void analyzeID53(File32 mFile, int currentOffset, int currentBlock)
+    {
+        _myTZX.descriptor[currentBlock].ID = 53;
+        _myTZX.descriptor[currentBlock].playeable = false;
+        // Size block
+        int sizeBlock = 0;
+        sizeBlock = getDWORD(mFile,currentOffset+0x10+1);
+        _myTZX.descriptor[currentBlock].size = sizeBlock;
+        _myTZX.descriptor[currentBlock].offset = currentOffset+0x14;
+        SerialHW.print("Tamaño: 0x");
+        SerialHW.println(sizeBlock,HEX);
+    }
 
+
+    void analyzeID75(File32 mFile, int currentOffset, int currentBlock)
+    {
+        _myTZX.descriptor[currentBlock].ID = 75;
+        _myTZX.descriptor[currentBlock].playeable = true;
+        _myTZX.descriptor[currentBlock].offset = currentOffset;
+        int sizeTextInformation = 0;
+
+
+        // Entonces
+        
+        //Longitud del bloque
+        sizeTextInformation = getBYTE(mFile,currentOffset+1);
+        _myTZX.descriptor[currentBlock].size = sizeTextInformation+5;
+        #ifdef DEBUGMODE
+          SerialHW.println("");
+          SerialHW.println(",LONGITUD BLOQUE=");
+          SerialHW.println(_myTZX.descriptor[currentBlock].size, HEX);
+        #endif
+
+        // Timming de PULSE PILOT
+        _myTZX.descriptor[currentBlock].timming.pilot_len = getDWORD(mFile,currentOffset+7);
+        SerialHW.println("");
+        SerialHW.print(",PULSE PILOT=");
+        SerialHW.print(_myTZX.descriptor[currentBlock].timming.pilot_len, HEX);
+        
+        // Timming de PILOT TONE
+        _myTZX.descriptor[currentBlock].timming.pilot_num_pulses = getDWORD(mFile,currentOffset+9);
+        SerialHW.println("");
+        SerialHW.print(",PULSE TONE=");
+        SerialHW.print(_myTZX.descriptor[currentBlock].timming.pilot_num_pulses, HEX);
+        sizeTextInformation = getBYTE(mFile,currentOffset+1);
+        
+        
+        _myTZX.descriptor[currentBlock].pauseAfterThisBlock = getDWORD(mFile,currentOffset+14);
+
+        ////SerialHW.println("");
+        ////SerialHW.print("Pause after block: " + String(_myTZX.descriptor[currentBlock].pauseAfterThisBlock)+ " - 0x");
+        ////SerialHW.print(_myTZX.descriptor[currentBlock].pauseAfterThisBlock,HEX);
+        ////SerialHW.println("");
+        // Obtenemos el "tamaño de los datos"
+        // BYTE 0x02 y 0x03
+        _myTZX.descriptor[currentBlock].lengthOfData = getNBYTE(mFile,currentOffset+16,3);
+
+    }
     void analyzeBlockUnknow(int id_num, int currentOffset, int currentBlock)
     {
         _myTZX.descriptor[currentBlock].ID = id_num;
@@ -1468,8 +1526,10 @@ class TZXprocessor
 
           // ID 35 - Custom info block
           case 53:
-            analyzeBlockUnknow(currentID,currentOffset, currentBlock);
-            nextIDoffset = currentOffset + 1;            
+            analyzeID53(mFile,currentOffset,currentBlock);
+            nextIDoffset = currentOffset + 0x15 + _myTZX.descriptor[currentBlock].size;
+            SerialHW.print("next:0x");
+            SerialHW.println(nextIDoffset,HEX);
 
             //_myTZX.descriptor[currentBlock].typeName = "ID 35 - Custom info block";
             strncpy(_myTZX.descriptor[currentBlock].typeName,IDXXSTR,35);
@@ -1478,6 +1538,25 @@ class TZXprocessor
             _myTZX.descriptor[currentBlock].jump_this_ID = true;
 
             break;
+
+          // ID 4B - Standard Speed Data Block
+          case 75:
+
+            if (_myTZX.descriptor != nullptr)
+            {
+                // Obtenemos la dirección del siguiente offset
+                analyzeID75(mFile,currentOffset, currentBlock);
+                nextIDoffset = currentOffset + _myTZX.descriptor[currentBlock].size + 17;
+                strncpy(_myTZX.descriptor[currentBlock].typeName,ID4BSTR,35);                  
+            }
+            else
+            {
+                ////SerialHW.println("");
+                ////SerialHW.println("Error: Not allocation memory for block ID 0x4B");
+                res = false;
+            }
+            break;
+          
 
           // ID 5A - "Glue" block (90 dec, ASCII Letter 'Z')
           case 90:
