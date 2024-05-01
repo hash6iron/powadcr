@@ -278,7 +278,7 @@ class TZXprocessor
 
     }
 
-    int getDWORD(File32 mFile, int offset)
+    int getWORD(File32 mFile, int offset)
     {
         int sizeDW = 0;
         uint8_t* ptr1 = sdm.readFileRange32(mFile,offset+1,1,false);
@@ -411,13 +411,13 @@ class TZXprocessor
 
         // Obtenemos el "pause despues del bloque"
         // BYTE 0x00 y 0x01
-        _myTZX.descriptor[currentBlock].pauseAfterThisBlock = getDWORD(mFile,currentOffset+1);
+        _myTZX.descriptor[currentBlock].pauseAfterThisBlock = getWORD(mFile,currentOffset+1);
 
         // ////SerialHW.println("");
         // ////SerialHW.println("Pause after block: " + String(_myTZX.descriptor[currentBlock].pauseAfterThisBlock));
         // Obtenemos el "tamaño de los datos"
         // BYTE 0x02 y 0x03
-        _myTZX.descriptor[currentBlock].lengthOfData = getDWORD(mFile,currentOffset+3);
+        _myTZX.descriptor[currentBlock].lengthOfData = getWORD(mFile,currentOffset+3);
 
         // ////SerialHW.println("");
         // ////SerialHW.println("Length of data: ");
@@ -529,7 +529,7 @@ class TZXprocessor
         // La cabecera tiene 4 bytes de parametros y N bytes de datos
         // pero para saber el total de bytes de datos hay que analizar el TAP
         // int positionOfTAPblock = currentOffset + 4;
-        // dataTAPsize = getDWORD(mFile,positionOfTAPblock + headerTAPsize + 1);
+        // dataTAPsize = getWORD(mFile,positionOfTAPblock + headerTAPsize + 1);
         
         // NOTA: Sumamos 2 bytes que son la DWORD que indica el dataTAPsize
         _myTZX.descriptor[currentBlock].size = _myTZX.descriptor[currentBlock].lengthOfData; 
@@ -551,42 +551,42 @@ class TZXprocessor
 
         // Entonces
         // Timming de PULSE PILOT
-        _myTZX.descriptor[currentBlock].timming.pilot_len = getDWORD(mFile,currentOffset+1);
+        _myTZX.descriptor[currentBlock].timming.pilot_len = getWORD(mFile,currentOffset+1);
 
         ////SerialHW.println("");
         ////SerialHW.print("PULSE PILOT=");
         ////SerialHW.print(_myTZX.descriptor[currentBlock].timming.pulse_pilot, HEX);
 
         // Timming de SYNC_1
-        _myTZX.descriptor[currentBlock].timming.sync_1 = getDWORD(mFile,currentOffset+3);
+        _myTZX.descriptor[currentBlock].timming.sync_1 = getWORD(mFile,currentOffset+3);
 
           //////SerialHW.println("");
           ////SerialHW.print(",SYNC1=");
           ////SerialHW.print(_myTZX.descriptor[currentBlock].timming.sync_1, HEX);
 
         // Timming de SYNC_2
-        _myTZX.descriptor[currentBlock].timming.sync_2 = getDWORD(mFile,currentOffset+5);
+        _myTZX.descriptor[currentBlock].timming.sync_2 = getWORD(mFile,currentOffset+5);
 
           //////SerialHW.println("");
           ////SerialHW.print(",SYNC2=");
           ////SerialHW.print(_myTZX.descriptor[currentBlock].timming.sync_2, HEX);
 
         // Timming de BIT 0
-        _myTZX.descriptor[currentBlock].timming.bit_0 = getDWORD(mFile,currentOffset+7);
+        _myTZX.descriptor[currentBlock].timming.bit_0 = getWORD(mFile,currentOffset+7);
 
           //////SerialHW.println("");
           ////SerialHW.print(",BIT_0=");
           ////SerialHW.print(_myTZX.descriptor[currentBlock].timming.bit_0, HEX);
 
         // Timming de BIT 1
-        _myTZX.descriptor[currentBlock].timming.bit_1 = getDWORD(mFile,currentOffset+9);        
+        _myTZX.descriptor[currentBlock].timming.bit_1 = getWORD(mFile,currentOffset+9);        
 
           //////SerialHW.println("");
           ////SerialHW.print(",BIT_1=");
           ////SerialHW.print(_myTZX.descriptor[currentBlock].timming.bit_1, HEX);
 
         // Timming de PILOT TONE
-        _myTZX.descriptor[currentBlock].timming.pilot_num_pulses = getDWORD(mFile,currentOffset+11);
+        _myTZX.descriptor[currentBlock].timming.pilot_num_pulses = getWORD(mFile,currentOffset+11);
 
           //////SerialHW.println("");
           ////SerialHW.print(",PILOT TONE=");
@@ -615,7 +615,7 @@ class TZXprocessor
 
         // Obtenemos el "pause despues del bloque"
         // BYTE 0x00 y 0x01
-        _myTZX.descriptor[currentBlock].pauseAfterThisBlock = getDWORD(mFile,currentOffset+14);
+        _myTZX.descriptor[currentBlock].pauseAfterThisBlock = getWORD(mFile,currentOffset+14);
 
         ////SerialHW.println("");
         ////SerialHW.print("Pause after block: " + String(_myTZX.descriptor[currentBlock].pauseAfterThisBlock)+ " - 0x");
@@ -696,7 +696,7 @@ class TZXprocessor
         // La cabecera tiene 4 bytes de parametros y N bytes de datos
         // pero para saber el total de bytes de datos hay que analizar el TAP
         // int positionOfTAPblock = currentOffset + 4;
-        // dataTAPsize = getDWORD(mFile,positionOfTAPblock + headerTAPsize + 1);
+        // dataTAPsize = getWORD(mFile,positionOfTAPblock + headerTAPsize + 1);
         
         // NOTA: Sumamos 2 bytes que son la DWORD que indica el dataTAPsize
         _myTZX.descriptor[currentBlock].size = _myTZX.descriptor[currentBlock].lengthOfData; 
@@ -710,8 +710,8 @@ class TZXprocessor
         _myTZX.descriptor[currentBlock].playeable = true;
         //_myTZX.descriptor[currentBlock].forSetting = true;
         _myTZX.descriptor[currentBlock].offset = currentOffset; 
-        _myTZX.descriptor[currentBlock].timming.pure_tone_len = getDWORD(mFile,currentOffset+1);
-        _myTZX.descriptor[currentBlock].timming.pure_tone_num_pulses = getDWORD(mFile,currentOffset+3); 
+        _myTZX.descriptor[currentBlock].timming.pure_tone_len = getWORD(mFile,currentOffset+1);
+        _myTZX.descriptor[currentBlock].timming.pure_tone_num_pulses = getWORD(mFile,currentOffset+3); 
 
         #ifdef DEBUGMODE
             SerialHW.println("");
@@ -753,7 +753,7 @@ class TZXprocessor
 
         for (int i=0;i<num_pulses;i++)
         {
-          int lenPulse = getDWORD(mFile,coff);
+          int lenPulse = getWORD(mFile,coff);
           _myTZX.descriptor[currentBlock].timming.pulse_seq_array[i]=lenPulse;
 
         #ifdef DEBUGMODE
@@ -792,14 +792,14 @@ class TZXprocessor
         _myTZX.descriptor[currentBlock].timming.sync_2 = DSYNC2;
 
         // Timming de BIT 0
-        _myTZX.descriptor[currentBlock].timming.bit_0 = getDWORD(mFile,currentOffset+1);
+        _myTZX.descriptor[currentBlock].timming.bit_0 = getWORD(mFile,currentOffset+1);
 
           //////SerialHW.println("");
           // //SerialHW.print(",BIT_0=");
           // //SerialHW.print(_myTZX.descriptor[currentBlock].timming.bit_0, HEX);
 
         // Timming de BIT 1
-        _myTZX.descriptor[currentBlock].timming.bit_1 = getDWORD(mFile,currentOffset+3);        
+        _myTZX.descriptor[currentBlock].timming.bit_1 = getWORD(mFile,currentOffset+3);        
 
           //////SerialHW.println("");
           // //SerialHW.print(",BIT_1=");
@@ -829,7 +829,7 @@ class TZXprocessor
 
         // Obtenemos el "pause despues del bloque"
         // BYTE 0x00 y 0x01
-        _myTZX.descriptor[currentBlock].pauseAfterThisBlock = getDWORD(mFile,currentOffset+6);
+        _myTZX.descriptor[currentBlock].pauseAfterThisBlock = getWORD(mFile,currentOffset+6);
 
         // //SerialHW.println("");
         // //SerialHW.print("Pause after block: " + String(_myTZX.descriptor[currentBlock].pauseAfterThisBlock)+ " - 0x");
@@ -867,7 +867,7 @@ class TZXprocessor
         // La cabecera tiene 4 bytes de parametros y N bytes de datos
         // pero para saber el total de bytes de datos hay que analizar el TAP
         // int positionOfTAPblock = currentOffset + 4;
-        // dataTAPsize = getDWORD(mFile,positionOfTAPblock + headerTAPsize + 1);
+        // dataTAPsize = getWORD(mFile,positionOfTAPblock + headerTAPsize + 1);
         
         // NOTA: Sumamos 2 bytes que son la DWORD que indica el dataTAPsize
         _myTZX.descriptor[currentBlock].size = _myTZX.descriptor[currentBlock].lengthOfData;        
@@ -882,7 +882,7 @@ class TZXprocessor
         _myTZX.descriptor[currentBlock].offset = currentOffset;    
 
         // Obtenemos el valor de la pausa
-        _myTZX.descriptor[currentBlock].pauseAfterThisBlock = getDWORD(mFile,currentOffset+1);          
+        _myTZX.descriptor[currentBlock].pauseAfterThisBlock = getWORD(mFile,currentOffset+1);          
     }
 
     void analyzeID40(File32 mFile, int currentOffset, int currentBlock)
@@ -896,7 +896,7 @@ class TZXprocessor
         _myTZX.descriptor[currentBlock].playeable = false;
         _myTZX.descriptor[currentBlock].offset = currentOffset + 2;
 
-        sizeBlock = getDWORD(mFile,currentOffset+1);
+        sizeBlock = getWORD(mFile,currentOffset+1);
         numSelections = getBYTE(mFile,currentOffset+3);
 
         _myTZX.descriptor[currentBlock].size = sizeBlock+2;
@@ -954,7 +954,7 @@ class TZXprocessor
         // el tamaño total
         _myTZX.descriptor[currentBlock].offset = currentOffset+3;
 
-        sizeBlock = getDWORD(mFile,currentOffset+1);
+        sizeBlock = getWORD(mFile,currentOffset+1);
 
         //////SerialHW.println("");
         //////SerialHW.println("ID48 - TextSize: " + String(sizeTextInformation));
@@ -1253,7 +1253,7 @@ class TZXprocessor
                 _myTZX.descriptor[currentBlock].ID = 36;
                 _myTZX.descriptor[currentBlock].playeable = false;
                 _myTZX.descriptor[currentBlock].offset = currentOffset;
-                _myTZX.descriptor[currentBlock].loop_count = getDWORD(mFile,currentOffset+1);
+                _myTZX.descriptor[currentBlock].loop_count = getWORD(mFile,currentOffset+1);
 
                 #ifdef DEBUGMODE
                     log("LOOP GET: " + String(_myTZX.descriptor[currentBlock].loop_count));
