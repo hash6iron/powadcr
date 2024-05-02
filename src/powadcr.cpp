@@ -133,6 +133,7 @@ ZXProcessor zxp;
 // Procesadores de cinta
 #include "TZXprocessor.h"
 #include "TAPprocessor.h"
+#include "TSXprocessor.h"
 
 //#include "test.h"
 
@@ -145,6 +146,7 @@ File32 sdFile32;
 // Creamos los distintos objetos
 TZXprocessor pTZX(ESP32kit);
 TAPprocessor pTAP(ESP32kit);
+TSXprocessor pTSX(ESP32kit);
 
 // Procesador de audio input
 #include "TAPrecorder.h"
@@ -154,6 +156,8 @@ TAPrecorder taprec;
 TAPprocessor::tTAP myTAP;
 // Procesador de TZX
 TZXprocessor::tTZX myTZX;
+// Procesador de TSX
+TSXprocessor::tTSX myTSX;
 
 bool last_headPhoneDetection = false;
 uint8_t tapeState = 0;
@@ -358,6 +362,29 @@ void proccesingTZX(char* file_ch)
     pTZX.initialize();
 
     pTZX.getInfoFileTZX(file_ch);
+
+    if (ABORT)
+    {
+      LAST_MESSAGE = "Aborting proccess.";
+      //
+      FILE_PREPARED = false;      
+      ABORT=false;
+    }
+    else
+    {
+      LAST_MESSAGE = "Press PLAY to enjoy!";
+      //
+      FILE_PREPARED = true;
+    }
+
+    FILE_NOTIFIED = true;  
+
+}
+void proccesingTSX(char* file_ch)
+{
+    pTSX.initialize();
+
+    pTSX.getInfoFileTSX(file_ch);
 
     if (ABORT)
     {
@@ -1048,6 +1075,13 @@ void playingFile()
       //Paramos la animación
       hmi.writeString("tape2.tmAnimation.en=0"); 
   }
+  else if (TYPE_FILE_LOAD = "TSX")
+  {
+      //hmi.getMemFree();
+      pTSX.play();
+      //Paramos la animación
+      hmi.writeString("tape2.tmAnimation.en=0"); 
+  }  
 }
 bool loadingFile()
 {
@@ -1089,12 +1123,14 @@ bool loadingFile()
     }
     else if (FILE_TO_LOAD.indexOf(".TSX") != -1)
     {
-        // PROGRESS_BAR_REFRESH = 256;
-        // PROGRESS_BAR_REFRESH_2 = 32;
+        // Reservamos memoria
+        myTSX.descriptor = (TSXprocessor::tTSXBlockDescriptor*)ps_malloc(MAX_BLOCKS_IN_TZX * sizeof(struct TSXprocessor::tTSXBlockDescriptor));        
+        // Pasamos el control a la clase
+        pTSX.setTSX(myTSX);
 
-        // Lo procesamos. Para MSX
-        proccesingTZX(file_ch);
-        TYPE_FILE_LOAD = "TSX";             
+        // Lo procesamos. Para ZX Spectrum
+        proccesingTSX(file_ch);
+        TYPE_FILE_LOAD = "TSX";            
     }   
   }
   else
@@ -1151,6 +1187,14 @@ void ejectingFile()
       // Finalizamos
       pTZX.terminate();
   }  
+  else if (TYPE_FILE_LOAD = "TSX")
+  {
+      // Solicitamos el puntero _myTSX de la clase
+      // para liberarlo
+      free(pTSX.getDescriptor());
+      // Finalizamos
+      pTSX.terminate();
+  }    
 }
 void prepareRecording()
 {
@@ -1364,7 +1408,11 @@ void tapeControl()
           else if(TYPE_FILE_LOAD=="TZX")
           {
             hmi.setBasicFileInformation(myTZX.descriptor[BLOCK_SELECTED].name,myTZX.descriptor[BLOCK_SELECTED].typeName,myTZX.descriptor[BLOCK_SELECTED].size);
-          }        
+          }  
+          else if(TYPE_FILE_LOAD=="TSX")
+          {
+            hmi.setBasicFileInformation(myTSX.descriptor[BLOCK_SELECTED].name,myTSX.descriptor[BLOCK_SELECTED].typeName,myTSX.descriptor[BLOCK_SELECTED].size);
+          }                  
           //
           tapeState = 1;
           FFWIND = false;
@@ -1455,6 +1503,10 @@ void tapeControl()
           {
             hmi.setBasicFileInformation(myTZX.descriptor[BLOCK_SELECTED].name,myTZX.descriptor[BLOCK_SELECTED].typeName,myTZX.descriptor[BLOCK_SELECTED].size);
           }
+          else if(TYPE_FILE_LOAD=="TSX")
+          {
+            hmi.setBasicFileInformation(myTSX.descriptor[BLOCK_SELECTED].name,myTSX.descriptor[BLOCK_SELECTED].typeName,myTSX.descriptor[BLOCK_SELECTED].size);
+          }          
           //
           tapeState = 3;
           FFWIND = false;
@@ -1612,8 +1664,6 @@ void Task0code( void * pvParameters )
     {
 
         server.handleClient();
-        //ElegantOTA.loop();     
-
         hmi.readUART();
 
         // Control por botones
@@ -1754,16 +1804,17 @@ void setup()
     hmi.writeString("menuAudio.volLevelL.val=" + String(MAIN_VOL_L));
     hmi.writeString("menuAudio.volLevel.val=" + String(MAIN_VOL_R));
 
-    //
+    // Asignamos el HMI
     pTAP.set_HMI(hmi);
     pTZX.set_HMI(hmi);
-
+    pTSX.set_HMI(hmi);
+    //y el gestor de ficheros
     pTAP.set_SDM(sdm);
     pTZX.set_SDM(sdm);
+    pTSX.set_SDM(sdm);
 
     zxp.set_ESP32kit(ESP32kit);
-    //pTZX.setZXP_audio(ESP32kit);
-
+    
     // Si es test está activo. Lo lanzamos
     #ifdef TEST
       TEST_RUNNING = true;

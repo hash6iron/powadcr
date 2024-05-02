@@ -255,7 +255,8 @@ bool BLOCK_PLAYED = false;
 String TYPE_FILE_LOAD = "";
 char LAST_NAME[15];
 char LAST_TYPE[36];
-String LAST_TZX_GROUP = "";
+// Para TZX / TSX
+String LAST_GROUP = "";
 String LAST_MESSAGE = "";
 String PROGRAM_NAME = "";
 String PROGRAM_NAME_2 = "";

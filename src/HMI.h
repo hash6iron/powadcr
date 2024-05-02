@@ -1800,7 +1800,7 @@ class HMI
         {
       
           // Enviamos información al HMI
-          if (TYPE_FILE_LOAD == "TZX" || REC)
+          if (TYPE_FILE_LOAD != "TAP" || REC)
           {
               writeString("name.txt=\"" + PROGRAM_NAME + " : " + PROGRAM_NAME_2 + "\"");
               writeString("tape2.name.txt=\"" + PROGRAM_NAME + " : " + PROGRAM_NAME_2 + "\"");
@@ -1818,10 +1818,10 @@ class HMI
           cmpTypeStr.trim();
 
 
-          if (TYPE_FILE_LOAD == "TZX" || REC)
+          if (TYPE_FILE_LOAD != "TAP" || REC)
           {
-              writeString("type.txt=\"" + String(LAST_TYPE) + " " + LAST_TZX_GROUP + "\"");
-              writeString("tape2.type.txt=\"" + String(LAST_TYPE) + " " + LAST_TZX_GROUP + "\"");
+              writeString("type.txt=\"" + String(LAST_TYPE) + " " + LAST_GROUP + "\"");
+              writeString("tape2.type.txt=\"" + String(LAST_TYPE) + " " + LAST_GROUP + "\"");
           }
           else
           {

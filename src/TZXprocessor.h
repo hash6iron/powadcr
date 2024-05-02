@@ -2085,7 +2085,7 @@ class TZXprocessor
                   PAUSE = true;
 
                   LAST_MESSAGE = "Playing PAUSE.";
-                  LAST_TZX_GROUP = "[STOP BLOCK]";
+                  LAST_GROUP = "[STOP BLOCK]";
 
                   // Dejamos preparado el sieguiente bloque
                   CURRENT_BLOCK_IN_PROGRESS++;
@@ -2112,12 +2112,12 @@ class TZXprocessor
 
             case 33:
               // Comienza multigrupo
-              LAST_TZX_GROUP = "[META BLK: " + String(_myTZX.descriptor[i].group) + "]";
+              LAST_GROUP = "[META BLK: " + String(_myTZX.descriptor[i].group) + "]";
               break;
 
             case 34:
-              //LAST_TZX_GROUP = &INITCHAR[0];
-              LAST_TZX_GROUP = "[GROUP END]";
+              //LAST_GROUP = &INITCHAR[0];
+              LAST_GROUP = "[GROUP END]";
               break;
 
             default:
@@ -2126,7 +2126,7 @@ class TZXprocessor
 
               // Reseteamos el indicador de META BLOCK
               // (añadido el 26/03/2024)
-              LAST_TZX_GROUP = "...";
+              LAST_GROUP = "...";
 
               if (_myTZX.descriptor[i].playeable)
               {
