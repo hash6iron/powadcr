@@ -579,9 +579,8 @@ class ZXProcessor
             int tStateSilenceOri = 0;     
             double samples = 0;     
 
-            #ifdef DEBUGMODE
-                log("Silencio: " + String(duration) + " ms");
-            #endif            
+                logln("Silencio: " + String(duration) + " ms");
+                       
 
             // El silencio siempre acaba en un pulso de nivel bajo
             // Si no hay silencio, se pasas tres kilos del silencio y salimos

@@ -86,6 +86,7 @@
 #define AI_THINKER_ES8388_VOLUME_HACK 1
 
 #include <Arduino.h>
+#include <iostream>
 
 #include "config.h"
 
@@ -110,6 +111,7 @@ EasyNex myNex(SerialHW);
 #include "SdFat.h"
 #include "globales.h"
 
+// Para WAV recording
 #include "AudioKitHAL.h"
 AudioKit ESP32kit;
 
@@ -131,6 +133,7 @@ ZXProcessor zxp;
 // Procesadores de cinta
 #include "TZXprocessor.h"
 #include "TAPprocessor.h"
+#include "TSXprocessor.h"
 
 //#include "test.h"
 
@@ -143,6 +146,7 @@ File32 sdFile32;
 // Creamos los distintos objetos
 TZXprocessor pTZX(ESP32kit);
 TAPprocessor pTAP(ESP32kit);
+TSXprocessor pTSX(ESP32kit);
 
 // Procesador de audio input
 #include "TAPrecorder.h"
@@ -152,6 +156,8 @@ TAPrecorder taprec;
 TAPprocessor::tTAP myTAP;
 // Procesador de TZX
 TZXprocessor::tTZX myTZX;
+// Procesador de TSX
+TSXprocessor::tTSX myTSX;
 
 bool last_headPhoneDetection = false;
 uint8_t tapeState = 0;
@@ -163,16 +169,28 @@ bool pageScreenIsShown = false;
   uint16_t USER_CONFIG_ARDUINO_LOOP_STACK_SIZE = 16384;
 #endif
 
-// Elegant OTA
-// -----------------------------------------------------------------------
-#include <WiFi.h>
-#include <WiFiClient.h>
-#include <WebServer.h>
-WebServer server(80);
 
-#include <ElegantOTA.h>
 // -----------------------------------------------------------------------
 
+#include "AudioTools.h"
+#include "AudioLibs/AudioKit.h"
+
+AudioKitStream kit;
+StreamCopy copier(kit, kit);  // copies data
+
+
+void loadHMICfgFile()
+{
+  File32 fHMI = sdm.openFile32("/hmi.cfg");
+  
+  //Leemos ahora toda la configuración
+  if(fHMI)
+  {
+      CFGHMI = sdm.readAllParamCfg(fHMI,20);
+      log("Open config. HMI-success");
+  }
+  fHMI.close();
+}
 void proccesingTAP(char* file_ch)
 {    
     //pTAP.set_SdFat32(sdf);
@@ -214,6 +232,29 @@ void proccesingTZX(char* file_ch)
     pTZX.initialize();
 
     pTZX.getInfoFileTZX(file_ch);
+
+    if (ABORT)
+    {
+      LAST_MESSAGE = "Aborting proccess.";
+      //
+      FILE_PREPARED = false;      
+      ABORT=false;
+    }
+    else
+    {
+      LAST_MESSAGE = "Press PLAY to enjoy!";
+      //
+      FILE_PREPARED = true;
+    }
+
+    FILE_NOTIFIED = true;  
+
+}
+void proccesingTSX(char* file_ch)
+{
+    pTSX.initialize();
+
+    pTSX.getInfoFileTSX(file_ch);
 
     if (ABORT)
     {
@@ -537,6 +578,66 @@ void setAudioInOut()
     //log("Error in volumen setting");
   }   
 }
+
+void setWavRecording(char* file_name)
+{
+    // AudioLogger::instance().begin(Serial, AudioLogger::Error);
+
+    // // Cleanup if necessary
+    // if (sdf.exists(file_name))
+    // {
+    //     sdf.remove(file_name);
+    // }  
+
+    // // open file for recording WAV
+    // wavfile = sdf.open(file_name, O_WRITE | O_CREAT);
+    // if (!wavfile)
+    // {
+    //     logln("file failed!");
+    //     delay(5000);
+    //     tapeState=0;
+    //     STOP=true;
+    //     REC=false;
+    //     return;
+    // }
+
+    // // Configure WAVEncoder
+    // auto cfg_WAVEncoder = WAVEncoder().defaultConfig();
+    // wavInfo.bits_per_sample = 16;
+    // wavInfo.sample_rate = 44100;
+    // wavInfo.channels = 2;
+    // WAVEncoder().begin(wavInfo);
+
+    // // setup input
+    // kitCfg = kitStrm.defaultConfig(TX_MODE);
+    // kitCfg.driver = AUDIO_CODEC_ES8388_DEFAULT_HANDLE;
+    // kitCfg.is_master = true;
+    // kitCfg.input_device = AUDIO_HAL_ADC_INPUT_LINE2;
+    // kitCfg.bits_per_sample = 16;
+    // kitCfg.sample_rate = 44100;
+    // kitCfg.channels = 2;
+    // kitCfg.sd_active = true;
+    // kitCfg.copyFrom(info);
+
+    // kitStrm.begin(kitCfg);
+    // logln("Setting i2C");
+    // logln("");
+    // delay(10000);
+
+    // // Inicializamos la salida del encoder
+    // AudioInfo out_info(44100,2,16);
+    // out.begin(out_info);
+    // // Inicializamos el copier
+    // copier.setCheckAvailableForWrite(false);
+    // copier.begin(wavfile, kitStrm);  
+    AudioLogger::instance().begin(Serial, AudioLogger::Warning);
+
+    auto cfg = kit.defaultConfig(RXTX_MODE);
+    cfg.input_device = AUDIO_HAL_ADC_INPUT_LINE2;
+    kit.begin(cfg);
+
+}
+
 void pauseRecording()
 {
     // Desconectamos la entrada para evitar interferencias
@@ -662,115 +763,6 @@ void stopRecording()
 }
 
 // -------------------------------------------------------------------------------------------------------------------
-unsigned long ota_progress_millis = 0;
-
-void onOTAStart() 
-{
-  // Log when OTA has started
-  pageScreenIsShown = false;
-  // <Add your own code here>
-}
-void onOTAProgress(size_t current, size_t final) 
-{
-  // Log every 1 second
-  if (millis() - ota_progress_millis > 250) 
-  {
-      ota_progress_millis = millis();
-
-      if(!pageScreenIsShown)
-      {
-        hmi.writeString("page screen");
-        //hmi.writeString("screen.updateBar.bco=23275");     
-        pageScreenIsShown = true;
-      }
-
-      HTTPUpload &upload = server.upload();
-      size_t fileSize = upload.totalSize / 1024;
-      fileSize = (round(fileSize*10)) / 10;
-      String fileName = upload.filename;
-
-      hmi.writeString("statusLCD.txt=\"FIRMWARE UPDATING " + String(fileSize) + " KB\""); 
-
-      // if(final!=0)
-      // {
-      //   hmi.writeString("screen.updateBar.val=" + String((current * 100) / final));    
-      // }
-      
-  }
-}
-void onOTAEnd(bool success) 
-{
-  // Log when OTA has finished
-  if (success) 
-  {
-    hmi.writeString("statusLCD.txt=\"SUCCEESSFUL UPDATE\"");
-    // Cerramos la conexión antes de resetear el ESP32
-    server.sendHeader("Connection", "close");
-    server.send(200,"text/plain","OK");    
-    delay(2000);
-    // Reiniciamos  
-    ESP.restart();
-  } 
-  else 
-  {
-    hmi.writeString("statusLCD.txt=\"UPDATE FAIL\"");
-    // Cerramos la conexión
-    server.sendHeader("Connection", "close");
-    server.send(400,"text/plain","Uploading process fail.");     
-  }
-  // <Add your own code here>
-}
-void wifiOTASetup()
-{
-  WiFi.mode(WIFI_STA);
-  WiFi.begin(ssid, password);
-  
-    // Disable Auto Reboot
-  ElegantOTA.setAutoReboot(false);
-    
-  hmi.writeString("statusLCD.txt=\"SSID: [" + String(ssid) + "]\"" );
-  delay(1500);
-  
-  // Configures Static IP Address
-  if (!WiFi.config(local_IP, gateway, subnet, primaryDNS, secondaryDNS))
-  {
-      hmi.writeString("statusLCD.txt=\"WiFi-STA setting failed!\"" );
-      delay(5000);
-      ESP.restart();      
-  }
-
-  while (WiFi.waitForConnectResult() != WL_CONNECTED) 
-  {
-    hmi.writeString("statusLCD.txt=\"WiFi Connection failed!\"" );
-    delay(5000);
-    ESP.restart();
-  }  
-
-  server.on("/", []() {
-    server.send(200, "text/plain", "powaDCR OTA Server. Powered by Elegant OTA");
-  });
-
-  ElegantOTA.begin(&server);    // Start ElegantOTA
-  // ElegantOTA callbacks
-  ElegantOTA.onStart(onOTAStart);
-  ElegantOTA.onProgress(onOTAProgress);
-  ElegantOTA.onEnd(onOTAEnd);
-
-  server.begin();
-
-  hmi.writeString("statusLCD.txt=\"OTA Enabled\"");
-  delay(750);
-
-  hmi.writeString("statusLCD.txt=\"IP " + WiFi.localIP().toString() + "\""); 
-
-  // Enviamos información al menu
-  hmi.writeString("menu.wifissid.txt=\"" + String(ssid) + + "\"");
-  hmi.writeString("menu.wifipass.txt=\"" + String(password) + + "\"");
-  hmi.writeString("menu.wifiIP.txt=\"" + WiFi.localIP().toString() + "\"");
-  hmi.writeString("menu.wifiEn.val=1");
-
-  delay(1500);
-}
 
 // -------------------------------------------------------------------------------------------------------------------
 void setSTOP()
@@ -825,13 +817,22 @@ void playingFile()
       hmi.writeString("tape2.tmAnimation.en=0"); 
       //pTAP.updateMemIndicator();
   }
+  else if (TYPE_FILE_LOAD = "TSX")
+  {
+      //hmi.getMemFree();
+      pTSX.tsxplay();
+      //Paramos la animación
+      hmi.writeString("tape2.tmAnimation.en=0"); 
+  }  
   else if (TYPE_FILE_LOAD = "TZX")
   {
       //hmi.getMemFree();
-      pTZX.play();
+      SerialHW.println("");
+      pTZX.tzxplay();
       //Paramos la animación
       hmi.writeString("tape2.tmAnimation.en=0"); 
   }
+  
 }
 bool loadingFile()
 {
@@ -848,7 +849,6 @@ bool loadingFile()
 
     // Convierto a mayusculas
     FILE_TO_LOAD.toUpperCase();
-
     if (FILE_TO_LOAD.indexOf(".TAP") != -1)
     {
         // Reservamos memoria
@@ -873,12 +873,14 @@ bool loadingFile()
     }
     else if (FILE_TO_LOAD.indexOf(".TSX") != -1)
     {
-        // PROGRESS_BAR_REFRESH = 256;
-        // PROGRESS_BAR_REFRESH_2 = 32;
+        // Reservamos memoria
+        myTSX.descriptor = (TSXprocessor::tTSXBlockDescriptor*)ps_malloc(MAX_BLOCKS_IN_TZX * sizeof(struct TSXprocessor::tTSXBlockDescriptor));        
+        // Pasamos el control a la clase
+        pTSX.setTSX(myTSX);
 
-        // Lo procesamos. Para MSX
-        proccesingTZX(file_ch);
-        TYPE_FILE_LOAD = "TSX";             
+        // Lo procesamos. Para ZX Spectrum
+        proccesingTSX(file_ch);
+        TYPE_FILE_LOAD = "TSX";            
     }   
   }
   else
@@ -891,6 +893,8 @@ bool loadingFile()
   free(file_ch); 
   // Controlamos un posible error si el fichero tiene 0 bytes
   // o no se cargó correctamente
+  SerialHW.print("BLOQUES TOTALES ");
+  SerialHW.println(TOTAL_BLOCKS);
   if (TOTAL_BLOCKS!=0)
   {
     return true;
@@ -935,6 +939,14 @@ void ejectingFile()
       // Finalizamos
       pTZX.terminate();
   }  
+  else if (TYPE_FILE_LOAD = "TSX")
+  {
+      // Solicitamos el puntero _myTSX de la clase
+      // para liberarlo
+      free(pTSX.getDescriptor());
+      // Finalizamos
+      pTSX.terminate();
+  }    
 }
 void prepareRecording()
 {
@@ -1087,12 +1099,23 @@ void tapeControl()
         }    
         else if(REC)
         {
-          FFWIND = false;
-          RWIND = false;   
-                  
-          prepareRecording();
-          //log("REC. Waiting for guide tone");
-          tapeState = 200;
+          if (!MODEWAV)
+          {
+            // Modo .TAP
+            FFWIND = false;
+            RWIND = false;   
+                    
+            prepareRecording();
+            //log("REC. Waiting for guide tone");
+            tapeState = 200;
+          }
+          else
+          {
+            // Modo WAV
+            LAST_MESSAGE = "Recording to WAV file.";
+            setWavRecording("/REC/record.wav");
+            tapeState = 110;
+          }
         }
         else
         {
@@ -1137,7 +1160,11 @@ void tapeControl()
           else if(TYPE_FILE_LOAD=="TZX")
           {
             hmi.setBasicFileInformation(myTZX.descriptor[BLOCK_SELECTED].name,myTZX.descriptor[BLOCK_SELECTED].typeName,myTZX.descriptor[BLOCK_SELECTED].size);
-          }        
+          }  
+          else if(TYPE_FILE_LOAD=="TSX")
+          {
+            hmi.setBasicFileInformation(myTSX.descriptor[BLOCK_SELECTED].name,myTSX.descriptor[BLOCK_SELECTED].typeName,myTSX.descriptor[BLOCK_SELECTED].size);
+          }                  
           //
           tapeState = 1;
           FFWIND = false;
@@ -1228,6 +1255,10 @@ void tapeControl()
           {
             hmi.setBasicFileInformation(myTZX.descriptor[BLOCK_SELECTED].name,myTZX.descriptor[BLOCK_SELECTED].typeName,myTZX.descriptor[BLOCK_SELECTED].size);
           }
+          else if(TYPE_FILE_LOAD=="TSX")
+          {
+            hmi.setBasicFileInformation(myTSX.descriptor[BLOCK_SELECTED].name,myTSX.descriptor[BLOCK_SELECTED].typeName,myTSX.descriptor[BLOCK_SELECTED].size);
+          }          
           //
           tapeState = 3;
           FFWIND = false;
@@ -1316,6 +1347,31 @@ void tapeControl()
         }
         break;
 
+      case 110:
+        // Modo WAV recording
+        if (STOP)
+        {
+            // if (wavfile) 
+            // {
+                // wavfile.flush();
+                // logln("File has ");
+                // logln(String(wavfile.size()));
+                // log(" bytes");
+                // wavfile.close();
+
+                // logln("Recording finish!");
+                LAST_MESSAGE = "Recording STOP.";
+                tapeState = 0;
+                REC = false;
+                STOP = true;
+            // }        
+        }
+        else
+        {
+          copier.copy();  
+        }
+        break;
+
       default:
         break;
     }
@@ -1359,9 +1415,7 @@ void Task0code( void * pvParameters )
     for(;;)
     {
 
-        server.handleClient();
-        //ElegantOTA.loop();     
-
+        //server.handleClient();
         hmi.readUART();
 
         // Control por botones
@@ -1430,9 +1484,9 @@ void setup()
     sendStatus(RESET, 1);
     delay(750);
 
-    hmi.writeString("statusLCD.txt=\"POWADCR " + String(VERSION) + "\"" );
-    
+    hmi.writeString("statusLCD.txt=\"POWADCR " + String(VERSION) + "\"" );   
     delay(1250);
+
 
     //SerialHW.println("Setting Audiokit.");
 
@@ -1482,7 +1536,7 @@ void setup()
     // ------------------------------------------------------
     //
     //
-    wifiOTASetup();
+    // **********************************
     //
     //
     // ------------------------------------------------------
@@ -1500,16 +1554,17 @@ void setup()
     hmi.writeString("menuAudio.volLevelL.val=" + String(MAIN_VOL_L));
     hmi.writeString("menuAudio.volLevel.val=" + String(MAIN_VOL_R));
 
-    //
+    // Asignamos el HMI
     pTAP.set_HMI(hmi);
     pTZX.set_HMI(hmi);
-
+    pTSX.set_HMI(hmi);
+    //y el gestor de ficheros
     pTAP.set_SDM(sdm);
     pTZX.set_SDM(sdm);
+    pTSX.set_SDM(sdm);
 
     zxp.set_ESP32kit(ESP32kit);
-    //pTZX.setZXP_audio(ESP32kit);
-
+    
     // Si es test está activo. Lo lanzamos
     #ifdef TEST
       TEST_RUNNING = true;
