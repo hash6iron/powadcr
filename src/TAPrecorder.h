@@ -787,7 +787,8 @@ class TAPrecorder
         }
         //byteCount = 0;
         // Bajamos el scope
-        SCOPE = down;        
+        SCOPE = down;      
+        delay(2000);
       }
 
       bool checkDataBlock()
