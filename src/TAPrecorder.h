@@ -1346,8 +1346,6 @@ class TAPrecorder
 
                 if (_mFile.size() !=0 && BLOCK_REC_COMPLETED)
                 {
-                    LAST_MESSAGE = "File size: " + String(_mFile.size());
-                    delay(1500);
 
                     if (!removeFile)
                     {
@@ -1419,11 +1417,12 @@ class TAPrecorder
 
         if (!fileWasClosed)
         {
-          LAST_MESSAGE="File not saved.";
+          LAST_MESSAGE = "File not saved.";
         }
         else
         {
-          LAST_MESSAGE="File saved.";
+          LAST_MESSAGE = "File saved.";
+          LAST_MESSAGE += " Size: " + String(_mFile.size()/1024) + " KB";
         }
         delay(3000);   
       }
