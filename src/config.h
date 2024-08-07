@@ -35,7 +35,7 @@
 //
 // 0 for ZX Spectrum
 
-#define VERSION "v0.300424.1"
+#define VERSION "v0.070824.2"
 #define MACHINE_ZX
 
 // Define sampling rate a 44.1KHz. En otro caso será a 32KHz
@@ -75,12 +75,13 @@
 // Browser
 // --------------------------------------------------------------
 // Numero máximo de ficheros que se listan por directorio.
-#define MAX_FILES_TO_LOAD 1000
+// Numero total de lineas de una pagina del file browser
+#define TOTAL_FILES_IN_BROWSER_PAGE 14
+#define MAX_FILES_TO_LOAD 14
 #define MAX_FILES_FOUND_BUFF 100
 // Cada n ficheros refresca el marcador. Por defecto 5
 #define EACH_FILES_REFRESH 5
-// Numero total de lineas de una pagina del file browser
-#define TOTAL_FILES_IN_BROWSER_PAGE 13
+
 
 // Player / SD
 // -------------------------------------------------------------------

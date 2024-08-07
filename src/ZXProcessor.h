@@ -282,6 +282,16 @@ class ZXProcessor
             double amplitude = 0;
             
             double rsamples = (width / freqCPU) * SAMPLING_RATE;
+            
+            
+            // ********************************************************************************************
+            //
+            // PENDIENTE VALIDAR: Hay que hacer +1 a rsamples para conseguir un redondeo mayor (06/05/2024)
+            //
+            // int samples = rsamples + 1;
+            //
+            // ********************************************************************************************
+            
             // Ajustamos
             int samples = (rsamples);
 

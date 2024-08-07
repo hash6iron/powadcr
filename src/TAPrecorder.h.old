@@ -31,6 +31,19 @@
     
     To Contact the dev team you can write to hash6iron@gmail.com
  +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
+
+
+ // ************************************************************************************
+ //           NOTAS IMPORTANTES PARA UNA BUENA GRABACIÓN - 13/06/2024
+ // ************************************************************************************
+ //
+ // 1. La conexión de audio debe ser limpia sin glitches
+ // 2. Conectar el powaDCR a una fuente de alimentación de al menos 2A
+ // 3. Conectar la salida de audio para comprobar que el audio se procesa sin perdida
+ // 4. Ajustar el volumen de salida de la fuente de audio para que NO SATURE demasiado.
+ //
+ //
+ // **************************************************************************************
  
  #include <cmath>
 
@@ -64,7 +77,7 @@ class TAPrecorder
       SdFat32 _sdf32;
       File32 _mFile;
 
-      const int BUFFER_SIZE_REC = 256; //256 (09/07/2024)
+      const int BUFFER_SIZE_REC = 256; //4 //2048
       uint8_t* bufferRec;
 
       // Test Line in/out
@@ -173,7 +186,6 @@ class TAPrecorder
       bool resetSchmitt = false;
       int lastColorSchmittIndicator = 0;
       int nResponse=0;
-      int errorDetected = 0;
 
 
       // Para los clásicos
@@ -217,9 +229,6 @@ class TAPrecorder
       int _lastMeasureSemiPulsedWidth = 0;
       bool _pulseWasMeasured = false;
       bool _edgeDetected = false;
-      bool _semiPulseWasMeasured = false;
-      int16_t lastValueRead = 0;
-
 
       int p1count = 0;
       int p2count = 0;
@@ -268,8 +277,8 @@ class TAPrecorder
       bool guideDetectionWasNotified = false;
 
       // Info block
+      int headState = 0;
       int stateInfoBlock = 0;
-      bool isHead = true;
 
       struct tPulse
       {
@@ -285,24 +294,25 @@ class TAPrecorder
           char name[11];
           uint8_t sizeLSB;
           uint8_t sizeMSB;
-          uint8_t sizeNextBlLSB;
-          uint8_t sizeNextBlMSB;          
           int blockSize = 19;
           int nextBlockSize = 0;
       };
 
       tHeader header;
 
-      // Calculamos las muestras que tiene cada pulso
-      // segun el tiempo de muestreo
-      // long getSamples(int signalTStates, double tState, int samplingRate)
-      // {
-      //     double tSampling = 1/samplingRate;
-      //     double tPeriod = signalTStates * tState;
-      //     long samples = tPeriod / tSampling;
 
-      //     return samples; 
-      // }
+ // ************************************************************************************
+ //           NOTAS IMPORTANTES PARA UNA BUENA GRABACIÓN - 13/06/2024
+ // ************************************************************************************
+ //
+ // 1. La conexión de audio debe ser limpia sin glitches
+ // 2. Conectar el powaDCR a una fuente de alimentación de al menos 2A
+ // 3. Conectar la salida de audio para comprobar que el audio se procesa sin perdida
+ // 4. Ajustar el volumen de salida de la fuente de audio para que NO SATURE demasiado.
+ //
+ //
+ // **************************************************************************************
+
 
       uint8_t calculateChecksum(uint8_t* bBlock, int startByte, int numBytes)
             {
@@ -319,155 +329,147 @@ class TAPrecorder
                 return newChk;
             }
 
-      void showByteInLog()
-      {}
-
       void proccesByteData()
       {
+          // Almacenamos el tipo de cabecera
+          // if (byteCount == 0 && !waitingNextBlock)
+          // {
+          //     // logln("Byte [" + String(byteCount) + "] - ");
+          //     // logHEX(byteRead);
 
-          // Flag para indicar DATA o HEAD
-          if (byteCount == 0)
+          //     if (byteRead == 255)
+          //     {
+          //         // Cabecera data
+          //         TAP_HEADERLESS = true;
+          //         header.blockSize = header.nextBlockSize;
+          //         header.type = 255;
+          //         waitingNextBlock = true;
+          //     }
+          //     else
+          //     {
+          //         // Cabecera data
+          //         TAP_HEADERLESS = false;
+          //         waitingNextBlock = true;
+          //     }
+          // }
+           
+          if (!TAP_HEADERLESS)
           {
-            // if (byteRead == 255)
-            // {
-            //   isHead = true;
-            // }
-            // else
-            // {
-            //   isHead = false;
-            // }
-          }
-
-          // Flag tipo de cabecera para el HEAD
-          if (byteCount == 1)
-          {
-              // 0 - program
-              // 1 - Number array
-              // 2 - Char array
-              // 3 - Code file              
-              header.type = byteRead;
-              proccesInfoBlockType();
-          }
-
-          // Si es una cabecera diferente a DATA, 
-          // tomamos nombres y tamaño del DATA
-          if (header.type < 128)
-          {
-              if (byteCount > 1 && byteCount < 12)
+              if (byteCount == 1)
               {
-                    // Almacenamos el nombre. Los caracteres raros los sustituimos por blancos
-                    if (byteRead > 20)
-                    {
-                      header.name[byteCount-2] = (char)byteRead;
-                    }
-                    else
-                    {
-                      int valueTmp = 32;
-                      header.name[byteCount-2] = (char)valueTmp;
-                    }
+                  // 0 - program
+                  // 1 - Number array
+                  // 2 - Char array
+                  // 3 - Code file
+                  header.type = byteRead;
+                  proccesInfoBlockType();
+              }
+
+              if ((byteCount > 1 && byteCount < 12))
+              {
+                  // Almacenamos el nombre
+                  if (byteRead > 20)
+                  {
+                    header.name[byteCount-2] = (char)byteRead;
+                  }
+                  else
+                  {
+                    int valueTmp = 32;
+                    header.name[byteCount-2] = (char)valueTmp;
+                  }
+              }
+
+              if (byteCount == 12)
+              {
+                  // Almacenamos el LSB del tamaño
+                  header.sizeLSB = byteRead;
+              }
+
+              if (byteCount == 13)
+              {
+                  // Almacenamos el MSB del tamaño
+                  header.sizeMSB = byteRead;
               }
           }
-
-          // Tamaño del siguiente bloque
-          if (byteCount == 12)
-          {
-            header.sizeNextBlLSB = byteRead;
-          }
-
-          if (byteCount == 13)
-          {
-              header.sizeNextBlMSB = byteRead;
-          }
-
       }
 
       void showProgramName()
       {
-          String prgName = "";
-          for (int n=0;n<10;n++)
-          {
-            //SerialHW.print(header.name[n]);
-            prgName += header.name[n];
-          }
+        String prgName = "";
+        for (int n=0;n<10;n++)
+        {
+          //SerialHW.print(header.name[n]);
+          prgName += header.name[n];
+        }
 
-          if (!nameFileRead)
-          {
-            PROGRAM_NAME = prgName;
-          }
-          else
-          {
-            PROGRAM_NAME_2 = prgName;
-          }
+        if (!nameFileRead)
+        {
+          PROGRAM_NAME = prgName;
+        }
+        else
+        {
+          PROGRAM_NAME_2 = prgName;
+        }
+        
       }
 
       void proccesInfoBlockType()
       {          
           // Si el conjunto leido es de 19 bytes. Es una cabecera.
-          switch (stateInfoBlock)
+          if (header.blockSize == 19 && stateInfoBlock==0)
           {
-          case 0:
-            //
-            // Bloque con cabecera
-            //
-            if (header.blockSize == 19)
-            {
-                // Entonces después vendrá un bloque DATA
-                stateInfoBlock=1;
+            stateInfoBlock=1;
 
-                if (header.type == 0)
-                {
-                  strncpy(LAST_TYPE,"PROGRAM.HEAD",sizeof("PROGRAM.HEAD"));
-                }
-                else if (header.type == 1)
-                {
-                  strncpy(LAST_TYPE,"NUMBER_ARRAY.HEAD",sizeof("NUMBER_ARRAY.HEAD"));
-                }
-                else if (header.type == 2)
-                {
-                  strncpy(LAST_TYPE,"NUMBER_ARRAY.HEAD",sizeof("NUMBER_ARRAY.HEAD"));
-                }
-                else if (header.type == 3)
-                {
-                  strncpy(LAST_TYPE,"BYTE.HEAD",sizeof("BYTE.HEAD"));
-                }            
+            if (header.type == 0)
+            {
+              strncpy(LAST_TYPE,"PROGRAM.HEAD",sizeof("PROGRAM.HEAD"));
+            }
+            else if (header.type == 1)
+            {
+              strncpy(LAST_TYPE,"NUMBER_ARRAY.HEAD",sizeof("NUMBER_ARRAY.HEAD"));
+            }
+            else if (header.type == 2)
+            {
+              strncpy(LAST_TYPE,"NUMBER_ARRAY.HEAD",sizeof("NUMBER_ARRAY.HEAD"));
+            }
+            else if (header.type == 3)
+            {
+              strncpy(LAST_TYPE,"BYTE.HEAD",sizeof("BYTE.HEAD"));
             }            
+          }
+          else if (header.blockSize > 0 && stateInfoBlock==0 && TAP_HEADERLESS)
+          {
+            // Es un bloque byte sin cabecera
+            stateInfoBlock=0;
+            strncpy(LAST_TYPE,"BYTE.DATA",sizeof("BYTE.DATA"));
+            header.type = 255;
+          }
+          else if (header.blockSize > 0 && stateInfoBlock==1)
+          {
+            stateInfoBlock=0;
+
+            if (header.blockSize == 6912)
+            {
+              strncpy(LAST_TYPE,"SCREEN.DATA",sizeof("SCREEN.DATA"));
+              //SerialHW.println("SCREEN");
+            }
             else
             {
-              LAST_MESSAGE = "Error. No waited block type.";
-              delay(3000);
+
+              if (header.type != 0)
+              {
+                  // Es un bloque de datos BYTE 
+                  strncpy(LAST_TYPE,"BYTE.DATA",sizeof("BYTE.DATA"));
+                  //SerialHW.println("BYTE.DATA");
+              }
+              else if (header.type == 0)
+              {
+                  // Es un bloque BASIC
+                  strncpy(LAST_TYPE,"BASIC.DATA",sizeof("BASIC.DATA"));
+                  //SerialHW.println("BASIC.DATA");
+              }
             }
-            break;
-          
-          case 1:
-            //
-            // Bloque DATA
-            //
-            if (header.blockSize > 0)
-            {
-              // Esperamos solo bloques con cabecera despues de este bloque DATA
-              stateInfoBlock=0;
-
-              if (header.blockSize == 6912)
-              {
-                strncpy(LAST_TYPE,"SCREEN.DATA",sizeof("SCREEN.DATA"));
-              }
-              else
-              {
-                if (header.type != 0)
-                {
-                    // Es un bloque de datos BYTE
-                    strncpy(LAST_TYPE,"BYTE.DATA",sizeof("BYTE.DATA"));
-                }
-                else if (header.type == 0)
-                {
-                    // Es un bloque BASIC
-                    strncpy(LAST_TYPE,"BASIC.DATA",sizeof("BASIC.DATA"));
-                }
-              }
-            }          
-            break;
-
-          } 
+          }   
 
       }
 
@@ -494,7 +496,7 @@ class TAPrecorder
         }
       }
 
-      void getFileName(bool test)
+      void getFileName()
       {
         if (!nameFileRead)
         {
@@ -502,32 +504,14 @@ class TAPrecorder
           // nuevo filename
           fileNameRename = (char*)ps_calloc(20,sizeof(char));
 
-          if (test)
+          int i=0;
+          for (int n=0;n<10;n++)
           {
-            strcpy(fileNameRename,"TEST");
-          }
-          else
-          {
-              int i=0;
-
-              for (int n=0;n<10;n++)
-              {
-                if (header.name[n] != ' ')
-                {
-                    fileNameRename[i] = header.name[n];
-                    i++;
-                }
-                else
-                {}
-              }            
-
-              // Esto lo hacemos por si no hay nombre
-              // que no de fallos.
-              fileNameRename[10] = '_';
-              fileNameRename[11] = 'r';
-              fileNameRename[12] = 'e';
-              fileNameRename[13] = 'c';
-
+            if (header.name[n] != ' ')
+            {
+                fileNameRename[i] = header.name[n];
+                i++;
+            }
           }
 
           //char* extFile = ".tap\0";
@@ -538,28 +522,115 @@ class TAPrecorder
         }        
       }
 
+      void proccessInfoBlock()
+      {
+
+        checksum = 0;
+
+        if (byteCount !=0)
+        {
+
+            // Si es una cabecera. Cogemos el tamaño del bloque data a
+            // salvar.
+            switch (headState)
+            {
+            case 0:
+              if (byteCount == 19)
+              {                         
+                  // BLOQUE CABECERA
+
+                  // La información del tamaño del bloque siguiente
+                  // se ha tomado en tiempo real y está almacenada
+                  // en headar.sizeLSB y header.sizeMSB
+                  int size = 0;
+                  size = header.sizeLSB + (header.sizeMSB * 256);
+                  
+                  // Guardamos el valor ya convertido en int
+                  header.blockSize = size + 2;
+                  header.nextBlockSize = size;
+                  
+                  // Hay que añadir este valor sumando 2, en la cabecera
+                  // antes del siguiente bloque
+                  int size2 = size + 2;
+                  uint8_t LSB = size2;
+                  uint8_t MSB = size2 >> 8;
+
+                  // Antes del siguiente bloque metemos el size
+                  _mFile.write(LSB);
+                  _mFile.write(MSB);
+                  // Mostramos el nombre del programa en el display
+                  // ojo que el marcador "nameFileRead" debe estar
+                  // despues de esta función, para indicar que el
+                  // nombre del programa ya fue leido y mostrado
+                  // que todo lo que venga despues es PROGRAM_NAME_2
+                  showProgramName();
+
+                  // Obtenemos el nombre que se le pondrá al .TAP
+                  getFileName();
+                  headState = 1;
+              }    
+              else
+              {
+                  // Marcamos el error de cabecera
+                  errorInDataRecording = true;
+                  stopRecordingProccess = true;
+                  waitingHead = true;
+
+                  // Inicializamos para el siguiente bloque
+                  headState = 0;
+                  header.blockSize = 19;                 
+              }        
+              break;
+
+            case 1:
+              if (byteCount > 0)
+              {
+                  // BLOQUE DATA
+                  // Guardamos ahora en fichero
+                  errorInDataRecording = false;
+                  waitingHead = true;
+                  //stopRecordingProccess = false;
+
+                  // Inicializamos para el siguiente bloque
+                  header.blockSize = 19;  
+                  headState = 0;              
+              } 
+              else
+              {
+                  // Marcamos el error de cabecera
+                  errorInDataRecording = true;
+                  stopRecordingProccess = true;
+                  waitingHead = true;
+
+                  // Inicializamos para el siguiente bloque
+                  headState = 0;
+                  header.blockSize = 19;                 
+              }           
+              break;
+
+            }
+
+
+        } 
+      }
+
       void measurePulseWidth(int16_t value)
       {
-          // Establecemos el threshold de detección
-          int delta = 0;
-
-          // Buscamos cambios de flanco y medimos un pulso completo
+          // Buscamos cambios de flanco
           switch (_measureState)
           {
             case 0:
               // Estado inicial
               // establecemos un estado incial unicamente.
-              if (value > delta)
+              if (value > 0)
               {
                 // Cambia a UP
                 _measureState = 1;
-                _measuredWidth++;
               }
-              else if (value < -delta)
+              else if (value < 0)
               {
                 // Cambia a LOW
                 _measureState = 3;
-                _measuredWidth++;
               }
               else
               {
@@ -570,16 +641,12 @@ class TAPrecorder
             case 1:
               // Estado UP
               // Ahora cambia a LOW - Entonces es un flanco
-              if (value < -delta)
+              if (value < 0)
               {
                 _measureState = 2;
                 _measuredPulseUpWidth = _measuredWidth;
-                _semiPulseWasMeasured = true;
                 _pulseWasMeasured = false;
                 _edgeDetected = true;
-                // Ya cuento con esta muestra, pero aun no hemos acabado 
-                // de medir el pulso completo.
-                _measuredWidth++;
               }
               else
               {
@@ -592,20 +659,15 @@ class TAPrecorder
 
             case 2:
               // Estado LOW
-              if (value > delta)
+              if (value > 0)
               {
-                _measureState = 1; // 1 - 20/07/2024
-                // Devolvemos el tamaño del pulso
+                _measureState = 1;
+                // Devolvemos el tamaño
                 _lastMeasuredWidth = _measuredWidth;
-                // o del otro semi-pulso
-                _measuredPulseDownWidth = _measuredWidth - _measuredPulseUpWidth;
                 _pulseWasMeasured = true;
-                _semiPulseWasMeasured = false;
-
                 // Comenzamos otra vez
+                _measuredWidth = 1;
                 _edgeDetected = true;
-                // Ya cuento con esta muestra. Empezamos un nuevo pulso completo
-                _measuredWidth=1;
               }
               else
               {
@@ -617,17 +679,12 @@ class TAPrecorder
 
             case 3:
               // Estado LOW
-              if (value > delta)
+              if (value > 0)
               {
                 _measureState = 4;
                 _measuredPulseDownWidth = _measuredWidth;
-                _semiPulseWasMeasured = true;
                 _pulseWasMeasured = false;
                 _edgeDetected = true;              
-              
-                // Ya cuento con esta muestra, pero aun no hemos acabado 
-                // de medir el pulso completo.
-                _measuredWidth++;
               }
               else
               {
@@ -640,18 +697,13 @@ class TAPrecorder
             case 4:
               // Estado UP
               // Ahora cambia a LOW - Entonces es un flanco
-              if (value < -delta)
+              if (value < 0)
               {
-                _measureState = 3;  // 3 - 20/07/2024
-                // devolmenos el tamaño del pulso
+                _measureState = 3;
                 _lastMeasuredWidth = _measuredWidth;
-                // o del otro semi-pulso
-                _measuredPulseUpWidth = _measuredWidth - _measuredPulseDownWidth;
+                _measuredWidth = 1;
                 _pulseWasMeasured = true;
-                _semiPulseWasMeasured = false;
                 _edgeDetected = true;
-                // Ya cuento con esta muestra. Empezamos un nuevo pulso completo
-                _measuredWidth=1;                
               }
               else
               {
@@ -664,67 +716,13 @@ class TAPrecorder
           }
       }
 
-      void resetMeasuredPulse()
-      {
-        // Reiniciamos estados
-        _pulseWasMeasured = false;
-        _measureState = 0;
-
-        // Reiniciamos anchos
-        _lastMeasuredWidth = 0;
-        _lastMeasureSemiPulsedWidth = 0;
-        _pulseWidth = 0;
-        _measuredPulseDownWidth = 0;
-        _measuredPulseUpWidth = 0;
-      }
-
       void prepareNewBlock()
       {
-        //stateRecording = 0;
+        stateRecording = 0;
         byteCount = 0;      
         bitCount = 0;        
         checksum = 0; 
         bitString = "";
-        isSilence = false;
-
-        // El nuevo bloque tiene que registrar su tamaño en el fichero .tap
-        // depende si es HEAD or DATA
-        if (isHead)
-        {
-          // Es una HEAD
-          header.sizeLSB = 17;
-          header.sizeMSB = 0;
-          isHead = false;                      
-        }
-        else
-        {
-          // Es DATA
-          header.sizeLSB = header.sizeNextBlLSB;
-          header.sizeMSB = header.sizeNextBlMSB;
-          isHead = true;                      
-        }
-
-        // Hacemos la conversión, calculamos el nuevo block size
-        // y lo metemos en el fichero.
-
-        int size2 = 0;
-        int size = header.sizeLSB + (header.sizeMSB * 256);
-        uint8_t MSB = 0;
-        uint8_t LSB = 0;
-
-        // Guardamos el valor del tamaño
-        header.blockSize = size + 2;
-
-        // Hay que añadir este valor sumando 2, en la cabecera
-        // antes del siguiente bloque
-        size2 = size + 2;
-        LSB = size2;
-        MSB = size2 >> 8;
-
-        // // Antes del siguiente bloque metemos el size
-        _mFile.write(LSB);
-        _mFile.write(MSB);        
-
       }
 
       void writeTAPHeader()
@@ -732,210 +730,8 @@ class TAPrecorder
         // Escribimos los primeros bytes
         uint8_t firstByte = 19;
         uint8_t secondByte = 0;
-        // _mFile.write(firstByte);
-        // _mFile.write(secondByte);
-      }
-
-      void stopREC()
-      {
-        
-        //
-        // Aquí se entra cuando hay un error detectado en la grabación
-        // si el error no es especifico, entonces es 0 (error genérico)
-        //
-
-        STOP = true;
-        REC = false;
-        totalBlockTransfered = 0;                                  
-        stopRecordingProccess=true;
-        RECORDING_ERROR = 1;  
-
-        // Reset de medidas de pulso
-        resetMeasuredPulse();
-        // Reset estado del control de pulso
-        stateRecording = 0;
-        isSilence = false;
-        //
-        waitingNextBlock = false;
-        //
-        WasfirstStepInTheRecordingProccess = false;
-        //waitingHead = true;
-
-        switch (errorDetected)
-        {
-        case 1:
-          LAST_MESSAGE = "Sync not detected. Fine volume source or filter.";
-          break;
-        
-        case 2:
-          LAST_MESSAGE = "Checksum error in byte [" + String(byteCount) + "] in bit [" + String(bitCount) + "] - CHK=" + String(checksum);
-          break;
-
-        case 3:
-          if (byteCount > header.blockSize)
-          {
-            LAST_MESSAGE = "Error. Headerless block not supported";
-          }
-          else
-          {
-            LAST_MESSAGE = "Error, " + String(header.blockSize - byteCount) + " bytes lost - " + String(byteCount) + " / " + String(header.blockSize);
-          }
-          break;
-        default:
-          LAST_MESSAGE = "Error.";
-          break;
-        }
-        //byteCount = 0;
-        // Bajamos el scope
-        SCOPE = down;        
-      }
-
-      bool checkDataBlock()
-      {
-          //header.blockSize = byteCount;
-          // Una vez se ha capturado un bloque entero (hemos llegado a un silencio) comprobamos.
-          //
-          // 1. Checksum = 0 : Todo ok y coincide con el checksum entregado por la fuente de sonido
-          //    NOTA: El ultimo uint8_t es el checksum si se hace XOR sobre este mismo da 0 e indica que todo es correcto          
-          //
-          // 2. Se han capturado bytes
-          // 3. El total de bytes coincide con el esperado.
-          //
-
-          if (checksum==0 && byteCount !=0 && header.blockSize == byteCount)
-          {
-              // Indicamos que se ha capturado un bloque completo
-              BLOCK_REC_COMPLETED = true;
-              LAST_MESSAGE = "Block saved";
-              waitingNextBlock = false;
-
-              // Informamos del bloque en curso
-              BLOCK_SELECTED = blockCount;
-              
-              // Procesamos información del bloque
-              LAST_SIZE = byteCount;
-
-              //
-              showProgramName();
-
-              // Obtenemos el nombre que se le pondrá al .TAP
-              getFileName(false);                
-              errorInDataRecording = false;
-
-              // Incrementamos un bloque  
-              blockCount++;   
-              
-              // --------------------------------------------------------
-              //
-              // TODO OK - Continuamos con mas bloques si no hay STOP
-              // --------------------------------------------------------
-              // Comenzamos otra vez
-              // --------------------------------------------------------
-              // Reiniciamos todo
-              //prepareNewBlock();
-              // Guardamos los bloques transferidos
-              totalBlockTransfered = blockCount;  
-              //
-              return true;               
-          }             
-          else
-          {
-              if (checksum != 0)
-              {
-                // Error de checksum
-                errorDetected = 2;
-              }
-              else
-              {
-                // Error de bloque incompleto
-                errorDetected = 3;
-              }
-
-              // Paramos la grabación.
-              stopREC();
-              
-              // Volvemos
-              return false;
-          }                
-      }
-
-      void countNewByte()
-      {
-          BLOCK_REC_COMPLETED = false;
-
-          //
-          // Conversión de bits a bytes
-          //
-
-          //
-          // Ahora controlamos el byte leido y se hemos cumplido el bloque
-          //
-          if (bitCount > 7)
-          {
-              // Reiniciamos el contador de bits
-              bitCount=0;
-
-              // Convertimos a uint8_t el valor leido del DATA
-              uint8_t value = strtol(bitChStr, (char**) NULL, 2);
-              byteRead = value;
-              uint8_t valueToBeWritten = byteRead;
-              
-              // Escribimos en fichero el dato
-              _mFile.write(valueToBeWritten);
-
-              // Guardamos el checksum generado
-              lastChk = checksum;
-              // Calculamos el nuevo checksum
-              checksum = checksum ^ byteRead;
-              
-              // Analizamos cada byte leido para coger información en tiempo real
-              proccesByteData();   
-
-              // Mostramos el progreso de grabación del bloque
-              PROGRESS_BAR_BLOCK_VALUE = (byteCount*100) / (header.blockSize-1);                        
-
-              // Contabilizamos bytes
-              byteCount++;
-
-              // Actualizamos indicador de BYTES capturados
-              LAST_MESSAGE = "Getting data. " + String(byteCount) + " / " + String(header.blockSize) + " bytes";
-
-              // Reiniciamos la cadena de bits
-              bitString = "";
-              byteRead = 0;  
-          }            
-      }
-
-      int16_t applyStereoFilter(int16_t oneValue,int16_t oneValue2)
-      {
-            int16_t finalValue = 0;
-
-            // Elección del canal de escucha
-            if (SWAP_MIC_CHANNEL)
-            {
-              finalValue = oneValue;
-            }
-            else
-            {
-              // Cogemos el canal LEFT
-              finalValue = oneValue2;
-            }
-
-            //Aplicamos filtrado y corrección de pulso para estudiar los cambios de flanco
-            if((finalValue > (-SCHMITT_THR * 20)) && 
-               (finalValue < (SCHMITT_THR * 20)))
-            {
-                // Filtramos
-                finalValue = 0;
-                SCOPE = down;
-            }
-            else
-            {
-                // Dejamos pasar
-                SCOPE = up;
-            }       
-
-            return finalValue; 
+        _mFile.write(firstByte);
+        _mFile.write(secondByte);
       }
 
       void readBuffer(int len)
@@ -944,6 +740,7 @@ class TAPrecorder
         int16_t oneValue = 0;
         int16_t oneValue2 = 0;
         int16_t finalValue = 0;
+
 
         size_t resultOut = 0;                
         uint8_t bufferOut[BUFFER_SIZE_REC];                
@@ -957,20 +754,47 @@ class TAPrecorder
         
         // Ajuste del detector de señal
         // Muestras del tono guia leidas
+        int maxPilotPulseCount = MAX_PULSES_LEAD; //255;
+
+        // Señal Lead
+        int minLead = MIN_LEAD;//50;
+        int maxLead = MAX_LEAD;//56;
+        // Señal de SYNC
+        int minSync = MIN_SYNC; //14
+        int maxSync = MAX_SYNC; //20
+        // Señal para BIT 0
+        int minBit0 = MIN_BIT0;//1;
+        int maxBit0 = MAX_BIT0;//39;
+        // Señal para BIT 1
+        int minBit1 = MIN_BIT1;//40;
+        int maxBit1 = MAX_BIT1;//65;
+        //
+
+        const double TSYNC1 = 190.6;
+        const double TSYNC2 = 210.0;
+        const double TBIT0 = 244.2;
+        const double TBIT1 = 488.6;
+        const double TLEAD = 619.4;
   
         double currentTime = 0;
         // Samples de referencia para control 
         int samplesRefForCtrl = 0;
 
+        int blkSize = 0;
+        bool silenceDetected = false;
+
         if (!WasfirstStepInTheRecordingProccess)
         {    
-          // Comenzamos con una cabecera PROGRAM.
-          isHead = true;
-          // Pulsos a reset
-          resetMeasuredPulse();
+          prepareNewBlock();
+          // Importante no perder esto
+          // el primer bloque esperado es de 19 bytes
+          header.blockSize = 19;
+          headState = 0;
+          _measureState = 0;
+          _pulseWasMeasured = false;
           BLOCK_REC_COMPLETED = false;
           //
-          LAST_MESSAGE = "Recorder ready. Play source data.";
+          //LAST_MESSAGE = "Recorder ready. Play source data.";
           // Ya no pasamos por aquí hasta parar el recorder
           WasfirstStepInTheRecordingProccess=true;    
         }
@@ -978,145 +802,269 @@ class TAPrecorder
         // Analizamos todas las muestras del buffer de entrada
         for (int j=0;j<(len/4);j++)
         {  
-            // Leemos los samples del buffer
-            // canal R
+            //SAMPLES_READ++;
+            // Leemos el siguiente valor del buffer canal R
             oneValue = *value_ptr++;
-            // canal L
+            // Leemos el siguiente valor del buffer canal L
             oneValue2 = *value_ptr++;              
-
-            // Aplicamos filtrado para eliminar ruido            
-            finalValue = applyStereoFilter(oneValue, oneValue2);
-
-            // Trabajamos ahora las muestras
-            // Medimos pulsos
-            measurePulseWidth(finalValue);
-
-            // Si la medida de pulso ha acabado, analizamos
-            if (_pulseWasMeasured)
+                           
+            // Elección del canal de escucha
+            if (SWAP_MIC_CHANNEL)
             {
-              _pulseWasMeasured = false;
-
-              switch (stateRecording)
-              {
-                
-                // Detección de tono guía
-                case 0:
-                  if(_lastMeasuredWidth >= 48 && _lastMeasuredWidth <= 60)
-                  {
-                      // He encontrado 2 flancos en el tiempo de control   
-                      // Contamos los pulsos de LEAD
-                      pulseCount++;
-                      //resetMeasuredPulse();
-
-                      if (pulseCount >= 256)//maxPilotPulseCount)
-                      {
-
-                          // Saltamos a la espera de SYNC
-                          stateRecording = 1;
-                          pulseCount = 0;
-                          LAST_MESSAGE = "Waiting for SYNC";
-                      }
-                  }
-                  break;
-
-                // Detección de SYNC
-                case 1:                   
-                  // Detección de la SYNC 
-                  //-- S1: 190.6us + S2: 210us 
-                  //-- S1+S2: 19 pulsos a 48KHz
-
-                  // Medimos una SYNC1 + SYNC2. Buscamos dos pulsos muy cercanos (el valor optimo es 20)
-                  if (_lastMeasuredWidth >= 8 && _lastMeasuredWidth < 25)
-                  {
-                    // Estamos midiendo el pulso completo
-                    stateRecording = 2;
-                    prepareNewBlock();
-                    // El primer byte de todo el .TAP es este, pero ya no se
-                    // dará mas hasta un nuevo recording.
-                  }
-
-                  if ((_measuredPulseUpWidth >= 512) || 
-                  (_measuredPulseDownWidth >= 512))  // Medida del silencio
-                  {   
-                      // Error. Hemos encontrado el silencio pero no la SYNC                    
-                      stateRecording = 0;
-                      errorDetected = 1;
-                      stopREC();
-                      return;
-                  }
-
-                  break;
-
-                // Detección de bits
-                case 2:
-                  //
-                  // Verifico si es 0, 1 o silencio de fin de bloque.
-                  // Los bits 0 / 1 deben ser un pulso completo en otro caso estaría mal 
-                  // la composición de la señal.
-                  //
-                  
-                  if (_lastMeasuredWidth >= 10 && _lastMeasuredWidth < 25)
-                  {
-                      // Estamos midiendo el pulso completo
-                      // Es un 0
-                      bitString += "0";
-                      bitChStr[bitCount] = '0';
-                      // Contabilizamos un bit
-                      bitCount++;
-                      countNewByte();
-                  }
-                  else if (_lastMeasuredWidth >= 25 && _lastMeasuredWidth < 60)
-                  {
-                      // Estamos midiendo el pulso completo
-                      // Es un 1
-                      bitString += "1";
-                      bitChStr[bitCount] = '1';
-                      // Contabilizamos un bit
-                      bitCount++;
-                      countNewByte();
-                  }
-                  else if ((_measuredPulseUpWidth >= 512) || 
-                  (_measuredPulseDownWidth >= 512))  // Medida del silencio
-                  {   
-                      // Hemos encontrado el silencio, finalizamos el bloque y chequeamos checksum                    
-                      stateRecording = 0;
-
-                      if (!checkDataBlock())
-                      {
-                        // Si hay fallo salimos.
-                        return;
-                      }
-                  }
-                  else
-                  {
-                    // Error. Pulsos inesperados
-                    LAST_MESSAGE = "Bad pulse width " + String(_lastMeasuredWidth);
-                  }
-                  break;
-
-                default:
-                  break;
-              }
-
+              finalValue = oneValue;
+            }
+            else
+            {
+              // Cogemos el canal LEFT
+              finalValue = oneValue2;
             }
 
-            
-            // Pasamos al output directamente los valores de señal
-            // para que se oiga por la salida de linea (line-out)
+            //Aplicamos filtrado y corrección de pulso para estudiar los cambios de flanco
+            if((finalValue > (-SCHMITT_THR * 20)) && (finalValue < (SCHMITT_THR * 20)))
+            {
+                finalValue = 0;
+                SCOPE = down;
+            }
+            else
+            {
+                SCOPE = up;
+            }
 
+            // Trabajamos ahora las muestras
+            // Medimos el pulso
+            measurePulseWidth(finalValue);
+
+            switch (stateRecording)
+            {
+              
+              // Detección de tono guía
+              case 0:
+
+                if (_pulseWasMeasured)
+                {                 
+                    if(_lastMeasuredWidth >= 48 && _lastMeasuredWidth <= 60)
+                    {
+                        // He encontrado 2 flancos en el tiempo de control   
+                        // Contamos los pulsos de LEAD
+                        pulseCount++;
+                        //_pulseWasMeasured = false;
+
+                        //log("Pulse width: " + String(_lastMeasuredWidth));
+
+                        //LAST_MESSAGE = "[F:" + String(SCHMITT_THR) + "%] Recognizing LEAD. [" + String(pulseCount) + "]";                        
+
+                        if (pulseCount >= 256)//Tenia 1024 - 16/06/2024
+                        {
+                            //LAST_MESSAGE = "Waiting for SYNC 1.";
+
+                            if (waitingHead)
+                            {
+                              writeTAPHeader();
+                              waitingHead = false;
+                            }
+
+                            // Saltamos a la espera de SYNC
+                            stateRecording = 1;
+                            pulseCount = 0;
+                        }
+                    }
+                  }
+                  break;
+
+              // Detección de SYNC
+              case 1:                   
+                // Detección de la SYNC 
+                //-- S1: 190.6us + S2: 210us 
+                //-- S1+S2: 19 pulsos a 48KHz
+
+                if (_pulseWasMeasured)
+                {
+                    //_pulseWasMeasured = false;
+
+                    if ((_lastMeasuredWidth >= 6) && (_lastMeasuredWidth <= 18))  //Tenia 18 //Tenia 20
+                    {
+                      stateRecording = 2;
+                      LAST_MESSAGE = "Waiting for DATA.";
+                      // SAMPLES_READ = 0;
+                      // SAMPLES_MEASURED = 0;
+                    }
+                    else
+                    {
+                      LAST_MESSAGE = "Waiting for SYNC.";
+                      stateRecording = 1;
+                    }
+                }
+                break;
+
+              // Detección de bits
+              case 2:
+                  //
+                  // Verifico si es 0, 1 o silencio de fin de bloque
+                  //
+
+                  if (_pulseWasMeasured)
+                  {
+                      _pulseWasMeasured = false;
+
+                       if ((_measuredPulseUpWidth > 2) && (_measuredPulseUpWidth <= 16))
+                      {
+                          // Es un 0
+                          bitString += "0";
+                          bitChStr[bitCount] = '0';
+                          // Contabilizamos un bit
+                          bitCount++;
+                      }
+                      else if ((_measuredPulseUpWidth >= 17) && (_measuredPulseUpWidth <= 30)) //50
+                      {
+                          // Es un 1
+                          bitString += "1";
+                          bitChStr[bitCount] = '1';
+                          // Contabilizamos un bit
+                          bitCount++;
+                      } 
+                      // else if ((_measuredPulseUpWidth > 50))
+                      // {
+                      //   // Silencio
+                      //   silenceDetected == true;
+                      //   LAST_MESSAGE = "Silence.";
+                      //   stateRecording = 0;
+                      // }
+
+                      //
+                      // Conversión de bits a bytes
+                      //
+
+                      if (bitCount > 7)
+                      {
+                          // Reiniciamos el contador de bits
+                          bitCount=0;
+
+                          // Convertimos a uint8_t el valor leido del DATA
+                          uint8_t value = strtol(bitChStr, (char**) NULL, 2);
+
+                          // Byte completo leido.
+                          byteRead = value;
+                          uint8_t valueToBeWritten = byteRead;
+                          
+                          // Escribimos en fichero el dato
+                          _mFile.write(valueToBeWritten);
+
+                          // Guardamos el checksum generado
+                          lastChk = checksum;
+                          // Calculamos el nuevo checksum
+                          checksum = checksum ^ byteRead;
+                          
+                          // Mostramos información de la cabecera
+                          //logln("--------------------------");
+                          proccesByteData();   
+
+                          // Mostramos el progreso de grabación del bloque
+                          // if (!showDataDebug)
+                          // {
+                          //   #ifndef DEBUGMODE
+                          //     PROGRESS_BAR_BLOCK_VALUE = (byteCount*100) / (header.blockSize-1);                        
+                          //   #endif
+                          // }
+
+                          // Contabilizamos bytes
+                          byteCount++;
+                          LAST_MESSAGE = "Getting data. " + String(byteCount) + " / " + String(header.blockSize) + " bytes";
+
+                          // Reiniciamos la cadena de bits
+                          bitString = "";
+                          byteRead = 0;
+
+                          // Obtenemos el tamaño del bloque
+                          blkSize = header.blockSize;
+
+                          // NOTA: Esta rutina espera siempre bloques con cabecera de 19 bytes, en otro caso FALLARÁ
+                          //
+                          // Detectamos que el bloque ha acabado
+                          // ahora comprobamos si es correcto o no.
+                          if (byteCount == blkSize && byteCount != 0 && blkSize != 0)
+                          {
+                              silenceDetected = false;
+
+                              if (checksum==0)
+                              {
+                                  BLOCK_REC_COMPLETED = true;
+
+                                  // NOTA: El ultimo uint8_t es el checksum
+                                  // si se hace XOR sobre este mismo da 0
+                                  // e indica que todo es correcto
+                                  LAST_MESSAGE = "Block captured ok!";
+                                  TAP_HEADERLESS = false;
+                                  waitingNextBlock = false;
+
+                                  // Informamos de los bytes salvados
+                                  LAST_SIZE = blkSize; 
+                                  // Informamos del bloque en curso
+                                  BLOCK_SELECTED = blockCount;
+                                  // Procesamos información del bloque
+                                  proccessInfoBlock();
+                                  // Incrementamos un bloque  
+                                  blockCount++;
+
+                                  // --------------------------------------------------------
+                                  //
+                                  // TODO OK - Continuamos con mas bloques si no hay STOP
+                                  // --------------------------------------------------------
+                                  // Comenzamos otra vez
+                                  // --------------------------------------------------------
+                                  // Reiniciamos todo
+                                  prepareNewBlock();
+                                  // Guardamos los bloques transferidos
+                                  totalBlockTransfered = blockCount;
+                              }             
+                              else
+                              {
+                                  // Paramos la grabación.
+                                  STOP = true;
+                                  REC = false;
+                                  totalBlockTransfered = 0;                                  
+                                  stopRecordingProccess=true;
+                                  RECORDING_ERROR = 1;  
+
+                                  // Damos info en HMI
+                                  LAST_MESSAGE = "Error: Bytes=" + String(byteCount) + ".[" + String(bitCount) + "] / " + String(blkSize) + " / CHK=" + String(checksum);
+                                  SCOPE = down;
+
+                                  //
+                                  // Finalizamos
+                                  return;
+                              }                                                      
+                      }    
+
+   
+                        } 
+                        else
+                        {
+                            BLOCK_REC_COMPLETED = false;
+                        }     
+
+                }  
+                break;
+
+              default:
+                break;
+            }
+        
+        
+            // Pasamos al output directamente los valores de señal
             //R-OUT
-            *ptrOut++ = finalValue * (MAIN_VOL_R / 100);;
+            *ptrOut++ = finalValue;
             //L-OUT
-            *ptrOut++ = finalValue * (MAIN_VOL_L / 100);;
+            *ptrOut++ = finalValue;
             //                        
             resultOut+=2*chn; 
         }
 
-        // Volcamos el output en el buffer de salida
+        // Volcamos el output
+        // Volcamos en el buffer
+
         _kit.write(bufferOut, resultOut); 
         
     }
-
     public:
 
       void set_SdFat32(SdFat32 sdf32)
@@ -1170,8 +1118,7 @@ class TAPrecorder
       bool recording()
       {         
           size_t len = 0;
-          len = _kit.read(bufferRec, BUFFER_SIZE_REC);    
-          
+          len = _kit.read(bufferRec, BUFFER_SIZE_REC);            
           readBuffer(len);
 
           if (!stopRecordingProccess)
@@ -1180,15 +1127,6 @@ class TAPrecorder
           }
           else
           {
-            if (errorDetected != 0)
-            {
-              // Hubo errores
-              errorDetected = 0;
-              REC = true;
-              terminate(true);
-              REC = false;
-            }
-            
             return true;
           }
       }
@@ -1273,15 +1211,11 @@ class TAPrecorder
           wasSelectedThreshold = false;    
           stateRecording = 0;
 
-          resetMeasuredPulse();
-
+          _pulseWidth = 0;      
           stopRecordingProccess = false; 
           stateInfoBlock = 0;
           //
-          waitingNextBlock = false;
-          isSilence = false;
-          //
-          //WasfirstStepInTheRecordingProccess = false;
+          headState = 0;
       }
 
       bool createTempTAPfile()
@@ -1329,9 +1263,6 @@ class TAPrecorder
       void terminate(bool removeFile)
       {
 
-        FIRSTBLOCKREAD = false;
-        bool fileWasClosed = false;
-
         // Si REC no está activo, no podemos terminar
         if (REC)
         {
@@ -1340,14 +1271,10 @@ class TAPrecorder
                 // El fichero inicialmente fue creado con exito
                 // en la SD, pero ...
                 //
-                //
-                // LAST_MESSAGE="Preparando fichero.";
-                // delay(3000);
-
+                // 
                 if (_mFile.size() !=0 && BLOCK_REC_COMPLETED)
                 {
-                    LAST_MESSAGE = "File size: " + String(_mFile.size());
-                    delay(1500);
+                    LAST_MESSAGE += " size: " + String(_mFile.size());
 
                     if (!removeFile)
                     {
@@ -1363,8 +1290,10 @@ class TAPrecorder
 
                       // Lo cerramos
                       _mFile.close();
-                      fileWasClosed = true;
- 
+                      
+                      // LAST_MESSAGE="File closed!";
+                      // delay(1500);
+
                       delay(125);
 
                     }
@@ -1373,12 +1302,11 @@ class TAPrecorder
                       // SE ELIMINA
                       // No se renombra porque es erroneo
                       _mFile.close();
-                      fileWasClosed = true;                      
                       delay(125);
                       // Se elimina
                       _mFile.remove();
-                      // LAST_MESSAGE="File removed!";
-                      // delay(1500);                     
+                      LAST_MESSAGE="File removed!";
+                      delay(1500);                     
                     }
                 }
                 else
@@ -1392,40 +1320,26 @@ class TAPrecorder
                   }
 
                   _mFile.close();
-                  fileWasClosed = true;
-                  delay(250);
+                  delay(1000);
                   _mFile.remove();
-                  delay(250);
-                  
-                  // LAST_MESSAGE="File filled and removed.";
-                  // delay(1500);                       
+                  LAST_MESSAGE="File filled and removed.";
+                  delay(1500);                       
 
                 }
             }
             else
             {
               // El fichero no fue creado
-              _mFile.close();
-              fileWasClosed = true;
+              //_mFile.close();
+              //delay(125);
             }
         }
 
         wasRenamed = false;
         nameFileRead = false;
-        WasfirstStepInTheRecordingProccess = false;
-        
-        // Ponemos a cero todos los indicadores
-        _hmi.resetIndicators();  
 
-        if (!fileWasClosed)
-        {
-          LAST_MESSAGE="File not saved.";
-        }
-        else
-        {
-          LAST_MESSAGE="File saved.";
-        }
-        delay(3000);   
+        // Ponemos a cero todos los indicadores
+        _hmi.resetIndicators();     
       }
 
       TAPrecorder()

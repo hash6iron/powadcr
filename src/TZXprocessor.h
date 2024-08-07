@@ -1907,6 +1907,8 @@ class TZXprocessor
             //log("Partiendo la pana");
 
             int totalSize = descriptor.size;
+            PARTITION_SIZE = totalSize;
+            
             int offsetBase = descriptor.offsetData;
             int newOffset = 0;
             int blocks = totalSize / blockSizeSplit;
@@ -2263,6 +2265,9 @@ class TZXprocessor
                               {
 
                                   int totalSize = _myTZX.descriptor[i].size;
+                                  
+                                  PARTITION_SIZE = totalSize;
+
                                   int offsetBase = _myTZX.descriptor[i].offsetData;
                                   int newOffset = 0;
                                   double blocks = totalSize / blockSizeSplit;
