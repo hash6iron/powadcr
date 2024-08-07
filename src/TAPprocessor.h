@@ -123,6 +123,9 @@ class TAPprocessor
                 }
                 else
                 {
+                    LAST_MESSAGE = "Incorrect HEADER TAP.";
+                    delay(1500);
+
                     rtn = false;
                 }
 
@@ -350,97 +353,97 @@ class TAPprocessor
             return (char*)(header+2);             
         }
   
-        int getNumBlocks(File32 mFile, int sizeTAP)
-        {
+        // int getNumBlocks(File32 mFile, int sizeTAP)
+        // {
 
-            int startBlock = 0;
-            int lastStartBlock = 0;
-            int sizeB = 0;
-            int newSizeB = 0;
-            int chk = 0;
-            int blockChk = 0;
-            int numBlocks = 0;
+        //     int startBlock = 0;
+        //     int lastStartBlock = 0;
+        //     int sizeB = 0;
+        //     int newSizeB = 0;
+        //     int chk = 0;
+        //     int blockChk = 0;
+        //     int numBlocks = 0;
 
-            FILE_CORRUPTED = false;
+        //     FILE_CORRUPTED = false;
             
-            bool reachEndByte = false;
+        //     bool reachEndByte = false;
 
-            int state = 0;    
+        //     int state = 0;    
 
-            uint8_t* ptr;
-            uint8_t* ptr1;
-            uint8_t* ptr2;
+        //     uint8_t* ptr;
+        //     uint8_t* ptr1;
+        //     uint8_t* ptr2;
 
-            //Entonces recorremos el TAP. 
-            // La primera cabecera SIEMPRE debe darse.
-            // //SerialHW.println("");
-            // //SerialHW.println("Analyzing TAP file. Please wait ...");
+        //     //Entonces recorremos el TAP. 
+        //     // La primera cabecera SIEMPRE debe darse.
+        //     // //SerialHW.println("");
+        //     // //SerialHW.println("Analyzing TAP file. Please wait ...");
             
-            // //SerialHW.println("");
-            // //SerialHW.println("SIZE TAP: " + String(sizeTAP));
+        //     // //SerialHW.println("");
+        //     // //SerialHW.println("SIZE TAP: " + String(sizeTAP));
 
-            // Los dos primeros bytes son el tamaño a contar
-            ptr1 = sdm.readFileRange32(_mFile,startBlock+1,1,false);
-            ptr2 = sdm.readFileRange32(_mFile,startBlock,1,false);
-            sizeB = (256*ptr1[0]) + ptr2[0];
-            free(ptr1);
-            free(ptr2);            
-            startBlock = 2;
+        //     // Los dos primeros bytes son el tamaño a contar
+        //     ptr1 = sdm.readFileRange32(_mFile,startBlock+1,1,false);
+        //     ptr2 = sdm.readFileRange32(_mFile,startBlock,1,false);
+        //     sizeB = (256*ptr1[0]) + ptr2[0];
+        //     free(ptr1);
+        //     free(ptr2);            
+        //     startBlock = 2;
 
-            while(reachEndByte==false)
-            {
+        //     while(reachEndByte==false)
+        //     {
 
-                ptr = sdm.readFileRange32(_mFile,startBlock,sizeB-1,false);
-                chk = calculateChecksum(ptr,0,sizeB-1);
-                free(ptr);    
+        //         ptr = sdm.readFileRange32(_mFile,startBlock,sizeB-1,false);
+        //         chk = calculateChecksum(ptr,0,sizeB-1);
+        //         free(ptr);    
 
-                ptr = sdm.readFileRange32(_mFile,startBlock+sizeB-1,1,false);
-                blockChk = ptr[0];
-                free(ptr);
+        //         ptr = sdm.readFileRange32(_mFile,startBlock+sizeB-1,1,false);
+        //         blockChk = ptr[0];
+        //         free(ptr);
 
-                if (blockChk == chk)
-                {                                  
-                    // Siguiente bloque
-                    // Direcion de inicio (offset)
-                    startBlock = startBlock + sizeB;
-                    // Tamaño
-                    ptr1 = sdm.readFileRange32(_mFile,startBlock+1,1,false);
-                    ptr2 = sdm.readFileRange32(_mFile,startBlock,1,false);
-                    newSizeB = (256*ptr1[0]) + ptr2[0];
-                    free(ptr1);
-                    free(ptr2);
+        //         if (blockChk == chk)
+        //         {                                  
+        //             // Siguiente bloque
+        //             // Direcion de inicio (offset)
+        //             startBlock = startBlock + sizeB;
+        //             // Tamaño
+        //             ptr1 = sdm.readFileRange32(_mFile,startBlock+1,1,false);
+        //             ptr2 = sdm.readFileRange32(_mFile,startBlock,1,false);
+        //             newSizeB = (256*ptr1[0]) + ptr2[0];
+        //             free(ptr1);
+        //             free(ptr2);
 
-                    numBlocks++;
-                    sizeB = newSizeB;
-                    startBlock = startBlock + 2;
+        //             numBlocks++;
+        //             sizeB = newSizeB;
+        //             startBlock = startBlock + 2;
 
-                    // //SerialHW.println("");
-                    // //SerialHW.print("OFFSET: 0x");
-                    // //SerialHW.print(startBlock,HEX);
-                    // //SerialHW.print(" / SIZE:   " + String(newSizeB));
-                }
-                else
-                {
-                    reachEndByte = true;
-                    // //SerialHW.println("Error in checksum. Block --> " + String(numBlocks) + " - offset: " + String(lastStartBlock));
+        //             // //SerialHW.println("");
+        //             // //SerialHW.print("OFFSET: 0x");
+        //             // //SerialHW.print(startBlock,HEX);
+        //             // //SerialHW.print(" / SIZE:   " + String(newSizeB));
+        //         }
+        //         else
+        //         {
+        //             reachEndByte = true;
+        //             // //SerialHW.println("Error in checksum. Block --> " + String(numBlocks) + " - offset: " + String(lastStartBlock));
 
-                    // Abortamos
-                    FILE_CORRUPTED = true;
-                }
+        //             // Abortamos
+        //             FILE_CORRUPTED = true;
+        //         }
 
-                // ¿Hemos llegado al ultimo uint8_t
-                if (startBlock > sizeTAP)                
-                {
-                    reachEndByte = true;
-                    //break;
-                    // //SerialHW.println("");
-                    // //SerialHW.println("Success. End: ");
-                }
+        //         // ¿Hemos llegado al ultimo uint8_t
+        //         if (startBlock > sizeTAP)                
+        //         {
+        //             reachEndByte = true;
+        //             //break;
+        //             // //SerialHW.println("");
+        //             // //SerialHW.println("Success. End: ");
+        //         }
 
-            }
+        //     }
 
-            return numBlocks;
-        }
+        //     return numBlocks;
+        // }
 
         bool getInformationOfHead(tBlockDescriptor &tB, int flagByte, int typeBlock, int startBlock, int sizeB, char (&nameTAP)[11])
         {
@@ -580,168 +583,170 @@ class TAPprocessor
             // Este procedimiento recorre el .TAP y devuelve el número de bloques que contiene
             //int numBlks = getNumBlocks(mFile, sizeTAP);
             
-            if (!FILE_CORRUPTED)
+            //if (!FILE_CORRUPTED)
+            //{
+            // La reserva de memoria para el descriptor de bloques del TAP
+            // se hace en powadcr.ino
+
+            //  Inicializamos variables
+            char nameTAP[11];
+            char typeName[11];
+            char blockName[11];
+
+            int startBlock = 0;
+            int lastStartBlock = 0;
+            int sizeB = 0;
+            int newSizeB = 0;
+            int chk = 0;
+            int blockChk = 0;
+            int numBlocks = 0;
+            int state = 0;    
+
+            bool blockNameDetected = false;                
+            bool reachEndByte = false;
+
+            uint8_t* ptr;
+            uint8_t* ptr1;
+            uint8_t* ptr2;
+
+            //Entonces recorremos el TAP. 
+            // //SerialHW.println("");
+            // //SerialHW.println("Analyzing TAP file. Please wait ...");
+            
+            // La primera cabecera SIEMPRE debe darse.
+            // Los dos primeros bytes son el tamaño a contar
+            
+            ptr1 = sdm.readFileRange32(_mFile,startBlock+1,1,false);
+            ptr2 = sdm.readFileRange32(_mFile,startBlock,1,false);
+            sizeB = (256*ptr1[0]) + ptr2[0];
+            free(ptr1);
+            free(ptr2);            
+
+            startBlock = 2;
+
+            // Recorremos ahora el fichero
+            while(reachEndByte==false && sizeB!=0)
             {
-                // La reserva de memoria para el descriptor de bloques del TAP
-                // se hace en powadcr.ino
-
-                //  Inicializamos variables
-                char nameTAP[11];
-                char typeName[11];
-                char blockName[11];
-
-                int startBlock = 0;
-                int lastStartBlock = 0;
-                int sizeB = 0;
-                int newSizeB = 0;
-                int chk = 0;
-                int blockChk = 0;
-                int numBlocks = 0;
-                int state = 0;    
-
-                bool blockNameDetected = false;                
-                bool reachEndByte = false;
-
-                uint8_t* ptr;
-                uint8_t* ptr1;
-                uint8_t* ptr2;
-
-                //Entonces recorremos el TAP. 
-                // //SerialHW.println("");
-                // //SerialHW.println("Analyzing TAP file. Please wait ...");
+                // Inicializamos
+                blockNameDetected = false;
                 
-                // La primera cabecera SIEMPRE debe darse.
-                // Los dos primeros bytes son el tamaño a contar
+                // Cogemos el bloque completo, para poder calcular su checksum
+                ptr = sdm.readFileRange32(_mFile,startBlock,sizeB-1,false);
+                // Calculamos el checksum
+                chk = calculateChecksum(ptr,0,sizeB-1);
+                // Liberamos
+                free(ptr);
                 
-                ptr1 = sdm.readFileRange32(_mFile,startBlock+1,1,false);
-                ptr2 = sdm.readFileRange32(_mFile,startBlock,1,false);
-                sizeB = (256*ptr1[0]) + ptr2[0];
-                free(ptr1);
-                free(ptr2);            
+                // Obtenemos el valor de checksum de la cabecera del bloque
+                ptr =  sdm.readFileRange32(_mFile,startBlock+sizeB-1,1,false); 
+                blockChk =ptr[0];         
+                free(ptr);
 
-                startBlock = 2;
-
-                // Recorremos ahora el fichero
-                while(reachEndByte==false && sizeB!=0)
+                // Comparamos para asegurarnos que el bloque es correcto
+                if (blockChk == chk)
                 {
-                    // Inicializamos
-                    blockNameDetected = false;
+                    // Si es correcto entonces, prosigo obteniendo información
+                    // Almaceno el inicio del bloque
+                    _myTAP.descriptor[numBlocks].offset = startBlock;
+                    // Almaceno el tamaño del bloque
+                    _myTAP.descriptor[numBlocks].size = sizeB;
+                    // Almaceno el checksum calculado
+                    _myTAP.descriptor[numBlocks].chk = chk;        
+
+                    // Cogemos mas info del bloque
                     
-                    // Cogemos el bloque completo, para poder calcular su checksum
-                    ptr = sdm.readFileRange32(_mFile,startBlock,sizeB-1,false);
-                    // Calculamos el checksum
-                    chk = calculateChecksum(ptr,0,sizeB-1);
-                    // Liberamos
+                    // Flagbyte
+                    // 0x00 - HEADER
+                    // 0xFF - DATA BLOCK
+                    ptr = sdm.readFileRange32(_mFile,startBlock,1,false);
+                    int flagByte = ptr[0];
+                    free(ptr);
+
+                    // Typeblock
+                    // 0x00 - PROGRAM
+                    // 0x01 - ARRAY NUM
+                    // 0x02 - ARRAY CHAR
+                    // 0x03 - CODE FILE
+                    ptr = sdm.readFileRange32(_mFile,startBlock+1,1,false);
+                    int typeBlock = ptr[0];
                     free(ptr);
                     
-                    // Obtenemos el valor de checksum de la cabecera del bloque
-                    ptr =  sdm.readFileRange32(_mFile,startBlock+sizeB-1,1,false); 
-                    blockChk =ptr[0];         
-                    free(ptr);
+                    // Vemos si el bloque es una cabecera o un bloque de datos (bien BASIC o CM)
+                    blockNameDetected = getInformationOfHead(_myTAP.descriptor[numBlocks],flagByte,typeBlock,startBlock,sizeB,nameTAP);
 
-                    // Comparamos para asegurarnos que el bloque es correcto
-                    if (blockChk == chk)
-                    {
-                        // Si es correcto entonces, prosigo obteniendo información
-                        // Almaceno el inicio del bloque
-                        _myTAP.descriptor[numBlocks].offset = startBlock;
-                        // Almaceno el tamaño del bloque
-                        _myTAP.descriptor[numBlocks].size = sizeB;
-                        // Almaceno el checksum calculado
-                        _myTAP.descriptor[numBlocks].chk = chk;        
+                    strncpy(_myTAP.descriptor[numBlocks].typeName,getTypeTAPBlock(_myTAP.descriptor[numBlocks].type),10)                       ;                      
 
-                        // Cogemos mas info del bloque
-                        
-                        // Flagbyte
-                        // 0x00 - HEADER
-                        // 0xFF - DATA BLOCK
-                        ptr = sdm.readFileRange32(_mFile,startBlock,1,false);
-                        int flagByte = ptr[0];
-                        free(ptr);
-
-                        // Typeblock
-                        // 0x00 - PROGRAM
-                        // 0x01 - ARRAY NUM
-                        // 0x02 - ARRAY CHAR
-                        // 0x03 - CODE FILE
-                        ptr = sdm.readFileRange32(_mFile,startBlock+1,1,false);
-                        int typeBlock = ptr[0];
-                        free(ptr);
-                        
-                        // Vemos si el bloque es una cabecera o un bloque de datos (bien BASIC o CM)
-                        blockNameDetected = getInformationOfHead(_myTAP.descriptor[numBlocks],flagByte,typeBlock,startBlock,sizeB,nameTAP);
-
-                        strncpy(_myTAP.descriptor[numBlocks].typeName,getTypeTAPBlock(_myTAP.descriptor[numBlocks].type),10)                       ;                      
-
-                        // Si el bloque contenia nombre, se indica
-                        if (blockNameDetected)
-                        {                                     
-                            _myTAP.descriptor[numBlocks].nameDetected = true;                                      
-                        }
-                        else
-                        {
-                            _myTAP.descriptor[numBlocks].nameDetected = false;
-                        }
-
-                        // Siguiente bloque
-                        // Direcion de inicio (offset)
-                        startBlock = startBlock + sizeB;
-                        // Tamaño
-                        ptr1 = sdm.readFileRange32(_mFile,startBlock+1,1,false);
-                        ptr2 = sdm.readFileRange32(_mFile,startBlock,1,false);
-                        newSizeB = (256*ptr1[0]) + ptr2[0];
-                        free(ptr1);
-                        free(ptr2);  
-                        // Pasamos al siguiente bloque
-                        numBlocks++;
-                        // Ahora el tamaño es el nuevo tamaño calculado
-                        sizeB = newSizeB;
-                        // El inicio de bloque comienza 2 bytes mas adelante (nos saltamos 13 00 ó FF 00)
-                        startBlock = startBlock + 2;
-
+                    // Si el bloque contenia nombre, se indica
+                    if (blockNameDetected)
+                    {                                     
+                        _myTAP.descriptor[numBlocks].nameDetected = true;                                      
                     }
                     else
                     {
-                        // Si los checksum no coinciden. Indicamos que hemos acabado
-                        // y decimos que hay un error (debug)
-                        reachEndByte = true;
-                        // //SerialHW.println("Error in checksum. Block --> " + String(numBlocks) + " - offset: " + String(lastStartBlock));
-                        
-                        // Añadimos información importante
-                        strncpy(_myTAP.name,"",1);
-                        _myTAP.size = 0;
-                        _myTAP.numBlocks = 0; 
-                        // Salimos ya de la función.
-                        return;
+                        _myTAP.descriptor[numBlocks].nameDetected = false;
                     }
 
-                    // ¿Hemos llegado al ultimo byte? Entonces lo indicamos reachEndByte = true
-                    if (startBlock > sizeTAP)                
-                    {
-                        // Con esto en la siguiente vuelta, salimos del while
-                        reachEndByte = true;
-                        //break;
-                        // //SerialHW.println("");
-                        // //SerialHW.println("Success. End: ");
-                    }
+                    // Siguiente bloque
+                    // Direcion de inicio (offset)
+                    startBlock = startBlock + sizeB;
+                    // Tamaño
+                    ptr1 = sdm.readFileRange32(_mFile,startBlock+1,1,false);
+                    ptr2 = sdm.readFileRange32(_mFile,startBlock,1,false);
+                    newSizeB = (256*ptr1[0]) + ptr2[0];
+                    free(ptr1);
+                    free(ptr2);  
+                    // Pasamos al siguiente bloque
+                    numBlocks++;
+                    // Ahora el tamaño es el nuevo tamaño calculado
+                    sizeB = newSizeB;
+                    // El inicio de bloque comienza 2 bytes mas adelante (nos saltamos 13 00 ó FF 00)
+                    startBlock = startBlock + 2;
 
-                    TOTAL_BLOCKS = numBlocks;
+                }
+                else
+                {
+                    // Si los checksum no coinciden. Indicamos que hemos acabado
+                    // y decimos que hay un error (debug)
+                    reachEndByte = true;
+                    // //SerialHW.println("Error in checksum. Block --> " + String(numBlocks) + " - offset: " + String(lastStartBlock));
+                    LAST_MESSAGE = "Error in checksum. Block --> " + String(numBlocks) + " - offset: " + String(lastStartBlock);
+                    delay(3000);                
+                    
+                    // Añadimos información importante
+                    strncpy(_myTAP.name,"",1);
+                    _myTAP.size = 0;
+                    _myTAP.numBlocks = 0; 
+                    // Salimos ya de la función.
+                    return;
                 }
 
-                // Añadimos información importante
-                strncpy(_myTAP.name,nameTAP,sizeof(nameTAP));
-                _myTAP.size = sizeTAP;
-                _myTAP.numBlocks = numBlocks;
+                // ¿Hemos llegado al ultimo byte? Entonces lo indicamos reachEndByte = true
+                if (startBlock > sizeTAP)                
+                {
+                    // Con esto en la siguiente vuelta, salimos del while
+                    reachEndByte = true;
+                    //break;
+                    // //SerialHW.println("");
+                    // //SerialHW.println("Success. End: ");
+                }
+
+                TOTAL_BLOCKS = numBlocks;
+            }
+
+            // Añadimos información importante
+            strncpy(_myTAP.name,nameTAP,sizeof(nameTAP));
+            _myTAP.size = sizeTAP;
+            _myTAP.numBlocks = numBlocks;
             
-            }
-            else
-            {
-                // Ponemos la información a cero porque el
-                // fichero estaba corrupto.
-                strncpy(_myTAP.name,"",1);
-                _myTAP.size = 0;
-                _myTAP.numBlocks = 0;            
-            }
+            //}
+            // else
+            // {
+            //     // Ponemos la información a cero porque el
+            //     // fichero estaba corrupto.              
+            //     strncpy(_myTAP.name,"",1);
+            //     _myTAP.size = 0;
+            //     _myTAP.numBlocks = 0;            
+            // }
 
             // Actualizamos el indicador de consumo de PS_RAM
             //_hmi.updateMem();
@@ -1039,6 +1044,8 @@ class TAPprocessor
             }
             else
             {
+                LAST_MESSAGE = "is not file TAP.";
+                delay(1500);
                 return false;
             }
         }
@@ -1364,6 +1371,8 @@ class TAPprocessor
                                 //log("Partiendo la pana");
 
                                 int totalSize = _myTAP.descriptor[i].size;
+                                PARTITION_SIZE = totalSize;
+                                
                                 int offsetBase = _myTAP.descriptor[i].offset;
                                 int newOffset = 0;
                                 int blocks = totalSize / blockSizeSplit;

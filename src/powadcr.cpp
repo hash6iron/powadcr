@@ -86,7 +86,6 @@
 #define AI_THINKER_ES8388_VOLUME_HACK 1
 
 #include <Arduino.h>
-#include <iostream>
 
 #include "config.h"
 
@@ -174,23 +173,19 @@ bool pageScreenIsShown = false;
 #include <WiFi.h>
 #include <WiFiClient.h>
 #include <WebServer.h>
-
 WebServer server(80);
-
-#include <ESPAsyncWebServer.h>
-AsyncWebServer fserver(81);
 
 #include <ElegantOTA.h>
 // -----------------------------------------------------------------------
 
-#include "powaFileServer.h"
-powaFileServer fileServer(&fserver,sdf);
+// #include "powaFileServer.h"
+// powaFileServer fileServer(&fserver,sdf);
 
-#include "AudioTools.h"
-#include "AudioLibs/AudioKit.h"
+// #include "AudioTools.h"
+// #include "AudioLibs/AudioKit.h"
 
-AudioKitStream kit;
-StreamCopy copier(kit, kit);  // copies data
+// AudioKitStream kit;
+// StreamCopy copier(kit, kit);  // copies data
 
 int* strToIPAddress(String strIPAddr)
 {
@@ -228,7 +223,8 @@ void loadWifiCfgFile()
   {
     logln("File wifi.cfg exists");
 
-    File32 fWifi = sdm.openFile32("/wifi.cfg"); 
+    char* pathCfgFile = "/wifi.cfg";
+    File32 fWifi = sdm.openFile32(pathCfgFile);
     int* IP;
 
     if(fWifi.isOpen())
@@ -311,7 +307,8 @@ void loadWifiCfgFile()
 }
 void loadHMICfgFile()
 {
-  File32 fHMI = sdm.openFile32("/hmi.cfg");
+  char* pathCfgFile = "/hmi.cfg";
+  File32 fHMI = sdm.openFile32(pathCfgFile);
   
   //Leemos ahora toda la configuración
   if(fHMI)
@@ -709,64 +706,64 @@ void setAudioInOut()
   }   
 }
 
-void setWavRecording(char* file_name)
-{
-    // AudioLogger::instance().begin(Serial, AudioLogger::Error);
+// void setWavRecording(char* file_name)
+// {
+//     // AudioLogger::instance().begin(Serial, AudioLogger::Error);
 
-    // // Cleanup if necessary
-    // if (sdf.exists(file_name))
-    // {
-    //     sdf.remove(file_name);
-    // }  
+//     // // Cleanup if necessary
+//     // if (sdf.exists(file_name))
+//     // {
+//     //     sdf.remove(file_name);
+//     // }  
 
-    // // open file for recording WAV
-    // wavfile = sdf.open(file_name, O_WRITE | O_CREAT);
-    // if (!wavfile)
-    // {
-    //     logln("file failed!");
-    //     delay(5000);
-    //     tapeState=0;
-    //     STOP=true;
-    //     REC=false;
-    //     return;
-    // }
+//     // // open file for recording WAV
+//     // wavfile = sdf.open(file_name, O_WRITE | O_CREAT);
+//     // if (!wavfile)
+//     // {
+//     //     logln("file failed!");
+//     //     delay(5000);
+//     //     tapeState=0;
+//     //     STOP=true;
+//     //     REC=false;
+//     //     return;
+//     // }
 
-    // // Configure WAVEncoder
-    // auto cfg_WAVEncoder = WAVEncoder().defaultConfig();
-    // wavInfo.bits_per_sample = 16;
-    // wavInfo.sample_rate = 44100;
-    // wavInfo.channels = 2;
-    // WAVEncoder().begin(wavInfo);
+//     // // Configure WAVEncoder
+//     // auto cfg_WAVEncoder = WAVEncoder().defaultConfig();
+//     // wavInfo.bits_per_sample = 16;
+//     // wavInfo.sample_rate = 44100;
+//     // wavInfo.channels = 2;
+//     // WAVEncoder().begin(wavInfo);
 
-    // // setup input
-    // kitCfg = kitStrm.defaultConfig(TX_MODE);
-    // kitCfg.driver = AUDIO_CODEC_ES8388_DEFAULT_HANDLE;
-    // kitCfg.is_master = true;
-    // kitCfg.input_device = AUDIO_HAL_ADC_INPUT_LINE2;
-    // kitCfg.bits_per_sample = 16;
-    // kitCfg.sample_rate = 44100;
-    // kitCfg.channels = 2;
-    // kitCfg.sd_active = true;
-    // kitCfg.copyFrom(info);
+//     // // setup input
+//     // kitCfg = kitStrm.defaultConfig(TX_MODE);
+//     // kitCfg.driver = AUDIO_CODEC_ES8388_DEFAULT_HANDLE;
+//     // kitCfg.is_master = true;
+//     // kitCfg.input_device = AUDIO_HAL_ADC_INPUT_LINE2;
+//     // kitCfg.bits_per_sample = 16;
+//     // kitCfg.sample_rate = 44100;
+//     // kitCfg.channels = 2;
+//     // kitCfg.sd_active = true;
+//     // kitCfg.copyFrom(info);
 
-    // kitStrm.begin(kitCfg);
-    // logln("Setting i2C");
-    // logln("");
-    // delay(10000);
+//     // kitStrm.begin(kitCfg);
+//     // logln("Setting i2C");
+//     // logln("");
+//     // delay(10000);
 
-    // // Inicializamos la salida del encoder
-    // AudioInfo out_info(44100,2,16);
-    // out.begin(out_info);
-    // // Inicializamos el copier
-    // copier.setCheckAvailableForWrite(false);
-    // copier.begin(wavfile, kitStrm);  
-    AudioLogger::instance().begin(Serial, AudioLogger::Warning);
+//     // // Inicializamos la salida del encoder
+//     // AudioInfo out_info(44100,2,16);
+//     // out.begin(out_info);
+//     // // Inicializamos el copier
+//     // copier.setCheckAvailableForWrite(false);
+//     // copier.begin(wavfile, kitStrm);  
+//     AudioLogger::instance().begin(Serial, AudioLogger::Warning);
 
-    auto cfg = kit.defaultConfig(RXTX_MODE);
-    cfg.input_device = AUDIO_HAL_ADC_INPUT_LINE2;
-    kit.begin(cfg);
+//     auto cfg = kit.defaultConfig(RXTX_MODE);
+//     cfg.input_device = AUDIO_HAL_ADC_INPUT_LINE2;
+//     kit.begin(cfg);
 
-}
+// }
 
 void pauseRecording()
 {
@@ -792,7 +789,7 @@ void stopRecording()
       // No quitar esto, permite leer la variable totalBlockTransfered
       int tbt = taprec.totalBlockTransfered;
       LAST_MESSAGE = "Total blocks: " + String(tbt);
-      delay(2000);
+      delay(300);
 
       if (tbt >= 1)
       {
@@ -805,13 +802,13 @@ void stopRecording()
             taprec.terminate(false);
             if (BLOCK_REC_COMPLETED)
             {
-                LAST_MESSAGE = "Recording STOP. File succesfully saved.";
+                //LAST_MESSAGE = "Recording STOP. File succesfully saved.";
             }
             else
             {
                 LAST_MESSAGE = "Recording STOP. No file saved";
             }
-            delay(1000);
+            //delay(750);
           }
           else
           {
@@ -859,7 +856,7 @@ void stopRecording()
                   // Si no se crea el fichero no se puede seguir grabando
                   taprec.terminate(false);
                   LAST_MESSAGE = "Error in filesystem or SD.";
-                  delay(1000);
+                  //delay(750);
               }
 
           }
@@ -870,7 +867,7 @@ void stopRecording()
           taprec.terminate(true);
           LAST_MESSAGE = "Recording STOP. No file saved";
           //      
-          delay(1000);
+          //delay(750);
       }
 
     }
@@ -918,8 +915,18 @@ void onOTAProgress(size_t current, size_t final)
       HTTPUpload &upload = server.upload();
       size_t fileSize = upload.totalSize / 1024;
       fileSize = (round(fileSize*10)) / 10;
-      String fileName = upload.filename;
+      // int prg = 0;
 
+      // if (upload.totalSize != 0)
+      // {
+      //   prg = (upload.currentSize / upload.totalSize)*100;
+      // }
+      // else
+      // {
+      //   prg = 0;
+      // }
+      
+      String fileName = upload.filename;
       hmi.writeString("statusLCD.txt=\"FIRMWARE UPDATING " + String(fileSize) + " KB\""); 
 
       // if(final!=0)
@@ -971,16 +978,22 @@ void wifiOTASetup()
       failed = true;     
   }
 
-  while (WiFi.waitForConnectResult() != WL_CONNECTED) 
+  int trying_wifi = 0;
+
+  while ((WiFi.waitForConnectResult() != WL_CONNECTED)  || trying_wifi > 500)
   {
-    hmi.writeString("statusLCD.txt=\"WiFi Connection failed!\"" );
+    hmi.writeString("statusLCD.txt=\"WiFi Connection failed! - try " + String(trying_wifi) + "\"" );
     failed = true;
+    trying_wifi++;
   }  
+
+  if (trying_wifi > 500)
+  {
+    failed = true;
+  }
 
   if (!failed)
   {
-      File32 sFile = sdm.openFile32("/html/index.html");
-
       server.on("/", HTTP_GET,[]()
       {
         server.send(200, "text/plain", "powaDCR OTA Server. Powered by Elegant OTA");
@@ -995,8 +1008,8 @@ void wifiOTASetup()
 
       server.begin();
 
-      hmi.writeString("statusLCD.txt=\"Wifi + OTA - Enabled\"");
-      delay(750);
+      // hmi.writeString("statusLCD.txt=\"Wifi + OTA - Enabled\"");
+      // delay(125);
 
       hmi.writeString("statusLCD.txt=\"IP " + WiFi.localIP().toString() + "\""); 
 
@@ -1149,7 +1162,7 @@ bool loadingFile()
   }
   else
   {
-    LAST_MESSAGE = "Error in file.";
+    //LAST_MESSAGE = "Error in file.";
     return false;
   }
 }
@@ -1223,8 +1236,6 @@ void prepareRecording()
     }
     else
     {
-      LAST_MESSAGE = "Recorder ready. Play source data.";
-
       //writeString("");
       hmi.writeString("currentBlock.val=1");
       //writeString("");
@@ -1290,7 +1301,6 @@ void getAudioSettingFromHMI()
     {
       ZEROLEVEL = false;
     }
-
 }
 void tapeControl()
 { 
@@ -1360,9 +1370,9 @@ void tapeControl()
           else
           {
             // Modo WAV
-            LAST_MESSAGE = "Recording to WAV file.";
-            setWavRecording("/REC/record.wav");
-            tapeState = 110;
+            // LAST_MESSAGE = "Recording to WAV file.";
+            // setWavRecording("/REC/record.wav");
+            // tapeState = 110;
           }
         }
         else
@@ -1597,27 +1607,27 @@ void tapeControl()
 
       case 110:
         // Modo WAV recording
-        if (STOP)
-        {
-            // if (wavfile) 
-            // {
-                // wavfile.flush();
-                // logln("File has ");
-                // logln(String(wavfile.size()));
-                // log(" bytes");
-                // wavfile.close();
+        // if (STOP)
+        // {
+        //     // if (wavfile) 
+        //     // {
+        //         // wavfile.flush();
+        //         // logln("File has ");
+        //         // logln(String(wavfile.size()));
+        //         // log(" bytes");
+        //         // wavfile.close();
 
-                // logln("Recording finish!");
-                LAST_MESSAGE = "Recording STOP.";
-                tapeState = 0;
-                REC = false;
-                STOP = true;
-            // }        
-        }
-        else
-        {
-          copier.copy();  
-        }
+        //         // logln("Recording finish!");
+        //         LAST_MESSAGE = "Recording STOP.";
+        //         tapeState = 0;
+        //         REC = false;
+        //         STOP = true;
+        //     // }        
+        // }
+        // else
+        // {
+        //   copier.copy();  
+        // }
         break;
 
       default:
@@ -1659,6 +1669,9 @@ void Task0code( void * pvParameters )
     int startTime2 = millis();
     int tClock = millis();
     int ho=0;int mi=0;int se=0;
+    int tScrRfsh = 500;
+    int tOscRfsh = 250;
+
 
     for(;;)
     {
@@ -1670,7 +1683,19 @@ void Task0code( void * pvParameters )
         //buttonsControl();
         //delay(50);
         #ifndef DEBUGMODE
-          if ((millis() - startTime) > 500)
+
+          if (REC)
+          {
+              tScrRfsh = 500;
+              tOscRfsh = 250;
+          }
+          else
+          {
+              tScrRfsh = 250;
+              tOscRfsh = 125;
+          }
+
+          if ((millis() - startTime) > tScrRfsh)
           {
             startTime = millis();
             stackFreeCore1 = uxTaskGetStackHighWaterMark(Task1);    
@@ -1678,7 +1703,7 @@ void Task0code( void * pvParameters )
             hmi.updateInformationMainPage();
           }
 
-          if((millis() - startTime2) > 250)
+          if((millis() - startTime2) > tOscRfsh)
           {
             startTime2 = millis();
             if (SCOPE==up)
@@ -1720,17 +1745,17 @@ void setup()
     // Configuramos el nivel de log
     SerialHW.setRxBufferSize(2048);
     SerialHW.begin(921600);
-    delay(250);
+    delay(125);
 
     //myNex.begin(921600);
 
     // Forzamos un reinicio de la pantalla
     hmi.writeString("rest");
-    delay(250);
+    delay(125);
 
     // Indicamos que estamos haciendo reset
     sendStatus(RESET, 1);
-    delay(750);
+    delay(250);
 
     hmi.writeString("statusLCD.txt=\"POWADCR " + String(VERSION) + "\"" );   
     delay(1250);
@@ -1753,7 +1778,7 @@ void setup()
     
     // Configuramos acceso a la SD
     hmi.writeString("statusLCD.txt=\"WAITING FOR SD CARD\"" );
-    delay(750);
+    delay(125);
 
     int SD_Speed = SD_FRQ_MHZ_INITIAL;  // Velocidad en MHz (config.h)
     setSDFrequency(SD_Speed);
@@ -1779,7 +1804,7 @@ void setup()
       //SerialHW.println("PSRAM not available");
       hmi.writeString("statusLCD.txt=\"PSRAM FAILED!\"" );
     }    
-    delay(750);
+    delay(125);
 
     // ------------------------------------------------------
     //

@@ -56,6 +56,7 @@ struct tFileBuffer
     bool isDir = false;
     String path = "";
     String type = "";
+    uint32_t fileposition = 0;
 };
 
 struct tConfig
@@ -71,27 +72,25 @@ bool SILENCEDEBUG = false;
 double ACU_ERROR = 0.0;
 double INTPART = 0.0;
 
-#ifdef MACHINE_ZX
-  // Timming estandar de la ROM
-  // Frecuencia de la CPU
-  //double DfreqCPU = 3476604.8;
-  //double DfreqCPU = 3450000;
-  double DfreqCPU = 3500000;
-  //double DfreqCPU = 3250000;
+// Timming estandar de la ROM
+// Frecuencia de la CPU
+//double DfreqCPU = 3476604.8;
+//double DfreqCPU = 3450000;
+double DfreqCPU = 3500000;
+//double DfreqCPU = 3250000;
 
-  const int DPULSES_HEADER = 8063;
-  const int DPULSES_DATA = 3223;
-  // Señales de sincronismo
-  int DSYNC1 = 667;
-  int DSYNC2 = 735;
-  // Bits 0 y 1
-  int DBIT_0 = 855;
-  int DBIT_1 = 1710;
-  // Pulsos guia
-  int DPILOT_LEN = 2168;  
-  // Definición del silencio entre bloques en ms
-  int DSILENT = 1000;
-#endif
+const int DPULSES_HEADER = 8063;
+const int DPULSES_DATA = 3223;
+// Señales de sincronismo
+int DSYNC1 = 667;
+int DSYNC2 = 735;
+// Bits 0 y 1
+int DBIT_0 = 855;
+int DBIT_1 = 1710;
+// Pulsos guia
+int DPILOT_LEN = 2168;  
+// Definición del silencio entre bloques en ms
+int DSILENT = 1000;
 
 // Inicializadores para los char*
 String INITCHAR = "";
@@ -125,15 +124,16 @@ enum edge
   down=0
 };
 
-const char index_html[] PROGMEM = R"rawliteral(<!DOCTYPE HTML><html lang="en"><head><meta name="viewport" content="width=device-width, initial-scale=1"><meta charset="UTF-8"></head><body><p><h1>File Upload</h1></p><p>Free Storage: %FREESPIFFS% | Used Storage: %USEDSPIFFS% | Total Storage: %TOTALSPIFFS%</p><form method="POST" action="/upload" enctype="multipart/form-data"><input type="file" name="data"/><input type="submit" name="upload" value="Upload" title="Upload File"></form><p>After clicking upload it will take some time for the file to firstly upload and then be written to SPIFFS, there is no indicator that the upload began.  Please be patient.</p><p>Once uploaded the page will refresh and the newly uploaded file will appear in the file list.</p><p>If a file does not appear, it will be because the file was too big, or had unusual characters in the file name (like spaces).</p><p>You can see the progress of the upload by watching the serial output.</p><p>%FILELIST%</p></body></html>)rawliteral";
-
 // WAV record
 bool MODEWAV = false;
 
-// ZXProcessor
+// --------------------------------------------------------------------------
+//
+//  ZXProcessor
+//
+// --------------------------------------------------------------------------
 // Inicialmente se define como flanco up para que empiece en down.
 // Polarización de la señal.
-
 // Con esto hacemos que el primer pulso sea DOWN 
 // (porque el ultimo era DOWN supuestamente)
 edge POLARIZATION = up;
@@ -159,20 +159,9 @@ int FILE_LENGTH = 0;
 bool FILE_IS_OPEN = false;
 
 // Schmitt trigger
-int SCHMITT_THR = 20;
+int SCHMITT_THR = 0;
 int LAST_SCHMITT_THR = 0;
 bool EN_SCHMITT_CHANGE = false;
-
-// Pulses width 44100
-// ROM timming
-// -------------------
-//  DSYNC1 = 667;
-//  DSYNC2 = 735;
-// Bits 0 y 1
-//  DBIT_0 = 855;
-//  DBIT_1 = 1710;
-// Pulsos guia
-//  DPILOT_LEN = 2168; 
 
 int MIN_SYNC = 10;   //6
 int MAX_SYNC = 18;  //19  -- S1: 190.6us + S2: 210us 
@@ -188,24 +177,15 @@ int MAX_LEAD = 55;  //62  -- 619.4us * 2
 
 int MAX_PULSES_LEAD = 256;
 
-// // Pulses width 48000
-// int MIN_SYNC = 6;
-// int MAX_SYNC = 24;
-// int MIN_BIT0 = 1;
-// int MAX_BIT0 = 36;
-// int MIN_BIT1 = 37;
-// int MAX_BIT1 = 52;
-// int MIN_LEAD = 58;
-// int MAX_LEAD = 67;
-// int MAX_PULSES_LEAD = 255;
-
-
 bool SHOW_DATA_DEBUG = false;
 // Seleccion del canal para grabación izquierdo. Por defecto es el derecho
 bool SWAP_MIC_CHANNEL = false;
 bool SWAP_EAR_CHANNEL = false;
 //
 String RECORDING_DIR = "/REC";
+bool waitingNextBlock = false;
+bool FIRSTBLOCKREAD = false;
+ 
 
 int RECORDING_ERROR = 0;
 
@@ -251,6 +231,7 @@ int PROGRESS_BAR_REFRESH = 256;
 int PROGRESS_BAR_REFRESH_2 = 32;
 int PROGRESS_BAR_BLOCK_VALUE = 0;
 int PROGRESS_BAR_TOTAL_VALUE = 0;
+int PARTITION_SIZE = 0;
 bool BLOCK_PLAYED = false;
 String TYPE_FILE_LOAD = "";
 char LAST_NAME[15];
@@ -300,6 +281,8 @@ bool PROGRAM_NAME_DETECTED = false;
 tFileBuffer FILES_BUFF[MAX_FILES_TO_LOAD];
 tFileBuffer FILES_FOUND_BUFF[MAX_FILES_FOUND_BUFF];
 
+int DIRCURRENTPOS = 0;
+int DIRPREVPOS = 0;
 String FILE_TO_LOAD = "";
 String FILE_TO_DELETE = "";
 bool FILE_SELECTED_DELETE = false;
@@ -314,6 +297,9 @@ bool FILE_DIR_OPEN_FAILED = false;
 bool FILE_BROWSER_OPEN = false;
 bool FILE_BROWSER_SEARCHING = false;
 bool FILE_CORRUPTED = false;
+
+bool IN_THE_SAME_DIR = false;
+
 String FILE_TXT_TO_SEARCH = "";
 //bool waitingRecMessageShown = false;
 
@@ -363,8 +349,6 @@ bool preparingTestInOut = false;
 
 bool SCREEN_IS_LOADING = false;
 bool BLOCK_REC_COMPLETED = false;
-// int SAMPLES_READ = 0;
-// int SAMPLES_MEASURED = 0;
 
 // Gestion de menú
 bool MENU = false;
@@ -378,16 +362,22 @@ void logHEX(int n)
 
 void log(String txt)
 {
-  SerialHW.println(txt);
+  SerialHW.print(txt);
 }
 
 void logln(String txt)
 {
   SerialHW.println(txt);
-  SerialHW.println("");
 }
 
-// void logMemory() 
-// {
-//   log_d("Used PSRAM: %d", ESP.getPsramSize() - ESP.getFreePsram());
-// }
+char* strToCharArray(String str)
+{
+  char arr[str.length() + 1];
+  for (int x = 0; x < sizeof(arr); x++) 
+  { 
+    arr[x] = str[x]; 
+  }
+
+  SerialHW.println("Converted path: " + String(arr));
+  return arr;
+}
