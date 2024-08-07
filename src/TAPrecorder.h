@@ -1365,6 +1365,8 @@ class TAPrecorder
  
                       delay(125);
 
+                      LAST_MESSAGE = "File saved.";
+                      LAST_MESSAGE += " Size: " + String(_mFile.size()/1024) + " KB";
                     }
                     else
                     {
@@ -1377,6 +1379,7 @@ class TAPrecorder
                       _mFile.remove();
                       // LAST_MESSAGE="File removed!";
                       // delay(1500);                     
+                      LAST_MESSAGE = "File not saved.";
                     }
                 }
                 else
@@ -1396,8 +1399,8 @@ class TAPrecorder
                   delay(250);
                   
                   // LAST_MESSAGE="File filled and removed.";
-                  // delay(1500);                       
-
+                  // delay(1500);                  
+                  LAST_MESSAGE = "File not saved.";     
                 }
             }
             else
@@ -1405,6 +1408,7 @@ class TAPrecorder
               // El fichero no fue creado
               _mFile.close();
               fileWasClosed = true;
+              LAST_MESSAGE = "File not saved.";
             }
         }
 
@@ -1413,18 +1417,7 @@ class TAPrecorder
         WasfirstStepInTheRecordingProccess = false;
         
         // Ponemos a cero todos los indicadores
-        _hmi.resetIndicators();  
-
-        if (!fileWasClosed)
-        {
-          LAST_MESSAGE = "File not saved.";
-        }
-        else
-        {
-          LAST_MESSAGE = "File saved.";
-          LAST_MESSAGE += " Size: " + String(_mFile.size()/1024) + " KB";
-        }
-        delay(3000);   
+        _hmi.resetIndicators();   
       }
 
       TAPrecorder()
