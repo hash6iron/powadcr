@@ -887,6 +887,8 @@ void stopRecording()
 
     //Paramos la animación del indicador de recording
     hmi.writeString("tape2.tmAnimation.en=0");    
+    //Paramos la animación del indicador de recording
+    hmi.writeString("tape.tmAnimation.en=0");    
 }
 
 // -------------------------------------------------------------------------------------------------------------------
@@ -1038,7 +1040,10 @@ void setSTOP()
 
   BLOCK_SELECTED = 0;
   
-  hmi.writeString("tape2.tmAnimation.en=0"); 
+  //Paramos la animación del indicador de recording
+  hmi.writeString("tape2.tmAnimation.en=0");    
+  //Paramos la animación del indicador de recording
+  hmi.writeString("tape.tmAnimation.en=0");    
 
   if (!taprec.errorInDataRecording && !taprec.wasFileNotCreated)
   {
@@ -1068,6 +1073,8 @@ void playingFile()
 
   //Activamos la animación
   hmi.writeString("tape2.tmAnimation.en=1"); 
+  hmi.writeString("tape.tmAnimation.en=1");    
+
 
   // Reproducimos el fichero
   LAST_MESSAGE = "Loading in progress. Please wait.";
@@ -1079,21 +1086,27 @@ void playingFile()
       pTAP.play();
       //Paramos la animación
       hmi.writeString("tape2.tmAnimation.en=0"); 
+      //Paramos la animación del indicador de recording
+      hmi.writeString("tape.tmAnimation.en=0");    
       //pTAP.updateMemIndicator();
   }
   else if (TYPE_FILE_LOAD = "TZX")
   {
       //hmi.getMemFree();
       pTZX.play();
-      //Paramos la animación
-      hmi.writeString("tape2.tmAnimation.en=0"); 
+      //Paramos la animación del indicador de recording
+      hmi.writeString("tape2.tmAnimation.en=0");    
+      //Paramos la animación del indicador de recording
+      hmi.writeString("tape.tmAnimation.en=0");    
   }
   else if (TYPE_FILE_LOAD = "TSX")
   {
       //hmi.getMemFree();
       pTSX.play();
-      //Paramos la animación
-      hmi.writeString("tape2.tmAnimation.en=0"); 
+      //Paramos la animación del indicador de recording
+      hmi.writeString("tape2.tmAnimation.en=0");    
+      //Paramos la animación del indicador de recording
+      hmi.writeString("tape.tmAnimation.en=0");    
   }  
 }
 bool loadingFile()
@@ -1170,7 +1183,10 @@ void stopFile()
 {
   //Paramos la animación
   setSTOP();     
-  hmi.writeString("tape2.tmAnimation.en=0"); 
+  //Paramos la animación del indicador de recording
+  hmi.writeString("tape2.tmAnimation.en=0");    
+  //Paramos la animación del indicador de recording
+  hmi.writeString("tape.tmAnimation.en=0");    
 }
 void pauseFile()
 {
@@ -1221,6 +1237,8 @@ void prepareRecording()
 
     //Activamos la animación
     hmi.writeString("tape2.tmAnimation.en=1"); 
+    //Paramos la animación del indicador de recording
+    hmi.writeString("tape.tmAnimation.en=1");    
 
     // Inicializamos audio input
     //setAudioInput();
@@ -1895,6 +1913,11 @@ void setup()
 
     // Ponemos el color del scope en amarillo
     hmi.writeString("tape.scope.pco0=60868");
+    //Paramos la animación del indicador de recording
+    hmi.writeString("tape2.tmAnimation.en=0");    
+    //Paramos la animación del indicador de recording
+    hmi.writeString("tape.tmAnimation.en=0");    
+
 }
 
 void loop()
