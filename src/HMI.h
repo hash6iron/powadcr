@@ -725,7 +725,7 @@ class HMI
         for (int i=0;i<=TOTAL_FILES_IN_BROWSER_PAGE;i++)
         {
             printFileRows(pos_in_HMI_file, color, szName);
-            delay(5);
+            //delay(5);
             //printFileRows(pos_in_HMI_file, color, szName);
             pos_in_HMI_file++;
         }
@@ -808,7 +808,7 @@ class HMI
 
               //Realizamos dos pasadas para evitar temas de perdida de información
               printFileRows(pos_in_HMI_file, color, szName);
-              delay(5);
+              //delay(5);
               //printFileRows(pos_in_HMI_file, color, szName);
 
               pos_in_HMI_file++;

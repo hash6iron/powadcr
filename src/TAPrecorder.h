@@ -1367,7 +1367,16 @@ class TAPrecorder
                       delay(125);
 
                       LAST_MESSAGE = "File saved.";
-                      LAST_MESSAGE += " Size: " + String(_mFile.size()/1024) + " KB";
+
+                      if (_mFile.size() < 1024)
+                      {
+                        LAST_MESSAGE += " Size: " + String(_mFile.size()) + " bytes";
+                      }
+                      else
+                      {
+                        LAST_MESSAGE += " Size: " + String(_mFile.size()/1024) + " KB";
+                      }
+                      
                     }
                     else
                     {
