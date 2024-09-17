@@ -44,6 +44,17 @@ class ZXProcessor
    
     private:
 
+    // FIR Filter variables.
+    int _x[3] = {0,0,0};
+
+    // Butterworth filter
+    const float cf[2] = {0.00707352221530138658, 0.98585295556939722683};    
+    float v[2]{};    
+
+    //lowPass and highpass butterworth filter 2º order
+    float _yf[3] = {0,0,0};
+    float _xf[3] = {0,0,0};
+
     HMI _hmi;
     
     // Definición de variables internas y constantes
@@ -236,13 +247,60 @@ class ZXProcessor
             return(A);
         }
 
+        int firFilter(int data)
+        {
+            _x[0] = _x[1];
+            long tmp = ((((data * 3269048L) >>  2)          //= (3.897009118e-1 * data)
+                + ((_x[0] * 3701023L) >> 3)                   //+(  0.2205981765*v[0])
+                )+1048576) >> 21;                             // round and downshift fixed point /2097152
+            _x[1]= (int)tmp;
+            return (int)(_x[0] + _x[1]);                    // 2^
+        }        
+
+        int lowPass(int data)
+        {
+            _xf[0] = _xf[1];
+            _xf[1] = data;
+            _yf[0] = _yf[1];
+            float gain = 10;
+
+            return (int)(gain * (0.969 * _yf[0] + 0.0155 * _xf[1] + 0.0155 * _xf[0]));
+        }
+    
+        int highPass(int data)
+        {
+            // Coeficientes de 2º orden. Butterworth
+            // https://www.meme.net.au/butterworth.html
+
+            float A = 1;
+            float B = 2;
+            float C = 1;
+            float D = 0.681;
+            float E = -0.703;
+
+            float gain = 6000;
+
+            // Calculos
+            _xf[0] = _xf[1];
+            _xf[1] = _xf[2];
+            _xf[2] = data;
+
+            _yf[0] = _yf[1];
+            _yf[1] = _yf[2];
+
+            _yf[2] = (int)(gain * ((A * _xf[2] - B * _xf[1] + C * _xf[0])) + D * _yf[1] - E * _yf[0]);
+
+            return _yf[2];
+        }
+
         void createPulse(int width, int bytes, uint16_t sample_R, uint16_t sample_L)
         {
                 size_t result = 0;                
                 uint8_t buffer[bytes+4];                
                 int16_t *ptr = (int16_t*)buffer;
-                int chn = channels;           
+                int chn = channels;        
 
+                // Initialize FIR filter                
                 for (int j=0;j<width;j++)
                 {
                     if (sample_R > 0)
@@ -253,6 +311,10 @@ class ZXProcessor
                     {
                         SCOPE=down;
                     }
+
+                    // Aplicamos filtro FIR
+                    //sample_R = highPass(sample_R);
+                    //sample_L = highPass(sample_L);
                     
                     //R-OUT
                     *ptr++ = sample_R;

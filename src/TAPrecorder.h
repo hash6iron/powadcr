@@ -1105,12 +1105,15 @@ class TAPrecorder
             // Pasamos al output directamente los valores de señal
             // para que se oiga por la salida de linea (line-out)
 
-            //R-OUT
-            *ptrOut++ = finalValue * (MAIN_VOL_R / 100);;
-            //L-OUT
-            *ptrOut++ = finalValue * (MAIN_VOL_L / 100);;
-            //                        
-            resultOut+=2*chn; 
+            if (REC_AUDIO_LOOP)
+            {
+              //R-OUT
+              *ptrOut++ = finalValue * (MAIN_VOL_R / 100);;
+              //L-OUT
+              *ptrOut++ = finalValue * (MAIN_VOL_L / 100);;
+              //                        
+              resultOut+=2*chn; 
+            }
         }
 
         // Volcamos el output en el buffer de salida

@@ -181,8 +181,8 @@ WebServer server(80);
 // #include "powaFileServer.h"
 // powaFileServer fileServer(&fserver,sdf);
 
-// #include "AudioTools.h"
-// #include "AudioLibs/AudioKit.h"
+// #include <AudioTools.h>
+// #include <AudioLibs/AudioKit.h>
 
 // AudioKitStream kit;
 // StreamCopy copier(kit, kit);  // copies data
@@ -1241,8 +1241,15 @@ void prepareRecording()
     hmi.writeString("tape.tmAnimation.en=1");    
 
     // Inicializamos audio input
-    //setAudioInput();
-    setAudioInOut();
+    if (REC_AUDIO_LOOP)
+    {
+      setAudioInOut();
+    }
+    else
+    {
+      setAudioInput();
+    }
+    
     
     taprec.set_kit(ESP32kit);    
     taprec.initialize(); 
@@ -1916,8 +1923,7 @@ void setup()
     //Paramos la animación del indicador de recording
     hmi.writeString("tape2.tmAnimation.en=0");    
     //Paramos la animación del indicador de recording
-    hmi.writeString("tape.tmAnimation.en=0");    
-
+    hmi.writeString("tape.tmAnimation.en=0");  
 }
 
 void loop()

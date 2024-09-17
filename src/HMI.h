@@ -1800,6 +1800,25 @@ class HMI
           logln("Modo WAV =" + String(MODEWAV));
         }
 
+        // Habilitar Audio output cuando está grabando.
+        if (strCmd.indexOf("LOO=") != -1) 
+        {
+          //Cogemos el valor
+          uint8_t buff[8];
+          strCmd.getBytes(buff, 7);
+          int valEn = (int)buff[4];
+          //
+          if (valEn==1)
+          {
+              // Activa el loop de audio
+              REC_AUDIO_LOOP = true;
+          }
+          else
+          {
+              REC_AUDIO_LOOP = false;
+          }
+        }
+
         // Show data debug by serial console
         if (strCmd.indexOf("SDD=") != -1) 
         {
