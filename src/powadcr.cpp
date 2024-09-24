@@ -985,7 +985,7 @@ void onOTAEnd(bool success)
 
 bool wifiOTASetup()
 {
-  bool failed = false;
+  bool wifiActive = true;
 
   WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, password);
@@ -1000,7 +1000,7 @@ bool wifiOTASetup()
   if (!WiFi.config(local_IP, gateway, subnet, primaryDNS, secondaryDNS))
   {
       hmi.writeString("statusLCD.txt=\"WiFi-STA setting failed!\"" );
-      failed = true;     
+      wifiActive = false;
   }
 
   int trying_wifi = 0;
@@ -1008,16 +1008,20 @@ bool wifiOTASetup()
   while ((WiFi.waitForConnectResult() != WL_CONNECTED)  || trying_wifi > 500)
   {
     hmi.writeString("statusLCD.txt=\"WiFi Connection failed! - try " + String(trying_wifi) + "\"" );
-    failed = true;
     trying_wifi++;
+    wifiActive = false;
   }  
 
   if (trying_wifi > 500)
   {
-    failed = true;
+    wifiActive = false;
+  }
+  else
+  {
+    wifiActive = true;
   }
 
-  if (!failed)
+  if (wifiActive)
   {
       server.on("/", HTTP_GET,[]()
       {
@@ -1042,10 +1046,11 @@ bool wifiOTASetup()
   else
   {
       hmi.writeString("statusLCD.txt=\"Wifi disabled\"");
+      wifiActive = false;
       delay(750);
   }
 
-  return failed;
+  return wifiActive;
 }
 
 void writeStatusLCD(String txt)
@@ -2024,16 +2029,23 @@ void setup()
     // -------------------------------------------------------------------------
     // Cargamos configuración WiFi
     // -------------------------------------------------------------------------
+    // Si hay configuración activamos el wifi
     if(loadWifiCfgFile());
     {
       //Si la conexión es correcta se actualiza el estado del HMI
       if(wifiOTASetup())
       {
           // Enviamos información al menu
+          hmi.writeString("statusLCD.txt=\"Updating HMI\"" );
+          delay(125);
           hmi.writeString("menu.wifissid.txt=\"" + String(ssid) + "\"");
+          delay(125);
           hmi.writeString("menu.wifipass.txt=\"" + String(password) + "\"");
+          delay(125);
           hmi.writeString("menu.wifiIP.txt=\"" + WiFi.localIP().toString() + "\"");
+          delay(125);
           hmi.writeString("menu.wifiEn.val=1");      
+          delay(125);
       }
     }
 
