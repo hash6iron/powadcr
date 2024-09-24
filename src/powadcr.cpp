@@ -219,9 +219,11 @@ int* strToIPAddress(String strIPAddr)
     // Si no hay nada para devolver, envio un 0.
     return 0;
 }  
-void loadWifiCfgFile()
+bool loadWifiCfgFile()
 {
    
+  bool cfgloaded = false;
+
   if(sdf.exists("/wifi.cfg"))
   {
     logln("File wifi.cfg exists");
@@ -279,33 +281,37 @@ void loadWifiCfgFile()
 
         logln("Open config. WiFi-success");
         fWifi.close();
+        cfgloaded = true;
     }
   }
   else
   {
-    // Si no existe lo creo.
+    // Si no existe creo uno de referencia
     File32 fWifi;
-    fWifi.open("/wifi.cfg", O_WRITE | O_CREAT);
-
-    if (fWifi.isOpen())
+    if (!sdf.exists("/wifi_ori.cfg")) 
     {
+        fWifi.open("/wifi_ori.cfg", O_WRITE | O_CREAT);
 
-      fWifi.println("<hostname>powaDCR</hostname>");
-      fWifi.println("<ssid></ssid>");
-      fWifi.println("<password></password>");
-      fWifi.println("<IP>192.168.1.10</IP>");
-      fWifi.println("<SN>255.255.255.0</SN>");
-      fWifi.println("<GW>192.168.1.1</GW>");
-      fWifi.println("<DNS1>192.168.1.1</DNS1>");
-      fWifi.println("<DNS2>192.168.1.1</DNS1>");
+        if (fWifi.isOpen())
+        {
 
-      logln("wifi.cfg new file created");
+          fWifi.println("<hostname>powaDCR</hostname>");
+          fWifi.println("<ssid></ssid>");
+          fWifi.println("<password></password>");
+          fWifi.println("<IP>192.168.1.10</IP>");
+          fWifi.println("<SN>255.255.255.0</SN>");
+          fWifi.println("<GW>192.168.1.1</GW>");
+          fWifi.println("<DNS1>192.168.1.1</DNS1>");
+          fWifi.println("<DNS2>192.168.1.1</DNS1>");
 
-      fWifi.close();
+          logln("wifi.cfg new file created");
+
+          fWifi.close();
+        }
     }
   }
 
-
+  return cfgloaded;
   
 }
 
@@ -977,7 +983,7 @@ void onOTAEnd(bool success)
   // <Add your own code here>
 }
 
-void wifiOTASetup()
+bool wifiOTASetup()
 {
   bool failed = false;
 
@@ -1031,12 +1037,7 @@ void wifiOTASetup()
       // delay(125);
 
       hmi.writeString("statusLCD.txt=\"IP " + WiFi.localIP().toString() + "\""); 
-
-      // Enviamos información al menu
-      hmi.writeString("menu.wifissid.txt=\"" + String(ssid) + + "\"");
-      hmi.writeString("menu.wifipass.txt=\"" + String(password) + + "\"");
-      hmi.writeString("menu.wifiIP.txt=\"" + WiFi.localIP().toString() + "\"");
-      hmi.writeString("menu.wifiEn.val=1");
+      delay(50);
   }
   else
   {
@@ -1044,7 +1045,7 @@ void wifiOTASetup()
       delay(750);
   }
 
-  delay(1500);
+  return failed;
 }
 
 void writeStatusLCD(String txt)
@@ -1202,39 +1203,6 @@ void uploadFirmDisplay(char *filetft)
       }
 
     file.close();
-
-
-
-    // int rlen = file.available();
-    // int size = 4096;
-    // int n = 4096;
-
-    //writeStatusLCD("Uploading.");
-    // while (rlen != 0) 
-    // {
-    //     //writeStatusLCD("Left: " + String(rlen/1024) + " KB");
-    //     file.read(buf,size);
-    //     rlen = file.available();
-
-    //     if (rlen <= 4096)
-    //     {
-    //         size = rlen;
-    //     }
-    //     // Actualizaos el marcador de bytes
-    //     n+=size;
-    //     // Enviamos el paquete de bytes
-    //     hmi.sendbin(buf);
-    //     delay(500);
-
-    //     ans = hmi.readStr();
-    //     if(ans.indexOf(0x05) == -1)
-    //     {
-    //       //hmi.write("res");
-    //       //return;
-    //     }
-    // }
-
-    //file.close();
 }
 // -------------------------------------------------------------------------------------------------------------------
 
@@ -2049,13 +2017,26 @@ void setup()
         // Alternativa 1
         uploadFirmDisplay("/powadcr_iface.tft");
         sdf.remove("/powadcr_iface.tft");
+        // Esperamos al reinicio de la pantalla
+        delay(5000);
     }
 
     // -------------------------------------------------------------------------
     // Cargamos configuración WiFi
     // -------------------------------------------------------------------------
-    loadWifiCfgFile();
-    wifiOTASetup();
+    if(loadWifiCfgFile());
+    {
+      //Si la conexión es correcta se actualiza el estado del HMI
+      if(wifiOTASetup())
+      {
+          // Enviamos información al menu
+          hmi.writeString("menu.wifissid.txt=\"" + String(ssid) + "\"");
+          hmi.writeString("menu.wifipass.txt=\"" + String(password) + "\"");
+          hmi.writeString("menu.wifiIP.txt=\"" + WiFi.localIP().toString() + "\"");
+          hmi.writeString("menu.wifiEn.val=1");      
+      }
+    }
+
     delay(750);
 
     // -------------------------------------------------------------------------
