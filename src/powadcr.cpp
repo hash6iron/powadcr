@@ -2048,7 +2048,7 @@ void setup()
         
         // Alternativa 1
         uploadFirmDisplay("/powadcr_iface.tft");
-        //sdf.remove("/powadcr_iface.tft");
+        sdf.remove("/powadcr_iface.tft");
     }
 
     // -------------------------------------------------------------------------
