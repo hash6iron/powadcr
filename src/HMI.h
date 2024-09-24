@@ -1060,6 +1060,35 @@ class HMI
         }
       }
 
+      void activateWifi(bool enable)
+      {
+          if(enable)
+          {
+            if(WIFI_ENABLE)
+            {
+              WiFi.mode(WIFI_STA);
+              WiFi.begin(ssid, password);
+              btStart();
+              LAST_MESSAGE = "Connecting wifi radio";
+              delay(5000);
+              LAST_MESSAGE = "Wifi enabled";
+              //
+              writeString("tape.wifiInd.pic=38");
+            }
+          }
+          else
+          {
+            WiFi.disconnect(true);
+            WiFi.mode(WIFI_OFF);
+            btStop();          
+            LAST_MESSAGE = "Disconnecting wifi radio";
+            delay(5000);
+            LAST_MESSAGE = "Wifi disabled";
+            //
+            writeString("tape.wifiInd.pic=37");
+          }
+      }
+
       void verifyCommand(String strCmd) 
       {
         
@@ -1839,15 +1868,11 @@ class HMI
 
           if (WIFI_ENABLE)
           {
-              WiFi.mode(WIFI_STA);
-              WiFi.begin(ssid, password);
-              btStart();
+              activateWifi(true);
           }
           else
           {
-              WiFi.disconnect(true);
-              WiFi.mode(WIFI_OFF);
-              btStop();
+              activateWifi(false);
           }          
         }
 

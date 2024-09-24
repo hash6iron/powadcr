@@ -910,6 +910,10 @@ void stopRecording()
     hmi.writeString("tape2.tmAnimation.en=0");    
     //Paramos la animación del indicador de recording
     hmi.writeString("tape.tmAnimation.en=0");    
+    //
+    delay(2000);
+    hmi.activateWifi(true);
+
 }
 
 // -------------------------------------------------------------------------------------------------------------------
@@ -1407,6 +1411,8 @@ void ejectingFile()
 }
 void prepareRecording()
 {
+    hmi.activateWifi(false);
+
     // Liberamos myTAP.descriptor de la memoria si existe 
     if (myTAP.descriptor!= nullptr) 
     {
@@ -2036,8 +2042,6 @@ void setup()
       if(wifiOTASetup())
       {
           // Enviamos información al menu
-          hmi.writeString("statusLCD.txt=\"Updating HMI\"" );
-          delay(125);
           hmi.writeString("menu.wifissid.txt=\"" + String(ssid) + "\"");
           delay(125);
           hmi.writeString("menu.wifipass.txt=\"" + String(password) + "\"");
