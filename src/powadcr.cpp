@@ -909,7 +909,11 @@ void stopRecording()
     //Paramos la animación del indicador de recording
     hmi.writeString("tape2.tmAnimation.en=0");    
     //Paramos la animación del indicador de recording
-    hmi.writeString("tape.tmAnimation.en=0");    
+    hmi.writeString("tape.tmAnimation.en=0");
+    
+    // Reiniciamos el estado de los botones
+    hmi.writeString("tape.STOPst.val=1");
+    hmi.writeString("tape.RECst.val=0");        
     //
     delay(2000);
     hmi.activateWifi(true);
@@ -1419,13 +1423,6 @@ void prepareRecording()
       free(myTAP.descriptor);
     }
       
-    // Preparamos para recording
-
-    //Activamos la animación
-    hmi.writeString("tape2.tmAnimation.en=1"); 
-    //Paramos la animación del indicador de recording
-    hmi.writeString("tape.tmAnimation.en=1");    
-
     // Inicializamos audio input
     if (REC_AUDIO_LOOP)
     {
@@ -1453,6 +1450,12 @@ void prepareRecording()
       hmi.writeString("progressTotal.val=0");
       //writeString("");
       hmi.writeString("progression.val=0");
+      // Preparamos para recording
+
+      //Activamos la animación
+      hmi.writeString("tape2.tmAnimation.en=1"); 
+      //Paramos la animación del indicador de recording
+      hmi.writeString("tape.tmAnimation.en=1");         
     }
     
     //hmi.getMemFree();        

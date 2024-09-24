@@ -1064,13 +1064,13 @@ class HMI
       {
           if(enable)
           {
-            if(WIFI_ENABLE)
+            if(WIFI_ENABLE && !REC)
             {
               WiFi.mode(WIFI_STA);
               WiFi.begin(ssid, password);
               btStart();
               LAST_MESSAGE = "Connecting wifi radio";
-              delay(5000);
+              delay(2000);
               LAST_MESSAGE = "Wifi enabled";
               //
               writeString("tape.wifiInd.pic=38");
@@ -1082,7 +1082,7 @@ class HMI
             WiFi.mode(WIFI_OFF);
             btStop();          
             LAST_MESSAGE = "Disconnecting wifi radio";
-            delay(5000);
+            delay(2000);
             LAST_MESSAGE = "Wifi disabled";
             //
             writeString("tape.wifiInd.pic=37");
