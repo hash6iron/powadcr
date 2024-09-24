@@ -86,6 +86,7 @@
 #define AI_THINKER_ES8388_VOLUME_HACK 1
 
 #include <Arduino.h>
+#include <WiFi.h>
 
 #include "config.h"
 
@@ -170,13 +171,15 @@ bool pageScreenIsShown = false;
 
 // Elegant OTA
 // -----------------------------------------------------------------------
-#include <WiFi.h>
+
 #include <WiFiClient.h>
 #include <WebServer.h>
 WebServer server(80);
 
 #include <ElegantOTA.h>
+
 // -----------------------------------------------------------------------
+//#include "lib\NexUpload.h"
 
 // #include "powaFileServer.h"
 // powaFileServer fileServer(&fserver,sdf);
@@ -305,6 +308,7 @@ void loadWifiCfgFile()
 
   
 }
+
 void loadHMICfgFile()
 {
   char* pathCfgFile = "/hmi.cfg";
@@ -318,6 +322,7 @@ void loadHMICfgFile()
   }
   fHMI.close();
 }
+
 void proccesingTAP(char* file_ch)
 {    
     //pTAP.set_SdFat32(sdf);
@@ -354,6 +359,7 @@ void proccesingTAP(char* file_ch)
           FILE_NOTIFIED = false;
     }  
 }
+
 void proccesingTZX(char* file_ch)
 {
     pTZX.initialize();
@@ -377,6 +383,7 @@ void proccesingTZX(char* file_ch)
     FILE_NOTIFIED = true;  
 
 }
+
 void proccesingTSX(char* file_ch)
 {
     pTSX.initialize();
@@ -400,6 +407,7 @@ void proccesingTSX(char* file_ch)
     FILE_NOTIFIED = true;  
 
 }
+
 void sendStatus(int action, int value=0) {
 
   switch (action) {
@@ -454,6 +462,7 @@ void sendStatus(int action, int value=0) {
       break;
   }
 }
+
 void setSDFrequency(int SD_Speed) 
 {
   bool SD_ok = false;
@@ -568,10 +577,12 @@ void setSDFrequency(int SD_Speed)
 
   delay(1250);
 }
+
 void test() 
 {
   // Bloque de pruebas
 }
+
 void waitForHMI(bool waitAndNotForze)
 {
     // Le decimos que no queremos esperar sincronización
@@ -598,6 +609,7 @@ void waitForHMI(bool waitAndNotForze)
       sendStatus(ACK_LCD, 1);  
     }
 }
+
 void setAudioOutput()
 {
   auto cfg = ESP32kit.defaultConfig(KitOutput);
@@ -668,6 +680,7 @@ void setAudioOutput()
     //log("Error in volumen setting");
   }  
 }
+
 void setAudioInput()
 {
   auto cfg = ESP32kit.defaultConfig(KitInput);
@@ -685,6 +698,7 @@ void setAudioInput()
     //log("Error in Audiokit sampling rate setting");
   }
 }
+
 void setAudioInOut()
 {
   auto cfg = ESP32kit.defaultConfig(KitInputOutput);
@@ -779,6 +793,7 @@ void pauseRecording()
     //SerialHW.println("REC. Procces paused.");
     //SerialHW.println("");
 }
+
 void stopRecording()
 {
 
@@ -938,6 +953,7 @@ void onOTAProgress(size_t current, size_t final)
       
   }
 }
+
 void onOTAEnd(bool success) 
 {
   // Log when OTA has finished
@@ -960,6 +976,7 @@ void onOTAEnd(bool success)
   }
   // <Add your own code here>
 }
+
 void wifiOTASetup()
 {
   bool failed = false;
@@ -1030,7 +1047,197 @@ void wifiOTASetup()
   delay(1500);
 }
 
+void writeStatusLCD(String txt)
+{
+    hmi.writeString("statusLCD.txt=\"" + txt + "\"");
+}
+
+void uploadFirmDisplay(char *filetft)
+{
+    writeStatusLCD("New display firmware");
+    File32 file;
+    String ans = "";    
+
+    file = sdm.openFile32("/powadcr_iface.tft");
+    uint32_t filesize = file.size();
+
+    //Enviamos comando de conexión
+    // Forzamos un reinicio de la pantalla
+    hmi.write("DRAKJHSUYDGBNCJHGJKSHBDN");    
+    SerialHW.write(0xff);
+    SerialHW.write(0xff);
+    SerialHW.write(0xff);  
+    delay(200);
+
+    SerialHW.write(0x00);    
+    SerialHW.write(0xff);
+    SerialHW.write(0xff);
+    SerialHW.write(0xff);    
+    delay(200);
+
+    hmi.write("connect");    
+    SerialHW.write(0xff);
+    SerialHW.write(0xff);
+    SerialHW.write(0xff);      
+    delay(500);
+    
+    hmi.write("connect");    
+    SerialHW.write(0xff);
+    SerialHW.write(0xff);
+    SerialHW.write(0xff);  
+
+    ans = hmi.readStr();
+    delay(500);
+
+    hmi.write("runmod=2");
+    SerialHW.write(0xff);
+    SerialHW.write(0xff);
+    SerialHW.write(0xff);
+
+    hmi.write("print \"mystop_yesABC\"");    
+    SerialHW.write(0xff);
+    SerialHW.write(0xff);
+    SerialHW.write(0xff);
+
+    ans = hmi.readStr();
+
+    hmi.write("get sleep");
+    SerialHW.write(0xff);
+    SerialHW.write(0xff);
+    SerialHW.write(0xff);
+    delay(200);
+    
+    hmi.write("get dim");
+    SerialHW.write(0xff);
+    SerialHW.write(0xff);
+    SerialHW.write(0xff);
+    delay(200);
+    
+    hmi.write("get baud");
+    SerialHW.write(0xff);
+    SerialHW.write(0xff);
+    SerialHW.write(0xff);
+    delay(200);
+    
+    hmi.write("prints \"ABC\",0");    
+    SerialHW.write(0xff);
+    SerialHW.write(0xff);
+    SerialHW.write(0xff);
+    delay(200);
+
+    ans = hmi.readStr();
+
+    SerialHW.write(0x00);
+    SerialHW.write(0xff);
+    SerialHW.write(0xff);
+    SerialHW.write(0xff);
+    delay(200);
+
+    hmi.write("whmi-wris " + String(filesize) + ",921600,1");  
+    SerialHW.write(0xff);
+    SerialHW.write(0xff);
+    SerialHW.write(0xff);
+    
+    delay(500);
+    ans = hmi.readStr();
+
+    //
+    file.rewind();
+
+    // Enviamos los datos
+
+    char buf[4096];
+    size_t avail;
+    size_t readcount;
+    int bl = 0;
+    
+    while (filesize > 0)
+    {
+        // Leemos un bloque de 4096 bytes o el residual final < 4096
+        readcount = file.read(buf, filesize > 4096 ? 4096 : filesize);
+
+        // Lo enviamos
+        SerialHW.write(buf, readcount);
+        delay(170);
+
+        // Si es el primer bloque esperamos respuesta de 0x05 o 0x08
+        // en el caso de 0x08 saltaremos a la posición que indica la pantalla.
+    
+        if (bl==0)
+        {
+          String res = "";
+
+          // Una vez enviado el primer bloque esperamos 2s
+          delay(2000);
+
+          while (1)
+          {
+              res = hmi.readStr();
+              // if(res.indexOf(0x05) != -1)
+              // {
+              //   break;
+              // }
+              if (res.indexOf(0x08) != -1)
+              {
+                int offset = (pow(16,6) * int(res[4])) + (pow(16,4) * int(res[3])) + (pow(16,2) * int(res[2])) + int(res[1]);
+                
+                if (offset != 0)
+                {
+                    file.rewind();
+                    delay(50);
+                    file.seek(offset);
+                    delay(50);
+                }
+                break;
+              }
+              delay(50);
+          }
+        }
+            
+        //
+        bl++;          
+        // Vemos lo que queda una vez he movido el seek o he leido un bloque
+        // ".available" mide lo que queda desde el puntero a EOF.
+        filesize = file.available();        
+      }
+
+    file.close();
+
+
+
+    // int rlen = file.available();
+    // int size = 4096;
+    // int n = 4096;
+
+    //writeStatusLCD("Uploading.");
+    // while (rlen != 0) 
+    // {
+    //     //writeStatusLCD("Left: " + String(rlen/1024) + " KB");
+    //     file.read(buf,size);
+    //     rlen = file.available();
+
+    //     if (rlen <= 4096)
+    //     {
+    //         size = rlen;
+    //     }
+    //     // Actualizaos el marcador de bytes
+    //     n+=size;
+    //     // Enviamos el paquete de bytes
+    //     hmi.sendbin(buf);
+    //     delay(500);
+
+    //     ans = hmi.readStr();
+    //     if(ans.indexOf(0x05) == -1)
+    //     {
+    //       //hmi.write("res");
+    //       //return;
+    //     }
+    // }
+
+    //file.close();
+}
 // -------------------------------------------------------------------------------------------------------------------
+
 void setSTOP()
 {
   STOP = true;
@@ -1767,12 +1974,12 @@ void setup()
     // rtc_wdt_enable();         // Turn it on manually
     // rtc_wdt_set_time(RTC_WDT_STAGE0, 20000);  // Define how long you desire to let dog wait.
 
+
+
     // Configuramos el nivel de log
     SerialHW.setRxBufferSize(2048);
     SerialHW.begin(921600);
     delay(125);
-
-    //myNex.begin(921600);
 
     // Forzamos un reinicio de la pantalla
     hmi.writeString("rest");
@@ -1782,9 +1989,9 @@ void setup()
     sendStatus(RESET, 1);
     delay(250);
 
+    
     hmi.writeString("statusLCD.txt=\"POWADCR " + String(VERSION) + "\"" );   
     delay(1250);
-
 
     //SerialHW.println("Setting Audiokit.");
 
@@ -1831,23 +2038,42 @@ void setup()
     }    
     delay(125);
 
-    // ------------------------------------------------------
-    //
-    //
-    // **********************************
+    // -------------------------------------------------------------------------
+    // Actualizacion del HMI
+    // -------------------------------------------------------------------------
+    if (sdf.exists("/powadcr_iface.tft"))
+    {
+        // NOTA: Este metodo necesita que la pantalla esté alimentada con 5V
+        //writeStatusLCD("Uploading display firmware");
+        
+        // Alternativa 1
+        uploadFirmDisplay("/powadcr_iface.tft");
+        //sdf.remove("/powadcr_iface.tft");
+    }
+
+    // -------------------------------------------------------------------------
+    // Cargamos configuración WiFi
+    // -------------------------------------------------------------------------
     loadWifiCfgFile();
     wifiOTASetup();
-    //
-    //
-    // ------------------------------------------------------
-
     delay(750);
+
+    // -------------------------------------------------------------------------
+    // Esperando control del HMI
+    // -------------------------------------------------------------------------
+    
+    //Paramos la animación de la cinta1
+    hmi.writeString("tape2.tmAnimation.en=0");    
+    //Paramos la animación de la cinta2
+    hmi.writeString("tape.tmAnimation.en=0");  
 
     hmi.writeString("statusLCD.txt=\"WAITING FOR HMI\"" );
     waitForHMI(CFG_FORZE_SINC_HMI);
 
 
-
+    // -------------------------------------------------------------------------
+    // Forzamos configuración estatica del HMI
+    // -------------------------------------------------------------------------
     // Inicializa volumen en HMI
     hmi.writeString("menuAudio.volL.val=" + String(MAIN_VOL_L));
     hmi.writeString("menuAudio.volR.val=" + String(MAIN_VOL_R));
@@ -1897,10 +2123,9 @@ void setup()
     
     sendStatus(REC_ST);
 
-
     LAST_MESSAGE = "Press EJECT to select a file.";
     
-    esp_task_wdt_init(WDT_TIMEOUT, true);  // enable panic so ESP32 restarts
+    esp_task_wdt_init(WDT_TIMEOUT, false);  // enable panic so ESP32 restarts
     // Control del tape
     xTaskCreatePinnedToCore(Task1code, "TaskCORE1", 16834, NULL, 3|portPRIVILEGE_BIT, &Task1, 0);
     esp_task_wdt_add(&Task1);  
@@ -1920,11 +2145,10 @@ void setup()
 
     // Ponemos el color del scope en amarillo
     hmi.writeString("tape.scope.pco0=60868");
-    //Paramos la animación del indicador de recording
-    hmi.writeString("tape2.tmAnimation.en=0");    
-    //Paramos la animación del indicador de recording
-    hmi.writeString("tape.tmAnimation.en=0");  
+
 }
 
 void loop()
-{}
+{
+
+}

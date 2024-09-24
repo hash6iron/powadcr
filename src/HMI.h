@@ -1819,6 +1819,38 @@ class HMI
           }
         }
 
+        // Habilitar/Des WiFi RADIO.
+        if (strCmd.indexOf("WIF=") != -1) 
+        {
+          //Cogemos el valor
+          uint8_t buff[8];
+          strCmd.getBytes(buff, 7);
+          int valEn = (int)buff[4];
+          //
+          if (valEn==1)
+          {
+              // Activa el loop de audio
+              WIFI_ENABLE = true;
+          }
+          else
+          {
+              WIFI_ENABLE = false;
+          }
+
+          if (WIFI_ENABLE)
+          {
+              WiFi.mode(WIFI_STA);
+              WiFi.begin(ssid, password);
+              btStart();
+          }
+          else
+          {
+              WiFi.disconnect(true);
+              WiFi.mode(WIFI_OFF);
+              btStop();
+          }          
+        }
+
         // Show data debug by serial console
         if (strCmd.indexOf("SDD=") != -1) 
         {
@@ -2020,6 +2052,24 @@ class HMI
           }
       }
       
+      void write(String stringData)
+      {
+          for (int i = 0; i < stringData.length(); i++) 
+          {
+            // Enviamos los datos
+            SerialHW.write(stringData[i]);
+          }
+      }
+
+      void sendbin(char *data)
+      {
+          for (int i = 0; i < sizeof(data); i++) 
+          {
+            // Enviamos los datos
+            SerialHW.write(data[i]);
+          }
+      }
+
       void setBasicFileInformation(char* name,char* typeName,int size)
       {
           LAST_SIZE = size;
@@ -2237,6 +2287,44 @@ class HMI
             getSeveralCommands(strCmd);
           }
           //SerialHW.flush();
+        }
+      }
+
+      String readStr() 
+      {
+        String strCmd = "";
+
+        if (SerialHW.available() >= 1) 
+        {
+          // get the new uint8_t:
+          while (SerialHW.available())
+          {
+            strCmd = SerialHW.readString();
+          }
+          return strCmd;
+        }
+        else
+        {
+          return "";
+        }
+      }
+
+      u_int8_t* readByte() 
+      {
+        uint8_t *b;
+
+        if (SerialHW.available() >= 1) 
+        {
+          // get the new uint8_t:
+          while (SerialHW.available())
+          {
+            SerialHW.readBytes(b,1);
+          }
+          return b;
+        }
+        else
+        {
+          return 0;
         }
       }
 

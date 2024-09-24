@@ -81,6 +81,16 @@ class SDmanager
         }
     }
 
+    void deleteFile32(char* path)
+    {
+        File32 fFile;
+        
+        if (!fFile.exists(path))
+        {
+            fFile.remove();
+        }
+    }
+
     File32 openDir(char* path)
     {
         File32 dfFile;

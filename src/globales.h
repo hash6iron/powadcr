@@ -188,10 +188,10 @@ bool FIRSTBLOCKREAD = false;
  
 
 int RECORDING_ERROR = 0;
-
+bool REC_AUDIO_LOOP = true;
+bool WIFI_ENABLE = true;
 //
 String LAST_COMMAND = "";
-bool TURBOMODE = false;
 //bool TIMMING_STABLISHED = false;
 
 // Variables para intercambio de información con el HMI
@@ -357,7 +357,10 @@ int nMENU = 0;
 
 void logHEX(int n)
 {
+  
+  SerialHW.print(" 0x");
   SerialHW.print(n,HEX);
+  
 }
 
 void log(String txt)
@@ -381,3 +384,4 @@ char* strToCharArray(String str)
   SerialHW.println("Converted path: " + String(arr));
   return arr;
 }
+
