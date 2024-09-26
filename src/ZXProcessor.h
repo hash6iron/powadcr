@@ -88,6 +88,12 @@ class ZXProcessor
     int SYNC2 = DSYNC2;
     int BIT_0 = DBIT_0;
     int BIT_1 = DBIT_1;
+    // Para direcrecord
+    int BIT_DR44_1 = DBIT_DR44_1;
+    int BIT_DR44_0 = DBIT_DR44_0;
+    int BIT_DR22_1 = DBIT_DR22_1;
+    int BIT_DR22_0 = DBIT_DR22_0;
+    //
     int PILOT_PULSE_LEN = DPILOT_LEN;
     // int PILOT_TONE = DPILOT_TONE;
 
@@ -327,6 +333,39 @@ class ZXProcessor
 
                 // Volcamos en el buffer
                 m_kit.write(buffer, result);                
+        }
+
+        void sampleDR(int width, int amp)
+        {
+            // Calculamos el tamaño del buffer
+            int bytes = 0; //Cada muestra ocupa 2 bytes (16 bits)
+            int chn = channels;
+            int frames = 0;
+            double frames_rest = 0;
+
+            // El buffer se dimensiona para 16 bits
+            int16_t sample_L = 0;
+            int16_t sample_R = 0;
+            // Amplitud de la señal
+            double amplitude = 0;
+            
+            //double rsamples = (width / freqCPU) * SAMPLING_RATE;
+            // Ajustamos
+            int samples = 1;
+
+            // Ajustamos el volumen
+            sample_R = amp * (MAIN_VOL_R / 100);
+            sample_L = amp * (MAIN_VOL_L / 100);
+
+            bytes = samples * 2 * channels;
+            // Generamos la onda
+            createPulse(samples,bytes,sample_R,sample_L);
+
+            if (stopOrPauseRequest())
+            {
+                // Salimos
+                return;
+            }
         }
 
         void semiPulse(int width, bool changeNextEARedge = true)
@@ -783,6 +822,127 @@ class ZXProcessor
             {return;}
             
             //log("Fin del PLAY");
+        }
+
+        void createAudioByte()
+        {
+                // size_t result = 0;                
+                // uint8_t buffer[bytes+4];                
+                // int16_t *ptr = (int16_t*)buffer;
+                // int chn = channels;        
+
+                // // Initialize FIR filter                
+                // for (int j=0;j<width;j++)
+                // {
+                //     if (sample_R > 0)
+                //     {
+                //         SCOPE=up;
+                //     }
+                //     else
+                //     {
+                //         SCOPE=down;
+                //     }
+
+                //     // Aplicamos filtro FIR
+                //     //sample_R = highPass(sample_R);
+                //     //sample_L = highPass(sample_L);
+                    
+                //     //R-OUT
+                //     *ptr++ = sample_R;
+                //     //L-OUT
+                //     *ptr++ = sample_L * EN_STEREO;
+                //     //                        
+
+                //     result+=2*chn;                    
+                // }            
+
+                // // Volcamos en el buffer
+                // m_kit.write(buffer, result);  
+        }
+
+        void playDRBlock(uint8_t* bBlock, int size, bool isThelastDataPart)
+        {
+            uint8_t _mask = 8;   // Para el last_byte
+            uint8_t bRead = 0x00;
+            int bytes_in_this_block = 0;
+
+            for (int i = 0; i < size;i++)
+            {
+                // Por cada byte creamos un createPulse
+                bRead = bBlock[i];
+                // Descomponemos el byte
+
+
+                    //log("Dato: " + String(i) + " - " + String(data[i]));
+
+                    // Para la protección con mascara ID 0x11 - 0x0C
+                    // ---------------------------------------------
+                    // "Used bits in the last uint8_t (other bits should be 0) {8}
+                    //(e.g. if this is 6, then the bits used (x) in the last uint8_t are: xxxxxx00, wh///ere MSb is the leftmost bit, LSb is the rightmost bit)"
+                    
+                    // ¿Es el ultimo BYTE?. Si se ha aplicado mascara entonces
+                    // se modifica el numero de bits a transmitir
+
+                    if (LOADING_STATE==1 || TEST_RUNNING)
+                    {
+                        // Vemos si es el ultimo byte de la ultima partición de datos del bloque
+                        // if ((i == size - 1) && isThelastDataPart)
+                        // {
+                        //     // Aplicamos la mascara
+                        //     _mask = _mask_last_byte;
+                        // }
+                        // else
+                        // {
+                        //     // En otro caso todo el byte es valido.
+                        //     // se anula la mascara.
+                        //     _mask = 8;
+                        // }
+                        
+                        // #ifdef DEBUGMODE
+                        //     logln("Audio is Out");
+                        //     logln("Mask: " + String(_mask));
+                        // #endif
+
+                        // Ahora vamos a descomponer el byte leido
+                        // y le aplicamos la mascara. Es decir SOLO SE TRANSMITE el nº de bits que indica
+                        // la mascara, para el último byte del bloque
+
+                        for (int n=0;n < _mask;n++)
+                        {
+                            // Obtenemos el bit a transmitir
+                            uint8_t bitMasked = bitRead(bRead, 7-n);
+
+                            // Si el bit leido del BYTE es un "1"
+                            if(bitMasked == 1)
+                            {
+                                // Procesamos "1"
+                                sampleDR(BIT_DR22_1, maxLevelUp);
+                            }
+                            else
+                            {
+                                // En otro caso
+                                // procesamos "0"
+                                sampleDR(BIT_DR22_0, maxLevelDown);
+                            }
+                        }
+
+                        // Hemos cargado +1 byte. Seguimos
+                        if (!TEST_RUNNING)
+                        {
+                            BYTES_LOADED++;
+                            bytes_in_this_block++;
+                            BYTES_LAST_BLOCK = bytes_in_this_block;              
+                        }
+                    }
+                    else
+                    {
+                        return;
+                    }
+                
+                    // Esto lo hacemos para asegurarnos que la barra se llena entera
+                    if (BYTES_LOADED > BYTES_TOBE_LOAD)
+                    {BYTES_LOADED = BYTES_TOBE_LOAD;}
+            }
         }
 
         void playPureData(uint8_t* bBlock, int lenBlock)

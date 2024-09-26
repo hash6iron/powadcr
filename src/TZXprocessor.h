@@ -75,6 +75,7 @@ class TZXprocessor
         int group = 0;
         int loop_count = 0;
         bool jump_this_ID = false;
+        int samplingRate = 79;
       };
 
       // Estructura tipo TZX
@@ -873,6 +874,62 @@ class TZXprocessor
         _myTZX.descriptor[currentBlock].size = _myTZX.descriptor[currentBlock].lengthOfData;        
     }
 
+    void analyzeID21(File32 mFile, int currentOffset, int currentBlock)
+    {
+      // ID-15 - Direct recording
+
+        _myTZX.descriptor[currentBlock].ID = 21;
+        _myTZX.descriptor[currentBlock].playeable = true;
+        _myTZX.descriptor[currentBlock].offset = currentOffset;
+
+        // Obtenemos el "pause despues del bloque"
+        // BYTE 0x00 y 0x01
+        _myTZX.descriptor[currentBlock].samplingRate = getWORD(mFile,currentOffset+1);
+        _myTZX.descriptor[currentBlock].pauseAfterThisBlock = getWORD(mFile,currentOffset+3);
+        _myTZX.descriptor[currentBlock].maskLastByte = getBYTE(mFile,currentOffset+5);
+
+        // //SerialHW.println("");
+        // //SerialHW.print("Pause after block: " + String(_myTZX.descriptor[currentBlock].pauseAfterThisBlock)+ " - 0x");
+        // //SerialHW.print(_myTZX.descriptor[currentBlock].pauseAfterThisBlock,HEX);
+        // //SerialHW.println("");
+
+        // Obtenemos el "tamaño de los datos"
+        // BYTE 0x02 y 0x03
+        _myTZX.descriptor[currentBlock].lengthOfData = getNBYTE(mFile,currentOffset+6,3);
+
+        // //SerialHW.println("");
+        // //SerialHW.println("Length of data: ");
+        // //SerialHW.print(String(_myTZX.descriptor[currentBlock].lengthOfData));
+
+        // Los datos (TAP) empiezan en 0x04. Posición del bloque de datos.
+        _myTZX.descriptor[currentBlock].offsetData = currentOffset + 9;
+
+        ////SerialHW.println("");
+        ////SerialHW.print("Offset of data: 0x");
+        ////SerialHW.print(_myTZX.descriptor[currentBlock].offsetData,HEX);
+        ////SerialHW.println("");
+
+        // Vamos a verificar el flagByte
+
+        //int flagByte = getBYTE(mFile,_myTZX.descriptor[currentBlock].offsetData);
+        //int typeBlock = getBYTE(mFile,_myTZX.descriptor[currentBlock].offsetData+1);
+        //
+        //_myTZX.descriptor[currentBlock].name = &INITCHAR[0];
+        //strncpy(_myTZX.descriptor[currentBlock].name,"              ",14);        
+        //_myTZX.descriptor[currentBlock].type = 4;
+        _myTZX.descriptor[currentBlock].type = 0; // Importante
+        _myTZX.descriptor[currentBlock].header = false;
+
+        // No contamos el ID
+        // La cabecera tiene 4 bytes de parametros y N bytes de datos
+        // pero para saber el total de bytes de datos hay que analizar el TAP
+        // int positionOfTAPblock = currentOffset + 4;
+        // dataTAPsize = getWORD(mFile,positionOfTAPblock + headerTAPsize + 1);
+        
+        // NOTA: Sumamos 2 bytes que son la DWORD que indica el dataTAPsize
+        _myTZX.descriptor[currentBlock].size = _myTZX.descriptor[currentBlock].lengthOfData;         
+    }
+
     void analyzeID32(File32 mFile, int currentOffset, int currentBlock)
     {
         // Pause or STOP the TAPE
@@ -988,7 +1045,6 @@ class TZXprocessor
         // offset[ID] + tamaño_bloque
         _myTZX.descriptor[currentBlock].size = sizeBlock-1;         
     }
-
 
     void analyzeID33(File32 mFile, int currentOffset, int currentBlock)
     {
@@ -1139,11 +1195,22 @@ class TZXprocessor
 
           // ID 15 - Direct Recording
           case 21:
-            ID_NOT_IMPLEMENTED = true;
-            // analyzeBlockUnknow(currentID,currentOffset, currentBlock);
-            // nextIDoffset = currentOffset + 1;            
-            // _myTZX.descriptor[currentBlock].typeName = "ID 15 - Direct REC";
-            res=false;              
+            if (_myTZX.descriptor != nullptr)
+            {
+                // Obtenemos la dirección del siguiente offset
+                analyzeID21(mFile,currentOffset, currentBlock);
+
+                nextIDoffset = currentOffset + _myTZX.descriptor[currentBlock].size + 9 + 1;;  
+                strncpy(_myTZX.descriptor[currentBlock].typeName,IDXXSTR,35);
+                
+                log("ID 0x21 - DIRECT RECORDING");
+            }
+            else
+            {
+                ////SerialHW.println("");
+                ////SerialHW.println("Error: Not allocation memory for block ID 0x20");
+                res = false;
+            }             
             break;
 
           // ID 18 - CSW Recording
@@ -1630,7 +1697,7 @@ class TZXprocessor
         {
           #ifdef DEBUGMODE
             log("");
-            SerialHW.println("Listing bufferplay.");
+            logln(" Listing bufferplay.");
             SerialHW.print(buffer[0],HEX);
             SerialHW.print(",");
             SerialHW.print(buffer[1],HEX);
@@ -1904,7 +1971,10 @@ class TZXprocessor
 
         if (descriptor.size > blockSizeSplit)
         {
-            //log("Partiendo la pana");
+            logln("Partiendo la pana");
+            logln("Partiendo la pana");
+            logln("Partiendo la pana");
+            logln("Partiendo la pana");
 
             int totalSize = descriptor.size;
             PARTITION_SIZE = totalSize;
@@ -1915,8 +1985,8 @@ class TZXprocessor
             int lastBlockSize = totalSize - (blocks * blockSizeSplit);
 
             #ifdef DEBUGMODE
-              log("Offset DATA:         " + String(offsetBase));
-              log("Total size del DATA: " + String(totalSize));
+              logln("> Offset DATA:         " + String(offsetBase));
+              logln("> Total size del DATA: " + String(totalSize));
             #endif
 
 
@@ -1926,11 +1996,13 @@ class TZXprocessor
             // log(" - Ultimo bloque (size): " + String(lastBlockSize));
             // log(" - Offset: " + String(offsetBase));
 
-
-            // BTI 0
-            _zxp.BIT_0 = descriptor.timming.bit_0;
-            // BIT1                                          
-            _zxp.BIT_1 = descriptor.timming.bit_1;
+            if(!DIRECT_RECORDING)
+            {
+              // BTI 0
+              _zxp.BIT_0 = descriptor.timming.bit_0;
+              // BIT1                                          
+              _zxp.BIT_1 = descriptor.timming.bit_1;
+            }
 
             TOTAL_PARTS = blocks;
 
@@ -1938,7 +2010,7 @@ class TZXprocessor
             for (int n=0;n < blocks;n++)
             {
               PARTITION_BLOCK = n;
-              log("Envio el partition");
+              logln("Envio el partition");
 
               // Calculamos el offset del bloque
               newOffset = offsetBase + (blockSizeSplit*n);
@@ -1950,11 +2022,31 @@ class TZXprocessor
               // Reproducimos la partición n, del bloque.
               if (n==0)
               {
-                _zxp.playDataBegin(bufferPlay, blockSizeSplit,descriptor.timming.pilot_len,descriptor.timming.pilot_num_pulses);
+                  if(!DIRECT_RECORDING)
+                  {
+                    _zxp.playDataBegin(bufferPlay, blockSizeSplit,descriptor.timming.pilot_len,descriptor.timming.pilot_num_pulses);
+                  }
+                  else
+                  {
+                    #ifdef DEBUGMODE
+                      logln("> Playing DR block - Splitted");
+                    #endif                    
+                    _zxp.playDRBlock(bufferPlay,blockSizeSplit,false);
+                  }
               }
               else
               {
-                _zxp.playDataPartition(bufferPlay, blockSizeSplit);
+                   if(!DIRECT_RECORDING)
+                  {                
+                    _zxp.playDataPartition(bufferPlay, blockSizeSplit);
+                  }
+                  else
+                  {
+                    #ifdef DEBUGMODE
+                      logln("> Playing DR block - Splitted 2");
+                    #endif                    
+                    _zxp.playDRBlock(bufferPlay,blockSizeSplit,false);
+                  }
               }
             }
 
@@ -1969,8 +2061,19 @@ class TZXprocessor
             // Mostramos en la consola los primeros y últimos bytes
             showBufferPlay(bufferPlay,blockSizeSplit,newOffset);         
             
-            // Reproducimos el ultimo bloque con su terminador y silencio si aplica
-            _zxp.playDataEnd(bufferPlay, blockSizeSplit);                                    
+            // Reproducimos el ultimo bloque con su terminador y silencio si aplica              
+            if(!DIRECT_RECORDING)
+            {                
+              _zxp.playDataEnd(bufferPlay, blockSizeSplit);
+            }
+            else
+            {
+              #ifdef DEBUGMODE
+                logln("> Playing DR block - Last");
+              #endif                    
+             
+              _zxp.playDRBlock(bufferPlay,blockSizeSplit,true);
+            }                                              
 
             free(bufferPlay);       
         }
@@ -1987,7 +2090,19 @@ class TZXprocessor
             // BIT1                                          
             _zxp.BIT_1 = descriptor.timming.bit_1;
             //
-            _zxp.playData(bufferPlay, descriptor.size, descriptor.timming.pilot_len,descriptor.timming.pilot_num_pulses);
+            if(!DIRECT_RECORDING)
+            {                
+                _zxp.playData(bufferPlay, descriptor.size, descriptor.timming.pilot_len,descriptor.timming.pilot_num_pulses);
+            }
+            else
+            {
+                #ifdef DEBUGMODE
+                  logln("> Playing DR block - Full");
+                #endif                    
+
+                _zxp.playDRBlock(bufferPlay,descriptor.size,true);
+            }
+            
             free(bufferPlay);           
         }
     }
@@ -2029,9 +2144,28 @@ class TZXprocessor
 
         // Ahora lo voy actualizando a medida que van avanzando los bloques.
         //PROGRAM_NAME_2 = _myTZX.descriptor[BLOCK_SELECTED].name;
+        
+        DIRECT_RECORDING = false;
 
         switch (_myTZX.descriptor[i].ID)
         {
+            case 21:
+              DIRECT_RECORDING = true;
+              if (_myTZX.descriptor[i].samplingRate == 79)
+              {
+                  SAMPLING_RATE = 44100;
+                  ESP32kit.setSampleRate(AUDIO_HAL_44K_SAMPLES);
+                  LAST_MESSAGE = "Direct recording 44.1KHz";
+              }
+              else
+              {
+                  SAMPLING_RATE = 22050;
+                  ESP32kit.setSampleRate(AUDIO_HAL_22K_SAMPLES);
+                  LAST_MESSAGE = "Direct recording 22.05KHz";
+              }
+              playBlock(_myTZX.descriptor[i]);
+              break;
+            
             case 36:  
               //Loop start ID 0x24
               // El loop controla el cursor de bloque por tanto debe estar el primero

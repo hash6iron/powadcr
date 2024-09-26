@@ -91,6 +91,14 @@ int DBIT_1 = 1710;
 int DPILOT_LEN = 2168;  
 // Definición del silencio entre bloques en ms
 int DSILENT = 1000;
+// A 44.1KHz
+int DBIT_DR44_0 = 79;
+int DBIT_DR44_1 = 79;
+// A 22.05KHz
+int DBIT_DR22_0 = 158;
+int DBIT_DR22_1 = 158;
+//
+bool DIRECT_RECORDING = false;
 
 // Inicializadores para los char*
 String INITCHAR = "";
