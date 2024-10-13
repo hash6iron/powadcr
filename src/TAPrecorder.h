@@ -987,6 +987,7 @@ class TAPrecorder
 
             // Aplicamos filtrado para eliminar ruido            
             finalValue = applyStereoFilter(oneValue, oneValue2);
+            //finalValue = oneValue;
 
             // Trabajamos ahora las muestras
             // Medimos pulsos
@@ -1027,7 +1028,10 @@ class TAPrecorder
                   //-- S1+S2: 19 pulsos a 48KHz
 
                   // Medimos una SYNC1 + SYNC2. Buscamos dos pulsos muy cercanos (el valor optimo es 20)
-                  if (_lastMeasuredWidth >= 8 && _lastMeasuredWidth < 25)
+                  // >=8 a <25 era lo que relativamente funcionaba
+                  // Vamos a probar un filtro de mediana
+                  //
+                  if (_lastMeasuredWidth >= 15 && _lastMeasuredWidth <= 19)
                   {
                     // Estamos midiendo el pulso completo
                     stateRecording = 2;
