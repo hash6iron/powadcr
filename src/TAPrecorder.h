@@ -98,37 +98,17 @@ class TAPrecorder
       // Señal de sincronismo
       const int timeForSync = 400; //520
       const int timeSyncSeparation = 190;
-      // Con samples
-      const int minSync1 = 7;
-      const int maxSync1 = 7;
-      //
-      const int minSync2 = 8;
-      const int maxSync2 = 8;
-
-      // Señal de bit0
-      const int timeForBit0 = 489;
-      const int timeBit0Separation = 240;
-      // Con samples
-      const int minBit0 = 10;
-      const int maxBit0 = 11;
-      // Señal de bit1
-      const int timeForBit1 = 977;
-      const int timeBit1Separation = 480; 
-      // Con samples
-      const int minBit1 = 20;
-      const int maxBit1 = 28;
-
       // Umbrales de pulso.
       const int high = 32767;
       const int low = -32767;
       const int silence = 0;
 
-      // Definimos el sampling rate real de la placa.
-      //const double samplingRate = 44099.988;
-      const double samplingRate = 48000.0;
-      //const double samplingRate = 22050.0;
-      // Calculamos el T sampling_rate en us
-      const double TsamplingRate = (1 / samplingRate) * 1000 * 1000;
+      // // Definimos el sampling rate real de la placa.
+      // //const double samplingRate = 44099.988;
+      // const double samplingRate = 48000.0;
+      // //const double samplingRate = 22050.0;
+      // // Calculamos el T sampling_rate en us
+      // const double TsamplingRate = (1 / samplingRate) * 1000 * 1000;
 
       // Controlamos el estado del TAP
       int stateRecording = 0;
@@ -148,6 +128,7 @@ class TAPrecorder
       int bitCount = 0;
       int byteCount = 0;
       int blockCount = 0;
+      int badPulseW = 0;
       String bitString = "";
 
       uint8_t checksum = 0;
@@ -161,9 +142,9 @@ class TAPrecorder
       // Contador de bloques
       int bl = 0;
 
-      // Umbral para rechazo de ruido al 20%
-      const int defaultThH = 6554;
-      const int defaultThL = -6554;
+      // Umbral para rechazo de ruido al 10%
+      const int defaultThH = 3000;
+      const int defaultThL = -3000;
       //
       int threshold_high = defaultThH; 
       int threshold_low = defaultThL; 
@@ -238,9 +219,15 @@ class TAPrecorder
       // bool _lastPulseMeasuredWasUp = false;
       int _samplesDiscard = 0;
       int _measureState = 0;
+      int _measureSilence = 0;
+      bool _silenceTimeOverflow = false;
+      bool _silenceDetected = false;
       int _lastEdgeDetected = 0;
       int _totalSamplesRed = 0;
       int _pulseWidth = 0;
+      long _averageAmp = 0;
+      int _AmpUP = 0;
+      int _AmpDown = 0;
       int pwLead1 = 0;
       int pwLead2 = 0;
       int pwSync1 = 0;
@@ -384,19 +371,28 @@ class TAPrecorder
       void showProgramName()
       {
           String prgName = "";
-          for (int n=0;n<10;n++)
-          {
-            //SerialHW.print(header.name[n]);
-            prgName += header.name[n];
-          }
 
-          if (!nameFileRead)
+          if (sizeof(header.name) >= 10)
           {
-            PROGRAM_NAME = prgName;
+            for (int n=0;n<10;n++)
+            {
+              //SerialHW.print(header.name[n]);
+              prgName += header.name[n];
+            }
+
+            if (!nameFileRead)
+            {
+              PROGRAM_NAME = prgName;
+            }
+            else
+            {
+              PROGRAM_NAME_2 = prgName;
+            }
           }
           else
           {
-            PROGRAM_NAME_2 = prgName;
+            PROGRAM_NAME = "noname";
+            PROGRAM_NAME_2 = "noname";
           }
       }
 
@@ -538,130 +534,167 @@ class TAPrecorder
         }        
       }
 
-      void measurePulseWidth(int16_t value)
+      void measurePulseWidth(int16_t finalValue)
       {
+          // ------------------------------------------------------------------------------------------------------------------
+          // Measure Pulse Width
+          // ------------------------------------------------------------------------------------------------------------------
+
+
           // Establecemos el threshold de detección
           int delta = 0;
 
+          //LAST_MESSAGE = "Measure stage " + String(_measureState);
           // Buscamos cambios de flanco y medimos un pulso completo
           switch (_measureState)
           {
             case 0:
               // Estado inicial
               // establecemos un estado incial unicamente.
-              if (value > delta)
+              if (finalValue > delta)
               {
                 // Cambia a UP
                 _measureState = 1;
                 _measuredWidth++;
+                _silenceDetected = false;
               }
-              else if (value < -delta)
+              else if (finalValue <= delta)
               {
                 // Cambia a LOW
                 _measureState = 3;
                 _measuredWidth++;
+                _silenceDetected = false;
               }
-              else
+              else if (finalValue == 0)
               {
-                _measureState = 0;
+                _measureSilence++;
+                _silenceDetected = true;
               }
               break;
 
             case 1:
               // Estado UP
               // Ahora cambia a LOW - Entonces es un flanco
-              if (value < -delta)
+              if (finalValue < delta)
               {
+                // Cambio de estado
                 _measureState = 2;
+                // Pasamos el ancho calculado del semi-pulso UP
                 _measuredPulseUpWidth = _measuredWidth;
-                _semiPulseWasMeasured = true;
+                // Detecciones                
                 _pulseWasMeasured = false;
-                _edgeDetected = true;
-                // Ya cuento con esta muestra, pero aun no hemos acabado 
-                // de medir el pulso completo.
+                _silenceDetected = false;
                 _measuredWidth++;
               }
-              else
+              else if (finalValue > delta)
               {
                 // Calculo el ancho del semi-pulso alto
                 _measuredWidth++;
-                _edgeDetected = false;
+                _silenceDetected = false;
                 _pulseWasMeasured = false;
               }
+              else
+              {
+                _silenceDetected = true;
+                _measureSilence++;
+              }                    
               break;
 
             case 2:
               // Estado LOW
-              if (value > delta)
+              if (finalValue > delta)
               {
-                _measureState = 1; // 1 - 20/07/2024
+                _measureState = 0; // 1 - 20/07/2024
                 // Devolvemos el tamaño del pulso
                 _lastMeasuredWidth = _measuredWidth;
                 // o del otro semi-pulso
                 _measuredPulseDownWidth = _measuredWidth - _measuredPulseUpWidth;
-                _pulseWasMeasured = true;
-                _semiPulseWasMeasured = false;
-
-                // Comenzamos otra vez
-                _edgeDetected = true;
                 // Ya cuento con esta muestra. Empezamos un nuevo pulso completo
-                _measuredWidth=1;
+                _silenceDetected = false;
+                _pulseWasMeasured = true;
+                _measuredWidth = 1;
               }
-              else
+              else if (finalValue < delta)
               {
                 _measuredWidth++;
-                _edgeDetected = false;
+                _silenceDetected = false;
                 _pulseWasMeasured = false;
-              }              
+              }      
+              else
+              {
+                _silenceDetected = true;
+                _measureSilence++;
+              }                        
               break;
 
             case 3:
               // Estado LOW
-              if (value > delta)
+              if (finalValue > delta)
               {
                 _measureState = 4;
                 _measuredPulseDownWidth = _measuredWidth;
-                _semiPulseWasMeasured = true;
                 _pulseWasMeasured = false;
-                _edgeDetected = true;              
-              
-                // Ya cuento con esta muestra, pero aun no hemos acabado 
                 // de medir el pulso completo.
+                _silenceDetected = false;
                 _measuredWidth++;
               }
-              else
+              else if (finalValue < delta)
               {
                 _measuredWidth++;
-                _edgeDetected = false;
+                _silenceDetected = false;
                 _pulseWasMeasured = false;
-              }              
+              }    
+              else
+              {
+                _silenceDetected = true;
+                _measureSilence++;
+              }                            
               break;
 
             case 4:
               // Estado UP
               // Ahora cambia a LOW - Entonces es un flanco
-              if (value < -delta)
+              if (finalValue < delta)
               {
-                _measureState = 3;  // 3 - 20/07/2024
+                _measureState = 0;  // 3 - 20/07/2024
                 // devolmenos el tamaño del pulso
                 _lastMeasuredWidth = _measuredWidth;
                 // o del otro semi-pulso
                 _measuredPulseUpWidth = _measuredWidth - _measuredPulseDownWidth;
                 _pulseWasMeasured = true;
-                _semiPulseWasMeasured = false;
-                _edgeDetected = true;
-                // Ya cuento con esta muestra. Empezamos un nuevo pulso completo
-                _measuredWidth=1;                
+                // de medir el pulso completo.
+                _silenceDetected = false;
+                _measuredWidth=1;
               }
-              else
+              else if (finalValue > delta)
               {
                 // Calculo el ancho del semi-pulso alto
                 _measuredWidth++;
-                _edgeDetected = false;
+                _silenceDetected = false;
                 _pulseWasMeasured = false;
+              }
+              else
+              {
+                _silenceDetected = true;
+                _measureSilence++;
               }
               break;
           }
+
+          if (!_silenceDetected)
+          {
+            _measureSilence = 0;
+            _silenceTimeOverflow = false;
+          }
+
+          // Evitamos desbordamiento
+          if (_measureSilence > 2646000)
+          {
+            _measureSilence = 0;
+            _silenceTimeOverflow = true;
+          }
+
+          // ------------------------------------------------------------------------------------------------------------------
       }
 
       void resetMeasuredPulse()
@@ -781,6 +814,10 @@ class TAPrecorder
             LAST_MESSAGE = "Error, " + String(header.blockSize - byteCount) + " bytes lost - " + String(byteCount) + " / " + String(header.blockSize);
           }
           break;
+        case 4:
+          LAST_MESSAGE = "Error. Wrong pulses detected.";
+          break;
+
         default:
           LAST_MESSAGE = "Error.";
           break;
@@ -802,6 +839,8 @@ class TAPrecorder
           // 2. Se han capturado bytes
           // 3. El total de bytes coincide con el esperado.
           //
+          //
+          //showProgramName();          
 
           if (checksum==0 && byteCount !=0 && header.blockSize == byteCount)
           {
@@ -849,6 +888,8 @@ class TAPrecorder
               else
               {
                 // Error de bloque incompleto
+                LAST_MESSAGE = "Error: Blocksize: " + String(header.blockSize) + " but bytes captured: " + String(byteCount);
+                delay(3000);
                 errorDetected = 3;
               }
 
@@ -860,56 +901,69 @@ class TAPrecorder
           }                
       }
 
-      void countNewByte()
-      {
-          BLOCK_REC_COMPLETED = false;
+      // void countNewByte()
+      // {
+      //     BLOCK_REC_COMPLETED = false;
 
-          //
-          // Conversión de bits a bytes
-          //
+      //     //
+      //     // Conversión de bits a bytes
+      //     //
 
-          //
-          // Ahora controlamos el byte leido y se hemos cumplido el bloque
-          //
-          if (bitCount > 7)
-          {
-              // Reiniciamos el contador de bits
-              bitCount=0;
+      //     //
+      //     // Ahora controlamos el byte leido y se hemos cumplido el bloque
+      //     //
+      //     if (bitCount > 7)
+      //     {
+      //         // Reiniciamos el contador de bits
+      //         bitCount=0;
 
-              // Convertimos a uint8_t el valor leido del DATA
-              uint8_t value = strtol(bitChStr, (char**) NULL, 2);
-              byteRead = value;
-              uint8_t valueToBeWritten = byteRead;
+      //         // Convertimos a uint8_t el valor leido del DATA
+      //         uint8_t value = strtol(bitChStr, (char**) NULL, 2);
+      //         byteRead = value;
+      //         uint8_t valueToBeWritten = byteRead;
               
-              // Escribimos en fichero el dato
-              _mFile.write(valueToBeWritten);
+      //         // Escribimos en fichero el dato
+      //         _mFile.write(valueToBeWritten);
 
-              // Guardamos el checksum generado
-              lastChk = checksum;
-              // Calculamos el nuevo checksum
-              checksum = checksum ^ byteRead;
+      //         // Guardamos el checksum generado
+      //         lastChk = checksum;
+      //         // Calculamos el nuevo checksum
+      //         checksum = checksum ^ byteRead;
               
-              // Analizamos cada byte leido para coger información en tiempo real
-              proccesByteData();   
+      //         // Analizamos cada byte leido para coger información en tiempo real
+      //         proccesByteData();   
 
-              // Mostramos el progreso de grabación del bloque
-              PROGRESS_BAR_BLOCK_VALUE = (byteCount*100) / (header.blockSize-1);                        
+      //         // Mostramos el progreso de grabación del bloque
+      //         PROGRESS_BAR_BLOCK_VALUE = (byteCount*100) / (header.blockSize-1);                        
 
-              // Contabilizamos bytes
-              byteCount++;
+      //         // Contabilizamos bytes
+      //         byteCount++;
 
-              // Actualizamos indicador de BYTES capturados
-              LAST_MESSAGE = "Getting data. " + String(byteCount) + " / " + String(header.blockSize) + " bytes";
+      //         if (byteCount > header.blockSize)
+      //         {
+      //             errorDetection(4);
+      //             bitString = "";
+      //             byteRead = 0; 
+      //             return;
+      //         }
+      //         else
+      //         {
+      //             // Actualizamos indicador de BYTES capturados
+      //             LAST_MESSAGE = "Data = " + String(byteCount) + " / " + String(header.blockSize) + " bytes";
+      //         }
 
-              // Reiniciamos la cadena de bits
-              bitString = "";
-              byteRead = 0;  
-          }            
-      }
+      //         // Reiniciamos la cadena de bits
+      //         bitString = "";
+      //         byteRead = 0;  
+      //     }            
+      // }
 
       int16_t applyStereoFilter(int16_t oneValue,int16_t oneValue2)
       {
             int16_t finalValue = 0;
+            const int16_t REF_PULSE_DETECTION_VALUE = 500;
+
+            selectThreshold();
 
             // Elección del canal de escucha
             if (SWAP_MIC_CHANNEL)
@@ -923,20 +977,46 @@ class TAPrecorder
             }
 
             //Aplicamos filtrado y corrección de pulso para estudiar los cambios de flanco
-            if((finalValue > (-SCHMITT_THR * 20)) && 
-               (finalValue < (SCHMITT_THR * 20)))
+            if (finalValue == 0)
             {
                 // Filtramos
                 finalValue = 0;
-                SCOPE = down;
+                //SCOPE = down;
             }
             else
             {
                 // Dejamos pasar
-                SCOPE = up;
-            }       
+                if (finalValue >= threshold_high)
+                {
+                    finalValue = 32767;
+                }
+                else if (finalValue <= threshold_low)
+                {
+                  finalValue = -32768;
+                }
+                else
+                {
+                  finalValue = 0;
+                }
+                //SCOPE = up;
+            }  
 
             return finalValue; 
+      }
+
+      void initializePulse()
+      {
+        _measuredPulseUpWidth = 0;
+        _measuredPulseDownWidth = 0;
+        //_measuredWidth = 0;
+        //_edgeDetected = false;                                      
+      }
+
+      void errorDetection(int error)
+      {
+        initializePulse();                                      
+        errorDetected = error;
+        stopREC();
       }
 
       void readBuffer(int len)
@@ -949,7 +1029,23 @@ class TAPrecorder
         size_t resultOut = 0;                
         uint8_t bufferOut[BUFFER_SIZE_REC];                
         int16_t *ptrOut = (int16_t*)bufferOut;
-        int chn = 2;                  
+        int chn = 2;            
+        
+        // Anchos de los semi-pulsos para 44.1KHz
+        // Tono guia
+        const int16_t wToneMin = 48;
+        const int16_t wToneMax = 60;
+        // Silencio
+        const int16_t wSilence = 512;
+        // SYNC 1
+        const int16_t wSync = 20;  //min
+        // Bit 0
+        const int16_t wBit0_1 = 10;  //min
+        const int16_t wBit0_2 = 18;  //max
+        // Bit 1
+        const int16_t wBit1_1 = 20;      
+        const int16_t wBit1_2 = 24;  
+
 
         // Para modo debug.
         // Esto es para modo depuración. 
@@ -968,7 +1064,8 @@ class TAPrecorder
           // Comenzamos con una cabecera PROGRAM.
           isHead = true;
           // Pulsos a reset
-          resetMeasuredPulse();
+          //resetMeasuredPulse();
+          badPulseW = 0;
           BLOCK_REC_COMPLETED = false;
           //
           LAST_MESSAGE = "Recorder ready. Play source data.";
@@ -994,135 +1091,304 @@ class TAPrecorder
             measurePulseWidth(finalValue);
 
             // Si la medida de pulso ha acabado, analizamos
-            if (_pulseWasMeasured)
+            if (_silenceDetected)
             {
-              _pulseWasMeasured = false;
-
-              switch (stateRecording)
+              if (_measureSilence > 512)
               {
-                
-                // Detección de tono guía
-                case 0:
-                  if(_lastMeasuredWidth >= 48 && _lastMeasuredWidth <= 60)
+                  if (!_silenceTimeOverflow)
                   {
-                      // He encontrado 2 flancos en el tiempo de control   
-                      // Contamos los pulsos de LEAD
-                      pulseCount++;
-                      //resetMeasuredPulse();
-
-                      if (pulseCount >= 256)//maxPilotPulseCount)
-                      {
-
-                          // Saltamos a la espera de SYNC
-                          stateRecording = 1;
-                          pulseCount = 0;
-                          LAST_MESSAGE = "Waiting for SYNC";
-                      }
+                    LAST_MESSAGE = "Silence: " + String(_measureSilence/44100) + "s";
                   }
-                  break;
-
-                // Detección de SYNC
-                case 1:                   
-                  // Detección de la SYNC 
-                  //-- S1: 190.6us + S2: 210us 
-                  //-- S1+S2: 19 pulsos a 48KHz
-
-                  // Medimos una SYNC1 + SYNC2. Buscamos dos pulsos muy cercanos (el valor optimo es 20)
-                  // >=8 a <25 era lo que relativamente funcionaba
-                  // Vamos a probar un filtro de mediana
-                  //
-                  if (_lastMeasuredWidth >= 15 && _lastMeasuredWidth <= 19)
+                  else
                   {
-                    // Estamos midiendo el pulso completo
-                    stateRecording = 2;
-                    prepareNewBlock();
-                    // El primer byte de todo el .TAP es este, pero ya no se
-                    // dará mas hasta un nuevo recording.
+                    LAST_MESSAGE = "Silence: > 1m";
                   }
 
-                  if ((_measuredPulseUpWidth >= 512) || 
-                  (_measuredPulseDownWidth >= 512))  // Medida del silencio
-                  {   
+                  // Ahora vemos en que stateRecording estamos
+                  switch (stateRecording)
+                  {
+                    case 0:
+                      // Guide tone
+                      stateRecording = 0;
+                      pulseCount = 0;
+                    break;
+
+                    case 1:
+                      // SYNC detection
                       // Error. Hemos encontrado el silencio pero no la SYNC                    
                       stateRecording = 0;
-                      errorDetected = 1;
-                      stopREC();
-                      return;
-                  }
+                      errorDetection(1);
+                      return;                
+                      break;
 
-                  break;
-
-                // Detección de bits
-                case 2:
-                  //
-                  // Verifico si es 0, 1 o silencio de fin de bloque.
-                  // Los bits 0 / 1 deben ser un pulso completo en otro caso estaría mal 
-                  // la composición de la señal.
-                  //
-                  
-                  if (_lastMeasuredWidth >= 10 && _lastMeasuredWidth < 25)
-                  {
-                      // Estamos midiendo el pulso completo
-                      // Es un 0
-                      bitString += "0";
-                      bitChStr[bitCount] = '0';
-                      // Contabilizamos un bit
-                      bitCount++;
-                      countNewByte();
-                  }
-                  else if (_lastMeasuredWidth >= 25 && _lastMeasuredWidth < 60)
-                  {
-                      // Estamos midiendo el pulso completo
-                      // Es un 1
-                      bitString += "1";
-                      bitChStr[bitCount] = '1';
-                      // Contabilizamos un bit
-                      bitCount++;
-                      countNewByte();
-                  }
-                  else if ((_measuredPulseUpWidth >= 512) || 
-                  (_measuredPulseDownWidth >= 512))  // Medida del silencio
-                  {   
+                    case 2:
+                      // Capture DATA
                       // Hemos encontrado el silencio, finalizamos el bloque y chequeamos checksum                    
                       stateRecording = 0;
+                      LAST_MESSAGE = "Data = " + String(byteCount) + " / " + String(header.blockSize) + " bytes";
+                      //delay(2000);
 
                       if (!checkDataBlock())
                       {
                         // Si hay fallo salimos.
                         return;
                       }
+                      else
+                      {
+                          // 15/10/2024
+                          bitCount = 0;
+                          byteCount = 0;
+                          checksum = 0;
+                          isHead = true;
+                      }
+                    default:
+                      break;
                   }
-                  else
-                  {
-                    // Error. Pulsos inesperados
-                    LAST_MESSAGE = "Bad pulse width " + String(_lastMeasuredWidth);
-                  }
-                  break;
 
-                default:
-                  break;
               }
-
             }
+            else
+            {
+              if (_pulseWasMeasured)
+                {
 
-            
+                  _pulseWasMeasured = false;
+                  //LAST_MESSAGE = "Up: " + String(_measuredPulseUpWidth) + " - Down: " + String(_measuredPulseDownWidth);
+
+                  switch (stateRecording)
+                  {
+                    
+                    // Detección de tono guía
+                    case 0:
+                      //LAST_MESSAGE = "Up: " + String(_measuredPulseUpWidth) + " - Down: " + String(_measuredPulseDownWidth);
+                      if((_measuredPulseUpWidth + _measuredPulseDownWidth) >= wToneMin && (_measuredPulseUpWidth + _measuredPulseDownWidth) < wToneMax)
+                      {
+                          //LAST_MESSAGE = "Pulse guide";
+                          // He encontrado 2 flancos en el tiempo de control   
+                          // Contamos los pulsos de LEAD
+                          pulseCount++;
+                          //resetMeasuredPulse();
+
+                          if (pulseCount >= 256)//maxPilotPulseCount)
+                          {
+
+                              // Saltamos a la espera de SYNC
+                              stateRecording = 1;
+                              pulseCount = 0;
+                              LAST_MESSAGE = "Waiting for SYNC";
+                              //initializePulse();                       
+                          }
+                      }
+                      break;
+
+                    // Detección de SYNC
+                    case 1:                   
+                      // Detección de la SYNC 1
+                      //-- S1: 190.6us 
+
+                      // Medimos una SYNC1. Buscamos dos pulsos muy cercanos
+                      //
+                      if (_measuredPulseUpWidth + _measuredPulseDownWidth <= wSync)
+                      {
+                        // Esperamos ahora SYNC 2 en DOWN
+                        stateRecording = 2;
+                        //initializePulse(); 
+                        prepareNewBlock();
+                        badPulseW = 0;                      
+                                        
+                      }
+                      else
+                      {}
+                      break;
+                    
+                    // --------------------------------------
+                    // Detección de bits DATA en UP --> DOWN
+                    // --------------------------------------
+                    case 2:
+                      // stopREC();
+                      // LAST_MESSAGE = "SYNC ok";
+                      // delay(3000);
+                      // return;
+
+                      // Verifico si es 0, 1 o silencio de fin de bloque.
+                      // Los bits 0 / 1 deben ser un pulso completo en otro caso estaría mal 
+                      // la composición de la señal.
+                      //
+                      //LAST_MESSAGE = "Waiting for DATA in UP";
+                      if (((_measuredPulseUpWidth ) >= wBit0_1) &&
+                          ((_measuredPulseUpWidth ) <= wBit0_2))
+                      {
+                          // Es un 0
+                          // Vuelta al ciclo de detección del primer semui-pulso de data
+                          stateRecording = 2;
+                                                            
+                          bitString += "0";
+                          bitChStr[bitCount] = '0';
+                          // Contabilizamos un bit
+                          bitCount++;
+                          //countNewByte();
+
+                          // --------------------------------------------------------------------------------------------------------
+                          // Count NEW BYTE
+                          // --------------------------------------------------------------------------------------------------------
+                              BLOCK_REC_COMPLETED = false;
+
+                              if (bitCount > 7)
+                              {
+                                  // Reiniciamos el contador de bits
+                                  bitCount=0;
+
+                                  // Convertimos a uint8_t el valor leido del DATA
+                                  uint8_t value = strtol(bitChStr, (char**) NULL, 2);
+                                  byteRead = value;
+                                  uint8_t valueToBeWritten = byteRead;
+                                  
+                                  // Escribimos en fichero el dato
+                                  _mFile.write(valueToBeWritten);
+
+                                  // Guardamos el checksum generado
+                                  lastChk = checksum;
+                                  // Calculamos el nuevo checksum
+                                  checksum = checksum ^ byteRead;
+                                  
+                                  // Analizamos cada byte leido para coger información en tiempo real
+                                  proccesByteData();   
+
+                                  // Mostramos el progreso de grabación del bloque
+                                  PROGRESS_BAR_BLOCK_VALUE = (byteCount*100) / (header.blockSize-1);                        
+
+                                  // Contabilizamos bytes
+                                  byteCount++;
+
+                                  // if (byteCount > header.blockSize)
+                                  // {
+                                  //     // Por alguna razón se están leyendo mas bytes de los necesarios.
+                                  //     // quizás porque no se ha detectado el silencio
+                                  //     errorDetection(4);
+                                  //     bitString = "";
+                                  //     byteRead = 0;                                   
+                                  //     return;
+                                  // }
+                                  // else
+                                  // {
+                                      // Actualizamos indicador de BYTES capturados
+                                      LAST_MESSAGE = "Data = " + String(byteCount) + " / " + String(header.blockSize) + " bytes";
+                                  // }
+
+                                  // Reiniciamos la cadena de bits
+                                  bitString = "";
+                                  byteRead = 0;  
+                              }          
+
+                          // -------------------------------------------------------------------------------------------------------------
+
+                          badPulseW = 0;
+                      }
+                      else if (((_measuredPulseUpWidth ) >= wBit1_1) &&
+                              ((_measuredPulseUpWidth ) <= wBit1_2))
+                      {
+                          // Es un 1
+                          // Vuelta al ciclo de detección del primer semui-pulso de data
+                          stateRecording = 2;       
+
+                          bitString += "1";
+                          bitChStr[bitCount] = '1';
+                          // Contabilizamos un bit
+                          bitCount++;
+                          //countNewByte();
+
+                          // --------------------------------------------------------------------------------------------------------
+                          // Count NEW BYTE
+                          // --------------------------------------------------------------------------------------------------------
+                              BLOCK_REC_COMPLETED = false;
+
+                              if (bitCount > 7)
+                              {
+                                  // Reiniciamos el contador de bits
+                                  bitCount=0;
+
+                                  // Convertimos a uint8_t el valor leido del DATA
+                                  uint8_t value = strtol(bitChStr, (char**) NULL, 2);
+                                  byteRead = value;
+                                  uint8_t valueToBeWritten = byteRead;
+                                  
+                                  // Escribimos en fichero el dato
+                                  _mFile.write(valueToBeWritten);
+
+                                  // Guardamos el checksum generado
+                                  lastChk = checksum;
+                                  // Calculamos el nuevo checksum
+                                  checksum = checksum ^ byteRead;
+                                  
+                                  // Analizamos cada byte leido para coger información en tiempo real
+                                  proccesByteData();   
+
+                                  // Mostramos el progreso de grabación del bloque
+                                  PROGRESS_BAR_BLOCK_VALUE = (byteCount*100) / (header.blockSize-1);                        
+
+                                  // Contabilizamos bytes
+                                  byteCount++;
+
+                                  // if (byteCount > header.blockSize)
+                                  // {
+                                  //     // Por alguna razón se están leyendo mas bytes de los necesarios.
+                                  //     // quizás porque no se ha detectado el silencio
+                                  //     errorDetection(4);
+                                  //     // Reiniciamos la cadena de bits
+                                  //     bitString = "";
+                                  //     byteRead = 0; 
+                                  //     return;
+                                  // }
+                                  // else
+                                  // {
+                                      // Actualizamos indicador de BYTES capturados
+                                      LAST_MESSAGE = "Data = " + String(byteCount) + " / " + String(header.blockSize) + " bytes";
+                                  // }
+
+                                  // Reiniciamos la cadena de bits
+                                  bitString = "";
+                                  byteRead = 0;  
+                              }          
+
+                          // -------------------------------------------------------------------------------------------------------------
+
+                          badPulseW = 0;
+                      }
+                      else
+                      {
+                        //Bad pulse
+                        LAST_MESSAGE = "Wrong pulse. " + String(_measuredPulseUpWidth + _measuredPulseDownWidth);
+                      }
+                      break;
+
+                    default:
+                      break;
+                  }
+                }
+            }
+                        
             // Pasamos al output directamente los valores de señal
             // para que se oiga por la salida de linea (line-out)
 
             if (REC_AUDIO_LOOP)
             {
               //R-OUT
-              *ptrOut++ = finalValue * (MAIN_VOL_R / 100);;
+              *ptrOut++ = finalValue * (MAIN_VOL_R / 100);
               //L-OUT
-              *ptrOut++ = finalValue * (MAIN_VOL_L / 100);;
-              //                        
+              *ptrOut++ = finalValue * (MAIN_VOL_L / 100);
+               
+              // //R-OUT
+              // *ptrOut++ = oneValue;
+              // //L-OUT
+              // *ptrOut++ = oneValue2;
+
+                      
               resultOut+=2*chn; 
             }
         }
 
         // Volcamos el output en el buffer de salida
-        _kit.write(bufferOut, resultOut); 
-        
+        _kit.write(bufferOut, resultOut);         
     }
 
     public:
@@ -1145,21 +1411,10 @@ class TAPrecorder
       void selectThreshold()
       {
         if (EN_SCHMITT_CHANGE)
-        {
-          if (!wasSelectedThreshold)
-          {
-            //SerialHW.println("");
-            //SerialHW.println("Fixed threshold from HMI");
-            
-            threshold_high = (SCHMITT_THR * 32767)/100;
-            threshold_low = (-1)*(SCHMITT_THR * 32768)/100;            
-
-            //SerialHW.println("TH+ = " + String(threshold_high));
-            //SerialHW.println("TH- = " + String(threshold_low));
-
-            wasSelectedThreshold = true;                 
-          }       
-        }
+        {           
+          threshold_high = (SCHMITT_THR * 32767)/100;
+          threshold_low = (-1)*(SCHMITT_THR * 32768)/100;            
+        }       
         else
         {
           threshold_high = defaultThH;

@@ -1013,14 +1013,14 @@ bool wifiOTASetup()
 
   int trying_wifi = 0;
 
-  while ((WiFi.waitForConnectResult() != WL_CONNECTED)  || trying_wifi > 500)
+  while ((WiFi.waitForConnectResult() != WL_CONNECTED)  || trying_wifi > 10)
   {
     hmi.writeString("statusLCD.txt=\"WiFi Connection failed! - try " + String(trying_wifi) + "\"" );
     trying_wifi++;
     wifiActive = false;
   }  
 
-  if (trying_wifi > 500)
+  if (trying_wifi > 10)
   {
     wifiActive = false;
   }
@@ -1973,7 +1973,7 @@ void setup()
 
     
     hmi.writeString("statusLCD.txt=\"POWADCR " + String(VERSION) + "\"" );   
-    delay(1250);
+    delay(2000);
 
     //SerialHW.println("Setting Audiokit.");
 

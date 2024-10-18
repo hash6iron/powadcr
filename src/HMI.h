@@ -1069,9 +1069,9 @@ class HMI
               WiFi.mode(WIFI_STA);
               WiFi.begin(ssid, password);
               btStart();
-              LAST_MESSAGE = "Connecting wifi radio";
-              delay(2000);
-              LAST_MESSAGE = "Wifi enabled";
+              //LAST_MESSAGE = "Connecting wifi radio";
+              //delay(125);
+              //LAST_MESSAGE = "Wifi enabled";
               //
               writeString("tape.wifiInd.pic=38");
             }
@@ -1081,9 +1081,9 @@ class HMI
             WiFi.disconnect(true);
             WiFi.mode(WIFI_OFF);
             btStop();          
-            LAST_MESSAGE = "Disconnecting wifi radio";
-            delay(2000);
-            LAST_MESSAGE = "Wifi disabled";
+            //LAST_MESSAGE = "Disconnecting wifi radio";
+            //delay(2000);
+            //LAST_MESSAGE = "Wifi disabled";
             //
             writeString("tape.wifiInd.pic=37");
           }
