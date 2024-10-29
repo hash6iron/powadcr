@@ -49,7 +49,7 @@ class TAPrecorder
       bool wasRenamed = false;
       bool nameFileRead = false;
       bool notAudioInNotified = false;
-      bool wasSelectedThreshold = false;
+      //bool wasSelectedThreshold = false;
       int totalBlockTransfered = 0;
       bool WasfirstStepInTheRecordingProccess = false;      
       
@@ -86,9 +86,9 @@ class TAPrecorder
       int bit0 = 855;
       int bit1 = 1710;
 
-      int pSync = 0;
-      int pLead = 0;
-      int state2 = 0;
+      // int pSync = 0;
+      // int pLead = 0;
+      // int state2 = 0;
 
       // Tiempos de señal
       // Tono guia
@@ -118,7 +118,7 @@ class TAPrecorder
       // Contamos los pulsos del sync1
       long silenceCount = 0;
       long lastSilenceCount = 0;
-      bool isSilence = false;
+      //bool isSilence = false;
       //bool blockEnd = false;
       long silenceSample = 0;
 
@@ -126,9 +126,6 @@ class TAPrecorder
       uint8_t* datablock;
       //uint8_t* fileData;
       int bitCount = 0;
-      int residualBits = 0;
-      int totalBits = 0;
-      int totalSilents = 0;
       int byteCount = 0;
       int blockCount = 0;
       int badPulseW = 0;
@@ -572,9 +569,11 @@ class TAPrecorder
               }
               else
               {
-                _measureSilence++;
-                _silenceDetected = true;
                 _measureState = 0;             
+                _measureSilence++;
+                // Detectamos silencio pero solo como final de bloque, no como inicio
+                // por eso _silenceDetected = false
+                _silenceDetected = false;
               }
               break;
 
@@ -635,8 +634,8 @@ class TAPrecorder
               }      
               else
               {
-                _silenceDetected = true;
                 _measureSilence++;
+                _silenceDetected = true;
                 _pulseDownWasMeasured = false;
                 _pulseUpWasMeasured = false;    
                 //_measureState = 0;                         
@@ -664,10 +663,10 @@ class TAPrecorder
               }    
               else
               {
+                _measureSilence++;
                 _silenceDetected = true;
                 _pulseDownWasMeasured = false;
                 _pulseUpWasMeasured = false;
-                _measureSilence++;
                 //_measureState = 0;
               }                            
               break;
@@ -698,8 +697,8 @@ class TAPrecorder
               }
               else
               {
-                _silenceDetected = true;
                 _measureSilence++;
+                _silenceDetected = true;
                 _pulseDownWasMeasured = false;
                 _pulseUpWasMeasured = false;   
                 //_measureState = 0;
@@ -745,7 +744,7 @@ class TAPrecorder
         bitCount = 0;        
         checksum = 0; 
         bitString = "";
-        isSilence = false;
+        //isSilence = false;
         // El nuevo bloque tiene que registrar su tamaño en el fichero .tap
         // depende si es HEAD or DATA
         if (isHead)
@@ -817,9 +816,9 @@ class TAPrecorder
         resetMeasuredPulse();
         // Reset estado del control de pulso
         stateRecording = 0;
-        isSilence = false;
+        //isSilence = false;
         //
-        waitingNextBlock = false;
+        //waitingNextBlock = false;
         //
         WasfirstStepInTheRecordingProccess = false;
         
@@ -833,32 +832,43 @@ class TAPrecorder
         
         case 2:
           LAST_MESSAGE = "Checksum error in byte [" + String(byteCount) + "] in bit [" + String(bitCount) + "] - CHK=" + String(checksum);
-          // delay(5000);
-          // LAST_MESSAGE = "Bytes [" + String(byteCount) + "] / [" + String(header.nextBlockSize) + "] - residual bits=" + String(bitCount);
-          // delay(5000);
           break;
 
         case 3:
-          if (byteCount > header.blockSize)
-          {
-            LAST_MESSAGE = "Error. Headerless block not supported";
-          }
-          else
-          {
-            LAST_MESSAGE = "Error, " + String(header.blockSize - byteCount) + " bytes lost - " + String(byteCount) + " / " + String(header.blockSize);
-          }
+          //LAST_MESSAGE = "Error. Headerless block not supported";
+          LAST_MESSAGE = "Error. Any byte was captured.";
           break;
+
         case 4:
           LAST_MESSAGE = "Error. Wrong pulses detected.";
           break;
 
+        case 5:
+          LAST_MESSAGE = "Error, " + String(header.blockSize - byteCount) + " bytes lost - " + String(byteCount) + " / " + String(header.blockSize);
+          break;
+
+        case 6:
+          //LAST_MESSAGE = "Error. Headerless block not supported";
+          LAST_MESSAGE = "Error. Bytes was exceeded.";
+          break;
+
+
         default:
-          LAST_MESSAGE = "Error.";
+          LAST_MESSAGE = "Error not defined.";
           break;
         }
         //byteCount = 0;
         // Bajamos el scope
         SCOPE = down;      
+        //Paramos la animación del indicador de recording
+        hmi.writeString("tape2.tmAnimation.en=0");    
+        //Paramos la animación del indicador de recording
+        hmi.writeString("tape.tmAnimation.en=0");
+        
+        // Reiniciamos el estado de los botones
+        hmi.writeString("tape.STOPst.val=1");
+        hmi.writeString("tape.RECst.val=0");           
+
         delay(2000);
       }
 
@@ -875,13 +885,13 @@ class TAPrecorder
           //
           //
           //showProgramName();          
-        
+
           if (byteCount !=0 && header.blockSize == byteCount && checksum==0)
           {
               // Indicamos que se ha capturado un bloque completo
               BLOCK_REC_COMPLETED = true;
               LAST_MESSAGE = "Block saved";
-              waitingNextBlock = false;
+              //waitingNextBlock = false;
 
               // Informamos del bloque en curso
               BLOCK_SELECTED = blockCount;
@@ -911,35 +921,55 @@ class TAPrecorder
               //prepareNewBlock();
               // Guardamos los bloques transferidos
               totalBlockTransfered = blockCount;  
-              totalBits = 0;
               //
               return true;               
           }             
-          else
+          else if (byteCount == 0)
           {
               // LAST_MESSAGE = "total bits red: " + String(totalBits) + " - silences: " + String(totalSilents);
               // delay(5000);
-              totalBits = 0;
+              // Error de bloque incompleto
+              //LAST_MESSAGE = "Error: Blocksize: " + String(header.blockSize) + " but bytes captured: " + String(byteCount);
+              //delay(3000);
 
-              if (checksum != 0)
-              {
-                // Error de checksum
-                errorDetected = 2;
-              }
-              else
-              {
-                // Error de bloque incompleto
-                LAST_MESSAGE = "Error: Blocksize: " + String(header.blockSize) + " but bytes captured: " + String(byteCount);
-                delay(3000);
-                errorDetected = 3;
-              }
-
+              // No se han capturado datos.
+              errorDetected = 3;
               // Paramos la grabación.
               stopREC();
               
               // Volvemos
               return false;
-          }                
+          }   
+          else if (checksum != 0)
+          {
+              // Error de checksum
+              errorDetected = 2;
+              // Paramos la grabación.
+              stopREC();
+              
+              // Volvemos
+              return false;            
+          }             
+          else if (byteCount < header.blockSize)
+          {
+              // Error de bytes perdidos
+              errorDetected = 5;
+              // Paramos la grabación.
+              stopREC();
+              
+              // Volvemos
+              return false;
+          }
+          else if (byteCount > header.blockSize)
+          {
+              // Error de bytes excedidos
+              errorDetected = 6;
+              // Paramos la grabación.
+              stopREC();
+              
+              // Volvemos
+              return false;
+          }            
       }
 
       void countNewByte()
@@ -948,8 +978,6 @@ class TAPrecorder
           // Count NEW BYTE
           // --------------------------------------------------------------------------------------------------------
               BLOCK_REC_COMPLETED = false;
-
-              residualBits = bitCount;
 
               if (bitCount > 7)
               {
@@ -978,21 +1006,21 @@ class TAPrecorder
                   // Contabilizamos bytes
                   byteCount++;
 
-                  // if (byteCount > header.blockSize)
-                  // {
-                  //     // Por alguna razón se están leyendo mas bytes de los necesarios.
-                  //     // quizás porque no se ha detectado el silencio
-                  //     errorDetection(4);
-                  //     // Reiniciamos la cadena de bits
-                  //     bitString = "";
-                  //     byteRead = 0; 
-                  //     return;
-                  // }
-                  // else
-                  // {
-                      // Actualizamos indicador de BYTES capturados
+                  if (byteCount > header.blockSize)
+                  {
+                      // Por alguna razón se están leyendo mas bytes de los necesarios.
+                      // quizás porque no se ha detectado el silencio
+                      errorDetection(4);
+                      // Reiniciamos la cadena de bits
+                      bitString = "";
+                      byteRead = 0; 
+                      return;
+                  }
+                  else
+                  {
+                      //Actualizamos indicador de BYTES capturados
                       LAST_MESSAGE = "Data = " + String(byteCount) + " / " + String(header.blockSize) + " bytes";
-                  // }
+                   }
 
                   // Reiniciamos la cadena de bits
                   bitString = "";
@@ -1008,6 +1036,9 @@ class TAPrecorder
             const int16_t REF_PULSE_DETECTION_VALUE = 500;
 
             selectThreshold();
+
+            // LAST_MESSAGE = "Threshold: H: " + String(threshold_high) + " L: " + String(threshold_low);
+            // delay(5000);
 
             // Elección del canal de escucha
             if (SWAP_MIC_CHANNEL)
@@ -1107,10 +1138,9 @@ class TAPrecorder
         {    
           // Comenzamos con una cabecera PROGRAM.
           isHead = true; //*
-          resetMeasuredPulse();
+          //resetMeasuredPulse();
           badPulseW = 0; //*
           BLOCK_REC_COMPLETED = false; //*
-          totalSilents = 0; //*
           //
           LAST_MESSAGE = "Recorder ready. Play source data.";
           // Ya no pasamos por aquí hasta parar el recorder
@@ -1170,24 +1200,20 @@ class TAPrecorder
                       // Hemos encontrado el silencio, finalizamos el bloque y chequeamos checksum                    
                       stateRecording = 0;
                       LAST_MESSAGE = "Data = " + String(byteCount) + " / " + String(header.blockSize) + " bytes";
-                      //delay(2000);
                       
-                      totalSilents++;
-
                       if (!checkDataBlock())
                       {
                         // Si hay fallo salimos.
                         //return;
                       }
-                      else
-                      {                      
-                          // 15/10/2024
-                          bitCount = 0;
-                          byteCount = 0;
-                          checksum = 0;
-                          totalBits = 0;
-                          //isHead = true;
-                      }
+                      //else
+                      // {                      
+                      //     // 15/10/2024
+                      //     // bitCount = 0;
+                      //     // byteCount = 0;
+                      //     // checksum = 0;
+                      //     //isHead = true;
+                      // }
                     default:
                       break;
                   }
@@ -1197,131 +1223,122 @@ class TAPrecorder
             else
             {
                 // No es un silencio
-                if (_pulseWasMeasured && stateRecording < 2)
+                if (stateRecording < 2)
                 {
+                    if (_pulseWasMeasured)
+                    {
+                        _pulseWasMeasured = false;
+                        //LAST_MESSAGE = "Up: " + String(_measuredPulseUpWidth) + " - Down: " + String(_measuredPulseDownWidth);
 
-                  _pulseWasMeasured = false;
-                  //LAST_MESSAGE = "Up: " + String(_measuredPulseUpWidth) + " - Down: " + String(_measuredPulseDownWidth);
+                        switch (stateRecording)
+                        {
+                          
+                          // Detección de tono guía
+                          case 0:
+                            //LAST_MESSAGE = "Up: " + String(_measuredPulseUpWidth) + " - Down: " + String(_measuredPulseDownWidth);
+                            if((_measuredPulseUpWidth + _measuredPulseDownWidth) >= wToneMin && (_measuredPulseUpWidth + _measuredPulseDownWidth) < wToneMax)
+                            {
+                                  // Contamos los pulsos de LEAD
+                                pulseCount++;
+        
+                                if (pulseCount >= 256)//maxPilotPulseCount)
+                                {
+                                    // Saltamos a la espera de SYNC
+                                    stateRecording = 1;
+                                    pulseCount = 0;
+                                    LAST_MESSAGE = "Waiting for SYNC";
+                                    //initializePulse();                       
+                                }
+                            }
+                            break;
 
-                  switch (stateRecording)
-                  {
-                    
-                    // Detección de tono guía
-                    case 0:
-                      //LAST_MESSAGE = "Up: " + String(_measuredPulseUpWidth) + " - Down: " + String(_measuredPulseDownWidth);
-                      if((_measuredPulseUpWidth + _measuredPulseDownWidth) >= wToneMin && (_measuredPulseUpWidth + _measuredPulseDownWidth) < wToneMax)
-                      {
-                          //LAST_MESSAGE = "Pulse guide";
-                          // He encontrado 2 flancos en el tiempo de control   
-                          // Contamos los pulsos de LEAD
-                          pulseCount++;
-                          //resetMeasuredPulse();
+                          // Detección de SYNC
+                          case 1:                   
+                            // Detección de la SYNC 1
+                            //-- S1: 190.6us 
 
-                          if (pulseCount >= 256)//maxPilotPulseCount)
-                          {
+                            // Medimos una SYNC1. Buscamos dos pulsos muy cercanos
+                            //
+                            if (_measuredPulseUpWidth + _measuredPulseDownWidth <= wSync)
+                            {
+                              // Esperamos ahora SYNC 2 en DOWN
+                              stateRecording = 2;
+                              
+                              //Esperamos un bloque ahora PROGRAM o BYTE, entonces
+                              //nos preparamos
+                              prepareNewBlock();
+                              badPulseW = 0;                                                           
+                            }
+                            else
+                            {}
+                            break;
 
-                              // Saltamos a la espera de SYNC
-                              stateRecording = 1;
-                              pulseCount = 0;
-                              LAST_MESSAGE = "Waiting for SYNC";
-                              //initializePulse();                       
-                          }
-                      }
-                      break;
-
-                    // Detección de SYNC
-                    case 1:                   
-                      // Detección de la SYNC 1
-                      //-- S1: 190.6us 
-
-                      // Medimos una SYNC1. Buscamos dos pulsos muy cercanos
-                      //
-                      if (_measuredPulseUpWidth + _measuredPulseDownWidth <= wSync)
-                      {
-                        // Esperamos ahora SYNC 2 en DOWN
-                        stateRecording = 2;
-                        //initializePulse(); 
-                        
-                        //Esperamos un bloque ahora PROGRAM o BYTE, entonces
-                        //nos preparamos
-                        prepareNewBlock();
-                        
-                        badPulseW = 0;                      
-                                        
-                      }
-                      else
-                      {}
-                      break;
-
-                    default:
-                      break;
-                  }
+                          default:
+                            break;
+                        }                    
+                    }                  
                 }
-                else if (_pulseUpWasMeasured)
+                else if (stateRecording == 2)
                 {
-                  
-                  _pulseUpWasMeasured = false;
-                  _pulseDownWasMeasured = false;
+                  if (_pulseUpWasMeasured)
+                  {
+                      _pulseUpWasMeasured = false;
+                      _pulseDownWasMeasured = false;
 
-                  switch (stateRecording)
-                  {                  
-                    // --------------------------------------
-                    // Detección de bits DATA en UP --> DOWN
-                    // --------------------------------------
-                    case 2:
-                      // stopREC();
-                      // LAST_MESSAGE = "SYNC ok";
-                      // delay(3000);
-                      // return;
+                      switch (stateRecording)
+                      {                  
+                        // --------------------------------------
+                        // Detección de bits DATA en UP --> DOWN
+                        // --------------------------------------
+                        case 2:
+                          // Verifico si es 0, 1 o silencio de fin de bloque.
+                          // Los bits 0 / 1 deben ser un pulso completo en otro caso estaría mal 
+                          // la composición de la señal.
+                          //
+                          //LAST_MESSAGE = "Here was into: " + String(_measuredPulseUpWidth);
+                          //delay(5000);
 
-                      // Verifico si es 0, 1 o silencio de fin de bloque.
-                      // Los bits 0 / 1 deben ser un pulso completo en otro caso estaría mal 
-                      // la composición de la señal.
-                      //
-                      //LAST_MESSAGE = "Waiting for DATA in UP";
-                      if (((_measuredPulseUpWidth ) >= wBit0_1) &&
-                          ((_measuredPulseUpWidth ) <= wBit0_2))
-                      {
-                          // Es un 0
-                          // Vuelta al ciclo de detección del primer semui-pulso de data
-                          stateRecording = 2;
-                                                            
-                          bitString += "0";
-                          bitChStr[bitCount] = '0';
-                          // Contabilizamos un bit
-                          bitCount++;
-                          totalBits++;
-                          countNewByte();
+                          if (((_measuredPulseUpWidth ) >= wBit0_1) &&
+                              ((_measuredPulseUpWidth ) <= wBit0_2))
+                          {
+                              // Es un 0
+                              // Vuelta al ciclo de detección del primer semui-pulso de data
+                              stateRecording = 2;
+                                                                
+                              bitString += "0";
+                              bitChStr[bitCount] = '0';
+                              // Contabilizamos un bit
+                              bitCount++;
+                              countNewByte();
 
-                          badPulseW = 0;
-                      }
-                      else if (((_measuredPulseUpWidth ) >= wBit1_1) &&
-                              ((_measuredPulseUpWidth ) <= wBit1_2))
-                      {
-                          // Es un 1
-                          // Vuelta al ciclo de detección del primer semui-pulso de data
-                          stateRecording = 2;       
+                              badPulseW = 0;
+                          }
+                          else if (((_measuredPulseUpWidth ) >= wBit1_1) &&
+                                  ((_measuredPulseUpWidth ) <= wBit1_2))
+                          {
+                              // Es un 1
+                              // Vuelta al ciclo de detección del primer semui-pulso de data
+                              stateRecording = 2;       
 
-                          bitString += "1";
-                          bitChStr[bitCount] = '1';
-                          // Contabilizamos un bit
-                          bitCount++;
-                          totalBits++;
-                          countNewByte();
+                              bitString += "1";
+                              bitChStr[bitCount] = '1';
+                              // Contabilizamos un bit
+                              bitCount++;
+                              countNewByte();
 
-                          badPulseW = 0;
-                      }
-                      else
-                      {
-                        //Bad pulse
-                        LAST_MESSAGE = "Wrong pulse. " + String(_measuredPulseUpWidth) + " byte: " + String(byteCount+1);
-                      }
-                      break;
+                              badPulseW = 0;
+                          }
+                          else
+                          {
+                            //Bad pulse
+                            LAST_MESSAGE = "Wrong pulse. " + String(_measuredPulseUpWidth) + " byte: " + String(byteCount+1);
+                          }
+                          break;
 
-                    default:
-                      break;
+                        default:
+                          break;
+                      }                    
                   }
-
                 }
             }
                         
@@ -1452,9 +1469,9 @@ class TAPrecorder
       {
           prepareHMI();
 
-          pLead = 0;
-          pSync = 0;
-          state2 = 0;
+          // pLead = 0;
+          // pSync = 0;
+          // state2 = 0;
 
           // Reservamos memoria
           fileName = (char*)ps_calloc(20,sizeof(char));
@@ -1491,7 +1508,7 @@ class TAPrecorder
           wasRenamed = false;
           blockCount = 0;
           //waitingHead = true;
-          wasSelectedThreshold = false;    
+          //wasSelectedThreshold = false;    
           stateRecording = 0;
 
           resetMeasuredPulse();
@@ -1499,8 +1516,8 @@ class TAPrecorder
           stopRecordingProccess = false; 
           stateInfoBlock = 0;
           //
-          waitingNextBlock = false;
-          isSilence = false;
+          //waitingNextBlock = false;
+          //isSilence = false;
           //
           WasfirstStepInTheRecordingProccess = false;
       }
@@ -1609,7 +1626,7 @@ class TAPrecorder
                       _mFile.remove();
                       // LAST_MESSAGE="File removed!";
                       // delay(1500);                     
-                      LAST_MESSAGE = "File not saved.";
+                      //LAST_MESSAGE = "File not saved.";
                     }
                 }
                 else
@@ -1630,7 +1647,7 @@ class TAPrecorder
                   
                   // LAST_MESSAGE="File filled and removed.";
                   // delay(1500);                  
-                  LAST_MESSAGE = "File not saved.";     
+                  //LAST_MESSAGE = "File not saved.";     
                 }
             }
             else
@@ -1638,7 +1655,7 @@ class TAPrecorder
               // El fichero no fue creado
               _mFile.close();
               fileWasClosed = true;
-              LAST_MESSAGE = "File not saved.";
+              //LAST_MESSAGE = "File not saved.";
             }
         }
 

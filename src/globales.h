@@ -191,7 +191,7 @@ bool SWAP_MIC_CHANNEL = false;
 bool SWAP_EAR_CHANNEL = false;
 //
 String RECORDING_DIR = "/REC";
-bool waitingNextBlock = false;
+//bool waitingNextBlock = false;
 bool FIRSTBLOCKREAD = false;
  
 

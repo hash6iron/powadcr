@@ -839,35 +839,6 @@ void stopRecording()
                 // La grabación fue parada porque hubo errores
                 // entonces NO salvamos el fichero, lo borramos
                 // Recording STOP
-                //
-                // switch (RECORDING_ERROR)
-                // {
-                //   case 1: //corrupted data
-                //   LAST_MESSAGE = "Recording STOP. Corrupted data."; 
-                //   //      
-                //   delay(1000);        
-                //   break;
-
-                //   case 2:
-                //   // Todos los bytes fueron capturados pero el checksum es incorrecto
-                //   LAST_MESSAGE = "Recording STOP. Error in checksum."; 
-                //   //      
-                //   delay(1000);        
-                //   break;
-
-                //   case 3:
-                //   LAST_MESSAGE = "Recording STOP. ERROR 3"; 
-                //   //      
-                //   delay(1000);
-                //   break;
-
-                //   case 4:
-                //   LAST_MESSAGE = "Recording STOP. Unknow  ERROR"; 
-                //   //      
-                //   delay(1000);        
-                //   break;
-
-                // }
 
                 taprec.terminate(true);
 
