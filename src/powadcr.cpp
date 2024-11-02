@@ -1773,7 +1773,7 @@ void tapeControl()
 
       case 200:
         // modo REC
-        if(STOP)
+        if(STOP || taprec.actuateAutoRECStop)
         {
           stopRecording();
           taprec.stopRecordingProccess = false;
@@ -1782,6 +1782,7 @@ void tapeControl()
           SCOPE = down;
           STOP=true;
           REC=false;
+          taprec.actuateAutoRECStop = false;
         }
         else
         {
