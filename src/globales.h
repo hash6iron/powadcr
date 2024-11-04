@@ -192,10 +192,10 @@ bool SWAP_EAR_CHANNEL = false;
 //
 String RECORDING_DIR = "/REC";
 //bool waitingNextBlock = false;
-bool FIRSTBLOCKREAD = false;
+//bool FIRSTBLOCKREAD = false;
  
 
-int RECORDING_ERROR = 0;
+//int RECORDING_ERROR = 0;
 bool REC_AUDIO_LOOP = true;
 bool WIFI_ENABLE = true;
 //
@@ -249,6 +249,7 @@ String LAST_GROUP = "";
 String LAST_MESSAGE = "";
 String PROGRAM_NAME = "";
 String PROGRAM_NAME_2 = "";
+bool PROGRAM_NAME_ESTABLISHED = false;
 int LAST_SIZE = 0;
 
 int LAST_BIT_WIDTH = 0;

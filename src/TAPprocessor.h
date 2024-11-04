@@ -108,16 +108,16 @@ class TAPprocessor
                 // La cabecera son 19 bytes
                 uint8_t* bBlock = sdm.readFileRange32(tapFileName,0,19,true);
                 // Obtenemos la firma del TAP
-                char signTZXHeader[4];
+                char signTAPHeader[4];
 
                 // Analizamos la cabecera
                 // Extraemos el nombre del programa
                 for (int n=0;n<3;n++)
                 {   
-                    signTZXHeader[n] = (uint8_t)bBlock[n];               
+                    signTAPHeader[n] = (uint8_t)bBlock[n];               
                 }
 
-                if (signTZXHeader[0] == 19 && signTZXHeader[1] == 0 && signTZXHeader[2] == 0)
+                if (signTAPHeader[0] == 19 && signTAPHeader[1] == 0 && signTAPHeader[2] == 0)
                 {
                     rtn = true;
                 }
@@ -154,14 +154,16 @@ class TAPprocessor
                 fileName.toUpperCase();
                 if (fileName.indexOf("TAP") != -1)
                 {
-                    if (isHeaderTAP(tapFileName))
-                    {
+                    // if (isHeaderTAP(tapFileName))
+                    // {
+                    //     rtn = true;
+                    // }
+                    // else
+                    // {
+                    //     rtn = false;
+                    // }
+
                     rtn = true;
-                    }
-                    else
-                    {
-                    rtn = false;
-                    }
                 }
                 else
                 {

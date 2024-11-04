@@ -42,7 +42,7 @@ class TAPrecorder
     public:
 
       bool errorInDataRecording = false;
-      bool wasFileNotCreated = false;
+      bool fileWasNotCreated = false;
       bool stopRecordingProccess = false;
       //int errorsCountInRec = 0;
 
@@ -131,7 +131,9 @@ class TAPrecorder
       int bitCount = 0;
       int byteCount = 0;
       int blockCount = 0;
+      int ptrOffset = 0;
       int badPulseW = 0;
+      bool recWithoutHead = false;
       String bitString = "";
 
       uint8_t checksum = 0;
@@ -321,15 +323,23 @@ class TAPrecorder
           // Flag para indicar DATA o HEAD
           if (byteCount == 0)
           {
-            // if (byteRead == 255)
-            // {
-            //   isHead = true;
-            // }
-            // else
-            // {
-            //   isHead = false;
-            // }
-          }
+              // Si esperabamos una cabecera PROGRAM ...
+              if (isHead==false && header.sizeLSB == 17)
+              {
+                  // .. y vemos que el byte 1 es 0xFF
+                  if (byteRead == 255)
+                  {
+                      // No hay cabecera. Bloque DATA sin cabecera program.
+                      recWithoutHead = true;
+                      return;
+                  }
+                  else
+                  {
+                      // Cabecera
+                      recWithoutHead = false;              
+                  }
+              }
+          }       
 
           // Flag tipo de cabecera para el HEAD
           if (byteCount == 1)
@@ -382,28 +392,37 @@ class TAPrecorder
           {
             for (int n=0;n<10;n++)
             {
-              //SerialHW.print(header.name[n]);
-              prgName += header.name[n];
+                SerialHW.print(header.name[n]);
+                prgName += header.name[n];
             }
 
             if (!nameFileRead)
             {
-              PROGRAM_NAME = prgName;
+                PROGRAM_NAME = prgName;
             }
             else
             {
-              PROGRAM_NAME_2 = "";
+                PROGRAM_NAME_2 = "";
             }
           }
           else
           {
-            PROGRAM_NAME = "noname";
-            PROGRAM_NAME_2 = "noname";
+              PROGRAM_NAME = "noname";
+              PROGRAM_NAME_2 = "noname";
           }
+
+          PROGRAM_NAME_ESTABLISHED = true;
       }
 
       void proccesInfoBlockType()
       {          
+
+          if (recWithoutHead)
+          {
+            strncpy(LAST_TYPE,"BYTE.H-LESS",sizeof("BYTE.H-LESS"));
+            return;
+          }
+
           // Si el conjunto leido es de 19 bytes. Es una cabecera.
           switch (stateInfoBlock)
           {
@@ -435,8 +454,8 @@ class TAPrecorder
             }            
             else
             {
-              LAST_MESSAGE = "Error. No waited block type.";
-              delay(3000);
+                LAST_MESSAGE = "Error. No waited block type.";
+                delay(3000);
             }
             break;
           
@@ -503,6 +522,7 @@ class TAPrecorder
           // Proporcionamos espacio en memoria para el
           // nuevo filename
           fileNameRename = (char*)ps_calloc(20,sizeof(char));
+          strcpy(fileNameRename,"noname");
 
           if (test)
           {
@@ -742,6 +762,20 @@ class TAPrecorder
         bitCount = 0;        
         checksum = 0; 
         bitString = "";
+
+        PROGRAM_NAME_ESTABLISHED = false;
+
+        //guardamos la posición del puntero del fichero en este momento
+        //que es justo al final del ultimo bloque + 1 (inicio del siguiente)
+        ptrOffset = _mFile.position();
+
+        // logln("");
+        // logln("");
+        // logln("Offset --> ");
+        // logHEX(ptrOffset);
+        // logln("");
+        // logln("");
+
         //isSilence = false;
         // El nuevo bloque tiene que registrar su tamaño en el fichero .tap
         // depende si es HEAD or DATA
@@ -750,16 +784,24 @@ class TAPrecorder
           // Es una HEAD
           header.sizeLSB = 17;
           header.sizeMSB = 0;
+
           // El siguiente ya no es cabecera PROGRAM
           // será cabecera BYTE (por eso isHead = false)
-          isHead = false;                      
+          if (recWithoutHead)
+          {
+              isHead = true;                      
+          }
+          else
+          {
+              isHead = false;                      
+          }
         }
         else
-        {
-          // Es DATA
+        { 
+          // Este ahora es DATA
           header.sizeLSB = header.sizeNextBlLSB;
           header.sizeMSB = header.sizeNextBlMSB;
-          // El siguiente es cabecera PROGRAM
+          // El siguiente será con cabecera PROGRAM
           // por eso isHead = true
           isHead = true;                      
         }
@@ -796,19 +838,22 @@ class TAPrecorder
         // _mFile.write(secondByte);
       }
 
-      void stopREC()
+      void stopREC(int error)
       {
         
         //
         // Aquí se entra cuando hay un error detectado en la grabación
         // si el error no es especifico, entonces es 0 (error genérico)
         //
+        errorDetected = error;
 
+        // Eliminado el 02/11/2024
         STOP = true;
         REC = false;
+
         totalBlockTransfered = 0;                                  
         stopRecordingProccess=true;
-        RECORDING_ERROR = 1;  
+        //RECORDING_ERROR = 1;  
 
         // Reset de medidas de pulso
         resetMeasuredPulse();
@@ -822,7 +867,7 @@ class TAPrecorder
         
         //waitingHead = true;
 
-        switch (errorDetected)
+        switch (error)
         {
             case 0:
               // No error
@@ -837,12 +882,12 @@ class TAPrecorder
               break;
 
             case 3:
-              //LAST_MESSAGE = "Error. Headerless block not supported";
               LAST_MESSAGE = "Error. Any byte was captured.";
               break;
 
             case 4:
-              LAST_MESSAGE = "Error. Wrong pulses detected.";
+              LAST_MESSAGE = "Wrong pulse. " + String(_measuredPulseUpWidth) + " byte: " + String(byteCount+1);
+              //LAST_MESSAGE = "Error. Wrong pulses detected.";
               break;
 
             case 5:
@@ -886,12 +931,94 @@ class TAPrecorder
           //
           //
           //showProgramName();          
+          if (!recWithoutHead)
+          {
+              if (byteCount !=0 && header.blockSize == byteCount && checksum==0)
+              {
+                  // Indicamos que se ha capturado un bloque completo
+                  BLOCK_REC_COMPLETED = true;
+                  LAST_MESSAGE = "Block saved";
+                  //waitingNextBlock = false;
 
-          if (byteCount !=0 && header.blockSize == byteCount && checksum==0)
+                  // Informamos del bloque en curso
+                  BLOCK_SELECTED = blockCount;
+                  
+                  // Procesamos información del bloque
+                  LAST_SIZE = byteCount;
+
+                  //
+                  showProgramName();
+
+                  // Obtenemos el nombre que se le pondrá al .TAP
+                  getFileName(false);                
+                  errorInDataRecording = false;
+
+                  // Incrementamos un bloque  
+                  blockCount++;   
+                  //Inicializamops la cadena de bits
+                  strcpy(bitChStr,"");
+                  
+                  // --------------------------------------------------------
+                  //
+                  // TODO OK - Continuamos con mas bloques si no hay STOP
+                  // --------------------------------------------------------
+                  // Comenzamos otra vez
+                  // --------------------------------------------------------
+                  // Reiniciamos todo
+                  //prepareNewBlock();
+                  // Guardamos los bloques transferidos
+                  totalBlockTransfered = blockCount;  
+                  //
+                  return true;               
+              }             
+              else if (byteCount == 0)
+              {
+                  // LAST_MESSAGE = "total bits red: " + String(totalBits) + " - silences: " + String(totalSilents);
+                  // delay(5000);
+                  // Error de bloque incompleto
+                  //LAST_MESSAGE = "Error: Blocksize: " + String(header.blockSize) + " but bytes captured: " + String(byteCount);
+                  //delay(3000);
+
+                  // No se han capturado datos.
+                  // Paramos la grabación.
+                  stopREC(3);
+                  
+                  // Volvemos
+                  return false;
+              }   
+              else if (checksum != 0)
+              {
+                  // Error de checksum
+                  // Paramos la grabación.
+                  stopREC(2);
+                  
+                  // Volvemos
+                  return false;            
+              }             
+              else if (byteCount < header.blockSize)
+              {
+                  // Error de bytes perdidos
+                  // Paramos la grabación.
+                  stopREC(5);
+                  
+                  // Volvemos
+                  return false;
+              }
+              else if (byteCount > header.blockSize)
+              {
+                  // Error de bytes excedidos
+                  // Paramos la grabación.
+                  stopREC(6);
+                  
+                  // Volvemos
+                  return false;
+              }            
+          }
+          else
           {
               // Indicamos que se ha capturado un bloque completo
               BLOCK_REC_COMPLETED = true;
-              LAST_MESSAGE = "Block saved";
+              //LAST_MESSAGE = "Block saved";
               //waitingNextBlock = false;
 
               // Informamos del bloque en curso
@@ -900,6 +1027,42 @@ class TAPrecorder
               // Procesamos información del bloque
               LAST_SIZE = byteCount;
 
+              //
+              // Ahora añadimos el tamaño del bloque sin cabecera
+              // Hacemos la conversión, calculamos el nuevo block size
+              // y lo metemos en el fichero.
+
+              int size = LAST_SIZE;
+              uint8_t MSB = 0;
+              uint8_t LSB = 0;
+
+              LSB = size;
+              MSB = size >> 8;
+
+              // metemos el size
+              int currentPtrOffset = _mFile.position();
+              
+              // logln("");
+              // logln("");
+              // logln("Saved headerless block");
+              // logln("");
+              // logln("Offset --> ");
+              // logHEX(ptrOffset);
+              // logln("");
+              // logln("Size:");
+              // logHEX(LSB);
+              // log("-");
+              // logHEX(MSB);
+              // logln("");
+              // logln("");
+              // logln("");
+              
+              _mFile.seek(ptrOffset);
+              // Añadimos el tamaño del bloque capturado al principio
+              // de la cabecera.
+              _mFile.write(LSB);
+              _mFile.write(MSB); 
+              _mFile.seek(currentPtrOffset);
               //
               showProgramName();
 
@@ -924,54 +1087,8 @@ class TAPrecorder
               totalBlockTransfered = blockCount;  
               //
               return true;               
-          }             
-          else if (byteCount == 0)
-          {
-              // LAST_MESSAGE = "total bits red: " + String(totalBits) + " - silences: " + String(totalSilents);
-              // delay(5000);
-              // Error de bloque incompleto
-              //LAST_MESSAGE = "Error: Blocksize: " + String(header.blockSize) + " but bytes captured: " + String(byteCount);
-              //delay(3000);
-
-              // No se han capturado datos.
-              errorDetected = 3;
-              // Paramos la grabación.
-              stopREC();
-              
-              // Volvemos
-              return false;
-          }   
-          else if (checksum != 0)
-          {
-              // Error de checksum
-              errorDetected = 2;
-              // Paramos la grabación.
-              stopREC();
-              
-              // Volvemos
-              return false;            
-          }             
-          else if (byteCount < header.blockSize)
-          {
-              // Error de bytes perdidos
-              errorDetected = 5;
-              // Paramos la grabación.
-              stopREC();
-              
-              // Volvemos
-              return false;
           }
-          else if (byteCount > header.blockSize)
-          {
-              // Error de bytes excedidos
-              errorDetected = 6;
-              // Paramos la grabación.
-              stopREC();
-              
-              // Volvemos
-              return false;
-          }            
-      }
+        }
 
       void countNewByte()
       {
@@ -998,31 +1115,39 @@ class TAPrecorder
                   // Calculamos el nuevo checksum
                   checksum = checksum ^ byteRead;
                   
-                  // Analizamos cada byte leido para coger información en tiempo real
-                  proccesByteData();   
-
                   // Mostramos el progreso de grabación del bloque
-                  PROGRESS_BAR_BLOCK_VALUE = (byteCount*100) / (header.blockSize-1);                        
+                  PROGRESS_BAR_BLOCK_VALUE = (byteCount*100) / (header.blockSize-1);    
 
-                  // Contabilizamos bytes
+                  // Analizamos cada byte leido para coger información en tiempo real
+                  // y tomar decisiones.
+                  proccesByteData();                       
+
+                  // Incrementamos los bytes leidos.
                   byteCount++;
 
-                  if (byteCount > header.blockSize)
+                  if (!recWithoutHead)
                   {
-                      // Por alguna razón se están leyendo mas bytes de los necesarios.
-                      // quizás porque no se ha detectado el silencio
-                      errorDetection(4);
-                      // Reiniciamos la cadena de bits
-                      bitString = "";
-                      byteRead = 0; 
-                      return;
+                      if (byteCount > header.blockSize)
+                      {
+                          // Por alguna razón se están leyendo mas bytes de los necesarios.
+                          // quizás porque no se ha detectado el silencio
+                          errorDetection(6);
+                          // Reiniciamos la cadena de bits
+                          bitString = "";
+                          byteRead = 0; 
+                          return;
+                      }
+                      else
+                      {
+                          //Actualizamos indicador de BYTES capturados
+                          LAST_MESSAGE = "Data: " + String(byteCount) + " / " + String(header.blockSize) + " bytes";
+                      }
                   }
                   else
                   {
                       //Actualizamos indicador de BYTES capturados
-                      LAST_MESSAGE = "Data = " + String(byteCount) + " / " + String(header.blockSize) + " bytes";
-                   }
-
+                      LAST_MESSAGE = "Data: " + String(byteCount) + " bytes - CHK: " + String(checksum);
+                  }
                   // Reiniciamos la cadena de bits
                   bitString = "";
                   byteRead = 0;  
@@ -1121,10 +1246,10 @@ class TAPrecorder
       }
 
       void errorDetection(int error)
-      {
-        initializePulse();                                      
+      {                             
         errorDetected = error;
-        stopREC();
+        stopREC(error);        
+        initializePulse(); 
       }
 
       void readBuffer(int len)
@@ -1151,14 +1276,17 @@ class TAPrecorder
         const int16_t wBit0_1 = 2;  //min
         const int16_t wBit0_2 = 15;  //max
         // Bit 1
-        const int16_t wBit1_1 = 17;      
-        const int16_t wBit1_2 = 30;  
+        const int16_t wBit1_1 = 15;    //17  02/11/2024
+        const int16_t wBit1_2 = 35;    //30  02/11/2024
+        
+        //Maximo numero de pulsos a leer antes de esperar una SYNC
+        const int maxPilotPulseCount = 256; 
 
 
         // Para modo debug.
         // Esto es para modo depuración. 
         //
-        bool showDataDebug = SHOW_DATA_DEBUG;
+        //bool showDataDebug = SHOW_DATA_DEBUG;
         
         // Ajuste del detector de señal
         // Muestras del tono guia leidas
@@ -1274,7 +1402,7 @@ class TAPrecorder
                                   // Contamos los pulsos de LEAD
                                 pulseCount++;
         
-                                if (pulseCount >= 256)//maxPilotPulseCount)
+                                if (pulseCount >= maxPilotPulseCount)//maxPilotPulseCount)
                                 {
                                     // Saltamos a la espera de SYNC
                                     stateRecording = 1;
@@ -1352,8 +1480,6 @@ class TAPrecorder
                         else
                         {
                           //Bad pulse
-                          LAST_MESSAGE = "Wrong pulse. " + String(_measuredPulseUpWidth) + " byte: " + String(byteCount+1);
-                          delay(5000);
                           errorDetection(4);
                         }                            
                     }
@@ -1409,13 +1535,13 @@ class TAPrecorder
         }
       }
 
-      void initializeBuffer()
-      {
-        for (int i=0;i<BUFFER_SIZE_REC;i++)
-        {
-          bufferRec[i]=0;
-        }
-      }
+      // void initializeBuffer()
+      // {
+      //   for (int i=0;i<BUFFER_SIZE_REC;i++)
+      //   {
+      //     bufferRec[i]=0;
+      //   }
+      // }
 
       bool recording()
       {         
@@ -1432,6 +1558,7 @@ class TAPrecorder
           {
             if (errorDetected != 0)
             {
+              delay(2000);
               // Hubo errores
               errorDetected = 0;
               REC = true;
@@ -1513,11 +1640,9 @@ class TAPrecorder
           }
 
           bufferRec = (uint8_t*)ps_calloc(BUFFER_SIZE_REC,sizeof(uint8_t));
-          initializeBuffer();
+          //initializeBuffer();
 
           errorInDataRecording = false;
-          nameFileRead = false;
-          wasRenamed = false;
           blockCount = 0;
           //waitingHead = true;
           //wasSelectedThreshold = false;    
@@ -1531,7 +1656,12 @@ class TAPrecorder
           //waitingNextBlock = false;
           //isSilence = false;
           //
+          wasRenamed = false;
+          nameFileRead = false;
           WasfirstStepInTheRecordingProccess = false;
+          statusSchmitt = 0;
+          // Ponemos a cero todos los indicadores
+          _hmi.resetIndicators();           
       }
 
       bool createTempTAPfile()
@@ -1547,14 +1677,14 @@ class TAPrecorder
             {
               // El fichero no fue creado. Entonces no está abierto
               //SerialHW.println("Error in file for REC.");
-              wasFileNotCreated = true;
+              fileWasNotCreated = true;
               stopRecordingProccess = true;
               return false;
             }
             else
             {
               // El fichero fue creado. Entonces está abierto
-              wasFileNotCreated = false;
+              fileWasNotCreated = false;
               return true;
             }             
           }
@@ -1564,110 +1694,271 @@ class TAPrecorder
             // pero lo controlamos por si acaso.
 
             // El fichero fue creado. Entonces está abierto
-            wasFileNotCreated = false;            
+            fileWasNotCreated = false;            
             return true;
           }  
         }
         else
         {
           // El fichero fue creado. Entonces está abierto
-          wasFileNotCreated = false;
+          fileWasNotCreated = false;
           return true;
         }        
+      }
+
+      bool fillAndRemoveFile()
+      {
+          bool fileWasClosed = false;
+
+          for(int i=0;i<256;i++)
+          {
+            _mFile.write(0x01);
+          }
+
+          _mFile.close();
+
+          fileWasClosed = true;
+          delay(250);
+
+          // Ahora lo elimino.
+          _mFile.remove();
+          delay(250);     
+
+          return fileWasClosed;    
       }
 
       void terminate(bool removeFile)
       {
 
-        FIRSTBLOCKREAD = false;
+        // ************************************************************************
+        //
+        // En este procedimiento cerramos el fichero, para validarlo por el SO
+        //
+        // *************************************************************************
+
+        //FIRSTBLOCKREAD = false;
         bool fileWasClosed = false;
 
-        // Si REC no está activo, no podemos terminar
+        // Si REC no está activo, no podemos terminar.
         if (REC)
         {
-            if (!wasFileNotCreated)
+            // Vemos si el fichero inicialmente fue creado.
+            if (fileWasNotCreated == false)
             {
                 // El fichero inicialmente fue creado con exito
                 // en la SD, pero ...
                 //
                 //
-                // LAST_MESSAGE="Preparando fichero.";
-                // delay(3000);
+                //LAST_MESSAGE="STEP A";
+                delay(3000);
 
-                if (_mFile.size() !=0 && BLOCK_REC_COMPLETED)
+                // Si el bloque ha sido completado "tono guia + bytes + silencio"
+                // se almacena
+                if (BLOCK_REC_COMPLETED)
                 {
-
-                    if (!removeFile)
+                    // Se almacenó algo y hay bloques completos validados
+                    if (_mFile.size() !=0)
                     {
-                      // Finalmente se graba el contenido  
-                      if (_mFile.isOpen())
-                      {
-                        // Lo renombramos con el nombre del BASIC
-                        renameFile();        
 
-                        // LAST_MESSAGE="File rename!";
-                        delay(125);                       
-                      }          
+                        //LAST_MESSAGE="STEP B";
+                        delay(3000);
 
-                      // Lo cerramos
-                      _mFile.close();
-                      fileWasClosed = true;
- 
-                      delay(125);
+                        if (!removeFile)
+                        {
 
-                      LAST_MESSAGE = "File saved.";
+                          //LAST_MESSAGE="STEP C";
+                          delay(3000);
 
-                      if (_mFile.size() < 1024)
-                      {
-                        LAST_MESSAGE += " Size: " + String(_mFile.size()) + " bytes";
-                      }
-                      else
-                      {
-                        LAST_MESSAGE += " Size: " + String(_mFile.size()/1024) + " KB";
-                      }
-                      
+                          // Finalmente se graba el contenido  
+                          if (_mFile.isOpen())
+                          {
+                            // Lo renombramos con el nombre del BASIC
+                            renameFile();        
+
+                            // LAST_MESSAGE="File rename!";
+                            delay(125);                       
+                          }          
+
+                          // Lo cerramos
+                          _mFile.close();
+                          fileWasClosed = true;
+    
+                          delay(125);
+
+                          LAST_MESSAGE = "File saved.";
+
+                          if (_mFile.size() < 1024)
+                          {
+                            LAST_MESSAGE += " Size: " + String(_mFile.size()) + " bytes";
+                          }
+                          else
+                          {
+                            LAST_MESSAGE += " Size: " + String(_mFile.size()/1024) + " KB";
+                          }
+                          
+                        }
+                        else
+                        {
+
+                          //
+                          // El ultimo bloque es erroneo pero el resto no
+                          //
+
+                          //LAST_MESSAGE="STEP D";
+                          //delay(3000);
+
+
+                          // Finalmente se graba el contenido menos el bloque erroneo
+                          if (_mFile.isOpen())
+                          {
+                            // Lo renombramos con el nombre del BASIC
+                            renameFile();        
+
+                            // LAST_MESSAGE="File rename!";
+                            delay(125);                       
+                          }          
+
+                          _mFile.seek(ptrOffset);
+                          uint8_t MSB = 0;
+                          uint8_t LSB = 0;                      
+                          _mFile.write(LSB);
+                          _mFile.write(MSB);
+
+                          // Lo cerramos
+                          _mFile.close();
+                          fileWasClosed = true;
+    
+                          delay(125);
+
+                          LAST_MESSAGE = "File partialy saved.";
+
+                          if (_mFile.size() < 1024)
+                          {
+                            LAST_MESSAGE += " Size: " + String(_mFile.size()) + " bytes";
+                          }
+                          else
+                          {
+                            LAST_MESSAGE += " Size: " + String(_mFile.size()/1024) + " KB";
+                          }
+
+
+
+                          // LAST_MESSAGE="File removed!";
+                          // delay(1500);                     
+                          //LAST_MESSAGE = "File not saved.";
+                        }
                     }
                     else
                     {
-                      // SE ELIMINA
-                      // No se renombra porque es erroneo
-                      _mFile.close();
-                      fileWasClosed = true;                      
-                      delay(125);
-                      // Se elimina
-                      _mFile.remove();
-                      // LAST_MESSAGE="File removed!";
-                      // delay(1500);                     
-                      //LAST_MESSAGE = "File not saved.";
+
+                      //LAST_MESSAGE="STEP E";
+                      //delay(3000);
+
+                      // Tiene 0 bytes. Meto algo y lo cierro
+                      // es un error
+                      // Escribimos 256 bytes
+                      fileWasClosed = fillAndRemoveFile();
                     }
+
                 }
                 else
                 {
-                  // Tiene 0 bytes. Meto algo y lo cierro
-                  // es un error
-                  // Escribimos 256 bytes
-                  for(int i=0;i<256;i++)
-                  {
-                    _mFile.write(0x01);
-                  }
+                    // Aqui entra porque el BLOCK_REC_COMPLETED == false
+                    // entonces el ultimo bloque no fue terminado.
+                    //
+                    // El ultimo bloque es erroneo pero el resto no
+                    //
 
-                  _mFile.close();
-                  fileWasClosed = true;
-                  delay(250);
-                  _mFile.remove();
-                  delay(250);
-                  
-                  // LAST_MESSAGE="File filled and removed.";
-                  // delay(1500);                  
-                  //LAST_MESSAGE = "File not saved.";     
+                    if (_mFile.size() !=0 && errorDetected == 0)
+                    {
+
+                        //LAST_MESSAGE="STEP F";
+                        //delay(3000);
+
+                        // Finalmente se graba el contenido menos el bloque erroneo
+                        if (_mFile.isOpen())
+                        {
+
+                          //LAST_MESSAGE="STEP F-1";
+                          //delay(3000);
+
+                          
+                          // Lo renombramos con el nombre del BASIC
+                          if (PROGRAM_NAME_ESTABLISHED)
+                          {
+                            renameFile();        
+                          }
+                          
+                          // LAST_MESSAGE="File rename!";
+                          delay(125);                       
+                        }          
+
+                        if (ptrOffset != 0)
+                        {
+                         
+                          //LAST_MESSAGE="STEP F-2";
+                          //delay(3000);
+
+                          _mFile.seek(ptrOffset);
+                          uint8_t MSB = 0;
+                          uint8_t LSB = 0;                      
+                          _mFile.write(LSB);
+                          _mFile.write(MSB);                          
+
+                          // Lo cerramos
+                          _mFile.close();
+                          fileWasClosed = true;
+
+                          delay(125);
+
+                          LAST_MESSAGE = "File partialy saved.";
+
+                          if (_mFile.size() < 1024)
+                          {
+                            LAST_MESSAGE += " Size: " + String(_mFile.size()) + " bytes";
+                          }
+                          else
+                          {
+                            LAST_MESSAGE += " Size: " + String(_mFile.size()/1024) + " KB";
+                          }   
+                        }
+                        else
+                        {
+                          
+                          //LAST_MESSAGE="STEP F-3";
+                          //delay(3000);
+
+                          // Lo cerramos
+                          _mFile.close();
+                          fileWasClosed = true;
+                          delay(125);                          
+                        }
+
+                   
+                    }
+                    else
+                    {
+                        //LAST_MESSAGE="STEP G";
+                        //delay(3000);                      
+
+                        // Tiene 0 bytes. Meto algo y lo cierro
+                        // es un error
+                        // Escribimos 256 bytes
+                        fileWasClosed = fillAndRemoveFile();
+                    }        
                 }
             }
             else
             {
+
+              //LAST_MESSAGE="STEP H";
+              //delay(3000);
+
               // El fichero no fue creado
               _mFile.close();
               fileWasClosed = true;
               //LAST_MESSAGE = "File not saved.";
+
             }
         }
 

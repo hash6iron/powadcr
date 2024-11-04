@@ -815,7 +815,7 @@ void stopRecording()
       if (tbt >= 1)
       {
 
-          if (!taprec.errorInDataRecording && !taprec.wasFileNotCreated)
+          if (!taprec.errorInDataRecording && !taprec.fileWasNotCreated)
           {
           // La grabación fue parada pero no hubo errores
           // entonces salvamos el fichero sin borrarlo
@@ -843,7 +843,7 @@ void stopRecording()
                 taprec.terminate(true);
 
               }
-              else if (taprec.wasFileNotCreated)
+              else if (taprec.fileWasNotCreated)
               {
                   // Si no se crea el fichero no se puede seguir grabando
                   taprec.terminate(false);
@@ -875,7 +875,7 @@ void stopRecording()
     taprec.WasfirstStepInTheRecordingProccess = false;
     // Reiniciamos flags de recording errors
     taprec.errorInDataRecording = false;
-    taprec.wasFileNotCreated = true;
+    taprec.fileWasNotCreated = true;
 
     //Paramos la animación del indicador de recording
     hmi.writeString("tape2.tmAnimation.en=0");    
@@ -1204,7 +1204,7 @@ void setSTOP()
   //Paramos la animación del indicador de recording
   hmi.writeString("tape.tmAnimation.en=0");    
 
-  if (!taprec.errorInDataRecording && !taprec.wasFileNotCreated)
+  if (!taprec.errorInDataRecording && !taprec.fileWasNotCreated)
   {
     LAST_MESSAGE = "Tape stop.";
   }
