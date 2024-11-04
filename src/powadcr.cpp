@@ -1198,19 +1198,19 @@ void setSTOP()
   REC = false;
 
   BLOCK_SELECTED = 0;
-  
-  //Paramos la animación del indicador de recording
-  hmi.writeString("tape2.tmAnimation.en=0");    
-  //Paramos la animación del indicador de recording
-  hmi.writeString("tape.tmAnimation.en=0");    
 
   if (!taprec.errorInDataRecording && !taprec.fileWasNotCreated)
   {
     LAST_MESSAGE = "Tape stop.";
   }
-
+  delay(125);
+  //Paramos la animación del indicador de recording
+  hmi.writeString("tape2.tmAnimation.en=0");    
+  //Paramos la animación del indicador de recording
+  hmi.writeString("tape.tmAnimation.en=0");   
   //
-  
+  delay(125);
+  //
   hmi.writeString("currentBlock.val=1");
   hmi.writeString("progressTotal.val=0");
   hmi.writeString("progression.val=0");
