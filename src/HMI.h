@@ -1089,6 +1089,14 @@ class HMI
           }
       }
 
+      void reloadDir()
+      {
+          // Recarga el directorio
+          FILE_PTR_POS = 0;
+          getFilesFromSD(true);       
+          refreshFiles();        
+      }
+
       void verifyCommand(String strCmd) 
       {
         
@@ -1224,10 +1232,7 @@ class HMI
 
         if (strCmd.indexOf("RFSH") != -1) 
         {
-            // Recarga el directorio
-            FILE_PTR_POS = 0;
-            getFilesFromSD(true);       
-            refreshFiles();
+            reloadDir();
         }
       
         if (strCmd.indexOf("FPUP") != -1) 
@@ -1283,15 +1288,23 @@ class HMI
             
             long val = (long)((int)buff[4] + (256*(int)buff[5]) + (65536*(int)buff[6]));
 
-            String num = String(val);
-      
-            FILE_IDX_SELECTED = num.toInt();
+            //String num = String(val);
+            FILE_IDX_SELECTED = static_cast<int> (val);
       
             //Cogemos el directorio
 
+            if (FILE_IDX_SELECTED > sizeof(FILES_BUFF))
+            {
+              // Regeneramos el directorio de manera automática.
+              writeString("currentDir.txt=\">> Error in file system. Reloading <<\"");
+              reloadDir();
+              return;
+            }
+            
             FILE_DIR_TO_CHANGE = FILE_LAST_DIR + FILES_BUFF[FILE_IDX_SELECTED+1].path + "/";
             
             logln("Dir to change " + FILE_DIR_TO_CHANGE);
+            
             IN_THE_SAME_DIR = false;
       
             // Reserva dinamica de memoria
@@ -1394,22 +1407,51 @@ class HMI
             if (FILE_SELECTED_DELETE)
             {
               // Lo Borramos
-                if (!_sdf.remove(FILE_TO_DELETE))
+                File32 mf = _sdf.open(FILE_TO_DELETE,O_WRONLY);
+
+                if (!mf.isWritable())
                 {
-                  SerialHW.println("Error to remove file. " + FILE_TO_DELETE);
-                  writeString("currentDir.txt=\">> Error. File not removed <<\"");
-                  delay(1500);
-                  writeString("currentDir.txt=\"" + String(FILE_LAST_DIR_LAST) + "\"");                  
+                  writeString("currentDir.txt=\">> Error. File not writeable <<\"");
+                  mf.close();
+                }
+                else if (mf.isLFN())
+                { 
+                  writeString("currentDir.txt=\">> Error. Long filename <<\"");
+                  mf.close();
+                }
+                else if (mf.isReadOnly())
+                { 
+                  writeString("currentDir.txt=\">> Error. Readonly file <<\"");
+                  mf.close();
+                }
+                else if (mf.isSystem())
+                { 
+                  writeString("currentDir.txt=\">> Error. System file <<\"");
+                  mf.close();
                 }
                 else
                 {
-                  FILE_SELECTED_DELETE = false;
-                  SerialHW.println("File remove. " + FILE_TO_DELETE);
-                  
-                  // Tras borrar hacemos un rescan
-                  getFilesFromSD(true);       
-                  refreshFiles();
+                    mf.close();
+
+                    if (!_sdf.remove(FILE_TO_DELETE))
+                    {
+                      SerialHW.println("Error to remove file. " + FILE_TO_DELETE);
+                      writeString("currentDir.txt=\">> Error. File not removed <<\"");
+                      delay(1500);
+                      writeString("currentDir.txt=\"" + String(FILE_LAST_DIR_LAST) + "\"");                  
+                    }
+                    else
+                    {
+                      FILE_SELECTED_DELETE = false;
+                      SerialHW.println("File remove. " + FILE_TO_DELETE);
+                      
+                      // Tras borrar hacemos un rescan
+                      getFilesFromSD(true);       
+                      refreshFiles();
+                    }                  
                 }
+
+
             }
         }      
 

@@ -81,12 +81,12 @@ class TAPrecorder
 
       // Estamos suponiendo que el ZX Spectrum genera signal para grabar
       // con timming estandar entonces
-      double tState = 1/3500000;
-      int pilotPulse = 2168; // t-states
-      int sync1 = 667;
-      int sync2 = 735;
-      int bit0 = 855;
-      int bit1 = 1710;
+      //double tState = 1/3500000;
+      // int pilotPulse = 2168; // t-states
+      // int sync1 = 667;
+      // int sync2 = 735;
+      // int bit0 = 855;
+      // int bit1 = 1710;
 
       // int pSync = 0;
       // int pLead = 0;
@@ -94,16 +94,16 @@ class TAPrecorder
 
       // Tiempos de señal
       // Tono guia
-      const int timeForLead = 1714; //1714;   // Lapara buscar
-      const int timeLeadSeparation = 585; 
+      // const int timeForLead = 1714; //1714;   // Lapara buscar
+      // const int timeLeadSeparation = 585; 
       // Con samples
       // Señal de sincronismo
-      const int timeForSync = 400; //520
-      const int timeSyncSeparation = 190;
+      // const int timeForSync = 400; //520
+      // const int timeSyncSeparation = 190;
       // Umbrales de pulso.
-      const int high = 32767;
-      const int low = -32767;
-      const int silence = 0;
+      // const int high = 32767;
+      // const int low = -32767;
+      // const int silence = 0;
 
       // // Definimos el sampling rate real de la placa.
       // //const double samplingRate = 44099.988;
@@ -121,8 +121,6 @@ class TAPrecorder
       // Contamos los pulsos del sync1
       long silenceCount = 0;
       long lastSilenceCount = 0;
-      //bool isSilence = false;
-      //bool blockEnd = false;
       long silenceSample = 0;
 
       char* bitChStr;
@@ -137,142 +135,34 @@ class TAPrecorder
       String bitString = "";
 
       uint8_t checksum = 0;
-      uint8_t lastChk = 0;
       uint8_t byteRead = 0;
+      uint8_t lastByteRead = 0;
 
-      // Estado flanco de la senal, HIGH or LOW
-      bool pulseHigh = false;
-      //bool waitingHead = true;
 
-      // Contador de bloques
-      int bl = 0;
-
-      // Umbral para rechazo de ruido al 10%
+      // Umbral de histeresis para el filtro Schmitt al 10% de Vmax
       const int defaultThH = 3000;
       const int defaultThL = -3000;
-      //
       int threshold_high = defaultThH; 
       int threshold_low = defaultThL; 
-      //
-      int totalSamplesToTest = 0;
-      int countNoiseSamples = 0;
-      bool resetSchmitt = false;
-      int lastColorSchmittIndicator = 0;
-      int nResponse=0;
       int errorDetected = 0;
-
-
-      // Para los clásicos
-      //int threshold_high = defaultThH; 
-      //int threshold_low = defaultThL;       
-      //
-
-      // LOAD routine
-      long averageThreshold = 0;
-      bool errorInSemiPulseDetection = false;
-      int edge1Counter = 0;
-      int edge2Counter = 0;
-      int statusEdgeOnDetection = 0;
-      int statusEdgeOffDetection = 0;
-      int saveStatus = 0;
-
-      // Timming
-      unsigned long startTime = 0;
-      double timeBuffer = 0;
-      bool countTimeEnable = false;
-      bool startTimeWasLoaded = false;
-      bool measureTimeWasLoaded = false;
-      bool timeOutAlarm = false;
-      
      
-      // Porcentaje de error del comparador de tiempo (%)
-      const int timeToEdgeThreshold = 2;
-      // Tiempo que se ha tardado en encontrar el flanco
-      double timeToEdge1 = 0;
-      double timeToEdge2 = 0;
-      // Crossing por cero
-      int16_t lastFinalValue = 0;
-
+     
       // Zero crossing routine
-      int _samplesCount = 0;
-      int _lastSamplesCount = 0;
-      int _measuredWidth = 0;
-      int _lastMeasuredWidth = 0;
       int _measuredPulseUpWidth = 0;
       int _measuredPulseDownWidth = 0;
-      int _lastMeasureSemiPulsedWidth = 0;
-      bool _pulseWasMeasured = false;
       bool _pulseUpWasMeasured = false;
       bool _pulseDownWasMeasured = false;
-      bool _edgeDetected = false;
-      bool _semiPulseWasMeasured = false;
-      int16_t lastValueRead = 0;
 
-
-      int p1count = 0;
-      int p2count = 0;
-      int p3count = 0;
-      int p4count = 0;
-      int silencePulses = 0;
-
-      // int _samplesCountCtrl = 0;
-      // long _pulseTime = 0;
-      // long _T0 = 0;
-      // long _T1 = 0;
-      // bool _controlTimer = 0;
-      //int _detectState = 0;
-      int _detectStateT = 0;
-      // bool _lastPulseWasUp = false;
-      // bool _lastPulseMeasuredWasUp = false;
-      int _samplesDiscard = 0;
       int _measureState = 0;
       int _measureSilence = 0;
       bool _pulseInverted = false;
       bool _silenceTimeOverflow = false;
       bool _silenceDetected = false;
-      int _lastEdgeDetected = 0;
-      int _totalSamplesRed = 0;
-      int _pulseWidth = 0;
-      long _averageAmp = 0;
-      int _AmpUP = 0;
-      int _AmpDown = 0;
-      int pwLead1 = 0;
-      int pwLead2 = 0;
-      int pwSync1 = 0;
-      int pwSync2 = 0;
-      int pwBit0_1 = 0;
-      int pwBit0_2 = 0;
       //
-      int _bitPulseWidth = 0;
-      bool _readBitNow = false;
-      int _bitState = 0;
-      //
-      // Detector de Schmitt
-      int16_t lastSwitchStatus = 0;
-      //int detectStateSchmitt = 0;
-
-      //
-      double TON = 0;
-      double TOFF = 0;
-      double TSI = 0;
-      double TControl = 0;
-      unsigned long TCycle = 0;
-
-      // Notifications
-      bool noSignalWasNotified = false;
-      bool guideDetectionWasNotified = false;
 
       // Info block
       int stateInfoBlock = 0;
       bool isHead = true;
-
-      struct tPulse
-      {
-        int high_edge;
-        int low_edge;
-      };
-
-      tPulse pulse;
 
       struct tHeader
       {
@@ -288,17 +178,6 @@ class TAPrecorder
 
       tHeader header;
 
-      // Calculamos las muestras que tiene cada pulso
-      // segun el tiempo de muestreo
-      // long getSamples(int signalTStates, double tState, int samplingRate)
-      // {
-      //     double tSampling = 1/samplingRate;
-      //     double tPeriod = signalTStates * tState;
-      //     long samples = tPeriod / tSampling;
-
-      //     return samples; 
-      // }
-
       uint8_t calculateChecksum(uint8_t* bBlock, int startByte, int numBytes)
             {
                 // Calculamos el checksum de un bloque de bytes
@@ -313,9 +192,6 @@ class TAPrecorder
 
                 return newChk;
             }
-
-      void showByteInLog()
-      {}
 
       void proccesByteData()
       {
@@ -698,13 +574,9 @@ class TAPrecorder
       void resetMeasuredPulse()
       {
         // Reiniciamos estados
-        _pulseWasMeasured = false;
         _measureState = 0;
 
         // Reiniciamos anchos
-        _lastMeasuredWidth = 0;
-        _lastMeasureSemiPulsedWidth = 0;
-        _pulseWidth = 0;
         _measuredPulseDownWidth = 0;
         _measuredPulseUpWidth = 0;
         _measureSilence = 0;  //27102024
@@ -964,62 +836,77 @@ class TAPrecorder
           }
           else
           {
-              // Indicamos que se ha capturado un bloque completo
-              BLOCK_REC_COMPLETED = true;
-              //LAST_MESSAGE = "Block saved";
-              //waitingNextBlock = false;
-
-              // Informamos del bloque en curso
-              BLOCK_SELECTED = blockCount;
               
-              // Procesamos información del bloque
-              LAST_SIZE = byteCount;
+              if (checksum == 0)
+              {
+                  // el bloque es OK
+                  // Indicamos que se ha capturado un bloque completo
+                  BLOCK_REC_COMPLETED = true;
+                  //LAST_MESSAGE = "Block saved";
+                  //waitingNextBlock = false;
 
-              //
-              // Ahora añadimos el tamaño del bloque sin cabecera
-              // Hacemos la conversión, calculamos el nuevo block size
-              // y lo metemos en el fichero.
+                  // Informamos del bloque en curso
+                  BLOCK_SELECTED = blockCount;
+                  
+                  // Procesamos información del bloque
+                  LAST_SIZE = byteCount;
 
-              int size = LAST_SIZE;
-              uint8_t MSB = 0;
-              uint8_t LSB = 0;
+                  //
+                  // Ahora añadimos el tamaño del bloque sin cabecera
+                  // Hacemos la conversión, calculamos el nuevo block size
+                  // y lo metemos en el fichero.
 
-              LSB = size;
-              MSB = size >> 8;
+                  int size = LAST_SIZE;
+                  uint8_t MSB = 0;
+                  uint8_t LSB = 0;
 
-              // metemos el size
-              int currentPtrOffset = _mFile.position();
-                            
-              _mFile.seek(ptrOffset);
-              // Añadimos el tamaño del bloque capturado al principio
-              // de la cabecera.
-              _mFile.write(LSB);
-              _mFile.write(MSB); 
-              _mFile.seek(currentPtrOffset);
-              //
-              showProgramName();
+                  LSB = size;
+                  MSB = size >> 8;
 
-              // Obtenemos el nombre que se le pondrá al .TAP
-              getFileName(false);                
-              errorInDataRecording = false;
+                  // metemos el size
+                  int currentPtrOffset = _mFile.position();
+                                
+                  _mFile.seek(ptrOffset);
+                  // Añadimos el tamaño del bloque capturado al principio
+                  // de la cabecera.
+                  _mFile.write(LSB);
+                  _mFile.write(MSB); 
+                  _mFile.seek(currentPtrOffset);
+                  //
+                  showProgramName();
 
-              // Incrementamos un bloque  
-              blockCount++;   
-              //Inicializamops la cadena de bits
-              strcpy(bitChStr,"");
-              
-              // --------------------------------------------------------
-              //
-              // TODO OK - Continuamos con mas bloques si no hay STOP
-              // --------------------------------------------------------
-              // Comenzamos otra vez
-              // --------------------------------------------------------
-              // Reiniciamos todo
-              //prepareNewBlock();
-              // Guardamos los bloques transferidos
-              totalBlockTransfered = blockCount;  
-              //
-              return true;               
+                  // Obtenemos el nombre que se le pondrá al .TAP
+                  getFileName(false);                
+                  errorInDataRecording = false;
+
+                  // Incrementamos un bloque  
+                  blockCount++;   
+                  //Inicializamops la cadena de bits
+                  strcpy(bitChStr,"");
+                  
+                  // --------------------------------------------------------
+                  //
+                  // TODO OK - Continuamos con mas bloques si no hay STOP
+                  // --------------------------------------------------------
+                  // Comenzamos otra vez
+                  // --------------------------------------------------------
+                  // Reiniciamos todo
+                  //prepareNewBlock();
+                  // Guardamos los bloques transferidos
+                  totalBlockTransfered = blockCount;  
+                  //
+                  return true;                      
+              }
+              else
+              {
+                // Error de checksum
+                // Paramos la grabación.
+                stopREC(2);
+                
+                // Volvemos
+                return false;                 
+              }
+         
           }
         }
 
@@ -1049,6 +936,9 @@ class TAPrecorder
                   //lastChk = checksum;
                   // Calculamos el nuevo checksum
                   checksum = checksum ^ byteRead;
+                  // Nos quedamos siempre con el ultimo para poder
+                  // comparar con el checksum en los bloques sin cabecera.
+                  lastByteRead = byteRead;
                   
                   // Mostramos el progreso de grabación del bloque
                   PROGRESS_BAR_BLOCK_VALUE = (byteCount*100) / (header.blockSize-1);    
