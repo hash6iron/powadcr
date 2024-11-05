@@ -142,8 +142,6 @@ How .bin firmware is uploaded in ESP32-A1S Audiokit?
      NOTES: If the proccess fail.
       - Try to download again.
       - Try to ERASE before START proccess.
-
-     lastest version: <a href="https://github.com/hash6iron/powadcr_IO/blob/main/powaDCR-ESP32-A1S-v0.3.15.bin">powaDCR-ESP32A1S-v0.3.15.bin</a>
    
    Show image below.
    
