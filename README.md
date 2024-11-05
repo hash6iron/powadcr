@@ -159,7 +159,7 @@ How custom firmware is uploaded in ESP32-A1S Audiokit?
 
 How firmware is loaded in TJC LCD?
 -----
-Upload the file to the root of the SD and insert this into powaDCR. Power on the powaDCR and Wait until firmware is uploaded.
+Upload the file "HMI/../build/powadcr_iface.tft" to the root of the SD and insert this into powaDCR. Power on the powaDCR and Wait until firmware is uploaded.
 
 
 If you enjoy with this device and you want to colaborate, please.
