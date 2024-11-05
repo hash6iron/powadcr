@@ -65,8 +65,6 @@ The sequence for ZS Spectrum, is always for standard loading:
 + Large (x 8063 T-States) for typical "PROGRAM" block (BASIC)
 + Short (x 3223 T-States) for typical "BYTE" block, Z80 machine code.</br>
 
-![plot](./doc/squarewave_train.png)
-
 **What means T-State?**
 
 Well, this concept could be difficult to understand, but it's not far of reallity, as summarized full pulse (two peaks one to high and one to low) has a period equal to "2 x n T-State" time, where T-State = 1/3.5MHz = 0.28571 us, then for example: LARGE LEADER TONE.
@@ -151,24 +149,18 @@ How .bin firmware is uploaded in ESP32-A1S Audiokit?
 
 How custom firmware is uploaded in ESP32-A1S Audiokit? 
 -----
-1. Install Arduino IDE 2.0
-2. Apply this BOARD repository to Arduino IDE preferences.
-   - https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json
-
-3. Connect the ESP32 Audiokit USART USB port to any USB PC port
-4. Set board as "ESP32 DEV MOD" and select correct COM port
-
-Required libraries:
-- SdFat (https://github.com/greiman/SdFat)
-- arduino-audiokit (https://github.com/pschatzmann/arduino-audiokit/tree/main)
+1. Install VSCode
+   - https://code.visualstudio.com/download
+3. Install PlatformIO for VSCode
+  - https://platformio.org/install
+4. Open powaDCR project into VSCode
+5. Connect the ESP32 Audiokit USART USB port to any USB PC port
+6. Press BUILD (arrow icon) from PlatformIO toolbar.
 
 How firmware is loaded in TJC LCD?
 -----
-(in progress)
+Upload the file to the root of the SD and insert this into powaDCR. Power on the powaDCR and Wait until firmware is uploaded.
 
-What PowaDCR beta version is able to do?
------
-(in progress)
 
 If you enjoy with this device and you want to colaborate, please.
 
