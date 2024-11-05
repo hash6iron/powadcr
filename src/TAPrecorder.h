@@ -749,7 +749,9 @@ class TAPrecorder
           // 3. El total de bytes coincide con el esperado.
           //
           //
-          //showProgramName();   
+          //showProgramName(); 
+
+          bool res = false;
 
           if (!recWithoutHead)
           {
@@ -789,7 +791,7 @@ class TAPrecorder
                   // Guardamos los bloques transferidos
                   totalBlockTransfered = blockCount;  
                   //
-                  return true;               
+                  res = true;               
               }             
               else if (byteCount == 0)
               {
@@ -804,7 +806,7 @@ class TAPrecorder
                   stopREC(3);
                   
                   // Volvemos
-                  return false;
+                  res = false;
               }   
               else if (checksum != 0)
               {
@@ -813,7 +815,7 @@ class TAPrecorder
                   stopREC(2);
                   
                   // Volvemos
-                  return false;            
+                  res = false;            
               }             
               else if (byteCount < header.blockSize)
               {
@@ -822,7 +824,7 @@ class TAPrecorder
                   stopREC(5);
                   
                   // Volvemos
-                  return false;
+                  res = false;
               }
               else if (byteCount > header.blockSize)
               {
@@ -831,7 +833,7 @@ class TAPrecorder
                   stopREC(6);
                   
                   // Volvemos
-                  return false;
+                  res = false;
               }            
           }
           else
@@ -895,7 +897,7 @@ class TAPrecorder
                   // Guardamos los bloques transferidos
                   totalBlockTransfered = blockCount;  
                   //
-                  return true;                      
+                  res = true;                      
               }
               else
               {
@@ -904,11 +906,12 @@ class TAPrecorder
                 stopREC(2);
                 
                 // Volvemos
-                return false;                 
+                res = false;                 
               }
-         
           }
-        }
+
+          return res;
+      }
 
       void countNewByte()
       {

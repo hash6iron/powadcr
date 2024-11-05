@@ -228,15 +228,17 @@ bool loadWifiCfgFile()
   {
     logln("File wifi.cfg exists");
 
-    char* pathCfgFile = "/wifi.cfg";
+    char pathCfgFile[10] = {};
+    strcpy(pathCfgFile,"/wifi.cfg");
+
     File32 fWifi = sdm.openFile32(pathCfgFile);
     int* IP;
 
     if(fWifi.isOpen())
     {
-        HOSTNAME = new char[32];
-        ssid = new char[64];
-        password = new char[64];
+        // HOSTNAME = new char[32];
+        // ssid = new char[64];
+        // password = new char[64];
 
         char* ip1 = new char[17];
 
@@ -317,7 +319,9 @@ bool loadWifiCfgFile()
 
 void loadHMICfgFile()
 {
-  char* pathCfgFile = "/hmi.cfg";
+  char pathCfgFile[10] = {};
+  strcpy(pathCfgFile,"/hmi.cfg");
+
   File32 fHMI = sdm.openFile32(pathCfgFile);
   
   //Leemos ahora toda la configuración
@@ -501,12 +505,7 @@ void setSDFrequency(int SD_Speed)
             lastStatus = true;
           }
           else
-          {
-              // Error fatal
-              // La SD no es accesible. Entonces no es problema de la frecuencia de acceso.
-              //SerialHW.println("");
-              //SerialHW.println("");
-              //SerialHW.println("Fatal error. SD card not compatible. Change SD");      
+          {  
               
               // loop infinito
               while(true)
@@ -581,6 +580,7 @@ void setSDFrequency(int SD_Speed)
     }
   }
 
+  SD_SPEED_MHZ = SD_Speed;
   delay(1250);
 }
 
@@ -724,6 +724,8 @@ void setAudioInOut()
   {
     //log("Error in volumen setting");
   }   
+
+
 }
 
 // void setWavRecording(char* file_name)
@@ -888,6 +890,9 @@ void stopRecording()
     //
     delay(2000);
     hmi.activateWifi(true);
+    //
+    // Cambiamos la frecuencia de la SD
+    sdf.begin(ESP32kit.pinSpiCs(), SD_SCK_MHZ(SD_SPEED_MHZ));    
 
 }
 
@@ -1043,7 +1048,10 @@ void uploadFirmDisplay(char *filetft)
     File32 file;
     String ans = "";    
 
-    file = sdm.openFile32("/powadcr_iface.tft");
+    char strpath[20] = {};
+    strcpy(strpath,"/powadcr_iface.tft");
+
+    file = sdm.openFile32(strpath);
     uint32_t filesize = file.size();
 
     //Enviamos comando de conexión
@@ -1388,6 +1396,10 @@ void prepareRecording()
 {
     hmi.activateWifi(false);
 
+    // Cambiamos la frecuencia de la SD
+    // Forzamos a 4MHz
+    sdf.begin(ESP32kit.pinSpiCs(), SD_SCK_MHZ(4));    
+
     // Liberamos myTAP.descriptor de la memoria si existe 
     if (myTAP.descriptor!= nullptr) 
     {
@@ -1431,6 +1443,8 @@ void prepareRecording()
     
     //hmi.getMemFree();        
 }
+
+
 void recordingFile()
 {
     // Iniciamos la grabación (esto es un bucle "taprec.recording()")
@@ -1955,19 +1969,9 @@ void setup()
 
     int SD_Speed = SD_FRQ_MHZ_INITIAL;  // Velocidad en MHz (config.h)
     setSDFrequency(SD_Speed);
-
-    // Forzamos a 26MHz
-    //sdf.begin(ESP32kit.pinSpiCs(), SD_SCK_MHZ(26));
-
+   
     // Le pasamos al HMI el gestor de SD
     hmi.set_sdf(sdf);
-
-    //SerialHW.println("Done!");
-
-    // Esperamos finalmente a la pantalla
-    //SerialHW.println("");
-    //SerialHW.println("Waiting for LCD.");
-    //SerialHW.println("");
 
     if(psramInit()){
       //SerialHW.println("\nPSRAM is correctly initialized");
@@ -1988,8 +1992,11 @@ void setup()
         //writeStatusLCD("Uploading display firmware");
         
         // Alternativa 1
-        uploadFirmDisplay("/powadcr_iface.tft");
-        sdf.remove("/powadcr_iface.tft");
+        char strpath[20] = {};
+        strcpy(strpath,"/powadcr_iface.tft");
+
+        uploadFirmDisplay(strpath);
+        sdf.remove(strpath);
         // Esperamos al reinicio de la pantalla
         delay(5000);
     }
@@ -2059,11 +2066,6 @@ void setup()
       TEST_RUNNING = false;
     #endif
 
-    // Interrupciones HW
-    // Timer0_Cfg = timerBegin(0, 80, true);
-    // timerAttachInterrupt(Timer0_Cfg, &Timer0_ISR, true);
-    // timerAlarmWrite(Timer0_Cfg, 1000000, true);
-    // timerAlarmEnable(Timer0_Cfg);
     LOADING_STATE = 0;
     BLOCK_SELECTED = 0;
     FILE_SELECTED = false;

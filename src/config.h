@@ -128,9 +128,9 @@ bool TEST_LINE_IN_OUT = false;
 // <DNS1>192.168.2.1</DNS1>
 // <DNS2>192.168.2.1</DNS2>
 
-char* HOSTNAME = "";
-char* ssid = "";
-char* password = "";
+char HOSTNAME[32] =  {};
+char ssid[64] = {};
+char password[64] = {};
 
 // Static IP - 2.4GHz WiFi AP
 IPAddress local_IP(0, 0, 0, 0); // Your Desired Static IP Address

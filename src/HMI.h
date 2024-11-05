@@ -375,7 +375,7 @@ class HMI
           ld.fileName= "";
           ld.ID = -1;
           ld.seek = -1;
-          ld.type = '/0';
+          ld.type = 'F';
 
           // Comenzamos desde el principio del fichero
           f.rewind();

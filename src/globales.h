@@ -33,7 +33,7 @@
 
 int stackFreeCore0 = 0;
 int stackFreeCore1 = 0;
-
+int SD_SPEED_MHZ = 4;
 // ************************************************************
 //
 // Estructura de datos
@@ -382,15 +382,15 @@ void logln(String txt)
   SerialHW.println(txt);
 }
 
-char* strToCharArray(String str)
-{
-  char arr[str.length() + 1];
-  for (int x = 0; x < sizeof(arr); x++) 
-  { 
-    arr[x] = str[x]; 
-  }
+// char* strToCharArray(String str)
+// {
+//   char arr[str.length() + 1];
+//   for (int x = 0; x < sizeof(arr); x++) 
+//   { 
+//     arr[x] = str[x]; 
+//   }
 
-  SerialHW.println("Converted path: " + String(arr));
-  return arr;
-}
+//   SerialHW.println("Converted path: " + String(arr));
+//   return arr;
+// }
 
