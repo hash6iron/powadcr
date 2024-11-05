@@ -59,13 +59,11 @@ I recomend the Alessandro Grussu's website with an interesting information about
 Now, I'd like to show you how the signal generated from TAP file that Sinclair ZX Spectrum is able to understand. The mechanism to read the audio signal is based on squarewave peaks counting, using the Z80 clock timming, then:
 
 The sequence for ZS Spectrum, is always for standard loading: 
-+ LEADER TONE + SYNC1 + SYNC2 + DATA SEQUENCE + SILENT
++ LEADER TONE + SYNC1 + SYNC2 + DATA SEQUENCE + SILENCE
 
 <br>Where: LEADER TONE (2168 T-States) is two kind of length. 
 + Large (x 8063 T-States) for typical "PROGRAM" block (BASIC)
 + Short (x 3223 T-States) for typical "BYTE" block, Z80 machine code.</br>
-
-![plot](./doc/squarewave_train.png)
 
 **What means T-State?**
 
@@ -131,7 +129,7 @@ How .bin firmware is uploaded in ESP32-A1S Audiokit?
 
    
 5. Setting and begin the flash proccess.
-   - Select .bin file or write the path of it (see below lastest stable version)
+   - Select .bin file or type the path of it (from /build)
    - Select all parameters exactly at the image below.
    - Connect ESP32-A1S Audiokit board from UART microUSB port (not power microUSB PORT) at PC USB port.
    - Select the available COM for this connection in COM: field on ESP32 Flash Downloading Tool.
@@ -142,8 +140,6 @@ How .bin firmware is uploaded in ESP32-A1S Audiokit?
      NOTES: If the proccess fail.
       - Try to download again.
       - Try to ERASE before START proccess.
-
-     lastest version: <a href="https://github.com/hash6iron/powadcr_IO/blob/main/powaDCR-ESP32-A1S-v0.3.15.bin">powaDCR-ESP32A1S-v0.3.15.bin</a>
    
    Show image below.
    
@@ -153,24 +149,18 @@ How .bin firmware is uploaded in ESP32-A1S Audiokit?
 
 How custom firmware is uploaded in ESP32-A1S Audiokit? 
 -----
-1. Install Arduino IDE 2.0
-2. Apply this BOARD repository to Arduino IDE preferences.
-   - https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json
-
-3. Connect the ESP32 Audiokit USART USB port to any USB PC port
-4. Set board as "ESP32 DEV MOD" and select correct COM port
-
-Required libraries:
-- SdFat (https://github.com/greiman/SdFat)
-- arduino-audiokit (https://github.com/pschatzmann/arduino-audiokit/tree/main)
+1. Install VSCode
+   - https://code.visualstudio.com/download
+3. Install PlatformIO for VSCode
+   - https://platformio.org/install
+5. Open powaDCR project into VSCode
+6. Connect the ESP32 Audiokit USART USB port to any USB PC port
+7. Press BUILD (arrow icon) from PlatformIO toolbar.
 
 How firmware is loaded in TJC LCD?
 -----
-(in progress)
+Upload the file "HMI/../build/powadcr_iface.tft" to the root of the SD and insert this into powaDCR. Power on the powaDCR and Wait until firmware is uploaded.
 
-What PowaDCR beta version is able to do?
------
-(in progress)
 
 If you enjoy with this device and you want to colaborate, please.
 
