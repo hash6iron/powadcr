@@ -59,7 +59,7 @@ I recomend the Alessandro Grussu's website with an interesting information about
 Now, I'd like to show you how the signal generated from TAP file that Sinclair ZX Spectrum is able to understand. The mechanism to read the audio signal is based on squarewave peaks counting, using the Z80 clock timming, then:
 
 The sequence for ZS Spectrum, is always for standard loading: 
-+ LEADER TONE + SYNC1 + SYNC2 + DATA SEQUENCE + SILENT
++ LEADER TONE + SYNC1 + SYNC2 + DATA SEQUENCE + SILENCE
 
 <br>Where: LEADER TONE (2168 T-States) is two kind of length. 
 + Large (x 8063 T-States) for typical "PROGRAM" block (BASIC)
