@@ -129,7 +129,7 @@ How .bin firmware is uploaded in ESP32-A1S Audiokit?
 
    
 5. Setting and begin the flash proccess.
-   - Select .bin file or write the path of it (see below lastest stable version)
+   - Select .bin file or type the path of it (from /build)
    - Select all parameters exactly at the image below.
    - Connect ESP32-A1S Audiokit board from UART microUSB port (not power microUSB PORT) at PC USB port.
    - Select the available COM for this connection in COM: field on ESP32 Flash Downloading Tool.
