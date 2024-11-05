@@ -152,10 +152,10 @@ How custom firmware is uploaded in ESP32-A1S Audiokit?
 1. Install VSCode
    - https://code.visualstudio.com/download
 3. Install PlatformIO for VSCode
-  - https://platformio.org/install
-4. Open powaDCR project into VSCode
-5. Connect the ESP32 Audiokit USART USB port to any USB PC port
-6. Press BUILD (arrow icon) from PlatformIO toolbar.
+   - https://platformio.org/install
+5. Open powaDCR project into VSCode
+6. Connect the ESP32 Audiokit USART USB port to any USB PC port
+7. Press BUILD (arrow icon) from PlatformIO toolbar.
 
 How firmware is loaded in TJC LCD?
 -----
