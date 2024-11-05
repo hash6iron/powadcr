@@ -1433,25 +1433,12 @@ void prepareRecording()
 }
 void recordingFile()
 {
-    // Iniciamos la grabación
+    // Iniciamos la grabación (esto es un bucle "taprec.recording()")
+    // si devuelve true --> acaba
     if (taprec.recording())
     {
+
         // Ha finalizado la grabación de un bloque
-        // ahora estudiamos la causa
-        // if (taprec.stopRecordingProccess)   
-        // {
-        //     // Hay tres casos
-        //     // - El fichero para grabar el TAP no fue creado
-        //     // - La grabación fue parada pero fue correcta (no hay errores)
-        //     // - La grabación fue parada pero fue incorrecta (hay errores)
-        //     //SerialHW.println("");
-        //     //SerialHW.println("STOP 2 - REC");
-
-        //     LOADING_STATE = 0;
-
-        //     //stopRecording();
-        //     //setSTOP();
-        // }
         LOADING_STATE = 0;
     }
     else

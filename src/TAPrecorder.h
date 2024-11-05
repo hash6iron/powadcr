@@ -501,13 +501,21 @@ class TAPrecorder
 
         // Solo necesitamos el fichero final
         // porque mFile contiene el original
+        // LAST_MESSAGE="STEP E-2-2";
+        // delay(1000);
+
         strcat(cPath,fileNameRename);
+
+
 
         if (_sdf32.exists(cPath))
         {
           _sdf32.remove(cPath);
           log("File exists then was remove first.");
         }
+
+        // LAST_MESSAGE="STEP E-2-3";
+        // delay(1000);
 
         if (_mFile.rename(cPath))
         {         
@@ -522,7 +530,7 @@ class TAPrecorder
           // Proporcionamos espacio en memoria para el
           // nuevo filename
           fileNameRename = (char*)ps_calloc(20,sizeof(char));
-          strcpy(fileNameRename,"noname");
+          //strcpy(fileNameRename,"noname");
 
           if (test)
           {
@@ -565,7 +573,6 @@ class TAPrecorder
           // ------------------------------------------------------------------------------------------------------------------
           // Measure Pulse Width
           // ------------------------------------------------------------------------------------------------------------------
-
 
           // Establecemos el threshold de detección
           int deltaH = threshold_high;
@@ -651,58 +658,6 @@ class TAPrecorder
                 _measuredPulseUpWidth=0;
               }                          
               break;
-
-            // case 3:
-            //   // Estado LOW
-            //   if (finalValue == 32767)
-            //   {
-            //     _measureState = 4;
-            //     _pulseDownWasMeasured = true;
-            //     // de medir el pulso completo.
-            //     _measuredPulseUpWidth++;
-            //   }
-            //   else if (finalValue == -32768)
-            //   {
-            //     _measuredPulseDownWidth++;
-            //     _pulseDownWasMeasured = false;
-            //     _measuredPulseUpWidth=0;
-            //   }    
-            //   // else
-            //   // {
-            //   //   if (finalValue >= deltaL && finalValue <= deltaH)
-            //   //   {
-            //   //     _measuredPulseDownWidth++;
-            //   //   }
-            //   //   _measureState = 3;                        
-            //   // }                            
-            //   break;
-
-            // case 4:
-            //   // Estado UP
-            //   // Ahora cambia a LOW - Entonces es un flanco
-            //   if (finalValue == -32768)
-            //   {
-            //     _measureState = 3;  // 3 - 20/07/2024
-            //     _pulseUpWasMeasured = true;
-            //     // de medir el pulso completo.
-            //     _measuredPulseDownWidth++;
-            //   }
-            //   else if (finalValue == 32767)
-            //   {
-            //     // Calculo el ancho del semi-pulso alto
-            //     _measuredPulseUpWidth++;
-            //     _measuredPulseDownWidth=0;
-            //     _pulseUpWasMeasured = false;
-            //   }
-            //   // else
-            //   // { 
-            //   //   if (finalValue >= deltaL && finalValue <= deltaH)
-            //   //   {
-            //   //     _measuredPulseUpWidth++;
-            //   //   }
-            //   //   _measureState = 4;                
-            //   // }
-            //   break;
           }
 
           // Un pulso muy largo sin cambio entonces estamos ante un silencio
@@ -769,14 +724,6 @@ class TAPrecorder
         //que es justo al final del ultimo bloque + 1 (inicio del siguiente)
         ptrOffset = _mFile.position();
 
-        // logln("");
-        // logln("");
-        // logln("Offset --> ");
-        // logHEX(ptrOffset);
-        // logln("");
-        // logln("");
-
-        //isSilence = false;
         // El nuevo bloque tiene que registrar su tamaño en el fichero .tap
         // depende si es HEAD or DATA
         if (isHead)
@@ -930,7 +877,8 @@ class TAPrecorder
           // 3. El total de bytes coincide con el esperado.
           //
           //
-          //showProgramName();          
+          //showProgramName();   
+
           if (!recWithoutHead)
           {
               if (byteCount !=0 && header.blockSize == byteCount && checksum==0)
@@ -1041,22 +989,7 @@ class TAPrecorder
 
               // metemos el size
               int currentPtrOffset = _mFile.position();
-              
-              // logln("");
-              // logln("");
-              // logln("Saved headerless block");
-              // logln("");
-              // logln("Offset --> ");
-              // logHEX(ptrOffset);
-              // logln("");
-              // logln("Size:");
-              // logHEX(LSB);
-              // log("-");
-              // logHEX(MSB);
-              // logln("");
-              // logln("");
-              // logln("");
-              
+                            
               _mFile.seek(ptrOffset);
               // Añadimos el tamaño del bloque capturado al principio
               // de la cabecera.
@@ -1099,6 +1032,8 @@ class TAPrecorder
 
               if (bitCount > 7)
               {
+                
+
                   // Reiniciamos el contador de bits
                   bitCount=0;
 
@@ -1398,7 +1333,8 @@ class TAPrecorder
                           case 0:
                             //LAST_MESSAGE = "Up: " + String(_measuredPulseUpWidth) + " - Down: " + String(_measuredPulseDownWidth);
                             if ((_measuredPulseUpWidth >= wToneMin) && (_measuredPulseUpWidth < wToneMax))
-                            {
+                            {                              
+
                                   // Contamos los pulsos de LEAD
                                 pulseCount++;
         
@@ -1409,6 +1345,10 @@ class TAPrecorder
                                     pulseCount = 0;
                                     LAST_MESSAGE = "Waiting for SYNC";
                                     //initializePulse();                       
+                                }
+                                else
+                                {
+                                  stateRecording = 0;
                                 }
                             }
                             break;
@@ -1423,8 +1363,8 @@ class TAPrecorder
                               if (_measuredPulseUpWidth < wSync)
                               {
                                 // Esperamos ahora SYNC 2 en DOWN
-                                stateRecording = 2;
-                                
+                                stateRecording = 2;                              
+
                                 //Esperamos un bloque ahora PROGRAM o BYTE, entonces
                                 //nos preparamos
                                 prepareNewBlock();
@@ -1432,7 +1372,10 @@ class TAPrecorder
                                 
                               }
                               else
-                              {}
+                              {
+                                // Reiniciamos los contadores mientras no sea                               
+                                stateRecording = 1;
+                              }
                               break;
 
                           default:
@@ -1451,9 +1394,10 @@ class TAPrecorder
                             ((_measuredPulseUpWidth ) <= wBit0_2))
                         {
                             // Es un 0
+
                             // Vuelta al ciclo de detección del primer semui-pulso de data
                             stateRecording = 2;
-                                                              
+
                             bitString += "0";
                             bitChStr[bitCount] = '0';
                             // Contabilizamos un bit
@@ -1466,8 +1410,9 @@ class TAPrecorder
                                 ((_measuredPulseUpWidth ) <= wBit1_2))
                         {
                             // Es un 1
+                            
                             // Vuelta al ciclo de detección del primer semui-pulso de data
-                            stateRecording = 2;       
+                            stateRecording = 2;    
 
                             bitString += "1";
                             bitChStr[bitCount] = '1';
@@ -1638,6 +1583,7 @@ class TAPrecorder
           {
             header.name[i] = ' ';
           }
+          strcpy(header.name,"noname");
 
           bufferRec = (uint8_t*)ps_calloc(BUFFER_SIZE_REC,sizeof(uint8_t));
           //initializeBuffer();
@@ -1706,7 +1652,7 @@ class TAPrecorder
         }        
       }
 
-      bool fillAndRemoveFile()
+      bool fillAndCloseFile()
       {
           bool fileWasClosed = false;
 
@@ -1716,15 +1662,79 @@ class TAPrecorder
           }
 
           _mFile.close();
-
           fileWasClosed = true;
           delay(250);
 
           // Ahora lo elimino.
-          _mFile.remove();
-          delay(250);     
+          //_mFile.remove();
+          //delay(250);     
 
           return fileWasClosed;    
+      }
+
+      bool saveBlocksOnFile(bool partially)
+      {
+          bool fileWasClosed = false;
+
+          if (_mFile.isOpen())
+          {
+            // Lo renombramos con el nombre del BASIC
+            renameFile();        
+            delay(125);                       
+          }  
+
+          if (partially)
+          {
+              // Finalmente se graba el contenido menos el bloque erroneo
+              int currentOffset = _mFile.position();
+              _mFile.seek(ptrOffset);
+              uint8_t MSB = 0;
+              uint8_t LSB = 0;                      
+              _mFile.write(LSB);
+              _mFile.write(MSB);
+              _mFile.seek(currentOffset);
+
+              // Lo cerramos
+              _mFile.close();
+              fileWasClosed = true;
+
+              delay(125);
+
+              LAST_MESSAGE = "File partially saved.";
+
+              if (_mFile.size() < 1024)
+              {
+                LAST_MESSAGE += " Size: " + String(_mFile.size()) + " bytes";
+              }
+              else
+              {
+                LAST_MESSAGE += " Size: " + String(_mFile.size()/1024) + " KB";
+              }
+          }
+          else
+          {
+              // Finalmente se graba todo el contenido         
+              // Lo cerramos
+              _mFile.close();
+              fileWasClosed = true;
+
+              delay(125);
+
+              LAST_MESSAGE = "File saved.";
+
+              if (_mFile.size() < 1024)
+              {
+                LAST_MESSAGE += " Size: " + String(_mFile.size()) + " bytes";
+              }
+              else
+              {
+                LAST_MESSAGE += " Size: " + String(_mFile.size()/1024) + " KB";
+              }
+
+          }
+
+          return fileWasClosed;
+
       }
 
       void terminate(bool removeFile)
@@ -1749,8 +1759,8 @@ class TAPrecorder
                 // en la SD, pero ...
                 //
                 //
-                //LAST_MESSAGE="STEP A";
-                delay(3000);
+                // LAST_MESSAGE="STEP A";
+                // delay(1000);
 
                 // Si el bloque ha sido completado "tono guia + bytes + silencio"
                 // se almacena
@@ -1760,104 +1770,31 @@ class TAPrecorder
                     if (_mFile.size() !=0)
                     {
 
-                        //LAST_MESSAGE="STEP B";
-                        delay(3000);
-
                         if (!removeFile)
                         {
+                          // LAST_MESSAGE="STEP B";
+                          // delay(1000);
 
-                          //LAST_MESSAGE="STEP C";
-                          delay(3000);
-
-                          // Finalmente se graba el contenido  
-                          if (_mFile.isOpen())
-                          {
-                            // Lo renombramos con el nombre del BASIC
-                            renameFile();        
-
-                            // LAST_MESSAGE="File rename!";
-                            delay(125);                       
-                          }          
-
-                          // Lo cerramos
-                          _mFile.close();
-                          fileWasClosed = true;
-    
-                          delay(125);
-
-                          LAST_MESSAGE = "File saved.";
-
-                          if (_mFile.size() < 1024)
-                          {
-                            LAST_MESSAGE += " Size: " + String(_mFile.size()) + " bytes";
-                          }
-                          else
-                          {
-                            LAST_MESSAGE += " Size: " + String(_mFile.size()/1024) + " KB";
-                          }
-                          
+                          fileWasClosed = saveBlocksOnFile(false);
                         }
                         else
                         {
-
                           //
                           // El ultimo bloque es erroneo pero el resto no
                           //
-
-                          //LAST_MESSAGE="STEP D";
-                          //delay(3000);
-
-
-                          // Finalmente se graba el contenido menos el bloque erroneo
-                          if (_mFile.isOpen())
-                          {
-                            // Lo renombramos con el nombre del BASIC
-                            renameFile();        
-
-                            // LAST_MESSAGE="File rename!";
-                            delay(125);                       
-                          }          
-
-                          _mFile.seek(ptrOffset);
-                          uint8_t MSB = 0;
-                          uint8_t LSB = 0;                      
-                          _mFile.write(LSB);
-                          _mFile.write(MSB);
-
-                          // Lo cerramos
-                          _mFile.close();
-                          fileWasClosed = true;
-    
-                          delay(125);
-
-                          LAST_MESSAGE = "File partialy saved.";
-
-                          if (_mFile.size() < 1024)
-                          {
-                            LAST_MESSAGE += " Size: " + String(_mFile.size()) + " bytes";
-                          }
-                          else
-                          {
-                            LAST_MESSAGE += " Size: " + String(_mFile.size()/1024) + " KB";
-                          }
-
-
-
-                          // LAST_MESSAGE="File removed!";
-                          // delay(1500);                     
-                          //LAST_MESSAGE = "File not saved.";
+                          // LAST_MESSAGE="STEP C";
+                          // delay(1000);
+                          fileWasClosed = saveBlocksOnFile(true);
                         }
                     }
                     else
                     {
-
-                      //LAST_MESSAGE="STEP E";
-                      //delay(3000);
-
                       // Tiene 0 bytes. Meto algo y lo cierro
                       // es un error
                       // Escribimos 256 bytes
-                      fileWasClosed = fillAndRemoveFile();
+                      // LAST_MESSAGE="STEP D";
+                      // delay(1000);
+                      fileWasClosed = fillAndCloseFile();
                     }
 
                 }
@@ -1868,97 +1805,69 @@ class TAPrecorder
                     //
                     // El ultimo bloque es erroneo pero el resto no
                     //
+                    // LAST_MESSAGE="STEP E";
+                    // delay(1000);
 
-                    if (_mFile.size() !=0 && errorDetected == 0)
+                    if (byteCount !=0 && errorDetected == 0)
                     {
 
-                        //LAST_MESSAGE="STEP F";
-                        //delay(3000);
+                        // LAST_MESSAGE="STEP E-1";
+                        // delay(1000);
 
                         // Finalmente se graba el contenido menos el bloque erroneo
                         if (_mFile.isOpen())
-                        {
+                        {                     
 
-                          //LAST_MESSAGE="STEP F-1";
-                          //delay(3000);
+                            // LAST_MESSAGE="STEP E-2";
+                            // delay(1000);
 
-                          
-                          // Lo renombramos con el nombre del BASIC
-                          if (PROGRAM_NAME_ESTABLISHED)
-                          {
+                            // Lo renombramos con el nombre del BASIC
                             renameFile();        
-                          }
-                          
-                          // LAST_MESSAGE="File rename!";
-                          delay(125);                       
+                            delay(125);                       
                         }          
 
                         if (ptrOffset != 0)
                         {
-                         
-                          //LAST_MESSAGE="STEP F-2";
-                          //delay(3000);
 
-                          _mFile.seek(ptrOffset);
-                          uint8_t MSB = 0;
-                          uint8_t LSB = 0;                      
-                          _mFile.write(LSB);
-                          _mFile.write(MSB);                          
+                          // LAST_MESSAGE="STEP E-3";
+                          // delay(1000);
 
-                          // Lo cerramos
-                          _mFile.close();
-                          fileWasClosed = true;
-
-                          delay(125);
-
-                          LAST_MESSAGE = "File partialy saved.";
-
-                          if (_mFile.size() < 1024)
-                          {
-                            LAST_MESSAGE += " Size: " + String(_mFile.size()) + " bytes";
-                          }
-                          else
-                          {
-                            LAST_MESSAGE += " Size: " + String(_mFile.size()/1024) + " KB";
-                          }   
+                          //
+                          fileWasClosed = saveBlocksOnFile(true);  
                         }
                         else
                         {
-                          
-                          //LAST_MESSAGE="STEP F-3";
-                          //delay(3000);
-
                           // Lo cerramos
+                          // LAST_MESSAGE="STEP E-4";
+                          // delay(1000);
+
                           _mFile.close();
                           fileWasClosed = true;
                           delay(125);                          
                         }
-
-                   
                     }
                     else
-                    {
-                        //LAST_MESSAGE="STEP G";
-                        //delay(3000);                      
-
+                    {                  
                         // Tiene 0 bytes. Meto algo y lo cierro
                         // es un error
+                        // LAST_MESSAGE="STEP E-5";
+                        // delay(1000);
+
                         // Escribimos 256 bytes
-                        fileWasClosed = fillAndRemoveFile();
+                        fileWasClosed = fillAndCloseFile();
                     }        
                 }
             }
             else
             {
 
-              //LAST_MESSAGE="STEP H";
-              //delay(3000);
-
               // El fichero no fue creado
+              // LAST_MESSAGE="STEP E-6";
+              // delay(1000);
+
               _mFile.close();
               fileWasClosed = true;
-              //LAST_MESSAGE = "File not saved.";
-
+              delay(125); 
             }
         }
 
@@ -1968,6 +1877,11 @@ class TAPrecorder
         statusSchmitt = 0;
         // Ponemos a cero todos los indicadores
         _hmi.resetIndicators();   
+        
+        // Nos aseguramos el cierre.  05/11/2024 - 02:17
+        _mFile.close();
+        fileWasClosed = true;
+        delay(1000);
       }
 
       TAPrecorder()
