@@ -226,7 +226,9 @@ bool loadWifiCfgFile()
 
   if(sdf.exists("/wifi.cfg"))
   {
-    logln("File wifi.cfg exists");
+    #ifdef DEBUGMODE
+      logln("File wifi.cfg exists");
+    #endif
 
     char pathCfgFile[10] = {};
     strcpy(pathCfgFile,"/wifi.cfg");
@@ -245,43 +247,61 @@ bool loadWifiCfgFile()
         CFGWIFI = sdm.readAllParamCfg(fWifi,9);
 
         // WiFi settings
+        logln("");
+        logln("");
+        logln("");
+        logln("");
+        logln("");
+        logln("WiFi settings:");
+        logln("------------------------------------------------------------------");
+        logln("");
+
         // Hostname
         strcpy(HOSTNAME, (sdm.getValueOfParam(CFGWIFI[0].cfgLine,"hostname")).c_str());
-        log(HOSTNAME);
+        logln(HOSTNAME);
         // SSID - Wifi
         strcpy(ssid, (sdm.getValueOfParam(CFGWIFI[1].cfgLine,"ssid")).c_str());
-        log(ssid);
+        logln(ssid);
         // Password - WiFi
         strcpy(password, (sdm.getValueOfParam(CFGWIFI[2].cfgLine,"password")).c_str());
-        log(password);
+        logln(password);
 
         //Local IP
         strcpy(ip1, (sdm.getValueOfParam(CFGWIFI[3].cfgLine,"IP")).c_str());
-        logln("ip1: " + String(ip1));
+        logln("IP: " + String(ip1));
         IP = strToIPAddress(String(ip1));
         local_IP = IPAddress(IP[0],IP[1],IP[2],IP[3]);
         
         // Subnet
         strcpy(ip1, (sdm.getValueOfParam(CFGWIFI[4].cfgLine,"SN")).c_str());
+        logln("SN: " + String(ip1));
         IP = strToIPAddress(String(ip1));
         subnet = IPAddress(IP[0],IP[1],IP[2],IP[3]);
         
         // gateway
         strcpy(ip1, (sdm.getValueOfParam(CFGWIFI[5].cfgLine,"GW")).c_str());
+        logln("GW: " + String(ip1));
         IP = strToIPAddress(String(ip1));
         gateway = IPAddress(IP[0],IP[1],IP[2],IP[3]);
         
         // DNS1
         strcpy(ip1, (sdm.getValueOfParam(CFGWIFI[6].cfgLine,"DNS1")).c_str());
+        logln("DNS1: " + String(ip1));
         IP = strToIPAddress(String(ip1));
         primaryDNS = IPAddress(IP[0],IP[1],IP[2],IP[3]);
         
         // DNS2
         strcpy(ip1, (sdm.getValueOfParam(CFGWIFI[7].cfgLine,"DNS2")).c_str());
+        logln("DNS2: " + String(ip1));
         IP = strToIPAddress(String(ip1));
         secondaryDNS = IPAddress(IP[0],IP[1],IP[2],IP[3]);
 
         logln("Open config. WiFi-success");
+        logln("");
+        logln("------------------------------------------------------------------");
+        logln("");
+        logln("");
+
         fWifi.close();
         cfgloaded = true;
     }
@@ -296,7 +316,6 @@ bool loadWifiCfgFile()
 
         if (fWifi.isOpen())
         {
-
           fWifi.println("<hostname>powaDCR</hostname>");
           fWifi.println("<ssid></ssid>");
           fWifi.println("<password></password>");
@@ -306,7 +325,9 @@ bool loadWifiCfgFile()
           fWifi.println("<DNS1>192.168.1.1</DNS1>");
           fWifi.println("<DNS2>192.168.1.1</DNS1>");
 
-          logln("wifi.cfg new file created");
+          #ifdef DEBUGMODE
+            logln("wifi.cfg new file created");
+          #endif
 
           fWifi.close();
         }
@@ -892,7 +913,7 @@ void stopRecording()
     hmi.activateWifi(true);
     //
     // Cambiamos la frecuencia de la SD
-    sdf.begin(ESP32kit.pinSpiCs(), SD_SCK_MHZ(SD_SPEED_MHZ));    
+    // sdf.begin(ESP32kit.pinSpiCs(), SD_SCK_MHZ(SD_SPEED_MHZ));    
 
 }
 
@@ -969,72 +990,74 @@ void onOTAEnd(bool success)
 
 bool wifiOTASetup()
 {
-  bool wifiActive = true;
+    bool wifiActive = true;
 
-  WiFi.mode(WIFI_STA);
-  WiFi.begin(ssid, password);
-  
-    // Disable Auto Reboot
-  ElegantOTA.setAutoReboot(false);
+    WiFi.mode(WIFI_STA);
+    String ssid2 = ssid;
+    WiFi.begin(ssid2, password);
     
-  hmi.writeString("statusLCD.txt=\"SSID: [" + String(ssid) + "]\"" );
-  delay(1500);
-  
-  // Configures Static IP Address
-  if (!WiFi.config(local_IP, gateway, subnet, primaryDNS, secondaryDNS))
-  {
-      hmi.writeString("statusLCD.txt=\"WiFi-STA setting failed!\"" );
+      // Disable Auto Reboot
+    ElegantOTA.setAutoReboot(false);
+      
+    hmi.writeString("statusLCD.txt=\"SSID: [" + String(ssid) + "]\"" );
+    delay(1500);
+    
+    // Configures Static IP Address
+    if (!WiFi.config(local_IP, gateway, subnet, primaryDNS, secondaryDNS))
+    {
+        hmi.writeString("statusLCD.txt=\"WiFi-STA setting failed!\"" );
+        wifiActive = false;
+    }
+
+    int trying_wifi = 0;
+
+    while ((WiFi.waitForConnectResult() != WL_CONNECTED) && trying_wifi <= 10)
+    {
+      hmi.writeString("statusLCD.txt=\"WiFi Connection failed! - try " + String(trying_wifi) + "\"" );
+      trying_wifi++;
       wifiActive = false;
-  }
+      delay(500);
+    }  
 
-  int trying_wifi = 0;
-
-  while ((WiFi.waitForConnectResult() != WL_CONNECTED)  || trying_wifi > 10)
-  {
-    hmi.writeString("statusLCD.txt=\"WiFi Connection failed! - try " + String(trying_wifi) + "\"" );
-    trying_wifi++;
-    wifiActive = false;
-  }  
-
-  if (trying_wifi > 10)
-  {
-    wifiActive = false;
-  }
-  else
-  {
-    wifiActive = true;
-  }
-
-  if (wifiActive)
-  {
-      server.on("/", HTTP_GET,[]()
-      {
-        server.send(200, "text/plain", "powaDCR OTA Server. Powered by Elegant OTA");
-      });
-
-
-      ElegantOTA.begin(&server);    // Start ElegantOTA
-      // ElegantOTA callbacks
-      ElegantOTA.onStart(onOTAStart);
-      ElegantOTA.onProgress(onOTAProgress);
-      ElegantOTA.onEnd(onOTAEnd);
-
-      server.begin();
-
-      // hmi.writeString("statusLCD.txt=\"Wifi + OTA - Enabled\"");
-      // delay(125);
-
-      hmi.writeString("statusLCD.txt=\"IP " + WiFi.localIP().toString() + "\""); 
-      delay(50);
-  }
-  else
-  {
-      hmi.writeString("statusLCD.txt=\"Wifi disabled\"");
+    if (trying_wifi > 10)
+    {
       wifiActive = false;
-      delay(750);
-  }
+    }
+    else
+    {
+      wifiActive = true;
+    }
 
-  return wifiActive;
+    if (wifiActive)
+    {
+        server.on("/", HTTP_GET,[]()
+        {
+          server.send(200, "text/plain", "powaDCR OTA Server. Powered by Elegant OTA");
+        });
+
+
+        ElegantOTA.begin(&server);    // Start ElegantOTA
+        // ElegantOTA callbacks
+        ElegantOTA.onStart(onOTAStart);
+        ElegantOTA.onProgress(onOTAProgress);
+        ElegantOTA.onEnd(onOTAEnd);
+
+        server.begin();
+
+        // hmi.writeString("statusLCD.txt=\"Wifi + OTA - Enabled\"");
+        // delay(125);
+
+        hmi.writeString("statusLCD.txt=\"IP " + WiFi.localIP().toString() + "\""); 
+        delay(50);
+    }
+    else
+    {
+        hmi.writeString("statusLCD.txt=\"Wifi disabled\"");
+        wifiActive = false;
+        delay(750);
+    }
+
+    return wifiActive;
 }
 
 void writeStatusLCD(String txt)
@@ -1396,9 +1419,9 @@ void prepareRecording()
 {
     hmi.activateWifi(false);
 
-    // Cambiamos la frecuencia de la SD
-    // Forzamos a 4MHz
-    sdf.begin(ESP32kit.pinSpiCs(), SD_SCK_MHZ(4));    
+    // // Cambiamos la frecuencia de la SD
+    // // Forzamos a 4MHz
+    // sdf.begin(ESP32kit.pinSpiCs(), SD_SCK_MHZ(4));    
 
     // Liberamos myTAP.descriptor de la memoria si existe 
     if (myTAP.descriptor!= nullptr) 
@@ -1932,8 +1955,9 @@ void setup()
 
 
     // Configuramos el nivel de log
-    SerialHW.setRxBufferSize(2048);
+    SerialHW.setRxBufferSize(4096);
     SerialHW.begin(921600);
+    //SerialHW.begin(512000);
     delay(125);
 
     // Forzamos un reinicio de la pantalla

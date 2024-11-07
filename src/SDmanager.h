@@ -97,11 +97,15 @@ class SDmanager
         
         if (!dfFile.open(path, O_RDWR)) 
         {
-            log("open DIR failed");
+            #ifdef DEBUGMODE
+                log("open DIR failed");
+            #endif
         }
         else
         {
-            log("open DIR success");
+            #ifdef DEBUGMODE
+                log("open DIR success");
+            #endif
         }
 
         return dfFile;
@@ -113,11 +117,15 @@ class SDmanager
         
         if (!fFile.open(path, O_RDWR)) 
         {
-            log("open failed");
+            #ifdef DEBUGMODE
+                log("open failed");
+            #endif
         }
         else
         {
-            log("open success");
+            #ifdef DEBUGMODE
+                log("open success");
+            #endif
         }
 
         return fFile;
@@ -136,11 +144,15 @@ class SDmanager
     
         if (!fFile.open(path, FILE_READ)) 
         {
-            log("open failed");
+            #ifdef DEBUGMODE
+                log("open failed");
+            #endif
         }
         else
         {
-            log("open success");
+            #ifdef DEBUGMODE
+                log("open success");
+            #endif
         }
     
         return fFile;
@@ -151,7 +163,9 @@ class SDmanager
         if (fFile != 0)
         {
             fFile.close();
-            log("closing file");
+            #ifdef DEBUGMODE
+                log("closing file");
+            #endif
         } 
     }
     
@@ -254,16 +268,20 @@ class SDmanager
         }
         else
         {
-            log("Error writing cgf");
+            #ifdef DEBUGMODE
+                log("Error writing cgf");
+            #endif
         }
     }
 
 
     String getValueOfParam(String line, String param)
     {
-        logln("Cfg. line: " + line);
-        log(" - Param: " + param);
-        
+        #ifdef DEBUGMODE
+            logln("Cfg. line: " + line);
+            log(" - Param: " + param);
+        #endif
+
         int firstClosingBracket = line.indexOf('>');
 
         if( firstClosingBracket != -1)
@@ -274,7 +292,9 @@ class SDmanager
             if (firstOpeningEndLine != -1)
             {
                 String res = line.substring(firstClosingBracket+1, firstOpeningEndLine);
-                log(" / Value = " + res);
+                #ifdef DEBUGMODE
+                    log(" / Value = " + res);
+                #endif
                 return res;
             }
         }
@@ -304,7 +324,9 @@ class SDmanager
                 String strRes = "";
 
                 strRes = line;
-                logln("[" + String(i) + "]" + strRes);
+                #ifdef DEBUGMODE
+                    logln("[" + String(i) + "]" + strRes);
+                #endif
 
                 if (i<=maxParameters)
                 {

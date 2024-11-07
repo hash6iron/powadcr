@@ -387,7 +387,9 @@ class TAPrecorder
         if (_sdf32.exists(cPath))
         {
           _sdf32.remove(cPath);
-          log("File exists then was remove first.");
+          #ifdef DEBUGMODE
+            log("File exists then was remove first.");
+          #endif
         }
 
         // LAST_MESSAGE="STEP E-2-3";

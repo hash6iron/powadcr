@@ -137,7 +137,10 @@ class TAPprocessor
             rtn = false;
             }
 
-            log("isHeaderTAP OK");
+            #ifdef DEBUGMODE
+                log("isHeaderTAP OK");
+            #endif
+
             return rtn;
         }
 
@@ -175,7 +178,10 @@ class TAPprocessor
                 rtn = false;
             }
 
-            log("IsFileTAP OK");
+            #ifdef DEBUGMODE
+                log("IsFileTAP OK");
+            #endif
+
             return rtn;
         }
 
@@ -572,7 +578,7 @@ class TAPprocessor
             return blockNameDetected;     
         }
 
-        void getBlockDescriptor(File32 mFile, int sizeTAP)
+        bool getBlockDescriptor(File32 mFile, int sizeTAP)
         {
             // Este procedimiento permite analizar un fichero .TAP
             // obteniendo de este información relevante y los distintos bloques que lo
@@ -589,7 +595,7 @@ class TAPprocessor
             //{
             // La reserva de memoria para el descriptor de bloques del TAP
             // se hace en powadcr.ino
-
+            bool blockDescriptorOk = true;
             //  Inicializamos variables
             char nameTAP[11];
             char typeName[11];
@@ -712,6 +718,7 @@ class TAPprocessor
                     reachEndByte = true;
                     // //SerialHW.println("Error in checksum. Block --> " + String(numBlocks) + " - offset: " + String(lastStartBlock));
                     LAST_MESSAGE = "Error in checksum. Block --> " + String(numBlocks) + " - offset: " + String(lastStartBlock);
+                    blockDescriptorOk = false;
                     delay(3000);                
                     
                     // Añadimos información importante
@@ -719,7 +726,7 @@ class TAPprocessor
                     _myTAP.size = 0;
                     _myTAP.numBlocks = 0; 
                     // Salimos ya de la función.
-                    return;
+                    return blockDescriptorOk;
                 }
 
                 // ¿Hemos llegado al ultimo byte? Entonces lo indicamos reachEndByte = true
@@ -740,18 +747,7 @@ class TAPprocessor
             _myTAP.size = sizeTAP;
             _myTAP.numBlocks = numBlocks;
             
-            //}
-            // else
-            // {
-            //     // Ponemos la información a cero porque el
-            //     // fichero estaba corrupto.              
-            //     strncpy(_myTAP.name,"",1);
-            //     _myTAP.size = 0;
-            //     _myTAP.numBlocks = 0;            
-            // }
-
-            // Actualizamos el indicador de consumo de PS_RAM
-            //_hmi.updateMem();
+            return blockDescriptorOk;
         }
 
         void showDescriptorTable()
@@ -1027,29 +1023,29 @@ class TAPprocessor
         bool proccess_tap(File32 tapFileName)
         {
             // Procesamos el fichero .TAP
-            
-            // //SerialHW.println("");
-            // //SerialHW.println("Getting total blocks...");
-
             // Verificamos que sea un TAP correcto.
-            if (isFileTAP(tapFileName))
+            // if (isFileTAP(tapFileName))
+            // {
+            // Analizamos el .TAP y obtenemos el descriptor de bloques
+            if (!getBlockDescriptor(_mFile, _sizeTAP))
             {
-                // Analizamos el .TAP y obtenemos el descriptor de bloques
-                getBlockDescriptor(_mFile, _sizeTAP);
-
-                // if (!FILE_CORRUPTED)
-                // {
-                //     // Mostramos información del descriptor (para debug)
-                //     showDescriptorTable();
-                // }
-                return true;
+                FILE_CORRUPTED = true;
+                return false;
             }
             else
             {
-                LAST_MESSAGE = "is not file TAP.";
-                delay(1500);
-                return false;
+                FILE_CORRUPTED = false;
+                return true;
             }
+
+            return true;
+            // }
+            // else
+            // {
+            //     LAST_MESSAGE = "is not file TAP.";
+            //     delay(1500);
+            //     return false;
+            // }
         }
 
         void getInfoFileTAP(char* path) 
@@ -1080,9 +1076,11 @@ class TAPprocessor
 
             if (proccess_tap(tapFile))
             {
-                // //SerialHW.println("");
-                // //SerialHW.println("");
-                // //SerialHW.println("END PROCCESING TAP: ");
+                #ifdef DEBUGMODE
+                    SerialHW.println("");
+                    SerialHW.println("");
+                    SerialHW.println("END PROCCESING TAP: ");
+                #endif
 
                 if (_myTAP.descriptor != nullptr)
                 {
@@ -1091,11 +1089,12 @@ class TAPprocessor
                     TOTAL_BLOCKS = _myTAP.numBlocks;
                     strncpy(LAST_TYPE,&INITCHAR2[0],sizeof(&INITCHAR2[0]));
                 
-                    // //SerialHW.println("");
-                    // //SerialHW.println("");
-                    // //SerialHW.println("PROGRAM_NAME: " + PROGRAM_NAME);
-                    // //SerialHW.println("TOTAL_BLOCKS: " + String(TOTAL_BLOCKS));
-                
+                    #ifdef DEBUGMODE
+                        SerialHW.println("");
+                        SerialHW.println("");
+                        SerialHW.println("PROGRAM_NAME: " + PROGRAM_NAME);
+                        SerialHW.println("TOTAL_BLOCKS: " + String(TOTAL_BLOCKS));
+                    #endif                
                     // Pasamos informacion del descriptor al HMI         
                     _hmi.setBasicFileInformation(_myTAP.descriptor[BLOCK_SELECTED].name,_myTAP.descriptor[BLOCK_SELECTED].typeName,_myTAP.descriptor[BLOCK_SELECTED].size);
                     // Actualizamos la pantalla
@@ -1181,40 +1180,40 @@ class TAPprocessor
         char hexs[20];
         if (size > 10)
         {
-          log("");
-          //SerialHW.println("Listing bufferplay.");
-          // for (int n=0;n<size;n++)
-          // {
+            log("");
+            //SerialHW.println("Listing bufferplay.");
+            // for (int n=0;n<size;n++)
+            // {
 
-          //SerialHW.print(buffer[0],HEX);
-          //SerialHW.print(",");
-          //SerialHW.print(buffer[1],HEX);
-          //SerialHW.print(" ... ");
-          //SerialHW.print(buffer[size-2],HEX);
-          //SerialHW.print(",");
-          //SerialHW.print(buffer[size-1],HEX);
+            //SerialHW.print(buffer[0],HEX);
+            //SerialHW.print(",");
+            //SerialHW.print(buffer[1],HEX);
+            //SerialHW.print(" ... ");
+            //SerialHW.print(buffer[size-2],HEX);
+            //SerialHW.print(",");
+            //SerialHW.print(buffer[size-1],HEX);
 
-          sprintf(hexs, "%X", buffer[size-1]);
-          dataOffset4 = hexs;
-          sprintf(hexs, "%X", buffer[size-2]);
-          dataOffset3 = hexs;
-          sprintf(hexs, "%X", buffer[1]);
-          dataOffset2 = hexs;
-          sprintf(hexs, "%X", buffer[0]);
-          dataOffset1 = hexs;
+            sprintf(hexs, "%X", buffer[size-1]);
+            dataOffset4 = hexs;
+            sprintf(hexs, "%X", buffer[size-2]);
+            dataOffset3 = hexs;
+            sprintf(hexs, "%X", buffer[1]);
+            dataOffset2 = hexs;
+            sprintf(hexs, "%X", buffer[0]);
+            dataOffset1 = hexs;
 
-          sprintf(hexs, "%X", offset+(size-1));
-          Offset4 = hexs;
-          sprintf(hexs, "%X", offset+(size-2));
-          Offset3 = hexs;
-          sprintf(hexs, "%X", offset+1);
-          Offset2 = hexs;
-          sprintf(hexs, "%X", offset);
-          Offset1 = hexs;
+            sprintf(hexs, "%X", offset+(size-1));
+            Offset4 = hexs;
+            sprintf(hexs, "%X", offset+(size-2));
+            Offset3 = hexs;
+            sprintf(hexs, "%X", offset+1);
+            Offset2 = hexs;
+            sprintf(hexs, "%X", offset);
+            Offset1 = hexs;
 
 
-          // }
-          log("");
+            // }
+            log("");
         }
         else
         {
@@ -1296,7 +1295,10 @@ class TAPprocessor
 
                             i = _myTAP.numBlocks+1;
 
-                            log("LOADING_STATE 2");                           
+                            #ifdef DEBUGMODE
+                                log("LOADING_STATE 2");                           
+                            #endif
+
                             return;
                         }
                         else if (LOADING_STATE==3)
@@ -1308,13 +1310,18 @@ class TAPprocessor
 
                             //i = _myTAP.numBlocks+1;
 
-                            log("LOADING_STATE 3"); 
+                            #ifdef DEBUGMODE
+                                log("LOADING_STATE 3"); 
+                            #endif
+
                             return; 
                         }
                         else
                         {
                             // Almacenmas el bloque en curso para un posible PAUSE
-                            log("LOADING_STATE unknow");
+                            #ifdef DEBUGMODE
+                                log("LOADING_STATE unknow");
+                            #endif
 
                             CURRENT_BLOCK_IN_PROGRESS = i;
                             BLOCK_SELECTED = i;
@@ -1331,8 +1338,10 @@ class TAPprocessor
                         _hmi.setBasicFileInformation(_myTAP.descriptor[BLOCK_SELECTED].name,_myTAP.descriptor[BLOCK_SELECTED].typeName,_myTAP.descriptor[BLOCK_SELECTED].size);
 
                         //
-                        log("Tamaño del bloque ");
-                        log(String(_myTAP.descriptor[i].size) + " bytes");
+                        #ifdef DEBUGMODE
+                            log("Tamaño del bloque ");
+                            log(String(_myTAP.descriptor[i].size) + " bytes");
+                        #endif
 
                         // Reproducimos el fichero
                         if (_myTAP.descriptor[i].type == 0) 
@@ -1400,7 +1409,10 @@ class TAPprocessor
                                     newOffset = offsetBase + (blockSizeSplit*n);
                                     // Accedemos a la SD y capturamos el bloque del fichero
                                     bufferPlay = sdm.readFileRange32(_mFile, newOffset, blockSizeSplit, true);  
-                                    showBufferPlay(bufferPlay,blockSizeSplit,newOffset);
+                                    
+                                    #ifdef DEBUGMODE
+                                        showBufferPlay(bufferPlay,blockSizeSplit,newOffset);
+                                    #endif
                                     
                                     // Reproducimos la partición n, del bloque.
                                     if (n==0)
@@ -1424,7 +1436,10 @@ class TAPprocessor
 
                                 // Accedemos a la SD y capturamos el bloque del fichero
                                 bufferPlay = sdm.readFileRange32(_mFile, newOffset, blockSizeSplit, true);   
-                                showBufferPlay(bufferPlay,blockSizeSplit,newOffset); 
+                                
+                                #ifdef DEBUGMODE
+                                    showBufferPlay(bufferPlay,blockSizeSplit,newOffset); 
+                                #endif
                                 
                                 // Reproducimos el ultimo bloque con su terminador y silencio si aplica
                                 _zxp.playDataEnd(bufferPlay, blockSizeSplit);                                    
@@ -1481,7 +1496,10 @@ class TAPprocessor
                 // No se ha seleccionado ningún fichero
                 LAST_MESSAGE = "No file selected.";
                 _hmi.setBasicFileInformation(_myTAP.descriptor[BLOCK_SELECTED].name,_myTAP.descriptor[BLOCK_SELECTED].typeName,_myTAP.descriptor[BLOCK_SELECTED].size);
-                log("Error - No file selected");
+                
+                #ifdef DEBUGMODE
+                    log("Error - No file selected");
+                #endif
                 //
             }
 

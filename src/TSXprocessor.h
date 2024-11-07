@@ -753,8 +753,9 @@ class TSXprocessor
         // Tomamos ahora las longitudes
         int coff = currentOffset+2;
 
-        log("ID-13: Pulse sequence");
-        //SerialHW.println("");
+        #ifdef DEBUGMODE
+          log("ID-13: Pulse sequence");
+        #endif
 
         for (int i=0;i<num_pulses;i++)
         {
@@ -1041,38 +1042,54 @@ class TSXprocessor
         //Tamaño de los datos
         _myTSX.descriptor[currentBlock].lengthOfData = getNBYTE(mFile,currentOffset+1,4)-12;
         _myTSX.descriptor[currentBlock].size=_myTSX.descriptor[currentBlock].lengthOfData;
-        logln("Tamaño datos: 0x" + String(_myTSX.descriptor[currentBlock].lengthOfData));
+        #ifdef DEBUGMODE
+          logln("Tamaño datos: 0x" + String(_myTSX.descriptor[currentBlock].lengthOfData));
+        #endif
 
         _myTSX.descriptor[currentBlock].offsetData=currentOffset+17;
 
         //Pausa despues del bloque
         _myTSX.descriptor[currentBlock].pauseAfterThisBlock = getWORD(mFile,currentOffset+5);
-        logln("Pause after block: " + String(_myTSX.descriptor[currentBlock].pauseAfterThisBlock));
+        #ifdef DEBUGMODE
+          logln("Pause after block: " + String(_myTSX.descriptor[currentBlock].pauseAfterThisBlock));
+        #endif
         
         // Timming de PULSE PILOT
         _myTSX.descriptor[currentBlock].timming.pilot_len = getWORD(mFile,currentOffset+7);
-        logln(",PULSE PILOT = " + String(_myTSX.descriptor[currentBlock].timming.pilot_len));
+        #ifdef DEBUGMODE
+          logln(",PULSE PILOT = " + String(_myTSX.descriptor[currentBlock].timming.pilot_len));
+        #endif
         
         // Timming de PILOT TONE
         _myTSX.descriptor[currentBlock].timming.pilot_num_pulses = getWORD(mFile,currentOffset+9);
-        logln(",PULSE TONE = " + String(_myTSX.descriptor[currentBlock].timming.pilot_num_pulses));
+        #ifdef DEBUGMODE
+          logln(",PULSE TONE = " + String(_myTSX.descriptor[currentBlock].timming.pilot_num_pulses));
+        #endif
 
         // Timming de ZERO
         _myTSX.descriptor[currentBlock].timming.bit_0 = getWORD(mFile,currentOffset+11);
-        logln("PULSE ZERO = " + String(_myTSX.descriptor[currentBlock].timming.bit_0));
+        #ifdef DEBUGMODE
+          logln("PULSE ZERO = " + String(_myTSX.descriptor[currentBlock].timming.bit_0));
+        #endif
         
         // Timming de ONE
         _myTSX.descriptor[currentBlock].timming.bit_1 = getWORD(mFile,currentOffset+13);
-        logln("PULSE ONE = " + String(_myTSX.descriptor[currentBlock].timming.bit_1));
+        #ifdef DEBUGMODE
+          logln("PULSE ONE = " + String(_myTSX.descriptor[currentBlock].timming.bit_1));
+        #endif
         
         // Configuracion de los bits
          _myTSX.descriptor[currentBlock].timming.bitcfg = getBYTE(mFile,currentOffset+15);
         int pzero;
         int pone;
         pzero=((_myTSX.descriptor[currentBlock].timming.bitcfg & 0b11110000)>>4);
-        logln("PULSES FOR ZERO = " + String(pzero));
+        #ifdef DEBUGMODE
+          logln("PULSES FOR ZERO = " + String(pzero));
+        #endif
         pone=((_myTSX.descriptor[currentBlock].timming.bitcfg & 0b00001111));
-        logln("PULSES FOR ONE = " + String(pone));
+        #ifdef DEBUGMODE
+          logln("PULSES FOR ONE = " + String(pone));
+        #endif
       
 
         //configuracion del byte
@@ -1081,16 +1098,31 @@ class TSXprocessor
         int ntb;
         int vtb;
         _myTSX.descriptor[currentBlock].timming.bytecfg = getBYTE(mFile,currentOffset+16);
+        
         nlb=((_myTSX.descriptor[currentBlock].timming.bytecfg & 0b11000000)>>6);
-        logln(",NUMBERS OF LEADING BITS = "+String(nlb));
+        #ifdef DEBUGMODE
+          logln(",NUMBERS OF LEADING BITS = "+String(nlb));
+        #endif
+        
         vlb=((_myTSX.descriptor[currentBlock].timming.bytecfg & 0b00100000)>>5);    
-        logln(",VALUE OF LEADING BITS = "+String(vlb));
+        #ifdef DEBUGMODE
+          logln(",VALUE OF LEADING BITS = "+String(vlb));
+        #endif
+        
         ntb=((_myTSX.descriptor[currentBlock].timming.bytecfg & 0b00011000)>>3);
-        logln(",NUMBER OF TRAILING BITS = "+String(ntb));
+        #ifdef DEBUGMODE
+          logln(",NUMBER OF TRAILING BITS = "+String(ntb));
+        #endif
+
         vtb=((_myTSX.descriptor[currentBlock].timming.bitcfg & 0b00000100)>>2);
-        logln(",VALUE OF TRAILING BITS = "+String(vtb));
-        // logln(",ENDIANNESS=");
-        // logln((_myTSX.descriptor[currentBlock].timming.bitcfg & 0b00000001));
+        #ifdef DEBUGMODE
+          logln(",VALUE OF TRAILING BITS = "+String(vtb));
+        #endif
+        
+        #ifdef DEBUGMODE
+          logln(",ENDIANNESS=");
+          logln((_myTSX.descriptor[currentBlock].timming.bitcfg & 0b00000001));
+        #endif
 
         
         int ldatos;
@@ -1104,13 +1136,17 @@ class TSXprocessor
         ldatos=(_myTSX.descriptor[currentBlock].lengthOfData);
         pulsosmaximos=(_myTSX.descriptor[currentBlock].timming.pilot_num_pulses)+((npulses[vlb]*nlb)+128+(npulses[vtb]*ntb))*_myTSX.descriptor[currentBlock].lengthOfData;
 
-        logln("Numero de pulsos: " + String(_myTSX.descriptor[currentBlock].timming.pilot_num_pulses));
-        logln("Pulsos maximos: "+String(pulsosmaximos));
+        #ifdef DEBUGMODE
+          logln("Numero de pulsos: " + String(_myTSX.descriptor[currentBlock].timming.pilot_num_pulses));
+          logln("Pulsos maximos: "+String(pulsosmaximos));
+        #endif
         
         // Reservamos memoria dinamica
         _myTSX.descriptor[currentBlock].timming.pulse_seq_array = (int*)ps_calloc(pulsosmaximos+1,sizeof(int));
 
-        logln("Longitud de los datos: "+String(ldatos));
+        #ifdef DEBUGMODE
+          logln("Longitud de los datos: "+String(ldatos));
+        #endif
         // metemos el pilot
         int i;
         int p;
@@ -1121,7 +1157,10 @@ class TSXprocessor
         }
 
         i=p;
-        log(">> Bucle del pilot - Iteraciones: " + String(p));
+        
+        #ifdef DEBUGMODE
+          log(">> Bucle del pilot - Iteraciones: " + String(p));
+        #endif
 
         // metemos los datos
         int bRead;
@@ -1196,10 +1235,13 @@ class TSXprocessor
         // Esto es para que tome los bloques como especiales
         _myTSX.descriptor[currentBlock].type = 99;
         _myTSX.descriptor[currentBlock].timming.pulse_seq_num_pulses=i;
-        logln("datos: "+String(ldatos));
-        logln("pulsos: "+String(i));
         
-        logln("---------------------------------------------------------------------");
+        #ifdef DEBUGMODE
+          logln("datos: "+String(ldatos));
+          logln("pulsos: "+String(i));
+        
+          logln("---------------------------------------------------------------------");
+        #endif
 
     }
 
@@ -1365,8 +1407,10 @@ class TSXprocessor
                 nextIDoffset = currentOffset + 3;  
                 strncpy(_myTSX.descriptor[currentBlock].typeName,IDXXSTR,35);
                 
-                log("ID 0x20 - PAUSE / STOP TAPE");
-                log("-- value: " + String(_myTSX.descriptor[currentBlock].pauseAfterThisBlock));
+                #ifdef DEBUGMODE
+                  log("ID 0x20 - PAUSE / STOP TAPE");
+                  log("-- value: " + String(_myTSX.descriptor[currentBlock].pauseAfterThisBlock));
+                #endif
             }
             else
             {
@@ -1847,25 +1891,25 @@ class TSXprocessor
             SerialHW.print(",");
             SerialHW.print(buffer[size-1],HEX);
             log("");            
+
+            sprintf(hexs, "%X", buffer[size-1]);
+            dataOffset4 = hexs;
+            sprintf(hexs, "%X", buffer[size-2]);
+            dataOffset3 = hexs;
+            sprintf(hexs, "%X", buffer[1]);
+            dataOffset2 = hexs;
+            sprintf(hexs, "%X", buffer[0]);
+            dataOffset1 = hexs;
+
+            sprintf(hexs, "%X", offset+(size-1));
+            Offset4 = hexs;
+            sprintf(hexs, "%X", offset+(size-2));
+            Offset3 = hexs;
+            sprintf(hexs, "%X", offset+1);
+            Offset2 = hexs;
+            sprintf(hexs, "%X", offset);
+            Offset1 = hexs;
           #endif
-
-          sprintf(hexs, "%X", buffer[size-1]);
-          dataOffset4 = hexs;
-          sprintf(hexs, "%X", buffer[size-2]);
-          dataOffset3 = hexs;
-          sprintf(hexs, "%X", buffer[1]);
-          dataOffset2 = hexs;
-          sprintf(hexs, "%X", buffer[0]);
-          dataOffset1 = hexs;
-
-          sprintf(hexs, "%X", offset+(size-1));
-          Offset4 = hexs;
-          sprintf(hexs, "%X", offset+(size-2));
-          Offset3 = hexs;
-          sprintf(hexs, "%X", offset+1);
-          Offset2 = hexs;
-          sprintf(hexs, "%X", offset);
-          Offset1 = hexs;
 
         }
         else
@@ -1876,19 +1920,19 @@ class TSXprocessor
               SerialHW.print(buffer[size-2],HEX);
               SerialHW.print(",");
               SerialHW.print(buffer[size-1],HEX);
+
+              sprintf(hexs, "%X", buffer[size-1]);
+              dataOffset4 = hexs;
+              sprintf(hexs, "%X", buffer[size-2]);
+              dataOffset3 = hexs;
+
+              sprintf(hexs, "%X", offset+(size-1));
+              Offset4 = hexs;
+              sprintf(hexs, "%X", offset+(size-2));
+              Offset3 = hexs;
+
+              log("");
             #endif
-
-            sprintf(hexs, "%X", buffer[size-1]);
-            dataOffset4 = hexs;
-            sprintf(hexs, "%X", buffer[size-2]);
-            dataOffset3 = hexs;
-
-            sprintf(hexs, "%X", offset+(size-1));
-            Offset4 = hexs;
-            sprintf(hexs, "%X", offset+(size-2));
-            Offset3 = hexs;
-
-            log("");
         }
     }
 
@@ -2141,7 +2185,10 @@ class TSXprocessor
             for (int n=0;n < blocks;n++)
             {
               PARTITION_BLOCK = n;
-              log("Envio el partition");
+              
+              #ifdef DEBUGMODE
+                log("Envio el partition");
+              #endif
 
               // Calculamos el offset del bloque
               newOffset = offsetBase + (blockSizeSplit*n);

@@ -366,31 +366,17 @@ int nMENU = 0;
 
 void logHEX(int n)
 {
-  
-  SerialHW.print(" 0x");
-  SerialHW.print(n,HEX);
-  
+    SerialHW.print(" 0x");
+    SerialHW.print(n,HEX);
 }
 
 void log(String txt)
 {
-  SerialHW.print(txt);
+    SerialHW.print(txt);
 }
 
 void logln(String txt)
 {
-  SerialHW.println(txt);
+    SerialHW.println(txt);
 }
-
-// char* strToCharArray(String str)
-// {
-//   char arr[str.length() + 1];
-//   for (int x = 0; x < sizeof(arr); x++) 
-//   { 
-//     arr[x] = str[x]; 
-//   }
-
-//   SerialHW.println("Converted path: " + String(arr));
-//   return arr;
-// }
 

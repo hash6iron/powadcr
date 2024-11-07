@@ -111,23 +111,26 @@ class ZXProcessor
 
         bool stopOrPauseRequest()
         {
-            if (LOADING_STATE == 1)
-            {
-                if (STOP==true)
-                {
-                    LOADING_STATE = 2; // Parada del bloque actual
-                    ACU_ERROR = 0;
-                    return true;
-                }
-                else if (PAUSE==true)
-                {
-                    LOADING_STATE = 3; // Parada del bloque actual
-                    ACU_ERROR = 0;
-                    return true;
-                }
-            }      
+            
 
-            return false;   
+            if (STOP==true)
+            {
+                LAST_MESSAGE = "Stop requested. Wait.";
+                LOADING_STATE = 2; // Parada del bloque actual
+                ACU_ERROR = 0;
+                return true;
+            }
+            else if (PAUSE==true)
+            {
+                LAST_MESSAGE = "Pause requested. Wait.";
+                LOADING_STATE = 3; // Pausa del bloque actual
+                ACU_ERROR = 0;
+                return true;
+            }
+            else
+            {
+                return false;   
+            }
         }
 
         void insertSamplesError(int samples, bool changeNextEARedge)
@@ -135,7 +138,7 @@ class ZXProcessor
             // Este procedimiento permite insertar en la señal
             // las muestras acumuladas por error generado en la conversión
             // de double a int
-
+            bool forzeExit = false;
             // El buffer se dimensiona para 16 bits
             uint8_t buffer[samples*2*channels];
             uint16_t *ptr = (uint16_t*)buffer;
@@ -160,11 +163,15 @@ class ZXProcessor
                 if (stopOrPauseRequest())
                 {
                     // Salimos
-                    break;
+                    forzeExit = true;
+                    return;
                 }
             }
 
-            m_kit.write(buffer, result);
+            if (!forzeExit)
+            {
+                m_kit.write(buffer, result);
+            }
 
             // Reiniciamos
             ACU_ERROR = 0;
@@ -306,22 +313,23 @@ class ZXProcessor
                 int16_t *ptr = (int16_t*)buffer;
                 int chn = channels;        
 
-                // Initialize FIR filter                
                 for (int j=0;j<width;j++)
                 {
-                    if (sample_R > 0)
-                    {
-                        SCOPE=up;
-                    }
-                    else
-                    {
-                        SCOPE=down;
-                    }
+                    // if (sample_R > 0)
+                    // {
+                    //     SCOPE=up;
+                    // }
+                    // else
+                    // {
+                    //     SCOPE=down;
+                    // }
 
-                    // Aplicamos filtro FIR
-                    //sample_R = highPass(sample_R);
-                    //sample_L = highPass(sample_L);
-                    
+                    if (stopOrPauseRequest())
+                    {
+                        // Salimos
+                        return;
+                    }
+                                    
                     //R-OUT
                     *ptr++ = sample_R;
                     //L-OUT
@@ -459,7 +467,7 @@ class ZXProcessor
                     if (stopOrPauseRequest())
                     {
                         // Salimos
-                        break;
+                        return;
                     }
 
                     framesCounter++;
@@ -507,6 +515,8 @@ class ZXProcessor
                 log("  --> numPulses: " + String(numPulses));
             #endif                
 
+            
+
             for (int i = 0; i < numPulses;i++)
             {
                 // Enviamos semi-pulsos alternando el cambio de flanco
@@ -517,7 +527,6 @@ class ZXProcessor
                     // Salimos
                     return;
                 }
-
             }
         }
 
@@ -559,8 +568,7 @@ class ZXProcessor
 
             semiPulse(nTStates,true);      
         }
-      
-      
+        
 
         void sendDataArray(uint8_t* data, int size, bool isThelastDataPart)
         {
@@ -898,10 +906,10 @@ class ZXProcessor
                         //     _mask = 8;
                         // }
                         
-                        // #ifdef DEBUGMODE
-                        //     logln("Audio is Out");
-                        //     logln("Mask: " + String(_mask));
-                        // #endif
+                        #ifdef DEBUGMODE
+                            logln("Audio is Out");
+                            logln("Mask: " + String(_mask));
+                        #endif
 
                         // Ahora vamos a descomponer el byte leido
                         // y le aplicamos la mascara. Es decir SOLO SE TRANSMITE el nº de bits que indica

@@ -114,6 +114,8 @@ class TZXprocessor
 
     bool stopOrPauseRequest()
     {
+        LAST_MESSAGE = "Stop or pause requested";
+        
         if (LOADING_STATE == 1)
         {
             if (STOP==true)
@@ -749,7 +751,9 @@ class TZXprocessor
         // Tomamos ahora las longitudes
         int coff = currentOffset+2;
 
-        log("ID-13: Pulse sequence");
+        #ifdef DEBUGMODE
+          log("ID-13: Pulse sequence");
+        #endif
         //SerialHW.println("");
 
         for (int i=0;i<num_pulses;i++)
@@ -1203,7 +1207,9 @@ class TZXprocessor
                 nextIDoffset = currentOffset + _myTZX.descriptor[currentBlock].size + 9 + 1;;  
                 strncpy(_myTZX.descriptor[currentBlock].typeName,IDXXSTR,35);
                 
-                log("ID 0x21 - DIRECT RECORDING");
+                #ifdef DEBUGMODE
+                  log("ID 0x21 - DIRECT RECORDING");
+                #endif
             }
             else
             {
@@ -1241,8 +1247,10 @@ class TZXprocessor
                 nextIDoffset = currentOffset + 3;  
                 strncpy(_myTZX.descriptor[currentBlock].typeName,IDXXSTR,35);
                 
-                log("ID 0x20 - PAUSE / STOP TAPE");
-                log("-- value: " + String(_myTZX.descriptor[currentBlock].pauseAfterThisBlock));
+                #ifdef DEBUGMODE
+                  log("ID 0x20 - PAUSE / STOP TAPE");
+                  log("-- value: " + String(_myTZX.descriptor[currentBlock].pauseAfterThisBlock));
+                #endif
             }
             else
             {
@@ -1735,19 +1743,19 @@ class TZXprocessor
               SerialHW.print(buffer[size-2],HEX);
               SerialHW.print(",");
               SerialHW.print(buffer[size-1],HEX);
+
+              sprintf(hexs, "%X", buffer[size-1]);
+              dataOffset4 = hexs;
+              sprintf(hexs, "%X", buffer[size-2]);
+              dataOffset3 = hexs;
+
+              sprintf(hexs, "%X", offset+(size-1));
+              Offset4 = hexs;
+              sprintf(hexs, "%X", offset+(size-2));
+              Offset3 = hexs;
+
+              log("");
             #endif
-
-            sprintf(hexs, "%X", buffer[size-1]);
-            dataOffset4 = hexs;
-            sprintf(hexs, "%X", buffer[size-2]);
-            dataOffset3 = hexs;
-
-            sprintf(hexs, "%X", offset+(size-1));
-            Offset4 = hexs;
-            sprintf(hexs, "%X", offset+(size-2));
-            Offset3 = hexs;
-
-            log("");
         }
     }
 
@@ -1961,8 +1969,10 @@ class TZXprocessor
     void playBlock(tTZXBlockDescriptor descriptor)
     {
 
-        log("Pulse len: " + String(descriptor.timming.pilot_len));
-        log("Pulse nums: " + String(descriptor.timming.pilot_num_pulses));
+        #ifdef DEBUGMODE
+          log("Pulse len: " + String(descriptor.timming.pilot_len));
+          log("Pulse nums: " + String(descriptor.timming.pilot_num_pulses));
+        #endif
 
         uint8_t* bufferPlay = nullptr;
 
@@ -1971,10 +1981,12 @@ class TZXprocessor
 
         if (descriptor.size > blockSizeSplit)
         {
-            logln("Partiendo la pana");
-            logln("Partiendo la pana");
-            logln("Partiendo la pana");
-            logln("Partiendo la pana");
+            #ifdef DEBUGMODE
+              logln("Partiendo la pana");
+              logln("Partiendo la pana");
+              logln("Partiendo la pana");
+              logln("Partiendo la pana");
+            #endif
 
             int totalSize = descriptor.size;
             PARTITION_SIZE = totalSize;
@@ -2010,7 +2022,10 @@ class TZXprocessor
             for (int n=0;n < blocks;n++)
             {
               PARTITION_BLOCK = n;
-              logln("Envio el partition");
+              
+              #ifdef DEBUGMODE
+                logln("Envio el partition");
+              #endif
 
               // Calculamos el offset del bloque
               newOffset = offsetBase + (blockSizeSplit*n);
