@@ -122,11 +122,6 @@ How .bin firmware is uploaded in ESP32-A1S Audiokit?
    - ESP32
    - Develop
      And press "OK" button
-     
-     Show image below.
-     
-     ![image](https://github.com/hash6iron/powadcr_IO/assets/118267564/e9348bcb-2879-4872-8998-7e14c02b6f82)
-
    
 5. Setting and begin the flash proccess.
    - Select .bin file or type the path of it (from /build)
@@ -143,8 +138,7 @@ How .bin firmware is uploaded in ESP32-A1S Audiokit?
    
    Show image below.
    
-   ![image](https://github.com/hash6iron/powadcr_IO/assets/118267564/a595ea33-a1df-406e-b2af-a1d72680fb59)
-
+   ![image](https://github.com/user-attachments/assets/b5c189c6-8945-4a65-9e22-e17a56d3eea6)
 
 
 How custom firmware is uploaded in ESP32-A1S Audiokit? 
