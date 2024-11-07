@@ -370,35 +370,39 @@ class TAPrecorder
 
       void renameFile()
       {
-        // Reservamos memoria             
-        char* cPath = (char*)ps_calloc(55,sizeof(char));
-        String dirR = RECORDING_DIR + "/\0";
-        cPath = strcpy(cPath, dirR.c_str());
+          // Reservamos memoria             
+          char* cPath = (char*)ps_calloc(55,sizeof(char));
+          String dirR = RECORDING_DIR + "/\0";
+          cPath = strcpy(cPath, dirR.c_str());
+          int rn = rand() % 99999;
+          String txtRn = "-" + String(rn) + ".tap";
+          char const *extPath = txtRn.c_str();
 
-        // Solo necesitamos el fichero final
-        // porque mFile contiene el original
-        // LAST_MESSAGE="STEP E-2-2";
-        // delay(1000);
+          strcat(fileNameRename,extPath);
 
-        strcat(cPath,fileNameRename);
+          strcat(cPath,fileNameRename);
 
+          while (_sdf32.exists(cPath))
+          {
+              cPath = strcpy(cPath, dirR.c_str());
+              rn = rand() % 99999;
+              txtRn = "-" + String(rn)  + ".tap";
+              extPath = txtRn.c_str();
+              strcat(fileNameRename,extPath);
+              delay(125);
+          }
 
-
-        if (_sdf32.exists(cPath))
-        {
-          _sdf32.remove(cPath);
           #ifdef DEBUGMODE
-            log("File exists then was remove first.");
+            logln("");
+            logln("Filename for rename: ");
+            log(cPath);
+            logln("");  
           #endif
-        }
 
-        // LAST_MESSAGE="STEP E-2-3";
-        // delay(1000);
-
-        if (_mFile.rename(cPath))
-        {         
-          wasRenamed = true;
-        }
+          if (_mFile.rename(cPath))
+          {         
+            wasRenamed = true;
+          }
       }
 
       void getFileName(bool test)
@@ -438,10 +442,7 @@ class TAPrecorder
 
           }
 
-          //char* extFile = ".tap\0";
-          char extFile[] = ".tap";
-          strcat(fileNameRename,extFile);
-          
+          //char* extFile = ".tap\0";          
           nameFileRead = true;                             
         }        
       }
@@ -1558,11 +1559,7 @@ class TAPrecorder
 
           _mFile.close();
           fileWasClosed = true;
-          delay(250);
-
-          // Ahora lo elimino.
-          //_mFile.remove();
-          //delay(250);     
+          delay(250); 
 
           return fileWasClosed;    
       }
