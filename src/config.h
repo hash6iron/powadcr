@@ -129,7 +129,7 @@ bool TEST_LINE_IN_OUT = false;
 // <DNS2>192.168.2.1</DNS2>
 
 char HOSTNAME[32] =  {};
-char ssid[64] = {};
+String ssid = "";
 char password[64] = {};
 
 // Static IP - 2.4GHz WiFi AP

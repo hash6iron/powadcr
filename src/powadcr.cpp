@@ -260,7 +260,7 @@ bool loadWifiCfgFile()
         strcpy(HOSTNAME, (sdm.getValueOfParam(CFGWIFI[0].cfgLine,"hostname")).c_str());
         logln(HOSTNAME);
         // SSID - Wifi
-        strcpy(ssid, (sdm.getValueOfParam(CFGWIFI[1].cfgLine,"ssid")).c_str());
+        ssid = (sdm.getValueOfParam(CFGWIFI[1].cfgLine,"ssid")).c_str();
         logln(ssid);
         // Password - WiFi
         strcpy(password, (sdm.getValueOfParam(CFGWIFI[2].cfgLine,"password")).c_str());
@@ -993,8 +993,7 @@ bool wifiOTASetup()
     bool wifiActive = true;
 
     WiFi.mode(WIFI_STA);
-    String ssid2 = ssid;
-    WiFi.begin(ssid2, password);
+    WiFi.begin(ssid, password);
     
       // Disable Auto Reboot
     ElegantOTA.setAutoReboot(false);
