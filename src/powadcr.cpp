@@ -269,6 +269,7 @@ bool loadWifiCfgFile()
         //Local IP
         strcpy(ip1, (sdm.getValueOfParam(CFGWIFI[3].cfgLine,"IP")).c_str());
         logln("IP: " + String(ip1));
+        POWAIP = ip1;
         IP = strToIPAddress(String(ip1));
         local_IP = IPAddress(IP[0],IP[1],IP[2],IP[3]);
         
@@ -1031,7 +1032,7 @@ bool wifiOTASetup()
     {
         server.on("/", HTTP_GET,[]()
         {
-          server.send(200, "text/plain", "powaDCR OTA Server. Powered by Elegant OTA");
+          server.send(200, "text/html", "<meta http-equiv=\"refresh\" content=\"0; url=http://" + POWAIP + "/update\" />");
         });
 
 
@@ -1414,6 +1415,9 @@ void ejectingFile()
       pTSX.terminate();
   }    
 }
+
+
+
 void prepareRecording()
 {
     hmi.activateWifi(false);
@@ -1466,6 +1470,31 @@ void prepareRecording()
     //hmi.getMemFree();        
 }
 
+void RECready()
+{
+    prepareRecording();
+    delay(125);
+    taprec.initialize();
+    delay(125);
+    REC=true;
+    for (int n=0;n<256;n++)
+    {
+      taprec.recording();
+    }
+    STOP=true;
+    REC=false;
+    delay(125);
+    taprec.stopREC(0);
+    delay(125);
+    taprec.terminate(true);
+    //Esto evita el bug de la primera grabación.
+    delay(125);
+    stopRecording();
+    delay(500);
+    REC=true;
+    STOP=false;
+    prepareRecording();
+}
 
 void recordingFile()
 {
@@ -1476,9 +1505,6 @@ void recordingFile()
 
         // Ha finalizado la grabación de un bloque
         LOADING_STATE = 0;
-    }
-    else
-    {
     }
 }
 void getAudioSettingFromHMI()
@@ -1524,7 +1550,7 @@ void tapeControl()
     {
       case 0:
         // Estado inicial
-        SCOPE = down;
+        //SCOPE = down;
 
         if (FILE_BROWSER_OPEN)
         {
@@ -1642,7 +1668,7 @@ void tapeControl()
           FFWIND = false;
           RWIND = false;   
                   
-          prepareRecording();
+          RECready();
           //log("REC. Waiting for guide tone");
           tapeState = 200;
         }         
@@ -1659,7 +1685,7 @@ void tapeControl()
           //pauseFile();
           LOADING_STATE = 3;
           tapeState = 3;
-          SCOPE = down;
+          //SCOPE = down;
           //log("Estoy en PAUSA.");
         }
         else if(STOP)
@@ -1667,7 +1693,7 @@ void tapeControl()
           stopFile();
           tapeState = 4;
           LOADING_STATE = 0;     
-          SCOPE = down;
+          //SCOPE = down;
           //SerialHW.println(tapeState);
         }
         else if(EJECT)
@@ -1699,7 +1725,7 @@ void tapeControl()
           stopFile();
           LOADING_STATE = 0;          
           tapeState = 4;
-          SCOPE = down;
+          //SCOPE = down;
           FFWIND = false;
           RWIND = false;           
         }
@@ -1755,7 +1781,7 @@ void tapeControl()
           FFWIND = false;
           RWIND = false;   
                   
-          prepareRecording();
+          RECready();
           tapeState = 200;
         }
         else
@@ -1770,7 +1796,7 @@ void tapeControl()
           ejectingFile();
           LOADING_STATE = 0;          
           tapeState = 0;
-          SCOPE = down;
+          //SCOPE = down;
         break;
       
       case 99:
@@ -1785,7 +1811,13 @@ void tapeControl()
           FFWIND = false;
           RWIND = false;  
           FILE_SELECTED = false;                  
-          prepareRecording();
+          //Preparamos el recording
+          RECready();
+          // taprec.initialize();
+          // delay(125);
+          // taprec.stopREC(0);
+          // delay(125);
+          // taprec.terminate(true);
           tapeState = 200;
         }
         else
@@ -1802,7 +1834,7 @@ void tapeControl()
           taprec.stopRecordingProccess = false;
           //setSTOP();
           tapeState = 0;
-          SCOPE = down;
+          //SCOPE = down;
           STOP=true;
           REC=false;
           taprec.actuateAutoRECStop = false;
@@ -1912,33 +1944,18 @@ void Task0code( void * pvParameters )
             hmi.updateInformationMainPage();
           }
 
-          if((millis() - startTime2) > tOscRfsh)
-          {
-            startTime2 = millis();
-            if (SCOPE==up)
-            {
-              hmi.writeString("add 34,0,6");
-              //hmi.writeString("add 34,0,8");
-            }
-            else
-            {
-              hmi.writeString("add 34,0,2");
-              //hmi.writeString("add 34,0,2");
-            }     
-          }
-
-          // if ((millis() - tClock) > 1000)
+          // if((millis() - startTime2) > tOscRfsh)
           // {
-          //   tClock = millis();     
-          //   se++;
-          //   if (se>59)
-          //   {
-          //     se=0;
-          //   }
-          //   LAST_MESSAGE = String(se) + " s";
-          //   hmi.updateInformationMainPage();
+          //   startTime2 = millis();
+          //   // if (SCOPE==up)
+          //   // {
+          //   //   hmi.writeString("add 34,0,6");
+          //   // }
+          //   // else
+          //   // {
+          //   //   hmi.writeString("add 34,0,2");
+          //   // }     
           // }
-
         #endif
         esp_task_wdt_reset();
     }
@@ -2128,7 +2145,7 @@ void setup()
     taskStop = false;
 
     // Ponemos el color del scope en amarillo
-    hmi.writeString("tape.scope.pco0=60868");
+    //hmi.writeString("tape.scope.pco0=60868");
 
 }
 

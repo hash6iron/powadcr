@@ -146,7 +146,7 @@ bool MODEWAV = false;
 // (porque el ultimo era DOWN supuestamente)
 edge POLARIZATION = up;
 edge LAST_EAR_IS = POLARIZATION;
-edge SCOPE = down;
+//edge SCOPE = down;
 bool APPLY_END = true;
 int SAMPLING_RATE = 22050;
 
@@ -230,6 +230,9 @@ String dbgRep = "";
 // Configuracion
 tConfig* CFGHMI;
 tConfig* CFGWIFI;
+
+//
+String POWAIP = "";
 
 // OTRAS
 bool TEST_RUNNING = false;

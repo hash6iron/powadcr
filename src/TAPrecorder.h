@@ -130,7 +130,7 @@ class TAPrecorder
       int byteCount = 0;
       int blockCount = 0;
       int ptrOffset = 0;
-      int badPulseW = 0;
+      //int badPulseW = 0;
       bool recWithoutHead = false;
       String bitString = "";
 
@@ -374,23 +374,16 @@ class TAPrecorder
           char* cPath = (char*)ps_calloc(55,sizeof(char));
           String dirR = RECORDING_DIR + "/\0";
           cPath = strcpy(cPath, dirR.c_str());
-          int rn = rand() % 99999;
+          //Generamos un numero aleatorio para el final del nombre
+          srand(time(0));
+          delay(125);
+          int rn = rand()%999999;
+          //Le unimos la extensión .TAP
           String txtRn = "-" + String(rn) + ".tap";
           char const *extPath = txtRn.c_str();
-
           strcat(fileNameRename,extPath);
-
+          //y unimos el fichero al path
           strcat(cPath,fileNameRename);
-
-          while (_sdf32.exists(cPath))
-          {
-              cPath = strcpy(cPath, dirR.c_str());
-              rn = rand() % 99999;
-              txtRn = "-" + String(rn)  + ".tap";
-              extPath = txtRn.c_str();
-              strcat(fileNameRename,extPath);
-              delay(125);
-          }
 
           #ifdef DEBUGMODE
             logln("");
@@ -469,7 +462,6 @@ class TAPrecorder
               }
           }
 
-          //LAST_MESSAGE = "Measure stage " + String(_measureState);
           // Buscamos cambios de flanco y medimos un pulso completo
           switch (_measureState)
           {
@@ -519,6 +511,11 @@ class TAPrecorder
                 _measuredPulseUpWidth++;
                 _pulseUpWasMeasured = false;
                 _measuredPulseDownWidth=0;
+                _measureState = 1;
+              }
+              else
+              {
+                _measureState = 1;
               }                  
               break;
 
@@ -535,12 +532,22 @@ class TAPrecorder
                 _measuredPulseDownWidth++;
                 _pulseDownWasMeasured = false;
                 _measuredPulseUpWidth=0;
+              }
+              else
+              {
+                _measureState = 2;
               }                          
               break;
           }
 
           // Un pulso muy largo sin cambio entonces estamos ante un silencio
-          if (_measuredPulseDownWidth >= 512 || _measuredPulseUpWidth >= 512)
+          if (_measuredPulseDownWidth < 512 && _measuredPulseUpWidth < 512)
+          {
+              _silenceDetected = false; 
+              _silenceTimeOverflow = false;           
+              _measureSilence = 0;
+          }
+          else
           {
               _silenceDetected = true;
 
@@ -551,25 +558,20 @@ class TAPrecorder
               else
               {
                   _measureSilence = _measuredPulseUpWidth;
+              }            
+
+              // Evitamos desbordamiento
+              if (_measureSilence > 2646000)
+              {
+                  _silenceTimeOverflow = true;
+                  actuateAutoRECStop = true;
+                  //Paramos la animación del indicador de recording
+                  hmi.writeString("tape2.tmAnimation.en=0");    
+                  //Paramos la animación del indicador de recording
+                  hmi.writeString("tape.tmAnimation.en=0");          
               }
           }
-          else
-          {
-              _silenceDetected = false; 
-              _silenceTimeOverflow = false;           
-              _measureSilence = 0;
-          }
 
-          // Evitamos desbordamiento
-          if (_measureSilence > 2646000)
-          {
-              _silenceTimeOverflow = true;
-              actuateAutoRECStop = true;
-              //Paramos la animación del indicador de recording
-              hmi.writeString("tape2.tmAnimation.en=0");    
-              //Paramos la animación del indicador de recording
-              hmi.writeString("tape.tmAnimation.en=0");          
-          }
 
           // ------------------------------------------------------------------------------------------------------------------
       }
@@ -578,7 +580,6 @@ class TAPrecorder
       {
         // Reiniciamos estados
         _measureState = 0;
-
         // Reiniciamos anchos
         _measuredPulseDownWidth = 0;
         _measuredPulseUpWidth = 0;
@@ -660,86 +661,6 @@ class TAPrecorder
         // _mFile.write(secondByte);
       }
 
-      void stopREC(int error)
-      {
-        
-        //
-        // Aquí se entra cuando hay un error detectado en la grabación
-        // si el error no es especifico, entonces es 0 (error genérico)
-        //
-        errorDetected = error;
-
-        // Eliminado el 02/11/2024
-        STOP = true;
-        REC = false;
-
-        totalBlockTransfered = 0;                                  
-        stopRecordingProccess=true;
-        //RECORDING_ERROR = 1;  
-
-        // Reset de medidas de pulso
-        resetMeasuredPulse();
-        // Reset estado del control de pulso
-        stateRecording = 0;
-        //isSilence = false;
-        //
-        //waitingNextBlock = false;
-        //
-        WasfirstStepInTheRecordingProccess = false;
-        
-        //waitingHead = true;
-
-        switch (error)
-        {
-            case 0:
-              // No error
-              terminate(false);
-              LAST_MESSAGE = "Auto REC stop.";
-            case 1:
-              LAST_MESSAGE = "Sync not detected. Fine volume source or filter.";
-              break;
-            
-            case 2:
-              LAST_MESSAGE = "Checksum error in byte [" + String(byteCount) + "] in bit [" + String(bitCount) + "] - CHK=" + String(checksum);
-              break;
-
-            case 3:
-              LAST_MESSAGE = "Error. Any byte was captured.";
-              break;
-
-            case 4:
-              LAST_MESSAGE = "Wrong pulse. " + String(_measuredPulseUpWidth) + " byte: " + String(byteCount+1);
-              //LAST_MESSAGE = "Error. Wrong pulses detected.";
-              break;
-
-            case 5:
-              LAST_MESSAGE = "Error, " + String(header.blockSize - byteCount) + " bytes lost - " + String(byteCount) + " / " + String(header.blockSize);
-              break;
-
-            case 6:
-              //LAST_MESSAGE = "Error. Headerless block not supported";
-              LAST_MESSAGE = "Error. Bytes was exceeded.";
-              break;
-
-            default:
-              LAST_MESSAGE = "Error not defined.";
-              break;
-        }
-        //byteCount = 0;
-        // Bajamos el scope
-        SCOPE = down;      
-        //Paramos la animación del indicador de recording
-        hmi.writeString("tape2.tmAnimation.en=0");    
-        //Paramos la animación del indicador de recording
-        hmi.writeString("tape.tmAnimation.en=0");
-        
-        // Reiniciamos el estado de los botones
-        hmi.writeString("tape.STOPst.val=1");
-        hmi.writeString("tape.RECst.val=0");           
-
-        delay(2000);
-      }
-
       bool checkDataBlock()
       {
           //header.blockSize = byteCount;
@@ -798,12 +719,6 @@ class TAPrecorder
               }             
               else if (byteCount == 0)
               {
-                  // LAST_MESSAGE = "total bits red: " + String(totalBits) + " - silences: " + String(totalSilents);
-                  // delay(5000);
-                  // Error de bloque incompleto
-                  //LAST_MESSAGE = "Error: Blocksize: " + String(header.blockSize) + " but bytes captured: " + String(byteCount);
-                  //delay(3000);
-
                   // No se han capturado datos.
                   // Paramos la grabación.
                   stopREC(3);
@@ -841,7 +756,6 @@ class TAPrecorder
           }
           else
           {
-              
               if (checksum == 0)
               {
                   // el bloque es OK
@@ -1122,16 +1036,16 @@ class TAPrecorder
         // Ajuste del detector de señal
         // Muestras del tono guia leidas
   
-        double currentTime = 0;
+        //double currentTime = 0;
         // Samples de referencia para control 
-        int samplesRefForCtrl = 0;
+        //int samplesRefForCtrl = 0;
 
         if (!WasfirstStepInTheRecordingProccess)
         {    
           // Comenzamos con una cabecera PROGRAM.
           isHead = true; //*
           //resetMeasuredPulse();
-          badPulseW = 0; //*
+          //badPulseW = 0; //*
           statusSchmitt = 0;
           _pulseInverted = false;
           _measureState = 0;
@@ -1210,6 +1124,8 @@ class TAPrecorder
             }
             else
             {
+                // statusPulse dependerá de si se ha medido un pulso alto, porque es lo unico que comparamos.
+                // los pulsos bajos los obviamos.
                 bool statusPulse = _pulseUpWasMeasured;
 
                 // No es un silencio
@@ -1264,7 +1180,7 @@ class TAPrecorder
                                 //Esperamos un bloque ahora PROGRAM o BYTE, entonces
                                 //nos preparamos
                                 prepareNewBlock();
-                                badPulseW = 0;                                                           
+                                //badPulseW = 0;                                                           
                                 
                               }
                               else
@@ -1300,7 +1216,7 @@ class TAPrecorder
                             bitCount++;
                             countNewByte();
 
-                            badPulseW = 0;
+                            //badPulseW = 0;
                         }
                         else if (((_measuredPulseUpWidth ) >= wBit1_1) &&
                                 ((_measuredPulseUpWidth ) <= wBit1_2))
@@ -1316,7 +1232,7 @@ class TAPrecorder
                             bitCount++;
                             countNewByte();
 
-                            badPulseW = 0;
+                            //badPulseW = 0;
                         }
                         else
                         {
@@ -1347,6 +1263,86 @@ class TAPrecorder
 
     public:
 
+void stopREC(int error)
+      {
+        
+        //
+        // Aquí se entra cuando hay un error detectado en la grabación
+        // si el error no es especifico, entonces es 0 (error genérico)
+        //
+        errorDetected = error;
+
+        // Eliminado el 02/11/2024
+        STOP = true;
+        REC = false;
+
+        totalBlockTransfered = 0;                                  
+        stopRecordingProccess=true;
+        //RECORDING_ERROR = 1;  
+
+        // Reset de medidas de pulso
+        resetMeasuredPulse();
+        // Reset estado del control de pulso
+        stateRecording = 0;
+        //isSilence = false;
+        //
+        //waitingNextBlock = false;
+        //
+        WasfirstStepInTheRecordingProccess = false;
+        
+        //waitingHead = true;
+
+        switch (error)
+        {
+            case 0:
+              // No error
+              terminate(false);
+              LAST_MESSAGE = "Auto REC stop.";
+            case 1:
+              LAST_MESSAGE = "Sync not detected. Fine volume source or filter.";
+              break;
+            
+            case 2:
+              LAST_MESSAGE = "Checksum error in byte [" + String(byteCount) + "] in bit [" + String(bitCount) + "] - CHK=" + String(checksum);
+              break;
+
+            case 3:
+              LAST_MESSAGE = "Error. Any byte was captured.";
+              break;
+
+            case 4:
+              LAST_MESSAGE = "Wrong pulse. " + String(_measuredPulseUpWidth) + " byte: " + String(byteCount+1);
+              //LAST_MESSAGE = "Error. Wrong pulses detected.";
+              break;
+
+            case 5:
+              LAST_MESSAGE = "Error, " + String(header.blockSize - byteCount) + " bytes lost - " + String(byteCount) + " / " + String(header.blockSize);
+              break;
+
+            case 6:
+              //LAST_MESSAGE = "Error. Headerless block not supported";
+              LAST_MESSAGE = "Error. Bytes was exceeded.";
+              break;
+
+            default:
+              LAST_MESSAGE = "Error not defined.";
+              break;
+        }
+        //byteCount = 0;
+        // Bajamos el scope
+        //SCOPE = down;      
+        //Paramos la animación del indicador de recording
+        hmi.writeString("tape2.tmAnimation.en=0");    
+        //Paramos la animación del indicador de recording
+        hmi.writeString("tape.tmAnimation.en=0");
+        
+        // Reiniciamos el estado de los botones
+        hmi.writeString("tape.STOPst.val=1");
+        hmi.writeString("tape.RECst.val=0");           
+
+        delay(2000);
+      }
+
       void set_SdFat32(SdFat32 sdf32)
       {
           _sdf32 = sdf32;
@@ -1376,13 +1372,13 @@ class TAPrecorder
         }
       }
 
-      // void initializeBuffer()
-      // {
-      //   for (int i=0;i<BUFFER_SIZE_REC;i++)
-      //   {
-      //     bufferRec[i]=0;
-      //   }
-      // }
+      void initializeBuffer()
+      {
+        for (int i=0;i<BUFFER_SIZE_REC;i++)
+        {
+          bufferRec[i]=0;
+        }
+      }
 
       bool recording()
       {         
@@ -1400,10 +1396,9 @@ class TAPrecorder
             if (errorDetected != 0)
             {
               delay(2000);
-              // Hubo errores
-              errorDetected = 0;
               REC = true;
               terminate(true);
+              errorDetected = 0;
               REC = false;
             }
             
@@ -1482,22 +1477,17 @@ class TAPrecorder
           strcpy(header.name,"noname");
 
           bufferRec = (uint8_t*)ps_calloc(BUFFER_SIZE_REC,sizeof(uint8_t));
-          //initializeBuffer();
+          initializeBuffer();
 
           errorInDataRecording = false;
           blockCount = 0;
-          //waitingHead = true;
-          //wasSelectedThreshold = false;    
           stateRecording = 0;
           statusSchmitt = 0;
+          //
           resetMeasuredPulse();
 
           stopRecordingProccess = false; 
           stateInfoBlock = 0;
-          //
-          //waitingNextBlock = false;
-          //isSilence = false;
-          //
           wasRenamed = false;
           nameFileRead = false;
           WasfirstStepInTheRecordingProccess = false;
@@ -1650,9 +1640,6 @@ class TAPrecorder
                 // El fichero inicialmente fue creado con exito
                 // en la SD, pero ...
                 //
-                //
-                // LAST_MESSAGE="STEP A";
-                // delay(1000);
 
                 // Si el bloque ha sido completado "tono guia + bytes + silencio"
                 // se almacena
@@ -1664,9 +1651,6 @@ class TAPrecorder
 
                         if (!removeFile)
                         {
-                          // LAST_MESSAGE="STEP B";
-                          // delay(1000);
-
                           fileWasClosed = saveBlocksOnFile(false);
                         }
                         else
@@ -1674,8 +1658,6 @@ class TAPrecorder
                           //
                           // El ultimo bloque es erroneo pero el resto no
                           //
-                          // LAST_MESSAGE="STEP C";
-                          // delay(1000);
                           fileWasClosed = saveBlocksOnFile(true);
                         }
                     }
@@ -1684,11 +1666,8 @@ class TAPrecorder
                       // Tiene 0 bytes. Meto algo y lo cierro
                       // es un error
                       // Escribimos 256 bytes
-                      // LAST_MESSAGE="STEP D";
-                      // delay(1000);
                       fileWasClosed = fillAndCloseFile();
                     }
-
                 }
                 else
                 {
@@ -1696,23 +1675,13 @@ class TAPrecorder
                     // entonces el ultimo bloque no fue terminado.
                     //
                     // El ultimo bloque es erroneo pero el resto no
-                    //
-                    // LAST_MESSAGE="STEP E";
-                    // delay(1000);
 
                     if (byteCount !=0 && errorDetected == 0)
                     {
 
-                        // LAST_MESSAGE="STEP E-1";
-                        // delay(1000);
-
                         // Finalmente se graba el contenido menos el bloque erroneo
                         if (_mFile.isOpen())
                         {                     
-
-                            // LAST_MESSAGE="STEP E-2";
-                            // delay(1000);
-
                             // Lo renombramos con el nombre del BASIC
                             renameFile();        
                             delay(125);                       
@@ -1720,19 +1689,12 @@ class TAPrecorder
 
                         if (ptrOffset != 0)
                         {
-
-                          // LAST_MESSAGE="STEP E-3";
-                          // delay(1000);
-
                           //
                           fileWasClosed = saveBlocksOnFile(true);  
                         }
                         else
                         {
                           // Lo cerramos
-                          // LAST_MESSAGE="STEP E-4";
-                          // delay(1000);
-
                           _mFile.close();
                           fileWasClosed = true;
                           delay(125);                          
@@ -1742,9 +1704,6 @@ class TAPrecorder
                     {                  
                         // Tiene 0 bytes. Meto algo y lo cierro
                         // es un error
-                        // LAST_MESSAGE="STEP E-5";
-                        // delay(1000);
-
                         // Escribimos 256 bytes
                         fileWasClosed = fillAndCloseFile();
                     }        
@@ -1754,9 +1713,6 @@ class TAPrecorder
             {
 
               // El fichero no fue creado
-              // LAST_MESSAGE="STEP E-6";
-              // delay(1000);
-
               _mFile.close();
               fileWasClosed = true;
               delay(125); 
