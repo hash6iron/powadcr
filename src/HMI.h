@@ -515,7 +515,10 @@ class HMI
 
       void getFilesFromSD(bool forze_rescan)
       {
-       
+          #ifdef DEBUGMOCE
+            logAlert("Getting files from SD");
+          #endif
+
           // Cadena para un filePath
           char szName[255];
           int j = 0;
@@ -748,6 +751,10 @@ class HMI
         int color = 65535;
         int pos_in_HMI_file = 0;
       
+        #ifdef DEBUGMOCE
+          logAlert("Cleaning file browser");
+        #endif
+
         for (int i=0;i<=TOTAL_FILES_IN_BROWSER_PAGE;i++)
         {
             printFileRows(pos_in_HMI_file, color, szName);
@@ -848,7 +855,10 @@ class HMI
       
         //Antes de empezar, limpiamos el buffer
         //para evitar que se colapse
-      
+        #ifdef DEBUGMOCE
+          logAlert("Showing files in browser");
+        #endif
+        
         int pos_in_HMI_file = 0;
         String szName = "";
         String type="";
@@ -1019,6 +1029,10 @@ class HMI
 
       void refreshFiles()
       {
+          #ifdef DEBUGMOCE
+            logAlert("Refreshing file browser");
+          #endif
+          
           // Refrescamos el listado de ficheros visualizado
           if (!FILE_BROWSER_SEARCHING)
           {
@@ -1052,21 +1066,17 @@ class HMI
 
       void proccesingEject()
       {
+          // Expulsamos la cinta
           PLAY = false;
           PAUSE = false;
           STOP = true;
           ABORT = false;
           REC = false;
 
-          if (FILE_PREPARED)
-          {
-            SerialHW.println("EJECT command");
-            EJECT = true;
-          }
-          else
-          {
-            EJECT = false;
-          }
+          FILE_SELECTED = false;
+          FILE_PREPARED = false;
+;
+          EJECT = true;
           
           resetBlockIndicators();
       }
@@ -1124,6 +1134,13 @@ class HMI
           refreshFiles();        
       }
 
+      void firstLoadingFilesFB()
+      {
+          // Carga por primera vez ficheros en el filebrowser
+          getFilesFromSD(false);
+          putFilesInScreen();        
+      }
+
       void verifyCommand(String strCmd) 
       {
         
@@ -1149,8 +1166,7 @@ class HMI
         else if (strCmd.indexOf("REL=") != -1)
         {
             // Recarga la pantalla de ficheros
-            getFilesFromSD(false);
-            putFilesInScreen();
+            firstLoadingFilesFB();
         }
         else if (strCmd.indexOf("PAG=") != -1) 
         {
@@ -1197,8 +1213,12 @@ class HMI
         {
             // Con este comando nos indica la pantalla que 
             // está en modo FILEBROWSER
-            proccesingEject();            
+            //proccesingEject();            
             FILE_BROWSER_OPEN = true;
+            #ifdef DEBUGMODE
+              logAlert("INFB output: File browser open");
+            #endif
+
         }
         else if (strCmd.indexOf("SHR") != -1) 
         {
@@ -1214,24 +1234,23 @@ class HMI
         }
         else if (strCmd.indexOf("OUTFB") != -1) 
         {
+
             // Con este comando nos indica la pantalla que 
             // está SALE del modo FILEBROWSER
-            if (!FILE_SELECTED)
-            {
-                //FILE_LAST_DIR = &INITFILEPATH[0];
-                //FILE_LAST_DIR_LAST =  &INITCHAR[0];
-                FILE_BROWSER_OPEN = false;
-
-                // SerialHW.println("");
-                // SerialHW.println("");
-                // SerialHW.println("No file was SELECTED: ");
-            }
+            FILE_BROWSER_OPEN = false;
+            #ifdef DEBUGMODE
+              logAlert("OUTFB output: File browser closed");
+            #endif
         }
         else if (strCmd.indexOf("GFIL") != -1) 
         {
             // Con este comando nos indica la pantalla que quiere
             // le devolvamos ficheros en la posición actual del puntero
       
+            #ifdef DEBUGMODE
+              logAlert("GFIL output: Getting files");
+            #endif
+
             FILE_PREPARED = false;
             FILE_SELECTED = false;
 
@@ -1443,28 +1462,31 @@ class HMI
                   writeString("currentDir.txt=\">> Error. File not writeable <<\"");
                   mf.close();
                 }
-                else if (mf.isLFN())
-                { 
-                  writeString("currentDir.txt=\">> Error. Long filename <<\"");
-                  mf.close();
-                }
+                // else if (mf.isLFN())
+                // { 
+                //   writeString("currentDir.txt=\">> Error. Long filename <<\"");
+                //   mf.close();
+                // }
                 else if (mf.isReadOnly())
                 { 
                   writeString("currentDir.txt=\">> Error. Readonly file <<\"");
                   mf.close();
                 }
-                else if (mf.isSystem())
-                { 
-                  writeString("currentDir.txt=\">> Error. System file <<\"");
-                  mf.close();
-                }
+                // else if (mf.isSystem())
+                // { 
+                //   writeString("currentDir.txt=\">> Error. System file <<\"");
+                //   mf.close();
+                // }
                 else
                 {
                     mf.close();
 
                     if (!_sdf.remove(FILE_TO_DELETE))
                     {
-                      SerialHW.println("Error to remove file. " + FILE_TO_DELETE);
+                      #ifdef DEBUGMODE
+                        logln("Error to remove file. " + FILE_TO_DELETE);
+                      #endif
+                      
                       writeString("currentDir.txt=\">> Error. File not removed <<\"");
                       delay(1500);
                       writeString("currentDir.txt=\"" + String(FILE_LAST_DIR_LAST) + "\"");                  
@@ -1510,14 +1532,24 @@ class HMI
             // Cambiamos el estado de fichero seleccionado
             if (FILE_TO_LOAD != "")
             {
+                #ifdef DEBUGMODE
+                  logAlert("File was selected");
+                #endif
+
                 FILE_SELECTED = true;
             }
 
       
+            #ifdef DEBUGMODE
+              logln("");
+              logln("File to load = ");
+              log(FILE_TO_LOAD);
+              logln("");
+            #endif
+
             FILE_STATUS = 0;
-            FILE_NOTIFIED = false;
       
-            FILE_BROWSER_OPEN = false;
+            //FILE_BROWSER_OPEN = false;
       
         }   
         // Configuración de frecuencias de muestreo
@@ -1592,52 +1624,95 @@ class HMI
         }
         else if (strCmd.indexOf("PLAY") != -1) 
         {
+
+          #ifdef DEBUGMODE
+            logAlert("PLAY pressed.");
+          #endif
+
           PLAY = true;
           PAUSE = false;
           STOP = false;
+          REC = false;
+          EJECT = false;
           ABORT = false;
         }   
         else if (strCmd.indexOf("REC") != -1) 
         {
+
+          #ifdef DEBUGMODE
+            logAlert("REC pressed.");
+          #endif
+
           PLAY = false;
           PAUSE = false;
           STOP = false;
           REC = true;
           ABORT = false;
+          EJECT = false;
         }
         else if (strCmd.indexOf("PAUSE") != -1) 
         {
+
+          #ifdef DEBUGMODE
+            logAlert("PAUSE pressed.");
+          #endif
+
           PLAY = false;
           PAUSE = true;
           STOP = false;
+          REC = false;
           ABORT = true;
-      
+          EJECT = false;
+
           LAST_MESSAGE = "Tape paused. Press play to continue load or select block.";
           //updateInformationMainPage();
         }    
         else if (strCmd.indexOf("STOP") != -1) 
         {
+
+          #ifdef DEBUGMODE
+            logAlert("STOP pressed.");
+          #endif
+
           PLAY = false;
           PAUSE = false;
           STOP = true;
+          REC = false;
           ABORT = true;
+          EJECT = false;
 
           BLOCK_SELECTED = 0;
           BYTES_LOADED = 0;
         }     
         else if (strCmd.indexOf("EJECT") != -1) 
         {
-            PLAY = false;
-            PAUSE = false;
-            STOP = true;
-            ABORT = true;
+          #ifdef DEBUGMODE
+            logAlert("EJECT pressed.");
+          #endif
 
-            proccesingEject();            
+          PLAY = false;
+          PAUSE = false;
+          STOP = true;
+          REC = false;
+          ABORT = false;
+          EJECT = true;
+
+          FILE_BROWSER_OPEN = true;
+
+          refreshFiles();
+          delay(250);
+          writeString("page file");          
+
         }    
-        else if (strCmd.indexOf("ABORT") != -1) 
-        {
-            ABORT=true;
-        }
+        // else if (strCmd.indexOf("ABORT") != -1) 
+        // {
+        //   PLAY = false;
+        //   PAUSE = false;
+        //   STOP = true;
+        //   REC = false;
+        //   ABORT = true;
+        //   EJECT = false;
+        // }
         // Ajuste del volumen
         else if (strCmd.indexOf("VOL=") != -1) 
         {
@@ -2321,20 +2396,28 @@ class HMI
       void getSeveralCommands(String strCmd)
       {
 
-          // por cada comando lanza. Los comandos están
-          // separados por 0x0A y 0x0D
           String str = "";
           int cStart=0;
           int lastcStart=0;
 
           // Buscamos el separador de comandos que es 
-          // 0xFF 0xFF 0xFF
+          // 0x32 0x32 0x32
+          
+          #ifdef DEBUGMODE
+            logln("");
+            logln("Several commands routine");
+          #endif
+
           int cPos = getEndCharPosition(strCmd,cStart);          
 
           if (cPos==-1)
           {
             // Solo hay un comando
-            //SerialHW.println("Only one command");
+            #ifdef DEBUGMODE
+              logln("");
+              logln("Only one command");
+            #endif
+
             verifyCommand(strCmd);
           }
           else
@@ -2342,10 +2425,18 @@ class HMI
             // Hay varios
             while(cPos < strCmd.length() && cPos!=-1)
             {
-              //SerialHW.println("Start,pos,last: " + String(cStart) + "," + String(cPos) + "," + String(lastcStart));
+              #ifdef DEBUGMODE
+                logln("");
+                logln("Start,pos,last: " + String(cStart) + "," + String(cPos) + "," + String(lastcStart));
+              #endif
 
-              str=strCmd.substring(cStart,cPos-3);
-              //SerialHW.println("Command: " + str);
+              str=strCmd.substring(cStart,cPos-2);
+
+              #ifdef DEBUGMODE
+                logln("");
+                logln("Command: " + str);
+              #endif
+
               // Verificamos el comando
               verifyCommand(str);
               // Adelantamos el puntero
@@ -2366,7 +2457,11 @@ class HMI
             String strCmd = SerialHW.readString();
 
             //ECHO
-            //SerialHW.println(strCmd);
+            // #ifdef DEBUGMODE
+            //   logln("");
+            //   logln("Echo: " + strCmd);
+            //   logln("");
+            // #endif
             getSeveralCommands(strCmd);
           }
           //SerialHW.flush();

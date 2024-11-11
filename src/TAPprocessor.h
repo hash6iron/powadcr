@@ -1286,7 +1286,7 @@ class TAPprocessor
                         // El estado LOADING_STATE=1 es un estado de PLAYING.
                         // El estado LOADING_STATE=2 es una MANUAL STOP.
                         //
-                        if (LOADING_STATE==2)
+                        if (LOADING_STATE == 2)
                         {
                             LOADING_STATE = 0;
                             PAUSE = false;
@@ -1301,7 +1301,7 @@ class TAPprocessor
 
                             return;
                         }
-                        else if (LOADING_STATE==3)
+                        else if (LOADING_STATE == 3)
                         {
                             LOADING_STATE = 0;
                             PAUSE = true;

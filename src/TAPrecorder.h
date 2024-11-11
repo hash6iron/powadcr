@@ -475,6 +475,10 @@ class TAPrecorder
                 _measureState = 1;
                 _measuredPulseDownWidth=0;
                 _measuredPulseUpWidth=1;
+                _silenceDetected = false;
+                _measureSilence = false;
+                _pulseDownWasMeasured = false;
+                _pulseUpWasMeasured = false;
               }
               else if (finalValue == -32768)
               {
@@ -483,6 +487,10 @@ class TAPrecorder
                 _measureState = 1;
                 _measuredPulseUpWidth=1;
                 _measuredPulseDownWidth=0;
+                _silenceDetected = false;
+                _measureSilence = false;
+                _pulseDownWasMeasured = false;
+                _pulseUpWasMeasured = false;
               }
               else
               {
@@ -492,6 +500,10 @@ class TAPrecorder
                 _measuredPulseUpWidth=0;
                 _measuredPulseDownWidth=0;
                 _pulseInverted=false;
+                _silenceDetected = false;
+                _measureSilence = false;
+                _pulseDownWasMeasured = false;
+                _pulseUpWasMeasured = false;
               }
               break;
 
@@ -541,7 +553,7 @@ class TAPrecorder
           }
 
           // Un pulso muy largo sin cambio entonces estamos ante un silencio
-          if (_measuredPulseDownWidth < 512 && _measuredPulseUpWidth < 512)
+          if (_measuredPulseUpWidth < 512)
           {
               _silenceDetected = false; 
               _silenceTimeOverflow = false;           
@@ -549,16 +561,16 @@ class TAPrecorder
           }
           else
           {
-              _silenceDetected = true;
-
-              if (_measuredPulseDownWidth >= 512)
+              if (_measuredPulseUpWidth >= 512)
               {
-                  _measureSilence = _measuredPulseDownWidth;
-              }
-              else
-              {
+                  _silenceDetected = true;
                   _measureSilence = _measuredPulseUpWidth;
               }            
+              else
+              {
+                  _silenceDetected = false;
+                  _measureSilence = 0;
+              }
 
               // Evitamos desbordamiento
               if (_measureSilence > 2646000)
@@ -1042,18 +1054,18 @@ class TAPrecorder
 
         if (!WasfirstStepInTheRecordingProccess)
         {    
-          // Comenzamos con una cabecera PROGRAM.
-          isHead = true; //*
-          //resetMeasuredPulse();
-          //badPulseW = 0; //*
-          statusSchmitt = 0;
-          _pulseInverted = false;
-          _measureState = 0;
-          BLOCK_REC_COMPLETED = false; //*
-          //
-          LAST_MESSAGE = "Recorder ready. Play source data.";
-          // Ya no pasamos por aquí hasta parar el recorder
-          WasfirstStepInTheRecordingProccess=true;    
+            // Comenzamos con una cabecera PROGRAM.
+            isHead = true; //*
+            //resetMeasuredPulse();
+            //badPulseW = 0; //*
+            statusSchmitt = 0;
+            _pulseInverted = false;
+            _measureState = 0;
+            BLOCK_REC_COMPLETED = false; //*
+            //
+            LAST_MESSAGE = "Recorder ready. Play source data.";
+            // Ya no pasamos por aquí hasta parar el recorder
+            WasfirstStepInTheRecordingProccess=true;    
         }
 
         // Analizamos todas las muestras del buffer de entrada
@@ -1076,7 +1088,8 @@ class TAPrecorder
             // Si la medida de pulso ha acabado, analizamos
             if (_silenceDetected)
             {
-              
+              _silenceDetected = false;
+
               if (_measureSilence > 512)
               {
                   if (!_silenceTimeOverflow)
@@ -1107,19 +1120,18 @@ class TAPrecorder
 
                     case 2:
                       // Capture DATA
-                      // Hemos encontrado el silencio, finalizamos el bloque y chequeamos checksum                    
+                      // Hemos encontrado el silencio, finalizamos el bloque y chequeamos checksum 
+                      // LAST_MESSAGE = "Measure silence: " + String(_measureSilence);
+                      // delay(10000);
+
                       stateRecording = 0;
                       LAST_MESSAGE = "Data = " + String(byteCount) + " / " + String(header.blockSize) + " bytes";
                       
-                      if (!checkDataBlock())
-                      {
-                        // Si hay fallo salimos.
-                        //return;
-                      }
+                      //Vemos si el bloque de datos capturado es correcto                      
+                      checkDataBlock();
                     default:
                       break;
                   }
-
               }
             }
             else
@@ -1134,7 +1146,8 @@ class TAPrecorder
                     if (statusPulse)
                     {
                         _pulseUpWasMeasured = false;
-                        _pulseDownWasMeasured = false;                        
+                        _pulseDownWasMeasured = false;   
+                        statusPulse = false;                     
 
                         //LAST_MESSAGE = "Up: " + String(_measuredPulseUpWidth) + " - Down: " + String(_measuredPulseDownWidth);
 
@@ -1149,7 +1162,7 @@ class TAPrecorder
 
                                   // Contamos los pulsos de LEAD
                                 pulseCount++;
-        
+                                //LAST_MESSAGE = "Measure silence: " + String(_measureSilence);        
                                 if (pulseCount >= maxPilotPulseCount)//maxPilotPulseCount)
                                 {
                                     // Saltamos a la espera de SYNC
@@ -1172,6 +1185,7 @@ class TAPrecorder
 
                               // Medimos una SYNC1. Buscamos dos pulsos muy cercanos
                               //
+                              //LAST_MESSAGE = "Measure silence: " + String(_measureSilence);
                               if (_measuredPulseUpWidth < wSync)
                               {
                                 // Esperamos ahora SYNC 2 en DOWN
@@ -1201,6 +1215,7 @@ class TAPrecorder
                     {
                         _pulseUpWasMeasured = false;
                         _pulseDownWasMeasured = false;
+                        statusPulse = false;
 
                         if (((_measuredPulseUpWidth ) >= wBit0_1) &&
                             ((_measuredPulseUpWidth ) <= wBit0_2))
@@ -1263,7 +1278,7 @@ class TAPrecorder
 
     public:
 
-void stopREC(int error)
+      void stopREC(int error)
       {
         
         //
@@ -1271,7 +1286,8 @@ void stopREC(int error)
         // si el error no es especifico, entonces es 0 (error genérico)
         //
         errorDetected = error;
-
+        RECORDING_ERROR = error;
+        
         // Eliminado el 02/11/2024
         STOP = true;
         REC = false;
@@ -1298,6 +1314,7 @@ void stopREC(int error)
               // No error
               terminate(false);
               LAST_MESSAGE = "Auto REC stop.";
+
             case 1:
               LAST_MESSAGE = "Sync not detected. Fine volume source or filter.";
               break;
@@ -1328,19 +1345,6 @@ void stopREC(int error)
               LAST_MESSAGE = "Error not defined.";
               break;
         }
-        //byteCount = 0;
-        // Bajamos el scope
-        //SCOPE = down;      
-        //Paramos la animación del indicador de recording
-        hmi.writeString("tape2.tmAnimation.en=0");    
-        //Paramos la animación del indicador de recording
-        hmi.writeString("tape.tmAnimation.en=0");
-        
-        // Reiniciamos el estado de los botones
-        hmi.writeString("tape.STOPst.val=1");
-        hmi.writeString("tape.RECst.val=0");           
-
-        delay(2000);
       }
 
       void set_SdFat32(SdFat32 sdf32)
@@ -1389,20 +1393,20 @@ void stopREC(int error)
 
           if (!stopRecordingProccess)
           {
-            return false;
+              // No ha finalizado. Sigue grabando
+              return true;
           }
           else
           {
             if (errorDetected != 0)
             {
-              delay(2000);
-              REC = true;
-              terminate(true);
-              errorDetected = 0;
-              REC = false;
+                delay(125);
+                terminate(true);
+                errorDetected = 0;
             }
             
-            return true;
+            // Ha ha finalizado. Paro la grabación.
+            return false;
           }
       }
 
@@ -1547,9 +1551,9 @@ void stopREC(int error)
             _mFile.write(0x01);
           }
 
-          _mFile.close();
-          fileWasClosed = true;
-          delay(250); 
+          // _mFile.close();
+          // fileWasClosed = true;
+          // delay(250); 
 
           return fileWasClosed;    
       }
@@ -1576,12 +1580,6 @@ void stopREC(int error)
               _mFile.write(MSB);
               _mFile.seek(currentOffset);
 
-              // Lo cerramos
-              _mFile.close();
-              fileWasClosed = true;
-
-              delay(125);
-
               LAST_MESSAGE = "File partially saved.";
 
               if (_mFile.size() < 1024)
@@ -1592,16 +1590,10 @@ void stopREC(int error)
               {
                 LAST_MESSAGE += " Size: " + String(_mFile.size()/1024) + " KB";
               }
+
           }
           else
           {
-              // Finalmente se graba todo el contenido         
-              // Lo cerramos
-              _mFile.close();
-              fileWasClosed = true;
-
-              delay(125);
-
               LAST_MESSAGE = "File saved.";
 
               if (_mFile.size() < 1024)
@@ -1613,13 +1605,19 @@ void stopREC(int error)
                 LAST_MESSAGE += " Size: " + String(_mFile.size()/1024) + " KB";
               }
 
+              // Finalmente se graba todo el contenido         
+              // Lo cerramos
+              // _mFile.close();
+              // fileWasClosed = true;
+
+              // delay(125);
           }
 
           return fileWasClosed;
 
       }
 
-      void terminate(bool removeFile)
+      void terminate(bool partialSave)
       {
 
         // ************************************************************************
@@ -1628,108 +1626,116 @@ void stopREC(int error)
         //
         // *************************************************************************
 
-        //FIRSTBLOCKREAD = false;
         bool fileWasClosed = false;
 
         // Si REC no está activo, no podemos terminar.
-        if (REC)
+        // if (REC)
+        // {
+        // Vemos si el fichero inicialmente fue creado.
+        if (fileWasNotCreated == false)
         {
-            // Vemos si el fichero inicialmente fue creado.
-            if (fileWasNotCreated == false)
+            // El fichero inicialmente fue creado con exito
+            // en la SD, pero ...
+            //
+
+            // Si el bloque ha sido completado "tono guia + bytes + silencio"
+            // se almacena
+            if (BLOCK_REC_COMPLETED)
             {
-                // El fichero inicialmente fue creado con exito
-                // en la SD, pero ...
-                //
-
-                // Si el bloque ha sido completado "tono guia + bytes + silencio"
-                // se almacena
-                if (BLOCK_REC_COMPLETED)
+                // Se almacenó algo y hay bloques completos validados
+                if (_mFile.size() !=0)
                 {
-                    // Se almacenó algo y hay bloques completos validados
-                    if (_mFile.size() !=0)
+                    if (!partialSave)
                     {
-
-                        if (!removeFile)
-                        {
-                          fileWasClosed = saveBlocksOnFile(false);
-                        }
-                        else
-                        {
-                          //
-                          // El ultimo bloque es erroneo pero el resto no
-                          //
-                          fileWasClosed = saveBlocksOnFile(true);
-                        }
+                      // Guardado completo.
+                      fileWasClosed = saveBlocksOnFile(false);
                     }
                     else
                     {
-                      // Tiene 0 bytes. Meto algo y lo cierro
-                      // es un error
-                      // Escribimos 256 bytes
-                      fileWasClosed = fillAndCloseFile();
+                      // Guardado parcial.
+                      // El ultimo bloque es erroneo pero el resto no
+                      fileWasClosed = saveBlocksOnFile(true);
                     }
                 }
                 else
                 {
-                    // Aqui entra porque el BLOCK_REC_COMPLETED == false
-                    // entonces el ultimo bloque no fue terminado.
-                    //
-                    // El ultimo bloque es erroneo pero el resto no
-
-                    if (byteCount !=0 && errorDetected == 0)
-                    {
-
-                        // Finalmente se graba el contenido menos el bloque erroneo
-                        if (_mFile.isOpen())
-                        {                     
-                            // Lo renombramos con el nombre del BASIC
-                            renameFile();        
-                            delay(125);                       
-                        }          
-
-                        if (ptrOffset != 0)
-                        {
-                          //
-                          fileWasClosed = saveBlocksOnFile(true);  
-                        }
-                        else
-                        {
-                          // Lo cerramos
-                          _mFile.close();
-                          fileWasClosed = true;
-                          delay(125);                          
-                        }
-                    }
-                    else
-                    {                  
-                        // Tiene 0 bytes. Meto algo y lo cierro
-                        // es un error
-                        // Escribimos 256 bytes
-                        fileWasClosed = fillAndCloseFile();
-                    }        
+                  // Tiene 0 bytes. Meto algo y lo cierro
+                  // es un error
+                  // Escribimos 256 bytes
+                  fileWasClosed = fillAndCloseFile();
                 }
             }
             else
             {
+                // Aqui entra porque el BLOCK_REC_COMPLETED == false
+                // entonces el ultimo bloque no fue terminado.
+                //
+                // El ultimo bloque es erroneo pero el resto no
 
-              // El fichero no fue creado
-              _mFile.close();
-              fileWasClosed = true;
-              delay(125); 
+                if (byteCount !=0 && errorDetected !=0)
+                {
+
+                    // Finalmente se graba el contenido menos el bloque erroneo
+                    if (_mFile.isOpen())
+                    {                     
+                        // Lo renombramos con el nombre del BASIC
+                        renameFile();        
+                        delay(125);                       
+                    }          
+
+                    // Vemos si el puntero de bloque dentro del fichero
+                    // no está al principio.
+                    if (ptrOffset != 0)
+                    {
+                      //
+                      fileWasClosed = saveBlocksOnFile(true);                   
+                      // Ya hemos cerrado el fichero antes
+                      // ojo!!! 
+                    }
+                    else
+                    {
+
+                      LAST_MESSAGE = "Peta 2.5";
+                      delay(500);
+
+                      // Cerramos el fichero
+                      // _mFile.close();
+                      // fileWasClosed = true;
+                      // delay(125);                          
+                    }
+                }
+                else
+                {                  
+                    LAST_MESSAGE = "Peta 2.2";
+                    delay(500);
+
+                    // Tiene 0 bytes. Meto algo y lo cierro
+                    // es un error
+                    // Escribimos 256 bytes
+                    fileWasClosed = fillAndCloseFile();
+                }        
             }
+        }
+        else
+        {
+            // El fichero no fue creado
         }
 
         wasRenamed = false;
         nameFileRead = false;
         WasfirstStepInTheRecordingProccess = false;
         statusSchmitt = 0;
+
         // Ponemos a cero todos los indicadores
-        _hmi.resetIndicators();   
+        _hmi.resetIndicators();
         
         // Nos aseguramos el cierre.  05/11/2024 - 02:17
-        _mFile.close();
+        if (_mFile.isOpen())
+        {
+          _mFile.close();
+          delay(125);
+        }
         fileWasClosed = true;
-        delay(1000);
       }
 
       TAPrecorder()

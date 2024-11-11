@@ -135,6 +135,8 @@ enum edge
 // WAV record
 bool MODEWAV = false;
 
+uint8_t TAPESTATE = 0;
+
 // --------------------------------------------------------------------------
 //
 //  ZXProcessor
@@ -191,6 +193,7 @@ bool SWAP_MIC_CHANNEL = false;
 bool SWAP_EAR_CHANNEL = false;
 //
 String RECORDING_DIR = "/REC";
+int RECORDING_ERROR = 0;
 //bool waitingNextBlock = false;
 //bool FIRSTBLOCKREAD = false;
  
@@ -236,7 +239,7 @@ String POWAIP = "";
 
 // OTRAS
 bool TEST_RUNNING = false;
-int LOADING_STATE = 0;
+int LOADING_STATE = 0;              // 0 - Standby, 1 - Play, 2 - Stop, 3 - Pause, 4 - Recording
 int CURRENT_BLOCK_IN_PROGRESS = 0;
 int PROGRESS_BAR_REFRESH = 256;
 int PROGRESS_BAR_REFRESH_2 = 32;
@@ -250,6 +253,7 @@ char LAST_TYPE[36];
 // Para TZX / TSX
 String LAST_GROUP = "";
 String LAST_MESSAGE = "";
+String lastMsn = "";
 String PROGRAM_NAME = "";
 String PROGRAM_NAME_2 = "";
 bool PROGRAM_NAME_ESTABLISHED = false;
@@ -287,7 +291,9 @@ String FILE_PREVIOUS_DIR = "/";
 String FILE_LAST_DIR_LAST = "../";
 int FILE_LAST_INDEX = 0;
 int FILE_IDX_SELECTED = -1;
+bool FILE_SELECTED = false;
 bool FILE_PREPARED = false;
+bool FILE_INSIDE_TAPE = false;
 bool PROGRAM_NAME_DETECTED = false;
 
 tFileBuffer FILES_BUFF[MAX_FILES_TO_LOAD];
@@ -302,8 +308,7 @@ String FILE_DIR_TO_CHANGE = "";
 int FILE_PTR_POS = 0;
 int FILE_TOTAL_FILES = 0;
 int FILE_STATUS = 0;
-bool FILE_NOTIFIED = false;
-bool FILE_SELECTED = false;
+
 String FILE_PATH_SELECTED = "";
 bool FILE_DIR_OPEN_FAILED = false;
 bool FILE_BROWSER_OPEN = false;
@@ -383,3 +388,18 @@ void logln(String txt)
     SerialHW.println(txt);
 }
 
+String lastAlertTxt = "";
+
+void logAlert(String txt)
+{
+    // Solo muestra una vez el mismo mensaje.
+    // esta rutina es perfecta para no llenar el buffer de salida serie con mensajes ciclicos
+    if (lastAlertTxt != txt)
+    {
+      SerialHW.println("");
+      SerialHW.println(txt);
+      SerialHW.println("");
+    }
+
+    lastAlertTxt = txt;
+}

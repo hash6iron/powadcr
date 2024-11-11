@@ -120,12 +120,12 @@ class TZXprocessor
         {
             if (STOP==true)
             {
-                LOADING_STATE = 2; // Parada del bloque actual
+                LOADING_STATE = 2; // STOP del bloque actual
                 return true;
             }
             else if (PAUSE==true)
             {
-                LOADING_STATE = 3; // Parada del bloque actual
+                LOADING_STATE = 3; // PAUSE del bloque actual
                 return true;
             }
         }      
