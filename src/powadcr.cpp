@@ -8,16 +8,16 @@
 
     Agradecimientos:
       - Kike Martín [kyv]
-      - Jose [Xosmar]
-      - Mario J
-      - Isra
+      - Carlos Martinez [TxarlyM69]
       - Fernando Mosquera
+      - Isra
+      - Mario J
+      - Jose [Xosmar]
       - Victor [Eremus]
-      - Juan Antonio Rubio
       - Guillermo
       - Pedro Pelaez
       - Carlos Palmero [shaeon]
-      - Carlos Martinez [TxarlyM69]
+      
     
     
     Descripción:
@@ -629,9 +629,9 @@ void setAudioOutput()
         }
         else
         {
-          hmi.writeString("tape.g0.txt=\"SAMPLING AT 48 KHz\"" );
+          hmi.writeString("tape.lblFreq.txt=\"48KHz\"" );
           hmi.writeString("statusLCD.txt=\"SAMPLING AT 48 KHz\"" );
-          delay(750);
+          delay(1500);
         }    
         break;
 
@@ -642,9 +642,9 @@ void setAudioOutput()
         }
         else
         {
-          hmi.writeString("tape.g0.txt=\"SAMPLING AT 44.1 KHz\"" );
+          hmi.writeString("tape.lblFreq.txt=\"44KHz\"" );
           hmi.writeString("statusLCD.txt=\"SAMPLING AT 44.1 KHz\"" );          
-          delay(750);
+          delay(1500);
         }            
         break;
 
@@ -655,9 +655,9 @@ void setAudioOutput()
         }
         else
         {
-          hmi.writeString("tape.g0.txt=\"SAMPLING AT 32 KHz\"" );
+          hmi.writeString("tape.lblFreq.txt=\"32KHz\"" );
           hmi.writeString("statusLCD.txt=\"SAMPLING AT 32 KHz\"" );          
-          delay(750);
+          delay(1500);
         }            
         break;
 
@@ -668,9 +668,9 @@ void setAudioOutput()
         }
         else
         {
-          hmi.writeString("tape.g0.txt=\"SAMPLING AT 22.05 KHz\"" );
+          hmi.writeString("tape.lblFreq.txt=\"22KHz\"" );
           hmi.writeString("statusLCD.txt=\"SAMPLING AT 22.05 KHz\"" );          
-          delay(750);
+          delay(1500);
         }            
         break;
   }
@@ -1514,6 +1514,8 @@ void tapeControl()
             logAlert("EJECT state in TAPESTATE = " + String(TAPESTATE));
           #endif
 
+          //LAST_MESSAGE = "Ejecting cassette.";
+
           // Limpiamos los campos del TAPE
           // porque hemos expulsado la cinta.
           hmi.clearInformationFile();
@@ -1531,16 +1533,13 @@ void tapeControl()
         else if (STOP)
         {
           // Esto lo hacemos para evitar repetir el mensaje infinitamente
-          if(lastMsn != LAST_MESSAGE)
-          {
-            LAST_MESSAGE = "Press EJECT to select a file or REC.";                
-          }
-          lastMsn = LAST_MESSAGE;
+          LAST_MESSAGE = "Press EJECT to select a file or REC.";                
         }
         else
         {
           TAPESTATE = 0;
           LOADING_STATE = 0;
+          PLAY = false;
         }
 
         break;
@@ -1889,7 +1888,7 @@ void Task0code( void * pvParameters )
     int startTime2 = millis();
     int tClock = millis();
     int ho=0;int mi=0;int se=0;
-    int tScrRfsh = 500;
+    int tScrRfsh = 125;
     int tAckRfsh = 1500;
 
 
@@ -1903,16 +1902,16 @@ void Task0code( void * pvParameters )
         //buttonsControl();
         //delay(50);
 
-        esp_task_wdt_reset();
+        //esp_task_wdt_reset();
 
         #ifndef DEBUGMODE
           if (REC)
           {
-              tScrRfsh = 500;
+              tScrRfsh = 250;
           }
           else
           {
-              tScrRfsh = 250;
+              tScrRfsh = 125;
           }
 
           if ((millis() - startTime) > tScrRfsh)

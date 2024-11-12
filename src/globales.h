@@ -329,7 +329,7 @@ bool IN_THE_SAME_DIR = false;
 
 String FILE_TXT_TO_SEARCH = "";
 //bool waitingRecMessageShown = false;
-
+bool CURRENT_PAGE = 0;
 
 // Variables de control de la reproducción
 bool PLAY = false;

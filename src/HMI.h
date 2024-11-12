@@ -1924,18 +1924,22 @@ class HMI
           if (valEn==0)
           {
               SAMPLING_RATE = 48000;
+              writeString("tape.lblFreq.txt=\"48KHz\"" );
           }
           else if(valEn==1)
           {
               SAMPLING_RATE = 44100;
+              writeString("tape.lblFreq.txt=\"44KHz\"" );
           }
           else if(valEn==2)
           {
               SAMPLING_RATE = 32000;
+              writeString("tape.lblFreq.txt=\"32KHz\"" );
           }
           else if(valEn==3)
           {
               SAMPLING_RATE = 22050;
+              writeString("tape.lblFreq.txt=\"22KHz\"" );
           }
           
           #ifdef DEBUGMODE
@@ -2175,6 +2179,21 @@ class HMI
           FILE_BROWSER_SEARCHING = true;
           findTheTextInFiles();
         }
+        else if (strCmd.indexOf("PDEBUG") != -1)
+        {
+            // Estamos en la pantalla DEBUG
+            CURRENT_PAGE = 3;
+        }
+        else if (strCmd.indexOf("PMENU") != -1)
+        {
+            // Estamos en la pantalla MENU
+            CURRENT_PAGE = 2;
+        }
+        else if (strCmd.indexOf("PTAPE") != -1)
+        {
+            // Estamos en la pantalla TAPE
+            CURRENT_PAGE = 1;
+        }
         else
         {}
 
@@ -2250,30 +2269,33 @@ class HMI
 
           if (PLAY)
           {
-            writeString("debug.dataOffset1.txt=\"" + dataOffset1 +"\"");
-            writeString("debug.dataOffset2.txt=\"" + dataOffset2 +"\"");
-            writeString("debug.dataOffset3.txt=\"" + dataOffset3 +"\"");
-            writeString("debug.dataOffset4.txt=\"" + dataOffset4 +"\"");
+            if (CURRENT_PAGE = 3)
+            {
+                writeString("debug.dataOffset1.txt=\"" + dataOffset1 +"\"");
+                writeString("debug.dataOffset2.txt=\"" + dataOffset2 +"\"");
+                writeString("debug.dataOffset3.txt=\"" + dataOffset3 +"\"");
+                writeString("debug.dataOffset4.txt=\"" + dataOffset4 +"\"");
 
-            writeString("debug.offset1.txt=\"" + Offset1 +"\"");
-            writeString("debug.offset2.txt=\"" + Offset2 +"\"");
-            writeString("debug.offset3.txt=\"" + Offset3 +"\"");
-            writeString("debug.offset4.txt=\"" + Offset4 +"\"");
+                writeString("debug.offset1.txt=\"" + Offset1 +"\"");
+                writeString("debug.offset2.txt=\"" + Offset2 +"\"");
+                writeString("debug.offset3.txt=\"" + Offset3 +"\"");
+                writeString("debug.offset4.txt=\"" + Offset4 +"\"");
 
-            // DEBUG Information
-            writeString("debug.blockLoading.txt=\"" + String(BLOCK_SELECTED) +"\"");
-            // Esto falla
-            writeString("debug.partLoading.txt=\"" + String(PARTITION_BLOCK) +"\"");
-            writeString("debug.totalParts.txt=\"" + String(TOTAL_PARTS) +"\"");
+                // DEBUG Information
+                writeString("debug.blockLoading.txt=\"" + String(BLOCK_SELECTED) +"\"");
+                // Esto falla
+                writeString("debug.partLoading.txt=\"" + String(PARTITION_BLOCK) +"\"");
+                writeString("debug.totalParts.txt=\"" + String(TOTAL_PARTS) +"\"");
 
-            writeString("debug.dbgBlkInfo.txt=\"" + dbgBlkInfo +"\"");
-            writeString("debug.dbgPauseAB.txt=\"" + dbgPauseAB +"\"");
-            writeString("debug.dbgSync1.txt=\"" + dbgSync1 +"\"");
-            writeString("debug.dbgSync2.txt=\"" + dbgSync2 +"\"");
-            writeString("debug.dbgBit1.txt=\"" + dbgBit1 +"\"");
-            writeString("debug.dbgBit0.txt=\"" + dbgBit0 +"\"");
-            writeString("debug.dbgTState.txt=\"" + dbgTState +"\"");
-            writeString("debug.dbgRep.txt=\"" + dbgRep +"\"");
+                writeString("debug.dbgBlkInfo.txt=\"" + dbgBlkInfo +"\"");
+                writeString("debug.dbgPauseAB.txt=\"" + dbgPauseAB +"\"");
+                writeString("debug.dbgSync1.txt=\"" + dbgSync1 +"\"");
+                writeString("debug.dbgSync2.txt=\"" + dbgSync2 +"\"");
+                writeString("debug.dbgBit1.txt=\"" + dbgBit1 +"\"");
+                writeString("debug.dbgBit0.txt=\"" + dbgBit0 +"\"");
+                writeString("debug.dbgTState.txt=\"" + dbgTState +"\"");
+                writeString("debug.dbgRep.txt=\"" + dbgRep +"\"");
+            }
           }
 
           if (TOTAL_BLOCKS != 0 || REC || EJECT) 
@@ -2344,8 +2366,11 @@ class HMI
           {writeString("currentBlock.val=" + String(BLOCK_SELECTED + 1));}
           lastBl2 = BLOCK_SELECTED;
                             
-
-          updateMem();
+          if (CURRENT_PAGE = 2)
+          {
+            updateMem();
+          }
+          
       }
       
       int getEndCharPosition(String str,int start)
