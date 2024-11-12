@@ -2366,7 +2366,7 @@ class HMI
           {writeString("currentBlock.val=" + String(BLOCK_SELECTED + 1));}
           lastBl2 = BLOCK_SELECTED;
                             
-          if (CURRENT_PAGE = 2)
+          if (CURRENT_PAGE == 2)
           {
             updateMem();
           }
