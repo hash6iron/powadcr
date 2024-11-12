@@ -2324,11 +2324,26 @@ class HMI
             //writeString("currentBlock.val=0");
           }
         
-          writeString("g0.txt=\"" + LAST_MESSAGE + "\"");
-          writeString("progression.val=" + String(PROGRESS_BAR_BLOCK_VALUE));
-          writeString("progressTotal.val=" + String(PROGRESS_BAR_TOTAL_VALUE)); 
-          writeString("totalBlocks.val=" + String(TOTAL_BLOCKS));
-          writeString("currentBlock.val=" + String(BLOCK_SELECTED + 1));         
+          if (lastMsn != LAST_MESSAGE)
+          {writeString("g0.txt=\"" + LAST_MESSAGE + "\"");}
+          lastMsn = LAST_MESSAGE;
+          
+          if (lastPr1 != PROGRESS_BAR_BLOCK_VALUE)
+          {writeString("progression.val=" + String(PROGRESS_BAR_BLOCK_VALUE));}
+          lastPr1 = PROGRESS_BAR_BLOCK_VALUE;
+
+          if (lastPr2 != PROGRESS_BAR_TOTAL_VALUE)
+          {writeString("progressTotal.val=" + String(PROGRESS_BAR_TOTAL_VALUE));}
+          lastPr2 = PROGRESS_BAR_TOTAL_VALUE;
+
+          if (lastBl1 != TOTAL_BLOCKS)
+          {writeString("totalBlocks.val=" + String(TOTAL_BLOCKS));}
+          lastBl1 = TOTAL_BLOCKS;
+
+          if (lastBl2 != BLOCK_SELECTED)
+          {writeString("currentBlock.val=" + String(BLOCK_SELECTED + 1));}
+          lastBl2 = BLOCK_SELECTED;
+                            
 
           updateMem();
       }
@@ -2535,8 +2550,17 @@ class HMI
 
       void updateMem()
       {
-          writeString("menu.totalPSRAM.txt=\"StTsk0: " + String(stackFreeCore0) + "KB | " + String(ESP.getPsramSize() / 1024) + " | " + String(ESP.getHeapSize() / 1024) + " KB\"");
-          writeString("menu.freePSRAM.txt=\"StTsk1: "  + String(stackFreeCore1) + "KB | " + String(ESP.getFreePsram() / 1024) + " | " + String(ESP.getFreeHeap() / 1024) + " KB\"");
+          if (lst_stackFreeCore0 != stackFreeCore0 || lst_psram_used != ESP.getPsramSize() || lst_stack_used != ESP.getHeapSize())
+          {writeString("menu.totalPSRAM.txt=\"StTsk0: " + String(stackFreeCore0) + "KB | " + String(ESP.getPsramSize() / 1024) + " | " + String(ESP.getHeapSize() / 1024) + " KB\"");}
+          lst_stackFreeCore0 = BLOCK_SELECTED;
+          lst_psram_used = ESP.getPsramSize();
+          lst_stack_used = ESP.getHeapSize();
+
+          if (lst_stackFreeCore1 != stackFreeCore1 || lst_psram_used != ESP.getFreePsram() || lst_stack_used != ESP.getFreeHeap())
+          {writeString("menu.freePSRAM.txt=\"StTsk1: "  + String(stackFreeCore1) + "KB | " + String(ESP.getFreePsram() / 1024) + " | " + String(ESP.getFreeHeap() / 1024) + " KB\"");}
+          lst_stackFreeCore1 = BLOCK_SELECTED;
+          lst_psram_free = ESP.getFreePsram();
+          lst_stack_free = ESP.getFreeHeap();
       }
 
       // Constructor

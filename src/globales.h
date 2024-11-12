@@ -33,6 +33,12 @@
 
 int stackFreeCore0 = 0;
 int stackFreeCore1 = 0;
+int lst_stackFreeCore0 = 0;
+int lst_stackFreeCore1 = 0;
+int lst_psram_used = 0;
+int lst_stack_used = 0;
+int lst_psram_free = 0;
+int lst_stack_free = 0;
 int SD_SPEED_MHZ = 4;
 // ************************************************************
 //
@@ -254,6 +260,10 @@ char LAST_TYPE[36];
 String LAST_GROUP = "";
 String LAST_MESSAGE = "";
 String lastMsn = "";
+int lastPr1 = 0;
+int lastPr2 = 0;
+int lastBl1 = 0;
+int lastBl2 = 0;
 String PROGRAM_NAME = "";
 String PROGRAM_NAME_2 = "";
 bool PROGRAM_NAME_ESTABLISHED = false;

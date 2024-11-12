@@ -483,117 +483,96 @@ void setSDFrequency(int SD_Speed)
 {
   bool SD_ok = false;
   bool lastStatus = false;
+  
   while (!SD_ok) 
   {
-    if (!sdf.begin(ESP32kit.pinSpiCs(), SD_SCK_MHZ(SD_Speed)) || lastStatus) 
-    {
-      
-      sdFile32.close();
-
-      //SerialHW.println("");
-      //SerialHW.println("");
-      //SerialHW.println("SD card error!");
-
-      //SerialHW.println("");
-      //SerialHW.println("");
-      //SerialHW.println("SD downgrade at " + String(SD_Speed) + "MHz");
-
-      hmi.writeString("statusLCD.txt=\"SD FREQ. AT " + String(SD_Speed) + " MHz\"" );
-
-      SD_Speed = SD_Speed - 1;
-
-      if (SD_Speed < 4) 
+      if (!sdf.begin(ESP32kit.pinSpiCs(), SD_SCK_MHZ(SD_Speed)) || lastStatus) 
       {
-          if (SD_Speed < 2)
+          sdFile32.close();
+          hmi.writeString("statusLCD.txt=\"SD FREQ. AT " + String(SD_Speed) + " MHz\"" );
+          SD_Speed = SD_Speed - 1;
+
+          if (SD_Speed < 4) 
           {
-            // Very low speed
-            SD_Speed = 1;
-            lastStatus = true;
+              if (SD_Speed < 2)
+              {
+                  // Very low speed
+                  SD_Speed = 1;
+                  lastStatus = true;
+              }
+              else
+              {  
+                  
+                  // loop infinito
+                  while(true)
+                  {
+                      hmi.writeString("statusLCD.txt=\"SD NOT COMPATIBLE\"" );
+                      delay(1500);
+                      hmi.writeString("statusLCD.txt=\"CHANGE SD AND RESET\"" );
+                      delay(1500);
+                  }
+              } 
           }
-          else
-          {  
-              
+      }
+      else 
+      {
+          // La SD ha aceptado la frecuencia de acceso
+          hmi.writeString("statusLCD.txt=\"SD DETECTED AT " + String(SD_Speed) + " MHz\"" );
+          //SD_ok = true;
+
+          // Probamos a listar un directorio
+          if (!sdm.dir.open("/"))
+          {
+              sdm.dir.close();
+              SD_ok = false;
+              lastStatus = false;
+
               // loop infinito
               while(true)
               {
-                hmi.writeString("statusLCD.txt=\"SD NOT COMPATIBLE\"" );
-                delay(1500);
-                hmi.writeString("statusLCD.txt=\"CHANGE SD AND RESET\"" );
+                hmi.writeString("statusLCD.txt=\"SD TEST FAILED\"" );
                 delay(1500);
               }
-          } 
+          }
+          else
+          {
+              sdm.dir.close();
+
+              // Probamos a crear un fichero.
+              if (!sdFile32.exists("_test"))
+              {
+                  if (!sdFile32.open("_test", O_WRITE | O_CREAT | O_TRUNC)) 
+                  {
+                      SD_ok = false;
+                      lastStatus = false;
+
+                      // loop infinito
+                      while(true)
+                      {
+                          hmi.writeString("statusLCD.txt=\"SD CORRUPTED\"" );
+                          delay(1500);
+                          hmi.writeString("statusLCD.txt=\"FORMAT OR CHANGE SD\"" );
+                          delay(1500);
+                      }
+                  }
+                  else
+                  {
+                      sdFile32.remove();
+                      sdFile32.close();
+                      SD_ok = true;
+                      lastStatus = true;
+                  }
+              }
+              else
+              {
+                  while(true)
+                  {
+                      hmi.writeString("statusLCD.txt=\"REMOVE _test FILE FROM SD\"" );
+                      delay(1500);
+                  }
+              }
+          }
       }
-    }
-    else 
-    {
-        // La SD ha aceptado la frecuencia de acceso
-        //SerialHW.println("");
-        //SerialHW.println("");
-        //SerialHW.println("SD card initialized at " + String(SD_Speed) + " MHz");
-
-        hmi.writeString("statusLCD.txt=\"SD DETECTED AT " + String(SD_Speed) + " MHz\"" );
-
-        // Probamos a listar un directorio
-        if (!sdm.dir.open("/"))
-        {
-            sdm.dir.close();
-            SD_ok = false;
-            lastStatus = false;
-
-            //SerialHW.println("");
-            //SerialHW.println("");
-            //SerialHW.println("Listing files. Error!");
-
-            // loop infinito
-            while(true)
-            {
-              hmi.writeString("statusLCD.txt=\"SD TEST FAILED\"" );
-              delay(1500);
-            }
-        }
-        else
-        {
-            sdm.dir.close();
-
-            // Probamos a crear un fichero.
-            if (!sdFile32.exists("_test"))
-            {
-                if (!sdFile32.open("_test", O_WRITE | O_CREAT | O_TRUNC)) 
-                {
-                    SD_ok = false;
-                    lastStatus = false;
-
-                    //SerialHW.println("");
-                    //SerialHW.println("");
-                    //SerialHW.println("File creation. Error!");
-
-                    // loop infinito
-                    while(true)
-                    {
-                      hmi.writeString("statusLCD.txt=\"SD CORRUPTED\"" );
-                      delay(1500);
-                      hmi.writeString("statusLCD.txt=\"FORMAT OR CHANGE SD\"" );
-                      delay(1500);
-                    }
-                }
-                else
-                {
-                  sdFile32.remove();
-                  sdFile32.close();
-                  SD_ok = true;
-                  lastStatus = true;
-                }
-            }
-            else
-            {
-                while(true)
-                {
-                  hmi.writeString("statusLCD.txt=\"REMOVE _test FILE FROM SD\"" );
-                  delay(1500);
-                }
-            }
-        }
-    }
   }
 
   SD_SPEED_MHZ = SD_Speed;
@@ -835,7 +814,6 @@ void stopRecording()
       // No quitar esto, permite leer la variable totalBlockTransfered
       int tbt = taprec.totalBlockTransfered;
 
-
       if (tbt >= 1)
       {
 
@@ -847,6 +825,7 @@ void stopRecording()
             delay(1500);
             //
             taprec.terminate(false);
+            //
             LAST_MESSAGE = "Recording STOP.";
             tapeAnimationOFF();
             //      
@@ -884,19 +863,13 @@ void stopRecording()
       else
       {
           taprec.terminate(true);
-          LAST_MESSAGE = "Recording STOP.";
+          LAST_MESSAGE = "Recording STOP without blocks captured.";
           tapeAnimationOFF();
           //      
           delay(1500);
       }
 
     //}
-
-    // Una vez hemos cerrado la sesión de recording
-    // ahora cambiamos el estado de los controles
-
-    //STOP = true;
-    //REC = false;
 
     // Reiniciamos variables
     taprec.totalBlockTransfered = 0;
@@ -1852,12 +1825,11 @@ void tapeControl()
       //
       // REC
       //
-      if(STOP || taprec.actuateAutoRECStop || !REC || EJECT)
+      if(STOP || taprec.actuateAutoRECStop || !REC || EJECT || RECORDING_ERROR!=0)
       {
-        //Paramos el proceso de grabación
+        //
         stopRecording();
         //
-
         taprec.stopRecordingProccess = false;
         taprec.actuateAutoRECStop = false;
         REC=false;
@@ -1868,6 +1840,7 @@ void tapeControl()
       }
       else
       {
+        esp_task_wdt_reset();
         recordingFile();
         LOADING_STATE = 4;
         TAPESTATE = 200;
@@ -1903,11 +1876,7 @@ void Task1code( void * pvParameters )
         if (serialEventRun) serialEventRun();
 
         esp_task_wdt_reset();
-
         tapeControl();
-
-        // Deshabilitamos el WDT en cada core
-        esp_task_wdt_reset();
     }
 }
 
@@ -1921,7 +1890,7 @@ void Task0code( void * pvParameters )
     int tClock = millis();
     int ho=0;int mi=0;int se=0;
     int tScrRfsh = 500;
-    int tOscRfsh = 250;
+    int tAckRfsh = 1500;
 
 
     for(;;)
@@ -1937,16 +1906,13 @@ void Task0code( void * pvParameters )
         esp_task_wdt_reset();
 
         #ifndef DEBUGMODE
-
           if (REC)
           {
               tScrRfsh = 500;
-              tOscRfsh = 250;
           }
           else
           {
               tScrRfsh = 250;
-              tOscRfsh = 125;
           }
 
           if ((millis() - startTime) > tScrRfsh)
@@ -1957,32 +1923,24 @@ void Task0code( void * pvParameters )
             hmi.updateInformationMainPage();
           }
 
-          // if((millis() - startTime2) > tOscRfsh)
+          // if((millis() - startTime2) > tAckRfsh)
           // {
           //   startTime2 = millis();
-          //   // if (SCOPE==up)
-          //   // {
-          //   //   hmi.writeString("add 34,0,6");
-          //   // }
-          //   // else
-          //   // {
-          //   //   hmi.writeString("add 34,0,2");
-          //   // }     
+            
+          //   // Enviamos ACK por si perdemos la pantalla
+          //   if (LCD_ON)
+          //   {
+          //     sendStatus(ACK_LCD, 1);
+          //   }
+            
           // }
         #endif
-        esp_task_wdt_reset();
     }
   #endif
 }
 
 void setup() 
 {
-    //rtc_wdt_protect_off();    // Turns off the automatic wdt service
-    // rtc_wdt_enable();         // Turn it on manually
-    // rtc_wdt_set_time(RTC_WDT_STAGE0, 20000);  // Define how long you desire to let dog wait.
-
-
-
     // Configuramos el nivel de log
     SerialHW.setRxBufferSize(2048);
     SerialHW.begin(921600);

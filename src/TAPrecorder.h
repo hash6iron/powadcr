@@ -1287,26 +1287,8 @@ class TAPrecorder
         //
         errorDetected = error;
         RECORDING_ERROR = error;
-        
-        // Eliminado el 02/11/2024
-        STOP = true;
-        REC = false;
-
-        totalBlockTransfered = 0;                                  
+        // Paramos la grabación
         stopRecordingProccess=true;
-        //RECORDING_ERROR = 1;  
-
-        // Reset de medidas de pulso
-        resetMeasuredPulse();
-        // Reset estado del control de pulso
-        stateRecording = 0;
-        //isSilence = false;
-        //
-        //waitingNextBlock = false;
-        //
-        WasfirstStepInTheRecordingProccess = false;
-        
-        //waitingHead = true;
 
         switch (error)
         {
@@ -1400,11 +1382,10 @@ class TAPrecorder
           {
             if (errorDetected != 0)
             {
-                delay(125);
-                terminate(true);
-                errorDetected = 0;
+                errorInDataRecording = true;
+                //terminate(true);
+                //errorDetected = 0;
             }
-            
             // Ha ha finalizado. Paro la grabación.
             return false;
           }
@@ -1566,52 +1547,50 @@ class TAPrecorder
           {
             // Lo renombramos con el nombre del BASIC
             renameFile();        
-            delay(125);                       
-          }  
+            delay(125);   
 
-          if (partially)
-          {
-              // Finalmente se graba el contenido menos el bloque erroneo
-              int currentOffset = _mFile.position();
-              _mFile.seek(ptrOffset);
-              uint8_t MSB = 0;
-              uint8_t LSB = 0;                      
-              _mFile.write(LSB);
-              _mFile.write(MSB);
-              _mFile.seek(currentOffset);
+            if (partially)
+            {
+                // Finalmente se graba el contenido menos el bloque erroneo
+                int currentOffset = _mFile.position();
+                _mFile.seek(ptrOffset);
+                uint8_t MSB = 0;
+                uint8_t LSB = 0;                      
+                _mFile.write(LSB);
+                _mFile.write(MSB);
+                _mFile.seek(currentOffset);
 
-              LAST_MESSAGE = "File partially saved.";
-
-              if (_mFile.size() < 1024)
-              {
-                LAST_MESSAGE += " Size: " + String(_mFile.size()) + " bytes";
-              }
-              else
-              {
-                LAST_MESSAGE += " Size: " + String(_mFile.size()/1024) + " KB";
-              }
-
+                LAST_MESSAGE = "File partially saved.";
+                if (_mFile.size() < 1024)
+                {
+                  LAST_MESSAGE += " Size: " + String(_mFile.size()) + " bytes";
+                }
+                else
+                {
+                  LAST_MESSAGE += " Size: " + String(_mFile.size()/1024) + " KB";
+                }
+                delay(1500);
+            }
+            else
+            {
+                LAST_MESSAGE = "File saved.";
+                if (_mFile.size() < 1024)
+                {
+                  LAST_MESSAGE += " Size: " + String(_mFile.size()) + " bytes";
+                }
+                else
+                {
+                  LAST_MESSAGE += " Size: " + String(_mFile.size()/1024) + " KB";
+                }
+                delay(1500);
+            }
           }
           else
           {
-              LAST_MESSAGE = "File saved.";
-
-              if (_mFile.size() < 1024)
-              {
-                LAST_MESSAGE += " Size: " + String(_mFile.size()) + " bytes";
-              }
-              else
-              {
-                LAST_MESSAGE += " Size: " + String(_mFile.size()/1024) + " KB";
-              }
-
-              // Finalmente se graba todo el contenido         
-              // Lo cerramos
-              // _mFile.close();
-              // fileWasClosed = true;
-
-              // delay(125);
+            LAST_MESSAGE = "Error file is not open.";
+            delay(1500);
           }
+
 
           return fileWasClosed;
 
@@ -1619,7 +1598,6 @@ class TAPrecorder
 
       void terminate(bool partialSave)
       {
-
         // ************************************************************************
         //
         // En este procedimiento cerramos el fichero, para validarlo por el SO
@@ -1642,18 +1620,23 @@ class TAPrecorder
             // se almacena
             if (BLOCK_REC_COMPLETED)
             {
+                //
                 // Se almacenó algo y hay bloques completos validados
                 if (_mFile.size() !=0)
                 {
                     if (!partialSave)
                     {
                       // Guardado completo.
+                      LAST_MESSAGE = "Saving all";
+                      delay(1500);
                       fileWasClosed = saveBlocksOnFile(false);
                     }
                     else
                     {
                       // Guardado parcial.
                       // El ultimo bloque es erroneo pero el resto no
+                      LAST_MESSAGE = "Partial Saving.";
+                      delay(1500);
                       fileWasClosed = saveBlocksOnFile(true);
                     }
                 }
@@ -1662,6 +1645,8 @@ class TAPrecorder
                   // Tiene 0 bytes. Meto algo y lo cierro
                   // es un error
                   // Escribimos 256 bytes
+                  LAST_MESSAGE = "Empty file";
+                  delay(1500);                  
                   fileWasClosed = fillAndCloseFile();
                 }
             }
@@ -1672,59 +1657,65 @@ class TAPrecorder
                 //
                 // El ultimo bloque es erroneo pero el resto no
 
-                if (byteCount !=0 && errorDetected !=0)
+                if (totalBlockTransfered !=0 && errorDetected !=0)
                 {
-
-                    // Finalmente se graba el contenido menos el bloque erroneo
-                    if (_mFile.isOpen())
-                    {                     
-                        // Lo renombramos con el nombre del BASIC
-                        renameFile();        
-                        delay(125);                       
-                    }          
-
+                    LAST_MESSAGE = "Partial Saving - preparing.";
+                    delay(1500);
+                    
                     // Vemos si el puntero de bloque dentro del fichero
                     // no está al principio.
                     if (ptrOffset != 0)
                     {
                       //
+                      LAST_MESSAGE = "Partial Saving II.";
+                      delay(1500);
                       fileWasClosed = saveBlocksOnFile(true);                   
                       // Ya hemos cerrado el fichero antes
                       // ojo!!! 
                     }
                     else
                     {
-
-                      LAST_MESSAGE = "Peta 2.5";
-                      delay(500);
-
-                      // Cerramos el fichero
-                      // _mFile.close();
-                      // fileWasClosed = true;
-                      // delay(125);                          
+                      // El puntero de bloque es cero o se ha perdido.
+                      LAST_MESSAGE = "Last block pointer lost.";
+                      delay(1500);
                     }
                 }
                 else
                 {                  
-                    LAST_MESSAGE = "Peta 2.2";
-                    delay(500);
-
                     // Tiene 0 bytes. Meto algo y lo cierro
                     // es un error
                     // Escribimos 256 bytes
-                    fileWasClosed = fillAndCloseFile();
+                    if (totalBlockTransfered == 0)
+                    {
+                        LAST_MESSAGE = "Empty file II";
+                        delay(1500); 
+                        fileWasClosed = fillAndCloseFile();
+                    }
+                    else
+                    {
+                      // Aqui errorDetected = 0 y totalBlockTransfered != 0
+                      LAST_MESSAGE = "Partial Saving III.";
+                      delay(1500);
+                      fileWasClosed = saveBlocksOnFile(true);
+                    }
                 }        
             }
         }
         else
         {
             // El fichero no fue creado
+            LAST_MESSAGE = "File was not created.";
+            delay(1500);            
         }
 
+        // Reseteamos variables
         wasRenamed = false;
         nameFileRead = false;
         WasfirstStepInTheRecordingProccess = false;
         statusSchmitt = 0;
+        stateRecording = 0;
+        errorDetected = 0;
+        resetMeasuredPulse();
 
         // Ponemos a cero todos los indicadores
         _hmi.resetIndicators();
@@ -1732,9 +1723,13 @@ class TAPrecorder
         // Nos aseguramos el cierre.  05/11/2024 - 02:17
         if (_mFile.isOpen())
         {
+          LAST_MESSAGE = "Closing file";
+          delay(1500);
+
           _mFile.close();
           delay(125);
         }
+        //
         fileWasClosed = true;
       }
 
