@@ -1426,10 +1426,8 @@ class HMI
             }
             //
             //
-            FILE_PTR_POS = 0;
-            //clearFilesInScreen();     //07/11/2024       
+            FILE_PTR_POS = 0;    
             getFilesFromSD(false);
-            //refreshFiles();   //07/11/2024
             
             if (!FILE_DIR_OPEN_FAILED)
             {
@@ -1732,16 +1730,15 @@ class HMI
               writeString("g0.txt=\"" + LAST_MESSAGE + "\"");
               delay(500);
               clearInformationFile();
-              delay(500);
+              delay(250);
           }
 
           FILE_BROWSER_OPEN = true;
-
-          refreshFiles();
           //
-          delay(250);
           // Entramos en el file browser
           writeString("page file");          
+          delay(250);
+          refreshFiles();
 
         }    
         // else if (strCmd.indexOf("ABORT") != -1) 
