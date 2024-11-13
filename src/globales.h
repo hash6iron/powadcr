@@ -330,7 +330,7 @@ int FILE_STATUS = 0;
 String FILE_PATH_SELECTED = "";
 bool FILE_DIR_OPEN_FAILED = false;
 bool FILE_BROWSER_OPEN = false;
-bool FILE_BROWSER_SEARCHING = false;
+//bool FILE_BROWSER_SEARCHING = false;
 bool FILE_CORRUPTED = false;
 
 bool IN_THE_SAME_DIR = false;

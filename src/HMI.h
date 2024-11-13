@@ -113,6 +113,11 @@ class HMI
                 logln("");
               #endif
 
+              // Por si se queda abierto, lo cerramos primero
+              // para poder abrirlo después en el WHILE
+              if (sdm.file.isOpen())
+              {sdm.file.close();}
+
               // Ahora lo recorremos
               while (sdm.file.openNext(&sdm.dir, O_RDONLY))
               {
@@ -978,7 +983,7 @@ class HMI
 
       void putInHome()
       {
-          FILE_BROWSER_SEARCHING = false;  
+          //FILE_BROWSER_SEARCHING = false;  
           FILE_LAST_DIR_LAST = INITFILEPATH;
           FILE_LAST_DIR = INITFILEPATH;
           FILE_PREVIOUS_DIR = INITFILEPATH;
@@ -1213,7 +1218,7 @@ class HMI
         {
             // Con este comando nos indica la pantalla que 
             // está en modo searching
-            FILE_BROWSER_SEARCHING = true;
+            //FILE_BROWSER_SEARCHING = true;
             findTheTextInFiles();
       
         }
@@ -1259,7 +1264,7 @@ class HMI
                 putFilesInScreen();
                 FILE_STATUS = 1;
                 // El GFIL desconecta el filtro de busqueda
-                FILE_BROWSER_SEARCHING = false;                   
+                //FILE_BROWSER_SEARCHING = false;                   
             }            
         }
         else if (strCmd.indexOf("RFSH") != -1) 
@@ -1429,24 +1434,24 @@ class HMI
             FILE_SELECTED_DELETE = false;
       
             //Cogemos el fichero
-            if (!FILE_BROWSER_SEARCHING)
-            {
+            // if (!FILE_BROWSER_SEARCHING)
+            // {
                 FILE_TO_DELETE = FILE_LAST_DIR + FILES_BUFF[FILE_IDX_SELECTED+1].path;     
       
                 // SerialHW.println();
                 // SerialHW.println();
                 // SerialHW.println("File to delete: " + FILE_TO_DELETE);  
                 FILE_SELECTED_DELETE = true; 
-            }
-            else
-            {
-                FILE_TO_DELETE = FILE_LAST_DIR + FILES_FOUND_BUFF[FILE_IDX_SELECTED+1].path;     
+            // }
+            // else
+            // {
+            //     FILE_TO_DELETE = FILE_LAST_DIR + FILES_FOUND_BUFF[FILE_IDX_SELECTED+1].path;     
       
-                // SerialHW.println();
-                // SerialHW.println();
-                // SerialHW.println("File to delete in buffer: " + FILE_TO_DELETE); 
-                FILE_SELECTED_DELETE = true;  
-            }
+            //     // SerialHW.println();
+            //     // SerialHW.println();
+            //     // SerialHW.println("File to delete in buffer: " + FILE_TO_DELETE); 
+            //     FILE_SELECTED_DELETE = true;  
+            // }
 
             if (FILE_SELECTED_DELETE)
             {
@@ -1516,14 +1521,14 @@ class HMI
             FILE_SELECTED = false;
       
             //Cogemos el fichero
-            if (!FILE_BROWSER_SEARCHING)
-            {
+            // if (!FILE_BROWSER_SEARCHING)
+            // {
                 FILE_TO_LOAD = FILE_LAST_DIR + FILES_BUFF[FILE_IDX_SELECTED+1].path;                    
-            }
-            else
-            {
-                FILE_TO_LOAD = FILE_LAST_DIR + FILES_FOUND_BUFF[FILE_IDX_SELECTED+1].path;           
-            }
+            //}
+            // else
+            // {
+            //     FILE_TO_LOAD = FILE_LAST_DIR + FILES_FOUND_BUFF[FILE_IDX_SELECTED+1].path;           
+            // }
       
       
             // Cambiamos el estado de fichero seleccionado
@@ -2192,7 +2197,7 @@ class HMI
 
           // Ahora localizamos los ficheros
           FILE_TXT_TO_SEARCH = phrase;
-          FILE_BROWSER_SEARCHING = true;
+          //FILE_BROWSER_SEARCHING = true;
           
           findTheTextInFiles();
         }
