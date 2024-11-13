@@ -2269,7 +2269,7 @@ class HMI
 
           if (PLAY)
           {
-            if (CURRENT_PAGE = 3)
+            if (CURRENT_PAGE == 3)
             {
                 writeString("debug.dataOffset1.txt=\"" + dataOffset1 +"\"");
                 writeString("debug.dataOffset2.txt=\"" + dataOffset2 +"\"");
@@ -2368,6 +2368,7 @@ class HMI
                             
           if (CURRENT_PAGE == 2)
           {
+            // Solo mostramos la información de memoria si estamos en la pagina de Menú
             updateMem();
           }
           
