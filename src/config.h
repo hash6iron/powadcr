@@ -37,7 +37,7 @@
 
 // Para Rolling releases - rDDMMYY.HHMM
 // Para versión estable - vX.Y
-#define VERSION "r241112.0908"
+#define VERSION "r241113.1015"
 #define MACHINE_ZX
 
 // Define sampling rate a 44.1KHz. En otro caso será a 32KHz

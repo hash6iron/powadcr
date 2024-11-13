@@ -256,8 +256,10 @@ bool BLOCK_PLAYED = false;
 String TYPE_FILE_LOAD = "";
 char LAST_NAME[15];
 char LAST_TYPE[36];
+String lastType = "";
 // Para TZX / TSX
 String LAST_GROUP = "";
+String lastGrp = "";
 String LAST_MESSAGE = "";
 String lastMsn = "";
 int lastPr1 = 0;
@@ -266,8 +268,11 @@ int lastBl1 = 0;
 int lastBl2 = 0;
 String PROGRAM_NAME = "";
 String PROGRAM_NAME_2 = "";
+String lastPrgName = "";
+String lastPrgName2 = "";
 bool PROGRAM_NAME_ESTABLISHED = false;
 int LAST_SIZE = 0;
+int lstLastSize = 0;
 
 int LAST_BIT_WIDTH = 0;
 int MULTIGROUP_COUNT = 1;

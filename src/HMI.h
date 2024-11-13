@@ -725,7 +725,12 @@ class HMI
       {
           String strTmp = INITFILEPATH;
           //strncpy(strTmp,&INITFILEPATH[0],2);
-          
+
+          #ifdef DEBUGMODE
+            logln("");
+            logln("Current dir: " + path);
+          #endif
+
           int lpath = path.length();
           
           for (int n=lpath-2;n>1;n--)
@@ -735,13 +740,16 @@ class HMI
               if (chrRead == '/')
               {
                   //Copiamos ahora el trozo de cadena restante
-                  //ponemos n-1 para que copie también la "/"
-                  //strlcpy(strTmp,path,n+2);
-                  strTmp = path.substring(0,n+2);
+                  strTmp = path.substring(0,n+1);
                   break;
               }
           }
-      
+
+          #ifdef DEBUGMODE
+            logln("");
+            logln("Next dir: " + strTmp);
+          #endif
+
           return strTmp;
       }
       
@@ -905,7 +913,16 @@ class HMI
               }
       
               printFileRows(i-1, color, szName);
-              delay(5);
+
+              // Delay necesario para un correcto listado en pantalla.
+              if (SD_SPEED_MHZ > 15)
+              {
+                delay(2);
+              }
+              else
+              {
+                delay(1);
+              }
         }
 
         showInformationAboutFiles();        
@@ -1388,8 +1405,9 @@ class HMI
         }
         else if (strCmd.indexOf("PAR=") != -1) 
         {
+            String oldDir = FILE_PREVIOUS_DIR;
             // Con este comando capturamos el directorio padre
-      
+
             //Cogemos el directorio padre que siempre estará en el prevDir y por tanto
             //no hay que calcular la posición
             FILE_DIR_TO_CHANGE = FILES_BUFF[0].path;    
@@ -1411,11 +1429,18 @@ class HMI
             FILE_PTR_POS = 0;
             //clearFilesInScreen();     //07/11/2024       
             getFilesFromSD(false);
-            refreshFiles();   //07/11/2024
+            //refreshFiles();   //07/11/2024
             
             if (!FILE_DIR_OPEN_FAILED)
             {
                 putFilesInScreen();
+            }
+            else
+            {
+                // Error
+                writeString("currentDir.txt=\">> Error opening directory. <<\"");
+                delay(1500);
+                writeString("currentDir.txt=\"" + String(FILE_LAST_DIR_LAST) + "\"");             
             }
       
         }
@@ -1437,18 +1462,18 @@ class HMI
             {
                 FILE_TO_DELETE = FILE_LAST_DIR + FILES_BUFF[FILE_IDX_SELECTED+1].path;     
       
-                SerialHW.println();
-                SerialHW.println();
-                SerialHW.println("File to delete: " + FILE_TO_DELETE);  
+                // SerialHW.println();
+                // SerialHW.println();
+                // SerialHW.println("File to delete: " + FILE_TO_DELETE);  
                 FILE_SELECTED_DELETE = true; 
             }
             else
             {
                 FILE_TO_DELETE = FILE_LAST_DIR + FILES_FOUND_BUFF[FILE_IDX_SELECTED+1].path;     
       
-                SerialHW.println();
-                SerialHW.println();
-                SerialHW.println("File to delete in buffer: " + FILE_TO_DELETE); 
+                // SerialHW.println();
+                // SerialHW.println();
+                // SerialHW.println("File to delete in buffer: " + FILE_TO_DELETE); 
                 FILE_SELECTED_DELETE = true;  
             }
 
@@ -1460,23 +1485,19 @@ class HMI
                 if (!mf.isWritable())
                 {
                   writeString("currentDir.txt=\">> Error. File not writeable <<\"");
+                  delay(1500);
+                  writeString("currentDir.txt=\"" + String(FILE_LAST_DIR_LAST) + "\"");                  
                   mf.close();
+                  FILE_SELECTED_DELETE = false;
                 }
-                // else if (mf.isLFN())
-                // { 
-                //   writeString("currentDir.txt=\">> Error. Long filename <<\"");
-                //   mf.close();
-                // }
                 else if (mf.isReadOnly())
                 { 
                   writeString("currentDir.txt=\">> Error. Readonly file <<\"");
+                  delay(1500);
+                  writeString("currentDir.txt=\"" + String(FILE_LAST_DIR_LAST) + "\"");                  
                   mf.close();
+                  FILE_SELECTED_DELETE = false;
                 }
-                // else if (mf.isSystem())
-                // { 
-                //   writeString("currentDir.txt=\">> Error. System file <<\"");
-                //   mf.close();
-                // }
                 else
                 {
                     mf.close();
@@ -1489,7 +1510,8 @@ class HMI
                       
                       writeString("currentDir.txt=\">> Error. File not removed <<\"");
                       delay(1500);
-                      writeString("currentDir.txt=\"" + String(FILE_LAST_DIR_LAST) + "\"");                  
+                      writeString("currentDir.txt=\"" + String(FILE_LAST_DIR_LAST) + "\"");    
+                      FILE_SELECTED_DELETE = false;              
                     }
                     else
                     {
@@ -1498,11 +1520,15 @@ class HMI
                       
                       // Tras borrar hacemos un rescan
                       getFilesFromSD(true);       
+                      delay(125);
                       refreshFiles();
+                      delay(125);
                     }                  
                 }
-
-
+            }
+            else
+            {
+              writeString("currentDir.txt=\">> First, select a file. <<\"");
             }
         }      
         // Load file - Carga en el TAPE el fichero seleccionado en pantalla
@@ -1697,10 +1723,24 @@ class HMI
           ABORT = false;
           EJECT = true;
 
+          // Esto lo hacemos así porque el EJECT lanza un comando en paralelo
+          // al control del tape (tapeControl)
+          // no quitar!!
+          if (PROGRAM_NAME != "" || TOTAL_BLOCKS !=0)
+          {
+              LAST_MESSAGE = "Ejecting cassette.";
+              writeString("g0.txt=\"" + LAST_MESSAGE + "\"");
+              delay(500);
+              clearInformationFile();
+              delay(500);
+          }
+
           FILE_BROWSER_OPEN = true;
 
           refreshFiles();
+          //
           delay(250);
+          // Entramos en el file browser
           writeString("page file");          
 
         }    
@@ -2257,16 +2297,35 @@ class HMI
       void clearInformationFile()
       {
           PROGRAM_NAME = "";
+          lastPrgName = "";
+          PROGRAM_NAME_2 = "";
+          lastPrgName2 = "";
           LAST_SIZE = 0;
           strncpy(LAST_NAME,"",1);
           strncpy(LAST_TYPE,"",1);
+          lastType = "";
+          LAST_GROUP = "";
+          lastGrp = "";
+          lastBl1 = BLOCK_SELECTED = 0;
+          lastBl2 = TOTAL_BLOCKS = 0;
+          lastPr1 = PROGRESS_BAR_BLOCK_VALUE = 0;
+          lastPr2 = PROGRESS_BAR_TOTAL_VALUE = 0;
 
-          //updateInformationMainPage();
+          // Forzamos un actualizado de la información del tape
+          writeString("name.txt=\"" + PROGRAM_NAME + " : " + PROGRAM_NAME_2 + "\"");
+          writeString("tape2.name.txt=\"" + PROGRAM_NAME + " : " + PROGRAM_NAME_2 + "\"");
+          writeString("size.txt=\"" + String(LAST_SIZE) + " bytes\"");
+          writeString("tape2.size.txt=\"" + String(LAST_SIZE) + " bytes\"");
+          writeString("type.txt=\"" + String(LAST_TYPE) + " " + LAST_GROUP + "\"");
+          writeString("tape2.type.txt=\"" + String(LAST_TYPE) + " " + LAST_GROUP + "\"");
+          writeString("progression.val=" + String(PROGRESS_BAR_BLOCK_VALUE));   
+          writeString("progressTotal.val=" + String(PROGRESS_BAR_TOTAL_VALUE));
+          writeString("totalBlocks.val=" + String(TOTAL_BLOCKS));       
+          writeString("currentBlock.val=" + String(BLOCK_SELECTED + 1));                              
       }
 
       void updateInformationMainPage() 
       {            
-
           if (PLAY)
           {
             if (CURRENT_PAGE == 3)
@@ -2283,6 +2342,7 @@ class HMI
 
                 // DEBUG Information
                 writeString("debug.blockLoading.txt=\"" + String(BLOCK_SELECTED) +"\"");
+                
                 // Esto falla
                 writeString("debug.partLoading.txt=\"" + String(PARTITION_BLOCK) +"\"");
                 writeString("debug.totalParts.txt=\"" + String(TOTAL_PARTS) +"\"");
@@ -2304,17 +2364,32 @@ class HMI
             // Enviamos información al HMI
             if (TYPE_FILE_LOAD != "TAP" || REC)
             {
-                writeString("name.txt=\"" + PROGRAM_NAME + " : " + PROGRAM_NAME_2 + "\"");
-                writeString("tape2.name.txt=\"" + PROGRAM_NAME + " : " + PROGRAM_NAME_2 + "\"");
+                // Para TZX
+                if (lastPrgName!=PROGRAM_NAME || lastPrgName2!=PROGRAM_NAME_2)
+                {
+                  writeString("name.txt=\"" + PROGRAM_NAME + " : " + PROGRAM_NAME_2 + "\"");
+                  writeString("tape2.name.txt=\"" + PROGRAM_NAME + " : " + PROGRAM_NAME_2 + "\"");
+                }
+                lastPrgName = PROGRAM_NAME;
+                lastPrgName2 = PROGRAM_NAME_2;
             }
             else
             {
-                writeString("name.txt=\"" + PROGRAM_NAME + "\"");
-                writeString("tape2.name.txt=\"" + PROGRAM_NAME + "\"");
+                // Para TAP
+                if (lastPrgName!=PROGRAM_NAME)
+                {
+                  writeString("name.txt=\"" + PROGRAM_NAME + "\"");
+                  writeString("tape2.name.txt=\"" + PROGRAM_NAME + "\"");
+                }
+                lastPrgName = PROGRAM_NAME;
             }
             
-            writeString("size.txt=\"" + String(LAST_SIZE) + " bytes\"");
-            writeString("tape2.size.txt=\"" + String(LAST_SIZE) + " bytes\"");
+            if (lstLastSize!=LAST_SIZE)
+            {
+              writeString("size.txt=\"" + String(LAST_SIZE) + " bytes\"");
+              writeString("tape2.size.txt=\"" + String(LAST_SIZE) + " bytes\"");
+            }
+            lstLastSize = LAST_SIZE;
 
             String cmpTypeStr = String(LAST_NAME);
             cmpTypeStr.trim();
@@ -2322,19 +2397,33 @@ class HMI
 
             if (TYPE_FILE_LOAD != "TAP" || REC)
             {
-                writeString("type.txt=\"" + String(LAST_TYPE) + " " + LAST_GROUP + "\"");
-                writeString("tape2.type.txt=\"" + String(LAST_TYPE) + " " + LAST_GROUP + "\"");
+                if (lastType!=LAST_TYPE || lastGrp!=LAST_GROUP)
+                { 
+                  writeString("type.txt=\"" + String(LAST_TYPE) + " " + LAST_GROUP + "\"");
+                  writeString("tape2.type.txt=\"" + String(LAST_TYPE) + " " + LAST_GROUP + "\"");
+                }
+                lastType = LAST_TYPE;
+                lastGrp = LAST_GROUP;
             }
             else
             {
-                writeString("type.txt=\"" + String(LAST_TYPE) + "\"");
-                writeString("tape2.type.txt=\"" + String(LAST_TYPE) + "\"");
-                    
+
+                if (lastType!=LAST_TYPE)
+                { 
+                  writeString("type.txt=\"" + String(LAST_TYPE) + "\"");
+                  writeString("tape2.type.txt=\"" + String(LAST_TYPE) + "\"");
+                }
+                lastType = LAST_TYPE;  
+
                 // writeString("name.txt=\"" + PROGRAM_NAME + " : " + String(LAST_NAME) + "\"");           
                 // writeString("tape2.name.txt=\"" + PROGRAM_NAME + " : " + String(LAST_NAME) + "\"");     
 
-                writeString("name.txt=\"" + PROGRAM_NAME + "\"");           
-                writeString("tape2.name.txt=\"" + PROGRAM_NAME + "\"");
+                if (lastPrgName!=PROGRAM_NAME)
+                {
+                  writeString("name.txt=\"" + PROGRAM_NAME + "\"");
+                  writeString("tape2.name.txt=\"" + PROGRAM_NAME + "\"");
+                }
+                lastPrgName = PROGRAM_NAME;                
             }
         
             //writeString("totalBlocks.val=" + String(TOTAL_BLOCKS));

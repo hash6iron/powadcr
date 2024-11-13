@@ -1269,7 +1269,7 @@ void loadingFile(char* file_ch)
 
     // Convierto a mayusculas
     FILE_TO_LOAD.toUpperCase();
-    LAST_MESSAGE = "File to load: " + FILE_TO_LOAD;
+    //LAST_MESSAGE = "File to load: " + FILE_TO_LOAD;
 
     if (FILE_TO_LOAD.indexOf(".TAP") != -1)
     {
@@ -1518,7 +1518,7 @@ void tapeControl()
 
           // Limpiamos los campos del TAPE
           // porque hemos expulsado la cinta.
-          hmi.clearInformationFile();
+          //hmi.clearInformationFile();
 
           TAPESTATE = 99;
           // Expulsamos la cinta
