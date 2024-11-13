@@ -37,7 +37,7 @@
 
 // Para Rolling releases - rDDMMYY.HHMM
 // Para versión estable - vX.Y
-#define VERSION "r241113.1015"
+#define VERSION "r241113.1829"
 #define MACHINE_ZX
 
 // Define sampling rate a 44.1KHz. En otro caso será a 32KHz
@@ -80,7 +80,7 @@
 // Numero total de lineas de una pagina del file browser
 #define TOTAL_FILES_IN_BROWSER_PAGE 14
 #define MAX_FILES_TO_LOAD 14
-#define MAX_FILES_FOUND_BUFF 100
+#define MAX_FILES_FOUND_BUFF 255
 // Cada n ficheros refresca el marcador. Por defecto 5
 #define EACH_FILES_REFRESH 5
 

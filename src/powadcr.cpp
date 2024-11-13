@@ -1902,7 +1902,7 @@ void Task0code( void * pvParameters )
         //buttonsControl();
         //delay(50);
 
-        //esp_task_wdt_reset();
+        esp_task_wdt_reset();
 
         #ifndef DEBUGMODE
           if (REC)

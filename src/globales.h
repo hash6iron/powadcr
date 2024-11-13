@@ -304,6 +304,8 @@ int FILE_LAST_DIR_LEVEL = 0;  // Nivel de profundida de directorio
 String FILE_LAST_DIR = "/";
 String FILE_PREVIOUS_DIR = "/";
 String FILE_LAST_DIR_LAST = "../";
+String SOURCE_FILE_TO_MANAGE = "_files.lst";
+String SOURCE_FILE_INF_TO_MANAGE = "_files.inf";
 int FILE_LAST_INDEX = 0;
 int FILE_IDX_SELECTED = -1;
 bool FILE_SELECTED = false;
@@ -322,6 +324,7 @@ bool FILE_SELECTED_DELETE = false;
 String FILE_DIR_TO_CHANGE = "";
 int FILE_PTR_POS = 0;
 int FILE_TOTAL_FILES = 0;
+int FILE_TOTAL_FILES_SEARCH = 0;
 int FILE_STATUS = 0;
 
 String FILE_PATH_SELECTED = "";
