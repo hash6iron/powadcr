@@ -222,12 +222,14 @@ class HMI
                       fstatus.println("CFIL=" + String(cfiles));
                       fstatus.println("CDIR=" + String(cdir));
                       // Cerramos el fichero
-                      sdm.file.close();
+                      //sdm.file.close();
                       //
                       FILE_TOTAL_FILES = cdir + lpos;
 
                       writeString("statusFILE.txt=\"ITEMS " + String(FILE_TOTAL_FILES-1) +"\""); 
                   }
+
+                  sdm.file.close();
               }
           }
      }
@@ -571,8 +573,11 @@ class HMI
           clearFileBuffer();
 
           #ifdef DEBUGMODE
-            logln("--------------------------------------");
-            logln("Searching files in - " + FILE_LAST_DIR);
+            logln("");
+            logln("");
+            log("--------------------------------------");
+            logln("");
+            log("Searching files in - " + FILE_LAST_DIR);
           #endif
 
           if (sdm.dir.isOpen())
@@ -2190,13 +2195,17 @@ class HMI
           }
 
           #ifdef DEBUGMODE
-            logln("Search mode.");
-            logln("Text to search: ");
+            logln("");
+            log("Search mode.");
+            logln("");
+            log("Text to search: ");
             log(phrase);
           #endif
 
           // Ahora localizamos los ficheros
-          FILE_TXT_TO_SEARCH = phrase;
+          String(tmpPhrase) = phrase;
+          tmpPhrase.trim();
+          FILE_TXT_TO_SEARCH = tmpPhrase;
           //FILE_BROWSER_SEARCHING = true;
           
           findTheTextInFiles();
