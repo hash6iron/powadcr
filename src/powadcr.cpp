@@ -479,65 +479,61 @@ void sendStatus(int action, int value=0) {
   }
 }
 
-void setSDFrequency(int SD_Speed) 
+int setSDFrequency(int SD_Speed) 
 {
   bool SD_ok = false;
   bool lastStatus = false;
   
+  // Hasta que la SD no quede testeada no se sale del bucle.
+  // Si la SD no es compatible, no se puede hacer uso del dispositivo
   while (!SD_ok) 
   {
+      // Comenzamos con una frecuencia dada
       if (!sdf.begin(ESP32kit.pinSpiCs(), SD_SCK_MHZ(SD_Speed)) || lastStatus) 
       {
-          sdFile32.close();
+
+          // La frecuencia anterior no fue compatible
+          // Probamos otras frecuencias
           hmi.writeString("statusLCD.txt=\"SD FREQ. AT " + String(SD_Speed) + " MHz\"" );
           SD_Speed = SD_Speed - 1;
 
-          if (SD_Speed < 4) 
+          // Hemos llegado a un limite
+          if (SD_Speed < 1) 
           {
-              if (SD_Speed < 2)
+              // Ninguna frecuencia funciona.
+              // loop infinito - NO COMPATIBLE
+              while(true)
               {
-                  // Very low speed
-                  SD_Speed = 1;
-                  lastStatus = true;
+                  hmi.writeString("statusLCD.txt=\"SD NOT COMPATIBLE\"" );
+                  delay(1500);
+                  hmi.writeString("statusLCD.txt=\"CHANGE SD AND RESET\"" );
+                  delay(1500);
               }
-              else
-              {  
-                  
-                  // loop infinito
-                  while(true)
-                  {
-                      hmi.writeString("statusLCD.txt=\"SD NOT COMPATIBLE\"" );
-                      delay(1500);
-                      hmi.writeString("statusLCD.txt=\"CHANGE SD AND RESET\"" );
-                      delay(1500);
-                  }
-              } 
           }
+
       }
       else 
       {
           // La SD ha aceptado la frecuencia de acceso
           hmi.writeString("statusLCD.txt=\"SD DETECTED AT " + String(SD_Speed) + " MHz\"" );
-          //SD_ok = true;
 
           // Probamos a listar un directorio
           if (!sdm.dir.open("/"))
           {
-              sdm.dir.close();
               SD_ok = false;
               lastStatus = false;
 
               // loop infinito
               while(true)
               {
-                hmi.writeString("statusLCD.txt=\"SD TEST FAILED\"" );
+                hmi.writeString("statusLCD.txt=\"SD READ TEST FAILED\"" );
                 delay(1500);
+                hmi.writeString("statusLCD.txt=\"FORMAT OR CHANGE SD\"" );
+                delay(1500);              
               }
           }
           else
           {
-              sdm.dir.close();
-
               // Probamos a crear un fichero.
               if (!sdFile32.exists("_test"))
               {
@@ -549,7 +545,7 @@ void setSDFrequency(int SD_Speed)
                       // loop infinito
                       while(true)
                       {
-                          hmi.writeString("statusLCD.txt=\"SD CORRUPTED\"" );
+                          hmi.writeString("statusLCD.txt=\"SD WRITE TEST FAILED\"" );
                           delay(1500);
                           hmi.writeString("statusLCD.txt=\"FORMAT OR CHANGE SD\"" );
                           delay(1500);
@@ -572,11 +568,18 @@ void setSDFrequency(int SD_Speed)
                   }
               }
           }
+      
+        // Cerramos
+        if (sdFile32.isOpen())
+        {sdFile32.close();}
+
+        if (sdm.dir.isOpen())
+        {sdm.dir.close();}
       }
   }
 
-  SD_SPEED_MHZ = SD_Speed;
-  delay(1250);
+  // Devolvemos la frecuencia
+  return SD_Speed;
 }
 
 void test() 
@@ -1978,7 +1981,10 @@ void setup()
     delay(125);
 
     int SD_Speed = SD_FRQ_MHZ_INITIAL;  // Velocidad en MHz (config.h)
-    setSDFrequency(SD_Speed);
+    SD_SPEED_MHZ = setSDFrequency(SD_Speed);
+    
+    // Para forzar a un valor, descomentar esta linea
+    // y comentar las dos de arriba
     //sdf.begin(ESP32kit.pinSpiCs(), SD_SCK_MHZ(8));
    
     // Le pasamos al HMI el gestor de SD
