@@ -1443,7 +1443,9 @@ class TAPrecorder
           
           if (!_sdf32.mkdir(RECORDING_DIR))
           {
-            log("Error! Directory exists or wasn't created");
+            #ifdef DEBUGMODE
+              log("Error! Directory exists or wasn't created");
+            #endif
           }
 
           // Se crea un nuevo fichero temporal con la ruta del REC

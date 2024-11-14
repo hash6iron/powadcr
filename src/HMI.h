@@ -1140,6 +1140,16 @@ class HMI
           putFilesInScreen();        
       }
 
+      void copyFile(File32 fSource, File32 fTarget)
+      {
+          size_t n;  
+          uint8_t buf[64];
+          while ((n = fSource.read(buf, sizeof(buf))) > 0) 
+          {
+            fTarget.write(buf, n);
+          }        
+      }
+
       void verifyCommand(String strCmd) 
       {
         
@@ -1320,7 +1330,91 @@ class HMI
       
             //writeString("statusFILE.txt=\"\"");
       
-        }
+        }        
+        else if (strCmd.indexOf("FAVC=") != -1) 
+        {
+            // Con este comando añadimos el fichero seleccionado a la carpeta favoritos si no existe
+            // Con este comando
+            // devolvamos el fichero que se ha seleccionado en la pantalla
+            uint8_t buff[8];
+            strCmd.getBytes(buff, 7);
+            long val = (long)((int)buff[4] + (256*(int)buff[5]) + (65536*(int)buff[6]));
+            String num = String(val);
+      
+            FILE_IDX_SELECTED = num.toInt();
+            FILE_SELECTED = false;
+      
+            //Extraemos el fichero
+            String fileName  = FILES_BUFF[FILE_IDX_SELECTED+1].path;
+            String fToFav = FILE_LAST_DIR + fileName;                         
+      
+            // Cambiamos el estado de fichero seleccionado
+            if (fToFav != "")
+            {
+                #ifdef DEBUGMODE
+                  logAlert("File was selected");
+                #endif
+
+                // Ahora lo cargamos en favorito.
+                SdFat32 ffav;
+                String pSource = fToFav;
+                String pTarget = "/fav/" + fileName;
+
+                #ifdef DEBUGMODE
+                  logln("");
+                  logln("");
+                  log("Source file: " + pSource);
+                  logln("");
+                  log("Target file: " + pTarget);
+                  logln("");
+                #endif
+
+                // Creamos el directorio /fav
+                if (!ffav.mkdir("/fav"))
+                {
+                  #ifdef DEBUGMODE
+                    log("Error! Directory exists or wasn't created");
+                  #endif
+                } 
+
+                if (ffav.exists(pTarget))
+                {
+                    // Si el fichero no existe en favoritos, lo copio
+                    File32 fSource;
+                    File32 fTarget;
+
+                    char* pSrc;
+                    char* pTgt;
+
+                    pSrc = strcpy(pSrc,pSource.c_str());
+                    pTgt = strcpy(pTgt,pTarget.c_str());
+
+                    // Abrimos los ficheros fuente y destino
+                    bool fSourceOk = fSource.open(pSrc,O_RDONLY);
+                    bool fTargetOk = fTarget.open(pTgt,O_WRONLY);
+                    
+                    if (fSourceOk && fTargetOk)
+                    {
+                      copyFile(fSource,fTarget);
+                      fSource.close();
+                      fTarget.close();
+                    }
+                    else
+                    {
+                      //Error
+                    }                  
+                }
+            }
+
+      
+            #ifdef DEBUGMODE
+              logln("");
+              logln("File to load = ");
+              log(FILE_TO_LOAD);
+              logln("");
+            #endif
+      
+        }              
         else if (strCmd.indexOf("CHD=") != -1) 
         {
             // Con este comando capturamos el directorio a cambiar
