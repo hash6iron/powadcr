@@ -443,7 +443,7 @@ void proccesingTSX(char* file_ch)
         #ifdef DEBUGMODE
           logAlert("TSX prepared");
         #endif         
-        
+
       }
       else
       {
@@ -1936,19 +1936,7 @@ void Task0code( void * pvParameters )
             stackFreeCore1 = uxTaskGetStackHighWaterMark(Task1);    
             stackFreeCore0 = uxTaskGetStackHighWaterMark(Task0);        
             hmi.updateInformationMainPage();
-          }
-
-          // if((millis() - startTime2) > tAckRfsh)
-          // {
-          //   startTime2 = millis();
-            
-          //   // Enviamos ACK por si perdemos la pantalla
-          //   if (LCD_ON)
-          //   {
-          //     sendStatus(ACK_LCD, 1);
-          //   }
-            
-          // }
+          }           
         #endif
     }
   #endif

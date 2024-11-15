@@ -2351,16 +2351,25 @@ class HMI
         else if (strCmd.indexOf("PDEBUG") != -1)
         {
             // Estamos en la pantalla DEBUG
+            #ifdef DEBUGMODE
+              logAlert("PAGE DEBUG");
+            #endif
             CURRENT_PAGE = 3;
         }
-        else if (strCmd.indexOf("PMENU") != -1)
+        else if (strCmd.indexOf("PMENU1") != -1)
         {
             // Estamos en la pantalla MENU
+            #ifdef DEBUGMODE
+              logAlert("PAGE MENU");
+            #endif
             CURRENT_PAGE = 2;
         }
         else if (strCmd.indexOf("PTAPE") != -1)
         {
             // Estamos en la pantalla TAPE
+            #ifdef DEBUGMODE
+              logAlert("PAGE TAPE");
+            #endif
             CURRENT_PAGE = 1;
         }
         else
@@ -2795,13 +2804,27 @@ class HMI
       void updateMem()
       {
           if (lst_stackFreeCore0 != stackFreeCore0 || lst_psram_used != ESP.getPsramSize() || lst_stack_used != ESP.getHeapSize())
-          {writeString("menu.totalPSRAM.txt=\"StTsk0: " + String(stackFreeCore0) + "KB | " + String(ESP.getPsramSize() / 1024) + " | " + String(ESP.getHeapSize() / 1024) + " KB\"");}
+          {
+            #ifdef DEBUGMODE
+              writeString("menu.totalPSRAM.txt=\"Task0: " + String(stackFreeCore0) + " KB | " + String(ESP.getPsramSize() / 1024) + " KB | " + String(ESP.getHeapSize() / 1024) + " KB\"");            
+            #else
+              writeString("menu.totalPSRAM.txt=\"" + String(ESP.getPsramSize() / 1024) + " KB | " + String(ESP.getHeapSize() / 1024) + " KB\"");            
+            #endif
+            
+          }
+          
           lst_stackFreeCore0 = BLOCK_SELECTED;
           lst_psram_used = ESP.getPsramSize();
           lst_stack_used = ESP.getHeapSize();
 
           if (lst_stackFreeCore1 != stackFreeCore1 || lst_psram_used != ESP.getFreePsram() || lst_stack_used != ESP.getFreeHeap())
-          {writeString("menu.freePSRAM.txt=\"StTsk1: "  + String(stackFreeCore1) + "KB | " + String(ESP.getFreePsram() / 1024) + " | " + String(ESP.getFreeHeap() / 1024) + " KB\"");}
+          {
+            #ifdef DEBUGMODE
+              writeString("menu.freePSRAM.txt=\"Task1: "  + String(stackFreeCore1) + " KB | " + String(ESP.getFreePsram() / 1024) + " KB | " + String(ESP.getFreeHeap() / 1024) + " KB\"");
+            #else
+              writeString("menu.freePSRAM.txt=\""  + String(ESP.getFreePsram() / 1024) + " KB | " + String(ESP.getFreeHeap() / 1024) + " KB\"");
+            #endif
+          }
           lst_stackFreeCore1 = BLOCK_SELECTED;
           lst_psram_free = ESP.getFreePsram();
           lst_stack_free = ESP.getFreeHeap();
