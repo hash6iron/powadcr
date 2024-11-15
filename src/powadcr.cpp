@@ -544,6 +544,7 @@ int setSDFrequency(int SD_Speed)
       {
           // La SD ha aceptado la frecuencia de acceso
           hmi.writeString("statusLCD.txt=\"SD DETECTED AT " + String(SD_Speed) + " MHz\"" );
+          delay(750);
 
           // Probamos a listar un directorio
           if (!sdm.dir.open("/"))

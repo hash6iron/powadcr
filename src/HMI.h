@@ -209,7 +209,9 @@ class HMI
                               // seek
                               fout.print(String(posf));
                               fout.print(separator);
-                              // nombre del directorio
+                              // nombre del directorio a MAYUSCULAS
+                              // String szDirNameTmp = szName;
+                              // szDirNameTmp.toUpperCase();
                               fout.print(szName);                      
                               fout.println(separator);
                               // Incrementamos el indice
@@ -858,66 +860,66 @@ class HMI
           writeString("cPage.txt=\"" + String(currentPage) +" - " + String(totalPages) + "\"");
       }
       
-      void putFilesFoundInScreen()
-      {
+      // void putFilesFoundInScreen()
+      // {
       
-        //Antes de empezar, limpiamos el buffer
-        //para evitar que se colapse
+      //   //Antes de empezar, limpiamos el buffer
+      //   //para evitar que se colapse
       
-        int pos_in_HMI_file = 0;
-        String szName = "";
-        String type="";
+      //   int pos_in_HMI_file = 0;
+      //   String szName = "";
+      //   String type="";
       
-        int color = 65535; //60868    
+      //   int color = 65535; //60868    
 
-        if (FILE_PTR_POS==0)
-        {
-            // Esto es solo para el parent dir, para que siempre salga arriba
-            szName = FILES_FOUND_BUFF[FILE_PTR_POS].path;
-            color = 2016;  // Verde
-            szName = String("..     ") + szName;
+      //   if (FILE_PTR_POS==0)
+      //   {
+      //       // Esto es solo para el parent dir, para que siempre salga arriba
+      //       szName = FILES_FOUND_BUFF[FILE_PTR_POS].path;
+      //       color = 2016;  // Verde
+      //       szName = String("..     ") + szName;
             
-            //writeString("");
-            writeString("prevDir.txt=\"" + String(szName) + "\"");
-            //writeString("");
-            writeString("prevDir.pco=" + String(color));
+      //       //writeString("");
+      //       writeString("prevDir.txt=\"" + String(szName) + "\"");
+      //       //writeString("");
+      //       writeString("prevDir.pco=" + String(color));
             
-            // Descartamos la posición cero del buffer porque es una posición especial
-            FILE_PTR_POS=1;
-        }
+      //       // Descartamos la posición cero del buffer porque es una posición especial
+      //       FILE_PTR_POS=1;
+      //   }
       
-        for (int i=FILE_PTR_POS;i<=FILE_PTR_POS+12;i++)
-        {
-              szName = FILES_FOUND_BUFF[FILE_PTR_POS + pos_in_HMI_file].path;
-              type = FILES_FOUND_BUFF[FILE_PTR_POS + pos_in_HMI_file].type;
+      //   for (int i=FILE_PTR_POS;i<=FILE_PTR_POS+12;i++)
+      //   {
+      //         szName = FILES_FOUND_BUFF[FILE_PTR_POS + pos_in_HMI_file].path;
+      //         type = FILES_FOUND_BUFF[FILE_PTR_POS + pos_in_HMI_file].type;
               
-              // Lo trasladamos a la pantalla
-              if (type == "DIR")
-              {
-                  //Directorio
-                  color = 60868;  // Amarillo
-                  szName = String("<DIR>  ") + szName;
-              }     
-              else if (type == "TAP" || type == "TZX" || type == "TSX")
-              {
-                  //Fichero
-                  color = 65535;   // Blanco
-              }
-              else
-              {
-                  color = 44405;  // gris apagado
-              }
+      //         // Lo trasladamos a la pantalla
+      //         if (type == "DIR")
+      //         {
+      //             //Directorio
+      //             color = 60868;  // Amarillo
+      //             szName = String("<DIR>  ") + szName;
+      //         }     
+      //         else if (type == "TAP" || type == "TZX" || type == "TSX")
+      //         {
+      //             //Fichero
+      //             color = 65535;   // Blanco
+      //         }
+      //         else
+      //         {
+      //             color = 44405;  // gris apagado
+      //         }
 
-              //Realizamos dos pasadas para evitar temas de perdida de información
-              printFileRows(pos_in_HMI_file, color, szName);
-              //delay(5);
-              //printFileRows(pos_in_HMI_file, color, szName);
+      //         //Realizamos dos pasadas para evitar temas de perdida de información
+      //         printFileRows(pos_in_HMI_file, color, szName);
+      //         //delay(5);
+      //         //printFileRows(pos_in_HMI_file, color, szName);
 
-              pos_in_HMI_file++;
-        }
+      //         pos_in_HMI_file++;
+      //   }
 
-        showInformationAboutFiles(); 
-      }
+      //   showInformationAboutFiles(); 
+      // }
       
       void putFilesInScreen()
       {
@@ -962,11 +964,20 @@ class HMI
                   //Directorio
                   color = 60868;  // Amarillo
                   szName = String("<DIR>  ") + szName;
+                  szName.toUpperCase();
               }     
               else if (type == "TAP" || type == "TZX" || type == "TSX")
               {
                   //Fichero
-                  color = 65535;   // Blanco
+                  if (_sdf.exists("/fav/" + szName))
+                  {
+                    color = 34815;   // Cyan - Indica que esta en favoritos
+                  }
+                  else
+                  {
+                    color = 65535;   // Blanco
+                  }
+                  
               }
               else
               {
