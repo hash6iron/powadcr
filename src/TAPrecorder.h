@@ -1447,6 +1447,11 @@ class TAPrecorder
               log("Error! Directory exists or wasn't created");
             #endif
           }
+          else
+          {
+            // Actualizamos el sistema de ficheros.
+            _hmi.reloadCustomDir("/");
+          }
 
           // Se crea un nuevo fichero temporal con la ruta del REC
           strcat(recDir, fileName);

@@ -1086,6 +1086,12 @@ class HMI
 
       public:
 
+      void reloadCustomDir(String path)
+      {
+        FILE_LAST_DIR=path;
+        getFilesFromSD(true,SOURCE_FILE_TO_MANAGE,SOURCE_FILE_INF_TO_MANAGE);
+      }
+
       void resetIndicators()
       {
         resetBlockIndicators();
@@ -1808,8 +1814,6 @@ class HMI
           REC = false;
           ABORT = true;
           EJECT = false;
-
-          LAST_MESSAGE = "Tape paused. Press play to continue load or select block.";
           //updateInformationMainPage();
         }    
         else if (strCmd.indexOf("STOP") != -1) 

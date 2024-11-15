@@ -825,6 +825,26 @@ void tapeAnimationOFF()
     hmi.writeString("tape.tmAnimation.en=0");   
 }
 
+void recAnimationON()
+{
+  hmi.writeString("tape.RECst.val=1");
+}
+
+void recAnimationOFF()
+{
+  hmi.writeString("tape.RECst.val=0");
+}
+
+void recAnimationFIXED_ON()
+{
+  hmi.writeString("tape.recIndicator.bco=63848");
+}
+
+void recAnimationFIXED_OFF()
+{
+  hmi.writeString("tape.recIndicator.bco=32768");
+}
+
 void pauseRecording()
 {
     // Desconectamos la entrada para evitar interferencias
@@ -1543,13 +1563,15 @@ void tapeControl()
         }
         else if (REC)
         {
-          prepareRecording();
-          TAPESTATE = 200;
+          LAST_MESSAGE = "Rec paused. Press PAUSE to start recording.";
+          recAnimationON();
+          TAPESTATE = 220;
         }
         else if (STOP)
         {
           // Esto lo hacemos para evitar repetir el mensaje infinitamente
-          LAST_MESSAGE = "Press EJECT to select a file or REC.";                
+          LAST_MESSAGE = "Press EJECT to select a file or REC.";
+          STOP=false;                
         }
         else
         {
@@ -1579,7 +1601,10 @@ void tapeControl()
         }
         else if (REC)
         {
-          TAPESTATE = 0;
+          FILE_PREPARED = false;
+          FILE_SELECTED = false;
+          hmi.clearInformationFile();        
+          TAPESTATE = 0; 
         }
         else
         {
@@ -1636,6 +1661,7 @@ void tapeControl()
       else if (PAUSE)       
       {
           TAPESTATE = 3;
+          LAST_MESSAGE = "Tape paused. Press play or select block.";
       }
       else if (STOP)
       {
@@ -1644,6 +1670,7 @@ void tapeControl()
         if (LOADING_STATE == 1)
         {
           tapeAnimationOFF();
+          LOADING_STATE = 2;
         }
 
         LOADING_STATE = 2;
@@ -1652,10 +1679,18 @@ void tapeControl()
       }
       else if (REC)
       {
-        prepareRecording();
-        TAPESTATE = 200;
+        // Expulsamos la cinta
+        if (LOADING_STATE == 0 || LOADING_STATE == 2)
+        {
+          FILE_PREPARED = false;
+          FILE_SELECTED = false;
+          hmi.clearInformationFile();        
+          LAST_MESSAGE = "Rec paused. Press PAUSE to start recording.";
+          tapeAnimationOFF();
+          recAnimationON();
+          TAPESTATE = 220;          
+        }
       }
-      
       else
       {
         TAPESTATE = 1;
@@ -1691,7 +1726,7 @@ void tapeControl()
       //Activamos la animación
       tapeAnimationOFF();
       // Reproducimos el fichero
-      LAST_MESSAGE = "Pause playing.";
+      LAST_MESSAGE = "Tape paused. Press play or select block.";
       //          
       if (PLAY)
       {
@@ -1836,6 +1871,38 @@ void tapeControl()
       }
       break;
 
+    case 220:
+      if(PAUSE)
+      {
+        // Pulsacion de PAUSE
+        // Iniciamos la grabacion
+        PLAY = false;
+        PAUSE = false;
+        STOP = false;
+        REC = true;
+        ABORT = false;
+        EJECT = false;
+        // Preparamos la grabacion
+        recAnimationOFF();
+        prepareRecording();
+        recAnimationFIXED_ON();
+        TAPESTATE = 200;
+      }
+      else if (STOP)
+      {
+        TAPESTATE = 0;
+        LOADING_STATE = 0;
+        RECORDING_ERROR = 0;
+        REC = false;
+        recAnimationOFF();
+        recAnimationFIXED_OFF();
+      }
+      else
+      {
+        LOADING_STATE = 0;
+        TAPESTATE = 220;
+      }
+      break;
     case 200: 
       //
       // REC
@@ -1844,6 +1911,7 @@ void tapeControl()
       {
         //
         stopRecording();
+        recAnimationFIXED_OFF();
         //
         taprec.stopRecordingProccess = false;
         taprec.actuateAutoRECStop = false;
@@ -2050,14 +2118,15 @@ void setup()
     {
         if (!sdf.mkdir(favDir))
         {
-          //#ifdef DEBUGMODE
+          #ifdef DEBUGMODE
             logln("");
             log("Error! Directory exists or wasn't created");
-          //#endif
+          #endif
         } 
         else
         {
           hmi.writeString("statusLCD.txt=\"Creating FAV directory\"" );
+          hmi.reloadCustomDir("/");
           delay(750);
         }
     }
