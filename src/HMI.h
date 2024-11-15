@@ -600,6 +600,10 @@ class HMI
               {
                 forze_rescan=true;
               }
+              else if (recDirTmp == "/FAV/")
+              {
+                forze_rescan=true;
+              }
 
               // Si no existe el historico de los ficheros se genera un _file.lst
               registerFileLST(FILE_LAST_DIR, forze_rescan, output_file, output_file_inf, search_pattern);
