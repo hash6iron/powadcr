@@ -363,10 +363,15 @@ void proccesingTAP(char* file_ch)
     {
         pTAP.getInfoFileTAP(file_ch);
 
-        if (!FILE_CORRUPTED)
+        if (!FILE_CORRUPTED && TOTAL_BLOCKS !=0)
         {
           // El fichero está preparado para PLAY
           FILE_PREPARED = true;
+
+          #ifdef DEBUGMODE
+            logAlert("TAP prepared");
+          #endif 
+
         }
         else
         {
@@ -398,7 +403,18 @@ void proccesingTZX(char* file_ch)
     }
     else
     {
-      FILE_PREPARED = true;
+      if (TOTAL_BLOCKS !=0)
+      {
+        FILE_PREPARED = true;
+        
+        #ifdef DEBUGMODE
+          logAlert("TZX prepared");
+        #endif            
+      }
+      else
+      {
+        FILE_PREPARED = false;
+      }      
     }
 
 }
@@ -411,16 +427,28 @@ void proccesingTSX(char* file_ch)
 
     if (ABORT)
     {
-      LAST_MESSAGE = "Aborting proccess.";
+      //LAST_MESSAGE = "Aborting proccess.";
       //
       FILE_PREPARED = false;      
       ABORT=false;
     }
     else
     {
-      LAST_MESSAGE = "Press PLAY to enjoy!";
+      //LAST_MESSAGE = "Press PLAY to enjoy!";
       //
-      FILE_PREPARED = true;
+      if (TOTAL_BLOCKS !=0)
+      {
+        FILE_PREPARED = true;
+        
+        #ifdef DEBUGMODE
+          logAlert("TSX prepared");
+        #endif         
+        
+      }
+      else
+      {
+        FILE_PREPARED = false;
+      }
     }
 }
 
@@ -1282,12 +1310,7 @@ void loadingFile(char* file_ch)
         pTAP.setTAP(myTAP);   
         // Lo procesamos
         proccesingTAP(file_ch);
-        TYPE_FILE_LOAD = "TAP";
-        FILE_PREPARED = true;
-
-        #ifdef DEBUGMODE
-          logAlert("TAP prepared");
-        #endif        
+        TYPE_FILE_LOAD = "TAP";       
     }
     else if (FILE_TO_LOAD.indexOf(".TZX") != -1)    
     {
@@ -1298,12 +1321,7 @@ void loadingFile(char* file_ch)
 
         // Lo procesamos. Para ZX Spectrum
         proccesingTZX(file_ch);
-        TYPE_FILE_LOAD = "TZX";
-        FILE_PREPARED = true;
-
-        #ifdef DEBUGMODE
-          logAlert("TZX prepared");
-        #endif        
+        TYPE_FILE_LOAD = "TZX";    
     }
     else if (FILE_TO_LOAD.indexOf(".TSX") != -1)
     {
@@ -1316,11 +1334,6 @@ void loadingFile(char* file_ch)
         // Lo procesamos. Para ZX Spectrum
         proccesingTSX(file_ch);
         TYPE_FILE_LOAD = "TSX";    
-        FILE_PREPARED = true;
-
-        #ifdef DEBUGMODE
-          logAlert("TSX prepared");
-        #endif        
     }   
   }
   else
@@ -1803,10 +1816,10 @@ void tapeControl()
               {
 
                 #ifdef DEBUGMODE
-                  logAlert("No file selected.");
+                  logAlert("No file selected or empty file.");
                 #endif
 
-                LAST_MESSAGE = "No file selected.";                
+                LAST_MESSAGE = "No file selected or empty file.";                
               }
           }
           else
@@ -2041,6 +2054,26 @@ void setup()
 
     delay(750);
 
+    // Creamos el directorio /fav
+    String favDir = "/FAV";
+    
+    //Esto lo hacemos para ver si el directorio existe
+    if (!sdf.chdir(favDir))
+    {
+        if (!sdf.mkdir(favDir))
+        {
+          //#ifdef DEBUGMODE
+            logln("");
+            log("Error! Directory exists or wasn't created");
+          //#endif
+        } 
+        else
+        {
+          hmi.writeString("statusLCD.txt=\"Creating FAV directory\"" );
+          delay(750);
+        }
+    }
+
     // -------------------------------------------------------------------------
     // Esperando control del HMI
     // -------------------------------------------------------------------------
@@ -2098,7 +2131,7 @@ void setup()
     // sendStatus(PAUSE_ST, 0);
     // sendStatus(READY_ST, 1);
     // sendStatus(END_ST, 0);
-    
+
     sendStatus(REC_ST);
 
     LAST_MESSAGE = "Press EJECT to select a file or REC.";
