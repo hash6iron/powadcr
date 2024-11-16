@@ -1295,14 +1295,14 @@ void playingFile()
       tapeAnimationOFF();  
       //pTAP.updateMemIndicator();
   }
-  else if (TYPE_FILE_LOAD = "TZX")
+  else if (TYPE_FILE_LOAD == "TZX" || TYPE_FILE_LOAD == "CDT")
   {
       //hmi.getMemFree();
       pTZX.play();
       //Paramos la animación
       tapeAnimationOFF(); 
   }
-  else if (TYPE_FILE_LOAD = "TSX")
+  else if (TYPE_FILE_LOAD == "TSX")
   {
       //hmi.getMemFree();
       pTSX.play();
@@ -1343,6 +1343,17 @@ void loadingFile(char* file_ch)
         // Lo procesamos. Para ZX Spectrum
         proccesingTZX(file_ch);
         TYPE_FILE_LOAD = "TZX";    
+    }
+    else if (FILE_TO_LOAD.indexOf(".CDT") != -1)    
+    {
+        // Reservamos memoria
+        myTZX.descriptor = (TZXprocessor::tTZXBlockDescriptor*)ps_malloc(MAX_BLOCKS_IN_TZX * sizeof(struct TZXprocessor::tTZXBlockDescriptor));        
+        // Pasamos el control a la clase
+        pTZX.setTZX(myTZX);
+
+        // Lo procesamos. Para ZX Spectrum
+        proccesingTZX(file_ch);
+        TYPE_FILE_LOAD = "CDT";    
     }
     else if (FILE_TO_LOAD.indexOf(".TSX") != -1)
     {
@@ -1396,7 +1407,7 @@ void ejectingFile()
       // Finalizamos
       pTAP.terminate();
   }
-  else if (TYPE_FILE_LOAD = "TZX")
+  else if (TYPE_FILE_LOAD == "TZX" || TYPE_FILE_LOAD == "CDT")
   {
       // Solicitamos el puntero _myTZX de la clase
       // para liberarlo
@@ -1404,7 +1415,7 @@ void ejectingFile()
       // Finalizamos
       pTZX.terminate();
   }  
-  else if (TYPE_FILE_LOAD = "TSX")
+  else if (TYPE_FILE_LOAD == "TSX")
   {
       // Solicitamos el puntero _myTSX de la clase
       // para liberarlo
@@ -1744,7 +1755,7 @@ void tapeControl()
         {
           hmi.setBasicFileInformation(myTAP.descriptor[BLOCK_SELECTED].name,myTAP.descriptor[BLOCK_SELECTED].typeName,myTAP.descriptor[BLOCK_SELECTED].size);
         }
-        else if(TYPE_FILE_LOAD=="TZX")
+        else if(TYPE_FILE_LOAD=="TZX" || TYPE_FILE_LOAD=="CDT")
         {
           hmi.setBasicFileInformation(myTZX.descriptor[BLOCK_SELECTED].name,myTZX.descriptor[BLOCK_SELECTED].typeName,myTZX.descriptor[BLOCK_SELECTED].size);
         }
