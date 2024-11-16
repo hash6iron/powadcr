@@ -161,7 +161,7 @@ class HMI
                               // uint32_t posf = sdm.dir.position();
                               
                               // Si tiene una de las extensiones esperadas, se almacena
-                              if (strstr(substr, ".tap") || strstr(substr, ".tzx") || strstr(substr, ".tsx") || strstr(substr, ".wav")) 
+                              if (strstr(substr, ".tap") || strstr(substr, ".tzx") || strstr(substr, ".tsx") || strstr(substr, ".cdt") || strstr(substr, ".wav")) 
                               {
                                   // ***************************
                                   // Cogemos la info del fichero
@@ -966,7 +966,7 @@ class HMI
                   szName = String("<DIR>  ") + szName;
                   szName.toUpperCase();
               }     
-              else if (type == "TAP" || type == "TZX" || type == "TSX")
+              else if (type == "TAP" || type == "TZX" || type == "TSX" || type == "CDT")
               {
                   //Fichero
                   if (_sdf.exists("/fav/" + szName))
