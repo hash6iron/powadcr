@@ -87,7 +87,7 @@ class HMI
 
 
           // Declaramos el nombre del fichero
-          char szName[255];
+          char szName[512];
           const String separator="|";
           
           // Comprobamos que la ruta actual es un DIRECTORIO
@@ -121,114 +121,125 @@ class HMI
               // Ahora lo recorremos
               while (sdm.file.openNext(&sdm.dir, O_RDONLY))
               {
+                  esp_task_wdt_reset();
 
                   // Ok. Entonces es un fichero y cogemos su extensión
-                  sdm.file.getName(szName,254);                       
-                  int8_t len = strlen(szName);
-                  char* substr = strlwr(szName + (len - 4));    
-                  uint32_t posf = sdm.dir.position();
+                  logln("");
+                  log("ID: " + String(lpos));
 
-                  String szNameStr = szName;
+                  size_t len = sdm.file.getName(szName,254);   
 
-                  #ifdef DEBUGMODE
-                    logln("");
-                    logln("File found: " + szNameStr);
-                    log(szNameStr);
-                    logln("");
-                  #endif
+                  log(" - " + String(szName) + " len: " + String(len));                  
+                  // int8_t len = strlen(szName);
 
-                  szNameStr.toLowerCase();
-                  search_pattern.toLowerCase();
-
-                  if (szNameStr.indexOf(search_pattern) != -1 || search_pattern=="")
+                  // Cuando la longitud es cero el nombre del fichero es erroneo
+                  if (len != 0)
                   {
+                      char* substr = strlwr(szName + (len - 4));    
+                      uint32_t posf = sdm.dir.position();
+
+                      String szNameStr = szName;
+
                       #ifdef DEBUGMODE
                         logln("");
-                        log( "[" + szNameStr + "] matched with: " + search_pattern);
+                        logln("File found: " + szNameStr);
+                        log(szNameStr);
                         logln("");
                       #endif
-                      
-                      // ¿No es un directorio?
-                      if (!sdm.file.isDir())
+
+                      szNameStr.toLowerCase();
+                      search_pattern.toLowerCase();
+
+                      if (szNameStr.indexOf(search_pattern) != -1 || search_pattern=="")
                       {
-                          // ¿No está oculto?
-                          if (!sdm.file.isHidden())
+                          #ifdef DEBUGMODE
+                            logln("");
+                            log( "[" + szNameStr + "] matched with: " + search_pattern);
+                            logln("");
+                          #endif
+                          
+                          // ¿No es un directorio?
+                          if (!sdm.file.isDir())
                           {
-                              // // Ok. Entonces es un fichero y cogemos su extensión
-                              // sdm.file.getName(szName,254);                       
-                              // int8_t len = strlen(szName);
-                              // char* substr = strlwr(szName + (len - 4));    
-                              // uint32_t posf = sdm.dir.position();
-                              
-                              // Si tiene una de las extensiones esperadas, se almacena
-                              if (strstr(substr, ".tap") || strstr(substr, ".tzx") || strstr(substr, ".tsx") || strstr(substr, ".cdt") || strstr(substr, ".wav")) 
+                              // ¿No está oculto?
+                              if (!sdm.file.isHidden())
+                              {
+                                  // // Ok. Entonces es un fichero y cogemos su extensión
+                                  // sdm.file.getName(szName,254);                       
+                                  // int8_t len = strlen(szName);
+                                  // char* substr = strlwr(szName + (len - 4));    
+                                  // uint32_t posf = sdm.dir.position();
+                                  
+                                  // Si tiene una de las extensiones esperadas, se almacena
+                                  if (strstr(substr, ".tap") || strstr(substr, ".tzx") || strstr(substr, ".tsx") || strstr(substr, ".cdt") || strstr(substr, ".wav")) 
+                                  {
+                                      // ***************************
+                                      // Cogemos la info del fichero
+                                      // ***************************
+
+                                      // numero del fichero
+                                      fout.print(String(lpos));
+                                      fout.print(separator);
+                                      // tipo
+                                      fout.print("F");
+                                      fout.print(separator);
+                                      // seek
+                                      fout.print(String(posf));
+                                      fout.print(separator);
+                                      // nombre del fichero
+                                      fout.print(szName);
+                                      fout.println(separator);
+                                      // Incrementamos el indice
+                                      cfiles++;
+                                      lpos++;
+                                  }
+                                  else
+                                  {
+                                    //No es fichero reconocido
+                                  }
+                              }
+                          }
+                          else
+                          {
+                              // Es un directorio
+                              // Lo registramos si no está oculto
+                              if(!sdm.file.isHidden())
                               {
                                   // ***************************
-                                  // Cogemos la info del fichero
+                                  // Cogemos la info del directorio
                                   // ***************************
+                                  //
 
                                   // numero del fichero
                                   fout.print(String(lpos));
                                   fout.print(separator);
                                   // tipo
-                                  fout.print("F");
+                                  fout.print("D");
                                   fout.print(separator);
                                   // seek
                                   fout.print(String(posf));
                                   fout.print(separator);
-                                  // nombre del fichero
-                                  fout.print(szName);
+                                  // nombre del directorio a MAYUSCULAS
+                                  // String szDirNameTmp = szName;
+                                  // szDirNameTmp.toUpperCase();
+                                  fout.print(szName);                      
                                   fout.println(separator);
                                   // Incrementamos el indice
-                                  cfiles++;
+                                  cdir++;
                                   lpos++;
-                              }
-                              else
-                              {
-                                //No es fichero reconocido
-                              }
+                              }                   
                           }
+
+                          // Registramos la ruta y el total de ficheros y directorios en _files.inf
+                          fstatus.println("CFIL=" + String(cfiles));
+                          fstatus.println("CDIR=" + String(cdir));
+                          // Cerramos el fichero
+                          //sdm.file.close();
+                          //
+                          FILE_TOTAL_FILES = cdir + cfiles;
+
+                          writeString("statusFILE.txt=\"ITEMS " + String(FILE_TOTAL_FILES-1) +"\""); 
                       }
-                      else
-                      {
-                          // Es un directorio
-                          // Lo registramos si no está oculto
-                          if(!sdm.file.isHidden())
-                          {
-                              // ***************************
-                              // Cogemos la info del directorio
-                              // ***************************
-                              //
-
-                              // numero del fichero
-                              fout.print(String(lpos));
-                              fout.print(separator);
-                              // tipo
-                              fout.print("D");
-                              fout.print(separator);
-                              // seek
-                              fout.print(String(posf));
-                              fout.print(separator);
-                              // nombre del directorio a MAYUSCULAS
-                              // String szDirNameTmp = szName;
-                              // szDirNameTmp.toUpperCase();
-                              fout.print(szName);                      
-                              fout.println(separator);
-                              // Incrementamos el indice
-                              cdir++;
-                              lpos++;
-                          }                   
-                      }
-
-                      // Registramos la ruta y el total de ficheros y directorios en _files.inf
-                      fstatus.println("CFIL=" + String(cfiles));
-                      fstatus.println("CDIR=" + String(cdir));
-                      // Cerramos el fichero
-                      //sdm.file.close();
-                      //
-                      FILE_TOTAL_FILES = cdir + lpos;
-
-                      writeString("statusFILE.txt=\"ITEMS " + String(FILE_TOTAL_FILES-1) +"\""); 
                   }
 
                   sdm.file.close();
