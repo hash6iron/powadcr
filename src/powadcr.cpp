@@ -1401,25 +1401,40 @@ void ejectingFile()
   {
       // Solicitamos el puntero _myTAP de la clase
       // para liberarlo
-      free(pTAP.getDescriptor());
-      // Finalizamos
-      pTAP.terminate();
+      if (myTAP.descriptor != nullptr)
+      {
+        LAST_MESSAGE = "PSRAM cleanning";
+        delay(1500);
+        free(pTAP.getDescriptor());
+        // Finalizamos
+        pTAP.terminate();
+      }
   }
   else if (TYPE_FILE_LOAD == "TZX" || TYPE_FILE_LOAD == "CDT")
   {
       // Solicitamos el puntero _myTZX de la clase
       // para liberarlo
-      free(pTZX.getDescriptor());
-      // Finalizamos
-      pTZX.terminate();
+      if (myTZX.descriptor != nullptr)
+      {
+        LAST_MESSAGE = "PSRAM cleanning";
+        delay(1500);
+        free(pTZX.getDescriptor());
+        // Finalizamos
+        pTZX.terminate();
+      }
   }  
   else if (TYPE_FILE_LOAD == "TSX")
   {
       // Solicitamos el puntero _myTSX de la clase
       // para liberarlo
-      free(pTSX.getDescriptor());
-      // Finalizamos
-      pTSX.terminate();
+      if (myTSX.descriptor != nullptr)
+      {
+        LAST_MESSAGE = "PSRAM cleanning";
+        delay(1500);
+        free(pTSX.getDescriptor());
+        // Finalizamos
+        pTSX.terminate();
+      }
   }    
 }
 

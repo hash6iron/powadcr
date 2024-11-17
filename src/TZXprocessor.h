@@ -746,8 +746,8 @@ class TZXprocessor
         _myTZX.descriptor[currentBlock].timming.pulse_seq_num_pulses = num_pulses;
         
         // Reservamos memoria.
-        //_myTZX.descriptor[currentBlock].timming.pulse_seq_array = new int[num_pulses]; 
-        _myTZX.descriptor[currentBlock].timming.pulse_seq_array[num_pulses];
+        _myTZX.descriptor[currentBlock].timming.pulse_seq_array = new int[num_pulses]; 
+        //_myTZX.descriptor[currentBlock].timming.pulse_seq_array[num_pulses];
         
         // Tomamos ahora las longitudes
         int coff = currentOffset+2;
@@ -756,9 +756,11 @@ class TZXprocessor
           log("ID-13: Pulse sequence");
         #endif
         //SerialHW.println("");
-
+        logln("");
+        log("Starting");
         for (int i=0;i<num_pulses;i++)
         {
+          log("ini i=" + String(i));
           int lenPulse = getWORD(mFile,coff);
           _myTZX.descriptor[currentBlock].timming.pulse_seq_array[i]=lenPulse;
 
