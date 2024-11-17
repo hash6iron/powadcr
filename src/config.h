@@ -50,7 +50,7 @@
 //#define SAMPLINGTESTACTIVE
 
 // Para activar el modo debug
-#define DEBUGMODE
+// #define DEBUGMODE
 
 //#define MACHINE_AMSTRAD
 
