@@ -189,6 +189,9 @@ WebServer server(80);
 // AudioKitStream kit;
 // StreamCopy copier(kit, kit);  // copies data
 
+// Prototype function
+void ejectingFile();
+
 int* strToIPAddress(String strIPAddr)
 {
     int* ipnum = new int[4];
@@ -1323,16 +1326,7 @@ void loadingFile(char* file_ch)
     FILE_TO_LOAD.toUpperCase();
     //LAST_MESSAGE = "File to load: " + FILE_TO_LOAD;
 
-    // Liberamos la memoria de todos los posibles descriptores 
-    if (pTAP.getDescriptor() != nullptr) 
-           free(pTAP.getDescriptor());
-           pTAP.setDescriptorNull();
-    if (pTZX.getDescriptor() != nullptr)
-           free(pTZX.getDescriptor());
-           pTZX.setDescriptorNull();
-    if (pTSX.getDescriptor() != nullptr)
-           free(pTSX.getDescriptor());
-           pTSX.setDescriptorNull();
+    ejectingFile();
 
     if (FILE_TO_LOAD.indexOf(".TAP") != -1)
     {
@@ -1836,7 +1830,7 @@ void tapeControl()
               // Si se ha seleccionado lo cargo en el cassette.     
               char* file_ch = (char*)ps_malloc(256 * sizeof(char));
               FILE_TO_LOAD.toCharArray(file_ch, 256);
-
+              
               loadingFile(file_ch);
               free(file_ch);
 
