@@ -987,14 +987,8 @@ class HMI
               printFileRows(i-1, color, szName);
 
               // Delay necesario para un correcto listado en pantalla.
-              if (SD_SPEED_MHZ > 15)
-              {
-                delay(2);
-              }
-              else
-              {
-                delay(1);
-              }
+              delay(2);
+
         }
 
         showInformationAboutFiles();        

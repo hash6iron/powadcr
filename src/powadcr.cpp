@@ -192,6 +192,42 @@ WebServer server(80);
 // Prototype function
 void ejectingFile();
 
+void freeMemoryFromDescriptorTZX(TZXprocessor::tTZXBlockDescriptor* descriptor)
+{
+  // Vamos a liberar el descriptor completo
+  for (int n=0;n<TOTAL_BLOCKS;n++)
+  {
+    switch (descriptor[n].ID)
+    {
+      case 13:
+        // Hay que liberar el array
+        delete[] descriptor[n].timming.pulse_seq_array;
+        break;
+      
+      default:
+        break;
+    }
+  }
+}
+
+void freeMemoryFromDescriptorTSX(TSXprocessor::tTSXBlockDescriptor* descriptor)
+{
+  // Vamos a liberar el descriptor completo
+  for (int n=0;n<TOTAL_BLOCKS;n++)
+  {
+    switch (descriptor[n].ID)
+    {
+      case 13:
+        // Hay que liberar el array
+        delete[] descriptor[n].timming.pulse_seq_array;
+        break;
+      
+      default:
+        break;
+    }
+  }
+}
+
 int* strToIPAddress(String strIPAddr)
 {
     int* ipnum = new int[4];
@@ -1403,8 +1439,8 @@ void ejectingFile()
       // para liberarlo
       if (myTAP.descriptor != nullptr)
       {
-        LAST_MESSAGE = "PSRAM cleanning";
-        delay(1500);
+        // LAST_MESSAGE = "PSRAM cleanning";
+        // delay(1500);
         free(pTAP.getDescriptor());
         // Finalizamos
         pTAP.terminate();
@@ -1418,6 +1454,7 @@ void ejectingFile()
       {
         LAST_MESSAGE = "PSRAM cleanning";
         delay(1500);
+        freeMemoryFromDescriptorTZX(pTZX.getDescriptor());
         free(pTZX.getDescriptor());
         // Finalizamos
         pTZX.terminate();
@@ -1431,6 +1468,7 @@ void ejectingFile()
       {
         LAST_MESSAGE = "PSRAM cleanning";
         delay(1500);
+        freeMemoryFromDescriptorTSX(pTSX.getDescriptor());
         free(pTSX.getDescriptor());
         // Finalizamos
         pTSX.terminate();
