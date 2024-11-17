@@ -1323,6 +1323,17 @@ void loadingFile(char* file_ch)
     FILE_TO_LOAD.toUpperCase();
     //LAST_MESSAGE = "File to load: " + FILE_TO_LOAD;
 
+    // Liberamos la memoria de todos los posibles descriptores 
+    if (pTAP.getDescriptor() != nullptr) 
+           free(pTAP.getDescriptor());
+           pTAP.setDescriptorNull();
+    if (pTZX.getDescriptor() != nullptr)
+           free(pTZX.getDescriptor());
+           pTZX.setDescriptorNull();
+    if (pTSX.getDescriptor() != nullptr)
+           free(pTSX.getDescriptor());
+           pTSX.setDescriptorNull();
+
     if (FILE_TO_LOAD.indexOf(".TAP") != -1)
     {
         // Reservamos memoria
@@ -1333,7 +1344,7 @@ void loadingFile(char* file_ch)
         proccesingTAP(file_ch);
         TYPE_FILE_LOAD = "TAP";       
     }
-    else if (FILE_TO_LOAD.indexOf(".TZX") != -1)    
+    else if ((FILE_TO_LOAD.indexOf(".TZX") != -1) || FILE_TO_LOAD.indexOf(".CDT") != -1)    
     {
         // Reservamos memoria
         myTZX.descriptor = (TZXprocessor::tTZXBlockDescriptor*)ps_malloc(MAX_BLOCKS_IN_TZX * sizeof(struct TZXprocessor::tTZXBlockDescriptor));        
@@ -1344,20 +1355,8 @@ void loadingFile(char* file_ch)
         proccesingTZX(file_ch);
         TYPE_FILE_LOAD = "TZX";    
     }
-    else if (FILE_TO_LOAD.indexOf(".CDT") != -1)    
-    {
-        // Reservamos memoria
-        myTZX.descriptor = (TZXprocessor::tTZXBlockDescriptor*)ps_malloc(MAX_BLOCKS_IN_TZX * sizeof(struct TZXprocessor::tTZXBlockDescriptor));        
-        // Pasamos el control a la clase
-        pTZX.setTZX(myTZX);
-
-        // Lo procesamos. Para ZX Spectrum
-        proccesingTZX(file_ch);
-        TYPE_FILE_LOAD = "CDT";    
-    }
     else if (FILE_TO_LOAD.indexOf(".TSX") != -1)
     {
-
         // Reservamos memoria
         myTSX.descriptor = (TSXprocessor::tTSXBlockDescriptor*)ps_malloc(MAX_BLOCKS_IN_TZX * sizeof(struct TSXprocessor::tTSXBlockDescriptor));        
         // Pasamos el control a la clase
@@ -1572,6 +1571,7 @@ void tapeControl()
           // Expulsamos la cinta
           FILE_PREPARED = false;
           FILE_SELECTED = false;
+
         }
         else if (REC)
         {
