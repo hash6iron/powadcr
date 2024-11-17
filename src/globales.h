@@ -155,7 +155,7 @@ uint8_t TAPESTATE = 0;
 edge POLARIZATION = up;
 edge LAST_EAR_IS = POLARIZATION;
 //edge SCOPE = down;
-bool APPLY_END = true;
+bool APPLY_END = false;
 int SAMPLING_RATE = 22050;
 
 bool INVERSETRAIN = false;
