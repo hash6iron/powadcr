@@ -199,7 +199,7 @@ void freeMemoryFromDescriptorTZX(TZXprocessor::tTZXBlockDescriptor* descriptor)
   {
     switch (descriptor[n].ID)
     {
-      case 13:
+      case 19:  // bloque 0x13
         // Hay que liberar el array
         delete[] descriptor[n].timming.pulse_seq_array;
         break;
@@ -217,7 +217,7 @@ void freeMemoryFromDescriptorTSX(TSXprocessor::tTSXBlockDescriptor* descriptor)
   {
     switch (descriptor[n].ID)
     {
-      case 13:
+      case 19:  // bloque 0x13
         // Hay que liberar el array
         delete[] descriptor[n].timming.pulse_seq_array;
         break;
@@ -1360,10 +1360,12 @@ void loadingFile(char* file_ch)
 
     // Convierto a mayusculas
     FILE_TO_LOAD.toUpperCase();
-    //LAST_MESSAGE = "File to load: " + FILE_TO_LOAD;
-
+  
+    // Eliminamos la memoria ocupado por el actual insertado
+    // y lo ejectamos
     ejectingFile();
 
+    // Cargamos el seleccionado.
     if (FILE_TO_LOAD.indexOf(".TAP") != -1)
     {
         // Reservamos memoria
@@ -1646,37 +1648,6 @@ void tapeControl()
 
         break;
   
-    case 10: 
-        //
-        //File prepared
-        //
-        if (PLAY)
-        {
-          if (FILE_PREPARED)
-          {
-            TAPESTATE = 1;
-            LOADING_STATE = 1;
-          }
-        }
-        else if (EJECT)
-        {
-          TAPESTATE = 0;
-          LOADING_STATE = 0;
-        }
-        else if (REC)
-        {
-          FILE_PREPARED = false;
-          FILE_SELECTED = false;
-          hmi.clearInformationFile();        
-          TAPESTATE = 0; 
-        }
-        else
-        {
-          TAPESTATE = 10;
-          LOADING_STATE = 0;
-        }
-        break;
-
     case 1:   
       //
       // PLAY / STOP
@@ -1738,8 +1709,20 @@ void tapeControl()
         }
 
         LOADING_STATE = 2;
+        // Al parar el c.block del HMI se pone a 1.
+        BLOCK_SELECTED = 1;
         // Reproducimos el fichero
-        LAST_MESSAGE = "Stop playing.";      
+        if (!AUTO_STOP)
+        {
+          LAST_MESSAGE = "Stop playing.";
+          AUTO_STOP = false;
+        }
+        else
+        {
+          LAST_MESSAGE = "Auto-Stop playing.";
+          AUTO_STOP = false;
+        }
+              
       }
       else if (REC)
       {
@@ -1830,7 +1813,38 @@ void tapeControl()
         TAPESTATE = 3;
       }
       break;
-    
+
+    case 10: 
+        //
+        //File prepared
+        //
+        if (PLAY)
+        {
+          if (FILE_PREPARED)
+          {
+            TAPESTATE = 1;
+            LOADING_STATE = 1;
+          }
+        }
+        else if (EJECT)
+        {
+          TAPESTATE = 0;
+          LOADING_STATE = 0;
+        }
+        else if (REC)
+        {
+          FILE_PREPARED = false;
+          FILE_SELECTED = false;
+          hmi.clearInformationFile();        
+          TAPESTATE = 0; 
+        }
+        else
+        {
+          TAPESTATE = 10;
+          LOADING_STATE = 0;
+        }
+        break;
+
     case 99:  
       //
       // Eject

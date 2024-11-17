@@ -344,6 +344,7 @@ bool PLAY = false;
 bool PAUSE = true;
 bool REC = false;
 bool STOP = false;
+bool AUTO_STOP = false;
 bool FFWIND = false;
 bool RWIND = false;
 bool EJECT = false;

@@ -1483,8 +1483,8 @@ class TAPprocessor
                         PLAY = false;
                         STOP = true;
                         PAUSE = false;
-
-                        LAST_MESSAGE = "Playing end. Automatic STOP.";
+                        AUTO_STOP = true;
+                        // LAST_MESSAGE = "Playing end. Automatic STOP.";
 
                         _hmi.setBasicFileInformation(_myTAP.descriptor[BLOCK_SELECTED].name,_myTAP.descriptor[BLOCK_SELECTED].typeName,_myTAP.descriptor[BLOCK_SELECTED].size);
                         //

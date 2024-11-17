@@ -2624,7 +2624,8 @@ class TZXprocessor
                 STOP = true;
                 PAUSE = false;
 
-                LAST_MESSAGE = "Playing end. Automatic STOP.";
+                // LAST_MESSAGE = "Playing end. Automatic STOP.";
+                AUTO_STOP = true;
 
                 _hmi.setBasicFileInformation(_myTZX.descriptor[BLOCK_SELECTED].name,_myTZX.descriptor[BLOCK_SELECTED].typeName,_myTZX.descriptor[BLOCK_SELECTED].size);
               }
