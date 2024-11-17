@@ -755,12 +755,9 @@ class TZXprocessor
         #ifdef DEBUGMODE
           log("ID-13: Pulse sequence");
         #endif
-        //SerialHW.println("");
-        logln("");
-        log("Starting");
+
         for (int i=0;i<num_pulses;i++)
         {
-          log("ini i=" + String(i));
           int lenPulse = getWORD(mFile,coff);
           _myTZX.descriptor[currentBlock].timming.pulse_seq_array[i]=lenPulse;
 
