@@ -1625,6 +1625,8 @@ void tapeControl()
           // Expulsamos la cinta
           FILE_PREPARED = false;
           FILE_SELECTED = false;
+          // 
+          AUTO_STOP = false;
 
         }
         else if (REC)
@@ -1632,6 +1634,8 @@ void tapeControl()
           LAST_MESSAGE = "Rec paused. Press PAUSE to start recording.";
           recAnimationON();
           TAPESTATE = 220;
+          // 
+          AUTO_STOP = false;
         }
         else if (STOP)
         {
@@ -1715,12 +1719,10 @@ void tapeControl()
         if (!AUTO_STOP)
         {
           LAST_MESSAGE = "Stop playing.";
-          AUTO_STOP = false;
         }
         else
         {
           LAST_MESSAGE = "Auto-Stop playing.";
-          AUTO_STOP = false;
         }
               
       }
