@@ -84,7 +84,7 @@ class TZXprocessor
         char name[11];                               // Nombre del TZX
         int size = 0;                             // Tamaño
         int numBlocks = 0;                        // Numero de bloques
-        tTZXBlockDescriptor* descriptor;          // Descriptor
+        tTZXBlockDescriptor* descriptor = nullptr;          // Descriptor
       };
 
     private:
@@ -247,9 +247,9 @@ class TZXprocessor
                 //String fileExtension = szNameStr.substring(szNameStr.length()-3);
                 fileName.toUpperCase();
                 
-                if (fileName.indexOf(".TZX") != -1)
+                if (fileName.indexOf(".TZX") != -1 || fileName.indexOf(".CDT") != -1 )
                 {
-                    //La extensión es TZX pero ahora vamos a comprobar si internamente también lo es
+                    //La extensión es TZX o CDT pero ahora vamos a comprobar si internamente también lo es
                     if (isHeaderTZX(tzxFile))
                     { 
                       //Cerramos el fichero porque no se usará mas.
@@ -746,7 +746,8 @@ class TZXprocessor
         _myTZX.descriptor[currentBlock].timming.pulse_seq_num_pulses = num_pulses;
         
         // Reservamos memoria.
-        _myTZX.descriptor[currentBlock].timming.pulse_seq_array = new int[num_pulses]; 
+        //_myTZX.descriptor[currentBlock].timming.pulse_seq_array = new int[num_pulses]; 
+        _myTZX.descriptor[currentBlock].timming.pulse_seq_array[num_pulses];
         
         // Tomamos ahora las longitudes
         int coff = currentOffset+2;
@@ -1765,12 +1766,17 @@ class TZXprocessor
     {
         return _myTZX.descriptor;
     }
-
+    
+    void setDescriptorNull()
+    {
+            _myTZX.descriptor = nullptr;
+    }
+    
     void setTZX(tTZX tzx)
     {
         _myTZX = tzx;
     }
-
+    
     void showInfoBlockInProgress(int nBlock)
     {
         // switch(nBlock)

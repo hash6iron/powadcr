@@ -87,7 +87,7 @@ class TSXprocessor
         char name[11];                               // Nombre del TSX
         int size = 0;                             // Tamaño
         int numBlocks = 0;                        // Numero de bloques
-        tTSXBlockDescriptor* descriptor;          // Descriptor
+        tTSXBlockDescriptor* descriptor = nullptr;          // Descriptor
       };
 
     private:
@@ -1941,6 +1941,11 @@ class TSXprocessor
     tTSXBlockDescriptor* getDescriptor()
     {
         return _myTSX.descriptor;
+    }
+
+    void setDescriptorNull()
+    {
+            _myTSX.descriptor = nullptr;
     }
 
     void setTSX(tTSX tsx)

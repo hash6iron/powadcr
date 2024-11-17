@@ -151,6 +151,7 @@ class TAPprocessor
 
             tapFileName.getName(szName,254);
             String fileName = static_cast<String>(szName);
+            delete szName;
 
             if (fileName != "")
             {
@@ -181,7 +182,7 @@ class TAPprocessor
             #ifdef DEBUGMODE
                 log("IsFileTAP OK");
             #endif
-
+            
             return rtn;
         }
 
@@ -278,55 +279,51 @@ class TAPprocessor
 
         char* getTypeTAPBlock(int nBlock)
         {
-            String typeName;
-            char* rtnStr = new char[20 + 1];
-
             switch(nBlock)
             {
                 case 0:
 
                     // Definimos el buffer del PLAYER igual al tamaño del bloque
-                    typeName = "PROGRAM.HEAD";
+                    return (char*)("PROGRAM.HEAD");
                     break;
 
                 case 1:
 
                     // Definimos el buffer del PLAYER igual al tamaño del bloque
-                    typeName = "BYTE.DATA";
+                    return (char*)"BYTE.DATA";
                     break;
 
                 case 7:
 
                     // Definimos el buffer del PLAYER igual al tamaño del bloque
-                    typeName = "SCREEN.HEAD";
+                    return (char*)"SCREEN.HEAD";
                     break;
 
                 case 2:
                     // Definimos el buffer del PLAYER igual al tamaño del bloque
-                    typeName = "BASIC BLOCK";
+                    return (char*)"BASIC BLOCK";
                     break;
 
                 case 3:
                     // Definimos el buffer del PLAYER igual al tamaño del bloque
-                    typeName = "SCREEN.DATA";
+                    return (char*)"SCREEN.DATA";
                     break;
 
                 case 4:
                     // Definimos el buffer del PLAYER igual al tamaño del bloque
                     if (LAST_SIZE != 6914)
                     {
-                        typeName = "BYTE.DATA";
+                        return (char*)"BYTE.DATA";
                     }
                     else
                     {
-                        typeName = "SCREEN.DATA";
+                        return (char*)"SCREEN.DATA";
                     }
                     break;
+                default:
+                        // nunca alcanza esta linea pero se introduce para evitar errores en compilacion
+                        return (char*)"";
             }        
-
-            // Transformamos en char*
-            strcpy(rtnStr, typeName.c_str());
-            return rtnStr;
         }
         
         char* getNameFromHeader(uint8_t* header, int startByte)
@@ -976,6 +973,11 @@ class TAPprocessor
         tBlockDescriptor* getDescriptor()
         {
             return _myTAP.descriptor;
+        }
+
+        void setDescriptorNull()
+        {
+            _myTAP.descriptor = nullptr;
         }
 
         tTAP getTAP()
