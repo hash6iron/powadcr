@@ -37,14 +37,14 @@
 
 // Para Rolling releases - rDDMMYY.HHMM
 // Para versión estable - vX.Y
-#define VERSION "r241118.0154"
+#define VERSION "r241118.1712"
 #define MACHINE_ZX
 
 // Define sampling rate a 44.1KHz. En otro caso será a 32KHz
 //#define SAMPLING44
 //#define SAMPLING48
 //#define SAMPLING32
-#define SAMPLING22
+//#define SAMPLING22
 
 // Activa el test de sampling para calibrado de la salida ES83883
 //#define SAMPLINGTESTACTIVE

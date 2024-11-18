@@ -890,6 +890,9 @@ class TZXprocessor
         // BYTE 0x00 y 0x01
         _myTZX.descriptor[currentBlock].samplingRate = getWORD(mFile,currentOffset+1);
         _myTZX.descriptor[currentBlock].pauseAfterThisBlock = getWORD(mFile,currentOffset+3);
+        // Esto es muy importante para el ID 0x15
+        // Used bits (samples) in last byte of data (1-8) (e.g. if this is 2, only first two samples of the last byte will be played)
+        _myTZX.descriptor[currentBlock].hasMaskLastByte = true;
         _myTZX.descriptor[currentBlock].maskLastByte = getBYTE(mFile,currentOffset+5);
 
         // //SerialHW.println("");
@@ -1206,6 +1209,10 @@ class TZXprocessor
 
                 nextIDoffset = currentOffset + _myTZX.descriptor[currentBlock].size + 9 + 1;;  
                 strncpy(_myTZX.descriptor[currentBlock].typeName,IDXXSTR,35);
+
+                // Informacion minima del fichero
+                PROGRAM_NAME = "Audio block (WAV)";
+                LAST_SIZE = _myTZX.descriptor[currentBlock].size;
                 
                 #ifdef DEBUGMODE
                   log("ID 0x21 - DIRECT RECORDING");
@@ -2002,16 +2009,12 @@ class TZXprocessor
             int lastBlockSize = totalSize - (blocks * blockSizeSplit);
 
             #ifdef DEBUGMODE
-              logln("> Offset DATA:         " + String(offsetBase));
-              logln("> Total size del DATA: " + String(totalSize));
+              logln("");
+              log("> Offset DATA:         " + String(offsetBase));
+              log("> Total size del DATA: " + String(totalSize));
+              log("> Total blocks: " + String(blocks));
+              log("> Last block size: " + String(lastBlockSize));
             #endif
-
-
-            // log("Información: ");
-            // log(" - Tamaño total del bloque entero: " + String(totalSize));
-            // log(" - Numero de particiones: " + String(blocks));
-            // log(" - Ultimo bloque (size): " + String(lastBlockSize));
-            // log(" - Offset: " + String(offsetBase));
 
             if(!DIRECT_RECORDING)
             {
@@ -2029,7 +2032,8 @@ class TZXprocessor
               PARTITION_BLOCK = n;
               
               #ifdef DEBUGMODE
-                logln("Envio el partition");
+                logln("");
+                log("Sending partition");
               #endif
 
               // Calculamos el offset del bloque
@@ -2049,7 +2053,8 @@ class TZXprocessor
                   else
                   {
                     #ifdef DEBUGMODE
-                      logln("> Playing DR block - Splitted");
+                      logln("");
+                      log("> Playing DR block - Splitted - begin");
                     #endif                    
                     _zxp.playDRBlock(bufferPlay,blockSizeSplit,false);
                   }
@@ -2063,7 +2068,8 @@ class TZXprocessor
                   else
                   {
                     #ifdef DEBUGMODE
-                      logln("> Playing DR block - Splitted 2");
+                      logln("");
+                      log("> Playing DR block - Splitted - middle");
                     #endif                    
                     _zxp.playDRBlock(bufferPlay,blockSizeSplit,false);
                   }
@@ -2089,7 +2095,8 @@ class TZXprocessor
             else
             {
               #ifdef DEBUGMODE
-                logln("> Playing DR block - Last");
+                logln("");
+                log("> Playing DR block - Splitted - Last");
               #endif                    
              
               _zxp.playDRBlock(bufferPlay,blockSizeSplit,true);
@@ -2144,7 +2151,7 @@ class TZXprocessor
       return res;
     }
 
-    int getIdAndPlay(int i)
+    int getIDAndPlay(int i)
     {
         // Inicializamos el buffer de reproducción. Memoria dinamica
         uint8_t* bufferPlay = nullptr;
@@ -2171,18 +2178,42 @@ class TZXprocessor
         {
             case 21:
               DIRECT_RECORDING = true;
+              // 
+              PROGRAM_NAME = "Audio block (WAV)";
+              LAST_SIZE = _myTZX.descriptor[i].size;          
+              // 
               if (_myTZX.descriptor[i].samplingRate == 79)
               {
                   SAMPLING_RATE = 44100;
                   ESP32kit.setSampleRate(AUDIO_HAL_44K_SAMPLES);
-                  LAST_MESSAGE = "Direct recording 44.1KHz";
+                  LAST_MESSAGE = "Direct recording at 44.1KHz";
               }
-              else
+              else if (_myTZX.descriptor[i].samplingRate == 158)
               {
                   SAMPLING_RATE = 22050;
                   ESP32kit.setSampleRate(AUDIO_HAL_22K_SAMPLES);
-                  LAST_MESSAGE = "Direct recording 22.05KHz";
+                  LAST_MESSAGE = "Direct recording at 22.05KHz";
               }
+              else
+              {
+                LAST_MESSAGE = "Direct recording sampling rate unknow";
+                delay(1500);
+                //Paramos la reproducción.
+
+                PAUSE = false;
+                STOP = true;
+                PLAY = false;
+
+                i = _myTZX.numBlocks+1;
+
+                LOOP_PLAYED = 0;
+                LAST_EAR_IS = down;
+                LOOP_START = 0;
+                LOOP_END = 0;
+                BL_LOOP_START = 0;
+                BL_LOOP_END = 0;                
+              }
+              // Ahora reproducimos
               playBlock(_myTZX.descriptor[i]);
               break;
             
@@ -2587,7 +2618,7 @@ class TZXprocessor
               for (int i = firstBlockToBePlayed; i < _myTZX.numBlocks; i++) 
               {               
                   BLOCK_SELECTED = i;                
-                  int new_i = getIdAndPlay(i);
+                  int new_i = getIDAndPlay(i);
                   // Entonces viene cambiada de un loop
                   if (new_i != -1)
                   {

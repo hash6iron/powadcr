@@ -1241,7 +1241,7 @@ void uploadFirmDisplay(char *filetft)
 
         // Lo enviamos
         SerialHW.write(buf, readcount);
-        delay(200);
+        delay(125);
 
         // Si es el primer bloque esperamos respuesta de 0x05 o 0x08
         // en el caso de 0x08 saltaremos a la posición que indica la pantalla.
@@ -1256,10 +1256,7 @@ void uploadFirmDisplay(char *filetft)
           while (1)
           {
               res = hmi.readStr();
-              // if(res.indexOf(0x05) != -1)
-              // {
-              //   break;
-              // }
+
               if (res.indexOf(0x08) != -1)
               {
                 int offset = (pow(16,6) * int(res[4])) + (pow(16,4) * int(res[3])) + (pow(16,2) * int(res[2])) + int(res[1]);
@@ -1276,13 +1273,27 @@ void uploadFirmDisplay(char *filetft)
               delay(50);
           }
         }
+        else
+        {
+          String res = "";
+          while(1)
+          {
+            // Esperams un ACK 0x05
+            res = hmi.readStr();
+            if(res.indexOf(0x05) != -1)
+            {
+              break;
+            }
+          }
+        }
             
         //
         bl++;          
         // Vemos lo que queda una vez he movido el seek o he leido un bloque
         // ".available" mide lo que queda desde el puntero a EOF.
         filesize = file.available();        
-      }
+    }
+
 
     file.close();
 }

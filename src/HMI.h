@@ -2640,11 +2640,12 @@ class HMI
           lastPr1 = PROGRESS_BAR_BLOCK_VALUE = 0;
           lastPr2 = PROGRESS_BAR_TOTAL_VALUE = 0;
 
+
           // Forzamos un actualizado de la información del tape
           writeString("name.txt=\"" + PROGRAM_NAME + " : " + PROGRAM_NAME_2 + "\"");
           writeString("tape2.name.txt=\"" + PROGRAM_NAME + " : " + PROGRAM_NAME_2 + "\"");
-          writeString("size.txt=\"" + String(LAST_SIZE) + " bytes\"");
-          writeString("tape2.size.txt=\"" + String(LAST_SIZE) + " bytes\"");
+          writeString("size.txt=\"0 bytes\"");
+          writeString("tape2.size.txt=\"0 bytes\"");
           writeString("type.txt=\"" + String(LAST_TYPE) + " " + LAST_GROUP + "\"");
           writeString("tape2.type.txt=\"" + String(LAST_TYPE) + " " + LAST_GROUP + "\"");
           writeString("progression.val=" + String(PROGRESS_BAR_BLOCK_VALUE));   
@@ -2715,8 +2716,16 @@ class HMI
             
             if (lstLastSize!=LAST_SIZE)
             {
-              writeString("size.txt=\"" + String(LAST_SIZE) + " bytes\"");
-              writeString("tape2.size.txt=\"" + String(LAST_SIZE) + " bytes\"");
+                if (LAST_SIZE > 9999)
+                {
+                  writeString("size.txt=\"" + String(LAST_SIZE / 1024) + " Kb\"");
+                  writeString("tape2.size.txt=\"" + String(LAST_SIZE / 1024) + " Kb\"");
+                }
+                else
+                {
+                  writeString("size.txt=\"" + String(LAST_SIZE) + " bytes\"");
+                  writeString("tape2.size.txt=\"" + String(LAST_SIZE) + " bytes\"");
+                }
             }
             lstLastSize = LAST_SIZE;
 
