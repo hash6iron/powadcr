@@ -1241,7 +1241,6 @@ void uploadFirmDisplay(char *filetft)
 
         // Lo enviamos
         SerialHW.write(buf, readcount);
-        delay(125);
 
         // Si es el primer bloque esperamos respuesta de 0x05 o 0x08
         // en el caso de 0x08 saltaremos a la posición que indica la pantalla.

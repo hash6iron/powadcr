@@ -1019,7 +1019,7 @@ class HMI
           // Indicamos el path actual
           writeString("currentDir.txt=\"" + String(FILE_LAST_DIR_LAST) + "\"");
           // Actualizamos el total del ficheros leidos anteriormente.
-          writeString("statusFILE.txt=\"ITEMS " + String(FILE_TOTAL_FILES - 1) +"\"");         
+          writeString("statusFILE.txt=\"ITEMS  " + String(FILE_TOTAL_FILES - 1) +"\"");         
           
           // Obtenemos la pagina mostrada del listado de ficheros
           int totalPages = (FILE_TOTAL_FILES / TOTAL_FILES_IN_BROWSER_PAGE);
@@ -1222,17 +1222,8 @@ class HMI
             logAlert("Refreshing file browser");
           #endif
           
-          // Refrescamos el listado de ficheros visualizado
-          // if (!FILE_BROWSER_SEARCHING)
-          // {
-              clearFilesInScreen();
-              putFilesInScreen(); 
-          // }
-          // else
-          // {
-          //     clearFilesInScreen();
-          //     putFilesFoundInScreen(); 
-          // }           
+          clearFilesInScreen();
+          putFilesInScreen();          
       }
 
       void resetBlockIndicators()
@@ -1487,6 +1478,31 @@ class HMI
         {
             reloadDir();
         }
+        else if (strCmd.indexOf("FINI") != -1) 
+        {
+            // Posicionamos entonces en la primera página
+            // Cogemos el primer item y refrescamos
+            FILE_PTR_POS = 1;
+            // Actualizamos la lista con la posición nueva del puntero
+            getFilesFromSD(false,SOURCE_FILE_TO_MANAGE,SOURCE_FILE_INF_TO_MANAGE);
+            // Refrescamos el listado de ficheros visualizado
+            refreshFiles();  
+            delay(125);
+            showInformationAboutFiles();                     
+        }
+        else if (strCmd.indexOf("FEND") != -1) 
+        {
+            // Posicionamos entonces en la ultima página
+            int totalPages = (FILE_TOTAL_FILES / TOTAL_FILES_IN_BROWSER_PAGE);
+            // Cogemos el primer item y refrescamos
+            FILE_PTR_POS = (totalPages * TOTAL_FILES_IN_BROWSER_PAGE) + 1;
+            // Actualizamos la lista con la posición nueva del puntero
+            getFilesFromSD(false,SOURCE_FILE_TO_MANAGE,SOURCE_FILE_INF_TO_MANAGE);
+            // Refrescamos el listado de ficheros visualizado
+            refreshFiles(); 
+            delay(125);
+            showInformationAboutFiles();                       
+        }        
         else if (strCmd.indexOf("FPUP") != -1) 
         {
             // Con este comando nos indica la pantalla que quiere
@@ -1500,6 +1516,8 @@ class HMI
 
             getFilesFromSD(false,SOURCE_FILE_TO_MANAGE,SOURCE_FILE_INF_TO_MANAGE);
             refreshFiles();
+            delay(125);
+            showInformationAboutFiles();            
         }
         else if (strCmd.indexOf("FPDOWN") != -1) 
         {
@@ -1515,6 +1533,8 @@ class HMI
 
             getFilesFromSD(false,SOURCE_FILE_TO_MANAGE,SOURCE_FILE_INF_TO_MANAGE);
             refreshFiles();
+            delay(125);
+            showInformationAboutFiles();
         }
         else if (strCmd.indexOf("FPHOME") != -1) 
         {
