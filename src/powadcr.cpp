@@ -2092,8 +2092,10 @@ void Task0code( void * pvParameters )
 
 void setup() 
 {
-    // Configuramos el nivel de log
-    SerialHW.setRxBufferSize(2048);
+    // Configuramos el size de los buffers de TX y RX del puerto serie
+    SerialHW.setRxBufferSize(4096);
+    SerialHW.setTxBufferSize(4096);
+    // Configuramos la velocidad del puerto serie
     SerialHW.begin(921600);
     //SerialHW.begin(512000);
     delay(125);

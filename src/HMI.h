@@ -124,13 +124,16 @@ class HMI
                   esp_task_wdt_reset();
 
                   // Ok. Entonces es un fichero y cogemos su extensión
-                  logln("");
-                  log("ID: " + String(lpos));
+                  #ifdef DEBUGMODE
+                    logln("");
+                    log("ID: " + String(lpos));
+                  #endif
 
                   size_t len = sdm.file.getName(szName,254);   
 
-                  log(" - " + String(szName) + " len: " + String(len));                  
-                  // int8_t len = strlen(szName);
+                  #ifdef DEBUGMODE
+                    log(" - " + String(szName) + " len: " + String(len));                  
+                  #endif
 
                   // Cuando la longitud es cero el nombre del fichero es erroneo
                   if (len != 0)
@@ -697,7 +700,7 @@ class HMI
 
       }
 
-      void printFileRows(int row, int color, String szName)
+ void printFileRows(int row, int color, String szName)
       {
             switch(row)
             {
@@ -794,6 +797,163 @@ class HMI
       
               }  
       }
+
+      void printFileRowsBlock(String &serialTxt, int row, int color, String szName)
+      {
+            // Ponemos los inicios de mensaje 0xFF 0xFF 0xFF
+            char t = 255;
+            switch(row)
+            {
+              case 0:
+                  serialTxt += t;
+                  serialTxt += t;
+                  serialTxt += t;
+                  serialTxt += "file0.txt=\"" + String(szName) + "\"";
+                  serialTxt += t;
+                  serialTxt += t;
+                  serialTxt += t;
+                  serialTxt +="file0.pco=" + String(color);
+                  break;
+      
+              case 1:
+                  serialTxt += t;
+                  serialTxt += t;
+                  serialTxt += t;
+                  serialTxt +="file1.txt=\"" + String(szName) + "\"";
+                  serialTxt += t;
+                  serialTxt += t;
+                  serialTxt += t;
+                  serialTxt +="file1.pco=" + String(color);
+                  break;
+      
+              case 2:
+                  serialTxt += t;
+                  serialTxt += t;
+                  serialTxt += t;
+                  serialTxt +="file2.txt=\"" + String(szName) + "\"";
+                  serialTxt += t;
+                  serialTxt += t;
+                  serialTxt += t;
+                  serialTxt +="file2.pco=" + String(color);
+                  break;
+      
+              case 3:
+                  serialTxt += t;
+                  serialTxt += t;
+                  serialTxt += t;
+                  serialTxt +="file3.txt=\"" + String(szName) + "\"";
+                  serialTxt += t;
+                  serialTxt += t;
+                  serialTxt += t;
+                  serialTxt +="file3.pco=" + String(color);
+                  break;
+      
+              case 4:
+                  serialTxt += t;
+                  serialTxt += t;
+                  serialTxt += t;
+                  serialTxt +="file4.txt=\"" + String(szName) + "\"";
+                  serialTxt += t;
+                  serialTxt += t;
+                  serialTxt += t;
+                  serialTxt +="file4.pco=" + String(color);
+                  break;
+      
+              case 5:
+                  serialTxt += t;
+                  serialTxt += t;
+                  serialTxt += t;
+                  serialTxt +="file5.txt=\"" + String(szName) + "\"";
+                  serialTxt += t;
+                  serialTxt += t;
+                  serialTxt += t;
+                  serialTxt +="file5.pco=" + String(color);
+                  break;
+      
+              case 6:
+                  serialTxt += t;
+                  serialTxt += t;
+                  serialTxt += t;
+                  serialTxt +="file6.txt=\"" + String(szName) + "\"";
+                  serialTxt += t;
+                  serialTxt += t;
+                  serialTxt += t;
+                  serialTxt +="file6.pco=" + String(color);
+                  break;
+      
+              case 7:
+                  serialTxt += t;
+                  serialTxt += t;
+                  serialTxt += t;
+                  serialTxt +="file7.txt=\"" + String(szName) + "\"";
+                  serialTxt += t;
+                  serialTxt += t;
+                  serialTxt += t;
+                  serialTxt +="file7.pco=" + String(color);
+                  break;
+      
+              case 8:
+                  serialTxt += t;
+                  serialTxt += t;
+                  serialTxt += t;
+                  serialTxt +="file8.txt=\"" + String(szName) + "\"";
+                  serialTxt += t;
+                  serialTxt += t;
+                  serialTxt += t;
+                  serialTxt +="file8.pco=" + String(color);
+                  break;
+      
+              case 9:
+                  serialTxt += t;
+                  serialTxt += t;
+                  serialTxt += t;
+                  serialTxt +="file9.txt=\"" + String(szName) + "\"";
+                  serialTxt += t;
+                  serialTxt += t;
+                  serialTxt += t;
+                  serialTxt +="file9.pco=" + String(color);
+                  break;
+      
+              case 10:
+                  serialTxt += t;
+                  serialTxt += t;
+                  serialTxt += t;
+                  serialTxt +="file10.txt=\"" + String(szName) + "\"";
+                  serialTxt += t;
+                  serialTxt += t;
+                  serialTxt += t;
+                  serialTxt +="file10.pco=" + String(color);
+                  break;
+      
+              case 11:
+                  serialTxt += t;
+                  serialTxt += t;
+                  serialTxt += t;
+                  serialTxt +="file11.txt=\"" + String(szName) + "\"";
+                  serialTxt += t;
+                  serialTxt += t;
+                  serialTxt += t;
+                  serialTxt +="file11.pco=" + String(color);
+                  break;
+      
+              case 12:
+                  serialTxt += t;
+                  serialTxt += t;
+                  serialTxt += t;
+                  serialTxt +="file12.txt=\"" + String(szName) + "\"";
+                  serialTxt += t;
+                  serialTxt += t;
+                  serialTxt += t;
+                  serialTxt +="file12.pco=" + String(color);
+                  break;
+      
+            }  
+
+            // Ponemos los finales de mensaje 0xFF 0xFF 0xFF
+            serialTxt += t;
+            serialTxt += t;
+            serialTxt += t;
+      }
       
       String getPreviousDirFromPath(String path)
       {
@@ -837,14 +997,19 @@ class HMI
           logAlert("Cleaning file browser");
         #endif
 
+        String mens = "";
+
         for (int i=0;i<=TOTAL_FILES_IN_BROWSER_PAGE;i++)
         {
-            printFileRows(pos_in_HMI_file, color, szName);
+            printFileRowsBlock(mens, pos_in_HMI_file, color, szName);
             //delay(5);
-            //printFileRows(pos_in_HMI_file, color, szName);
+            // printFileRows(pos_in_HMI_file, color, szName);
             pos_in_HMI_file++;
         }
-      
+
+        writeStringBlock(mens);
+        delay(5);
+        writeStringBlock(mens);
       }
 
       void showInformationAboutFiles()
@@ -957,6 +1122,7 @@ class HMI
         writeString("");
         writeString("prevDir.pco=" + String(color));
                   
+        String mens = "";
         for (int i=1;i < MAX_FILES_TO_LOAD;i++)
         {
               szName = FILES_BUFF[i].path;
@@ -995,12 +1161,16 @@ class HMI
                   color = 44405;  // gris apagado
               }
       
-              printFileRows(i-1, color, szName);
-
+              printFileRowsBlock(mens,i-1, color, szName);
+              // printFileRows(i-1, color, szName);
               // Delay necesario para un correcto listado en pantalla.
-              delay(2);
+              // delay(2);
 
         }
+
+        writeStringBlock(mens);
+        delay(5);
+        writeStringBlock(mens);
 
         showInformationAboutFiles();        
       
@@ -1184,7 +1354,12 @@ class HMI
         LAST_COMMAND = "";
 
         // Selección de bloque desde keypad - pantalla
-        if (strCmd.indexOf("BKX=") != -1) 
+        if(strCmd.indexOf("RSET") != -1)
+        {
+          delay(2000);
+          ESP.restart();
+        }
+        else if (strCmd.indexOf("BKX=") != -1) 
         {
             // Con este procedimiento capturamos el bloque seleccionado
             // desde la pantalla.
@@ -1261,8 +1436,7 @@ class HMI
             // Con este comando nos indica la pantalla que 
             // está en modo searching
             //FILE_BROWSER_SEARCHING = true;
-            findTheTextInFiles();
-      
+            findTheTextInFiles();      
         }
         else if (strCmd.indexOf("OUTFB") != -1) 
         {
@@ -1349,14 +1523,9 @@ class HMI
             SOURCE_FILE_TO_MANAGE = "_files.lst";
             SOURCE_FILE_INF_TO_MANAGE = "_files.inf"; 
             putInHome();
-      
-            //writeString("statusFILE.txt=\"GETTING FILES\"");
-      
+         
             getFilesFromSD(false,SOURCE_FILE_TO_MANAGE,SOURCE_FILE_INF_TO_MANAGE);
-            refreshFiles(); //07/11/2024
-      
-            //writeString("statusFILE.txt=\"\"");
-      
+            refreshFiles(); 
         }        
         else if (strCmd.indexOf("FAV=") != -1) 
         {
@@ -1521,10 +1690,7 @@ class HMI
      
             FILE_PTR_POS = 0;
             clearFilesInScreen();
-      
-            //writeString("");
-            //writeString("statusFILE.txt=\"GETTING FILES\"");
-      
+                     
             getFilesFromSD(false,SOURCE_FILE_TO_MANAGE,SOURCE_FILE_INF_TO_MANAGE);
             
             if (!FILE_DIR_OPEN_FAILED)
@@ -1538,9 +1704,7 @@ class HMI
                 logln("Error to open directory");
               #endif
             }
-            
-            //writeString("");
-            //writeString("statusFILE.txt=\"\"");
+
         }
         else if (strCmd.indexOf("PAR=") != -1) 
         {
@@ -2401,7 +2565,7 @@ class HMI
       void writeString(String stringData) 
       {
       
-          //SerialHW.flush();
+          SerialHW.flush();
       
           SerialHW.write(0xff);
           SerialHW.write(0xff);
@@ -2419,14 +2583,21 @@ class HMI
           SerialHW.write(0xff);
           SerialHW.write(0xff);
       
-          if(FILE_BROWSER_OPEN)
-          {
-              // Metemos un delay de 10ms
-              // menos da problemas.
-              //delay(10);       
-          }
       }
       
+      void writeStringBlock(String stringData) 
+      {
+          
+          SerialHW.flush();
+
+          for (int i = 0; i < stringData.length(); i++) 
+          {
+            // Enviamos los datos
+            SerialHW.write(stringData[i]);
+          }
+    
+      }      
+
       void write(String stringData)
       {
           for (int i = 0; i < stringData.length(); i++) 
