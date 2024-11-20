@@ -64,7 +64,7 @@ class HMI
         }
       }
 
-      void fillWithFiles(File32 &fout, File32 &fstatus)
+      void fillWithFiles(File32 &fout, File32 &fstatus, String search_pattern)
       {
           // NOTA:
           // ***************************************************
@@ -72,7 +72,7 @@ class HMI
           // del manejador de ficheros.
           // ***************************************************
 
-          // Un fichero _files.lst es del tipo
+          // Un fichero SOURCE_FILE_TO_MANAGE es del tipo
           //
           // 
           // PATH=/TAP/F/
@@ -87,7 +87,7 @@ class HMI
 
 
           // Declaramos el nombre del fichero
-          char szName[255];
+          char szName[512];
           const String separator="|";
           
           // Comprobamos que la ruta actual es un DIRECTORIO
@@ -98,112 +98,163 @@ class HMI
           }
           else
           {
-            // Nos ponemos al inicio del directorio
-            sdm.dir.rewindDirectory();
-            
-            // Posición del fichero encontrado en _files.lst
-            int lpos = 1;
-            // Contadores de ficheros y directorios
-            int cdir = 0;
-            int cfiles = 0;
+              // Nos ponemos al inicio del directorio
+              sdm.dir.rewindDirectory();
+              
+              // Posición del fichero encontrado en _files.lst
+              int lpos = 1;
+              // Contadores de ficheros y directorios
+              int cdir = 0;
+              int cfiles = 0;
 
-            // Ahora lo recorremos
-            while (sdm.file.openNext(&sdm.dir, O_RDONLY))
-            {
+              #ifdef DEBUGMODE
+                logln("");
+                log("Search pattern: " + search_pattern);
+                logln("");
+              #endif
 
-                // Ok. Entonces es un fichero y cogemos su extensión
-                sdm.file.getName(szName,254);                       
-                int8_t len = strlen(szName);
-                char* substr = strlwr(szName + (len - 4));    
-                uint32_t posf = sdm.dir.position();
+              // Por si se queda abierto, lo cerramos primero
+              // para poder abrirlo después en el WHILE
+              if (sdm.file.isOpen())
+              {sdm.file.close();}
 
-                // ¿No es un directorio?
-                if (!sdm.file.isDir())
-                {
-                    // ¿No está oculto?
-                    if (!sdm.file.isHidden())
-                    {
-                        // // Ok. Entonces es un fichero y cogemos su extensión
-                        // sdm.file.getName(szName,254);                       
-                        // int8_t len = strlen(szName);
-                        // char* substr = strlwr(szName + (len - 4));    
-                        // uint32_t posf = sdm.dir.position();
-                        
-                        // Si tiene una de las extensiones esperadas, se almacena
-                        if (strstr(substr, ".tap") || strstr(substr, ".tzx") || strstr(substr, ".tsx") || strstr(substr, ".wav")) 
-                        {
-                            // ***************************
-                            // Cogemos la info del fichero
-                            // ***************************
+              // Ahora lo recorremos
+              while (sdm.file.openNext(&sdm.dir, O_RDONLY))
+              {
+                  esp_task_wdt_reset();
 
-                            // numero del fichero
-                            fout.print(String(lpos));
-                            fout.print(separator);
-                            // tipo
-                            fout.print("F");
-                            fout.print(separator);
-                            // seek
-                            fout.print(String(posf));
-                            fout.print(separator);
-                            // nombre del fichero
-                            fout.print(szName);
-                            fout.println(separator);
-                            // Incrementamos el indice
-                            cfiles++;
-                            lpos++;
-                        }
-                        else
-                        {
-                          //No es fichero reconocido
-                        }
-                    }
-                }
-                else
-                {
-                    // Es un directorio
-                    // Lo registramos si no está oculto
-                    if(!sdm.file.isHidden())
-                    {
-                        // ***************************
-                        // Cogemos la info del directorio
-                        // ***************************
-                        //
+                  // Ok. Entonces es un fichero y cogemos su extensión
+                  #ifdef DEBUGMODE
+                    logln("");
+                    log("ID: " + String(lpos));
+                  #endif
 
-                        // numero del fichero
-                        fout.print(String(lpos));
-                        fout.print(separator);
-                        // tipo
-                        fout.print("D");
-                        fout.print(separator);
-                        // seek
-                        fout.print(String(posf));
-                        fout.print(separator);
-                        // nombre del directorio
-                        fout.print(szName);                      
-                        fout.println(separator);
-                        // Incrementamos el indice
-                        cdir++;
-                        lpos++;
-                    }                   
-                }
+                  size_t len = sdm.file.getName(szName,254);   
 
-                // Registramos la ruta y el total de ficheros y directorios en _files.inf
-                fstatus.println("CFIL=" + String(cfiles));
-                fstatus.println("CDIR=" + String(cdir));
-                // Cerramos el fichero
-                sdm.file.close();
-                //
-                FILE_TOTAL_FILES = cdir + lpos;
-                writeString("statusFILE.txt=\"FILES " + String(FILE_TOTAL_FILES-1) +"\""); 
-            }
+                  #ifdef DEBUGMODE
+                    log(" - " + String(szName) + " len: " + String(len));                  
+                  #endif
+
+                  // Cuando la longitud es cero el nombre del fichero es erroneo
+                  if (len != 0)
+                  {
+                      char* substr = strlwr(szName + (len - 4));    
+                      uint32_t posf = sdm.dir.position();
+
+                      String szNameStr = szName;
+
+                      #ifdef DEBUGMODE
+                        logln("");
+                        logln("File found: " + szNameStr);
+                        log(szNameStr);
+                        logln("");
+                      #endif
+
+                      szNameStr.toLowerCase();
+                      search_pattern.toLowerCase();
+
+                      if (szNameStr.indexOf(search_pattern) != -1 || search_pattern=="")
+                      {
+                          #ifdef DEBUGMODE
+                            logln("");
+                            log( "[" + szNameStr + "] matched with: " + search_pattern);
+                            logln("");
+                          #endif
+                          
+                          // ¿No es un directorio?
+                          if (!sdm.file.isDir())
+                          {
+                              // ¿No está oculto?
+                              if (!sdm.file.isHidden())
+                              {
+                                  // // Ok. Entonces es un fichero y cogemos su extensión
+                                  // sdm.file.getName(szName,254);                       
+                                  // int8_t len = strlen(szName);
+                                  // char* substr = strlwr(szName + (len - 4));    
+                                  // uint32_t posf = sdm.dir.position();
+                                  
+                                  // Si tiene una de las extensiones esperadas, se almacena
+                                  if (strstr(substr, ".tap") || strstr(substr, ".tzx") || strstr(substr, ".tsx") || strstr(substr, ".cdt") || strstr(substr, ".wav")) 
+                                  {
+                                      // ***************************
+                                      // Cogemos la info del fichero
+                                      // ***************************
+
+                                      // numero del fichero
+                                      fout.print(String(lpos));
+                                      fout.print(separator);
+                                      // tipo
+                                      fout.print("F");
+                                      fout.print(separator);
+                                      // seek
+                                      fout.print(String(posf));
+                                      fout.print(separator);
+                                      // nombre del fichero
+                                      fout.print(szName);
+                                      fout.println(separator);
+                                      // Incrementamos el indice
+                                      cfiles++;
+                                      lpos++;
+                                  }
+                                  else
+                                  {
+                                    //No es fichero reconocido
+                                  }
+                              }
+                          }
+                          else
+                          {
+                              // Es un directorio
+                              // Lo registramos si no está oculto
+                              if(!sdm.file.isHidden())
+                              {
+                                  // ***************************
+                                  // Cogemos la info del directorio
+                                  // ***************************
+                                  //
+
+                                  // numero del fichero
+                                  fout.print(String(lpos));
+                                  fout.print(separator);
+                                  // tipo
+                                  fout.print("D");
+                                  fout.print(separator);
+                                  // seek
+                                  fout.print(String(posf));
+                                  fout.print(separator);
+                                  // nombre del directorio a MAYUSCULAS
+                                  // String szDirNameTmp = szName;
+                                  // szDirNameTmp.toUpperCase();
+                                  fout.print(szName);                      
+                                  fout.println(separator);
+                                  // Incrementamos el indice
+                                  cdir++;
+                                  lpos++;
+                              }                   
+                          }
+
+                          // Registramos la ruta y el total de ficheros y directorios en _files.inf
+                          fstatus.println("CFIL=" + String(cfiles));
+                          fstatus.println("CDIR=" + String(cdir));
+                          // Cerramos el fichero
+                          //sdm.file.close();
+                          //
+                          FILE_TOTAL_FILES = cdir + cfiles;
+
+                          writeString("statusFILE.txt=\"ITEMS " + String(FILE_TOTAL_FILES-1) +"\""); 
+                      }
+                  }
+
+                  sdm.file.close();
+              }
           }
      }
 
-      void registerFiles(String path)
+      void registerFiles(String path, String filename, String filename_inf,String search_pattern)
       {
-          // Registramos todos los ficheros encontrados y sus indices en un fichero "_files.lst"
-          String regFile = path + "_files.lst";
-          String statusFile = path + "_files.inf";
+          // Registramos todos los ficheros encontrados y sus indices en un fichero "SOURCE_FILE_TO_MANAGE"
+          String regFile = path + filename;
+          String statusFile = path + filename_inf;
 
           char* file_ch = (char*)malloc(256 * sizeof(char));
           regFile.toCharArray(file_ch, 256);
@@ -217,6 +268,7 @@ class HMI
 
           // Manejador del fichero _files.lst
           File32 f = sdm.file;
+          // Manejador del fichero _files.inf
           File32 fstatus = sdm.file;
 
 
@@ -244,15 +296,15 @@ class HMI
               // Registramos la ruta y los ficheros que lo contienen en el _files.lst
               fstatus.println("PATH=" + String(path_ch));
 
-              // Rellenamos con los ficheros que contiene el directorioç
+              // Rellenamos con los ficheros que contiene el directorio
               // y las estadísticas
-              fillWithFiles(f,fstatus);
+              fillWithFiles(f,fstatus,search_pattern);
           }
           else
           {
             #ifdef DEBUGMODE
               logln("");
-              logln("Error creating _files.lst");
+              logln("Error creating " + SOURCE_FILE_TO_MANAGE);
             #endif
           }
 
@@ -366,7 +418,7 @@ class HMI
           else
           {
             #ifdef DEBUGMODE
-              logln("Error reading file. _files.lst is closed");
+              logln("Error reading file. " + SOURCE_FILE_TO_MANAGE +" is closed");
             #endif
           }
 
@@ -451,19 +503,25 @@ class HMI
           return (stat (name.c_str(), &buffer) == 0); 
       }
 
-      void registerFileLST(String path, bool forze_rescan)
+      void registerFileLST(String path, bool forze_rescan, String filename, String filename_inf, String search_pattern)
       {
           // registramos todos los ficheros
           // Si el _files.lst ya existe no se vuelve a crear, a no ser que sea forzado el rescan.
           File32 f;
-          String fFileList = path + "_files.lst";
+          String fFileList = path + filename;
+
+          #ifdef DEBUGMODE
+            logln("");
+            log("Path to register in LST file: " + fFileList);
+            logln("");
+          #endif
 
           if(!f.open(fFileList.c_str(), O_RDONLY))
           {
               #ifdef DEBUGMODE
                 logln("Registering files in: " + fFileList);
               #endif
-              registerFiles(path);
+              registerFiles(path,filename,filename_inf,search_pattern);
           }
           else
           {
@@ -474,16 +532,14 @@ class HMI
                   #ifdef DEBUGMODE
                     logln("Registering files FORZED");
                   #endif
-                  registerFiles(path);
+                  registerFiles(path,filename,filename_inf,search_pattern);
               }
           }
-
-
       }
 
-      void manageFileLST(File32& fFileLST, String path)
+      void manageFileLST(File32& fFileLST, String path, String sourceFile)
       {
-        String fFileList = path + "_files.lst";
+        String fFileList = path + sourceFile;
 
         // Abrimos ahora el _files.lst, para manejarlo
         // if (!IN_THE_SAME_DIR)
@@ -509,11 +565,15 @@ class HMI
             {
                 FILE_TOTAL_FILES++;
             }
+
+            // // Es menos uno, porque el primero no se usa. 0 es para prevDir y luego de 1 a 59
+            // FILE_TOTAL_FILES_SEARCH = FILE_TOTAL_FILES - 2;
+            // logln("Files total for search: " + String(FILE_TOTAL_FILES_SEARCH - 2));
         }
         // }       
       }
 
-      void getFilesFromSD(bool forze_rescan)
+      void getFilesFromSD(bool forze_rescan, String output_file, String output_file_inf, String search_pattern="")
       {
           #ifdef DEBUGMOCE
             logAlert("Getting files from SD");
@@ -529,8 +589,11 @@ class HMI
           clearFileBuffer();
 
           #ifdef DEBUGMODE
-            logln("--------------------------------------");
-            logln("Searching files in - " + FILE_LAST_DIR);
+            logln("");
+            logln("");
+            log("--------------------------------------");
+            logln("");
+            log("Searching files in - " + FILE_LAST_DIR);
           #endif
 
           if (sdm.dir.isOpen())
@@ -547,16 +610,22 @@ class HMI
               // El directorio se ha abierto sin problemas
               FILE_DIR_OPEN_FAILED = false;
 
-              if (FILE_LAST_DIR == "/REC/")
+              String recDirTmp = FILE_LAST_DIR;
+              recDirTmp.toUpperCase();
+              if (recDirTmp == "/REC/")
+              {
+                forze_rescan=true;
+              }
+              else if (recDirTmp == "/FAV/")
               {
                 forze_rescan=true;
               }
 
               // Si no existe el historico de los ficheros se genera un _file.lst
-              registerFileLST(FILE_LAST_DIR, forze_rescan);
+              registerFileLST(FILE_LAST_DIR, forze_rescan, output_file, output_file_inf, search_pattern);
 
               // Usamos el fichero que contiene el mapa del directorio actual, _files.lst
-              manageFileLST(fFileLST, FILE_LAST_DIR);
+              manageFileLST(fFileLST, FILE_LAST_DIR, SOURCE_FILE_TO_MANAGE);
     
               // AÑADIMOS AL INICIO EL PARENT DIR
               FILES_BUFF[0].isDir = true;
@@ -584,6 +653,15 @@ class HMI
               {
                   fl = getNextLineInFileLST(fFileLST);
 
+                  #ifdef DEBUGMODE
+                    logln("");
+                    log(fl.fileName + " - ");
+                    log(fl.fileType + " - ");
+                    log(String(fl.ID) + " - ");
+                    log(String(fl.seek) + " - ");
+                    log(String(fl.type));
+                  #endif
+
                   // Si es un dato de fichero
                   if (fl.ID != -1)
                   {
@@ -593,7 +671,6 @@ class HMI
 
                       if (fl.type=='D')
                       {
-
                         FILES_BUFF[idptr].type = "DIR";
                         FILES_BUFF[idptr].isDir = true;
                       }
@@ -615,7 +692,7 @@ class HMI
               }
           }
 
-          writeString("statusFILE.txt=\"FILES " + String(FILE_TOTAL_FILES-1) +"\"");
+          writeString("statusFILE.txt=\"ITEMS " + String(FILE_TOTAL_FILES-1) +"\"");
 
           // Cerramos todos los ficheros (añadido el 25/07/2023)
           sdm.dir.close();
@@ -623,7 +700,7 @@ class HMI
 
       }
 
-      void printFileRows(int row, int color, String szName)
+ void printFileRows(int row, int color, String szName)
       {
             switch(row)
             {
@@ -720,12 +797,174 @@ class HMI
       
               }  
       }
+
+      void printFileRowsBlock(String &serialTxt, int row, int color, String szName)
+      {
+            // Ponemos los inicios de mensaje 0xFF 0xFF 0xFF
+            char t = 255;
+            switch(row)
+            {
+              case 0:
+                  serialTxt += t;
+                  serialTxt += t;
+                  serialTxt += t;
+                  serialTxt += "file0.txt=\"" + String(szName) + "\"";
+                  serialTxt += t;
+                  serialTxt += t;
+                  serialTxt += t;
+                  serialTxt +="file0.pco=" + String(color);
+                  break;
+      
+              case 1:
+                  serialTxt += t;
+                  serialTxt += t;
+                  serialTxt += t;
+                  serialTxt +="file1.txt=\"" + String(szName) + "\"";
+                  serialTxt += t;
+                  serialTxt += t;
+                  serialTxt += t;
+                  serialTxt +="file1.pco=" + String(color);
+                  break;
+      
+              case 2:
+                  serialTxt += t;
+                  serialTxt += t;
+                  serialTxt += t;
+                  serialTxt +="file2.txt=\"" + String(szName) + "\"";
+                  serialTxt += t;
+                  serialTxt += t;
+                  serialTxt += t;
+                  serialTxt +="file2.pco=" + String(color);
+                  break;
+      
+              case 3:
+                  serialTxt += t;
+                  serialTxt += t;
+                  serialTxt += t;
+                  serialTxt +="file3.txt=\"" + String(szName) + "\"";
+                  serialTxt += t;
+                  serialTxt += t;
+                  serialTxt += t;
+                  serialTxt +="file3.pco=" + String(color);
+                  break;
+      
+              case 4:
+                  serialTxt += t;
+                  serialTxt += t;
+                  serialTxt += t;
+                  serialTxt +="file4.txt=\"" + String(szName) + "\"";
+                  serialTxt += t;
+                  serialTxt += t;
+                  serialTxt += t;
+                  serialTxt +="file4.pco=" + String(color);
+                  break;
+      
+              case 5:
+                  serialTxt += t;
+                  serialTxt += t;
+                  serialTxt += t;
+                  serialTxt +="file5.txt=\"" + String(szName) + "\"";
+                  serialTxt += t;
+                  serialTxt += t;
+                  serialTxt += t;
+                  serialTxt +="file5.pco=" + String(color);
+                  break;
+      
+              case 6:
+                  serialTxt += t;
+                  serialTxt += t;
+                  serialTxt += t;
+                  serialTxt +="file6.txt=\"" + String(szName) + "\"";
+                  serialTxt += t;
+                  serialTxt += t;
+                  serialTxt += t;
+                  serialTxt +="file6.pco=" + String(color);
+                  break;
+      
+              case 7:
+                  serialTxt += t;
+                  serialTxt += t;
+                  serialTxt += t;
+                  serialTxt +="file7.txt=\"" + String(szName) + "\"";
+                  serialTxt += t;
+                  serialTxt += t;
+                  serialTxt += t;
+                  serialTxt +="file7.pco=" + String(color);
+                  break;
+      
+              case 8:
+                  serialTxt += t;
+                  serialTxt += t;
+                  serialTxt += t;
+                  serialTxt +="file8.txt=\"" + String(szName) + "\"";
+                  serialTxt += t;
+                  serialTxt += t;
+                  serialTxt += t;
+                  serialTxt +="file8.pco=" + String(color);
+                  break;
+      
+              case 9:
+                  serialTxt += t;
+                  serialTxt += t;
+                  serialTxt += t;
+                  serialTxt +="file9.txt=\"" + String(szName) + "\"";
+                  serialTxt += t;
+                  serialTxt += t;
+                  serialTxt += t;
+                  serialTxt +="file9.pco=" + String(color);
+                  break;
+      
+              case 10:
+                  serialTxt += t;
+                  serialTxt += t;
+                  serialTxt += t;
+                  serialTxt +="file10.txt=\"" + String(szName) + "\"";
+                  serialTxt += t;
+                  serialTxt += t;
+                  serialTxt += t;
+                  serialTxt +="file10.pco=" + String(color);
+                  break;
+      
+              case 11:
+                  serialTxt += t;
+                  serialTxt += t;
+                  serialTxt += t;
+                  serialTxt +="file11.txt=\"" + String(szName) + "\"";
+                  serialTxt += t;
+                  serialTxt += t;
+                  serialTxt += t;
+                  serialTxt +="file11.pco=" + String(color);
+                  break;
+      
+              case 12:
+                  serialTxt += t;
+                  serialTxt += t;
+                  serialTxt += t;
+                  serialTxt +="file12.txt=\"" + String(szName) + "\"";
+                  serialTxt += t;
+                  serialTxt += t;
+                  serialTxt += t;
+                  serialTxt +="file12.pco=" + String(color);
+                  break;
+      
+            }  
+
+            // Ponemos los finales de mensaje 0xFF 0xFF 0xFF
+            serialTxt += t;
+            serialTxt += t;
+            serialTxt += t;
+      }
       
       String getPreviousDirFromPath(String path)
       {
           String strTmp = INITFILEPATH;
           //strncpy(strTmp,&INITFILEPATH[0],2);
-          
+
+          #ifdef DEBUGMODE
+            logln("");
+            logln("Current dir: " + path);
+          #endif
+
           int lpath = path.length();
           
           for (int n=lpath-2;n>1;n--)
@@ -735,13 +974,16 @@ class HMI
               if (chrRead == '/')
               {
                   //Copiamos ahora el trozo de cadena restante
-                  //ponemos n-1 para que copie también la "/"
-                  //strlcpy(strTmp,path,n+2);
-                  strTmp = path.substring(0,n+2);
+                  strTmp = path.substring(0,n+1);
                   break;
               }
           }
-      
+
+          #ifdef DEBUGMODE
+            logln("");
+            logln("Next dir: " + strTmp);
+          #endif
+
           return strTmp;
       }
       
@@ -755,14 +997,19 @@ class HMI
           logAlert("Cleaning file browser");
         #endif
 
+        String mens = "";
+
         for (int i=0;i<=TOTAL_FILES_IN_BROWSER_PAGE;i++)
         {
-            printFileRows(pos_in_HMI_file, color, szName);
+            printFileRowsBlock(mens, pos_in_HMI_file, color, szName);
             //delay(5);
-            //printFileRows(pos_in_HMI_file, color, szName);
+            // printFileRows(pos_in_HMI_file, color, szName);
             pos_in_HMI_file++;
         }
-      
+
+        writeStringBlock(mens);
+        delay(5);
+        writeStringBlock(mens);
       }
 
       void showInformationAboutFiles()
@@ -772,7 +1019,7 @@ class HMI
           // Indicamos el path actual
           writeString("currentDir.txt=\"" + String(FILE_LAST_DIR_LAST) + "\"");
           // Actualizamos el total del ficheros leidos anteriormente.
-          writeString("statusFILE.txt=\"FILES " + String(FILE_TOTAL_FILES - 1) +"\"");         
+          writeString("statusFILE.txt=\"ITEMS  " + String(FILE_TOTAL_FILES - 1) +"\"");         
           
           // Obtenemos la pagina mostrada del listado de ficheros
           int totalPages = (FILE_TOTAL_FILES / TOTAL_FILES_IN_BROWSER_PAGE);
@@ -789,66 +1036,66 @@ class HMI
           writeString("cPage.txt=\"" + String(currentPage) +" - " + String(totalPages) + "\"");
       }
       
-      void putFilesFoundInScreen()
-      {
+      // void putFilesFoundInScreen()
+      // {
       
-        //Antes de empezar, limpiamos el buffer
-        //para evitar que se colapse
+      //   //Antes de empezar, limpiamos el buffer
+      //   //para evitar que se colapse
       
-        int pos_in_HMI_file = 0;
-        String szName = "";
-        String type="";
+      //   int pos_in_HMI_file = 0;
+      //   String szName = "";
+      //   String type="";
       
-        int color = 65535; //60868    
+      //   int color = 65535; //60868    
 
-        if (FILE_PTR_POS==0)
-        {
-            // Esto es solo para el parent dir, para que siempre salga arriba
-            szName = FILES_FOUND_BUFF[FILE_PTR_POS].path;
-            color = 2016;  // Verde
-            szName = String("..     ") + szName;
+      //   if (FILE_PTR_POS==0)
+      //   {
+      //       // Esto es solo para el parent dir, para que siempre salga arriba
+      //       szName = FILES_FOUND_BUFF[FILE_PTR_POS].path;
+      //       color = 2016;  // Verde
+      //       szName = String("..     ") + szName;
             
-            //writeString("");
-            writeString("prevDir.txt=\"" + String(szName) + "\"");
-            //writeString("");
-            writeString("prevDir.pco=" + String(color));
+      //       //writeString("");
+      //       writeString("prevDir.txt=\"" + String(szName) + "\"");
+      //       //writeString("");
+      //       writeString("prevDir.pco=" + String(color));
             
-            // Descartamos la posición cero del buffer porque es una posición especial
-            FILE_PTR_POS=1;
-        }
+      //       // Descartamos la posición cero del buffer porque es una posición especial
+      //       FILE_PTR_POS=1;
+      //   }
       
-        for (int i=FILE_PTR_POS;i<=FILE_PTR_POS+12;i++)
-        {
-              szName = FILES_FOUND_BUFF[FILE_PTR_POS + pos_in_HMI_file].path;
-              type = FILES_FOUND_BUFF[FILE_PTR_POS + pos_in_HMI_file].type;
+      //   for (int i=FILE_PTR_POS;i<=FILE_PTR_POS+12;i++)
+      //   {
+      //         szName = FILES_FOUND_BUFF[FILE_PTR_POS + pos_in_HMI_file].path;
+      //         type = FILES_FOUND_BUFF[FILE_PTR_POS + pos_in_HMI_file].type;
               
-              // Lo trasladamos a la pantalla
-              if (type == "DIR")
-              {
-                  //Directorio
-                  color = 60868;  // Amarillo
-                  szName = String("<DIR>  ") + szName;
-              }     
-              else if (type == "TAP" || type == "TZX" || type == "TSX")
-              {
-                  //Fichero
-                  color = 65535;   // Blanco
-              }
-              else
-              {
-                  color = 44405;  // gris apagado
-              }
+      //         // Lo trasladamos a la pantalla
+      //         if (type == "DIR")
+      //         {
+      //             //Directorio
+      //             color = 60868;  // Amarillo
+      //             szName = String("<DIR>  ") + szName;
+      //         }     
+      //         else if (type == "TAP" || type == "TZX" || type == "TSX")
+      //         {
+      //             //Fichero
+      //             color = 65535;   // Blanco
+      //         }
+      //         else
+      //         {
+      //             color = 44405;  // gris apagado
+      //         }
 
-              //Realizamos dos pasadas para evitar temas de perdida de información
-              printFileRows(pos_in_HMI_file, color, szName);
-              //delay(5);
-              //printFileRows(pos_in_HMI_file, color, szName);
+      //         //Realizamos dos pasadas para evitar temas de perdida de información
+      //         printFileRows(pos_in_HMI_file, color, szName);
+      //         //delay(5);
+      //         //printFileRows(pos_in_HMI_file, color, szName);
 
-              pos_in_HMI_file++;
-        }
+      //         pos_in_HMI_file++;
+      //   }
 
-        showInformationAboutFiles(); 
-      }
+      //   showInformationAboutFiles(); 
+      // }
       
       void putFilesInScreen()
       {
@@ -875,6 +1122,7 @@ class HMI
         writeString("");
         writeString("prevDir.pco=" + String(color));
                   
+        String mens = "";
         for (int i=1;i < MAX_FILES_TO_LOAD;i++)
         {
               szName = FILES_BUFF[i].path;
@@ -893,20 +1141,36 @@ class HMI
                   //Directorio
                   color = 60868;  // Amarillo
                   szName = String("<DIR>  ") + szName;
+                  szName.toUpperCase();
               }     
-              else if (type == "TAP" || type == "TZX" || type == "TSX")
+              else if (type == "TAP" || type == "TZX" || type == "TSX" || type == "CDT")
               {
                   //Fichero
-                  color = 65535;   // Blanco
+                  if (_sdf.exists("/fav/" + szName))
+                  {
+                    color = 34815;   // Cyan - Indica que esta en favoritos
+                  }
+                  else
+                  {
+                    color = 65535;   // Blanco
+                  }
+                  
               }
               else
               {
                   color = 44405;  // gris apagado
               }
       
-              printFileRows(i-1, color, szName);
-              delay(5);
+              printFileRowsBlock(mens,i-1, color, szName);
+              // printFileRows(i-1, color, szName);
+              // Delay necesario para un correcto listado en pantalla.
+              // delay(2);
+
         }
+
+        writeStringBlock(mens);
+        delay(5);
+        writeStringBlock(mens);
 
         showInformationAboutFiles();        
       
@@ -914,7 +1178,7 @@ class HMI
 
       void putInHome()
       {
-          FILE_BROWSER_SEARCHING = false;  
+          //FILE_BROWSER_SEARCHING = false;  
           FILE_LAST_DIR_LAST = INITFILEPATH;
           FILE_LAST_DIR = INITFILEPATH;
           FILE_PREVIOUS_DIR = INITFILEPATH;
@@ -922,94 +1186,19 @@ class HMI
           FILE_PTR_POS = 0;
           IN_THE_SAME_DIR = false;
           clearFilesInScreen();
-          getFilesFromSD(false);
+          getFilesFromSD(false,SOURCE_FILE_TO_MANAGE,SOURCE_FILE_INF_TO_MANAGE);
           putFilesInScreen();
       }
       
       void findTheTextInFiles()
       {
-      
-          //bool filesFound = false;     
-          const int maxResults = MAX_FILES_FOUND_BUFF;
-      
-          // Copiamos el primer registro que no cambia
-          // porque es la ruta anterior.
-          FILES_FOUND_BUFF[0].path = FILES_BUFF[0].path;
-          FILES_FOUND_BUFF[0].type = FILES_BUFF[0].type;
-          FILES_FOUND_BUFF[0].isDir = FILES_BUFF[0].isDir;
-          
-          if (FILE_BROWSER_SEARCHING)
-          {
-          
-              writeString("statusFILE.txt=\"SEARCHING FILES\"");
-              delay(125);
-      
-              // Buscamos el texto en el buffer actual.
-              String fileRead = "";
-              int j = 1;
-      
-              // SerialHW.println();
-              // SerialHW.println();
-              // SerialHW.println(FILE_TXT_TO_SEARCH);
-      
-              for (int i=1;i<FILE_TOTAL_FILES;i++)
-              {
-                  fileRead = FILES_BUFF[i].path;
-                  fileRead.toLowerCase();
-                  FILE_TXT_TO_SEARCH.toLowerCase();
-      
-                  if (fileRead.indexOf(FILE_TXT_TO_SEARCH) != -1)
-                  {
-                      
-                      //filesFound = true;
-      
-                      if (j < maxResults)
-                      {
-                          //Fichero localizado. Lo almacenamos
-                          FILES_FOUND_BUFF[j].path = FILES_BUFF[i].path;
-                          FILES_FOUND_BUFF[j].type = FILES_BUFF[i].type;
-                          FILES_FOUND_BUFF[j].isDir = FILES_BUFF[i].isDir;
-                          
-                          //SerialHW.println(fileRead);
-                          
-                          j++;
-                      }
-                      else
-                      {
-                          // No se muestran mas resultados. Hemos llegado a "maxResults"
-                          break;
-                      }
-                  }
-              }
-      
-              if (j<=1)
-              {
-                  // No hay resultados
-                  writeString("statusFILE.txt=\"NO FILES FOUND\"");
-                  delay(125);
-                  // Indicamos que ya no estamos en searching para que se pueda
-                  // hacer refresco sin problemas
-                  FILE_BROWSER_SEARCHING = false;
-                  FILE_BROWSER_OPEN = true;
-                  // Borramos todo 
-                  clearFilesInScreen();                  
-              }
-              else
-              {
-                  // Limpiamos el mensaje
-                  writeString("statusFILE.txt=\"FILES " + String(j) + "\"");
-                  delay(125);
-
-                  FILE_TOTAL_FILES = j;       
-                  FILE_PTR_POS=0;     
-          
-                  // Representamos ahora   
-                  clearFilesInScreen();
-                  putFilesFoundInScreen();                  
-              }
-      
-
-          }
+          // Hacemos una busqueda
+          SOURCE_FILE_TO_MANAGE = "_fsearch.lst";
+          SOURCE_FILE_INF_TO_MANAGE = "_fsearch.inf";
+          FILE_PTR_POS = 0;
+          getFilesFromSD(true,SOURCE_FILE_TO_MANAGE,SOURCE_FILE_INF_TO_MANAGE,FILE_TXT_TO_SEARCH);
+          //putFilesInScreen();
+          refreshFiles(); //07/11/2024          
       }
       
       void SerialHWSendData(String data) 
@@ -1033,17 +1222,8 @@ class HMI
             logAlert("Refreshing file browser");
           #endif
           
-          // Refrescamos el listado de ficheros visualizado
-          if (!FILE_BROWSER_SEARCHING)
-          {
-              clearFilesInScreen();
-              putFilesInScreen(); 
-          }
-          else
-          {
-              clearFilesInScreen();
-              putFilesFoundInScreen(); 
-          }           
+          clearFilesInScreen();
+          putFilesInScreen();          
       }
 
       void resetBlockIndicators()
@@ -1082,6 +1262,12 @@ class HMI
       }
 
       public:
+
+      void reloadCustomDir(String path)
+      {
+        FILE_LAST_DIR=path;
+        getFilesFromSD(true,SOURCE_FILE_TO_MANAGE,SOURCE_FILE_INF_TO_MANAGE);
+      }
 
       void resetIndicators()
       {
@@ -1130,15 +1316,26 @@ class HMI
       {
           // Recarga el directorio
           FILE_PTR_POS = 0;
-          getFilesFromSD(true);       
+          getFilesFromSD(true,SOURCE_FILE_TO_MANAGE,SOURCE_FILE_INF_TO_MANAGE);      
           refreshFiles();        
       }
 
       void firstLoadingFilesFB()
       {
           // Carga por primera vez ficheros en el filebrowser
-          getFilesFromSD(false);
+          getFilesFromSD(false,SOURCE_FILE_TO_MANAGE,SOURCE_FILE_INF_TO_MANAGE);
           putFilesInScreen();        
+      }
+
+      void copyFile(File32 &fSource, File32 &fTarget)
+      {
+          size_t n;  
+          uint8_t buf[64];
+
+          while ((n = fSource.read(buf, sizeof(buf))) > 0) 
+          {
+            fTarget.write(buf, n);
+          }        
       }
 
       void verifyCommand(String strCmd) 
@@ -1148,7 +1345,12 @@ class HMI
         LAST_COMMAND = "";
 
         // Selección de bloque desde keypad - pantalla
-        if (strCmd.indexOf("BKX=") != -1) 
+        if(strCmd.indexOf("RSET") != -1)
+        {
+          delay(2000);
+          ESP.restart();
+        }
+        else if (strCmd.indexOf("BKX=") != -1) 
         {
             // Con este procedimiento capturamos el bloque seleccionado
             // desde la pantalla.
@@ -1205,7 +1407,7 @@ class HMI
             }
             
             // Actualizamos la lista con la posición nueva del puntero
-            getFilesFromSD(false);
+            getFilesFromSD(false,SOURCE_FILE_TO_MANAGE,SOURCE_FILE_INF_TO_MANAGE);
             // Refrescamos el listado de ficheros visualizado
             refreshFiles();            
         }      
@@ -1223,14 +1425,9 @@ class HMI
         else if (strCmd.indexOf("SHR") != -1) 
         {
             // Con este comando nos indica la pantalla que 
-            // está en modo FILEBROWSER
-            FILE_BROWSER_SEARCHING = true;
-            // SerialHW.println("");
-            // SerialHW.println("");
-            // SerialHW.println(" ---------- Buscando ficheros");
-            findTheTextInFiles();
-            // SerialHW.println(" ----------------------------");
-      
+            // está en modo searching
+            //FILE_BROWSER_SEARCHING = true;
+            findTheTextInFiles();      
         }
         else if (strCmd.indexOf("OUTFB") != -1) 
         {
@@ -1264,24 +1461,48 @@ class HMI
                     sdm.dir.close();             
                 }              
 
-                getFilesFromSD(false);
-                refreshFiles(); //07/11/2024 - Ojo!
+                getFilesFromSD(false,SOURCE_FILE_TO_MANAGE,SOURCE_FILE_INF_TO_MANAGE,"");
+                //refreshFiles(); //07/11/2024 - Ojo!
             }
 
             if (!FILE_DIR_OPEN_FAILED)
             {
-
                 clearFilesInScreen();
                 putFilesInScreen();
                 FILE_STATUS = 1;
                 // El GFIL desconecta el filtro de busqueda
-                FILE_BROWSER_SEARCHING = false;                   
+                //FILE_BROWSER_SEARCHING = false;                   
             }            
         }
         else if (strCmd.indexOf("RFSH") != -1) 
         {
             reloadDir();
         }
+        else if (strCmd.indexOf("FINI") != -1) 
+        {
+            // Posicionamos entonces en la primera página
+            // Cogemos el primer item y refrescamos
+            FILE_PTR_POS = 1;
+            // Actualizamos la lista con la posición nueva del puntero
+            getFilesFromSD(false,SOURCE_FILE_TO_MANAGE,SOURCE_FILE_INF_TO_MANAGE);
+            // Refrescamos el listado de ficheros visualizado
+            refreshFiles();  
+            delay(125);
+            showInformationAboutFiles();                     
+        }
+        else if (strCmd.indexOf("FEND") != -1) 
+        {
+            // Posicionamos entonces en la ultima página
+            int totalPages = (FILE_TOTAL_FILES / TOTAL_FILES_IN_BROWSER_PAGE);
+            // Cogemos el primer item y refrescamos
+            FILE_PTR_POS = (totalPages * TOTAL_FILES_IN_BROWSER_PAGE) + 1;
+            // Actualizamos la lista con la posición nueva del puntero
+            getFilesFromSD(false,SOURCE_FILE_TO_MANAGE,SOURCE_FILE_INF_TO_MANAGE);
+            // Refrescamos el listado de ficheros visualizado
+            refreshFiles(); 
+            delay(125);
+            showInformationAboutFiles();                       
+        }        
         else if (strCmd.indexOf("FPUP") != -1) 
         {
             // Con este comando nos indica la pantalla que quiere
@@ -1293,8 +1514,10 @@ class HMI
                 FILE_PTR_POS = 0;
             }
 
-            getFilesFromSD(false);
+            getFilesFromSD(false,SOURCE_FILE_TO_MANAGE,SOURCE_FILE_INF_TO_MANAGE);
             refreshFiles();
+            delay(125);
+            showInformationAboutFiles();            
         }
         else if (strCmd.indexOf("FPDOWN") != -1) 
         {
@@ -1308,23 +1531,145 @@ class HMI
                 FILE_PTR_POS -= TOTAL_FILES_IN_BROWSER_PAGE;
             }
 
-            getFilesFromSD(false);
+            getFilesFromSD(false,SOURCE_FILE_TO_MANAGE,SOURCE_FILE_INF_TO_MANAGE);
             refreshFiles();
+            delay(125);
+            showInformationAboutFiles();
         }
         else if (strCmd.indexOf("FPHOME") != -1) 
         {
             // Con este comando nos indica la pantalla que quiere
             // le devolvamos ficheros en la posición actual del puntero
+            SOURCE_FILE_TO_MANAGE = "_files.lst";
+            SOURCE_FILE_INF_TO_MANAGE = "_files.inf"; 
             putInHome();
+         
+            getFilesFromSD(false,SOURCE_FILE_TO_MANAGE,SOURCE_FILE_INF_TO_MANAGE);
+            refreshFiles(); 
+        }        
+        else if (strCmd.indexOf("FAV=") != -1) 
+        {
+            
+            #ifdef DEBUGMODE
+              logAlert("FAV Command");
+            #endif                  
+
+            // Con este comando añadimos el fichero seleccionado a la carpeta favoritos si no existe
+            // Con este comando
+            // devolvamos el fichero que se ha seleccionado en la pantalla
+            uint8_t buff[8];
+            strCmd.getBytes(buff, 7);
+            long val = (long)((int)buff[4] + (256*(int)buff[5]) + (65536*(int)buff[6]));
+            String num = String(val);
       
-            //writeString("statusFILE.txt=\"GETTING FILES\"");
+            FILE_IDX_SELECTED = num.toInt();
+            FILE_SELECTED = false;
       
-            getFilesFromSD(false);
-            refreshFiles(); //07/11/2024
+            //Extraemos el fichero
+            String fileName  = FILES_BUFF[FILE_IDX_SELECTED+1].path;
+            String fToFav = FILE_LAST_DIR + fileName;                         
       
-            //writeString("statusFILE.txt=\"\"");
-      
-        }
+            #ifdef DEBUGMODE
+              logAlert("Filename: " + fileName);
+              logAlert("Full path: " + fToFav);
+            #endif
+
+            // Cambiamos el estado de fichero seleccionado
+            if (fToFav != "")
+            {
+                #ifdef DEBUGMODE
+                  logAlert("File was selected to move to favorite dir");
+                #endif
+
+                // Ahora lo cargamos en favorito.
+                String pSource = fToFav;
+                String pTarget = "/fav/" + fileName;
+
+                #ifdef DEBUGMODE
+                  logln("");
+                  log("Source file: " + pSource);
+                  logln("");
+                  log("Target file: " + pTarget);
+                  logln("");
+                #endif
+                
+                //Esto lo hacemos para ver si el directorio existe
+                String favDir = "/FAV";
+
+                if (_sdf.chdir(favDir))
+                {
+                    #ifdef DEBUGMODE
+                      logAlert("FAV ok");
+                    #endif
+
+                    if (!_sdf.exists(pTarget))
+                    {
+                        // Si el fichero no existe en favoritos, lo copio
+                        File32 fSource;
+                        File32 fTarget;
+
+                        char pSrc[255];
+                        char pTgt[255];
+
+                        // Abrimos los ficheros fuente y destino
+                        bool fSourceOk = fSource.open(strcpy(pSrc,pSource.c_str()),O_READ);
+                        bool fTargetOk = fTarget.open(strcpy(pTgt,pTarget.c_str()),O_WRITE | O_CREAT | O_TRUNC);
+
+                        #ifdef DEBUGMODE
+                          logln("");
+                          log("* Source file: " + String(pSrc));
+                          logln("");
+                          log("* Target file: " + String(pTgt));
+                          logln("");
+                        #endif
+
+                        if (!fSourceOk)
+                        {
+                            logAlert("Error opening source file");
+                        }
+                        
+                        if (!fTargetOk)
+                        {
+                            logAlert("Error opening target file");
+                        }
+
+                        if (fSourceOk && fTargetOk)
+                        {
+
+                          logAlert("Starting copy ...");
+
+                          copyFile(fSource,fTarget);
+                          fSource.close();
+                          fTarget.close();
+
+                          logAlert("Copy finish.");
+
+                        }
+                        else
+                        {
+                          #ifdef DEBUGMODE
+                            logln("");
+                            log("Error! Copy failed");
+                          #endif
+                        }                  
+                    }
+                    else
+                    {
+                        #ifdef DEBUGMODE
+                          logln("");
+                          log("File already in FAV.");
+                        #endif
+                    }                  
+                }
+                else
+                {
+                  #ifdef DEBUGMODE
+                    logln("");
+                    log("Error! directory /FAV not created.");
+                  #endif
+                }
+            }     
+        }              
         else if (strCmd.indexOf("CHD=") != -1) 
         {
             // Con este comando capturamos el directorio a cambiar
@@ -1365,11 +1710,8 @@ class HMI
      
             FILE_PTR_POS = 0;
             clearFilesInScreen();
-      
-            //writeString("");
-            //writeString("statusFILE.txt=\"GETTING FILES\"");
-      
-            getFilesFromSD(false);
+                     
+            getFilesFromSD(false,SOURCE_FILE_TO_MANAGE,SOURCE_FILE_INF_TO_MANAGE);
             
             if (!FILE_DIR_OPEN_FAILED)
             {
@@ -1382,14 +1724,17 @@ class HMI
                 logln("Error to open directory");
               #endif
             }
-            
-            //writeString("");
-            //writeString("statusFILE.txt=\"\"");
+
         }
         else if (strCmd.indexOf("PAR=") != -1) 
         {
             // Con este comando capturamos el directorio padre
-      
+            String oldDir = FILE_PREVIOUS_DIR;
+            
+            // Forzamos a leer el repositorio de ficheros del directorio.
+            SOURCE_FILE_TO_MANAGE = "_files.lst"; 
+            SOURCE_FILE_INF_TO_MANAGE = "_files.inf"; 
+
             //Cogemos el directorio padre que siempre estará en el prevDir y por tanto
             //no hay que calcular la posición
             FILE_DIR_TO_CHANGE = FILES_BUFF[0].path;    
@@ -1408,14 +1753,19 @@ class HMI
             }
             //
             //
-            FILE_PTR_POS = 0;
-            //clearFilesInScreen();     //07/11/2024       
-            getFilesFromSD(false);
-            refreshFiles();   //07/11/2024
+            FILE_PTR_POS = 0;    
+            getFilesFromSD(false,SOURCE_FILE_TO_MANAGE,SOURCE_FILE_INF_TO_MANAGE);
             
             if (!FILE_DIR_OPEN_FAILED)
             {
                 putFilesInScreen();
+            }
+            else
+            {
+                // Error
+                writeString("currentDir.txt=\">> Error opening directory. <<\"");
+                delay(1500);
+                writeString("currentDir.txt=\"" + String(FILE_LAST_DIR_LAST) + "\"");             
             }
       
         }
@@ -1433,24 +1783,24 @@ class HMI
             FILE_SELECTED_DELETE = false;
       
             //Cogemos el fichero
-            if (!FILE_BROWSER_SEARCHING)
-            {
+            // if (!FILE_BROWSER_SEARCHING)
+            // {
                 FILE_TO_DELETE = FILE_LAST_DIR + FILES_BUFF[FILE_IDX_SELECTED+1].path;     
       
-                SerialHW.println();
-                SerialHW.println();
-                SerialHW.println("File to delete: " + FILE_TO_DELETE);  
+                // SerialHW.println();
+                // SerialHW.println();
+                // SerialHW.println("File to delete: " + FILE_TO_DELETE);  
                 FILE_SELECTED_DELETE = true; 
-            }
-            else
-            {
-                FILE_TO_DELETE = FILE_LAST_DIR + FILES_FOUND_BUFF[FILE_IDX_SELECTED+1].path;     
+            // }
+            // else
+            // {
+            //     FILE_TO_DELETE = FILE_LAST_DIR + FILES_FOUND_BUFF[FILE_IDX_SELECTED+1].path;     
       
-                SerialHW.println();
-                SerialHW.println();
-                SerialHW.println("File to delete in buffer: " + FILE_TO_DELETE); 
-                FILE_SELECTED_DELETE = true;  
-            }
+            //     // SerialHW.println();
+            //     // SerialHW.println();
+            //     // SerialHW.println("File to delete in buffer: " + FILE_TO_DELETE); 
+            //     FILE_SELECTED_DELETE = true;  
+            // }
 
             if (FILE_SELECTED_DELETE)
             {
@@ -1460,23 +1810,19 @@ class HMI
                 if (!mf.isWritable())
                 {
                   writeString("currentDir.txt=\">> Error. File not writeable <<\"");
+                  delay(1500);
+                  writeString("currentDir.txt=\"" + String(FILE_LAST_DIR_LAST) + "\"");                  
                   mf.close();
+                  FILE_SELECTED_DELETE = false;
                 }
-                // else if (mf.isLFN())
-                // { 
-                //   writeString("currentDir.txt=\">> Error. Long filename <<\"");
-                //   mf.close();
-                // }
                 else if (mf.isReadOnly())
                 { 
                   writeString("currentDir.txt=\">> Error. Readonly file <<\"");
+                  delay(1500);
+                  writeString("currentDir.txt=\"" + String(FILE_LAST_DIR_LAST) + "\"");                  
                   mf.close();
+                  FILE_SELECTED_DELETE = false;
                 }
-                // else if (mf.isSystem())
-                // { 
-                //   writeString("currentDir.txt=\">> Error. System file <<\"");
-                //   mf.close();
-                // }
                 else
                 {
                     mf.close();
@@ -1489,7 +1835,8 @@ class HMI
                       
                       writeString("currentDir.txt=\">> Error. File not removed <<\"");
                       delay(1500);
-                      writeString("currentDir.txt=\"" + String(FILE_LAST_DIR_LAST) + "\"");                  
+                      writeString("currentDir.txt=\"" + String(FILE_LAST_DIR_LAST) + "\"");    
+                      FILE_SELECTED_DELETE = false;              
                     }
                     else
                     {
@@ -1497,12 +1844,16 @@ class HMI
                       SerialHW.println("File remove. " + FILE_TO_DELETE);
                       
                       // Tras borrar hacemos un rescan
-                      getFilesFromSD(true);       
+                      getFilesFromSD(true,SOURCE_FILE_TO_MANAGE,SOURCE_FILE_INF_TO_MANAGE);      
+                      delay(125);
                       refreshFiles();
+                      delay(125);
                     }                  
                 }
-
-
+            }
+            else
+            {
+              writeString("currentDir.txt=\">> First, select a file. <<\"");
             }
         }      
         // Load file - Carga en el TAPE el fichero seleccionado en pantalla
@@ -1519,14 +1870,14 @@ class HMI
             FILE_SELECTED = false;
       
             //Cogemos el fichero
-            if (!FILE_BROWSER_SEARCHING)
-            {
+            // if (!FILE_BROWSER_SEARCHING)
+            // {
                 FILE_TO_LOAD = FILE_LAST_DIR + FILES_BUFF[FILE_IDX_SELECTED+1].path;                    
-            }
-            else
-            {
-                FILE_TO_LOAD = FILE_LAST_DIR + FILES_FOUND_BUFF[FILE_IDX_SELECTED+1].path;           
-            }
+            //}
+            // else
+            // {
+            //     FILE_TO_LOAD = FILE_LAST_DIR + FILES_FOUND_BUFF[FILE_IDX_SELECTED+1].path;           
+            // }
       
       
             // Cambiamos el estado de fichero seleccionado
@@ -1663,8 +2014,6 @@ class HMI
           REC = false;
           ABORT = true;
           EJECT = false;
-
-          LAST_MESSAGE = "Tape paused. Press play to continue load or select block.";
           //updateInformationMainPage();
         }    
         else if (strCmd.indexOf("STOP") != -1) 
@@ -1697,11 +2046,24 @@ class HMI
           ABORT = false;
           EJECT = true;
 
-          FILE_BROWSER_OPEN = true;
+          // Esto lo hacemos así porque el EJECT lanza un comando en paralelo
+          // al control del tape (tapeControl)
+          // no quitar!!
+          if (PROGRAM_NAME != "" || TOTAL_BLOCKS !=0)
+          {
+              LAST_MESSAGE = "Ejecting cassette.";
+              writeString("g0.txt=\"" + LAST_MESSAGE + "\"");
+              delay(500);
+              clearInformationFile();
+              delay(250);
+          }
 
-          refreshFiles();
-          delay(250);
+          FILE_BROWSER_OPEN = true;
+          //
+          // Entramos en el file browser
           writeString("page file");          
+          delay(250);
+          refreshFiles();
 
         }    
         // else if (strCmd.indexOf("ABORT") != -1) 
@@ -1900,17 +2262,20 @@ class HMI
           SerialHW.println("EAR LEFT enable=" + String(SWAP_EAR_CHANNEL));
         }
         // Save polarization in ID 0x2B
-        else if (strCmd.indexOf("I2B=") != -1) 
+        else if (strCmd.indexOf("SAV=") != -1) 
         {
-          //Cogemos el valor
-          uint8_t buff[8];
-          strCmd.getBytes(buff, 7);
-          int valEn = (int)buff[4];
-          //
-          saveID2B(valEn);
+          //Guardamos la configuracion en un fichero
+          String path = FILE_LAST_DIR;
+          char strpath[FILE_TO_LOAD.length() + 5] = {};
+          strcpy(strpath,FILE_TO_LOAD.c_str());
+          if (_sdf.exists(FILE_TO_LOAD + ".cfg"))
+          {
+            // Abrimos el fichero de configuracion.
+            File32 cfg = sdm.openFile32(strpath);
+          }
 
           #ifdef DEBUGMODE
-            log("ID 0x2B = " + String(valEn));
+            log("Config. saved");
           #endif
         }
         // Sampling rate
@@ -1924,18 +2289,22 @@ class HMI
           if (valEn==0)
           {
               SAMPLING_RATE = 48000;
+              writeString("tape.lblFreq.txt=\"48KHz\"" );
           }
           else if(valEn==1)
           {
               SAMPLING_RATE = 44100;
+              writeString("tape.lblFreq.txt=\"44KHz\"" );
           }
           else if(valEn==2)
           {
               SAMPLING_RATE = 32000;
+              writeString("tape.lblFreq.txt=\"32KHz\"" );
           }
           else if(valEn==3)
           {
               SAMPLING_RATE = 22050;
+              writeString("tape.lblFreq.txt=\"22KHz\"" );
           }
           
           #ifdef DEBUGMODE
@@ -2169,11 +2538,46 @@ class HMI
             n++;
             str = (char)buff[n];
           }
-      
+
+          #ifdef DEBUGMODE
+            logln("");
+            log("Search mode.");
+            logln("");
+            log("Text to search: ");
+            log(phrase);
+          #endif
+
           // Ahora localizamos los ficheros
-          FILE_TXT_TO_SEARCH = phrase;
-          FILE_BROWSER_SEARCHING = true;
+          String(tmpPhrase) = phrase;
+          tmpPhrase.trim();
+          FILE_TXT_TO_SEARCH = tmpPhrase;
+          //FILE_BROWSER_SEARCHING = true;
+          
           findTheTextInFiles();
+        }
+        else if (strCmd.indexOf("PDEBUG") != -1)
+        {
+            // Estamos en la pantalla DEBUG
+            #ifdef DEBUGMODE
+              logAlert("PAGE DEBUG");
+            #endif
+            CURRENT_PAGE = 3;
+        }
+        else if (strCmd.indexOf("PMENU1") != -1)
+        {
+            // Estamos en la pantalla MENU
+            #ifdef DEBUGMODE
+              logAlert("PAGE MENU");
+            #endif
+            CURRENT_PAGE = 2;
+        }
+        else if (strCmd.indexOf("PTAPE") != -1)
+        {
+            // Estamos en la pantalla TAPE
+            #ifdef DEBUGMODE
+              logAlert("PAGE TAPE");
+            #endif
+            CURRENT_PAGE = 1;
         }
         else
         {}
@@ -2184,7 +2588,7 @@ class HMI
       void writeString(String stringData) 
       {
       
-          //SerialHW.flush();
+          SerialHW.flush();
       
           SerialHW.write(0xff);
           SerialHW.write(0xff);
@@ -2202,14 +2606,21 @@ class HMI
           SerialHW.write(0xff);
           SerialHW.write(0xff);
       
-          if(FILE_BROWSER_OPEN)
-          {
-              // Metemos un delay de 10ms
-              // menos da problemas.
-              //delay(10);       
-          }
       }
       
+      void writeStringBlock(String stringData) 
+      {
+          
+          SerialHW.flush();
+
+          for (int i = 0; i < stringData.length(); i++) 
+          {
+            // Enviamos los datos
+            SerialHW.write(stringData[i]);
+          }
+    
+      }      
+
       void write(String stringData)
       {
           for (int i = 0; i < stringData.length(); i++) 
@@ -2238,42 +2649,66 @@ class HMI
       void clearInformationFile()
       {
           PROGRAM_NAME = "";
+          lastPrgName = "";
+          PROGRAM_NAME_2 = "";
+          lastPrgName2 = "";
           LAST_SIZE = 0;
           strncpy(LAST_NAME,"",1);
           strncpy(LAST_TYPE,"",1);
+          lastType = "";
+          LAST_GROUP = "";
+          lastGrp = "";
+          lastBl1 = BLOCK_SELECTED = 0;
+          lastBl2 = TOTAL_BLOCKS = 0;
+          lastPr1 = PROGRESS_BAR_BLOCK_VALUE = 0;
+          lastPr2 = PROGRESS_BAR_TOTAL_VALUE = 0;
 
-          //updateInformationMainPage();
+
+          // Forzamos un actualizado de la información del tape
+          writeString("name.txt=\"" + PROGRAM_NAME + " : " + PROGRAM_NAME_2 + "\"");
+          writeString("tape2.name.txt=\"" + PROGRAM_NAME + " : " + PROGRAM_NAME_2 + "\"");
+          writeString("size.txt=\"0 bytes\"");
+          writeString("tape2.size.txt=\"0 bytes\"");
+          writeString("type.txt=\"" + String(LAST_TYPE) + " " + LAST_GROUP + "\"");
+          writeString("tape2.type.txt=\"" + String(LAST_TYPE) + " " + LAST_GROUP + "\"");
+          writeString("progression.val=" + String(PROGRESS_BAR_BLOCK_VALUE));   
+          writeString("progressTotal.val=" + String(PROGRESS_BAR_TOTAL_VALUE));
+          writeString("totalBlocks.val=" + String(TOTAL_BLOCKS));       
+          writeString("currentBlock.val=" + String(BLOCK_SELECTED + 1));                              
       }
 
       void updateInformationMainPage() 
       {            
-
           if (PLAY)
           {
-            writeString("debug.dataOffset1.txt=\"" + dataOffset1 +"\"");
-            writeString("debug.dataOffset2.txt=\"" + dataOffset2 +"\"");
-            writeString("debug.dataOffset3.txt=\"" + dataOffset3 +"\"");
-            writeString("debug.dataOffset4.txt=\"" + dataOffset4 +"\"");
+            if (CURRENT_PAGE == 3)
+            {
+                writeString("debug.dataOffset1.txt=\"" + dataOffset1 +"\"");
+                writeString("debug.dataOffset2.txt=\"" + dataOffset2 +"\"");
+                writeString("debug.dataOffset3.txt=\"" + dataOffset3 +"\"");
+                writeString("debug.dataOffset4.txt=\"" + dataOffset4 +"\"");
 
-            writeString("debug.offset1.txt=\"" + Offset1 +"\"");
-            writeString("debug.offset2.txt=\"" + Offset2 +"\"");
-            writeString("debug.offset3.txt=\"" + Offset3 +"\"");
-            writeString("debug.offset4.txt=\"" + Offset4 +"\"");
+                writeString("debug.offset1.txt=\"" + Offset1 +"\"");
+                writeString("debug.offset2.txt=\"" + Offset2 +"\"");
+                writeString("debug.offset3.txt=\"" + Offset3 +"\"");
+                writeString("debug.offset4.txt=\"" + Offset4 +"\"");
 
-            // DEBUG Information
-            writeString("debug.blockLoading.txt=\"" + String(BLOCK_SELECTED) +"\"");
-            // Esto falla
-            writeString("debug.partLoading.txt=\"" + String(PARTITION_BLOCK) +"\"");
-            writeString("debug.totalParts.txt=\"" + String(TOTAL_PARTS) +"\"");
+                // DEBUG Information
+                writeString("debug.blockLoading.txt=\"" + String(BLOCK_SELECTED) +"\"");
+                
+                // Esto falla
+                writeString("debug.partLoading.txt=\"" + String(PARTITION_BLOCK) +"\"");
+                writeString("debug.totalParts.txt=\"" + String(TOTAL_PARTS) +"\"");
 
-            writeString("debug.dbgBlkInfo.txt=\"" + dbgBlkInfo +"\"");
-            writeString("debug.dbgPauseAB.txt=\"" + dbgPauseAB +"\"");
-            writeString("debug.dbgSync1.txt=\"" + dbgSync1 +"\"");
-            writeString("debug.dbgSync2.txt=\"" + dbgSync2 +"\"");
-            writeString("debug.dbgBit1.txt=\"" + dbgBit1 +"\"");
-            writeString("debug.dbgBit0.txt=\"" + dbgBit0 +"\"");
-            writeString("debug.dbgTState.txt=\"" + dbgTState +"\"");
-            writeString("debug.dbgRep.txt=\"" + dbgRep +"\"");
+                writeString("debug.dbgBlkInfo.txt=\"" + dbgBlkInfo +"\"");
+                writeString("debug.dbgPauseAB.txt=\"" + dbgPauseAB +"\"");
+                writeString("debug.dbgSync1.txt=\"" + dbgSync1 +"\"");
+                writeString("debug.dbgSync2.txt=\"" + dbgSync2 +"\"");
+                writeString("debug.dbgBit1.txt=\"" + dbgBit1 +"\"");
+                writeString("debug.dbgBit0.txt=\"" + dbgBit0 +"\"");
+                writeString("debug.dbgTState.txt=\"" + dbgTState +"\"");
+                writeString("debug.dbgRep.txt=\"" + dbgRep +"\"");
+            }
           }
 
           if (TOTAL_BLOCKS != 0 || REC || EJECT) 
@@ -2282,17 +2717,40 @@ class HMI
             // Enviamos información al HMI
             if (TYPE_FILE_LOAD != "TAP" || REC)
             {
-                writeString("name.txt=\"" + PROGRAM_NAME + " : " + PROGRAM_NAME_2 + "\"");
-                writeString("tape2.name.txt=\"" + PROGRAM_NAME + " : " + PROGRAM_NAME_2 + "\"");
+                // Para TZX
+                if (lastPrgName!=PROGRAM_NAME || lastPrgName2!=PROGRAM_NAME_2)
+                {
+                  writeString("name.txt=\"" + PROGRAM_NAME + " : " + PROGRAM_NAME_2 + "\"");
+                  writeString("tape2.name.txt=\"" + PROGRAM_NAME + " : " + PROGRAM_NAME_2 + "\"");
+                }
+                lastPrgName = PROGRAM_NAME;
+                lastPrgName2 = PROGRAM_NAME_2;
             }
             else
             {
-                writeString("name.txt=\"" + PROGRAM_NAME + "\"");
-                writeString("tape2.name.txt=\"" + PROGRAM_NAME + "\"");
+                // Para TAP
+                if (lastPrgName!=PROGRAM_NAME)
+                {
+                  writeString("name.txt=\"" + PROGRAM_NAME + "\"");
+                  writeString("tape2.name.txt=\"" + PROGRAM_NAME + "\"");
+                }
+                lastPrgName = PROGRAM_NAME;
             }
             
-            writeString("size.txt=\"" + String(LAST_SIZE) + " bytes\"");
-            writeString("tape2.size.txt=\"" + String(LAST_SIZE) + " bytes\"");
+            if (lstLastSize!=LAST_SIZE)
+            {
+                if (LAST_SIZE > 9999)
+                {
+                  writeString("size.txt=\"" + String(LAST_SIZE / 1024) + " Kb\"");
+                  writeString("tape2.size.txt=\"" + String(LAST_SIZE / 1024) + " Kb\"");
+                }
+                else
+                {
+                  writeString("size.txt=\"" + String(LAST_SIZE) + " bytes\"");
+                  writeString("tape2.size.txt=\"" + String(LAST_SIZE) + " bytes\"");
+                }
+            }
+            lstLastSize = LAST_SIZE;
 
             String cmpTypeStr = String(LAST_NAME);
             cmpTypeStr.trim();
@@ -2300,19 +2758,33 @@ class HMI
 
             if (TYPE_FILE_LOAD != "TAP" || REC)
             {
-                writeString("type.txt=\"" + String(LAST_TYPE) + " " + LAST_GROUP + "\"");
-                writeString("tape2.type.txt=\"" + String(LAST_TYPE) + " " + LAST_GROUP + "\"");
+                if (lastType!=LAST_TYPE || lastGrp!=LAST_GROUP)
+                { 
+                  writeString("type.txt=\"" + String(LAST_TYPE) + " " + LAST_GROUP + "\"");
+                  writeString("tape2.type.txt=\"" + String(LAST_TYPE) + " " + LAST_GROUP + "\"");
+                }
+                lastType = LAST_TYPE;
+                lastGrp = LAST_GROUP;
             }
             else
             {
-                writeString("type.txt=\"" + String(LAST_TYPE) + "\"");
-                writeString("tape2.type.txt=\"" + String(LAST_TYPE) + "\"");
-                    
+
+                if (lastType!=LAST_TYPE)
+                { 
+                  writeString("type.txt=\"" + String(LAST_TYPE) + "\"");
+                  writeString("tape2.type.txt=\"" + String(LAST_TYPE) + "\"");
+                }
+                lastType = LAST_TYPE;  
+
                 // writeString("name.txt=\"" + PROGRAM_NAME + " : " + String(LAST_NAME) + "\"");           
                 // writeString("tape2.name.txt=\"" + PROGRAM_NAME + " : " + String(LAST_NAME) + "\"");     
 
-                writeString("name.txt=\"" + PROGRAM_NAME + "\"");           
-                writeString("tape2.name.txt=\"" + PROGRAM_NAME + "\"");
+                if (lastPrgName!=PROGRAM_NAME)
+                {
+                  writeString("name.txt=\"" + PROGRAM_NAME + "\"");
+                  writeString("tape2.name.txt=\"" + PROGRAM_NAME + "\"");
+                }
+                lastPrgName = PROGRAM_NAME;                
             }
         
             //writeString("totalBlocks.val=" + String(TOTAL_BLOCKS));
@@ -2344,8 +2816,12 @@ class HMI
           {writeString("currentBlock.val=" + String(BLOCK_SELECTED + 1));}
           lastBl2 = BLOCK_SELECTED;
                             
-
-          updateMem();
+          if (CURRENT_PAGE == 2)
+          {
+            // Solo mostramos la información de memoria si estamos en la pagina de Menú
+            updateMem();
+          }
+          
       }
       
       int getEndCharPosition(String str,int start)
@@ -2551,13 +3027,27 @@ class HMI
       void updateMem()
       {
           if (lst_stackFreeCore0 != stackFreeCore0 || lst_psram_used != ESP.getPsramSize() || lst_stack_used != ESP.getHeapSize())
-          {writeString("menu.totalPSRAM.txt=\"StTsk0: " + String(stackFreeCore0) + "KB | " + String(ESP.getPsramSize() / 1024) + " | " + String(ESP.getHeapSize() / 1024) + " KB\"");}
+          {
+            #ifdef DEBUGMODE
+              writeString("menu.totalPSRAM.txt=\"Task0: " + String(stackFreeCore0) + " KB | " + String(ESP.getPsramSize() / 1024) + " KB | " + String(ESP.getHeapSize() / 1024) + " KB\"");            
+            #else
+              writeString("menu.totalPSRAM.txt=\"" + String(ESP.getPsramSize() / 1024) + " KB | " + String(ESP.getHeapSize() / 1024) + " KB\"");            
+            #endif
+            
+          }
+          
           lst_stackFreeCore0 = BLOCK_SELECTED;
           lst_psram_used = ESP.getPsramSize();
           lst_stack_used = ESP.getHeapSize();
 
           if (lst_stackFreeCore1 != stackFreeCore1 || lst_psram_used != ESP.getFreePsram() || lst_stack_used != ESP.getFreeHeap())
-          {writeString("menu.freePSRAM.txt=\"StTsk1: "  + String(stackFreeCore1) + "KB | " + String(ESP.getFreePsram() / 1024) + " | " + String(ESP.getFreeHeap() / 1024) + " KB\"");}
+          {
+            #ifdef DEBUGMODE
+              writeString("menu.freePSRAM.txt=\"Task1: "  + String(stackFreeCore1) + " KB | " + String(ESP.getFreePsram() / 1024) + " KB | " + String(ESP.getFreeHeap() / 1024) + " KB\"");
+            #else
+              writeString("menu.freePSRAM.txt=\""  + String(ESP.getFreePsram() / 1024) + " KB | " + String(ESP.getFreeHeap() / 1024) + " KB\"");
+            #endif
+          }
           lst_stackFreeCore1 = BLOCK_SELECTED;
           lst_psram_free = ESP.getFreePsram();
           lst_stack_free = ESP.getFreeHeap();

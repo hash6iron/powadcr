@@ -1443,7 +1443,14 @@ class TAPrecorder
           
           if (!_sdf32.mkdir(RECORDING_DIR))
           {
-            log("Error! Directory exists or wasn't created");
+            #ifdef DEBUGMODE
+              log("Error! Directory exists or wasn't created");
+            #endif
+          }
+          else
+          {
+            // Actualizamos el sistema de ficheros.
+            _hmi.reloadCustomDir("/");
           }
 
           // Se crea un nuevo fichero temporal con la ruta del REC
@@ -1628,7 +1635,7 @@ class TAPrecorder
                     {
                       // Guardado completo.
                       LAST_MESSAGE = "Saving all";
-                      delay(1500);
+                      delay(1000);
                       fileWasClosed = saveBlocksOnFile(false);
                     }
                     else
@@ -1636,7 +1643,7 @@ class TAPrecorder
                       // Guardado parcial.
                       // El ultimo bloque es erroneo pero el resto no
                       LAST_MESSAGE = "Partial Saving.";
-                      delay(1500);
+                      delay(1000);
                       fileWasClosed = saveBlocksOnFile(true);
                     }
                 }
@@ -1646,7 +1653,7 @@ class TAPrecorder
                   // es un error
                   // Escribimos 256 bytes
                   LAST_MESSAGE = "Empty file";
-                  delay(1500);                  
+                  delay(1000);                  
                   fileWasClosed = fillAndCloseFile();
                 }
             }
@@ -1659,16 +1666,16 @@ class TAPrecorder
 
                 if (totalBlockTransfered !=0 && errorDetected !=0)
                 {
-                    LAST_MESSAGE = "Partial Saving - preparing.";
-                    delay(1500);
+                    //LAST_MESSAGE = "Partial Saving - preparing.";
+                    //delay(1500);
                     
                     // Vemos si el puntero de bloque dentro del fichero
                     // no está al principio.
                     if (ptrOffset != 0)
                     {
                       //
-                      LAST_MESSAGE = "Partial Saving II.";
-                      delay(1500);
+                      LAST_MESSAGE = "Partial Saving.";
+                      delay(1000);
                       fileWasClosed = saveBlocksOnFile(true);                   
                       // Ya hemos cerrado el fichero antes
                       // ojo!!! 
@@ -1677,7 +1684,7 @@ class TAPrecorder
                     {
                       // El puntero de bloque es cero o se ha perdido.
                       LAST_MESSAGE = "Last block pointer lost.";
-                      delay(1500);
+                      delay(1000);
                     }
                 }
                 else
@@ -1687,15 +1694,15 @@ class TAPrecorder
                     // Escribimos 256 bytes
                     if (totalBlockTransfered == 0)
                     {
-                        LAST_MESSAGE = "Empty file II";
-                        delay(1500); 
+                        LAST_MESSAGE = "Empty file";
+                        delay(1000); 
                         fileWasClosed = fillAndCloseFile();
                     }
                     else
                     {
                       // Aqui errorDetected = 0 y totalBlockTransfered != 0
-                      LAST_MESSAGE = "Partial Saving III.";
-                      delay(1500);
+                      LAST_MESSAGE = "Partial Saving";
+                      delay(1000);
                       fileWasClosed = saveBlocksOnFile(true);
                     }
                 }        

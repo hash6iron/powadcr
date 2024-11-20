@@ -155,8 +155,8 @@ uint8_t TAPESTATE = 0;
 edge POLARIZATION = up;
 edge LAST_EAR_IS = POLARIZATION;
 //edge SCOPE = down;
-bool APPLY_END = true;
-int SAMPLING_RATE = 22050;
+bool APPLY_END = false;
+int SAMPLING_RATE = 44100;
 
 bool INVERSETRAIN = false;
 bool ZEROLEVEL = false;
@@ -256,8 +256,10 @@ bool BLOCK_PLAYED = false;
 String TYPE_FILE_LOAD = "";
 char LAST_NAME[15];
 char LAST_TYPE[36];
+String lastType = "";
 // Para TZX / TSX
 String LAST_GROUP = "";
+String lastGrp = "";
 String LAST_MESSAGE = "";
 String lastMsn = "";
 int lastPr1 = 0;
@@ -266,8 +268,11 @@ int lastBl1 = 0;
 int lastBl2 = 0;
 String PROGRAM_NAME = "";
 String PROGRAM_NAME_2 = "";
+String lastPrgName = "";
+String lastPrgName2 = "";
 bool PROGRAM_NAME_ESTABLISHED = false;
 int LAST_SIZE = 0;
+int lstLastSize = 0;
 
 int LAST_BIT_WIDTH = 0;
 int MULTIGROUP_COUNT = 1;
@@ -299,6 +304,8 @@ int FILE_LAST_DIR_LEVEL = 0;  // Nivel de profundida de directorio
 String FILE_LAST_DIR = "/";
 String FILE_PREVIOUS_DIR = "/";
 String FILE_LAST_DIR_LAST = "../";
+String SOURCE_FILE_TO_MANAGE = "_files.lst";
+String SOURCE_FILE_INF_TO_MANAGE = "_files.inf";
 int FILE_LAST_INDEX = 0;
 int FILE_IDX_SELECTED = -1;
 bool FILE_SELECTED = false;
@@ -317,25 +324,27 @@ bool FILE_SELECTED_DELETE = false;
 String FILE_DIR_TO_CHANGE = "";
 int FILE_PTR_POS = 0;
 int FILE_TOTAL_FILES = 0;
+int FILE_TOTAL_FILES_SEARCH = 0;
 int FILE_STATUS = 0;
 
 String FILE_PATH_SELECTED = "";
 bool FILE_DIR_OPEN_FAILED = false;
 bool FILE_BROWSER_OPEN = false;
-bool FILE_BROWSER_SEARCHING = false;
+//bool FILE_BROWSER_SEARCHING = false;
 bool FILE_CORRUPTED = false;
 
 bool IN_THE_SAME_DIR = false;
 
 String FILE_TXT_TO_SEARCH = "";
 //bool waitingRecMessageShown = false;
-
+int CURRENT_PAGE = 0;
 
 // Variables de control de la reproducción
 bool PLAY = false;
 bool PAUSE = true;
 bool REC = false;
 bool STOP = false;
+bool AUTO_STOP = false;
 bool FFWIND = false;
 bool RWIND = false;
 bool EJECT = false;

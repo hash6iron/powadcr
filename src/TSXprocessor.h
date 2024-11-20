@@ -87,7 +87,7 @@ class TSXprocessor
         char name[11];                               // Nombre del TSX
         int size = 0;                             // Tamaño
         int numBlocks = 0;                        // Numero de bloques
-        tTSXBlockDescriptor* descriptor;          // Descriptor
+        tTSXBlockDescriptor* descriptor = nullptr;          // Descriptor
       };
 
     private:
@@ -1943,6 +1943,11 @@ class TSXprocessor
         return _myTSX.descriptor;
     }
 
+    void setDescriptorNull()
+    {
+            _myTSX.descriptor = nullptr;
+    }
+
     void setTSX(tTSX tsx)
     {
         _myTSX = tsx;
@@ -2723,8 +2728,8 @@ class TSXprocessor
                 PLAY = false;
                 STOP = true;
                 PAUSE = false;
-
-                LAST_MESSAGE = "Playing end. Automatic STOP.";
+                AUTO_STOP = true;
+                // LAST_MESSAGE = "Playing end. Automatic STOP.";
 
                 _hmi.setBasicFileInformation(_myTSX.descriptor[BLOCK_SELECTED].name,_myTSX.descriptor[BLOCK_SELECTED].typeName,_myTSX.descriptor[BLOCK_SELECTED].size);
               }

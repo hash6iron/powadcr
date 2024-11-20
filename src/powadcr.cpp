@@ -8,16 +8,16 @@
 
     Agradecimientos:
       - Kike Martín [kyv]
-      - Jose [Xosmar]
-      - Mario J
-      - Isra
+      - Carlos Martinez [TxarlyM69]
       - Fernando Mosquera
+      - Isra
+      - Mario J
+      - Jose [Xosmar]
       - Victor [Eremus]
-      - Juan Antonio Rubio
       - Guillermo
       - Pedro Pelaez
       - Carlos Palmero [shaeon]
-      - Carlos Martinez [TxarlyM69]
+      
     
     
     Descripción:
@@ -188,6 +188,45 @@ WebServer server(80);
 
 // AudioKitStream kit;
 // StreamCopy copier(kit, kit);  // copies data
+
+// Prototype function
+void ejectingFile();
+
+void freeMemoryFromDescriptorTZX(TZXprocessor::tTZXBlockDescriptor* descriptor)
+{
+  // Vamos a liberar el descriptor completo
+  for (int n=0;n<TOTAL_BLOCKS;n++)
+  {
+    switch (descriptor[n].ID)
+    {
+      case 19:  // bloque 0x13
+        // Hay que liberar el array
+        delete[] descriptor[n].timming.pulse_seq_array;
+        break;
+      
+      default:
+        break;
+    }
+  }
+}
+
+void freeMemoryFromDescriptorTSX(TSXprocessor::tTSXBlockDescriptor* descriptor)
+{
+  // Vamos a liberar el descriptor completo
+  for (int n=0;n<TOTAL_BLOCKS;n++)
+  {
+    switch (descriptor[n].ID)
+    {
+      case 19:  // bloque 0x13
+        // Hay que liberar el array
+        delete[] descriptor[n].timming.pulse_seq_array;
+        break;
+      
+      default:
+        break;
+    }
+  }
+}
 
 int* strToIPAddress(String strIPAddr)
 {
@@ -363,10 +402,15 @@ void proccesingTAP(char* file_ch)
     {
         pTAP.getInfoFileTAP(file_ch);
 
-        if (!FILE_CORRUPTED)
+        if (!FILE_CORRUPTED && TOTAL_BLOCKS !=0)
         {
           // El fichero está preparado para PLAY
           FILE_PREPARED = true;
+
+          #ifdef DEBUGMODE
+            logAlert("TAP prepared");
+          #endif 
+
         }
         else
         {
@@ -398,7 +442,18 @@ void proccesingTZX(char* file_ch)
     }
     else
     {
-      FILE_PREPARED = true;
+      if (TOTAL_BLOCKS !=0)
+      {
+        FILE_PREPARED = true;
+        
+        #ifdef DEBUGMODE
+          logAlert("TZX prepared");
+        #endif            
+      }
+      else
+      {
+        FILE_PREPARED = false;
+      }      
     }
 
 }
@@ -411,16 +466,28 @@ void proccesingTSX(char* file_ch)
 
     if (ABORT)
     {
-      LAST_MESSAGE = "Aborting proccess.";
+      //LAST_MESSAGE = "Aborting proccess.";
       //
       FILE_PREPARED = false;      
       ABORT=false;
     }
     else
     {
-      LAST_MESSAGE = "Press PLAY to enjoy!";
+      //LAST_MESSAGE = "Press PLAY to enjoy!";
       //
-      FILE_PREPARED = true;
+      if (TOTAL_BLOCKS !=0)
+      {
+        FILE_PREPARED = true;
+        
+        #ifdef DEBUGMODE
+          logAlert("TSX prepared");
+        #endif         
+
+      }
+      else
+      {
+        FILE_PREPARED = false;
+      }
     }
 }
 
@@ -479,65 +546,62 @@ void sendStatus(int action, int value=0) {
   }
 }
 
-void setSDFrequency(int SD_Speed) 
+int setSDFrequency(int SD_Speed) 
 {
   bool SD_ok = false;
   bool lastStatus = false;
   
+  // Hasta que la SD no quede testeada no se sale del bucle.
+  // Si la SD no es compatible, no se puede hacer uso del dispositivo
   while (!SD_ok) 
   {
+      // Comenzamos con una frecuencia dada
       if (!sdf.begin(ESP32kit.pinSpiCs(), SD_SCK_MHZ(SD_Speed)) || lastStatus) 
       {
-          sdFile32.close();
+
+          // La frecuencia anterior no fue compatible
+          // Probamos otras frecuencias
           hmi.writeString("statusLCD.txt=\"SD FREQ. AT " + String(SD_Speed) + " MHz\"" );
           SD_Speed = SD_Speed - 1;
 
-          if (SD_Speed < 4) 
+          // Hemos llegado a un limite
+          if (SD_Speed < 1) 
           {
-              if (SD_Speed < 2)
+              // Ninguna frecuencia funciona.
+              // loop infinito - NO COMPATIBLE
+              while(true)
               {
-                  // Very low speed
-                  SD_Speed = 1;
-                  lastStatus = true;
+                  hmi.writeString("statusLCD.txt=\"SD NOT COMPATIBLE\"" );
+                  delay(1500);
+                  hmi.writeString("statusLCD.txt=\"CHANGE SD AND RESET\"" );
+                  delay(1500);
               }
-              else
-              {  
-                  
-                  // loop infinito
-                  while(true)
-                  {
-                      hmi.writeString("statusLCD.txt=\"SD NOT COMPATIBLE\"" );
-                      delay(1500);
-                      hmi.writeString("statusLCD.txt=\"CHANGE SD AND RESET\"" );
-                      delay(1500);
-                  }
-              } 
           }
+
       }
       else 
       {
           // La SD ha aceptado la frecuencia de acceso
           hmi.writeString("statusLCD.txt=\"SD DETECTED AT " + String(SD_Speed) + " MHz\"" );
-          //SD_ok = true;
+          delay(750);
 
           // Probamos a listar un directorio
           if (!sdm.dir.open("/"))
           {
-              sdm.dir.close();
               SD_ok = false;
               lastStatus = false;
 
               // loop infinito
               while(true)
               {
-                hmi.writeString("statusLCD.txt=\"SD TEST FAILED\"" );
+                hmi.writeString("statusLCD.txt=\"SD READ TEST FAILED\"" );
                 delay(1500);
+                hmi.writeString("statusLCD.txt=\"FORMAT OR CHANGE SD\"" );
+                delay(1500);              
               }
           }
           else
           {
-              sdm.dir.close();
-
               // Probamos a crear un fichero.
               if (!sdFile32.exists("_test"))
               {
@@ -549,7 +613,7 @@ void setSDFrequency(int SD_Speed)
                       // loop infinito
                       while(true)
                       {
-                          hmi.writeString("statusLCD.txt=\"SD CORRUPTED\"" );
+                          hmi.writeString("statusLCD.txt=\"SD WRITE TEST FAILED\"" );
                           delay(1500);
                           hmi.writeString("statusLCD.txt=\"FORMAT OR CHANGE SD\"" );
                           delay(1500);
@@ -572,11 +636,18 @@ void setSDFrequency(int SD_Speed)
                   }
               }
           }
+      
+        // Cerramos
+        if (sdFile32.isOpen())
+        {sdFile32.close();}
+
+        if (sdm.dir.isOpen())
+        {sdm.dir.close();}
       }
   }
 
-  SD_SPEED_MHZ = SD_Speed;
-  delay(1250);
+  // Devolvemos la frecuencia
+  return SD_Speed;
 }
 
 void test() 
@@ -629,9 +700,9 @@ void setAudioOutput()
         }
         else
         {
-          hmi.writeString("tape.g0.txt=\"SAMPLING AT 48 KHz\"" );
+          hmi.writeString("tape.lblFreq.txt=\"48KHz\"" );
           hmi.writeString("statusLCD.txt=\"SAMPLING AT 48 KHz\"" );
-          delay(750);
+          delay(1500);
         }    
         break;
 
@@ -642,9 +713,9 @@ void setAudioOutput()
         }
         else
         {
-          hmi.writeString("tape.g0.txt=\"SAMPLING AT 44.1 KHz\"" );
+          hmi.writeString("tape.lblFreq.txt=\"44KHz\"" );
           hmi.writeString("statusLCD.txt=\"SAMPLING AT 44.1 KHz\"" );          
-          delay(750);
+          delay(1500);
         }            
         break;
 
@@ -655,9 +726,9 @@ void setAudioOutput()
         }
         else
         {
-          hmi.writeString("tape.g0.txt=\"SAMPLING AT 32 KHz\"" );
+          hmi.writeString("tape.lblFreq.txt=\"32KHz\"" );
           hmi.writeString("statusLCD.txt=\"SAMPLING AT 32 KHz\"" );          
-          delay(750);
+          delay(1500);
         }            
         break;
 
@@ -668,9 +739,9 @@ void setAudioOutput()
         }
         else
         {
-          hmi.writeString("tape.g0.txt=\"SAMPLING AT 22.05 KHz\"" );
+          hmi.writeString("tape.lblFreq.txt=\"22KHz\"" );
           hmi.writeString("statusLCD.txt=\"SAMPLING AT 22.05 KHz\"" );          
-          delay(750);
+          delay(1500);
         }            
         break;
   }
@@ -792,6 +863,26 @@ void tapeAnimationOFF()
 {
     hmi.writeString("tape2.tmAnimation.en=0"); 
     hmi.writeString("tape.tmAnimation.en=0");   
+}
+
+void recAnimationON()
+{
+  hmi.writeString("tape.RECst.val=1");
+}
+
+void recAnimationOFF()
+{
+  hmi.writeString("tape.RECst.val=0");
+}
+
+void recAnimationFIXED_ON()
+{
+  hmi.writeString("tape.recIndicator.bco=63848");
+}
+
+void recAnimationFIXED_OFF()
+{
+  hmi.writeString("tape.recIndicator.bco=32768");
 }
 
 void pauseRecording()
@@ -1150,7 +1241,6 @@ void uploadFirmDisplay(char *filetft)
 
         // Lo enviamos
         SerialHW.write(buf, readcount);
-        delay(200);
 
         // Si es el primer bloque esperamos respuesta de 0x05 o 0x08
         // en el caso de 0x08 saltaremos a la posición que indica la pantalla.
@@ -1165,10 +1255,7 @@ void uploadFirmDisplay(char *filetft)
           while (1)
           {
               res = hmi.readStr();
-              // if(res.indexOf(0x05) != -1)
-              // {
-              //   break;
-              // }
+
               if (res.indexOf(0x08) != -1)
               {
                 int offset = (pow(16,6) * int(res[4])) + (pow(16,4) * int(res[3])) + (pow(16,2) * int(res[2])) + int(res[1]);
@@ -1185,13 +1272,27 @@ void uploadFirmDisplay(char *filetft)
               delay(50);
           }
         }
+        else
+        {
+          String res = "";
+          while(1)
+          {
+            // Esperams un ACK 0x05
+            res = hmi.readStr();
+            if(res.indexOf(0x05) != -1)
+            {
+              break;
+            }
+          }
+        }
             
         //
         bl++;          
         // Vemos lo que queda una vez he movido el seek o he leido un bloque
         // ".available" mide lo que queda desde el puntero a EOF.
         filesize = file.available();        
-      }
+    }
+
 
     file.close();
 }
@@ -1243,14 +1344,14 @@ void playingFile()
       tapeAnimationOFF();  
       //pTAP.updateMemIndicator();
   }
-  else if (TYPE_FILE_LOAD = "TZX")
+  else if (TYPE_FILE_LOAD == "TZX" || TYPE_FILE_LOAD == "CDT")
   {
       //hmi.getMemFree();
       pTZX.play();
       //Paramos la animación
       tapeAnimationOFF(); 
   }
-  else if (TYPE_FILE_LOAD = "TSX")
+  else if (TYPE_FILE_LOAD == "TSX")
   {
       //hmi.getMemFree();
       pTSX.play();
@@ -1258,6 +1359,64 @@ void playingFile()
       tapeAnimationOFF(); 
   }  
 }
+
+void verifyConfigFileForSelection()
+{
+  // Vamos a localizar el fichero de configuracion especifico para el fichero seleccionado
+  String path = FILE_LAST_DIR;
+  tConfig *fileCfg;
+  char strpath[FILE_TO_LOAD.length() + 5] = {};
+  strcpy(strpath,FILE_TO_LOAD.c_str());
+  if (sdf.exists(FILE_TO_LOAD + ".cfg"))
+  {
+    // Abrimos el fichero de configuracion.
+    File32 cfg = sdm.openFile32(strpath);
+
+    if (cfg.isOpen())
+    {
+      // Leemos todos los parametros
+      fileCfg = sdm.readAllParamCfg(cfg,4);
+
+      // Ahora vamos a tomar los valores de cada uno de ellos.
+      // ZEROLEVEL
+      if((sdm.getValueOfParam(fileCfg[0].cfgLine,"zerolevel")) == "1")
+      {
+        ZEROLEVEL = 1;
+      }
+      else
+      {
+        ZEROLEVEL = 0;
+      }
+
+      // POLARIZED
+      if((sdm.getValueOfParam(fileCfg[1].cfgLine,"blockend")) == "1")
+      {
+        APPLY_END = 1;
+      }
+      else
+      {
+        APPLY_END = 0;
+      }
+
+      // BLOCKEND
+      if((sdm.getValueOfParam(fileCfg[2].cfgLine,"polarized")) == "1")
+      {
+        POLARIZATION = down;
+        LAST_EAR_IS = down;
+        INVERSETRAIN = true;
+      }
+      else
+      {
+        POLARIZATION = up;
+        LAST_EAR_IS = up;
+        INVERSETRAIN = false;
+      }
+
+
+    }
+  }
+}
+
 void loadingFile(char* file_ch)
 {
   // Cogemos el fichero seleccionado y lo cargamos           
@@ -1269,8 +1428,15 @@ void loadingFile(char* file_ch)
 
     // Convierto a mayusculas
     FILE_TO_LOAD.toUpperCase();
-    LAST_MESSAGE = "File to load: " + FILE_TO_LOAD;
+  
+    // Eliminamos la memoria ocupado por el actual insertado
+    // y lo ejectamos
+    ejectingFile();
 
+    // Verificamos si hay fichero de configuracion para este archivo seleccionado
+    // verifyConfigFileForSelection();
+
+    // Cargamos el seleccionado.
     if (FILE_TO_LOAD.indexOf(".TAP") != -1)
     {
         // Reservamos memoria
@@ -1279,14 +1445,9 @@ void loadingFile(char* file_ch)
         pTAP.setTAP(myTAP);   
         // Lo procesamos
         proccesingTAP(file_ch);
-        TYPE_FILE_LOAD = "TAP";
-        FILE_PREPARED = true;
-
-        #ifdef DEBUGMODE
-          logAlert("TAP prepared");
-        #endif        
+        TYPE_FILE_LOAD = "TAP";       
     }
-    else if (FILE_TO_LOAD.indexOf(".TZX") != -1)    
+    else if ((FILE_TO_LOAD.indexOf(".TZX") != -1) || (FILE_TO_LOAD.indexOf(".CDT") != -1))    
     {
         // Reservamos memoria
         myTZX.descriptor = (TZXprocessor::tTZXBlockDescriptor*)ps_malloc(MAX_BLOCKS_IN_TZX * sizeof(struct TZXprocessor::tTZXBlockDescriptor));        
@@ -1295,16 +1456,15 @@ void loadingFile(char* file_ch)
 
         // Lo procesamos. Para ZX Spectrum
         proccesingTZX(file_ch);
-        TYPE_FILE_LOAD = "TZX";
-        FILE_PREPARED = true;
-
-        #ifdef DEBUGMODE
-          logAlert("TZX prepared");
-        #endif        
+        if (FILE_TO_LOAD.indexOf(".TZX") != -1)
+        {
+            TYPE_FILE_LOAD = "TZX";    
+        } else {
+            TYPE_FILE_LOAD = "CDT";
+        }
     }
     else if (FILE_TO_LOAD.indexOf(".TSX") != -1)
     {
-
         // Reservamos memoria
         myTSX.descriptor = (TSXprocessor::tTSXBlockDescriptor*)ps_malloc(MAX_BLOCKS_IN_TZX * sizeof(struct TSXprocessor::tTSXBlockDescriptor));        
         // Pasamos el control a la clase
@@ -1313,11 +1473,6 @@ void loadingFile(char* file_ch)
         // Lo procesamos. Para ZX Spectrum
         proccesingTSX(file_ch);
         TYPE_FILE_LOAD = "TSX";    
-        FILE_PREPARED = true;
-
-        #ifdef DEBUGMODE
-          logAlert("TSX prepared");
-        #endif        
     }   
   }
   else
@@ -1355,25 +1510,42 @@ void ejectingFile()
   {
       // Solicitamos el puntero _myTAP de la clase
       // para liberarlo
-      free(pTAP.getDescriptor());
-      // Finalizamos
-      pTAP.terminate();
+      if (myTAP.descriptor != nullptr)
+      {
+        // LAST_MESSAGE = "PSRAM cleanning";
+        // delay(1500);
+        free(pTAP.getDescriptor());
+        // Finalizamos
+        pTAP.terminate();
+      }
   }
-  else if (TYPE_FILE_LOAD = "TZX")
+  else if (TYPE_FILE_LOAD == "TZX" || TYPE_FILE_LOAD == "CDT")
   {
       // Solicitamos el puntero _myTZX de la clase
       // para liberarlo
-      free(pTZX.getDescriptor());
-      // Finalizamos
-      pTZX.terminate();
+      if (myTZX.descriptor != nullptr)
+      {
+        LAST_MESSAGE = "PSRAM cleanning";
+        delay(1500);
+        freeMemoryFromDescriptorTZX(pTZX.getDescriptor());
+        free(pTZX.getDescriptor());
+        // Finalizamos
+        pTZX.terminate();
+      }
   }  
-  else if (TYPE_FILE_LOAD = "TSX")
+  else if (TYPE_FILE_LOAD == "TSX")
   {
       // Solicitamos el puntero _myTSX de la clase
       // para liberarlo
-      free(pTSX.getDescriptor());
-      // Finalizamos
-      pTSX.terminate();
+      if (myTSX.descriptor != nullptr)
+      {
+        LAST_MESSAGE = "PSRAM cleanning";
+        delay(1500);
+        freeMemoryFromDescriptorTSX(pTSX.getDescriptor());
+        free(pTSX.getDescriptor());
+        // Finalizamos
+        pTSX.terminate();
+      }
   }    
 }
 
@@ -1514,65 +1686,43 @@ void tapeControl()
             logAlert("EJECT state in TAPESTATE = " + String(TAPESTATE));
           #endif
 
+          //LAST_MESSAGE = "Ejecting cassette.";
+
           // Limpiamos los campos del TAPE
           // porque hemos expulsado la cinta.
-          hmi.clearInformationFile();
+          //hmi.clearInformationFile();
 
           TAPESTATE = 99;
           // Expulsamos la cinta
           FILE_PREPARED = false;
           FILE_SELECTED = false;
+          // 
+          AUTO_STOP = false;
+
         }
         else if (REC)
         {
-          prepareRecording();
-          TAPESTATE = 200;
+          LAST_MESSAGE = "Rec paused. Press PAUSE to start recording.";
+          recAnimationON();
+          TAPESTATE = 220;
+          // 
+          AUTO_STOP = false;
         }
         else if (STOP)
         {
           // Esto lo hacemos para evitar repetir el mensaje infinitamente
-          if(lastMsn != LAST_MESSAGE)
-          {
-            LAST_MESSAGE = "Press EJECT to select a file or REC.";                
-          }
-          lastMsn = LAST_MESSAGE;
+          LAST_MESSAGE = "Press EJECT to select a file or REC.";
+          STOP=false;                
         }
         else
         {
           TAPESTATE = 0;
           LOADING_STATE = 0;
+          PLAY = false;
         }
 
         break;
   
-    case 10: 
-        //
-        //File prepared
-        //
-        if (PLAY)
-        {
-          if (FILE_PREPARED)
-          {
-            TAPESTATE = 1;
-            LOADING_STATE = 1;
-          }
-        }
-        else if (EJECT)
-        {
-          TAPESTATE = 0;
-          LOADING_STATE = 0;
-        }
-        else if (REC)
-        {
-          TAPESTATE = 0;
-        }
-        else
-        {
-          TAPESTATE = 10;
-          LOADING_STATE = 0;
-        }
-        break;
-
     case 1:   
       //
       // PLAY / STOP
@@ -1606,7 +1756,7 @@ void tapeControl()
         {
             hmi.setBasicFileInformation(myTAP.descriptor[BLOCK_SELECTED].name,myTAP.descriptor[BLOCK_SELECTED].typeName,myTAP.descriptor[BLOCK_SELECTED].size);
         }
-        else if(TYPE_FILE_LOAD=="TZX")
+        else if(TYPE_FILE_LOAD=="TZX" || TYPE_FILE_LOAD=="CDT")
         {
             hmi.setBasicFileInformation(myTZX.descriptor[BLOCK_SELECTED].name,myTZX.descriptor[BLOCK_SELECTED].typeName,myTZX.descriptor[BLOCK_SELECTED].size);
         }  
@@ -1621,6 +1771,7 @@ void tapeControl()
       else if (PAUSE)       
       {
           TAPESTATE = 3;
+          LAST_MESSAGE = "Tape paused. Press play or select block.";
       }
       else if (STOP)
       {
@@ -1629,18 +1780,37 @@ void tapeControl()
         if (LOADING_STATE == 1)
         {
           tapeAnimationOFF();
+          LOADING_STATE = 2;
         }
 
         LOADING_STATE = 2;
+        // Al parar el c.block del HMI se pone a 1.
+        BLOCK_SELECTED = 1;
         // Reproducimos el fichero
-        LAST_MESSAGE = "Stop playing.";      
+        if (!AUTO_STOP)
+        {
+          LAST_MESSAGE = "Stop playing.";
+        }
+        else
+        {
+          LAST_MESSAGE = "Auto-Stop playing.";
+        }
+              
       }
       else if (REC)
       {
-        prepareRecording();
-        TAPESTATE = 200;
+        // Expulsamos la cinta
+        if (LOADING_STATE == 0 || LOADING_STATE == 2)
+        {
+          FILE_PREPARED = false;
+          FILE_SELECTED = false;
+          hmi.clearInformationFile();        
+          LAST_MESSAGE = "Rec paused. Press PAUSE to start recording.";
+          tapeAnimationOFF();
+          recAnimationON();
+          TAPESTATE = 220;          
+        }
       }
-      
       else
       {
         TAPESTATE = 1;
@@ -1676,7 +1846,7 @@ void tapeControl()
       //Activamos la animación
       tapeAnimationOFF();
       // Reproducimos el fichero
-      LAST_MESSAGE = "Pause playing.";
+      LAST_MESSAGE = "Tape paused. Press play or select block.";
       //          
       if (PLAY)
       {
@@ -1693,7 +1863,7 @@ void tapeControl()
         {
           hmi.setBasicFileInformation(myTAP.descriptor[BLOCK_SELECTED].name,myTAP.descriptor[BLOCK_SELECTED].typeName,myTAP.descriptor[BLOCK_SELECTED].size);
         }
-        else if(TYPE_FILE_LOAD=="TZX")
+        else if(TYPE_FILE_LOAD=="TZX" || TYPE_FILE_LOAD=="CDT")
         {
           hmi.setBasicFileInformation(myTZX.descriptor[BLOCK_SELECTED].name,myTZX.descriptor[BLOCK_SELECTED].typeName,myTZX.descriptor[BLOCK_SELECTED].size);
         }
@@ -1716,7 +1886,38 @@ void tapeControl()
         TAPESTATE = 3;
       }
       break;
-    
+
+    case 10: 
+        //
+        //File prepared
+        //
+        if (PLAY)
+        {
+          if (FILE_PREPARED)
+          {
+            TAPESTATE = 1;
+            LOADING_STATE = 1;
+          }
+        }
+        else if (EJECT)
+        {
+          TAPESTATE = 0;
+          LOADING_STATE = 0;
+        }
+        else if (REC)
+        {
+          FILE_PREPARED = false;
+          FILE_SELECTED = false;
+          hmi.clearInformationFile();        
+          TAPESTATE = 0; 
+        }
+        else
+        {
+          TAPESTATE = 10;
+          LOADING_STATE = 0;
+        }
+        break;
+
     case 99:  
       //
       // Eject
@@ -1769,7 +1970,7 @@ void tapeControl()
               // Si se ha seleccionado lo cargo en el cassette.     
               char* file_ch = (char*)ps_malloc(256 * sizeof(char));
               FILE_TO_LOAD.toCharArray(file_ch, 256);
-
+              
               loadingFile(file_ch);
               free(file_ch);
 
@@ -1801,10 +2002,10 @@ void tapeControl()
               {
 
                 #ifdef DEBUGMODE
-                  logAlert("No file selected.");
+                  logAlert("No file selected or empty file.");
                 #endif
 
-                LAST_MESSAGE = "No file selected.";                
+                LAST_MESSAGE = "No file selected or empty file.";                
               }
           }
           else
@@ -1821,6 +2022,38 @@ void tapeControl()
       }
       break;
 
+    case 220:
+      if(PAUSE)
+      {
+        // Pulsacion de PAUSE
+        // Iniciamos la grabacion
+        PLAY = false;
+        PAUSE = false;
+        STOP = false;
+        REC = true;
+        ABORT = false;
+        EJECT = false;
+        // Preparamos la grabacion
+        recAnimationOFF();
+        prepareRecording();
+        recAnimationFIXED_ON();
+        TAPESTATE = 200;
+      }
+      else if (STOP)
+      {
+        TAPESTATE = 0;
+        LOADING_STATE = 0;
+        RECORDING_ERROR = 0;
+        REC = false;
+        recAnimationOFF();
+        recAnimationFIXED_OFF();
+      }
+      else
+      {
+        LOADING_STATE = 0;
+        TAPESTATE = 220;
+      }
+      break;
     case 200: 
       //
       // REC
@@ -1829,6 +2062,7 @@ void tapeControl()
       {
         //
         stopRecording();
+        recAnimationFIXED_OFF();
         //
         taprec.stopRecordingProccess = false;
         taprec.actuateAutoRECStop = false;
@@ -1889,7 +2123,7 @@ void Task0code( void * pvParameters )
     int startTime2 = millis();
     int tClock = millis();
     int ho=0;int mi=0;int se=0;
-    int tScrRfsh = 500;
+    int tScrRfsh = 125;
     int tAckRfsh = 1500;
 
 
@@ -1908,11 +2142,11 @@ void Task0code( void * pvParameters )
         #ifndef DEBUGMODE
           if (REC)
           {
-              tScrRfsh = 500;
+              tScrRfsh = 250;
           }
           else
           {
-              tScrRfsh = 250;
+              tScrRfsh = 125;
           }
 
           if ((millis() - startTime) > tScrRfsh)
@@ -1921,19 +2155,7 @@ void Task0code( void * pvParameters )
             stackFreeCore1 = uxTaskGetStackHighWaterMark(Task1);    
             stackFreeCore0 = uxTaskGetStackHighWaterMark(Task0);        
             hmi.updateInformationMainPage();
-          }
-
-          // if((millis() - startTime2) > tAckRfsh)
-          // {
-          //   startTime2 = millis();
-            
-          //   // Enviamos ACK por si perdemos la pantalla
-          //   if (LCD_ON)
-          //   {
-          //     sendStatus(ACK_LCD, 1);
-          //   }
-            
-          // }
+          }           
         #endif
     }
   #endif
@@ -1941,8 +2163,10 @@ void Task0code( void * pvParameters )
 
 void setup() 
 {
-    // Configuramos el nivel de log
-    SerialHW.setRxBufferSize(2048);
+    // Configuramos el size de los buffers de TX y RX del puerto serie
+    SerialHW.setRxBufferSize(4096);
+    SerialHW.setTxBufferSize(4096);
+    // Configuramos la velocidad del puerto serie
     SerialHW.begin(921600);
     //SerialHW.begin(512000);
     delay(125);
@@ -1979,7 +2203,10 @@ void setup()
     delay(125);
 
     int SD_Speed = SD_FRQ_MHZ_INITIAL;  // Velocidad en MHz (config.h)
-    setSDFrequency(SD_Speed);
+    SD_SPEED_MHZ = setSDFrequency(SD_Speed);
+    
+    // Para forzar a un valor, descomentar esta linea
+    // y comentar las dos de arriba
     //sdf.begin(ESP32kit.pinSpiCs(), SD_SCK_MHZ(8));
    
     // Le pasamos al HMI el gestor de SD
@@ -2035,6 +2262,27 @@ void setup()
     }
 
     delay(750);
+
+    // Creamos el directorio /fav
+    String favDir = "/FAV";
+    
+    //Esto lo hacemos para ver si el directorio existe
+    if (!sdf.chdir(favDir))
+    {
+        if (!sdf.mkdir(favDir))
+        {
+          #ifdef DEBUGMODE
+            logln("");
+            log("Error! Directory exists or wasn't created");
+          #endif
+        } 
+        else
+        {
+          hmi.writeString("statusLCD.txt=\"Creating FAV directory\"" );
+          hmi.reloadCustomDir("/");
+          delay(750);
+        }
+    }
 
     // -------------------------------------------------------------------------
     // Esperando control del HMI
@@ -2093,7 +2341,7 @@ void setup()
     // sendStatus(PAUSE_ST, 0);
     // sendStatus(READY_ST, 1);
     // sendStatus(END_ST, 0);
-    
+
     sendStatus(REC_ST);
 
     LAST_MESSAGE = "Press EJECT to select a file or REC.";

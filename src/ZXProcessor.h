@@ -870,7 +870,9 @@ class ZXProcessor
 
         void playDRBlock(uint8_t* bBlock, int size, bool isThelastDataPart)
         {
-            uint8_t _mask = 8;   // Para el last_byte
+            // Aqui ponemos el byte de mascara del bloque ID 0x15 - 
+            // importante porque esto dice cuantos bits de cada bytes se reproducen
+            uint8_t _mask = 8;   
             uint8_t bRead = 0x00;
             int bytes_in_this_block = 0;
 
@@ -894,22 +896,22 @@ class ZXProcessor
                     if (LOADING_STATE==1 || TEST_RUNNING)
                     {
                         // Vemos si es el ultimo byte de la ultima partición de datos del bloque
-                        // if ((i == size - 1) && isThelastDataPart)
-                        // {
-                        //     // Aplicamos la mascara
-                        //     _mask = _mask_last_byte;
-                        // }
-                        // else
-                        // {
-                        //     // En otro caso todo el byte es valido.
-                        //     // se anula la mascara.
-                        //     _mask = 8;
-                        // }
+                        if ((i == size - 1) && isThelastDataPart)
+                        {
+                            // Aplicamos la mascara
+                            _mask = _mask_last_byte;
+                        }
+                        else
+                        {
+                            // En otro caso todo el byte es valido.
+                            // se anula la mascara.
+                            _mask = 8;
+                        }
                         
-                        #ifdef DEBUGMODE
-                            logln("Audio is Out");
-                            logln("Mask: " + String(_mask));
-                        #endif
+                        // #ifdef DEBUGMODE
+                        //     logln("Audio is Out");
+                        //     logln("Mask: " + String(_mask));
+                        // #endif
 
                         // Ahora vamos a descomponer el byte leido
                         // y le aplicamos la mascara. Es decir SOLO SE TRANSMITE el nº de bits que indica
@@ -923,13 +925,10 @@ class ZXProcessor
                             // Si el bit leido del BYTE es un "1"
                             if(bitMasked == 1)
                             {
-                                // Procesamos "1"
-                                sampleDR(BIT_DR22_1, maxLevelUp);
+                                sampleDR(BIT_DR22_1, maxLevelUp);                               
                             }
                             else
                             {
-                                // En otro caso
-                                // procesamos "0"
                                 sampleDR(BIT_DR22_0, maxLevelDown);
                             }
                         }

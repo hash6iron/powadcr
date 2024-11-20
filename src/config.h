@@ -37,20 +37,20 @@
 
 // Para Rolling releases - rDDMMYY.HHMM
 // Para versión estable - vX.Y
-#define VERSION "r241112.0235"
+#define VERSION "r241120.1631"
 #define MACHINE_ZX
 
 // Define sampling rate a 44.1KHz. En otro caso será a 32KHz
 //#define SAMPLING44
 //#define SAMPLING48
 //#define SAMPLING32
-#define SAMPLING22
+//#define SAMPLING22
 
 // Activa el test de sampling para calibrado de la salida ES83883
 //#define SAMPLINGTESTACTIVE
 
 // Para activar el modo debug
-//#define DEBUGMODE
+// #define DEBUGMODE
 
 //#define MACHINE_AMSTRAD
 
@@ -78,9 +78,9 @@
 // --------------------------------------------------------------
 // Numero máximo de ficheros que se listan por directorio.
 // Numero total de lineas de una pagina del file browser
-#define TOTAL_FILES_IN_BROWSER_PAGE 14
-#define MAX_FILES_TO_LOAD 14
-#define MAX_FILES_FOUND_BUFF 100
+#define TOTAL_FILES_IN_BROWSER_PAGE 13  // No se cuenta la primera fila que es para el path
+#define MAX_FILES_TO_LOAD 14            // Esto siempre es TOTAL_FILES_IN_BROWSER_PAGE + 1
+#define MAX_FILES_FOUND_BUFF 255
 // Cada n ficheros refresca el marcador. Por defecto 5
 #define EACH_FILES_REFRESH 5
 
@@ -88,7 +88,7 @@
 // Player / SD
 // -------------------------------------------------------------------
 // Frecuencia inicial de la SD
-#define SD_FRQ_MHZ_INITIAL 40
+#define SD_FRQ_MHZ_INITIAL 20
 
 
 // TAP config.
