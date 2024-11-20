@@ -1359,6 +1359,64 @@ void playingFile()
       tapeAnimationOFF(); 
   }  
 }
+
+void verifyConfigFileForSelection()
+{
+  // Vamos a localizar el fichero de configuracion especifico para el fichero seleccionado
+  String path = FILE_LAST_DIR;
+  tConfig *fileCfg;
+  char strpath[FILE_TO_LOAD.length() + 5] = {};
+  strcpy(strpath,FILE_TO_LOAD.c_str());
+  if (sdf.exists(FILE_TO_LOAD + ".cfg"))
+  {
+    // Abrimos el fichero de configuracion.
+    File32 cfg = sdm.openFile32(strpath);
+
+    if (cfg.isOpen())
+    {
+      // Leemos todos los parametros
+      fileCfg = sdm.readAllParamCfg(cfg,4);
+
+      // Ahora vamos a tomar los valores de cada uno de ellos.
+      // ZEROLEVEL
+      if((sdm.getValueOfParam(fileCfg[0].cfgLine,"zerolevel")) == "1")
+      {
+        ZEROLEVEL = 1;
+      }
+      else
+      {
+        ZEROLEVEL = 0;
+      }
+
+      // POLARIZED
+      if((sdm.getValueOfParam(fileCfg[1].cfgLine,"blockend")) == "1")
+      {
+        APPLY_END = 1;
+      }
+      else
+      {
+        APPLY_END = 0;
+      }
+
+      // BLOCKEND
+      if((sdm.getValueOfParam(fileCfg[2].cfgLine,"polarized")) == "1")
+      {
+        POLARIZATION = down;
+        LAST_EAR_IS = down;
+        INVERSETRAIN = true;
+      }
+      else
+      {
+        POLARIZATION = up;
+        LAST_EAR_IS = up;
+        INVERSETRAIN = false;
+      }
+
+
+    }
+  }
+}
+
 void loadingFile(char* file_ch)
 {
   // Cogemos el fichero seleccionado y lo cargamos           
@@ -1374,6 +1432,9 @@ void loadingFile(char* file_ch)
     // Eliminamos la memoria ocupado por el actual insertado
     // y lo ejectamos
     ejectingFile();
+
+    // Verificamos si hay fichero de configuracion para este archivo seleccionado
+    // verifyConfigFileForSelection();
 
     // Cargamos el seleccionado.
     if (FILE_TO_LOAD.indexOf(".TAP") != -1)

@@ -2262,17 +2262,20 @@ class HMI
           SerialHW.println("EAR LEFT enable=" + String(SWAP_EAR_CHANNEL));
         }
         // Save polarization in ID 0x2B
-        else if (strCmd.indexOf("I2B=") != -1) 
+        else if (strCmd.indexOf("SAV=") != -1) 
         {
-          //Cogemos el valor
-          uint8_t buff[8];
-          strCmd.getBytes(buff, 7);
-          int valEn = (int)buff[4];
-          //
-          saveID2B(valEn);
+          //Guardamos la configuracion en un fichero
+          String path = FILE_LAST_DIR;
+          char strpath[FILE_TO_LOAD.length() + 5] = {};
+          strcpy(strpath,FILE_TO_LOAD.c_str());
+          if (_sdf.exists(FILE_TO_LOAD + ".cfg"))
+          {
+            // Abrimos el fichero de configuracion.
+            File32 cfg = sdm.openFile32(strpath);
+          }
 
           #ifdef DEBUGMODE
-            log("ID 0x2B = " + String(valEn));
+            log("Config. saved");
           #endif
         }
         // Sampling rate

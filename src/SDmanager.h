@@ -158,6 +158,8 @@ class SDmanager
         return fFile;
     }
 
+    
+
     void closeFile32(File32 fFile)
     {
         if (fFile != 0)
