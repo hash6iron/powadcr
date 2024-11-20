@@ -362,7 +362,7 @@ bool loadWifiCfgFile()
           fWifi.println("<SN>255.255.255.0</SN>");
           fWifi.println("<GW>192.168.1.1</GW>");
           fWifi.println("<DNS1>192.168.1.1</DNS1>");
-          fWifi.println("<DNS2>192.168.1.1</DNS1>");
+          fWifi.println("<DNS2>192.168.1.1</DNS2>");
 
           #ifdef DEBUGMODE
             logln("wifi.cfg new file created");
