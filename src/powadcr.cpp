@@ -168,21 +168,9 @@ bool pageScreenIsShown = false;
   uint16_t USER_CONFIG_ARDUINO_LOOP_STACK_SIZE = 16384;
 #endif
 
-// Elegant OTA
-// -----------------------------------------------------------------------
-
-#include <WiFiClient.h>
-#include <WebServer.h>
-WebServer server(80);
-
-#include <ElegantOTA.h>
-
 // OTA SD Update
+// -----------------------------------------------------------------------
 #include <Update.h>
-void updateProgressCallBack(size_t currSize, size_t totalSize)
-{
-  log_v("CALLBACK:  Update process at %d of %d bytes...", currSize, totalSize);
-}
 
 // -----------------------------------------------------------------------
 //#include "lib\NexUpload.h"
@@ -997,12 +985,13 @@ unsigned long ota_progress_millis = 0;
 
 void onOTAStart() 
 {
-  // Log when OTA has started
   pageScreenIsShown = false;
-  // <Add your own code here>
 }
-void onOTAProgress(size_t current, size_t final) 
+
+void onOTAProgress(size_t currSize, size_t totalSize)
 {
+  log_v("CALLBACK:  Update process at %d of %d bytes...", currSize, totalSize);
+
   // Log every 1 second
   if (millis() - ota_progress_millis > 250) 
   {
@@ -1015,8 +1004,7 @@ void onOTAProgress(size_t current, size_t final)
         pageScreenIsShown = true;
       }
 
-      HTTPUpload &upload = server.upload();
-      size_t fileSize = upload.totalSize / 1024;
+      size_t fileSize = totalSize / 1024;
       fileSize = (round(fileSize*10)) / 10;
       // int prg = 0;
 
@@ -1029,7 +1017,7 @@ void onOTAProgress(size_t current, size_t final)
       //   prg = 0;
       // }
       
-      String fileName = upload.filename;
+      //String fileName = upload.filename;
       hmi.writeString("statusLCD.txt=\"FIRMWARE UPDATING " + String(fileSize) + " KB\""); 
 
       // if(final!=0)
@@ -1042,25 +1030,14 @@ void onOTAProgress(size_t current, size_t final)
 
 void onOTAEnd(bool success) 
 {
-  // Log when OTA has finished
   if (success) 
   {
     hmi.writeString("statusLCD.txt=\"SUCCEESSFUL UPDATE\"");
-    // Cerramos la conexión antes de resetear el ESP32
-    server.sendHeader("Connection", "close");
-    server.send(200,"text/plain","OK");    
-    delay(2000);
-    // Reiniciamos  
-    ESP.restart();
   } 
   else 
   {
     hmi.writeString("statusLCD.txt=\"UPDATE FAIL\"");
-    // Cerramos la conexión
-    server.sendHeader("Connection", "close");
-    server.send(400,"text/plain","Uploading process fail.");     
   }
-  // <Add your own code here>
 }
 
 bool wifiOTASetup()
@@ -1069,10 +1046,7 @@ bool wifiOTASetup()
 
     WiFi.mode(WIFI_STA);
     WiFi.begin(ssid, password);
-    
-      // Disable Auto Reboot
-    ElegantOTA.setAutoReboot(false);
-      
+       
     hmi.writeString("statusLCD.txt=\"SSID: [" + String(ssid) + "]\"" );
     delay(1500);
     
@@ -1104,31 +1078,17 @@ bool wifiOTASetup()
 
     if (wifiActive)
     {
-        server.on("/", HTTP_GET,[]()
-        {
-          server.send(200, "text/html", "<meta http-equiv=\"refresh\" content=\"0; url=http://" + POWAIP + "/update\" />");
-        });
+      // hmi.writeString("statusLCD.txt=\"Wifi + OTA - Enabled\"");
+      // delay(125);
 
-
-        ElegantOTA.begin(&server);    // Start ElegantOTA
-        // ElegantOTA callbacks
-        ElegantOTA.onStart(onOTAStart);
-        ElegantOTA.onProgress(onOTAProgress);
-        ElegantOTA.onEnd(onOTAEnd);
-
-        server.begin();
-
-        // hmi.writeString("statusLCD.txt=\"Wifi + OTA - Enabled\"");
-        // delay(125);
-
-        hmi.writeString("statusLCD.txt=\"IP " + WiFi.localIP().toString() + "\""); 
-        delay(50);
+      hmi.writeString("statusLCD.txt=\"IP " + WiFi.localIP().toString() + "\""); 
+      delay(50);
     }
     else
     {
-        hmi.writeString("statusLCD.txt=\"Wifi disabled\"");
-        wifiActive = false;
-        delay(750);
+      hmi.writeString("statusLCD.txt=\"Wifi disabled\"");
+      wifiActive = false;
+      delay(750);
     }
 
     return wifiActive;
@@ -2137,7 +2097,6 @@ void Task0code( void * pvParameters )
     for(;;)
     {
 
-        server.handleClient();
         hmi.readUART();
 
         // Control por botones
@@ -2234,28 +2193,33 @@ void setup()
     // -------------------------------------------------------------------------
     log_v("");
     log_v("Search for firmware..");
-    File32 firmware =  sdm.openFile32("/firmware.bin");
+    char strpath[20] = {};
+    strcpy(strpath,"/firmware.bin");
+    File32 firmware =  sdm.openFile32(strpath);
     if (firmware) 
     {
+      onOTAStart();
       log_v("found!");
       log_v("Try to update!");
  
-      Update.onProgress(updateProgressCallBack);
+      Update.onProgress(onOTAProgress);
  
       Update.begin(firmware.size(), U_FLASH);
       Update.writeStream(firmware);
       if (Update.end())
       {
         log_v("Update finished!");
+        onOTAEnd(true);
       }
       else
       {
         log_e("Update error!");
+        onOTAEnd(false);
       }
  
       firmware.close();
  
-      if (sdf.remove("/firmware.bin"))
+      if (sdf.remove(strpath))
       {
         log_v("Firmware deleted succesfully!");
       }
