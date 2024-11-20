@@ -99,12 +99,15 @@ TaskHandle_t Task0;
 TaskHandle_t Task1;
 
 #define SerialHWDataBits 921600
+#define hmiTxD 23
+#define hmiRxD 18
+
 
 #include <esp_task_wdt.h>
 #define WDT_TIMEOUT 360000  
 
 #include <HardwareSerial.h>
-HardwareSerial SerialHW(0);
+HardwareSerial SerialHW(2);
 
 EasyNex myNex(SerialHW);
 
@@ -2129,11 +2132,14 @@ void Task0code( void * pvParameters )
 
 void setup() 
 {
+    // Inicializar puerto USB Serial a 115200 para depurar / subida de firm
+    Serial.begin(115200);
+    
     // Configuramos el size de los buffers de TX y RX del puerto serie
     SerialHW.setRxBufferSize(4096);
     SerialHW.setTxBufferSize(4096);
     // Configuramos la velocidad del puerto serie
-    SerialHW.begin(921600);
+    SerialHW.begin(SerialHWDataBits,SERIAL_8N1,hmiRxD,hmiTxD);
     //SerialHW.begin(512000);
     delay(125);
 

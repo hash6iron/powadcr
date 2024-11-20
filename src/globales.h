@@ -393,18 +393,18 @@ int nMENU = 0;
 
 void logHEX(int n)
 {
-    SerialHW.print(" 0x");
-    SerialHW.print(n,HEX);
+    Serial.print(" 0x");
+    Serial.print(n,HEX);
 }
 
 void log(String txt)
 {
-    SerialHW.print(txt);
+    Serial.print(txt);
 }
 
 void logln(String txt)
 {
-    SerialHW.println(txt);
+    Serial.println(txt);
 }
 
 String lastAlertTxt = "";
@@ -415,9 +415,9 @@ void logAlert(String txt)
     // esta rutina es perfecta para no llenar el buffer de salida serie con mensajes ciclicos
     if (lastAlertTxt != txt)
     {
-      SerialHW.println("");
-      SerialHW.println(txt);
-      SerialHW.println("");
+      Serial.println("");
+      Serial.println(txt);
+      Serial.println("");
     }
 
     lastAlertTxt = txt;
