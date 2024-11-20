@@ -177,6 +177,13 @@ WebServer server(80);
 
 #include <ElegantOTA.h>
 
+// OTA SD Update
+#include <Update.h>
+void updateProgressCallBack(size_t currSize, size_t totalSize)
+{
+  log_v("CALLBACK:  Update process at %d of %d bytes...", currSize, totalSize);
+}
+
 // -----------------------------------------------------------------------
 //#include "lib\NexUpload.h"
 
@@ -2223,6 +2230,50 @@ void setup()
     delay(125);
 
     // -------------------------------------------------------------------------
+    // Actualización OTA por SD
+    // -------------------------------------------------------------------------
+    log_v("");
+    log_v("Search for firmware..");
+    char strpath[20] = {};
+    strcpy(strpath,"/firmware.bin");
+    File32 firmware =  sdm.openFile32(strpath);
+    if (firmware) 
+    {
+      log_v("found!");
+      log_v("Try to update!");
+ 
+      Update.onProgress(updateProgressCallBack);
+ 
+      Update.begin(firmware.size(), U_FLASH);
+      Update.writeStream(firmware);
+      if (Update.end())
+      {
+        log_v("Update finished!");
+      }
+      else
+      {
+        log_e("Update error!");
+      }
+ 
+      firmware.close();
+ 
+      if (sdf.rename("/firmware.bin", "/firmware.bak"))
+      {
+        log_v("Firmware rename succesfully!");
+      }
+      else{
+        log_e("Firmware rename error!");
+      }
+      delay(2000);
+ 
+      ESP.restart();
+    }
+    else
+    {
+      log_v("not found!");
+    }
+
+    // -------------------------------------------------------------------------
     // Actualizacion del HMI
     // -------------------------------------------------------------------------
     if (sdf.exists("/powadcr_iface.tft"))
@@ -2369,7 +2420,6 @@ void setup()
     #ifdef DEBUGMODE
       hmi.writeString("tape.name.txt=\"DEBUG MODE ACTIVE\"" );
     #endif
-
 }
 
 void loop()
