@@ -2234,9 +2234,7 @@ void setup()
     // -------------------------------------------------------------------------
     log_v("");
     log_v("Search for firmware..");
-    char strpath[20] = {};
-    strcpy(strpath,"/firmware.bin");
-    File32 firmware =  sdm.openFile32(strpath);
+    File32 firmware =  sdm.openFile32("/firmware.bin");
     if (firmware) 
     {
       log_v("found!");
@@ -2257,12 +2255,12 @@ void setup()
  
       firmware.close();
  
-      if (sdf.rename("/firmware.bin", "/firmware.bak"))
+      if (sdf.remove("/firmware.bin"))
       {
-        log_v("Firmware rename succesfully!");
+        log_v("Firmware deleted succesfully!");
       }
       else{
-        log_e("Firmware rename error!");
+        log_e("Firmware delete error!");
       }
       delay(2000);
  
