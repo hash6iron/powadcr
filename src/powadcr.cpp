@@ -176,6 +176,11 @@ bool pageScreenIsShown = false;
 // -----------------------------------------------------------------------
 #include <Update.h>
 
+// SPIFFS
+// -----------------------------------------------------------------------
+#include "esp_err.h"
+#include "esp_spiffs.h"
+
 // -----------------------------------------------------------------------
 //#include "lib\NexUpload.h"
 
@@ -2066,6 +2071,43 @@ bool headPhoneDetection()
   return !gpio_get_level((gpio_num_t)HEADPHONE_DETECT);
 }
 
+/**
+ * @brief SPIFFS Init
+ *
+ */
+esp_err_t initSPIFFS()
+{
+  log_i("Initializing SPIFFS");
+
+  esp_vfs_spiffs_conf_t conf = {
+    .base_path = "/spiffs",
+    .partition_label = NULL,
+    .max_files = 5,
+    .format_if_mount_failed = false
+  };
+
+  esp_err_t ret = esp_vfs_spiffs_register(&conf);
+
+  if (ret !=ESP_OK)
+  {
+    if (ret == ESP_FAIL)
+      log_e("Failed to mount or format filesystem");
+    else if (ret == ESP_ERR_NOT_FOUND)
+      log_e("Failed to find SPIFFS partition");
+    else
+      log_e("Failed to initialize SPIFFS (%s)",esp_err_to_name(ret));
+    return ESP_FAIL;
+  }
+
+  size_t total = 0, used = 0;
+  ret = esp_spiffs_info(NULL, &total, &used);
+  if (ret!= ESP_OK)
+    log_e("Failed to get SPIFFS partition information (%s)", esp_err_to_name(ret));
+  else
+    log_i("Partition size: total: %d used: %d", total, used);
+  
+  return ESP_OK;
+}
 
 // ******************************************************************
 //
@@ -2159,7 +2201,7 @@ void setup()
     //SerialHW.println("Setting Audiokit.");
 
     // Configuramos los pulsadores
-    // configureButtons();
+    configureButtons();
 
     // Configuramos el ESP32kit
     LOGLEVEL_AUDIOKIT = AudioKitError;
@@ -2195,6 +2237,11 @@ void setup()
       hmi.writeString("statusLCD.txt=\"PSRAM FAILED!\"" );
     }    
     delay(125);
+
+    // -------------------------------------------------------------------------
+    // Inicializar SPIFFS mínimo
+    // -------------------------------------------------------------------------
+    initSPIFFS();
 
     // -------------------------------------------------------------------------
     // Actualización OTA por SD
