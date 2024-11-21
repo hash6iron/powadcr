@@ -99,8 +99,8 @@ TaskHandle_t Task0;
 TaskHandle_t Task1;
 
 #define SerialHWDataBits 921600
-#define hmiTxD 23
-#define hmiRxD 18
+#define hmiTxD 21
+#define hmiRxD 22
 
 
 #include <esp_task_wdt.h>
