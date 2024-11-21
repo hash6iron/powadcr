@@ -114,7 +114,7 @@ class TZXprocessor
 
     bool stopOrPauseRequest()
     {
-        LAST_MESSAGE = "Stop or pause requested";
+        // LAST_MESSAGE = "Stop or pause requested";
         
         if (LOADING_STATE == 1)
         {

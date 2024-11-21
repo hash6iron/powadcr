@@ -98,6 +98,7 @@
 TaskHandle_t Task0;
 TaskHandle_t Task1;
 
+// Definicion del puerto serie para la pantalla
 #define SerialHWDataBits 921600
 #define hmiTxD 21
 #define hmiRxD 22
@@ -2158,12 +2159,13 @@ void setup()
     //SerialHW.println("Setting Audiokit.");
 
     // Configuramos los pulsadores
-    configureButtons();
+    // configureButtons();
 
     // Configuramos el ESP32kit
     LOGLEVEL_AUDIOKIT = AudioKitError;
 
     // Configuracion de las librerias del AudioKit
+    hmi.writeString("statusLCD.txt=\"Setting audio\"");
     setAudioOutput();
 
     //SerialHW.println("Done!");
