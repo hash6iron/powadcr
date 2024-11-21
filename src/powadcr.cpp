@@ -181,6 +181,11 @@ bool pageScreenIsShown = false;
 #include "esp_err.h"
 #include "esp_spiffs.h"
 
+// WEBFILE SERVER
+// -----------------------------------------------------------------------
+#include "webpage.h"
+#include "webserver.h"
+
 // -----------------------------------------------------------------------
 //#include "lib\NexUpload.h"
 
@@ -2326,6 +2331,10 @@ void setup()
           delay(125);
           hmi.writeString("menu.wifiEn.val=1");      
           delay(125);
+
+
+          configureWebServer();
+          server.begin(); 
       }
     }
 
