@@ -114,17 +114,19 @@ class TZXprocessor
 
     bool stopOrPauseRequest()
     {
-        // LAST_MESSAGE = "Stop or pause requested";
+        // 
         
         if (LOADING_STATE == 1)
         {
             if (STOP==true)
             {
+                LAST_MESSAGE = "Stop or pause requested";             
                 LOADING_STATE = 2; // STOP del bloque actual
                 return true;
             }
             else if (PAUSE==true)
             {
+                LAST_MESSAGE = "Stop or pause requested";
                 LOADING_STATE = 3; // PAUSE del bloque actual
                 return true;
             }
