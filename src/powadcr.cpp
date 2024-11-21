@@ -99,12 +99,15 @@ TaskHandle_t Task0;
 TaskHandle_t Task1;
 
 #define SerialHWDataBits 921600
+#define hmiTxD 23
+#define hmiRxD 18
+
 
 #include <esp_task_wdt.h>
 #define WDT_TIMEOUT 360000  
 
 #include <HardwareSerial.h>
-HardwareSerial SerialHW(0);
+HardwareSerial SerialHW(2);
 
 EasyNex myNex(SerialHW);
 
@@ -168,14 +171,9 @@ bool pageScreenIsShown = false;
   uint16_t USER_CONFIG_ARDUINO_LOOP_STACK_SIZE = 16384;
 #endif
 
-// Elegant OTA
+// OTA SD Update
 // -----------------------------------------------------------------------
-
-#include <WiFiClient.h>
-#include <WebServer.h>
-WebServer server(80);
-
-#include <ElegantOTA.h>
+#include <Update.h>
 
 // -----------------------------------------------------------------------
 //#include "lib\NexUpload.h"
@@ -362,7 +360,7 @@ bool loadWifiCfgFile()
           fWifi.println("<SN>255.255.255.0</SN>");
           fWifi.println("<GW>192.168.1.1</GW>");
           fWifi.println("<DNS1>192.168.1.1</DNS1>");
-          fWifi.println("<DNS2>192.168.1.1</DNS1>");
+          fWifi.println("<DNS2>192.168.1.1</DNS2>");
 
           #ifdef DEBUGMODE
             logln("wifi.cfg new file created");
@@ -990,12 +988,13 @@ unsigned long ota_progress_millis = 0;
 
 void onOTAStart() 
 {
-  // Log when OTA has started
   pageScreenIsShown = false;
-  // <Add your own code here>
 }
-void onOTAProgress(size_t current, size_t final) 
+
+void onOTAProgress(size_t currSize, size_t totalSize)
 {
+  log_v("CALLBACK:  Update process at %d of %d bytes...", currSize, totalSize);
+
   // Log every 1 second
   if (millis() - ota_progress_millis > 250) 
   {
@@ -1008,8 +1007,7 @@ void onOTAProgress(size_t current, size_t final)
         pageScreenIsShown = true;
       }
 
-      HTTPUpload &upload = server.upload();
-      size_t fileSize = upload.totalSize / 1024;
+      size_t fileSize = totalSize / 1024;
       fileSize = (round(fileSize*10)) / 10;
       // int prg = 0;
 
@@ -1022,7 +1020,7 @@ void onOTAProgress(size_t current, size_t final)
       //   prg = 0;
       // }
       
-      String fileName = upload.filename;
+      //String fileName = upload.filename;
       hmi.writeString("statusLCD.txt=\"FIRMWARE UPDATING " + String(fileSize) + " KB\""); 
 
       // if(final!=0)
@@ -1035,25 +1033,14 @@ void onOTAProgress(size_t current, size_t final)
 
 void onOTAEnd(bool success) 
 {
-  // Log when OTA has finished
   if (success) 
   {
     hmi.writeString("statusLCD.txt=\"SUCCEESSFUL UPDATE\"");
-    // Cerramos la conexión antes de resetear el ESP32
-    server.sendHeader("Connection", "close");
-    server.send(200,"text/plain","OK");    
-    delay(2000);
-    // Reiniciamos  
-    ESP.restart();
   } 
   else 
   {
     hmi.writeString("statusLCD.txt=\"UPDATE FAIL\"");
-    // Cerramos la conexión
-    server.sendHeader("Connection", "close");
-    server.send(400,"text/plain","Uploading process fail.");     
   }
-  // <Add your own code here>
 }
 
 bool wifiOTASetup()
@@ -1062,10 +1049,7 @@ bool wifiOTASetup()
 
     WiFi.mode(WIFI_STA);
     WiFi.begin(ssid, password);
-    
-      // Disable Auto Reboot
-    ElegantOTA.setAutoReboot(false);
-      
+       
     hmi.writeString("statusLCD.txt=\"SSID: [" + String(ssid) + "]\"" );
     delay(1500);
     
@@ -1097,31 +1081,17 @@ bool wifiOTASetup()
 
     if (wifiActive)
     {
-        server.on("/", HTTP_GET,[]()
-        {
-          server.send(200, "text/html", "<meta http-equiv=\"refresh\" content=\"0; url=http://" + POWAIP + "/update\" />");
-        });
+      // hmi.writeString("statusLCD.txt=\"Wifi + OTA - Enabled\"");
+      // delay(125);
 
-
-        ElegantOTA.begin(&server);    // Start ElegantOTA
-        // ElegantOTA callbacks
-        ElegantOTA.onStart(onOTAStart);
-        ElegantOTA.onProgress(onOTAProgress);
-        ElegantOTA.onEnd(onOTAEnd);
-
-        server.begin();
-
-        // hmi.writeString("statusLCD.txt=\"Wifi + OTA - Enabled\"");
-        // delay(125);
-
-        hmi.writeString("statusLCD.txt=\"IP " + WiFi.localIP().toString() + "\""); 
-        delay(50);
+      hmi.writeString("statusLCD.txt=\"IP " + WiFi.localIP().toString() + "\""); 
+      delay(50);
     }
     else
     {
-        hmi.writeString("statusLCD.txt=\"Wifi disabled\"");
-        wifiActive = false;
-        delay(750);
+      hmi.writeString("statusLCD.txt=\"Wifi disabled\"");
+      wifiActive = false;
+      delay(750);
     }
 
     return wifiActive;
@@ -2130,7 +2100,6 @@ void Task0code( void * pvParameters )
     for(;;)
     {
 
-        server.handleClient();
         hmi.readUART();
 
         // Control por botones
@@ -2163,11 +2132,14 @@ void Task0code( void * pvParameters )
 
 void setup() 
 {
+    // Inicializar puerto USB Serial a 115200 para depurar / subida de firm
+    Serial.begin(115200);
+    
     // Configuramos el size de los buffers de TX y RX del puerto serie
     SerialHW.setRxBufferSize(4096);
     SerialHW.setTxBufferSize(4096);
     // Configuramos la velocidad del puerto serie
-    SerialHW.begin(921600);
+    SerialHW.begin(SerialHWDataBits,SERIAL_8N1,hmiRxD,hmiTxD);
     //SerialHW.begin(512000);
     delay(125);
 
@@ -2221,6 +2193,53 @@ void setup()
       hmi.writeString("statusLCD.txt=\"PSRAM FAILED!\"" );
     }    
     delay(125);
+
+    // -------------------------------------------------------------------------
+    // Actualización OTA por SD
+    // -------------------------------------------------------------------------
+    log_v("");
+    log_v("Search for firmware..");
+    char strpath[20] = {};
+    strcpy(strpath,"/firmware.bin");
+    File32 firmware =  sdm.openFile32(strpath);
+    if (firmware) 
+    {
+      onOTAStart();
+      log_v("found!");
+      log_v("Try to update!");
+ 
+      Update.onProgress(onOTAProgress);
+ 
+      Update.begin(firmware.size(), U_FLASH);
+      Update.writeStream(firmware);
+      if (Update.end())
+      {
+        log_v("Update finished!");
+        onOTAEnd(true);
+      }
+      else
+      {
+        log_e("Update error!");
+        onOTAEnd(false);
+      }
+ 
+      firmware.close();
+ 
+      if (sdf.remove(strpath))
+      {
+        log_v("Firmware deleted succesfully!");
+      }
+      else{
+        log_e("Firmware delete error!");
+      }
+      delay(2000);
+ 
+      ESP.restart();
+    }
+    else
+    {
+      log_v("not found!");
+    }
 
     // -------------------------------------------------------------------------
     // Actualizacion del HMI
@@ -2369,7 +2388,6 @@ void setup()
     #ifdef DEBUGMODE
       hmi.writeString("tape.name.txt=\"DEBUG MODE ACTIVE\"" );
     #endif
-
 }
 
 void loop()
