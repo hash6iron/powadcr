@@ -449,7 +449,7 @@ void configureWebServer()
                   if (strcmp(fileAction, "download") == 0)
                   {
                     logMessage += " downloaded";
-                    request->send(SD, path, "application/octet-stream");
+                    request->send(webFile, path, "application/octet-stream");
                   }
                   else if (strcmp(fileAction, "delete") == 0)
                   {
