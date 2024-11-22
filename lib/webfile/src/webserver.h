@@ -18,6 +18,8 @@ csd_t csd;
 uint64_t sdFree = 0;
 uint64_t sdTotal = 0;
 uint64_t sdUsed = 0;
+uint64_t sdCap = 0;
+uint8_t sdType = 0;
 
 /**
  * @brief Current directory
@@ -38,7 +40,6 @@ const int FILES_PER_PAGE = 10;
  void getSdInfo()
  {
   sdFree = (sdf.freeClusterCount() * sdf.sectorsPerCluster() * 0.000512) * 1024 * 1024;
-  sdTotal = (sdf.clusterCount() * sdf.sectorsPerCluster() * 0.000512) * 1024 * 1024; 
   sdUsed = sdTotal-sdFree;
  }
 
@@ -203,9 +204,6 @@ void webNotFound(AsyncWebServerRequest *request)
  */
 String webParser(const String &var)
 {
-  sdf.card()->readCSD(&csd);
-
-
   if (var == "FIRMWARE")
     return String(VERSION);
   else if (var == "FREEFS")
@@ -216,7 +214,7 @@ String webParser(const String &var)
     return humanReadableSize(sdTotal);
   else if (var == "TYPEFS")
   {
-    switch (sdf.card()->type()) 
+    switch (sdType) 
     {
     case SD_CARD_TYPE_SD1:
       return "SD1";
@@ -227,7 +225,7 @@ String webParser(const String &var)
       break;
 
     case SD_CARD_TYPE_SDHC:
-      if (csd.capacity() < 70000000) 
+      if (sdCap < 70000000) 
         return "SDHC";
       else
         return "SDXC";
@@ -350,7 +348,6 @@ void handleUpload(AsyncWebServerRequest *request, String filename, size_t index,
   if (final)
   {
     request->_tempFile.close();
-    getSdInfo();
     updateList = true;
   }
 }
@@ -388,13 +385,17 @@ void configureWebServer()
 
   //  log_i("mDNS initialized");
   
-  getSdInfo();
+  sdTotal = (sdf.clusterCount() * sdf.sectorsPerCluster() * 0.000512) * 1024 * 1024; 
+  sdf.card()->readCSD(&csd);
+  sdType = sdf.card()->type();
+  sdCap = csd.capacity();
 
   server.onNotFound(webNotFound);
   server.onFileUpload(handleUpload);
   oldDir = "/";
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request)
             {
+              getSdInfo();
               String logMessage = "Client:" + request->client()->remoteIP().toString() + +" " + request->url();
                 log_i("%s", logMessage.c_str());
                 request->send_P(200, "text/html", index_html, webParser); 
@@ -445,6 +446,7 @@ void configureWebServer()
         
               if (updateList)
               {
+                //getSdInfo();
                 cacheDirectoryContent(oldDir);
               }
 
@@ -484,7 +486,6 @@ void configureWebServer()
                     strcpy(strpath,path.c_str());
                     sdf.remove(String(strpath));
                     request->send(200, "text/plain", "Deleted File: " + String(fileName));
-                    getSdInfo();
                     updateList = true;
                   }
                   else
