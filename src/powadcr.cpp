@@ -1044,7 +1044,7 @@ void onOTAEnd(bool success)
   }
 }
 
-bool wifiOTASetup()
+bool wifiSetup()
 {
     bool wifiActive = true;
 
@@ -1334,57 +1334,135 @@ void playingFile()
 void verifyConfigFileForSelection()
 {
   // Vamos a localizar el fichero de configuracion especifico para el fichero seleccionado
+  const int max_params = 4;
   String path = FILE_LAST_DIR;
   tConfig *fileCfg;
   char strpath[FILE_TO_LOAD.length() + 5] = {};
   strcpy(strpath,FILE_TO_LOAD.c_str());
-  if (sdf.exists(FILE_TO_LOAD + ".cfg"))
-  {
-    // Abrimos el fichero de configuracion.
-    File32 cfg = sdm.openFile32(strpath);
+  strcat(strpath,".cfg");
 
-    if (cfg.isOpen())
+  // Abrimos el fichero de configuracion.
+  File32 cfg;
+
+  logln("");
+  log("path: " + String(strpath));
+
+  if (sdf.exists(strpath))
+  {
+    logln("");
+    log("cfg path: " + String(strpath));
+
+    if (cfg.open(strpath,O_READ))
     {
       // Leemos todos los parametros
-      fileCfg = sdm.readAllParamCfg(cfg,4);
+      fileCfg = sdm.readAllParamCfg(cfg,max_params);
 
-      // Ahora vamos a tomar los valores de cada uno de ellos.
-      // ZEROLEVEL
-      if((sdm.getValueOfParam(fileCfg[0].cfgLine,"zerolevel")) == "1")
-      {
-        ZEROLEVEL = 1;
-      }
-      else
-      {
-        ZEROLEVEL = 0;
-      }
+      logln("");
+      log("cfg open");  
 
-      // POLARIZED
-      if((sdm.getValueOfParam(fileCfg[1].cfgLine,"blockend")) == "1")
+      for (int i;i<max_params;i++)
       {
-        APPLY_END = 1;
-      }
-      else
-      {
-        APPLY_END = 0;
-      }
 
-      // BLOCKEND
-      if((sdm.getValueOfParam(fileCfg[2].cfgLine,"polarized")) == "1")
-      {
-        POLARIZATION = down;
-        LAST_EAR_IS = down;
-        INVERSETRAIN = true;
-      }
-      else
-      {
-        POLARIZATION = up;
-        LAST_EAR_IS = up;
-        INVERSETRAIN = false;
-      }
+          logln("");
+          log("Param: " + fileCfg[i].cfgLine);
 
+          if((fileCfg[i].cfgLine).indexOf("freq") != -1)
+          {
+            SAMPLING_RATE = (sdm.getValueOfParam(fileCfg[i].cfgLine,"freq")).toInt();
 
+            logln("");
+            log("Sampling rate: " + String(SAMPLING_RATE));
+
+            switch (SAMPLING_RATE)
+            {
+            case 48000:
+              hmi.writeString("menuAudio2.r0.val=1");
+              break;
+
+            case 44100:
+              hmi.writeString("menuAudio2.r1.val=1");
+              break;
+
+            case 32000:
+              hmi.writeString("menuAudio2.r2.val=1");
+              break;
+
+            case 22050:
+              hmi.writeString("menuAudio2.r3.val=1");
+              break;
+
+            default:
+              hmi.writeString("menuAudio2.r1.val=1");
+              break;
+            }
+          }
+          else if((fileCfg[i].cfgLine).indexOf("zerolevel") != -1)
+          {
+            ZEROLEVEL = sdm.getValueOfParam(fileCfg[i].cfgLine,"zerolevel").toInt();
+
+            logln("");
+            log("Zero level: " + String(ZEROLEVEL));
+
+            if (ZEROLEVEL==1)
+            {
+              hmi.writeString("menuAudio2.lvlLowZero.val=1");
+            }
+            else
+            {
+              hmi.writeString("menuAudio2.lvlLowZero.val=0");
+            }
+          }
+          else if((fileCfg[i].cfgLine).indexOf("blockend") != -1)
+          {
+            APPLY_END = sdm.getValueOfParam(fileCfg[i].cfgLine,"blockend").toInt();
+
+            logln("");
+            log("Terminator forzed: " + String(APPLY_END));
+
+            if (APPLY_END==1)
+            {
+              hmi.writeString("menuAudio2.enTerm.val=1");
+            }
+            else
+            {
+              hmi.writeString("menuAudio2.enTerm.val=0");
+            }
+          }
+          else if((fileCfg[i].cfgLine).indexOf("polarized") != -1)
+          {
+            if((sdm.getValueOfParam(fileCfg[i].cfgLine,"polarized")) == "1")
+            {
+              POLARIZATION = down;
+              LAST_EAR_IS = down;
+              INVERSETRAIN = true;
+
+              if (POLARIZATION==down)
+              {
+                hmi.writeString("menuAudio2.polValue.val=1");
+
+                logln("");
+                log("Polarization INV: " + String(APPLY_END));
+
+              }
+              else
+              {
+                hmi.writeString("menuAudio2.polValue.val=0");
+
+                logln("");
+                log("Polarization DIR: " + String(APPLY_END));
+              }
+            }
+            else
+            {
+              POLARIZATION = up;
+              LAST_EAR_IS = up;
+              INVERSETRAIN = false;
+            }            
+          }
+      }
     }
+
+    cfg.close();
   }
 }
 
@@ -1405,7 +1483,7 @@ void loadingFile(char* file_ch)
     ejectingFile();
 
     // Verificamos si hay fichero de configuracion para este archivo seleccionado
-    // verifyConfigFileForSelection();
+    verifyConfigFileForSelection();
 
     // Cargamos el seleccionado.
     if (FILE_TO_LOAD.indexOf(".TAP") != -1)
@@ -2268,7 +2346,7 @@ void setup()
     if(loadWifiCfgFile());
     {
       //Si la conexión es correcta se actualiza el estado del HMI
-      if(wifiOTASetup())
+      if(wifiSetup())
       {
           // Enviamos información al menu
           hmi.writeString("menu.wifissid.txt=\"" + String(ssid) + "\"");

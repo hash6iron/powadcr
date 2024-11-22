@@ -700,7 +700,7 @@ class HMI
 
       }
 
- void printFileRows(int row, int color, String szName)
+      void printFileRows(int row, int color, String szName)
       {
             switch(row)
             {
@@ -1007,9 +1007,10 @@ class HMI
             pos_in_HMI_file++;
         }
 
+        // Ahora vamos a redibujar dos veces
         writeStringBlock(mens);
-        delay(5);
-        writeStringBlock(mens);
+        // delay(5);
+        // writeStringBlock(mens);
       }
 
       void showInformationAboutFiles()
@@ -1168,9 +1169,10 @@ class HMI
 
         }
 
+        // Ahora vamos a redibujar dos veces
         writeStringBlock(mens);
-        delay(5);
-        writeStringBlock(mens);
+        // delay(5);
+        // writeStringBlock(mens);
 
         showInformationAboutFiles();        
       
@@ -2262,18 +2264,45 @@ class HMI
           SerialHW.println("EAR LEFT enable=" + String(SWAP_EAR_CHANNEL));
         }
         // Save polarization in ID 0x2B
-        else if (strCmd.indexOf("SAV=") != -1) 
+        else if (strCmd.indexOf("SAV") != -1) 
         {
+
           //Guardamos la configuracion en un fichero
           String path = FILE_LAST_DIR;
           char strpath[FILE_TO_LOAD.length() + 5] = {};
           strcpy(strpath,FILE_TO_LOAD.c_str());
-          if (_sdf.exists(FILE_TO_LOAD + ".cfg"))
-          {
-            // Abrimos el fichero de configuracion.
-            File32 cfg = sdm.openFile32(strpath);
-          }
+          strcat(strpath,".cfg");
 
+          File32 cfg;
+
+          logln("");
+          log("Saving configuration in " + String(strpath));
+
+          if (cfg.open(strpath,O_WRITE | O_CREAT))
+          {
+            // Creamos el fichero de configuracion.
+ 
+            logln("");
+            log("file created - ");
+
+            // Ahora escribimos la configuracion
+            cfg.println("<freq>"+ String(SAMPLING_RATE) +"</freq>");        
+            cfg.println("<zerolevel>" + String(ZEROLEVEL) + "</zerolevel>");
+            cfg.println("<blockend>" + String(APPLY_END) + "</blockend>");     
+
+            if (POLARIZATION == down)
+            {
+               cfg.println("<polarized>1</polarized>");       
+            } 
+            else
+            {
+              cfg.println("<polarized>0</polarized>");
+            }
+          
+            cfg.close();
+
+          }
+          
           #ifdef DEBUGMODE
             log("Config. saved");
           #endif
