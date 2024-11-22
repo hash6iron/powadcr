@@ -317,11 +317,15 @@ String listFiles(bool ishtml, int page = 0)
  */
 void handleUpload(AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final)
 {
+  String path = oldDir + "/" + filename;
+  char strpath[255] = {};
+  strcpy(strpath,path.c_str());
 
   if (!index)
   {
     request->client()->setRxTimeout(15000);
-    request->_tempFile = webFile.open(oldDir + "/" + filename, "w");
+    request->_tempFile = webFile.open(strpath, "w+", true);  
+    log_v("%s",strpath);
   }
   if (len)
     request->_tempFile.write(data, len);
