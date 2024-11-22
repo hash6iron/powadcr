@@ -12,9 +12,12 @@
 #include <AsyncTCP.h>
 #include <ESPAsyncWebServer.h>
 #include "sd_fat32_fs_wrapper.h"
-#include "SD.h"
 
 fs::FS webFile = fs::FS(fs::FSImplPtr(new SdFat32FSImpl(sdf)));
+csd_t csd;
+uint64_t sdFree = 0;
+uint64_t sdTotal = 0;
+uint64_t sdUsed = 0;
 
 /**
  * @brief Current directory
@@ -27,6 +30,17 @@ String currentDir;
 bool updateList = true;
 
 const int FILES_PER_PAGE = 10; 
+
+/**
+ * @brief Get SD info
+ *
+ */
+ void getSdInfo()
+ {
+  sdFree = (sdf.freeClusterCount() * sdf.sectorsPerCluster() * 0.000512) * 1024 * 1024;
+  sdTotal = (sdf.clusterCount() * sdf.sectorsPerCluster() * 0.000512) * 1024 * 1024; 
+  sdUsed = sdTotal-sdFree;
+ }
 
 /**
  * @brief File directory cache
@@ -189,31 +203,37 @@ void webNotFound(AsyncWebServerRequest *request)
  */
 String webParser(const String &var)
 {
+  sdf.card()->readCSD(&csd);
+
+
   if (var == "FIRMWARE")
     return String(VERSION);
   else if (var == "FREEFS")
-    return humanReadableSize((SD.totalBytes() - SD.usedBytes()));
+    return humanReadableSize(sdFree );
   else if (var == "USEDFS")
-    return humanReadableSize(SD.usedBytes());
+    return humanReadableSize(sdUsed) ;
   else if (var == "TOTALFS")
-    return humanReadableSize(SD.cardSize());
+    return humanReadableSize(sdTotal);
   else if (var == "TYPEFS")
   {
-    uint8_t cardType = SD.cardType();
-    if (cardType == CARD_MMC)
+    switch (sdf.card()->type()) 
     {
-      return "MMC";
-    }
-    else if (cardType == CARD_SD)
-    {
-      return "SDSC";
-    }
-    else if (cardType == CARD_SDHC)
-    {
-      return "SDHC";
-    }
-    else
-    {
+    case SD_CARD_TYPE_SD1:
+      return "SD1";
+      break;
+
+    case SD_CARD_TYPE_SD2:
+      return "SD2";
+      break;
+
+    case SD_CARD_TYPE_SDHC:
+      if (csd.capacity() < 70000000) 
+        return "SDHC";
+      else
+        return "SDXC";
+      break;
+
+    default:
       return "UNKNOWN";
     }
   }
@@ -330,6 +350,7 @@ void handleUpload(AsyncWebServerRequest *request, String filename, size_t index,
   if (final)
   {
     request->_tempFile.close();
+    getSdInfo();
     updateList = true;
   }
 }
@@ -366,6 +387,8 @@ void configureWebServer()
   //   log_e("nDNS init error");
 
   //  log_i("mDNS initialized");
+  
+  getSdInfo();
 
   server.onNotFound(webNotFound);
   server.onFileUpload(handleUpload);
@@ -421,7 +444,9 @@ void configureWebServer()
               }
         
               if (updateList)
+              {
                 cacheDirectoryContent(oldDir);
+              }
 
               request->send(200, "text/html", listFiles(true, page)); });
 
@@ -459,6 +484,7 @@ void configureWebServer()
                     strcpy(strpath,path.c_str());
                     sdf.remove(String(strpath));
                     request->send(200, "text/plain", "Deleted File: " + String(fileName));
+                    getSdInfo();
                     updateList = true;
                   }
                   else
