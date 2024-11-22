@@ -439,7 +439,7 @@ void configureWebServer()
                 String path = oldDir + String(fileName);
                 log_i("%s",path.c_str());
 
-                if (!SD.exists(path))
+                if (!sdf.exists(path))
                 {
                   request->send(400, "text/plain", "ERROR: file does not exist");
                 }
