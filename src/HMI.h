@@ -1782,25 +1782,9 @@ class HMI
             FILE_IDX_SELECTED = num.toInt();
             FILE_SELECTED_DELETE = false;
       
-            //Cogemos el fichero
-            // if (!FILE_BROWSER_SEARCHING)
-            // {
-                FILE_TO_DELETE = FILE_LAST_DIR + FILES_BUFF[FILE_IDX_SELECTED+1].path;     
-      
-                // SerialHW.println();
-                // SerialHW.println();
-                // SerialHW.println("File to delete: " + FILE_TO_DELETE);  
-                FILE_SELECTED_DELETE = true; 
-            // }
-            // else
-            // {
-            //     FILE_TO_DELETE = FILE_LAST_DIR + FILES_FOUND_BUFF[FILE_IDX_SELECTED+1].path;     
-      
-            //     // SerialHW.println();
-            //     // SerialHW.println();
-            //     // SerialHW.println("File to delete in buffer: " + FILE_TO_DELETE); 
-            //     FILE_SELECTED_DELETE = true;  
-            // }
+            FILE_TO_DELETE = FILE_LAST_DIR + FILES_BUFF[FILE_IDX_SELECTED+1].path;      
+            FILE_SELECTED_DELETE = true; 
+
 
             if (FILE_SELECTED_DELETE)
             {

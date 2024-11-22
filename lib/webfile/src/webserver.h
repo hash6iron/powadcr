@@ -39,6 +39,7 @@ struct FileEntry {
 };
 std::vector<FileEntry> fileCache;
 
+
 /**
  * @brief Web Server Declaration
  *
@@ -455,7 +456,7 @@ void configureWebServer()
                     logMessage += " deleted";
                     char strpath[255] = {};
                     strcpy(strpath,path.c_str());
-                    sdf.remove(strpath);
+                    sdf.remove(String(strpath));
                     request->send(200, "text/plain", "Deleted File: " + String(fileName));
                     updateList = true;
                   }

@@ -100,8 +100,8 @@ TaskHandle_t Task1;
 
 // Definicion del puerto serie para la pantalla
 #define SerialHWDataBits 921600
-#define hmiTxD 21
-#define hmiRxD 22
+#define hmiTxD 23
+#define hmiRxD 18
 
 
 #include <esp_task_wdt.h>
@@ -2206,7 +2206,7 @@ void setup()
     //SerialHW.println("Setting Audiokit.");
 
     // Configuramos los pulsadores
-    configureButtons();
+    // configureButtons();
 
     // Configuramos el ESP32kit
     LOGLEVEL_AUDIOKIT = AudioKitError;
@@ -2246,11 +2246,23 @@ void setup()
     // -------------------------------------------------------------------------
     // Inicializar SPIFFS mínimo
     // -------------------------------------------------------------------------
+    hmi.writeString("statusLCD.txt=\"Initializing SPIFFS\"" );    
     initSPIFFS();
+    if (esp_spiffs_mounted)
+    {
+      hmi.writeString("statusLCD.txt=\"SPIFFS mounted\"" );
+    }
+    else
+    {
+      hmi.writeString("statusLCD.txt=\"SPIFFS error\"" );
+    }
+    delay(2000);
+    
 
     // -------------------------------------------------------------------------
     // Actualización OTA por SD
     // -------------------------------------------------------------------------
+
     log_v("");
     log_v("Search for firmware..");
     char strpath[20] = {};
@@ -2258,6 +2270,7 @@ void setup()
     File32 firmware =  sdm.openFile32(strpath);
     if (firmware) 
     {
+      hmi.writeString("statusLCD.txt=\"New powadcr firmware found\"" );       
       onOTAStart();
       log_v("found!");
       log_v("Try to update!");
@@ -2269,11 +2282,13 @@ void setup()
       if (Update.end())
       {
         log_v("Update finished!");
+        hmi.writeString("statusLCD.txt=\"Update finished\"" );        
         onOTAEnd(true);
       }
       else
       {
         log_e("Update error!");
+        hmi.writeString("statusLCD.txt=\"Update error\"" );         
         onOTAEnd(false);
       }
  
