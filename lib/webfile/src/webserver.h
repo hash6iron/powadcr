@@ -145,16 +145,13 @@ void cacheDirectoryContent(const String& dir)
 {
   fileCache.clear();  
 
-  File32 root = sdm.openFile32((char*)dir.c_str());
-  File32 foundFile = root.openNextFile();
+  File root = webFile.open(dir.c_str());
+  File foundFile = root.openNextFile();
 
   while (foundFile)
   {
     FileEntry entry;
-    // entry.name = foundFile.name();
-    char szName[512];
-    foundFile.getName(szName,255);
-    entry.name = String(szName);
+    entry.name = foundFile.name();
     entry.isDirectory = foundFile.isDirectory();
     entry.size = foundFile.size();
 

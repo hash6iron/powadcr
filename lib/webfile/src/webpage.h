@@ -168,7 +168,7 @@ function listFilesButton()
 
 function downloadDeleteButton(filename, action) 
 {
-  var urltocall = "/file?name=" + filename + "&action=" + action;
+  var urltocall = "/file?name=/" + filename + "&action=" + action;
   xhr = new XMLHttpRequest();
   if (action == "delete")
   {
