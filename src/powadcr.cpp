@@ -468,12 +468,10 @@ void proccesingTSX(char* file_ch)
       //LAST_MESSAGE = "Aborting proccess.";
       //
       FILE_PREPARED = false;      
-      ABORT=false;
+      // ABORT=false;
     }
     else
     {
-      //LAST_MESSAGE = "Press PLAY to enjoy!";
-      //
       if (TOTAL_BLOCKS !=0)
       {
         FILE_PREPARED = true;
@@ -1324,6 +1322,10 @@ void playingFile()
   }
   else if (TYPE_FILE_LOAD == "TSX")
   {
+      #ifdef DEBUGMODE
+        logln("");
+        log("TSX - Starting to PLAY");
+      #endif
       //hmi.getMemFree();
       pTSX.play();
       //Paramos la animación
