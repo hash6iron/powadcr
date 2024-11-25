@@ -176,6 +176,16 @@ bool pageScreenIsShown = false;
 // -----------------------------------------------------------------------
 #include <Update.h>
 
+// SPIFFS
+// -----------------------------------------------------------------------
+#include "esp_err.h"
+#include "esp_spiffs.h"
+
+// WEBFILE SERVER
+// -----------------------------------------------------------------------
+#include "webpage.h"
+#include "webserver.h"
+
 // -----------------------------------------------------------------------
 //#include "lib\NexUpload.h"
 
@@ -2146,6 +2156,43 @@ bool headPhoneDetection()
   return !gpio_get_level((gpio_num_t)HEADPHONE_DETECT);
 }
 
+/**
+ * @brief SPIFFS Init
+ *
+ */
+esp_err_t initSPIFFS()
+{
+  log_i("Initializing SPIFFS");
+
+  esp_vfs_spiffs_conf_t conf = {
+    .base_path = "/spiffs",
+    .partition_label = NULL,
+    .max_files = 5,
+    .format_if_mount_failed = false
+  };
+
+  esp_err_t ret = esp_vfs_spiffs_register(&conf);
+
+  if (ret !=ESP_OK)
+  {
+    if (ret == ESP_FAIL)
+      log_e("Failed to mount or format filesystem");
+    else if (ret == ESP_ERR_NOT_FOUND)
+      log_e("Failed to find SPIFFS partition");
+    else
+      log_e("Failed to initialize SPIFFS (%s)",esp_err_to_name(ret));
+    return ESP_FAIL;
+  }
+
+  size_t total = 0, used = 0;
+  ret = esp_spiffs_info(NULL, &total, &used);
+  if (ret!= ESP_OK)
+    log_e("Failed to get SPIFFS partition information (%s)", esp_err_to_name(ret));
+  else
+    log_i("Partition size: total: %d used: %d", total, used);
+  
+  return ESP_OK;
+}
 
 // ******************************************************************
 //
@@ -2277,8 +2324,25 @@ void setup()
     delay(125);
 
     // -------------------------------------------------------------------------
+    // Inicializar SPIFFS mínimo
+    // -------------------------------------------------------------------------
+    hmi.writeString("statusLCD.txt=\"Initializing SPIFFS\"" );    
+    initSPIFFS();
+    if (esp_spiffs_mounted)
+    {
+      hmi.writeString("statusLCD.txt=\"SPIFFS mounted\"" );
+    }
+    else
+    {
+      hmi.writeString("statusLCD.txt=\"SPIFFS error\"" );
+    }
+    delay(2000);
+    
+
+    // -------------------------------------------------------------------------
     // Actualización OTA por SD
     // -------------------------------------------------------------------------
+
     log_v("");
     log_v("Search for firmware..");
     char strpath[20] = {};
@@ -2286,6 +2350,7 @@ void setup()
     File32 firmware =  sdm.openFile32(strpath);
     if (firmware) 
     {
+      hmi.writeString("statusLCD.txt=\"New powadcr firmware found\"" );       
       onOTAStart();
       log_v("found!");
       log_v("Try to update!");
@@ -2297,11 +2362,13 @@ void setup()
       if (Update.end())
       {
         log_v("Update finished!");
+        hmi.writeString("statusLCD.txt=\"Update finished\"" );        
         onOTAEnd(true);
       }
       else
       {
         log_e("Update error!");
+        hmi.writeString("statusLCD.txt=\"Update error\"" );         
         onOTAEnd(false);
       }
  
@@ -2359,6 +2426,10 @@ void setup()
           delay(125);
           hmi.writeString("menu.wifiEn.val=1");      
           delay(125);
+
+
+          configureWebServer();
+          server.begin(); 
       }
     }
 
