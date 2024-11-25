@@ -29,6 +29,9 @@ String oldDir;
 String newDir;
 String currentDir;
 
+String createDir;
+uint8_t nextSlash = 0;
+
 bool updateList = true;
 
 const int FILES_PER_PAGE = 10; 
@@ -322,6 +325,37 @@ String listFiles(bool ishtml, int page = 0)
 }
 
 /**
+ * @brief Create directories if needed for upload
+ * 
+ * @param filepath -> Full file path 
+ * @return true/false if successful
+ */
+bool createDirectories(String filepath)
+{
+  uint8_t lastSlash = 0;
+  while (true) 
+  {
+    nextSlash = filepath.indexOf('/', lastSlash + 1);
+    String dir = filepath.substring(0, nextSlash);
+        
+    if (!webFile.exists(oldDir + "/" + dir))
+    {
+      if (!webFile.mkdir(oldDir + "/" + dir))
+      {
+        log_e("Directory %s creation error", dir.c_str());
+        return false;
+      }
+      log_v("Directory %s created",dir.c_str());
+    }
+    if (nextSlash == 255) break;
+    lastSlash = nextSlash;
+
+    esp_task_wdt_reset();
+  }
+  return true;
+}
+
+/**
  * @brief Upload file handle
  * 
  * @param request 
@@ -332,16 +366,32 @@ String listFiles(bool ishtml, int page = 0)
  */
 void handleUpload(AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final)
 {
-  String path = oldDir + "/" + filename;
+  String pathFull = oldDir + "/" + filename;
   char strpath[255] = {};
-  strcpy(strpath,path.c_str());
+  strcpy(strpath,pathFull.c_str());
+
+  uint8_t lastSlashIndex = filename.lastIndexOf("/");
+  
+  if (lastSlashIndex != 255) 
+  {
+    String path = filename.substring(0, lastSlashIndex);
+    if (createDir != path)
+    {
+      log_v("%s",path.c_str());
+      if (!createDirectories(path))
+        log_e("Directory creation error");
+      createDir = path;
+    }
+  } 
+  
+  log_v("%s", filename.c_str());
 
   if (!index)
   {
     request->client()->setRxTimeout(15000);
     request->_tempFile = webFile.open(strpath, "w+", true);  
-    log_v("%s",strpath);
   }
+
   if (len)
     request->_tempFile.write(data, len);
 
