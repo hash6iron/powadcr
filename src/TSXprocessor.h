@@ -1090,6 +1090,8 @@ class TSXprocessor
           logln(",ENDIANNESS=");
           logln(String(_myTSX.descriptor[currentBlock].timming.bitcfg & 0b00000001));
         #endif
+
+        _myTSX.descriptor[currentBlock].type = 99;
     }
 
     void analyzeBlockUnknow(int id_num, int currentOffset, int currentBlock)
@@ -2110,7 +2112,7 @@ class TSXprocessor
       return res;
     }
 
-    void prepareID4B(int currentBlock, File32 mFile, int nlb, int vlb, int ntb, int vtb, int pzero, int pone, int offset, int ldatos)
+    void prepareID4B(int currentBlock, File32 mFile, int nlb, int vlb, int ntb, int vtb, int pzero, int pone, int offset, int ldatos, bool begin)
     {
         // Generamos la señal de salida
         int pulsosmaximos;
@@ -2121,30 +2123,38 @@ class TSXprocessor
         npulses[1]=pone/2;
         vpulse[0]=(_myTSX.descriptor[currentBlock].timming.bit_0);
         vpulse[1]=(_myTSX.descriptor[currentBlock].timming.bit_1);
-        pulsosmaximos=(_myTSX.descriptor[currentBlock].timming.pilot_num_pulses)+((npulses[vlb]*nlb)+128+(npulses[vtb]*ntb))*_myTSX.descriptor[currentBlock].lengthOfData;
+        pulsosmaximos=(_myTSX.descriptor[currentBlock].timming.pilot_num_pulses)+((npulses[vlb]*nlb)+128+(npulses[vtb]*ntb))*ldatos;
 
-        #ifdef DEBUGMODE
-          logln("Numero de pulsos: " + String(_myTSX.descriptor[currentBlock].timming.pilot_num_pulses));
-          logln("Pulsos maximos: "+String(pulsosmaximos));
-        #endif
+        // #ifdef DEBUGMODE
+          log(" - Numero de pulsos: " + String(_myTSX.descriptor[currentBlock].timming.pilot_num_pulses));
+          log(" - Pulsos maximos: "+String(pulsosmaximos));
+        // #endif
         
         // Reservamos memoria dinamica
         _myTSX.descriptor[currentBlock].timming.pulse_seq_array = (int*)ps_calloc(pulsosmaximos+1,sizeof(int));
 
         #ifdef DEBUGMODE
-          logln("Longitud de los datos: "+String(ldatos));
+          logln("Longitud de los datos: " + String(ldatos));
         #endif
-        // metemos el pilot
+
+        // metemos el pilot SOLO AL PRINCIPIO
         int i;
         int p;
 
-        for (p=0; p < (_myTSX.descriptor[currentBlock].timming.pilot_num_pulses); p++)
+        if (begin)
         {
-            _myTSX.descriptor[currentBlock].timming.pulse_seq_array[p] = _myTSX.descriptor[currentBlock].timming.pilot_len;
-        }
+
+          for (p=0; p < (_myTSX.descriptor[currentBlock].timming.pilot_num_pulses); p++)
+          {
+              _myTSX.descriptor[currentBlock].timming.pulse_seq_array[p] = _myTSX.descriptor[currentBlock].timming.pilot_len;
+          }
 
         i=p;
-        
+        }
+        else
+        {
+          i=0;
+        }        
         #ifdef DEBUGMODE
           log(">> Bucle del pilot - Iteraciones: " + String(p));
         #endif
@@ -2219,8 +2229,6 @@ class TSXprocessor
           }
         }
 
-        // Esto es para que tome los bloques como especiales
-        _myTSX.descriptor[currentBlock].type = 99;
         _myTSX.descriptor[currentBlock].timming.pulse_seq_num_pulses=i;
         
         #ifdef DEBUGMODE
@@ -2456,24 +2464,27 @@ class TSXprocessor
                         // Son bloques especiales de TONO GUIA o SECUENCIAS para SYNC
                         //
                         //int num_pulses = 0;
+                        int nlb;
+                        int vlb;
+                        int ntb;
+                        int vtb;
+                        int pzero;
+                        int pone;
 
+                        int ldatos;
+                        int offset;
+
+                        int bufferD;
+                        int partitions;
+                        int lastPartitionSize;
+
+                        bool begin = false;
+                        
                         switch (_myTSX.descriptor[i].ID)
                         {
                             case 75:
                               //configuracion del byte
-                              int nlb;
-                              int vlb;
-                              int ntb;
-                              int vtb;
-                              int pzero;
-                              int pone;
 
-                              int ldatos;
-                              int offset;
-
-                              int bufferD;
-                              int partitions;
-                              int lastPartitionSize;
                               
                               pzero=((_myTSX.descriptor[i].timming.bitcfg & 0b11110000)>>4);
                               #ifdef DEBUGMODE
@@ -2508,22 +2519,59 @@ class TSXprocessor
                               ldatos = _myTSX.descriptor[i].lengthOfData;
                               // Nos quedamos con el offset inicial
                               offset = _myTSX.descriptor[i].offsetData;
-                              bufferD = 255;  // Buffer de BYTES de datos convertidos a samples
+                              bufferD = 256;  // Buffer de BYTES de datos convertidos a samples
                               partitions = ldatos / bufferD;
                               lastPartitionSize = ldatos - (partitions * bufferD);
-                              
-                              for(int n;n<partitions;n++)
-                              {
-                                  prepareID4B(i,_mFile,nlb,vlb,ntb,vtb,pzero,pone, offset, bufferD);
-                                  // ID 0x4B - Reproducimos una secuencia. Pulsos de longitud contenidos en un array y repetición                                                                    
-                                  _zxp.playCustomSequence(_myTSX.descriptor[i].timming.pulse_seq_array,_myTSX.descriptor[i].timming.pulse_seq_num_pulses);                                                                           
-                                  offset += 1000;
-                              }
 
-                              // Ultima particion
-                              prepareID4B(i,_mFile,nlb,vlb,ntb,vtb,pzero,pone, offset, lastPartitionSize);
-                              // ID 0x4B - Reproducimos una secuencia. Pulsos de longitud contenidos en un array y repetición                                                                    
-                              _zxp.playCustomSequence(_myTSX.descriptor[i].timming.pulse_seq_array,_myTSX.descriptor[i].timming.pulse_seq_num_pulses); 
+                              logln("");
+                              log("Numero de partes: " + String(partitions));
+                              
+                              
+
+                              if (ldatos > bufferD)
+                              {
+                                  for(int n=0;n<partitions;n++)
+                                  {
+                                      if (n==0)
+                                      {
+                                        begin = true;
+                                      }
+                                      else
+                                      {
+                                        begin = false;
+                                      }
+
+                                      prepareID4B(i,_mFile,nlb,vlb,ntb,vtb,pzero,pone, offset, bufferD, begin);
+                                      // ID 0x4B - Reproducimos una secuencia. Pulsos de longitud contenidos en un array y repetición                                                                    
+                                      _zxp.playCustomSequence(_myTSX.descriptor[i].timming.pulse_seq_array,_myTSX.descriptor[i].timming.pulse_seq_num_pulses);                                                                           
+                                      offset += 1000;
+
+                                      log("Parte " + String(n) + " cargada");
+
+                                      free(_myTSX.descriptor[i].timming.pulse_seq_array);
+                                  }
+
+                                  log("Preparando ultima parte");
+
+                                  // Ultima particion
+                                  prepareID4B(i,_mFile,nlb,vlb,ntb,vtb,pzero,pone, offset, lastPartitionSize,false);
+                                  // ID 0x4B - Reproducimos una secuencia. Pulsos de longitud contenidos en un array y repetición                                                                    
+                                  _zxp.playCustomSequence(_myTSX.descriptor[i].timming.pulse_seq_array,_myTSX.descriptor[i].timming.pulse_seq_num_pulses); 
+                                  free(_myTSX.descriptor[i].timming.pulse_seq_array);
+                                  
+                                  log("Ultima parte cargada");
+
+                              }
+                              else
+                              {
+                                  log("Bloque unico");
+                                  
+                                  // Una sola particion
+                                  prepareID4B(i,_mFile,nlb,vlb,ntb,vtb,pzero,pone, offset, ldatos,true);
+                                  // ID 0x4B - Reproducimos una secuencia. Pulsos de longitud contenidos en un array y repetición                                                                    
+                                  _zxp.playCustomSequence(_myTSX.descriptor[i].timming.pulse_seq_array,_myTSX.descriptor[i].timming.pulse_seq_num_pulses); 
+                                  free(_myTSX.descriptor[i].timming.pulse_seq_array);                                  
+                              }
 
                               break; 
 
@@ -2728,7 +2776,7 @@ class TSXprocessor
                     logln("");
                     log("Playing block " + String(i));
                   #endif              
-\
+
                   BLOCK_SELECTED = i;                
                   int new_i = getIdAndPlay(i);
                   // Entonces viene cambiada de un loop
