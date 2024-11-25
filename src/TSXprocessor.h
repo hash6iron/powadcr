@@ -2125,10 +2125,10 @@ class TSXprocessor
         vpulse[1]=(_myTSX.descriptor[currentBlock].timming.bit_1);
         pulsosmaximos=(_myTSX.descriptor[currentBlock].timming.pilot_num_pulses)+((npulses[vlb]*nlb)+128+(npulses[vtb]*ntb))*ldatos;
 
-        // #ifdef DEBUGMODE
+        #ifdef DEBUGMODE
           log(" - Numero de pulsos: " + String(_myTSX.descriptor[currentBlock].timming.pilot_num_pulses));
           log(" - Pulsos maximos: "+String(pulsosmaximos));
-        // #endif
+        #endif
         
         // Reservamos memoria dinamica
         _myTSX.descriptor[currentBlock].timming.pulse_seq_array = (int*)ps_calloc(pulsosmaximos+1,sizeof(int));
@@ -2479,13 +2479,16 @@ class TSXprocessor
                         int lastPartitionSize;
 
                         bool begin = false;
-                        
+
                         switch (_myTSX.descriptor[i].ID)
                         {
                             case 75:
-                              //configuracion del byte
 
-                              
+                              #ifdef DEBUGMODE
+                                  log("ID 0x4B:");
+                              #endif
+
+                              //configuracion del byte
                               pzero=((_myTSX.descriptor[i].timming.bitcfg & 0b11110000)>>4);
                               #ifdef DEBUGMODE
                                 logln("PULSES FOR ZERO = " + String(pzero));
@@ -2507,7 +2510,8 @@ class TSXprocessor
                               
                               ntb=((_myTSX.descriptor[i].timming.bytecfg & 0b00011000)>>3);
                               #ifdef DEBUGMODE
-                                logln(",NUMBER OF TRAILING BITS = "+String(ntb));
+                                logln(",NUMBER OF TRAILING BITS = "
+                                +String(ntb));
                               #endif
 
                               vtb=((_myTSX.descriptor[i].timming.bitcfg & 0b00000100)>>2);
@@ -2523,10 +2527,10 @@ class TSXprocessor
                               partitions = ldatos / bufferD;
                               lastPartitionSize = ldatos - (partitions * bufferD);
 
-                              logln("");
-                              log("Numero de partes: " + String(partitions));
-                              
-                              
+                              #ifdef DEBUGMODE
+                                logln("");
+                                log("Total data parts: " + String(partitions));
+                              #endif                                                            
 
                               if (ldatos > bufferD)
                               {
@@ -2546,12 +2550,16 @@ class TSXprocessor
                                       _zxp.playCustomSequence(_myTSX.descriptor[i].timming.pulse_seq_array,_myTSX.descriptor[i].timming.pulse_seq_num_pulses);                                                                           
                                       offset += 1000;
 
-                                      log("Parte " + String(n) + " cargada");
+                                      #ifdef DEBUGMODE
+                                        log("Part " + String(n) + " loaded");
+                                      #endif
 
                                       free(_myTSX.descriptor[i].timming.pulse_seq_array);
                                   }
 
-                                  log("Preparando ultima parte");
+                                  #ifdef DEBUGMODE
+                                    log("Preparing last part");
+                                  #endif
 
                                   // Ultima particion
                                   prepareID4B(i,_mFile,nlb,vlb,ntb,vtb,pzero,pone, offset, lastPartitionSize,false);
@@ -2559,12 +2567,16 @@ class TSXprocessor
                                   _zxp.playCustomSequence(_myTSX.descriptor[i].timming.pulse_seq_array,_myTSX.descriptor[i].timming.pulse_seq_num_pulses); 
                                   free(_myTSX.descriptor[i].timming.pulse_seq_array);
                                   
-                                  log("Ultima parte cargada");
+                                  #ifdef DEBUGMODE
+                                    log("Last part loaded");
+                                  #endif
 
                               }
                               else
                               {
-                                  log("Bloque unico");
+                                  #ifdef DEBUGMODE
+                                    log("Only one data part");
+                                  #endif
                                   
                                   // Una sola particion
                                   prepareID4B(i,_mFile,nlb,vlb,ntb,vtb,pzero,pone, offset, ldatos,true);
