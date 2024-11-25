@@ -859,6 +859,22 @@ void setAudioInOut()
 //     kit.begin(cfg);
 
 // }
+void changeLogo(int logo)
+{
+  // 42 - Vacio
+  // 41 - ZX Spectrum
+  // 40 - MSX
+  // 39 - Amstrad
+  if (logo==0)
+  {
+    hmi.writeString("tape.logo.pic=42");
+  }
+  else
+  {
+    hmi.writeString("tape.logo.pic=" + String(logo));
+  }
+  
+}
 
 void tapeAnimationON()
 {
@@ -1500,6 +1516,7 @@ void loadingFile(char* file_ch)
     // Cargamos el seleccionado.
     if (FILE_TO_LOAD.indexOf(".TAP") != -1)
     {
+        changeLogo(41);
         // Reservamos memoria
         myTAP.descriptor = (TAPprocessor::tBlockDescriptor*)ps_malloc(MAX_BLOCKS_IN_TAP * sizeof(struct TAPprocessor::tBlockDescriptor));        
         // Pasamos el control a la clase
@@ -1510,6 +1527,16 @@ void loadingFile(char* file_ch)
     }
     else if ((FILE_TO_LOAD.indexOf(".TZX") != -1) || (FILE_TO_LOAD.indexOf(".CDT") != -1))    
     {
+
+        if (TYPE_FILE_LOAD=="CDT")
+        {
+          changeLogo(39);
+        }
+        else
+        {
+          changeLogo(41);
+        }
+
         // Reservamos memoria
         myTZX.descriptor = (TZXprocessor::tTZXBlockDescriptor*)ps_malloc(MAX_BLOCKS_IN_TZX * sizeof(struct TZXprocessor::tTZXBlockDescriptor));        
         // Pasamos el control a la clase
@@ -1526,6 +1553,9 @@ void loadingFile(char* file_ch)
     }
     else if (FILE_TO_LOAD.indexOf(".TSX") != -1)
     {
+
+        changeLogo(40);
+
         // Reservamos memoria
         myTSX.descriptor = (TSXprocessor::tTSXBlockDescriptor*)ps_malloc(MAX_BLOCKS_IN_TZX * sizeof(struct TSXprocessor::tTSXBlockDescriptor));        
         // Pasamos el control a la clase
@@ -1565,7 +1595,7 @@ void pauseFile()
 void ejectingFile()
 {
   //log("Eject executing");
-
+  changeLogo(0);
   // Terminamos los players
   if (TYPE_FILE_LOAD == "TAP")
   {
@@ -2462,6 +2492,7 @@ void setup()
     
     //Paramos la animación de la cinta1
     tapeAnimationOFF();  
+    changeLogo(0);
 
     hmi.writeString("statusLCD.txt=\"WAITING FOR HMI\"" );
     waitForHMI(CFG_FORZE_SINC_HMI);
