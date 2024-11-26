@@ -356,6 +356,7 @@ bool RIGHT = false;
 bool ENTER = false;
 bool LCD_ON = false;
 bool ABORT = false;
+bool DISABLE_SD = false;
 
 //Estado de acciones de reproducción
 const int PLAY_ST = 0;

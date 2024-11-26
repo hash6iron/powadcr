@@ -2040,6 +2040,8 @@ class TZXprocessor
 
               // Calculamos el offset del bloque
               newOffset = offsetBase + (blockSizeSplit*n);
+              BYTES_INI = newOffset;
+
               // Accedemos a la SD y capturamos el bloque del fichero
               bufferPlay = sdm.readFileRange32(_mFile, newOffset, blockSizeSplit, true);
 
@@ -2087,6 +2089,8 @@ class TZXprocessor
 
             // Calculamos el offset del último bloque
             newOffset = offsetBase + (blockSizeSplit*blocks);
+            BYTES_INI = newOffset;
+            
             blockSizeSplit = lastBlockSize;
             // Accedemos a la SD y capturamos el bloque del fichero
             bufferPlay = sdm.readFileRange32(_mFile, newOffset,blockSizeSplit, true);

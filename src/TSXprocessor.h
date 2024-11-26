@@ -2046,6 +2046,8 @@ class TSXprocessor
 
               // Calculamos el offset del bloque
               newOffset = offsetBase + (blockSizeSplit*n);
+              BYTES_INI = newOffset;
+
               // Accedemos a la SD y capturamos el bloque del fichero
               bufferPlay = sdm.readFileRange32(_mFile, newOffset, blockSizeSplit, true);
               // Mostramos en la consola los primeros y últimos bytes
@@ -2067,6 +2069,8 @@ class TSXprocessor
 
             // Calculamos el offset del último bloque
             newOffset = offsetBase + (blockSizeSplit*blocks);
+            BYTES_INI = newOffset;
+            
             blockSizeSplit = lastBlockSize;
             // Accedemos a la SD y capturamos el bloque del fichero
             bufferPlay = sdm.readFileRange32(_mFile, newOffset,blockSizeSplit, true);

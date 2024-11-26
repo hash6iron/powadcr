@@ -1891,6 +1891,22 @@ void tapeControl()
           STOP=false;
           setPolarization();                
         }
+        else if (DISABLE_SD)
+        {
+          DISABLE_SD = false;
+          // Deshabilitamos temporalmente la SD para poder subir un firmware
+          sdf.end();
+          int tout = 59;
+          while(tout != 0)
+          {
+            delay(1000);
+            hmi.writeString("debug.blockLoading.txt=\"" + String(tout) +"\"");
+            tout--;
+          }
+
+          hmi.writeString("debug.blockLoading.txt=\"..\"");
+          sdf.begin(ESP32kit.pinSpiCs(), SD_SCK_MHZ(SD_SPEED_MHZ));  
+        }        
         else
         {
           TAPESTATE = 0;

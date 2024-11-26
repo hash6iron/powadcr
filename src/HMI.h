@@ -1356,6 +1356,10 @@ class HMI
           delay(2000);
           ESP.restart();
         }
+        else if (strCmd.indexOf("DSD") != -1)
+        {
+            DISABLE_SD = true;
+        }
         else if (strCmd.indexOf("BKX=") != -1) 
         {
             // Con este procedimiento capturamos el bloque seleccionado
@@ -2058,15 +2062,6 @@ class HMI
           refreshFiles();
 
         }    
-        // else if (strCmd.indexOf("ABORT") != -1) 
-        // {
-        //   PLAY = false;
-        //   PAUSE = false;
-        //   STOP = true;
-        //   REC = false;
-        //   ABORT = true;
-        //   EJECT = false;
-        // }
         // Ajuste del volumen
         else if (strCmd.indexOf("VOL=") != -1) 
         {
