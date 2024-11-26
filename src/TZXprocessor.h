@@ -2622,11 +2622,11 @@ class TZXprocessor
 
                   if (BLOCK_SELECTED == 0) 
                   {
-                    BYTES_LOADED = 0;
+                    BYTES_INI = 0;
                   }
                   else
                   {
-                    BYTES_LOADED = _myTZX.descriptor[BLOCK_SELECTED].offset;
+                    BYTES_INI = _myTZX.descriptor[BLOCK_SELECTED].offset;
                   }
 
                   int new_i = getIDAndPlay(i);
