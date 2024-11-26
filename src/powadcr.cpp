@@ -1493,6 +1493,29 @@ void verifyConfigFileForSelection()
             }            
           }
       }
+
+      if (INVERSETRAIN)
+      {
+        if (ZEROLEVEL)
+        {
+          hmi.writeString("tape.pulseInd.pic=35");
+        }
+        else
+        {
+          hmi.writeString("tape.pulseInd.pic=34");
+        }
+      }
+      else
+      {
+        if (ZEROLEVEL)
+        {
+          hmi.writeString("tape.pulseInd.pic=36");
+        }
+        else
+        {
+          hmi.writeString("tape.pulseInd.pic=33");
+        }        
+      }
     }
 
     cfg.close();
@@ -1747,6 +1770,22 @@ void getAudioSettingFromHMI()
     }
 }
 
+void setPolarization()
+{
+    if (INVERSETRAIN)
+    {
+        // Empieza en UP
+        POLARIZATION = down;
+        LAST_EAR_IS = down;
+    }
+    else
+    {
+        // Empieza en DOWN
+        POLARIZATION = up;
+        LAST_EAR_IS = up;
+    }  
+}
+
 void tapeControl()
 {
   // Estados de funcionamiento del TAPE
@@ -1792,6 +1831,8 @@ void tapeControl()
           FILE_SELECTED = false;
           // 
           AUTO_STOP = false;
+          // 
+          setPolarization();
 
         }
         else if (REC)
@@ -1806,7 +1847,8 @@ void tapeControl()
         {
           // Esto lo hacemos para evitar repetir el mensaje infinitamente
           LAST_MESSAGE = "Press EJECT to select a file or REC.";
-          STOP=false;                
+          STOP=false;
+          setPolarization();                
         }
         else
         {
@@ -1889,6 +1931,8 @@ void tapeControl()
         {
           LAST_MESSAGE = "Auto-Stop playing.";
         }
+
+        setPolarization();
               
       }
       else if (REC)

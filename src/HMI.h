@@ -2139,9 +2139,10 @@ class HMI
               APPLY_END = false;
           }
 
-          #ifdef DEBUGMODE
+          // #ifdef DEBUGMODE
+            logln("");
             log("Terminadores =" + String(APPLY_END));
-          #endif
+          // #endif
         }
         // Polarización de la señal
         else if (strCmd.indexOf("PLZ=") != -1) 
@@ -2165,7 +2166,10 @@ class HMI
               LAST_EAR_IS = up;
               INVERSETRAIN = false;
           }
-          SerialHW.println("Polarization =" + String(INVERSETRAIN));
+
+          logln("");
+          log("Polarization =" + String(INVERSETRAIN));
+
         }
         // Nivel LOW a cero
         else if (strCmd.indexOf("ZER=") != -1) 
@@ -2185,7 +2189,10 @@ class HMI
               // El nivel bajo es -32768
               ZEROLEVEL = false;
           }
-          SerialHW.println("Down level is ZERO =" + String(ZEROLEVEL));
+          
+          logln("");
+          log("Down level is ZERO =" + String(ZEROLEVEL));
+
         }
         // Enable Schmitt Trigger threshold adjust
         else if (strCmd.indexOf("ESH=") != -1) 
@@ -2203,7 +2210,10 @@ class HMI
           {
               EN_SCHMITT_CHANGE = false;
           }
-          SerialHW.println("Threshold enable=" + String(EN_SCHMITT_CHANGE));
+
+          logln("");
+          log("Threshold enable=" + String(EN_SCHMITT_CHANGE));
+
         }
         // Habilita los dos canales
         else if (strCmd.indexOf("STE=") != -1) 
