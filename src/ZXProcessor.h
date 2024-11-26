@@ -951,6 +951,7 @@ class ZXProcessor
                     // Esto lo hacemos para asegurarnos que la barra se llena entera
                     // if (BYTES_LOADED > BYTES_TOBE_LOAD)
                     // {BYTES_LOADED = BYTES_TOBE_LOAD;}
+                    // PROGRESS_BAR_TOTAL_VALUE = ((BYTES_INI + (i+1)) * 100 ) / BYTES_TOBE_LOAD ;                    
             }
         }
 
