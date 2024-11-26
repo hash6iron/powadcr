@@ -376,7 +376,7 @@ class ZXProcessor
             }
         }
 
-        void semiPulse(int width, bool changeNextEARedge = true)
+        void semiPulse(int width, bool changeNextEARedge = true, long calibrationValue = 0)
         {
             // Calculamos el tamaño del buffer
             int bytes = 0; //Cada muestra ocupa 2 bytes (16 bits)
@@ -390,7 +390,8 @@ class ZXProcessor
             // Amplitud de la señal
             double amplitude = 0;
             
-            double rsamples = (width / freqCPU) * SAMPLING_RATE;
+            // Calculamos el numero de samples
+            double rsamples = ((width / freqCPU) * SAMPLING_RATE) + calibrationValue;
             
             
             // ********************************************************************************************
@@ -687,8 +688,9 @@ class ZXProcessor
             _mask_last_byte = mask;
         }
 
-        void silence(double duration)
+        void silence(double duration, long calibrationValue = 0)
         {
+            // la duracion se da en ms
             LAST_SILENCE_DURATION = duration;
 
             // Paso la duración a T-States
@@ -709,7 +711,7 @@ class ZXProcessor
                 // tStateSilenceOri = tStateSilence;
                 // tStateSilence = (duration / OneSecondTo_ms) * freqCPU;    
 
-                samples = (duration / 1000.0) * SAMPLING_RATE;
+                samples = ((duration / 1000.0) * SAMPLING_RATE);
 
                 // Esto lo hacemos para acabar bien un ultimo flanco en down.
                 // Hay que tener en cuenta que el terminador se quita del tiempo de PAUSA
@@ -750,7 +752,7 @@ class ZXProcessor
 
 
                 // Aplicamos ahora el silencio
-                double width = (samples / SAMPLING_RATE) * freqCPU;
+                double width = ((samples / SAMPLING_RATE) * freqCPU) + calibrationValue;
 
                 semiPulse(width, true); 
                 
@@ -771,7 +773,7 @@ class ZXProcessor
             customPilotTone(lenPulse, numPulses);          
         }
 
-        void playCustomSequence(int* data, int numPulses)
+        void playCustomSequence(int* data, int numPulses, long calibrationValue = 0)
         {
             //
             // Esto lo usamos para el PULSE_SEQUENCE ID-13
@@ -785,7 +787,6 @@ class ZXProcessor
                 // Generamos los semipulsos        
                 semiPulse(data[i],true);
             }
-
         }   
 
         void playData(uint8_t* bBlock, int lenBlock, int pulse_len, int num_pulses)

@@ -2547,7 +2547,7 @@ class TSXprocessor
 
                                       prepareID4B(i,_mFile,nlb,vlb,ntb,vtb,pzero,pone, offset, bufferD, begin);
                                       // ID 0x4B - Reproducimos una secuencia. Pulsos de longitud contenidos en un array y repetición                                                                    
-                                      _zxp.playCustomSequence(_myTSX.descriptor[i].timming.pulse_seq_array,_myTSX.descriptor[i].timming.pulse_seq_num_pulses);                                                                           
+                                      _zxp.playCustomSequence(_myTSX.descriptor[i].timming.pulse_seq_array,_myTSX.descriptor[i].timming.pulse_seq_num_pulses,0.5);                                                                           
                                       offset += 1000;
 
                                       #ifdef DEBUGMODE
@@ -2564,9 +2564,13 @@ class TSXprocessor
                                   // Ultima particion
                                   prepareID4B(i,_mFile,nlb,vlb,ntb,vtb,pzero,pone, offset, lastPartitionSize,false);
                                   // ID 0x4B - Reproducimos una secuencia. Pulsos de longitud contenidos en un array y repetición                                                                    
-                                  _zxp.playCustomSequence(_myTSX.descriptor[i].timming.pulse_seq_array,_myTSX.descriptor[i].timming.pulse_seq_num_pulses); 
+                                  _zxp.playCustomSequence(_myTSX.descriptor[i].timming.pulse_seq_array,_myTSX.descriptor[i].timming.pulse_seq_num_pulses,0.5); 
+                                  // Liberamos el array
                                   free(_myTSX.descriptor[i].timming.pulse_seq_array);
                                   
+                                  // Pausa despues de bloque                                  
+                                  _zxp.silence(_myTSX.descriptor[i].pauseAfterThisBlock,0.5);
+
                                   #ifdef DEBUGMODE
                                     log("Last part loaded");
                                   #endif
@@ -2581,8 +2585,12 @@ class TSXprocessor
                                   // Una sola particion
                                   prepareID4B(i,_mFile,nlb,vlb,ntb,vtb,pzero,pone, offset, ldatos,true);
                                   // ID 0x4B - Reproducimos una secuencia. Pulsos de longitud contenidos en un array y repetición                                                                    
-                                  _zxp.playCustomSequence(_myTSX.descriptor[i].timming.pulse_seq_array,_myTSX.descriptor[i].timming.pulse_seq_num_pulses); 
-                                  free(_myTSX.descriptor[i].timming.pulse_seq_array);                                  
+                                  _zxp.playCustomSequence(_myTSX.descriptor[i].timming.pulse_seq_array,_myTSX.descriptor[i].timming.pulse_seq_num_pulses,0.5); 
+                                  // Liberamos el array
+                                  free(_myTSX.descriptor[i].timming.pulse_seq_array);  
+                                  
+                                  // Pausa despues de bloque 
+                                  _zxp.silence(_myTSX.descriptor[i].pauseAfterThisBlock,0.5);                               
                               }
 
                               break; 

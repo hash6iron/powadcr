@@ -861,19 +861,24 @@ void setAudioInOut()
 // }
 void changeLogo(int logo)
 {
-  // 42 - Vacio
-  // 41 - ZX Spectrum
-  // 40 - MSX
-  // 39 - Amstrad
-  if (logo==0)
-  {
-    hmi.writeString("tape.logo.pic=42");
-  }
-  else
-  {
-    hmi.writeString("tape.logo.pic=" + String(logo));
-  }
-  
+    // 42 - Vacio
+    // 41 - ZX Spectrum
+    // 40 - MSX
+    // 39 - Amstrad
+    // if (logo==0)
+    // {
+    //   hmi.writeString("tape.logo.pic=42");
+    //   delay(50);
+    //   hmi.writeString("tape.logo.pic=42");
+    //   delay(50);
+    // }
+    // else
+    // {
+    //   hmi.writeString("tape.logo.pic=" + String(logo));
+    //   delay(50);
+    //   hmi.writeString("tape.logo.pic=" + String(logo));
+    //   delay(50);
+    // }
 }
 
 void tapeAnimationON()
@@ -1571,11 +1576,10 @@ void loadingFile(char* file_ch)
       #ifdef DEBUGMODE
         logAlert("Nothing was prepared.");
       #endif 
+      changeLogo(0);
       FILE_PREPARED = false;
   }
 
-  // Liberamos
-  //free(file_ch);
 }
 void stopFile()
 {
@@ -1595,7 +1599,6 @@ void pauseFile()
 void ejectingFile()
 {
   //log("Eject executing");
-  changeLogo(0);
   // Terminamos los players
   if (TYPE_FILE_LOAD == "TAP")
   {

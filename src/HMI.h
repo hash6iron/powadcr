@@ -52,6 +52,8 @@ class HMI
           String fileType="";
       };
 
+
+
       void clearFileBuffer()
       {
         // Borramos todos los registros
@@ -1244,6 +1246,7 @@ class HMI
           TOTAL_BLOCKS = 0;
           BLOCK_SELECTED = 0;
           BYTES_LOADED = 0;     
+          
       }
 
       void proccesingEject()
@@ -1257,13 +1260,16 @@ class HMI
 
           FILE_SELECTED = false;
           FILE_PREPARED = false;
-;
+          TYPE_FILE_LOAD = "";
+          FILE_TO_LOAD = "";
           EJECT = true;
           
           resetBlockIndicators();
       }
 
       public:
+
+
 
       void reloadCustomDir(String path)
       {
