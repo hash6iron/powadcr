@@ -589,12 +589,12 @@ class ZXProcessor
                     if (!TEST_RUNNING)
                     {
                         // Informacion para la barra de progreso
-                        PROGRESS_BAR_BLOCK_VALUE = (int)(((i+1)*100)/(size));
+                        // PROGRESS_BAR_BLOCK_VALUE = (int)(((i+1)*100)/(size));
 
-                        if (BYTES_LOADED > BYTES_TOBE_LOAD)
-                        {BYTES_LOADED = BYTES_TOBE_LOAD;}
-                        // Informacion para la barra de progreso total
-                        PROGRESS_BAR_TOTAL_VALUE = (int)((BYTES_LOADED*100)/(BYTES_TOBE_LOAD));
+                        // if (BYTES_LOADED > BYTES_TOBE_LOAD)
+                        // {BYTES_LOADED = BYTES_TOBE_LOAD;}
+                        // // Informacion para la barra de progreso total
+                        // PROGRESS_BAR_TOTAL_VALUE = (int)((BYTES_LOADED*100)/(BYTES_TOBE_LOAD));
                         
                         if (stopOrPauseRequest())
                         {

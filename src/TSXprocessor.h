@@ -2333,7 +2333,7 @@ class TSXprocessor
                   }
 
                   // Enviamos info al HMI.
-                  _hmi.setBasicFileInformation(_myTSX.descriptor[BLOCK_SELECTED].name,_myTSX.descriptor[BLOCK_SELECTED].typeName,_myTSX.descriptor[BLOCK_SELECTED].size);                        
+                  _hmi.setBasicFileInformation(_myTSX.descriptor[BLOCK_SELECTED].name,_myTSX.descriptor[BLOCK_SELECTED].typeName,_myTSX.descriptor[BLOCK_SELECTED].size,_myTSX.descriptor[BLOCK_SELECTED].playeable);                        
                   //return newPosition;
               }
               else
@@ -2410,7 +2410,7 @@ class TSXprocessor
 
                     //Ahora vamos lanzando bloques dependiendo de su tipo
                     // Actualizamos HMI
-                    _hmi.setBasicFileInformation(_myTSX.descriptor[i].name,_myTSX.descriptor[i].typeName,_myTSX.descriptor[i].size);
+                    _hmi.setBasicFileInformation(_myTSX.descriptor[i].name,_myTSX.descriptor[i].typeName,_myTSX.descriptor[i].size,_myTSX.descriptor[i].playeable);
 
                     // Reproducimos el fichero
                     if (_myTSX.descriptor[i].type == 0) 
@@ -2548,7 +2548,7 @@ class TSXprocessor
                                       prepareID4B(i,_mFile,nlb,vlb,ntb,vtb,pzero,pone, offset, bufferD, begin);
                                       // ID 0x4B - Reproducimos una secuencia. Pulsos de longitud contenidos en un array y repetición                                                                    
                                       _zxp.playCustomSequence(_myTSX.descriptor[i].timming.pulse_seq_array,_myTSX.descriptor[i].timming.pulse_seq_num_pulses,0.5);                                                                           
-                                      offset += 1000;
+                                      offset += bufferD;
 
                                       #ifdef DEBUGMODE
                                         log("Part " + String(n) + " loaded");
@@ -2797,6 +2797,9 @@ class TSXprocessor
                     log("Playing block " + String(i));
                   #endif              
 
+                  BYTES_LOADED =_myTSX.descriptor[i - 1].offset;
+                  PROGRESS_BAR_TOTAL_VALUE = (int)((BYTES_LOADED*100)/(BYTES_TOBE_LOAD));
+
                   BLOCK_SELECTED = i;                
                   int new_i = getIdAndPlay(i);
                   // Entonces viene cambiada de un loop
@@ -2836,7 +2839,7 @@ class TSXprocessor
                 PAUSE = false;
                 AUTO_STOP = true;
 
-                _hmi.setBasicFileInformation(_myTSX.descriptor[BLOCK_SELECTED].name,_myTSX.descriptor[BLOCK_SELECTED].typeName,_myTSX.descriptor[BLOCK_SELECTED].size);
+                _hmi.setBasicFileInformation(_myTSX.descriptor[BLOCK_SELECTED].name,_myTSX.descriptor[BLOCK_SELECTED].typeName,_myTSX.descriptor[BLOCK_SELECTED].size,_myTSX.descriptor[BLOCK_SELECTED].playeable);
               }
 
               // Cerrando
@@ -2854,7 +2857,7 @@ class TSXprocessor
         else
         {
             LAST_MESSAGE = "No file selected.";
-            _hmi.setBasicFileInformation(_myTSX.descriptor[BLOCK_SELECTED].name,_myTSX.descriptor[BLOCK_SELECTED].typeName,_myTSX.descriptor[BLOCK_SELECTED].size);
+            _hmi.setBasicFileInformation(_myTSX.descriptor[BLOCK_SELECTED].name,_myTSX.descriptor[BLOCK_SELECTED].typeName,_myTSX.descriptor[BLOCK_SELECTED].size,_myTSX.descriptor[BLOCK_SELECTED].playeable);
         }        
 
     }

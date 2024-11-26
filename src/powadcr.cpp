@@ -1786,6 +1786,47 @@ void setPolarization()
     }  
 }
 
+void getPlayeableBlockTZX(TZXprocessor::tTZX tB, int inc)
+{
+    // Esta funcion busca el bloque valido siguiente
+    // inc sera +1 o -1 dependiendo de si es FFWD o RWD
+    while(!((tB.descriptor)[BLOCK_SELECTED].playeable))
+    {
+      BLOCK_SELECTED += inc;
+
+      if (BLOCK_SELECTED > TOTAL_BLOCKS)
+      {
+        BLOCK_SELECTED = 1;
+      }
+
+      if (BLOCK_SELECTED < 1)
+      {
+        BLOCK_SELECTED = TOTAL_BLOCKS;
+      }
+    }
+}
+
+void getPlayeableBlockTSX(TSXprocessor::tTSX tB, int inc)
+{
+    // Esta funcion busca el bloque valido siguiente
+    // inc sera +1 o -1 dependiendo de si es FFWD o RWD
+    while(!((tB.descriptor)[BLOCK_SELECTED].playeable))
+    {
+      BLOCK_SELECTED += inc;
+
+      if (BLOCK_SELECTED > TOTAL_BLOCKS)
+      {
+        BLOCK_SELECTED = 1;
+      }
+
+      if (BLOCK_SELECTED < 1)
+      {
+        BLOCK_SELECTED = TOTAL_BLOCKS;
+      }
+    }
+}
+
+
 void tapeControl()
 {
   // Estados de funcionamiento del TAPE
@@ -1890,15 +1931,15 @@ void tapeControl()
         // Actualizamos el HMI
         if (TYPE_FILE_LOAD=="TAP")
         {
-            hmi.setBasicFileInformation(myTAP.descriptor[BLOCK_SELECTED].name,myTAP.descriptor[BLOCK_SELECTED].typeName,myTAP.descriptor[BLOCK_SELECTED].size);
+          hmi.setBasicFileInformation(myTAP.descriptor[BLOCK_SELECTED].name,myTAP.descriptor[BLOCK_SELECTED].typeName,myTAP.descriptor[BLOCK_SELECTED].size,true);
         }
         else if(TYPE_FILE_LOAD=="TZX" || TYPE_FILE_LOAD=="CDT")
         {
-            hmi.setBasicFileInformation(myTZX.descriptor[BLOCK_SELECTED].name,myTZX.descriptor[BLOCK_SELECTED].typeName,myTZX.descriptor[BLOCK_SELECTED].size);
-        }  
+          hmi.setBasicFileInformation(myTZX.descriptor[BLOCK_SELECTED].name,myTZX.descriptor[BLOCK_SELECTED].typeName,myTZX.descriptor[BLOCK_SELECTED].size,myTZX.descriptor[BLOCK_SELECTED].playeable);
+        }
         else if(TYPE_FILE_LOAD=="TSX")
         {
-            hmi.setBasicFileInformation(myTSX.descriptor[BLOCK_SELECTED].name,myTSX.descriptor[BLOCK_SELECTED].typeName,myTSX.descriptor[BLOCK_SELECTED].size);
+          hmi.setBasicFileInformation(myTSX.descriptor[BLOCK_SELECTED].name,myTSX.descriptor[BLOCK_SELECTED].typeName,myTSX.descriptor[BLOCK_SELECTED].size,myTSX.descriptor[BLOCK_SELECTED].playeable);
         }                  
         //
         FFWIND = false;
@@ -1999,16 +2040,16 @@ void tapeControl()
         // Actualizamos el HMI
         if (TYPE_FILE_LOAD=="TAP")
         {
-          hmi.setBasicFileInformation(myTAP.descriptor[BLOCK_SELECTED].name,myTAP.descriptor[BLOCK_SELECTED].typeName,myTAP.descriptor[BLOCK_SELECTED].size);
+          hmi.setBasicFileInformation(myTAP.descriptor[BLOCK_SELECTED].name,myTAP.descriptor[BLOCK_SELECTED].typeName,myTAP.descriptor[BLOCK_SELECTED].size,true);
         }
         else if(TYPE_FILE_LOAD=="TZX" || TYPE_FILE_LOAD=="CDT")
         {
-          hmi.setBasicFileInformation(myTZX.descriptor[BLOCK_SELECTED].name,myTZX.descriptor[BLOCK_SELECTED].typeName,myTZX.descriptor[BLOCK_SELECTED].size);
+          hmi.setBasicFileInformation(myTZX.descriptor[BLOCK_SELECTED].name,myTZX.descriptor[BLOCK_SELECTED].typeName,myTZX.descriptor[BLOCK_SELECTED].size,myTZX.descriptor[BLOCK_SELECTED].playeable);
         }
         else if(TYPE_FILE_LOAD=="TSX")
         {
-          hmi.setBasicFileInformation(myTSX.descriptor[BLOCK_SELECTED].name,myTSX.descriptor[BLOCK_SELECTED].typeName,myTSX.descriptor[BLOCK_SELECTED].size);
-        }          
+          hmi.setBasicFileInformation(myTSX.descriptor[BLOCK_SELECTED].name,myTSX.descriptor[BLOCK_SELECTED].typeName,myTSX.descriptor[BLOCK_SELECTED].size,myTSX.descriptor[BLOCK_SELECTED].playeable);
+        }         
         //
         TAPESTATE = 3;
         FFWIND = false;
@@ -2027,7 +2068,7 @@ void tapeControl()
 
     case 10: 
         //
-        //File prepared
+        //File prepared. Esperando a PLAY / FFWD o RWD
         //
         if (PLAY)
         {
@@ -2049,6 +2090,25 @@ void tapeControl()
           hmi.clearInformationFile();        
           TAPESTATE = 0; 
         }
+        else if (FFWIND || RWIND)
+        {
+          // Actualizamos el HMI
+          if (TYPE_FILE_LOAD=="TAP")
+          {
+            hmi.setBasicFileInformation(myTAP.descriptor[BLOCK_SELECTED].name,myTAP.descriptor[BLOCK_SELECTED].typeName,myTAP.descriptor[BLOCK_SELECTED].size,true);
+          }
+          else if(TYPE_FILE_LOAD=="TZX" || TYPE_FILE_LOAD=="CDT")
+          {
+            hmi.setBasicFileInformation(myTZX.descriptor[BLOCK_SELECTED].name,myTZX.descriptor[BLOCK_SELECTED].typeName,myTZX.descriptor[BLOCK_SELECTED].size,myTZX.descriptor[BLOCK_SELECTED].playeable);
+          }
+          else if(TYPE_FILE_LOAD=="TSX")
+          {
+            hmi.setBasicFileInformation(myTSX.descriptor[BLOCK_SELECTED].name,myTSX.descriptor[BLOCK_SELECTED].typeName,myTSX.descriptor[BLOCK_SELECTED].size,myTSX.descriptor[BLOCK_SELECTED].playeable);
+          }          
+          //
+          FFWIND = false;
+          RWIND = false; 
+        }        
         else
         {
           TAPESTATE = 10;

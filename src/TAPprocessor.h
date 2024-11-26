@@ -64,6 +64,7 @@ class TAPprocessor
             bool screen = false;
             int type = 0;
             char typeName[11];
+            bool playeable = true;
         };    
 
         // Estructura tipo TAP
@@ -1098,7 +1099,7 @@ class TAPprocessor
                         SerialHW.println("TOTAL_BLOCKS: " + String(TOTAL_BLOCKS));
                     #endif                
                     // Pasamos informacion del descriptor al HMI         
-                    _hmi.setBasicFileInformation(_myTAP.descriptor[BLOCK_SELECTED].name,_myTAP.descriptor[BLOCK_SELECTED].typeName,_myTAP.descriptor[BLOCK_SELECTED].size);
+                    _hmi.setBasicFileInformation(_myTAP.descriptor[BLOCK_SELECTED].name,_myTAP.descriptor[BLOCK_SELECTED].typeName,_myTAP.descriptor[BLOCK_SELECTED].size,true);
                     // Actualizamos la pantalla
                     //
                 }          
@@ -1278,6 +1279,9 @@ class TAPprocessor
                     {
                         BLOCK_PLAYED = false;
 
+                        BYTES_LOADED =_myTAP.descriptor[i - 1].offset;
+                        PROGRESS_BAR_TOTAL_VALUE = (int)((BYTES_LOADED*100)/(BYTES_TOBE_LOAD));
+
                         // Obtenemos el nombre del bloque
                         strncpy(LAST_NAME,_myTAP.descriptor[i].name,sizeof(_myTAP.descriptor[i].name));
                         LAST_SIZE = _myTAP.descriptor[i].size;
@@ -1337,7 +1341,7 @@ class TAPprocessor
                         showInfoBlockInProgress(_myTAP.descriptor[i].type);
 
                         // Actualizamos HMI
-                        _hmi.setBasicFileInformation(_myTAP.descriptor[BLOCK_SELECTED].name,_myTAP.descriptor[BLOCK_SELECTED].typeName,_myTAP.descriptor[BLOCK_SELECTED].size);
+                        _hmi.setBasicFileInformation(_myTAP.descriptor[BLOCK_SELECTED].name,_myTAP.descriptor[BLOCK_SELECTED].typeName,_myTAP.descriptor[BLOCK_SELECTED].size,true);
 
                         //
                         #ifdef DEBUGMODE
@@ -1486,7 +1490,7 @@ class TAPprocessor
                         AUTO_STOP = true;
                         // LAST_MESSAGE = "Playing end. Automatic STOP.";
 
-                        _hmi.setBasicFileInformation(_myTAP.descriptor[BLOCK_SELECTED].name,_myTAP.descriptor[BLOCK_SELECTED].typeName,_myTAP.descriptor[BLOCK_SELECTED].size);
+                        _hmi.setBasicFileInformation(_myTAP.descriptor[BLOCK_SELECTED].name,_myTAP.descriptor[BLOCK_SELECTED].typeName,_myTAP.descriptor[BLOCK_SELECTED].size,true);
                         //
 
                         // //SerialHW.println("");
@@ -1497,7 +1501,7 @@ class TAPprocessor
             {
                 // No se ha seleccionado ningún fichero
                 LAST_MESSAGE = "No file selected.";
-                _hmi.setBasicFileInformation(_myTAP.descriptor[BLOCK_SELECTED].name,_myTAP.descriptor[BLOCK_SELECTED].typeName,_myTAP.descriptor[BLOCK_SELECTED].size);
+                _hmi.setBasicFileInformation(_myTAP.descriptor[BLOCK_SELECTED].name,_myTAP.descriptor[BLOCK_SELECTED].typeName,_myTAP.descriptor[BLOCK_SELECTED].size,true);
                 
                 #ifdef DEBUGMODE
                     log("Error - No file selected");

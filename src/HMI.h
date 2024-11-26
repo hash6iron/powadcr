@@ -52,8 +52,6 @@ class HMI
           String fileType="";
       };
 
-
-
       void clearFileBuffer()
       {
         // Borramos todos los registros
@@ -1266,7 +1264,7 @@ class HMI
           
           resetBlockIndicators();
       }
-
+ 
       public:
 
 
@@ -1936,6 +1934,7 @@ class HMI
         // Control de TAPE
         else if (strCmd.indexOf("FFWD") != -1) 
         {
+          
           if (LOADING_STATE == 2 || LOADING_STATE == 3 || LOADING_STATE == 0) 
           {
             BLOCK_SELECTED++;
@@ -1944,6 +1943,7 @@ class HMI
             {
               BLOCK_SELECTED = 0;
             }
+
             FFWIND = true;
             RWIND = false;
           }
@@ -2668,11 +2668,24 @@ class HMI
           }
       }
 
-      void setBasicFileInformation(char* name,char* typeName,int size)
+      void setBasicFileInformation(char* name,char* typeName,int size, bool playeable)
       {
-          LAST_SIZE = size;
-          strncpy(LAST_NAME,name,14);
-          strncpy(LAST_TYPE,typeName,35);
+          
+          if(size < 0)
+          {size=0;}
+          
+          if (playeable)
+          {
+            LAST_SIZE = size;
+            strncpy(LAST_NAME,name,14);
+            strncpy(LAST_TYPE,typeName,35);
+          }
+          else
+          {
+            LAST_SIZE = 0;
+            strncpy(LAST_NAME,"...",14);
+            strncpy(LAST_TYPE,"...",35);
+          }
       }
 
       void clearInformationFile()
