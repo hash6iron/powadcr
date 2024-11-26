@@ -288,7 +288,9 @@ String listFiles(bool ishtml, int page = 0)
       if (entry.isDirectory) 
       {
         returnText += "<img src=\"folder\"> <a href='#' onclick='changeDirectory(\"" + entry.name + "\")'>" + entry.name + "</a>";
-        returnText += "</td><td style=\"text-align:center\">dir</td><td></td><td></td>";
+        returnText += "</td><td style=\"text-align:center\">dir</td>"; 
+        // returnText += "<td></td>";
+        // returnText += "<td><button class=\"button\" onclick=\"downloadDeleteButton('" + entry.name + "', 'deldir')\"><img src=\"del\"> Delete</button></td>";
       } 
       else 
       {
