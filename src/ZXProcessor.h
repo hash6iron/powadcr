@@ -661,7 +661,7 @@ class ZXProcessor
                         // Hemos cargado +1 byte. Seguimos
                         if (!TEST_RUNNING)
                         {
-                            // BYTES_LOADED++;
+                            BYTES_LOADED++;
                             bytes_in_this_block++;
                             BYTES_LAST_BLOCK = bytes_in_this_block;              
                         }

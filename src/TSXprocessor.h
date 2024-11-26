@@ -2773,6 +2773,7 @@ class TSXprocessor
 
               // Reiniciamos
               BYTES_TOBE_LOAD = _rlen;
+              BYTES_LOADED = 0;
 
             
               #ifdef DEBUGMODE
@@ -2793,11 +2794,11 @@ class TSXprocessor
 
                   if (BLOCK_SELECTED == 0) 
                   {
-                    BYTES_LOADED = 0;
+                    BYTES_INI = 0;
                   }
                   else
                   {
-                    BYTES_LOADED = _myTSX.descriptor[BLOCK_SELECTED].offset;
+                    BYTES_INI = _myTSX.descriptor[BLOCK_SELECTED].offset;
                   }
                
                   int new_i = getIdAndPlay(i);

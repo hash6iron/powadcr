@@ -2612,6 +2612,7 @@ class TZXprocessor
 
               // Reiniciamos
               BYTES_TOBE_LOAD = _rlen;
+              BYTES_LOADED = 0;              
 
               // Recorremos ahora todos los bloques que hay en el descriptor
               //-------------------------------------------------------------

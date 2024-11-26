@@ -1278,6 +1278,7 @@ class TAPprocessor
  
                     // Reiniciamos
                     BYTES_TOBE_LOAD = _rlen;
+                    BYTES_LOADED = 0;
 
                     #ifdef DEBUGMODE
                         logln("");
