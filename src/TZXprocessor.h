@@ -2042,6 +2042,10 @@ class TZXprocessor
               newOffset = offsetBase + (blockSizeSplit*n);
               // Accedemos a la SD y capturamos el bloque del fichero
               bufferPlay = sdm.readFileRange32(_mFile, newOffset, blockSizeSplit, true);
+
+              // BYTES_LOADED =_myTZX.descriptor[CURRENT_BLOCK_IN_PROGRESS - 1].offset + (blockSizeSplit * n);
+              // PROGRESS_BAR_TOTAL_VALUE = (int)((BYTES_LOADED*100)/(BYTES_TOBE_LOAD));
+
               // Mostramos en la consola los primeros y últimos bytes
               showBufferPlay(bufferPlay,blockSizeSplit,newOffset);     
               
@@ -2086,6 +2090,10 @@ class TZXprocessor
             blockSizeSplit = lastBlockSize;
             // Accedemos a la SD y capturamos el bloque del fichero
             bufferPlay = sdm.readFileRange32(_mFile, newOffset,blockSizeSplit, true);
+
+            // BYTES_LOADED = newOffset + blockSizeSplit;
+            // PROGRESS_BAR_TOTAL_VALUE = (int)((BYTES_LOADED*100)/(BYTES_TOBE_LOAD));
+
             // Mostramos en la consola los primeros y últimos bytes
             showBufferPlay(bufferPlay,blockSizeSplit,newOffset);         
             
@@ -2603,27 +2611,24 @@ class TZXprocessor
               firstBlockToBePlayed = BLOCK_SELECTED;
 
               // Reiniciamos
-              if (BLOCK_SELECTED == 0) 
-              {
-                BYTES_LOADED = 0;
-                BYTES_TOBE_LOAD = _rlen;
-                PROGRESS_BAR_TOTAL_VALUE = (BYTES_LOADED * 100) / (BYTES_TOBE_LOAD);
-              } 
-              else 
-              {
-                BYTES_TOBE_LOAD = _rlen - _myTZX.descriptor[BLOCK_SELECTED - 1].offset;
-              }
-            
+              BYTES_TOBE_LOAD = _rlen;
 
               // Recorremos ahora todos los bloques que hay en el descriptor
               //-------------------------------------------------------------
               for (int i = firstBlockToBePlayed; i < _myTZX.numBlocks; i++) 
               {               
 
-                  BYTES_LOADED =_myTZX.descriptor[i - 1].offset;
-                  PROGRESS_BAR_TOTAL_VALUE = (int)((BYTES_LOADED*100)/(BYTES_TOBE_LOAD));
+                  BLOCK_SELECTED = i;  
 
-                  BLOCK_SELECTED = i;                
+                  if (BLOCK_SELECTED == 0) 
+                  {
+                    BYTES_LOADED = 0;
+                  }
+                  else
+                  {
+                    BYTES_LOADED = _myTZX.descriptor[BLOCK_SELECTED].offset;
+                  }
+
                   int new_i = getIDAndPlay(i);
                   // Entonces viene cambiada de un loop
                   if (new_i != -1)

@@ -2772,16 +2772,8 @@ class TSXprocessor
               firstBlockToBePlayed = BLOCK_SELECTED;
 
               // Reiniciamos
-              if (BLOCK_SELECTED == 0) 
-              {
-                BYTES_LOADED = 0;
-                BYTES_TOBE_LOAD = _rlen;
-                PROGRESS_BAR_TOTAL_VALUE = (BYTES_LOADED * 100) / (BYTES_TOBE_LOAD);
-              } 
-              else 
-              {
-                BYTES_TOBE_LOAD = _rlen - _myTSX.descriptor[BLOCK_SELECTED - 1].offset;
-              }
+              BYTES_TOBE_LOAD = _rlen;
+
             
               #ifdef DEBUGMODE
                 logln("");
@@ -2797,10 +2789,17 @@ class TSXprocessor
                     log("Playing block " + String(i));
                   #endif              
 
-                  BYTES_LOADED =_myTSX.descriptor[i - 1].offset;
-                  PROGRESS_BAR_TOTAL_VALUE = (int)((BYTES_LOADED*100)/(BYTES_TOBE_LOAD));
+                  BLOCK_SELECTED = i; 
 
-                  BLOCK_SELECTED = i;                
+                  if (BLOCK_SELECTED == 0) 
+                  {
+                    BYTES_LOADED = 0;
+                  }
+                  else
+                  {
+                    BYTES_LOADED = _myTSX.descriptor[BLOCK_SELECTED].offset;
+                  }
+               
                   int new_i = getIdAndPlay(i);
                   // Entonces viene cambiada de un loop
                   if (new_i != -1)

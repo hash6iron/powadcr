@@ -1263,24 +1263,35 @@ class TAPprocessor
                     //BYTES_TOBE_LOAD = _rlen;
 
                     // Reiniciamos
-                    if (BLOCK_SELECTED == 0) 
-                    {
-                        BYTES_LOADED = 0;
-                        BYTES_TOBE_LOAD = _rlen;
-                        //_hmi.writeString("");
-                        _hmi.writeString("progressTotal.val=" + String((int)((BYTES_LOADED * 100) / (BYTES_TOBE_LOAD))));
-                    } 
-                    else 
-                    {
-                        BYTES_TOBE_LOAD = _rlen - _myTAP.descriptor[BLOCK_SELECTED - 1].offset;
-                    }
+                    // if (BLOCK_SELECTED == 0) 
+                    // {
+                    //     BYTES_LOADED = 0;
+                    //     BYTES_TOBE_LOAD = _rlen;
+                    //     //_hmi.writeString("");
+                    //     _hmi.writeString("progressTotal.val=" + String((int)((BYTES_LOADED * 100) / (BYTES_TOBE_LOAD))));
+                    // } 
+                    // else 
+                    // {
+                    //     BYTES_TOBE_LOAD = _rlen - _myTAP.descriptor[BLOCK_SELECTED - 1].offset;
+                    // }
+
+ 
+                    // Reiniciamos
+                    BYTES_TOBE_LOAD = _rlen;
+
+                    #ifdef DEBUGMODE
+                        logln("");
+                        log("File size: " + String(BYTES_TOBE_LOAD));
+                    #endif
+
+                    
 
                     for (int i = m; i < _myTAP.numBlocks; i++) 
                     {
                         BLOCK_PLAYED = false;
 
-                        BYTES_LOADED =_myTAP.descriptor[i - 1].offset;
-                        PROGRESS_BAR_TOTAL_VALUE = (int)((BYTES_LOADED*100)/(BYTES_TOBE_LOAD));
+                        // BYTES_LOADED =_myTAP.descriptor[i - 1].offset;
+                        // PROGRESS_BAR_TOTAL_VALUE = (int)((BYTES_LOADED*100)/(BYTES_TOBE_LOAD));
 
                         // Obtenemos el nombre del bloque
                         strncpy(LAST_NAME,_myTAP.descriptor[i].name,sizeof(_myTAP.descriptor[i].name));
@@ -1291,7 +1302,28 @@ class TAPprocessor
                         // El estado LOADING_STATE=0 es un estado INICIAL.
                         // El estado LOADING_STATE=1 es un estado de PLAYING.
                         // El estado LOADING_STATE=2 es una MANUAL STOP.
-                        //
+
+
+                        if (i == 0) 
+                        {
+                            BYTES_INI = 0;
+
+                        }
+                        else
+                        {
+                            BYTES_INI = _myTAP.descriptor[i].offset;
+                        }
+
+                        #ifdef DEBUGMODE
+                            logln("");
+                            log("Block num: " + String(i));
+                            logln("");
+                            log("Block offset: " + String(BYTES_INI));
+                            logln("");
+                            log("Block size: " + String(_myTAP.descriptor[i].size + 2));
+                        #endif
+                                              
+                        
                         if (LOADING_STATE == 2)
                         {
                             LOADING_STATE = 0;

@@ -593,8 +593,7 @@ class ZXProcessor
 
                         // if (BYTES_LOADED > BYTES_TOBE_LOAD)
                         // {BYTES_LOADED = BYTES_TOBE_LOAD;}
-                        // // Informacion para la barra de progreso total
-                        // PROGRESS_BAR_TOTAL_VALUE = (int)((BYTES_LOADED*100)/(BYTES_TOBE_LOAD));
+                        // Informacion para la barra de progreso total
                         
                         if (stopOrPauseRequest())
                         {
@@ -662,7 +661,7 @@ class ZXProcessor
                         // Hemos cargado +1 byte. Seguimos
                         if (!TEST_RUNNING)
                         {
-                            BYTES_LOADED++;
+                            // BYTES_LOADED++;
                             bytes_in_this_block++;
                             BYTES_LAST_BLOCK = bytes_in_this_block;              
                         }
@@ -671,11 +670,13 @@ class ZXProcessor
                     {
                         return;
                     }
+ 
+                    
+                    PROGRESS_BAR_TOTAL_VALUE = ((BYTES_INI + (i+1)) * 100 ) / BYTES_TOBE_LOAD ;
+
                 }
                 
-                // Esto lo hacemos para asegurarnos que la barra se llena entera
-                if (BYTES_LOADED > BYTES_TOBE_LOAD)
-                {BYTES_LOADED = BYTES_TOBE_LOAD;}
+
 
             }       
         }
@@ -948,8 +949,8 @@ class ZXProcessor
                     }
                 
                     // Esto lo hacemos para asegurarnos que la barra se llena entera
-                    if (BYTES_LOADED > BYTES_TOBE_LOAD)
-                    {BYTES_LOADED = BYTES_TOBE_LOAD;}
+                    // if (BYTES_LOADED > BYTES_TOBE_LOAD)
+                    // {BYTES_LOADED = BYTES_TOBE_LOAD;}
             }
         }
 
