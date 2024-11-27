@@ -315,7 +315,7 @@ String listFiles(bool ishtml, int page = 0)
     if (page > 0) 
       returnText += "<ti><button class=\"button\" onclick='loadPage(" + String(page - 1) + ")'>Prev</button></ti>";
 
-    returnText += "<ti><span> Page " + String(page + 1) + " </span></ti>";
+    returnText += "<ti><span> Page " + String(page + 1) + "/" + String((fileCache.size() / 10)+1) + " </span></ti>";
 
     if (fileCache.size() > endIdx)
       returnText += "<ti><button class=\"button\" onclick='loadPage(" + String(page + 1) + ")'>Next</button></ti>";
