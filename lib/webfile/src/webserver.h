@@ -288,9 +288,9 @@ String listFiles(bool ishtml, int page = 0)
       if (entry.isDirectory) 
       {
         returnText += "<img src=\"folder\"> <a href='#' onclick='changeDirectory(\"" + entry.name + "\")'>" + entry.name + "</a>";
-        returnText += "</td><td style=\"text-align:center\">dir</td><td></td><td></td>"; 
-        // returnText += "<td></td>";
-        // returnText += "<td><button class=\"button\" onclick=\"downloadDeleteButton('" + entry.name + "', 'deldir')\"><img src=\"del\"> Delete</button></td>";
+        returnText += "</td><td style=\"text-align:center\">dir</td>"; 
+        returnText += "<td></td>";
+        returnText += "<td><button class=\"button\" onclick=\"downloadDeleteButton('" + entry.name + "', 'deldir')\"><img src=\"del\"> Delete</button></td>";
       } 
       else 
       {
@@ -426,17 +426,80 @@ void sendSpiffsImage(const char *imageFile,AsyncWebServerRequest *request)
 }
 
 /**
+ * @brief Delete directory recursive
+ * 
+ * @param dirPath -> directory path
+ * @return true/false if successful
+ */
+bool deleteDirRecursive(const char *dirPath)
+{
+  log_v("%s",dirPath);
+  String basePath = dirPath;
+  if (!basePath.endsWith("/"))
+  {
+      basePath += "/";
+  }
+
+  log_v("Processing directory: %s", basePath.c_str());
+
+  File dir = webFile.open(basePath.c_str());
+  if (!dir || !dir.isDirectory())
+  {
+      log_e("Error: %s isn't a directory or can't open", basePath.c_str());
+      return false;
+  }
+
+  while (true)
+  {
+      File entry = dir.openNextFile();
+      if (!entry)
+      {
+          break; 
+      }
+
+      String entryPath = basePath + entry.name(); 
+
+      if (entry.isDirectory())
+      {
+          log_v("Found subdirectory: %s", entryPath.c_str());
+          if (!deleteDirRecursive(entryPath.c_str()))
+          {
+              entry.close();
+              return false;
+          }
+      }
+      else
+      {
+          log_v("Found file: %s", entryPath.c_str());
+          if (!webFile.remove(entryPath.c_str()))
+          {
+              log_e("Error deleting file: %s", entryPath.c_str());
+              entry.close();
+              return false;
+          }
+          log_v("Deleted file: %s", entryPath.c_str());
+      }
+      entry.close();
+  }
+
+  dir.close();
+
+  if (!webFile.rmdir(basePath.c_str()))
+  {
+      log_e("Error deleting directory: %s", basePath.c_str());
+      return false;
+  }
+
+  log_v("Deleted directory: %s", basePath.c_str());
+  return true;
+}
+
+/**
  * @brief Configure Web Server
  * 
  */
 void configureWebServer()
 {
-
-  //  if (!MDNS.begin(hostname))       
-  //   log_e("nDNS init error");
-
-  //  log_i("mDNS initialized");
-  
   sdTotal = (sdf.clusterCount() * sdf.sectorsPerCluster() * 0.000512) * 1024 * 1024; 
   sdf.card()->readCSD(&csd);
   sdType = sdf.card()->type();
@@ -516,7 +579,7 @@ void configureWebServer()
 
                 logMessage = "Client:" + request->client()->remoteIP().toString() + " " + request->url() + "?name=" + String(fileName) + "&action=" + String(fileAction);
 
-                String path = oldDir + String(fileName);
+                String path = oldDir + "/" + String(fileName);
                 log_i("%s",path.c_str());
 
                 if (!sdf.exists(path))
@@ -530,6 +593,13 @@ void configureWebServer()
                   {
                     logMessage += " downloaded";
                     request->send(webFile, path, "application/octet-stream");
+                  }
+                  if (strcmp(fileAction, "deldir") == 0)
+                  {
+                    logMessage += " deleted";
+                    deleteDirRecursive(path.c_str());
+                    request->send(200, "text/plain", "Deleted Folder: " + String(fileName));
+                    updateList = true;
                   }
                   else if (strcmp(fileAction, "delete") == 0)
                   {
