@@ -787,6 +787,7 @@ class ZXProcessor
             {
                 // Generamos los semipulsos        
                 semiPulse(data[i],true);
+                PROGRESS_BAR_TOTAL_VALUE = ((BYTES_INI + (i+1)) * 100 ) / BYTES_TOBE_LOAD ;
             }
         }   
 

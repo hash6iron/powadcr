@@ -2070,7 +2070,7 @@ class TSXprocessor
             // Calculamos el offset del último bloque
             newOffset = offsetBase + (blockSizeSplit*blocks);
             BYTES_INI = newOffset;
-            
+
             blockSizeSplit = lastBlockSize;
             // Accedemos a la SD y capturamos el bloque del fichero
             bufferPlay = sdm.readFileRange32(_mFile, newOffset,blockSizeSplit, true);
@@ -2169,68 +2169,71 @@ class TSXprocessor
         
         for (int i2=0;i2<ldatos;i2++) // por cada byte
         {
-          bRead=getBYTE(mFile,(offset)+i2);
-          for (int i3=0;i3<nlb;i3++)  // por cada bit de inicio
-          {
-            for (int i4=0;i4<npulses[vlb];i4++)
-          
-            { lenPulse=vpulse[vlb];
-            _myTSX.descriptor[currentBlock].timming.pulse_seq_array[i]=lenPulse;
-            
-            i++;
-            _myTSX.descriptor[currentBlock].timming.pulse_seq_array[i]=lenPulse;
-            
-            i++;
+            // Leemos el byte del bloque de datos
+            bRead=getBYTE(mFile,(offset)+i2);
+
+            for (int i3=0;i3<nlb;i3++)  // por cada bit de inicio
+            {
+                for (int i4=0;i4<npulses[vlb];i4++)
+                { 
+                    lenPulse=vpulse[vlb];
+                    _myTSX.descriptor[currentBlock].timming.pulse_seq_array[i]=lenPulse;
+                  
+                    i++;
+                    _myTSX.descriptor[currentBlock].timming.pulse_seq_array[i]=lenPulse;
+                  
+                    i++;
+                }
             }
-          }
 
-          //metemos el byte leido 
-          for (int n=0;n < 8;n++)                  
-          {
-              // Obtenemos el bit a transmitir
-              uint8_t bitMasked = bitRead(bRead, 0+n);
+            //metemos el byte leido 
+            for (int n=0;n < 8;n++)                  
+            {
+                // Obtenemos el bit a transmitir
+                uint8_t bitMasked = bitRead(bRead, 0+n);
 
-              // Si el bit leido del BYTE es un "1"
-              if(bitMasked == 1)
-              {
-                  // Procesamos "1"
-                for (int b1=0;b1<npulses[1];b1++)
+                // Si el bit leido del BYTE es un "1"
+                if(bitMasked == 1)
                 {
-                    _myTSX.descriptor[currentBlock].timming.pulse_seq_array[i]=vpulse[1];
+                    // Procesamos "1"
+                    for (int b1=0;b1<npulses[1];b1++)
+                    {
+                        _myTSX.descriptor[currentBlock].timming.pulse_seq_array[i]=vpulse[1];
+                        
+                        i++;
+                        _myTSX.descriptor[currentBlock].timming.pulse_seq_array[i]=vpulse[1];
+                      
+                        i++;
+                    }                       
+                }
+                else
+                {
+                    // En otro caso
+                    // procesamos "0"
+                    for (int b0=0;b0<npulses[0];b0++)
+                    { 
+                      _myTSX.descriptor[currentBlock].timming.pulse_seq_array[i]=vpulse[0];
+                      
+                      i++;
+                      _myTSX.descriptor[currentBlock].timming.pulse_seq_array[i]=vpulse[0];
                     
-                  i++;
-                    _myTSX.descriptor[currentBlock].timming.pulse_seq_array[i]=vpulse[1];
-                  
-                  i++;
-                } 
-                    
-              }
-              else
-              {
-                  // En otro caso
-                  // procesamos "0"
-                  for (int b0=0;b0<npulses[0];b0++)
-                  { _myTSX.descriptor[currentBlock].timming.pulse_seq_array[i]=vpulse[0];
-                    
-                  i++;
-                  _myTSX.descriptor[currentBlock].timming.pulse_seq_array[i]=vpulse[0];
-                  
-                  i++;
-                  }
-              }
-          }
-          for (int i3=0;i3<ntb;i3++)
-          {
-            for (int i4=0;i4<npulses[vtb];i4++)
-            { lenPulse=vpulse[vtb];
-                _myTSX.descriptor[currentBlock].timming.pulse_seq_array[i]=lenPulse;
-                
-                i++;
-                _myTSX.descriptor[currentBlock].timming.pulse_seq_array[i]=lenPulse;
-                
-                i++;
+                      i++;
+                    }
+                }
             }
-          }
+
+            for (int i3=0;i3<ntb;i3++)
+            {
+                for (int i4=0;i4<npulses[vtb];i4++)
+                { lenPulse=vpulse[vtb];
+                    _myTSX.descriptor[currentBlock].timming.pulse_seq_array[i]=lenPulse;
+                    
+                    i++;
+                    _myTSX.descriptor[currentBlock].timming.pulse_seq_array[i]=lenPulse;
+                    
+                    i++;
+                }
+            }
         }
 
         _myTSX.descriptor[currentBlock].timming.pulse_seq_num_pulses=i;
@@ -2527,6 +2530,8 @@ class TSXprocessor
                               ldatos = _myTSX.descriptor[i].lengthOfData;
                               // Nos quedamos con el offset inicial
                               offset = _myTSX.descriptor[i].offsetData;
+                              BYTES_INI = offset;
+
                               bufferD = 256;  // Buffer de BYTES de datos convertidos a samples
                               partitions = ldatos / bufferD;
                               lastPartitionSize = ldatos - (partitions * bufferD);
@@ -2551,6 +2556,8 @@ class TSXprocessor
 
                                       prepareID4B(i,_mFile,nlb,vlb,ntb,vtb,pzero,pone, offset, bufferD, begin);
                                       // ID 0x4B - Reproducimos una secuencia. Pulsos de longitud contenidos en un array y repetición                                                                    
+                                      BYTES_INI = offset;
+
                                       _zxp.playCustomSequence(_myTSX.descriptor[i].timming.pulse_seq_array,_myTSX.descriptor[i].timming.pulse_seq_num_pulses,0.5);                                                                           
                                       offset += bufferD;
 
@@ -2568,6 +2575,8 @@ class TSXprocessor
                                   // Ultima particion
                                   prepareID4B(i,_mFile,nlb,vlb,ntb,vtb,pzero,pone, offset, lastPartitionSize,false);
                                   // ID 0x4B - Reproducimos una secuencia. Pulsos de longitud contenidos en un array y repetición                                                                    
+                                  BYTES_INI = offset;
+
                                   _zxp.playCustomSequence(_myTSX.descriptor[i].timming.pulse_seq_array,_myTSX.descriptor[i].timming.pulse_seq_num_pulses,0.5); 
                                   // Liberamos el array
                                   free(_myTSX.descriptor[i].timming.pulse_seq_array);
@@ -2588,6 +2597,8 @@ class TSXprocessor
                                   
                                   // Una sola particion
                                   prepareID4B(i,_mFile,nlb,vlb,ntb,vtb,pzero,pone, offset, ldatos,true);
+                                  BYTES_INI = offset;
+
                                   // ID 0x4B - Reproducimos una secuencia. Pulsos de longitud contenidos en un array y repetición                                                                    
                                   _zxp.playCustomSequence(_myTSX.descriptor[i].timming.pulse_seq_array,_myTSX.descriptor[i].timming.pulse_seq_num_pulses,0.5); 
                                   // Liberamos el array
@@ -2643,6 +2654,8 @@ class TSXprocessor
                                   {
                                     // Calculamos el offset del bloque
                                     newOffset = offsetBase + (blockSizeSplit*n);
+                                    BYTES_INI = newOffset;
+
                                     // Accedemos a la SD y capturamos el bloque del fichero
                                     bufferPlay = sdm.readFileRange32(_mFile, newOffset, blockSizeSplit, true);
                                     // Mostramos en la consola los primeros y últimos bytes
@@ -2673,6 +2686,8 @@ class TSXprocessor
                                   // Ultimo bloque
                                   // Calculamos el offset del último bloque
                                   newOffset = offsetBase + (blockSizeSplit*blocks);
+                                  BYTES_INI = newOffset;
+
                                   blockSizeSplit = lastBlockSize;
                                   // Accedemos a la SD y capturamos el bloque del fichero
                                   bufferPlay = sdm.readFileRange32(_mFile, newOffset,blockSizeSplit, true);
@@ -2700,6 +2715,7 @@ class TSXprocessor
                               else
                               {
                                   bufferPlay = sdm.readFileRange32(_mFile, _myTSX.descriptor[i].offsetData, _myTSX.descriptor[i].size, true);
+                                  BYTES_INI = _myTSX.descriptor[i].offsetData;
 
                                   showBufferPlay(bufferPlay,_myTSX.descriptor[i].size,_myTSX.descriptor[i].offsetData);
                                   verifyChecksum(_mFile,_myTSX.descriptor[i].offsetData,_myTSX.descriptor[i].size);    
