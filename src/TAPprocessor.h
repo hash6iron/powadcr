@@ -71,7 +71,7 @@ class TAPprocessor
         struct tTAP 
         {
             char name[11];                                  // Nombre del TAP
-            int size = 0;                                   // Tamaño
+            uint32_t size = 0;                                   // Tamaño
             int numBlocks = 0;                              // Numero de bloques
             tBlockDescriptor* descriptor;            // Descriptor
         };
@@ -1069,6 +1069,8 @@ class TAPprocessor
             // Obtenemos su tamaño total
             _mFile = tapFile;
             _rlen = tapFile.available();
+
+            _myTAP.size = tapFile.size();
             
             // creamos un objeto TAPproccesor
             set_file(tapFile, _rlen);

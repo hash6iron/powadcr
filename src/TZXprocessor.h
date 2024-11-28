@@ -82,7 +82,7 @@ class TZXprocessor
       struct tTZX
       {
         char name[11];                               // Nombre del TZX
-        int size = 0;                             // Tamaño
+        uint32_t size = 0;                             // Tamaño
         int numBlocks = 0;                        // Numero de bloques
         tTZXBlockDescriptor* descriptor = nullptr;          // Descriptor
       };
@@ -239,7 +239,8 @@ class TZXprocessor
         if (tzxFile != 0)
         {
           // Capturamos el nombre del fichero en szName
-          char* szName = (char*)ps_calloc(255,sizeof(char));
+          char szName[254];
+          // char* szName = (char*)ps_calloc(255,sizeof(char));
           tzxFile.getName(szName,254);
           String fileName = String(szName);
           free(szName);
@@ -330,10 +331,7 @@ class TZXprocessor
     {
         //Entonces recorremos el TZX. 
         // La primera cabecera SIEMPRE debe darse.
-        // Obtenemos el bloque
-        // uint8_t* block = (uint8_t*)ps_calloc(size+1,sizeof(uint8_t));
         block = sdm.readFileRange32(mFile,offset,size,false);
-        // return(block);
     }
 
     bool verifyChecksum(File32 mFile, int offset, int size)
@@ -1120,8 +1118,6 @@ class TZXprocessor
             }
             else
             {
-                ////SerialHW.println("");
-                ////SerialHW.println("Error: Not allocation memory for block ID 0x10");
                 res = false;
             }
             break;
@@ -1142,10 +1138,7 @@ class TZXprocessor
             }
             else
             {
-                ////SerialHW.println("");
-                ////SerialHW.println("Error: Not allocation memory for block ID 0x11");
                 res = false;
-
             }
             break;
 
@@ -1162,10 +1155,7 @@ class TZXprocessor
             }
             else
             {
-                ////SerialHW.println("");
-                ////SerialHW.println("Error: Not allocation memory for block ID 0x12");
                 res = false;
-
             }
             break;
 
@@ -1226,8 +1216,6 @@ class TZXprocessor
             }
             else
             {
-                ////SerialHW.println("");
-                ////SerialHW.println("Error: Not allocation memory for block ID 0x20");
                 res = false;
             }             
             break;
@@ -1267,8 +1255,6 @@ class TZXprocessor
             }
             else
             {
-                ////SerialHW.println("");
-                ////SerialHW.println("Error: Not allocation memory for block ID 0x20");
                 res = false;
             }
             break;
@@ -1290,10 +1276,7 @@ class TZXprocessor
             }
             else
             {
-                ////SerialHW.println("");
-                ////SerialHW.println("Error: Not allocation memory for block ID 0x21");
                 res = false;
-
             }
             break;                
 
@@ -1316,10 +1299,7 @@ class TZXprocessor
             }
             else
             {
-                ////SerialHW.println("");
-                ////SerialHW.println("Error: Not allocation memory for block ID 0x22");
                 res = false;
-
             }
             break;
 
@@ -1354,10 +1334,7 @@ class TZXprocessor
             }
             else
             {
-                ////SerialHW.println("");
-                ////SerialHW.println("Error: Not allocation memory for block ID 0x22");
                 res = false;
-
             }                
             break;
 
@@ -1379,10 +1356,7 @@ class TZXprocessor
             }
             else
             {
-                ////SerialHW.println("");
-                ////SerialHW.println("Error: Not allocation memory for block ID 0x22");
-                res = false;
-
+                 res = false;
             }                
             break;
 
@@ -1421,10 +1395,7 @@ class TZXprocessor
             }
             else
             {
-                ////SerialHW.println("");
-                ////SerialHW.println("Error: Not allocation memory for block ID 0x22");
                 res = false;
-
             }                
             break;
 
@@ -1480,8 +1451,6 @@ class TZXprocessor
             }
             else
             {
-                ////SerialHW.println("");
-                ////SerialHW.println("Error: Not allocation memory for block ID 0x30");
                 res = false;
             }                  
             break;
@@ -1502,8 +1471,6 @@ class TZXprocessor
             }
             else
             {
-                ////SerialHW.println("");
-                ////SerialHW.println("Error: Not allocation memory for block ID 0x30");
                 res = false;
             }       
             break;
@@ -1525,8 +1492,6 @@ class TZXprocessor
             }
             else
             {
-                ////SerialHW.println("");
-                ////SerialHW.println("Error: Not allocation memory for block ID 0x32");
                 res = false;
             }                  
             break;
@@ -1548,8 +1513,6 @@ class TZXprocessor
             }
             else
             {
-                ////SerialHW.println("");
-                ////SerialHW.println("Error: Not allocation memory for block ID 0x33");
                 res = false;
             }                  
             break;
@@ -1654,11 +1617,6 @@ class TZXprocessor
                 endWithErrors = true;
               }
 
-                //SerialHW.println("");
-                //SerialHW.print("Next ID offset: 0x");
-                //SerialHW.print(nextIDoffset, HEX);
-                //SerialHW.println("");
-
                 if(currentBlock > maxAllocationBlocks)
                 {
                   #ifdef DEBUGMODE
@@ -1685,10 +1643,6 @@ class TZXprocessor
 
                 TOTAL_BLOCKS = currentBlock;
 
-                //SerialHW.println("");
-                //SerialHW.println("+++++++++++++++++++++++++++++++++++++++++++++++");
-                //SerialHW.println("");
-
           }
 
           _myTZX.numBlocks = currentBlock;
@@ -1699,8 +1653,6 @@ class TZXprocessor
     void proccess_tzx(File32 tzxFileName)
     {
           // Procesamos el fichero
-          ////SerialHW.println("");
-          ////SerialHW.println("Getting total blocks...");     
 
         if (isFileTZX(tzxFileName))
         {
@@ -1918,6 +1870,7 @@ class TZXprocessor
       // Obtenemos su tamaño total
       _mFile = tzxFile;
       _rlen = tzxFile.available();
+      _myTZX.size = tzxFile.size();
 
       if (_rlen != 0)
       {
@@ -2050,9 +2003,6 @@ class TZXprocessor
               bufferPlay = (uint8_t*)ps_calloc(blockSizeSplit,sizeof(uint8_t));
               bufferPlay = sdm.readFileRange32(_mFile, newOffset, blockSizeSplit, true);
 
-              // BYTES_LOADED =_myTZX.descriptor[CURRENT_BLOCK_IN_PROGRESS - 1].offset + (blockSizeSplit * n);
-              // PROGRESS_BAR_TOTAL_VALUE = (int)((BYTES_LOADED*100)/(BYTES_TOBE_LOAD));
-
               // Mostramos en la consola los primeros y últimos bytes
               showBufferPlay(bufferPlay,blockSizeSplit,newOffset);     
               
@@ -2102,9 +2052,6 @@ class TZXprocessor
             // Accedemos a la SD y capturamos el bloque del fichero
             bufferPlay = (uint8_t*)ps_calloc(blockSizeSplit,sizeof(uint8_t));
             bufferPlay = sdm.readFileRange32(_mFile, newOffset,blockSizeSplit, true);
-
-            // BYTES_LOADED = newOffset + blockSizeSplit;
-            // PROGRESS_BAR_TOTAL_VALUE = (int)((BYTES_LOADED*100)/(BYTES_TOBE_LOAD));
 
             // Mostramos en la consola los primeros y últimos bytes
             showBufferPlay(bufferPlay,blockSizeSplit,newOffset);         

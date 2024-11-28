@@ -79,13 +79,14 @@ class TSXprocessor
         int group = 0;
         int loop_count = 0;
         bool jump_this_ID = false;
+        int samplingRate = 79;
       };
 
       // Estructura tipo TSX
       struct tTSX
       {
         char name[11];                               // Nombre del TSX
-        int size = 0;                             // Tamaño
+        uint32_t size = 0;                             // Tamaño
         int numBlocks = 0;                        // Numero de bloques
         tTSXBlockDescriptor* descriptor = nullptr;          // Descriptor
       };
@@ -222,10 +223,10 @@ class TSXprocessor
         if (TSXFile != 0)
         {
           // Capturamos el nombre del fichero en szName
-          char* szName = (char*)ps_calloc(255,sizeof(char));
+          char szName[254];
           TSXFile.getName(szName,254);
           String fileName = String(szName);
-          free(szName);
+          // free(szName);
 
           if (fileName != "")
           {
@@ -797,6 +798,46 @@ class TSXprocessor
         _myTSX.descriptor[currentBlock].size = _myTSX.descriptor[currentBlock].lengthOfData;        
     }
 
+    void analyzeID21(File32 mFile, int currentOffset, int currentBlock)
+    {
+      // ID-15 - Direct recording
+
+        _myTSX.descriptor[currentBlock].ID = 21;
+        _myTSX.descriptor[currentBlock].playeable = true;
+        _myTSX.descriptor[currentBlock].offset = currentOffset;
+
+        // Obtenemos el "pause despues del bloque"
+        // BYTE 0x00 y 0x01
+        _myTSX.descriptor[currentBlock].samplingRate = getWORD(mFile,currentOffset+1);
+        _myTSX.descriptor[currentBlock].pauseAfterThisBlock = getWORD(mFile,currentOffset+3);
+        // Esto es muy importante para el ID 0x15
+        // Used bits (samples) in last byte of data (1-8) (e.g. if this is 2, only first two samples of the last byte will be played)
+        _myTSX.descriptor[currentBlock].hasMaskLastByte = true;
+        _myTSX.descriptor[currentBlock].maskLastByte = getBYTE(mFile,currentOffset+5);
+
+        // Obtenemos el "tamaño de los datos"
+        // BYTE 0x02 y 0x03
+        _myTSX.descriptor[currentBlock].lengthOfData = getNBYTE(mFile,currentOffset+6,3);
+
+        // Los datos (TAP) empiezan en 0x04. Posición del bloque de datos.
+        _myTSX.descriptor[currentBlock].offsetData = currentOffset + 9;
+
+        // Vamos a verificar el flagByte
+
+        _myTSX.descriptor[currentBlock].type = 0; // Importante
+        _myTSX.descriptor[currentBlock].header = false;
+
+        // No contamos el ID
+        // La cabecera tiene 4 bytes de parametros y N bytes de datos
+        // pero para saber el total de bytes de datos hay que analizar el TAP
+        // int positionOfTAPblock = currentOffset + 4;
+        // dataTAPsize = getWORD(mFile,positionOfTAPblock + headerTAPsize + 1);
+        
+        // NOTA: Sumamos 2 bytes que son la DWORD que indica el dataTAPsize
+        _myTSX.descriptor[currentBlock].size = _myTSX.descriptor[currentBlock].lengthOfData;         
+    }
+
+
     void analyzeID32(File32 mFile, int currentOffset, int currentBlock)
     {
         // Pause or STOP the TAPE
@@ -1051,8 +1092,6 @@ class TSXprocessor
             }
             else
             {
-                ////SerialHW.println("");
-                ////SerialHW.println("Error: Not allocation memory for block ID 0x10");
                 res = false;
             }
             break;
@@ -1073,8 +1112,6 @@ class TSXprocessor
             }
             else
             {
-                ////SerialHW.println("");
-                ////SerialHW.println("Error: Not allocation memory for block ID 0x11");
                 res = false;
 
             }
@@ -1093,8 +1130,6 @@ class TSXprocessor
             }
             else
             {
-                ////SerialHW.println("");
-                ////SerialHW.println("Error: Not allocation memory for block ID 0x12");
                 res = false;
 
             }
@@ -1139,11 +1174,26 @@ class TSXprocessor
 
           // ID 15 - Direct Recording
           case 21:
-            ID_NOT_IMPLEMENTED = true;
-            // analyzeBlockUnknow(currentID,currentOffset, currentBlock);
-            // nextIDoffset = currentOffset + 1;            
-            // _myTSX.descriptor[currentBlock].typeName = "ID 15 - Direct REC";
-            res=false;              
+            if (_myTSX.descriptor != nullptr)
+            {
+                // Obtenemos la dirección del siguiente offset
+                analyzeID21(mFile,currentOffset, currentBlock);
+
+                nextIDoffset = currentOffset + _myTSX.descriptor[currentBlock].size + 9 + 1;;  
+                strncpy(_myTSX.descriptor[currentBlock].typeName,IDXXSTR,35);
+
+                // Informacion minima del fichero
+                PROGRAM_NAME = "Audio block (WAV)";
+                LAST_SIZE = _myTSX.descriptor[currentBlock].size;
+                
+                #ifdef DEBUGMODE
+                  log("ID 0x21 - DIRECT RECORDING");
+                #endif
+            }
+            else
+            {
+                res = false;
+            }               
             break;
 
           // ID 18 - CSW Recording
@@ -1181,8 +1231,6 @@ class TSXprocessor
             }
             else
             {
-                ////SerialHW.println("");
-                ////SerialHW.println("Error: Not allocation memory for block ID 0x20");
                 res = false;
             }
             break;
@@ -1204,10 +1252,7 @@ class TSXprocessor
             }
             else
             {
-                ////SerialHW.println("");
-                ////SerialHW.println("Error: Not allocation memory for block ID 0x21");
                 res = false;
-
             }
             break;                
 
@@ -1230,10 +1275,7 @@ class TSXprocessor
             }
             else
             {
-                ////SerialHW.println("");
-                ////SerialHW.println("Error: Not allocation memory for block ID 0x22");
                 res = false;
-
             }
             break;
 
@@ -1268,10 +1310,7 @@ class TSXprocessor
             }
             else
             {
-                ////SerialHW.println("");
-                ////SerialHW.println("Error: Not allocation memory for block ID 0x22");
                 res = false;
-
             }                
             break;
 
@@ -1293,10 +1332,7 @@ class TSXprocessor
             }
             else
             {
-                ////SerialHW.println("");
-                ////SerialHW.println("Error: Not allocation memory for block ID 0x22");
                 res = false;
-
             }                
             break;
 
@@ -1335,10 +1371,7 @@ class TSXprocessor
             }
             else
             {
-                ////SerialHW.println("");
-                ////SerialHW.println("Error: Not allocation memory for block ID 0x22");
                 res = false;
-
             }                
             break;
 
@@ -1394,8 +1427,6 @@ class TSXprocessor
             }
             else
             {
-                ////SerialHW.println("");
-                ////SerialHW.println("Error: Not allocation memory for block ID 0x30");
                 res = false;
             }                  
             break;
@@ -1416,8 +1447,6 @@ class TSXprocessor
             }
             else
             {
-                ////SerialHW.println("");
-                ////SerialHW.println("Error: Not allocation memory for block ID 0x30");
                 res = false;
             }       
             break;
@@ -1439,8 +1468,6 @@ class TSXprocessor
             }
             else
             {
-                ////SerialHW.println("");
-                ////SerialHW.println("Error: Not allocation memory for block ID 0x32");
                 res = false;
             }                  
             break;
@@ -1462,8 +1489,6 @@ class TSXprocessor
             }
             else
             {
-                ////SerialHW.println("");
-                ////SerialHW.println("Error: Not allocation memory for block ID 0x33");
                 res = false;
             }                  
             break;
@@ -1494,8 +1519,6 @@ class TSXprocessor
             }   
             else
             {
-                ////SerialHW.println("");
-                ////SerialHW.println("Error: Not allocation memory for block ID 0x4B");
                 res = false;
             }
             break;
@@ -1849,6 +1872,7 @@ class TSXprocessor
       // Obtenemos su tamaño total
       _mFile = TSXFile;
       _rlen = TSXFile.available();
+      _myTSX.size = TSXFile.size();
 
       if (_rlen != 0)
       {
@@ -2054,7 +2078,8 @@ class TSXprocessor
 
 
         // Reservamos memoria dinamica
-        _myTSX.descriptor[currentBlock].timming.pulse_seq_array = (int*)ps_calloc(pulsosmaximos+1,sizeof(int));
+        // _myTSX.descriptor[currentBlock].timming.pulse_seq_array = (int*)ps_calloc(pulsosmaximos+1,sizeof(int));
+        _myTSX.descriptor[currentBlock].timming.pulse_seq_array = new int[pulsosmaximos + 1]; 
 
         #ifdef DEBUGMODE
           logln("");
@@ -2195,8 +2220,52 @@ class TSXprocessor
         // Ahora lo voy actualizando a medida que van avanzando los bloques.
         //PROGRAM_NAME_2 = _myTSX.descriptor[BLOCK_SELECTED].name;
 
+        DIRECT_RECORDING = false;
+
         switch (_myTSX.descriptor[i].ID)
         {
+            case 21:
+              DIRECT_RECORDING = true;
+              // 
+              PROGRAM_NAME = "Audio block (WAV)";
+              LAST_SIZE = _myTSX.descriptor[i].size;          
+              // 
+              if (_myTSX.descriptor[i].samplingRate == 79)
+              {
+                  SAMPLING_RATE = 44100;
+                  ESP32kit.setSampleRate(AUDIO_HAL_44K_SAMPLES);
+                  LAST_MESSAGE = "Direct recording at 44.1KHz";
+              }
+              else if (_myTSX.descriptor[i].samplingRate == 158)
+              {
+                  SAMPLING_RATE = 22050;
+                  ESP32kit.setSampleRate(AUDIO_HAL_22K_SAMPLES);
+                  LAST_MESSAGE = "Direct recording at 22.05KHz";
+              }
+              else
+              {
+                LAST_MESSAGE = "Direct recording sampling rate unknow";
+                delay(1500);
+                //Paramos la reproducción.
+
+                PAUSE = false;
+                STOP = true;
+                PLAY = false;
+
+                i = _myTSX.numBlocks+1;
+
+                LOOP_PLAYED = 0;
+                LAST_EAR_IS = down;
+                LOOP_START = 0;
+                LOOP_END = 0;
+                BL_LOOP_START = 0;
+                BL_LOOP_END = 0;                
+              }
+              // Ahora reproducimos
+              playBlock(_myTSX.descriptor[i]);
+              break;
+
+
             case 36:  
               //Loop start ID 0x24
               // El loop controla el cursor de bloque por tanto debe estar el primero
@@ -2502,7 +2571,8 @@ class TSXprocessor
                                       PROGRESS_BAR_TOTAL_VALUE = (BYTES_INI * 100 ) / BYTES_TOBE_LOAD ;
 
                                       // Liberamos el array
-                                      free(_myTSX.descriptor[i].timming.pulse_seq_array); 
+                                      //free(_myTSX.descriptor[i].timming.pulse_seq_array);
+                                      delete[] _myTSX.descriptor[i].timming.pulse_seq_array;
                                   }
 
 
@@ -2515,8 +2585,8 @@ class TSXprocessor
 
                                       _zxp.playCustomSequence(_myTSX.descriptor[i].timming.pulse_seq_array,_myTSX.descriptor[i].timming.pulse_seq_num_pulses,0.0); 
                                       // Liberamos el array
-                                      free(_myTSX.descriptor[i].timming.pulse_seq_array);
-                                      
+                                      // free(_myTSX.descriptor[i].timming.pulse_seq_array);
+                                      delete[] _myTSX.descriptor[i].timming.pulse_seq_array;
                                       // Pausa despues de bloque                                  
                                       _zxp.silence(silence,0.0);
                                   }
@@ -2541,8 +2611,8 @@ class TSXprocessor
                                       _zxp.playCustomSequence(_myTSX.descriptor[i].timming.pulse_seq_array,_myTSX.descriptor[i].timming.pulse_seq_num_pulses,0); 
 
                                       // Liberamos el array
-                                      free(_myTSX.descriptor[i].timming.pulse_seq_array); 
-
+                                      // free(_myTSX.descriptor[i].timming.pulse_seq_array); 
+                                      delete[] _myTSX.descriptor[i].timming.pulse_seq_array;
                                       // Pausa despues de bloque 
                                       _zxp.silence(silence,0.0); 
                                   }                              

@@ -1036,68 +1036,7 @@ class HMI
           //writeString("tPage.txt=\"" + String(totalPages) +"\"");
           writeString("cPage.txt=\"" + String(currentPage) +" - " + String(totalPages) + "\"");
       }
-      
-      // void putFilesFoundInScreen()
-      // {
-      
-      //   //Antes de empezar, limpiamos el buffer
-      //   //para evitar que se colapse
-      
-      //   int pos_in_HMI_file = 0;
-      //   String szName = "";
-      //   String type="";
-      
-      //   int color = 65535; //60868    
-
-      //   if (FILE_PTR_POS==0)
-      //   {
-      //       // Esto es solo para el parent dir, para que siempre salga arriba
-      //       szName = FILES_FOUND_BUFF[FILE_PTR_POS].path;
-      //       color = 2016;  // Verde
-      //       szName = String("..     ") + szName;
-            
-      //       //writeString("");
-      //       writeString("prevDir.txt=\"" + String(szName) + "\"");
-      //       //writeString("");
-      //       writeString("prevDir.pco=" + String(color));
-            
-      //       // Descartamos la posición cero del buffer porque es una posición especial
-      //       FILE_PTR_POS=1;
-      //   }
-      
-      //   for (int i=FILE_PTR_POS;i<=FILE_PTR_POS+12;i++)
-      //   {
-      //         szName = FILES_FOUND_BUFF[FILE_PTR_POS + pos_in_HMI_file].path;
-      //         type = FILES_FOUND_BUFF[FILE_PTR_POS + pos_in_HMI_file].type;
-              
-      //         // Lo trasladamos a la pantalla
-      //         if (type == "DIR")
-      //         {
-      //             //Directorio
-      //             color = 60868;  // Amarillo
-      //             szName = String("<DIR>  ") + szName;
-      //         }     
-      //         else if (type == "TAP" || type == "TZX" || type == "TSX")
-      //         {
-      //             //Fichero
-      //             color = 65535;   // Blanco
-      //         }
-      //         else
-      //         {
-      //             color = 44405;  // gris apagado
-      //         }
-
-      //         //Realizamos dos pasadas para evitar temas de perdida de información
-      //         printFileRows(pos_in_HMI_file, color, szName);
-      //         //delay(5);
-      //         //printFileRows(pos_in_HMI_file, color, szName);
-
-      //         pos_in_HMI_file++;
-      //   }
-
-      //   showInformationAboutFiles(); 
-      // }
-      
+           
       void putFilesInScreen()
       {
       
@@ -1246,24 +1185,6 @@ class HMI
           BYTES_LOADED = 0;     
           
       }
-
-      // void proccesingEject()
-      // {
-      //     // Expulsamos la cinta
-      //     PLAY = false;
-      //     PAUSE = false;
-      //     STOP = true;
-      //     ABORT = false;
-      //     REC = false;
-
-      //     FILE_SELECTED = false;
-      //     FILE_PREPARED = false;
-      //     TYPE_FILE_LOAD = "";
-      //     FILE_TO_LOAD = "";
-      //     EJECT = true;
-          
-      //     resetBlockIndicators();
-      // }
  
       public:
 
@@ -2603,6 +2524,7 @@ class HMI
               logAlert("PAGE TAPE");
             #endif
             CURRENT_PAGE = 1;
+            updateInformationMainPage(true);
         }
         else
         {}
@@ -2715,7 +2637,7 @@ class HMI
           writeString("currentBlock.val=" + String(BLOCK_SELECTED + 1));                              
       }
 
-      void updateInformationMainPage() 
+      void updateInformationMainPage(bool FORZE_REFRESH = false) 
       {            
           if (PLAY)
           {
@@ -2749,11 +2671,11 @@ class HMI
             }
           }
 
-          if (TOTAL_BLOCKS != 0 || REC || EJECT) 
+          if (TOTAL_BLOCKS != 0 || REC || EJECT || FORZE_REFRESH) 
           {
         
             // Enviamos información al HMI
-            if (TYPE_FILE_LOAD != "TAP" || REC)
+            if (TYPE_FILE_LOAD != "TAP" || REC || FORZE_REFRESH)
             {
                 // Para TZX
                 if (lastPrgName!=PROGRAM_NAME || lastPrgName2!=PROGRAM_NAME_2)
@@ -2767,7 +2689,7 @@ class HMI
             else
             {
                 // Para TAP
-                if (lastPrgName!=PROGRAM_NAME)
+                if (lastPrgName!=PROGRAM_NAME || FORZE_REFRESH)
                 {
                   writeString("name.txt=\"" + PROGRAM_NAME + "\"");
                   writeString("tape2.name.txt=\"" + PROGRAM_NAME + "\"");
@@ -2775,7 +2697,7 @@ class HMI
                 lastPrgName = PROGRAM_NAME;
             }
             
-            if (lstLastSize!=LAST_SIZE)
+            if (lstLastSize!=LAST_SIZE || FORZE_REFRESH)
             {
                 if (LAST_SIZE > 9999)
                 {
@@ -2788,15 +2710,16 @@ class HMI
                   writeString("tape2.size.txt=\"" + String(LAST_SIZE) + " bytes\"");
                 }
             }
+
             lstLastSize = LAST_SIZE;
 
             String cmpTypeStr = String(LAST_NAME);
             cmpTypeStr.trim();
 
 
-            if (TYPE_FILE_LOAD != "TAP" || REC)
+            if (TYPE_FILE_LOAD != "TAP" || REC || FORZE_REFRESH)
             {
-                if (lastType!=LAST_TYPE || lastGrp!=LAST_GROUP)
+                if (lastType!=LAST_TYPE || lastGrp!=LAST_GROUP || FORZE_REFRESH)
                 { 
                   writeString("type.txt=\"" + String(LAST_TYPE) + " " + LAST_GROUP + "\"");
                   writeString("tape2.type.txt=\"" + String(LAST_TYPE) + " " + LAST_GROUP + "\"");
@@ -2807,7 +2730,7 @@ class HMI
             else
             {
 
-                if (lastType!=LAST_TYPE)
+                if (lastType!=LAST_TYPE || FORZE_REFRESH)
                 { 
                   writeString("type.txt=\"" + String(LAST_TYPE) + "\"");
                   writeString("tape2.type.txt=\"" + String(LAST_TYPE) + "\"");
@@ -2817,7 +2740,7 @@ class HMI
                 // writeString("name.txt=\"" + PROGRAM_NAME + " : " + String(LAST_NAME) + "\"");           
                 // writeString("tape2.name.txt=\"" + PROGRAM_NAME + " : " + String(LAST_NAME) + "\"");     
 
-                if (lastPrgName!=PROGRAM_NAME)
+                if (lastPrgName!=PROGRAM_NAME || FORZE_REFRESH)
                 {
                   writeString("name.txt=\"" + PROGRAM_NAME + "\"");
                   writeString("tape2.name.txt=\"" + PROGRAM_NAME + "\"");
@@ -2834,23 +2757,23 @@ class HMI
             //writeString("currentBlock.val=0");
           }
         
-          if (lastMsn != LAST_MESSAGE)
+          if (lastMsn != LAST_MESSAGE || FORZE_REFRESH)
           {writeString("g0.txt=\"" + LAST_MESSAGE + "\"");}
           lastMsn = LAST_MESSAGE;
           
-          if (lastPr1 != PROGRESS_BAR_BLOCK_VALUE)
+          if (lastPr1 != PROGRESS_BAR_BLOCK_VALUE || FORZE_REFRESH)
           {writeString("progression.val=" + String(PROGRESS_BAR_BLOCK_VALUE));}
           lastPr1 = PROGRESS_BAR_BLOCK_VALUE;
 
-          if (lastPr2 != PROGRESS_BAR_TOTAL_VALUE)
+          if (lastPr2 != PROGRESS_BAR_TOTAL_VALUE || FORZE_REFRESH)
           {writeString("progressTotal.val=" + String(PROGRESS_BAR_TOTAL_VALUE));}
           lastPr2 = PROGRESS_BAR_TOTAL_VALUE;
 
-          if (lastBl1 != TOTAL_BLOCKS)
+          if (lastBl1 != TOTAL_BLOCKS || FORZE_REFRESH)
           {writeString("totalBlocks.val=" + String(TOTAL_BLOCKS));}
           lastBl1 = TOTAL_BLOCKS;
 
-          if (lastBl2 != BLOCK_SELECTED)
+          if (lastBl2 != BLOCK_SELECTED || FORZE_REFRESH)
           {writeString("currentBlock.val=" + String(BLOCK_SELECTED + 1));}
           lastBl2 = BLOCK_SELECTED;
                             

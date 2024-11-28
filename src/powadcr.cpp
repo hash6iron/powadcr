@@ -226,11 +226,15 @@ void freeMemoryFromDescriptorTSX(TSXprocessor::tTSXBlockDescriptor* descriptor)
   {
     switch (descriptor[n].ID)
     {
-      case 19 || 75:  // bloque 0x13 o 0x4B
+      case 19:  // bloque 0x13 o 0x4B
         // Hay que liberar el array
         delete[] descriptor[n].timming.pulse_seq_array;
         break;
-      
+
+      case 75:
+        delete[] descriptor[n].timming.pulse_seq_array;
+        break;
+
       default:
         break;
     }
@@ -1842,18 +1846,25 @@ void updateHMIOnBlockChange()
     if (TYPE_FILE_LOAD=="TAP")
     {
       hmi.setBasicFileInformation(myTAP.descriptor[BLOCK_SELECTED].name,myTAP.descriptor[BLOCK_SELECTED].typeName,myTAP.descriptor[BLOCK_SELECTED].size,true);
+      // BYTES_LOADED = myTAP.size;
       // PROGRESS_BAR_TOTAL_VALUE = (myTAP.descriptor[BLOCK_SELECTED].offset * 100 ) / BYTES_TOBE_LOAD ;
     }
     else if(TYPE_FILE_LOAD=="TZX" || TYPE_FILE_LOAD=="CDT")
     {
       hmi.setBasicFileInformation(myTZX.descriptor[BLOCK_SELECTED].name,myTZX.descriptor[BLOCK_SELECTED].typeName,myTZX.descriptor[BLOCK_SELECTED].size,myTZX.descriptor[BLOCK_SELECTED].playeable);
+      // BYTES_LOADED = myTZX.size;
       // PROGRESS_BAR_TOTAL_VALUE = (myTZX.descriptor[BLOCK_SELECTED].offset * 100 ) / BYTES_TOBE_LOAD ;
     }
     else if(TYPE_FILE_LOAD=="TSX")
     {
       hmi.setBasicFileInformation(myTSX.descriptor[BLOCK_SELECTED].name,myTSX.descriptor[BLOCK_SELECTED].typeName,myTSX.descriptor[BLOCK_SELECTED].size,myTSX.descriptor[BLOCK_SELECTED].playeable);
+      // BYTES_LOADED = myTSX.size;
       // PROGRESS_BAR_TOTAL_VALUE = (myTSX.descriptor[BLOCK_SELECTED].offset * 100 ) / BYTES_TOBE_LOAD ;
+      // logln("");
+      // logln("File size: " + String(BYTES_TOBE_LOAD));
     }   
+
+    hmi.updateInformationMainPage(true);
 }
 
 void tapeControl()

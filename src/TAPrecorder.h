@@ -67,7 +67,7 @@ class TAPrecorder
       File32 _mFile;
 
       const int BUFFER_SIZE_REC = 256; //256 (09/07/2024)
-      uint8_t* bufferRec;
+      uint8_t* bufferRec = nullptr;
 
       // Test Line in/out
       // const int BUFFER_SIZE_IN_OUT = 1024;
@@ -75,9 +75,8 @@ class TAPrecorder
       // uint8_t bufferOut[1024];
 
       // Comunes
-      char* fileName;
-      char* fileNameRename;      
-      char* recDir;
+      char* fileNameRename = nullptr;
+      char* recDir = nullptr;
 
       // Estamos suponiendo que el ZX Spectrum genera signal para grabar
       // con timming estandar entonces
@@ -123,8 +122,8 @@ class TAPrecorder
       long lastSilenceCount = 0;
       long silenceSample = 0;
 
-      char* bitChStr;
-      uint8_t* datablock;
+      char* bitChStr = nullptr;
+      uint8_t* datablock = nullptr;
       //uint8_t* fileData;
       int bitCount = 0;
       int byteCount = 0;
@@ -440,7 +439,7 @@ class TAPrecorder
           //char* extFile = ".tap\0";          
           nameFileRead = true;           
 
-          free(fileNameRename);                  
+                            
         }        
       }
 
@@ -1438,8 +1437,7 @@ class TAPrecorder
           // state2 = 0;
 
           // Reservamos memoria
-          fileName = (char*)ps_calloc(20,sizeof(char));
-          fileName = (char*) "_record\0";
+          const char fileName[20] ={"_record\0"};
 
           recDir = (char*)ps_calloc(55,sizeof(char));
           String dirR = RECORDING_DIR + "/\0";
@@ -1489,7 +1487,7 @@ class TAPrecorder
           WasfirstStepInTheRecordingProccess = false;
           statusSchmitt = 0;
           // Ponemos a cero todos los indicadores
-          _hmi.resetIndicators();     
+          _hmi.resetIndicators();  
       }
 
       bool createTempTAPfile()
@@ -1743,11 +1741,26 @@ class TAPrecorder
         //
         fileWasClosed = true;
 
-        free(fileName);
-        free(recDir);
-        free(bitChStr);
-        free(datablock);
-        free(bufferRec);         
+        logln("2");
+        if (fileNameRename != nullptr)
+        {free(fileNameRename);}
+
+        logln("3");
+        if(recDir != nullptr)
+        {free(recDir);}
+        
+        logln("4");
+        if(bitChStr != nullptr)
+        {free(bitChStr);}
+        
+        logln("5");
+        if(datablock != nullptr)
+        {free(datablock);}
+        
+        logln("6");
+        if(bufferRec != nullptr)
+        {free(bufferRec);}
+                 
       }
 
       TAPrecorder()
