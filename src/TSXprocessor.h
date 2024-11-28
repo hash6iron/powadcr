@@ -49,7 +49,7 @@ class TSXprocessor
         int pure_tone_len = 0;
         int pure_tone_num_pulses = 0;
         int pulse_seq_num_pulses = 0;
-        int* pulse_seq_array;
+        int* pulse_seq_array = nullptr;
         int bitcfg;
         int bytecfg;
       };
@@ -309,14 +309,13 @@ class TSXprocessor
         return ID;      
     }
 
-    uint8_t* getBlock(File32 mFile, int offset, int size)
+    void getBlock(File32 mFile, uint8_t* &block, int offset, int size)
     {
         //Entonces recorremos el TSX. 
         // La primera cabecera SIEMPRE debe darse.
         // Obtenemos el bloque
-        uint8_t* block = (uint8_t*)ps_calloc(size+1,sizeof(uint8_t));
+        // uint8_t* block = (uint8_t*)ps_calloc(size+1,sizeof(uint8_t));
         block = sdm.readFileRange32(mFile,offset,size,false);
-        return(block);
     }
 
     bool verifyChecksum(File32 mFile, int offset, int size)
@@ -326,7 +325,7 @@ class TSXprocessor
         uint8_t chk = getBYTE(mFile,offset+size-1);
 
         uint8_t* block = (uint8_t*)ps_calloc(size+1,sizeof(uint8_t));
-        block = getBlock(mFile,offset,size-1);
+        getBlock(mFile,block,offset,size-1);
         uint8_t calcChk = calculateChecksum(block,0,size-1);
         free(block);
 
@@ -413,7 +412,8 @@ class TSXprocessor
               //_myTSX.name = "TSX";
               if (!PROGRAM_NAME_DETECTED)
               {
-                  uint8_t* block = getBlock(mFile,_myTSX.descriptor[currentBlock].offsetData,19);
+                  uint8_t* block = (uint8_t*)ps_calloc(19+1,sizeof(uint8_t));
+                  getBlock(mFile,block,_myTSX.descriptor[currentBlock].offsetData,19);
                   gName = getNameFromStandardBlock(block);
                   PROGRAM_NAME = String(gName);
                   PROGRAM_NAME_DETECTED = true;
@@ -444,7 +444,8 @@ class TSXprocessor
                   _myTSX.descriptor[currentBlock].type = 7;
 
                   // Almacenamos el nombre del bloque
-                  uint8_t* block =getBlock(mFile,_myTSX.descriptor[currentBlock].offsetData,19);
+                  uint8_t* block = (uint8_t*)ps_calloc(19+1,sizeof(uint8_t));
+                  getBlock(mFile,block,_myTSX.descriptor[currentBlock].offsetData,19);
                   gName = getNameFromStandardBlock(block);
                   strncpy(_myTSX.descriptor[currentBlock].name,gName,14);
                   free(block);
@@ -455,7 +456,8 @@ class TSXprocessor
                 _myTSX.descriptor[currentBlock].type = 1;     
 
                 // Almacenamos el nombre del bloque
-                uint8_t* block = getBlock(mFile,_myTSX.descriptor[currentBlock].offsetData,19);
+                uint8_t* block = (uint8_t*)ps_calloc(19+1,sizeof(uint8_t));
+                getBlock(mFile,block,_myTSX.descriptor[currentBlock].offsetData,19);
                 gName = getNameFromStandardBlock(block);
                 strncpy(_myTSX.descriptor[currentBlock].name,gName,14);                       
                 free(block);
@@ -569,7 +571,8 @@ class TSXprocessor
         if (flagByte < 128)
         {
             // Es una cabecera
-            uint8_t* block = getBlock(mFile,_myTSX.descriptor[currentBlock].offsetData,19);
+            uint8_t* block = (uint8_t*)ps_calloc(19+1,sizeof(uint8_t));
+            getBlock(mFile,block,_myTSX.descriptor[currentBlock].offsetData,19);
             gName = getNameFromStandardBlock(block);
             strncpy(_myTSX.descriptor[currentBlock].name,gName,14);                       
             free(block);  
@@ -1964,6 +1967,7 @@ class TSXprocessor
               BYTES_INI = newOffset;
 
               // Accedemos a la SD y capturamos el bloque del fichero
+              bufferPlay = (uint8_t*)ps_calloc(blockSizeSplit,sizeof(uint8_t));
               bufferPlay = sdm.readFileRange32(_mFile, newOffset, blockSizeSplit, true);
               // Mostramos en la consola los primeros y últimos bytes
               showBufferPlay(bufferPlay,blockSizeSplit,newOffset);     
@@ -1977,6 +1981,8 @@ class TSXprocessor
               {
                 _zxp.playDataPartition(bufferPlay, blockSizeSplit);
               }
+
+              free(bufferPlay);
             }
 
             // Ultimo bloque
@@ -1988,6 +1994,7 @@ class TSXprocessor
 
             blockSizeSplit = lastBlockSize;
             // Accedemos a la SD y capturamos el bloque del fichero
+            bufferPlay = (uint8_t*)ps_calloc(blockSizeSplit,sizeof(uint8_t));
             bufferPlay = sdm.readFileRange32(_mFile, newOffset,blockSizeSplit, true);
             // Mostramos en la consola los primeros y últimos bytes
             showBufferPlay(bufferPlay,blockSizeSplit,newOffset);         
@@ -2000,6 +2007,7 @@ class TSXprocessor
         else
         {
             // Si es mas pequeño que el SPLIT, se reproduce completo.
+            bufferPlay = (uint8_t*)ps_calloc(descriptor.size,sizeof(uint8_t));
             bufferPlay = sdm.readFileRange32(_mFile, descriptor.offsetData, descriptor.size, true);
             showBufferPlay(bufferPlay,descriptor.size,descriptor.offsetData);
             verifyChecksum(_mFile,descriptor.offsetData,descriptor.size);    
@@ -2084,7 +2092,7 @@ class TSXprocessor
         int lenPulse;
         
         // Leemos el bloque definido por la particion (ldatos) del fichero
-        bRead = getBlock(mFile, offset, ldatos);
+        getBlock(mFile, bRead, offset, ldatos);
 
         for (int i2=0;i2<ldatos;i2++) // por cada byte
         {
@@ -2589,6 +2597,7 @@ class TSXprocessor
                                     BYTES_INI = newOffset;
 
                                     // Accedemos a la SD y capturamos el bloque del fichero
+                                    bufferPlay = (uint8_t*)ps_calloc(blockSizeSplit,sizeof(uint8_t));
                                     bufferPlay = sdm.readFileRange32(_mFile, newOffset, blockSizeSplit, true);
                                     // Mostramos en la consola los primeros y últimos bytes
                                     showBufferPlay(bufferPlay,blockSizeSplit,newOffset);     
@@ -2613,6 +2622,8 @@ class TSXprocessor
                                       _zxp.playDataPartition(bufferPlay, blockSizeSplit);                                      
                                     #endif
 
+                                    free(bufferPlay);
+
                                   }
 
                                   // Ultimo bloque
@@ -2624,6 +2635,7 @@ class TSXprocessor
 
                                       blockSizeSplit = lastBlockSize;
                                       // Accedemos a la SD y capturamos el bloque del fichero
+                                      bufferPlay = (uint8_t*)ps_calloc(blockSizeSplit,sizeof(uint8_t));
                                       bufferPlay = sdm.readFileRange32(_mFile, newOffset,blockSizeSplit, true);
                                       // Mostramos en la consola los primeros y últimos bytes
                                       showBufferPlay(bufferPlay,blockSizeSplit,newOffset);         
@@ -2652,6 +2664,7 @@ class TSXprocessor
                                       
                                   if (!STOP && !PAUSE)
                                   {
+                                      bufferPlay = (uint8_t*)ps_calloc(_myTSX.descriptor[i].size,sizeof(uint8_t));
                                       bufferPlay = sdm.readFileRange32(_mFile, _myTSX.descriptor[i].offsetData, _myTSX.descriptor[i].size, true);
                                       BYTES_INI = _myTSX.descriptor[i].offsetData;
 
@@ -2710,8 +2723,7 @@ class TSXprocessor
     {
 
         LOOP_PLAYED = 0;
-        // Inicializamos el buffer de reproducción. Memoria dinamica
-        //uint8_t* bufferPlay = nullptr;
+
         int firstBlockToBePlayed = 0;
         int dly = 0;
 

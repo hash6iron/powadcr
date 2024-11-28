@@ -1387,7 +1387,7 @@ class TAPprocessor
                         {
 
                             // Reservamos memoria para el buffer de reproducción
-                            //bufferPlay = (uint8_t*)(malloc(_myTAP.descriptor[i].size * sizeof(uint8_t)));
+                            bufferPlay = (uint8_t*)(ps_calloc(_myTAP.descriptor[i].size, sizeof(uint8_t)));
                             bufferPlay = sdm.readFileRange32(_mFile, _myTAP.descriptor[i].offset, _myTAP.descriptor[i].size, false);
 
                             // *** Cabecera PROGRAM
@@ -1400,7 +1400,7 @@ class TAPprocessor
                         else if (_myTAP.descriptor[i].type == 1 || _myTAP.descriptor[i].type == 7) 
                         {
                             
-                            //bufferPlay = (uint8_t*)(malloc(_myTAP.descriptor[i].size * sizeof(uint8_t)));
+                            bufferPlay = (uint8_t*)(ps_calloc(_myTAP.descriptor[i].size, sizeof(uint8_t)));
                             bufferPlay = sdm.readFileRange32(_mFile, _myTAP.descriptor[i].offset, _myTAP.descriptor[i].size, false);
 
                             // *** Cabecera BYTE
@@ -1434,8 +1434,6 @@ class TAPprocessor
                                 // log(" - Ultimo bloque (size): " + String(lastBlockSize));
                                 // log(" - Offset: " + String(offsetBase));
 
-                                // Reservamos memoria
-                                //bufferPlay = (byte*)ps_calloc(blockSizeSplit, sizeof(byte));
                                 TOTAL_PARTS = blocks;
 
                                 // Recorremos el vector de particiones del bloque.
@@ -1449,6 +1447,8 @@ class TAPprocessor
                                     BYTES_INI = newOffset;
 
                                     // Accedemos a la SD y capturamos el bloque del fichero
+                                    // Reservamos memoria
+                                    bufferPlay = (uint8_t*)ps_calloc(blockSizeSplit, sizeof(uint8_t));
                                     bufferPlay = sdm.readFileRange32(_mFile, newOffset, blockSizeSplit, true);  
                                     
                                     #ifdef DEBUGMODE
@@ -1466,6 +1466,7 @@ class TAPprocessor
                                         // Bloque partido. Particiones
                                         _zxp.playDataPartition(bufferPlay, blockSizeSplit);                                      
                                     }
+                                    free(bufferPlay);
                                 }
 
                                 // Ultimo bloque
@@ -1478,6 +1479,7 @@ class TAPprocessor
                                 blockSizeSplit = lastBlockSize;
 
                                 // Accedemos a la SD y capturamos el bloque del fichero
+                                bufferPlay = (uint8_t*)ps_calloc(blockSizeSplit, sizeof(uint8_t));
                                 bufferPlay = sdm.readFileRange32(_mFile, newOffset, blockSizeSplit, true);   
                                 
                                 #ifdef DEBUGMODE
@@ -1494,7 +1496,7 @@ class TAPprocessor
                             {
                                 // En el caso de NO USAR SPLIT o el bloque es menor de "SIZE_FOR_SPLIT"
                                 //
-                                //bufferPlay = (uint8_t*)(malloc((_myTAP.descriptor[i].size) * sizeof(uint8_t)));
+                                bufferPlay = (uint8_t*)(ps_calloc((_myTAP.descriptor[i].size), sizeof(uint8_t)));
                                 bufferPlay = sdm.readFileRange32(_mFile, _myTAP.descriptor[i].offset, _myTAP.descriptor[i].size, false);
                                 
                                 // if (_myTAP.descriptor[i].size==6914)

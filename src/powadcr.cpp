@@ -226,7 +226,7 @@ void freeMemoryFromDescriptorTSX(TSXprocessor::tTSXBlockDescriptor* descriptor)
   {
     switch (descriptor[n].ID)
     {
-      case 19:  // bloque 0x13
+      case 19 || 75:  // bloque 0x13 o 0x4B
         // Hay que liberar el array
         delete[] descriptor[n].timming.pulse_seq_array;
         break;
@@ -1548,7 +1548,7 @@ void loadingFile(char* file_ch)
     {
         changeLogo(41);
         // Reservamos memoria
-        myTAP.descriptor = (TAPprocessor::tBlockDescriptor*)ps_malloc(MAX_BLOCKS_IN_TAP * sizeof(struct TAPprocessor::tBlockDescriptor));        
+        myTAP.descriptor = (TAPprocessor::tBlockDescriptor*)ps_calloc(MAX_BLOCKS_IN_TAP, sizeof(struct TAPprocessor::tBlockDescriptor));        
         // Pasamos el control a la clase
         pTAP.setTAP(myTAP);   
         // Lo procesamos
@@ -1570,7 +1570,7 @@ void loadingFile(char* file_ch)
         }
 
         // Reservamos memoria
-        myTZX.descriptor = (TZXprocessor::tTZXBlockDescriptor*)ps_malloc(MAX_BLOCKS_IN_TZX * sizeof(struct TZXprocessor::tTZXBlockDescriptor));        
+        myTZX.descriptor = (TZXprocessor::tTZXBlockDescriptor*)ps_calloc(MAX_BLOCKS_IN_TZX , sizeof(struct TZXprocessor::tTZXBlockDescriptor));        
         // Pasamos el control a la clase
         pTZX.setTZX(myTZX);
 
@@ -1590,7 +1590,7 @@ void loadingFile(char* file_ch)
         changeLogo(40);
 
         // Reservamos memoria
-        myTSX.descriptor = (TSXprocessor::tTSXBlockDescriptor*)ps_malloc(MAX_BLOCKS_IN_TZX * sizeof(struct TSXprocessor::tTSXBlockDescriptor));        
+        myTSX.descriptor = (TSXprocessor::tTSXBlockDescriptor*)ps_calloc(MAX_BLOCKS_IN_TZX , sizeof(struct TSXprocessor::tTSXBlockDescriptor));        
         // Pasamos el control a la clase
         pTSX.setTSX(myTSX);
 
@@ -2189,7 +2189,7 @@ void tapeControl()
           if(FILE_SELECTED)
           {
               // Si se ha seleccionado lo cargo en el cassette.     
-              char* file_ch = (char*)ps_malloc(256 * sizeof(char));
+              char* file_ch = (char*)ps_calloc(256,sizeof(char));
               FILE_TO_LOAD.toCharArray(file_ch, 256);
               
               loadingFile(file_ch);

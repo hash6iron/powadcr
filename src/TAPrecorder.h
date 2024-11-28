@@ -396,6 +396,8 @@ class TAPrecorder
           {         
             wasRenamed = true;
           }
+
+          free(cPath);
       }
 
       void getFileName(bool test)
@@ -436,7 +438,9 @@ class TAPrecorder
           }
 
           //char* extFile = ".tap\0";          
-          nameFileRead = true;                             
+          nameFileRead = true;           
+
+          free(fileNameRename);                  
         }        
       }
 
@@ -1485,7 +1489,7 @@ class TAPrecorder
           WasfirstStepInTheRecordingProccess = false;
           statusSchmitt = 0;
           // Ponemos a cero todos los indicadores
-          _hmi.resetIndicators();           
+          _hmi.resetIndicators();     
       }
 
       bool createTempTAPfile()
@@ -1738,6 +1742,12 @@ class TAPrecorder
         }
         //
         fileWasClosed = true;
+
+        free(fileName);
+        free(recDir);
+        free(bitChStr);
+        free(datablock);
+        free(bufferRec);         
       }
 
       TAPrecorder()
