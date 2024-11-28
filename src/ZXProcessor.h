@@ -787,12 +787,10 @@ class ZXProcessor
             {
                 // Generamos los semipulsos        
                 semiPulse(data[i],true);
-                if (!TSX_PARTITIONED)
-                {
-                    PROGRESS_BAR_TOTAL_VALUE = ((BYTES_INI + i) * 100 ) / BYTES_TOBE_LOAD;
-                }
-                
-
+                // if (!TSX_PARTITIONED)
+                // {
+                //     PROGRESS_BAR_TOTAL_VALUE = ((BYTES_INI + i) * 100 ) / BYTES_TOBE_LOAD;
+                // }
             }
         }   
 

@@ -2440,7 +2440,9 @@ class TSXprocessor
                               ldatos = _myTSX.descriptor[i].lengthOfData;
                               // Nos quedamos con el offset inicial
                               offset = _myTSX.descriptor[i].offsetData;
+                              
                               BYTES_INI = offset;
+                              PROGRESS_BAR_TOTAL_VALUE = (BYTES_INI * 100 ) / BYTES_TOBE_LOAD ;
 
                               bufferD = 1024;  // Buffer de BYTES de datos convertidos a samples
                               // Reservamos memoria dinamica
