@@ -2235,8 +2235,12 @@ void tapeControl()
               TAPESTATE = 0;
               LOADING_STATE = 0;
 
+                // LAST_MESSAGE = "TYPE LOAD: " + TYPE_FILE_LOAD;
+                // delay(2000);
+
               if (FILE_PREPARED)
               {
+
                 ejectingFile();
                 FILE_PREPARED = false;
               }              

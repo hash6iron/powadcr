@@ -1247,23 +1247,23 @@ class HMI
           
       }
 
-      void proccesingEject()
-      {
-          // Expulsamos la cinta
-          PLAY = false;
-          PAUSE = false;
-          STOP = true;
-          ABORT = false;
-          REC = false;
+      // void proccesingEject()
+      // {
+      //     // Expulsamos la cinta
+      //     PLAY = false;
+      //     PAUSE = false;
+      //     STOP = true;
+      //     ABORT = false;
+      //     REC = false;
 
-          FILE_SELECTED = false;
-          FILE_PREPARED = false;
-          TYPE_FILE_LOAD = "";
-          FILE_TO_LOAD = "";
-          EJECT = true;
+      //     FILE_SELECTED = false;
+      //     FILE_PREPARED = false;
+      //     TYPE_FILE_LOAD = "";
+      //     FILE_TO_LOAD = "";
+      //     EJECT = true;
           
-          resetBlockIndicators();
-      }
+      //     resetBlockIndicators();
+      // }
  
       public:
 
@@ -1458,7 +1458,7 @@ class HMI
               logAlert("GFIL output: Getting files");
             #endif
 
-            FILE_PREPARED = false;
+            //FILE_PREPARED = false;
             FILE_SELECTED = false;
 
             resetIndicators();
