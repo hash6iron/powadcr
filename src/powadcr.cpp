@@ -1606,7 +1606,7 @@ void loadingFile(char* file_ch)
         logAlert("Nothing was prepared.");
       #endif 
       changeLogo(0);
-      
+
       if (FILE_PREPARED)
       {
         ejectingFile();
@@ -1897,7 +1897,7 @@ void tapeControl()
 
           TAPESTATE = 99;
           // Expulsamos la cinta
-          FILE_PREPARED = false;
+          //FILE_PREPARED = false; // Esto lo hacemos cuando haga el ejecting()
           FILE_SELECTED = false;
           // 
           AUTO_STOP = false;
