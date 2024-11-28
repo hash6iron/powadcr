@@ -1525,7 +1525,6 @@ void verifyConfigFileForSelection()
 void loadingFile(char* file_ch)
 {
   // Cogemos el fichero seleccionado y lo cargamos           
-  FILE_PREPARED = false;
 
   // Si no está vacio
   if (FILE_SELECTED) 
@@ -1536,8 +1535,11 @@ void loadingFile(char* file_ch)
   
     // Eliminamos la memoria ocupado por el actual insertado
     // y lo ejectamos
-    ejectingFile();
-
+    if (FILE_PREPARED)
+    {
+      ejectingFile();
+      FILE_PREPARED = false;      
+    }
     // Verificamos si hay fichero de configuracion para este archivo seleccionado
     verifyConfigFileForSelection();
 
