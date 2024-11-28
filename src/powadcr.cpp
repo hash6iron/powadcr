@@ -2101,6 +2101,11 @@ void tapeControl()
         }
         else if (REC)
         {
+          if (FILE_PREPARED)
+          {
+            ejectingFile();
+          }
+          
           FILE_PREPARED = false;
           FILE_SELECTED = false;
           hmi.clearInformationFile();        
