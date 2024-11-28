@@ -1551,7 +1551,9 @@ void loadingFile(char* file_ch)
         pTAP.setTAP(myTAP);   
         // Lo procesamos
         proccesingTAP(file_ch);
-        TYPE_FILE_LOAD = "TAP";       
+        TYPE_FILE_LOAD = "TAP";  
+        BYTES_TOBE_LOAD = myTAP.size;
+     
     }
     else if ((FILE_TO_LOAD.indexOf(".TZX") != -1) || (FILE_TO_LOAD.indexOf(".CDT") != -1))    
     {
@@ -1578,6 +1580,7 @@ void loadingFile(char* file_ch)
         } else {
             TYPE_FILE_LOAD = "CDT";
         }
+        BYTES_TOBE_LOAD = myTZX.size;
     }
     else if (FILE_TO_LOAD.indexOf(".TSX") != -1)
     {
@@ -1592,6 +1595,7 @@ void loadingFile(char* file_ch)
         // Lo procesamos. Para ZX Spectrum
         proccesingTSX(file_ch);
         TYPE_FILE_LOAD = "TSX";    
+        BYTES_TOBE_LOAD = myTSX.size;
     }   
   }
   else
