@@ -1606,7 +1606,12 @@ void loadingFile(char* file_ch)
         logAlert("Nothing was prepared.");
       #endif 
       changeLogo(0);
-      FILE_PREPARED = false;
+      
+      if (FILE_PREPARED)
+      {
+        ejectingFile();
+        FILE_PREPARED = false;      
+      }
   }
 
 }
