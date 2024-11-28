@@ -1458,6 +1458,7 @@ class HMI
               logAlert("GFIL output: Getting files");
             #endif
 
+            // Hemos quitado esto para que se ponga en FALSE cuando haga ejecting y no antes
             //FILE_PREPARED = false;
             FILE_SELECTED = false;
 
