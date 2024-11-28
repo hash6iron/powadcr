@@ -1990,7 +1990,7 @@ void tapeControl()
         }
 
         setPolarization();
-              
+        STOP=false; //28/11
       }
       else if (REC)
       {
