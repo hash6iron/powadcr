@@ -281,6 +281,7 @@ int BYTES_LOADED = 0;
 int BYTES_INI = 0;
 int BYTES_TOBE_LOAD = 0;
 int BYTES_LAST_BLOCK = 0;
+bool TSX_PARTITIONED = false;
 int TOTAL_BLOCKS = 0;
 int LOOP_START = 0;
 int BL_LOOP_START = 0;
