@@ -1897,7 +1897,8 @@ void tapeControl()
 
           TAPESTATE = 99;
           // Expulsamos la cinta
-          //FILE_PREPARED = false; // Esto lo hacemos cuando haga el ejecting()
+          //FILE_PREPARED = false; // Esto lo comentamos para hacerlo cuando haga el ejecting() 
+                                   // para poder descargar el anterior de la PSRAM
           FILE_SELECTED = false;
           // 
           AUTO_STOP = false;
@@ -2018,6 +2019,7 @@ void tapeControl()
           if (FILE_PREPARED)
           {
             ejectingFile();
+            FILE_PREPARED=false;            
           }
 
           FILE_PREPARED = false;
@@ -2116,6 +2118,7 @@ void tapeControl()
           if (FILE_PREPARED)
           {
             ejectingFile();
+            FILE_PREPARED=false;
           }
           
           FILE_PREPARED = false;
@@ -2233,6 +2236,12 @@ void tapeControl()
               // Volvemos al estado inicial.
               TAPESTATE = 0;
               LOADING_STATE = 0;
+
+              if (FILE_PREPARED)
+              {
+                ejectingFile();
+                FILE_PREPARED = false;
+              }              
           }
       }
       else
