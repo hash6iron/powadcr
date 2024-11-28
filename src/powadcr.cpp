@@ -2008,6 +2008,11 @@ void tapeControl()
         // Expulsamos la cinta
         if (LOADING_STATE == 0 || LOADING_STATE == 2)
         {
+          if (FILE_PREPARED)
+          {
+            ejectingFile();
+          }
+
           FILE_PREPARED = false;
           FILE_SELECTED = false;
           hmi.clearInformationFile();        
