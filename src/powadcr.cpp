@@ -2019,7 +2019,6 @@ void tapeControl()
           if (FILE_PREPARED)
           {
             ejectingFile();
-            FILE_PREPARED=false;            
           }
 
           FILE_PREPARED = false;
@@ -2118,7 +2117,6 @@ void tapeControl()
           if (FILE_PREPARED)
           {
             ejectingFile();
-            FILE_PREPARED=false;
           }
           
           FILE_PREPARED = false;
