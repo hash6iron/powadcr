@@ -192,18 +192,15 @@ class TZXprocessor
       if (tzxFile != 0)
       {
 
-          ////SerialHW.println("");
-          ////SerialHW.println("Begin isHeaderTZX");
-
           // Capturamos la cabecera
+          uint8_t* bBlock = (uint8_t*)ps_calloc(10+1,sizeof(uint8_t));
+          sdm.readFileRange32(tzxFile,bBlock,0,10,false); 
 
-          uint8_t* bBlock = sdm.readFileRange32(tzxFile,0,10,false); 
+          // Obtenemos la firma del TZX
+          char signTZXHeader[9];
 
-        // Obtenemos la firma del TZX
-        char signTZXHeader[9];
-
-        // Analizamos la cabecera
-        // Extraemos el nombre del programa
+          // Analizamos la cabecera
+          // Extraemos el nombre del programa
           for (int n=0;n<7;n++)
           {   
               signTZXHeader[n] = (char)bBlock[n];
@@ -216,9 +213,6 @@ class TZXprocessor
           //Convertimos a String
           String signStr = String(signTZXHeader);
           
-          ////SerialHW.println("");
-          ////SerialHW.println("Sign: " + signStr);
-
           if (signStr.indexOf("ZXTape!") != -1)
           {
               return true;
@@ -243,7 +237,6 @@ class TZXprocessor
           // char* szName = (char*)ps_calloc(255,sizeof(char));
           tzxFile.getName(szName,254);
           String fileName = String(szName);
-          free(szName);
 
           if (fileName != "")
           {
@@ -287,8 +280,10 @@ class TZXprocessor
     int getWORD(File32 mFile, int offset)
     {
         int sizeDW = 0;
-        uint8_t* ptr1 = sdm.readFileRange32(mFile,offset+1,1,false);
-        uint8_t* ptr2 = sdm.readFileRange32(mFile,offset,1,false);
+        uint8_t* ptr1 = (uint8_t*)ps_calloc(1+1,sizeof(uint8_t));
+        uint8_t* ptr2 = (uint8_t*)ps_calloc(1+1,sizeof(uint8_t));
+        sdm.readFileRange32(mFile,ptr1,offset+1,1,false);
+        sdm.readFileRange32(mFile,ptr2,offset,1,false);
         sizeDW = (256*ptr1[0]) + ptr2[0];
         free(ptr1);
         free(ptr2);
@@ -299,7 +294,8 @@ class TZXprocessor
     int getBYTE(File32 mFile, int offset)
     {
         int sizeB = 0;
-        uint8_t* ptr = sdm.readFileRange32(mFile,offset,1,false);
+        uint8_t* ptr = (uint8_t*)ps_calloc(1+1,sizeof(uint8_t));
+        sdm.readFileRange32(mFile,ptr,offset,1,false);
         sizeB = ptr[0];
         free(ptr);
 
@@ -309,13 +305,16 @@ class TZXprocessor
     int getNBYTE(File32 mFile, int offset, int n)
     {
         int sizeNB = 0;
-
+        uint8_t* ptr = (uint8_t*)ps_calloc(1+1,sizeof(uint8_t));
+        
         for (int i = 0; i<n;i++)
         {
-            sizeNB += pow(2,(8*i)) * (sdm.readFileRange32(mFile,offset+i,1,false)[0]);  
+            sdm.readFileRange32(mFile,ptr,offset+i,1,false);
+            sizeNB += pow(2,(8*i)) * (ptr[0]);  
         }
 
-        return sizeNB;           
+        free(ptr);
+        return sizeNB;             
     }
 
     int getID(File32 mFile, int offset)
@@ -331,7 +330,7 @@ class TZXprocessor
     {
         //Entonces recorremos el TZX. 
         // La primera cabecera SIEMPRE debe darse.
-        block = sdm.readFileRange32(mFile,offset,size,false);
+        sdm.readFileRange32(mFile,block,offset,size,false);
     }
 
     bool verifyChecksum(File32 mFile, int offset, int size)
@@ -750,7 +749,8 @@ class TZXprocessor
         _myTZX.descriptor[currentBlock].timming.pulse_seq_num_pulses = num_pulses;
         
         // Reservamos memoria.
-        _myTZX.descriptor[currentBlock].timming.pulse_seq_array = new int[num_pulses]; 
+        _myTZX.descriptor[currentBlock].timming.pulse_seq_array = (int*)ps_calloc(num_pulses + 1,sizeof(int));
+        // _myTZX.descriptor[currentBlock].timming.pulse_seq_array = new int[num_pulses]; 
         //_myTZX.descriptor[currentBlock].timming.pulse_seq_array[num_pulses];
         
         // Tomamos ahora las longitudes
@@ -2001,7 +2001,7 @@ class TZXprocessor
 
               // Accedemos a la SD y capturamos el bloque del fichero
               bufferPlay = (uint8_t*)ps_calloc(blockSizeSplit,sizeof(uint8_t));
-              bufferPlay = sdm.readFileRange32(_mFile, newOffset, blockSizeSplit, true);
+              sdm.readFileRange32(_mFile,bufferPlay,newOffset,blockSizeSplit, true);
 
               // Mostramos en la consola los primeros y últimos bytes
               showBufferPlay(bufferPlay,blockSizeSplit,newOffset);     
@@ -2051,7 +2051,7 @@ class TZXprocessor
             blockSizeSplit = lastBlockSize;
             // Accedemos a la SD y capturamos el bloque del fichero
             bufferPlay = (uint8_t*)ps_calloc(blockSizeSplit,sizeof(uint8_t));
-            bufferPlay = sdm.readFileRange32(_mFile, newOffset,blockSizeSplit, true);
+            sdm.readFileRange32(_mFile,bufferPlay, newOffset,blockSizeSplit, true);
 
             // Mostramos en la consola los primeros y últimos bytes
             showBufferPlay(bufferPlay,blockSizeSplit,newOffset);         
@@ -2077,7 +2077,7 @@ class TZXprocessor
         {
             // Si es mas pequeño que el SPLIT, se reproduce completo.
             bufferPlay = (uint8_t*)ps_calloc(descriptor.size,sizeof(uint8_t));
-            bufferPlay = sdm.readFileRange32(_mFile, descriptor.offsetData, descriptor.size, true);
+            sdm.readFileRange32(_mFile,bufferPlay, descriptor.offsetData, descriptor.size, true);
 
             showBufferPlay(bufferPlay,descriptor.size,descriptor.offsetData);
             verifyChecksum(_mFile,descriptor.offsetData,descriptor.size);    
@@ -2440,7 +2440,7 @@ class TZXprocessor
                                     newOffset = offsetBase + (blockSizeSplit*n);
                                     // Accedemos a la SD y capturamos el bloque del fichero
                                     bufferPlay = (uint8_t*)ps_calloc(blockSizeSplit,sizeof(uint8_t));
-                                    bufferPlay = sdm.readFileRange32(_mFile, newOffset, blockSizeSplit, true);
+                                    sdm.readFileRange32(_mFile,bufferPlay, newOffset, blockSizeSplit, true);
                                     // Mostramos en la consola los primeros y últimos bytes
                                     showBufferPlay(bufferPlay,blockSizeSplit,newOffset);     
 
@@ -2474,7 +2474,7 @@ class TZXprocessor
                                   blockSizeSplit = lastBlockSize;
                                   // Accedemos a la SD y capturamos el bloque del fichero
                                   bufferPlay = (uint8_t*)ps_calloc(blockSizeSplit,sizeof(uint8_t));
-                                  bufferPlay = sdm.readFileRange32(_mFile, newOffset,blockSizeSplit, true);
+                                  sdm.readFileRange32(_mFile,bufferPlay, newOffset,blockSizeSplit, true);
                                   // Mostramos en la consola los primeros y últimos bytes
                                   showBufferPlay(bufferPlay,blockSizeSplit,newOffset);         
 
@@ -2499,7 +2499,7 @@ class TZXprocessor
                               else
                               {
                                   bufferPlay = (uint8_t*)ps_calloc(_myTZX.descriptor[i].size,sizeof(uint8_t));
-                                  bufferPlay = sdm.readFileRange32(_mFile, _myTZX.descriptor[i].offsetData, _myTZX.descriptor[i].size, true);
+                                  sdm.readFileRange32(_mFile,bufferPlay, _myTZX.descriptor[i].offsetData, _myTZX.descriptor[i].size, true);
 
                                   showBufferPlay(bufferPlay,_myTZX.descriptor[i].size,_myTZX.descriptor[i].offsetData);
                                   verifyChecksum(_mFile,_myTZX.descriptor[i].offsetData,_myTZX.descriptor[i].size);    
@@ -2627,9 +2627,20 @@ class TZXprocessor
                 LAST_EAR_IS = POLARIZATION;       
 
                 // Paramos
+                #ifdef DEBUGMODE
+                    logAlert("AUTO STOP launch.");
+                #endif
+
                 PLAY = false;
-                STOP = true;
                 PAUSE = false;
+                STOP = true;
+                REC = false;
+                ABORT = true;
+                EJECT = false;
+
+                BLOCK_SELECTED = 0;
+                BYTES_LOADED = 0; 
+
                 AUTO_STOP = true;
 
                 _hmi.setBasicFileInformation(_myTZX.descriptor[BLOCK_SELECTED].name,_myTZX.descriptor[BLOCK_SELECTED].typeName,_myTZX.descriptor[BLOCK_SELECTED].size,_myTZX.descriptor[BLOCK_SELECTED].playeable);

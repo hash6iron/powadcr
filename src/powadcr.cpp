@@ -210,7 +210,8 @@ void freeMemoryFromDescriptorTZX(TZXprocessor::tTZXBlockDescriptor* descriptor)
     {
       case 19:  // bloque 0x13
         // Hay que liberar el array
-        delete[] descriptor[n].timming.pulse_seq_array;
+        // delete[] descriptor[n].timming.pulse_seq_array;
+        free(descriptor[n].timming.pulse_seq_array);
         break;
       
       default:
@@ -226,14 +227,16 @@ void freeMemoryFromDescriptorTSX(TSXprocessor::tTSXBlockDescriptor* descriptor)
   {
     switch (descriptor[n].ID)
     {
-      case 19:  // bloque 0x13 o 0x4B
+      case 19:  // bloque 0x13
         // Hay que liberar el array
-        delete[] descriptor[n].timming.pulse_seq_array;
+        // delete[] descriptor[n].timming.pulse_seq_array;
+        free(descriptor[n].timming.pulse_seq_array);
         break;
 
-      case 75:
-        delete[] descriptor[n].timming.pulse_seq_array;
-        break;
+      // case 75:
+      //   // delete[] descriptor[n].timming.pulse_seq_array;
+      //   free(descriptor[n].timming.pulse_seq_array);
+      //   break;
 
       default:
         break;
@@ -2000,6 +2003,9 @@ void tapeControl()
       {
         // Desactivamos la animación
         // esta condicion evita solicitar la parada de manera infinita
+        logln("");
+        log("Tape state 1");
+        
         if (LOADING_STATE == 1)
         {
           tapeAnimationOFF();
@@ -2008,7 +2014,8 @@ void tapeControl()
 
         LOADING_STATE = 2;
         // Al parar el c.block del HMI se pone a 1.
-        BLOCK_SELECTED = 1;
+        BLOCK_SELECTED = 0; // 29/11
+
         // Reproducimos el fichero
         if (!AUTO_STOP)
         {
@@ -2017,6 +2024,7 @@ void tapeControl()
         else
         {
           LAST_MESSAGE = "Auto-Stop playing.";
+          AUTO_STOP = false;
         }
 
         setPolarization();

@@ -190,10 +190,10 @@ class SDmanager
         return bufferFile;
     }
     
-    uint8_t* readFileRange32(File32 mFile, int startByte, int size, bool logOn)
+    void readFileRange32(File32 mFile, uint8_t* &bufferFile, int startByte, int size, bool logOn)
     {
         //Redimensionamos el buffer al tamaño acordado del rango
-        uint8_t* bufferFile = (uint8_t*)ps_calloc(size+1,sizeof(uint8_t));
+        
             
         // Ponemos a cero el puntero de lectura del fichero
         mFile.rewind();
@@ -240,7 +240,6 @@ class SDmanager
             //SerialHW.print(F("SD Card: error opening file. Please check SD frequency."));
         }
     
-        return bufferFile;
     }
 
     // void createCfgFile(char* path)
