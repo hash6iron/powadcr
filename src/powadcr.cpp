@@ -2303,8 +2303,10 @@ void tapeControl()
       {
           // 
           LAST_MESSAGE = "Recording to WAV - Press STOP to finish.";
+          
           recAnimationFIXED_ON();
           tapeAnimationON();
+
           while(!STOP)
           {
             copier.copy();
