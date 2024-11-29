@@ -2308,7 +2308,6 @@ void tapeControl()
           while(!STOP)
           {
             copier.copy();
-            LAST_SIZE = wavfile.size();
           }
 
           setWavRecording("/record.wav",false);  
