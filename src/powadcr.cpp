@@ -115,10 +115,6 @@ EasyNex myNex(SerialHW);
 #include "SdFat.h"
 #include "globales.h"
 
-// Para WAV recording
-// #include "AudioTools.h"
-// #include "AudioLibs/AudioKit.h"
-
 #include "AudioKitHAL.h"
 AudioKit ESP32kit;
 
@@ -149,6 +145,7 @@ SdFat sd;
 SdFat32 sdf;
 SdFile sdFile;
 File32 sdFile32;
+File32 wavfile;
 
 // Creamos los distintos objetos
 TZXprocessor pTZX(ESP32kit);
@@ -191,10 +188,12 @@ bool pageScreenIsShown = false;
 
 // WAV Recorder
 // -----------------------------------------------------------------------
-// #include "AudioTools.h"
-// #include "AudioLibs/AudioKit.h"
-// AudioKitStream kit;
-// StreamCopy copier(kit, kit);  // copies data
+#include "AudioTools.h"
+// #include "AudioTools/AudioLibs/AudioBoardStream.h"
+#include "AudioTools/AudioLibs/AudioKit.h"
+// 
+AudioKitStream kit;
+StreamCopy copier(kit, kit);  // copies data
 
 // -----------------------------------------------------------------------
 // Prototype function
@@ -807,67 +806,57 @@ void setAudioInOut()
 
 }
 
-// void setWavRecording(char* file_name)
-// {
-//     AudioLogger::instance().begin(Serial, AudioLogger::Error);
+void setWavRecording(File32 &wavfile, char* file_name)
+{
+    AudioLogger::instance().begin(Serial, AudioLogger::Error);
 
-//     // Cleanup if necessary
-//     if (sdf.exists(file_name))
-//     {
-//         sdf.remove(file_name);
-//     }  
+    // Cleanup if necessary
+    if (sdf.exists(file_name))
+    {
+        sdf.remove(file_name);
+    }  
 
-//     // open file for recording WAV
-//     wavfile = sdf.open(file_name, O_WRITE | O_CREAT);
-//     if (!wavfile)
-//     {
-//         logln("file failed!");
-//         delay(5000);
-//         TAPESTATE=0;
-//         STOP=true;
-//         REC=false;
-//         return;
-//     }
+    // Configure WAVEncoder
+    AudioInfo info(16000, 1, 16);
+    EncodedAudioStream out(&wavfile, new WAVEncoder());
 
-//     // Configure WAVEncoder
-//     auto cfg_WAVEncoder = WAVEncoder().defaultConfig();
-//     wavInfo.bits_per_sample = 16;
-//     wavInfo.sample_rate = 44100;
-//     wavInfo.channels = 2;
-//     WAVEncoder().begin(wavInfo);
+    info.bits_per_sample = 16;
+    info.sample_rate = 44100;
+    info.channels = 2;
+    WAVEncoder().begin(info);
 
-//     // setup input
-//     kitCfg = kitStrm.defaultConfig(TX_MODE);
-//     kitCfg.driver = AUDIO_CODEC_ES8388_DEFAULT_HANDLE;
-//     kitCfg.is_master = true;
-//     kitCfg.input_device = AUDIO_HAL_ADC_INPUT_LINE2;
-//     kitCfg.bits_per_sample = 16;
-//     kitCfg.sample_rate = 44100;
-//     kitCfg.channels = 2;
-//     kitCfg.sd_active = true;
-//     kitCfg.copyFrom(info);
+    // setup input
+    auto cfg = kit.defaultConfig(RX_MODE);
+    cfg.is_master = true;
+    cfg.input_device = AUDIO_HAL_ADC_INPUT_LINE2;
+    cfg.bits_per_sample = 16;
+    cfg.sample_rate = 44100;
+    cfg.channels = 2;
+    cfg.sd_active = true;
+    cfg.copyFrom(info);
 
-//     kitStrm.begin(kitCfg);
-//     logln("Setting i2C");
-//     logln("");
-//     delay(10000);
+    kit.begin(cfg);
+    logln("Setting i2C");
+    logln("");
 
-//     // Inicializamos la salida del encoder
-//     AudioInfo out_info(44100,2,16);
-//     out.begin(out_info);
-//     // Inicializamos el copier
-//     copier.setCheckAvailableForWrite(false);
-//     copier.begin(wavfile, kitStrm);  
-//     AudioLogger::instance().begin(Serial, AudioLogger::Warning);
+    // Inicializamos la salida del encoder
+    AudioInfo out_info(44100,2,16);
+    out.begin(out_info);
+    // Inicializamos el copier
+    copier.setCheckAvailableForWrite(false);
+    copier.begin(wavfile, kit);  
+    AudioLogger::instance().begin(Serial, AudioLogger::Warning);
 
-//     auto cfg = kit.defaultConfig(RXTX_MODE);
-//     cfg.input_device = AUDIO_HAL_ADC_INPUT_LINE2;
-//     kit.begin(cfg);
-
-// }
+    auto cfg2 = kit.defaultConfig(RXTX_MODE);
+    cfg2.input_device = AUDIO_HAL_ADC_INPUT_LINE2;
+    kit.begin(cfg2);
+}
 
 void changeLogo(int logo)
 {
+    // El cambio de logo se hace directamente en el HMI porque desde el Audiokit no funcionaba
+    // correctamente.
+
     // 42 - Vacio
     // 41 - ZX Spectrum
     // 40 - MSX
@@ -1924,7 +1913,37 @@ void tapeControl()
         {
           LAST_MESSAGE = "Rec paused. Press PAUSE to start recording.";
           recAnimationON();
-          TAPESTATE = 220;
+
+          char* file_name = {"/record.wav"};
+
+          if (MODEWAV)
+          {
+            if (sdf.exists(file_name))
+            {
+                sdf.remove(file_name);
+            }  
+
+            // open file for recording WAV
+            wavfile = sdf.open(file_name, O_WRITE | O_CREAT);
+            if (!wavfile)
+            {
+                LAST_MESSAGE = "WAVFILE error!";
+                delay(1500);
+                logln("file failed!");
+                STOP=true;
+                REC=false;
+                TAPESTATE=0;
+            }            
+            else
+            {
+              setWavRecording(wavfile,file_name);
+              TAPESTATE = 120;
+            }
+          }
+          else
+          {
+            TAPESTATE = 220;
+          }
           // 
           AUTO_STOP = false;
         }
@@ -2269,6 +2288,51 @@ void tapeControl()
       {
           TAPESTATE = 100;
           LOADING_STATE = 0;
+      }
+      break;
+
+    case 120:
+      if (PAUSE)
+      {
+          // 
+          LAST_MESSAGE = "Copy to WAV - Press STOP to finish.";
+          while(!STOP)
+          {
+            copier.copy();
+          }
+
+          if (wavfile) 
+          {
+            wavfile.flush();
+            logln("File has ");
+            logln(String(wavfile.size()));
+            logln(" bytes");
+            wavfile.close();
+            LAST_MESSAGE = "Copy to WAV - Finished.";
+            logln("Recording finish!");
+          }     
+
+          delay(2000);    
+
+          TAPESTATE = 0;
+          LOADING_STATE = 0;
+          RECORDING_ERROR = 0;
+          REC = false;
+          recAnimationOFF();
+          recAnimationFIXED_OFF(); 
+      }
+      else if (STOP)
+      {
+        TAPESTATE = 0;
+        LOADING_STATE = 0;
+        RECORDING_ERROR = 0;
+        REC = false;
+        recAnimationOFF();
+        recAnimationFIXED_OFF();        
+      }
+      else
+      {
+        TAPESTATE = 120;
       }
       break;
 
