@@ -806,50 +806,78 @@ void setAudioInOut()
 
 }
 
-void setWavRecording(File32 &wavfile, char* file_name)
+void setWavRecording(char* file_name,bool start=true)
 {
     AudioLogger::instance().begin(Serial, AudioLogger::Error);
 
-    // Cleanup if necessary
-    if (sdf.exists(file_name))
+    if (start)
     {
-        sdf.remove(file_name);
-    }  
+        if (sdf.exists(file_name))
+        {
+            sdf.remove(file_name);
+        }  
 
-    // Configure WAVEncoder
-    AudioInfo info(16000, 1, 16);
-    EncodedAudioStream out(&wavfile, new WAVEncoder());
+        // open file for recording WAV
+        wavfile = sdf.open(file_name, O_WRITE | O_CREAT);
+        if (!wavfile)
+        {
+            LAST_MESSAGE = "WAVFILE error!";
+            delay(1500);
+            logln("file failed!");
+            STOP=true;
+            REC=false;
+            TAPESTATE=0;
+        }            
+        else
+        {
+            // Configure WAVEncoder
+            AudioInfo info(16000, 1, 16);
+            EncodedAudioStream out(&wavfile, new WAVEncoder());
 
-    info.bits_per_sample = 16;
-    info.sample_rate = 44100;
-    info.channels = 2;
-    WAVEncoder().begin(info);
+            info.bits_per_sample = 16;
+            info.sample_rate = 44100;
+            info.channels = 2;
+            WAVEncoder().begin(info);
 
-    // setup input
-    auto cfg = kit.defaultConfig(RX_MODE);
-    cfg.is_master = true;
-    cfg.input_device = AUDIO_HAL_ADC_INPUT_LINE2;
-    cfg.bits_per_sample = 16;
-    cfg.sample_rate = 44100;
-    cfg.channels = 2;
-    cfg.sd_active = true;
-    cfg.copyFrom(info);
+            // setup input
+            auto cfg = kit.defaultConfig(RX_MODE);
+            cfg.is_master = true;
+            cfg.input_device = AUDIO_HAL_ADC_INPUT_LINE2;
+            cfg.bits_per_sample = 16;
+            cfg.sample_rate = 44100;
+            cfg.channels = 2;
+            cfg.sd_active = true;
+            cfg.copyFrom(info);
 
-    kit.begin(cfg);
-    logln("Setting i2C");
-    logln("");
+            kit.begin(cfg);
+            logln("Setting i2C");
+            logln("");
 
-    // Inicializamos la salida del encoder
-    AudioInfo out_info(44100,2,16);
-    out.begin(out_info);
-    // Inicializamos el copier
-    copier.setCheckAvailableForWrite(false);
-    copier.begin(wavfile, kit);  
-    AudioLogger::instance().begin(Serial, AudioLogger::Warning);
+            // Inicializamos la salida del encoder
+            AudioInfo out_info(44100,2,16);
+            out.begin(out_info);
+            // Inicializamos el copier
+            copier.setCheckAvailableForWrite(false);
+            copier.begin(wavfile, kit);  
+            AudioLogger::instance().begin(Serial, AudioLogger::Warning);
 
-    auto cfg2 = kit.defaultConfig(RXTX_MODE);
-    cfg2.input_device = AUDIO_HAL_ADC_INPUT_LINE2;
-    kit.begin(cfg2);
+            auto cfg2 = kit.defaultConfig(RXTX_MODE);
+            cfg2.input_device = AUDIO_HAL_ADC_INPUT_LINE2;
+            kit.begin(cfg2);
+        }
+    }
+    else
+    {
+        wavfile.flush();
+        logln("File has ");
+        logln(String(wavfile.size()));
+        logln(" bytes");
+
+        wavfile.close();
+        
+        LAST_MESSAGE = "Recording to WAV - Finished.";
+        logln("Recording finish!");
+    }
 }
 
 void changeLogo(int logo)
@@ -1914,31 +1942,10 @@ void tapeControl()
           LAST_MESSAGE = "Rec paused. Press PAUSE to start recording.";
           recAnimationON();
 
-          char* file_name = {"/record.wav"};
-
           if (MODEWAV)
           {
-            if (sdf.exists(file_name))
-            {
-                sdf.remove(file_name);
-            }  
-
-            // open file for recording WAV
-            wavfile = sdf.open(file_name, O_WRITE | O_CREAT);
-            if (!wavfile)
-            {
-                LAST_MESSAGE = "WAVFILE error!";
-                delay(1500);
-                logln("file failed!");
-                STOP=true;
-                REC=false;
-                TAPESTATE=0;
-            }            
-            else
-            {
-              setWavRecording(wavfile,file_name);
+              setWavRecording("/record.wav");
               TAPESTATE = 120;
-            }
           }
           else
           {
@@ -2295,22 +2302,16 @@ void tapeControl()
       if (PAUSE)
       {
           // 
-          LAST_MESSAGE = "Copy to WAV - Press STOP to finish.";
+          LAST_MESSAGE = "Recording to WAV - Press STOP to finish.";
+          recAnimationFIXED_ON();
+          tapeAnimationON();
           while(!STOP)
           {
             copier.copy();
+            LAST_SIZE = wavfile.size();
           }
 
-          if (wavfile) 
-          {
-            wavfile.flush();
-            logln("File has ");
-            logln(String(wavfile.size()));
-            logln(" bytes");
-            wavfile.close();
-            LAST_MESSAGE = "Copy to WAV - Finished.";
-            logln("Recording finish!");
-          }     
+          setWavRecording("/record.wav",false);  
 
           delay(2000);    
 
@@ -2320,6 +2321,7 @@ void tapeControl()
           REC = false;
           recAnimationOFF();
           recAnimationFIXED_OFF(); 
+          tapeAnimationOFF();
       }
       else if (STOP)
       {
