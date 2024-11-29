@@ -2620,30 +2620,30 @@ class TZXprocessor
               if (LOADING_STATE == 1) 
               {
 
-                if(LAST_SILENCE_DURATION==0)
-                {_zxp.silence(2000);}
+                  if(LAST_SILENCE_DURATION==0)
+                  {_zxp.silence(2000);}
 
-                // Inicializamos la polarización de la señal
-                LAST_EAR_IS = POLARIZATION;       
+                  // Inicializamos la polarización de la señal
+                  LAST_EAR_IS = POLARIZATION;       
 
-                // Paramos
-                #ifdef DEBUGMODE
-                    logAlert("AUTO STOP launch.");
-                #endif
+                  // Paramos
+                  #ifdef DEBUGMODE
+                      logAlert("AUTO STOP launch.");
+                  #endif
 
-                PLAY = false;
-                PAUSE = false;
-                STOP = true;
-                REC = false;
-                ABORT = true;
-                EJECT = false;
+                  PLAY = false;
+                  PAUSE = false;
+                  STOP = true;
+                  REC = false;
+                  ABORT = true;
+                  EJECT = false;
 
-                BLOCK_SELECTED = 0;
-                BYTES_LOADED = 0; 
+                  BLOCK_SELECTED = 0;
+                  BYTES_LOADED = 0; 
 
-                AUTO_STOP = true;
+                  AUTO_STOP = true;
 
-                _hmi.setBasicFileInformation(_myTZX.descriptor[BLOCK_SELECTED].name,_myTZX.descriptor[BLOCK_SELECTED].typeName,_myTZX.descriptor[BLOCK_SELECTED].size,_myTZX.descriptor[BLOCK_SELECTED].playeable);
+                  _hmi.setBasicFileInformation(_myTZX.descriptor[BLOCK_SELECTED].name,_myTZX.descriptor[BLOCK_SELECTED].typeName,_myTZX.descriptor[BLOCK_SELECTED].size,_myTZX.descriptor[BLOCK_SELECTED].playeable);
               }
 
               // Cerrando

@@ -116,6 +116,9 @@ EasyNex myNex(SerialHW);
 #include "globales.h"
 
 // Para WAV recording
+// #include "AudioTools.h"
+// #include "AudioLibs/AudioKit.h"
+
 #include "AudioKitHAL.h"
 AudioKit ESP32kit;
 
@@ -186,18 +189,14 @@ bool pageScreenIsShown = false;
 #include "webpage.h"
 #include "webserver.h"
 
+// WAV Recorder
 // -----------------------------------------------------------------------
-//#include "lib\NexUpload.h"
-
-// #include "powaFileServer.h"
-// powaFileServer fileServer(&fserver,sdf);
-
-// #include <AudioTools.h>
-// #include <AudioLibs/AudioKit.h>
-
+// #include "AudioTools.h"
+// #include "AudioLibs/AudioKit.h"
 // AudioKitStream kit;
 // StreamCopy copier(kit, kit);  // copies data
 
+// -----------------------------------------------------------------------
 // Prototype function
 void ejectingFile();
 
@@ -810,55 +809,55 @@ void setAudioInOut()
 
 // void setWavRecording(char* file_name)
 // {
-//     // AudioLogger::instance().begin(Serial, AudioLogger::Error);
+//     AudioLogger::instance().begin(Serial, AudioLogger::Error);
 
-//     // // Cleanup if necessary
-//     // if (sdf.exists(file_name))
-//     // {
-//     //     sdf.remove(file_name);
-//     // }  
+//     // Cleanup if necessary
+//     if (sdf.exists(file_name))
+//     {
+//         sdf.remove(file_name);
+//     }  
 
-//     // // open file for recording WAV
-//     // wavfile = sdf.open(file_name, O_WRITE | O_CREAT);
-//     // if (!wavfile)
-//     // {
-//     //     logln("file failed!");
-//     //     delay(5000);
-//     //     TAPESTATE=0;
-//     //     STOP=true;
-//     //     REC=false;
-//     //     return;
-//     // }
+//     // open file for recording WAV
+//     wavfile = sdf.open(file_name, O_WRITE | O_CREAT);
+//     if (!wavfile)
+//     {
+//         logln("file failed!");
+//         delay(5000);
+//         TAPESTATE=0;
+//         STOP=true;
+//         REC=false;
+//         return;
+//     }
 
-//     // // Configure WAVEncoder
-//     // auto cfg_WAVEncoder = WAVEncoder().defaultConfig();
-//     // wavInfo.bits_per_sample = 16;
-//     // wavInfo.sample_rate = 44100;
-//     // wavInfo.channels = 2;
-//     // WAVEncoder().begin(wavInfo);
+//     // Configure WAVEncoder
+//     auto cfg_WAVEncoder = WAVEncoder().defaultConfig();
+//     wavInfo.bits_per_sample = 16;
+//     wavInfo.sample_rate = 44100;
+//     wavInfo.channels = 2;
+//     WAVEncoder().begin(wavInfo);
 
-//     // // setup input
-//     // kitCfg = kitStrm.defaultConfig(TX_MODE);
-//     // kitCfg.driver = AUDIO_CODEC_ES8388_DEFAULT_HANDLE;
-//     // kitCfg.is_master = true;
-//     // kitCfg.input_device = AUDIO_HAL_ADC_INPUT_LINE2;
-//     // kitCfg.bits_per_sample = 16;
-//     // kitCfg.sample_rate = 44100;
-//     // kitCfg.channels = 2;
-//     // kitCfg.sd_active = true;
-//     // kitCfg.copyFrom(info);
+//     // setup input
+//     kitCfg = kitStrm.defaultConfig(TX_MODE);
+//     kitCfg.driver = AUDIO_CODEC_ES8388_DEFAULT_HANDLE;
+//     kitCfg.is_master = true;
+//     kitCfg.input_device = AUDIO_HAL_ADC_INPUT_LINE2;
+//     kitCfg.bits_per_sample = 16;
+//     kitCfg.sample_rate = 44100;
+//     kitCfg.channels = 2;
+//     kitCfg.sd_active = true;
+//     kitCfg.copyFrom(info);
 
-//     // kitStrm.begin(kitCfg);
-//     // logln("Setting i2C");
-//     // logln("");
-//     // delay(10000);
+//     kitStrm.begin(kitCfg);
+//     logln("Setting i2C");
+//     logln("");
+//     delay(10000);
 
-//     // // Inicializamos la salida del encoder
-//     // AudioInfo out_info(44100,2,16);
-//     // out.begin(out_info);
-//     // // Inicializamos el copier
-//     // copier.setCheckAvailableForWrite(false);
-//     // copier.begin(wavfile, kitStrm);  
+//     // Inicializamos la salida del encoder
+//     AudioInfo out_info(44100,2,16);
+//     out.begin(out_info);
+//     // Inicializamos el copier
+//     copier.setCheckAvailableForWrite(false);
+//     copier.begin(wavfile, kitStrm);  
 //     AudioLogger::instance().begin(Serial, AudioLogger::Warning);
 
 //     auto cfg = kit.defaultConfig(RXTX_MODE);
@@ -866,6 +865,7 @@ void setAudioInOut()
 //     kit.begin(cfg);
 
 // }
+
 void changeLogo(int logo)
 {
     // 42 - Vacio
@@ -2005,7 +2005,7 @@ void tapeControl()
         // esta condicion evita solicitar la parada de manera infinita
         logln("");
         log("Tape state 1");
-        
+
         if (LOADING_STATE == 1)
         {
           tapeAnimationOFF();
