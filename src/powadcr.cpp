@@ -84,6 +84,7 @@
 
 // Esencial para poder variar la ganancia de salida de HPLINE y ROUT, LOUT
 #define AI_THINKER_ES8388_VOLUME_HACK 1
+// #define USE_A2DP
 
 #include <Arduino.h>
 #include <WiFi.h>
@@ -115,7 +116,8 @@ EasyNex myNex(SerialHW);
 #include "SdFat.h"
 #include "globales.h"
 
-#include "AudioKitHAL.h"
+// #include "AudioKitHAL.h"
+#include "AudioTools/AudioLibs/AudioKit.h"
 AudioKit ESP32kit;
 
 // Estos includes deben ir en este orden por dependencias
@@ -137,6 +139,7 @@ ZXProcessor zxp;
 #include "TZXprocessor.h"
 #include "TAPprocessor.h"
 #include "TSXprocessor.h"
+#include "BlockProcessor.h"
 
 //#include "test.h"
 
@@ -189,8 +192,10 @@ bool pageScreenIsShown = false;
 // WAV Recorder
 // -----------------------------------------------------------------------
 #include "AudioTools.h"
-// #include "AudioTools/AudioLibs/AudioBoardStream.h"
 #include "AudioTools/AudioLibs/AudioKit.h"
+
+
+using namespace audio_tools;  
 // 
 AudioKitStream kit;
 StreamCopy copier(kit, kit);  // copies data
@@ -802,9 +807,40 @@ void setAudioInOut()
   {
     //log("Error in volumen setting");
   }   
-
-
 }
+
+void tapeAnimationON()
+{
+    hmi.writeString("tape2.tmAnimation.en=1"); 
+    hmi.writeString("tape.tmAnimation.en=1");   
+}
+
+void tapeAnimationOFF()
+{
+    hmi.writeString("tape2.tmAnimation.en=0"); 
+    hmi.writeString("tape.tmAnimation.en=0");   
+}
+
+void recAnimationON()
+{
+  hmi.writeString("tape.RECst.val=1");
+}
+
+void recAnimationOFF()
+{
+  hmi.writeString("tape.RECst.val=0");
+}
+
+void recAnimationFIXED_ON()
+{
+  hmi.writeString("tape.recIndicator.bco=63848");
+}
+
+void recAnimationFIXED_OFF()
+{
+  hmi.writeString("tape.recIndicator.bco=32768");
+}
+
 
 void setWavRecording(char* file_name,bool start=true)
 {
@@ -819,6 +855,7 @@ void setWavRecording(char* file_name,bool start=true)
 
         // open file for recording WAV
         wavfile = sdf.open(file_name, O_WRITE | O_CREAT);
+
         if (!wavfile)
         {
             LAST_MESSAGE = "WAVFILE error!";
@@ -864,19 +901,43 @@ void setWavRecording(char* file_name,bool start=true)
             auto cfg2 = kit.defaultConfig(RXTX_MODE);
             cfg2.input_device = AUDIO_HAL_ADC_INPUT_LINE2;
             kit.begin(cfg2);
+
+            LAST_MESSAGE = "Recording to WAV - Press STOP to finish.";
+            
+            recAnimationOFF();
+            delay(500);
+            recAnimationFIXED_ON();
+            tapeAnimationON();
+
+            while(!STOP)
+            {
+              copier.copy();
+            }
+
+            wavfile.flush();
+            logln("File has ");
+            logln(String(wavfile.size()));
+            logln(" bytes");
+
+            wavfile.close();
+            
+            LAST_MESSAGE = "Recording to WAV - Finished.";
+            logln("Recording finish!");
+
+            delay(2000);    
+
+            TAPESTATE = 0;
+            LOADING_STATE = 0;
+            RECORDING_ERROR = 0;
+            REC = false;
+            recAnimationOFF();
+            recAnimationFIXED_OFF(); 
+            tapeAnimationOFF();            
         }
     }
     else
     {
-        wavfile.flush();
-        logln("File has ");
-        logln(String(wavfile.size()));
-        logln(" bytes");
 
-        wavfile.close();
-        
-        LAST_MESSAGE = "Recording to WAV - Finished.";
-        logln("Recording finish!");
     }
 }
 
@@ -903,38 +964,6 @@ void changeLogo(int logo)
     //   hmi.writeString("tape.logo.pic=" + String(logo));
     //   delay(50);
     // }
-}
-
-void tapeAnimationON()
-{
-    hmi.writeString("tape2.tmAnimation.en=1"); 
-    hmi.writeString("tape.tmAnimation.en=1");   
-}
-
-void tapeAnimationOFF()
-{
-    hmi.writeString("tape2.tmAnimation.en=0"); 
-    hmi.writeString("tape.tmAnimation.en=0");   
-}
-
-void recAnimationON()
-{
-  hmi.writeString("tape.RECst.val=1");
-}
-
-void recAnimationOFF()
-{
-  hmi.writeString("tape.RECst.val=0");
-}
-
-void recAnimationFIXED_ON()
-{
-  hmi.writeString("tape.recIndicator.bco=63848");
-}
-
-void recAnimationFIXED_OFF()
-{
-  hmi.writeString("tape.recIndicator.bco=32768");
 }
 
 void pauseRecording()
@@ -1944,7 +1973,6 @@ void tapeControl()
 
           if (MODEWAV)
           {
-              setWavRecording("/record.wav");
               TAPESTATE = 120;
           }
           else
@@ -2301,37 +2329,14 @@ void tapeControl()
     case 120:
       if (PAUSE)
       {
-          // 
-          LAST_MESSAGE = "Recording to WAV - Press STOP to finish.";
-          
-          recAnimationFIXED_ON();
-          tapeAnimationON();
+        setWavRecording("/rec.wav");
 
-          while(!STOP)
-          {
-            copier.copy();
-          }
-
-          setWavRecording("/record.wav",false);  
-
-          delay(2000);    
-
-          TAPESTATE = 0;
-          LOADING_STATE = 0;
-          RECORDING_ERROR = 0;
-          REC = false;
-          recAnimationOFF();
-          recAnimationFIXED_OFF(); 
-          tapeAnimationOFF();
-      }
-      else if (STOP)
-      {
         TAPESTATE = 0;
         LOADING_STATE = 0;
         RECORDING_ERROR = 0;
         REC = false;
         recAnimationOFF();
-        recAnimationFIXED_OFF();        
+        recAnimationFIXED_OFF();  
       }
       else
       {

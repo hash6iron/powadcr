@@ -241,13 +241,15 @@ class HMI
                           //
                           FILE_TOTAL_FILES = cdir + cfiles;
 
-                          writeString("statusFILE.txt=\"ITEMS " + String(FILE_TOTAL_FILES-1) +"\""); 
+ 
                       }
                   }
 
                   sdm.file.close();
               }
           }
+          // Devolvemos el total de ITEMS cargados 
+          writeString("statusFILE.txt=\"ITEMS " + String(FILE_TOTAL_FILES-1) +"\"");
      }
 
       void registerFiles(String path, String filename, String filename_inf,String search_pattern)
@@ -490,8 +492,9 @@ class HMI
               }
 
               FILE_TOTAL_FILES = total;
+
               #ifdef DEBUGMODE
-                logln("Total files: " + String(FILE_TOTAL_FILES));
+                logln("Total files: " + String(FILE_TOTAL_FILES-1));
               #endif
           }        
       }
@@ -557,7 +560,7 @@ class HMI
             IN_THE_SAME_DIR = true;
             // Mostramos el contenido y obtenemos el total de ficheros
             //showFileLST(fFileLST);
-                            //
+            //
             FILE_TOTAL_FILES = 1;
             char line[256];
             int n=0;
@@ -566,10 +569,9 @@ class HMI
                 FILE_TOTAL_FILES++;
             }
 
-            // // Es menos uno, porque el primero no se usa. 0 es para prevDir y luego de 1 a 59
-            // FILE_TOTAL_FILES_SEARCH = FILE_TOTAL_FILES - 2;
-            // logln("Files total for search: " + String(FILE_TOTAL_FILES_SEARCH - 2));
-        }
+            // Quitamos un item porque empezamos en 0
+            // FILE_TOTAL_FILES -= 1;
+        } 
         // }       
       }
 
@@ -987,31 +989,31 @@ class HMI
           return strTmp;
       }
       
-      void clearFilesInScreen()
-      {
-        String szName = "";
-        int color = 65535;
-        int pos_in_HMI_file = 0;
+      // void clearFilesInScreen()
+      // {
+      //   String szName = "";
+      //   int color = 65535;
+      //   int pos_in_HMI_file = 0;
       
-        #ifdef DEBUGMOCE
-          logAlert("Cleaning file browser");
-        #endif
+      //   #ifdef DEBUGMOCE
+      //     logAlert("Cleaning file browser");
+      //   #endif
 
-        String mens = "";
+      //   String mens = "";
 
-        for (int i=0;i<=TOTAL_FILES_IN_BROWSER_PAGE;i++)
-        {
-            printFileRowsBlock(mens, pos_in_HMI_file, color, szName);
-            //delay(5);
-            // printFileRows(pos_in_HMI_file, color, szName);
-            pos_in_HMI_file++;
-        }
+      //   for (int i=0;i<=TOTAL_FILES_IN_BROWSER_PAGE;i++)
+      //   {
+      //       printFileRowsBlock(mens, pos_in_HMI_file, color, szName);
+      //       //delay(5);
+      //       // printFileRows(pos_in_HMI_file, color, szName);
+      //       pos_in_HMI_file++;
+      //   }
 
-        // Ahora vamos a redibujar dos veces
-        writeStringBlock(mens);
-        // delay(5);
-        // writeStringBlock(mens);
-      }
+      //   // Ahora vamos a redibujar dos veces
+      //   writeStringBlock(mens);
+      //   // delay(5);
+      //   // writeStringBlock(mens);
+      // }
 
       void showInformationAboutFiles()
       {
@@ -1020,12 +1022,12 @@ class HMI
           // Indicamos el path actual
           writeString("currentDir.txt=\"" + String(FILE_LAST_DIR_LAST) + "\"");
           // Actualizamos el total del ficheros leidos anteriormente.
-          writeString("statusFILE.txt=\"ITEMS  " + String(FILE_TOTAL_FILES - 1) +"\"");         
+          writeString("statusFILE.txt=\"ITEMS  " + String(FILE_TOTAL_FILES-1) +"\"");         
           
           // Obtenemos la pagina mostrada del listado de ficheros
-          int totalPages = (FILE_TOTAL_FILES / TOTAL_FILES_IN_BROWSER_PAGE);
+          int totalPages = ((FILE_TOTAL_FILES-1) / TOTAL_FILES_IN_BROWSER_PAGE);
           
-          if (FILE_TOTAL_FILES % TOTAL_FILES_IN_BROWSER_PAGE != 0)
+          if ((FILE_TOTAL_FILES-1) % TOTAL_FILES_IN_BROWSER_PAGE != 0)
           { 
               totalPages+=1;
           }
@@ -1124,9 +1126,9 @@ class HMI
           FILE_LAST_DIR = INITFILEPATH;
           FILE_PREVIOUS_DIR = INITFILEPATH;
           // Open root directory
-          FILE_PTR_POS = 0;
+          FILE_PTR_POS = 1;
           IN_THE_SAME_DIR = false;
-          clearFilesInScreen();
+          // clearFilesInScreen(); // 02/12/2024
           getFilesFromSD(false,SOURCE_FILE_TO_MANAGE,SOURCE_FILE_INF_TO_MANAGE);
           putFilesInScreen();
       }
@@ -1136,7 +1138,7 @@ class HMI
           // Hacemos una busqueda
           SOURCE_FILE_TO_MANAGE = "_fsearch.lst";
           SOURCE_FILE_INF_TO_MANAGE = "_fsearch.inf";
-          FILE_PTR_POS = 0;
+          FILE_PTR_POS = 1;
           getFilesFromSD(true,SOURCE_FILE_TO_MANAGE,SOURCE_FILE_INF_TO_MANAGE,FILE_TXT_TO_SEARCH);
           //putFilesInScreen();
           refreshFiles(); //07/11/2024          
@@ -1163,7 +1165,7 @@ class HMI
             logAlert("Refreshing file browser");
           #endif
           
-          clearFilesInScreen();
+          // clearFilesInScreen(); // 02/12/2024
           putFilesInScreen();          
       }
 
@@ -1242,7 +1244,7 @@ class HMI
       void reloadDir()
       {
           // Recarga el directorio
-          FILE_PTR_POS = 0;
+          FILE_PTR_POS = 1;
           getFilesFromSD(true,SOURCE_FILE_TO_MANAGE,SOURCE_FILE_INF_TO_MANAGE);      
           refreshFiles();        
       }
@@ -1312,8 +1314,8 @@ class HMI
             int pageSelected = num.toInt();
 
             // Calculamos el total de páginas
-            int totalPages = (FILE_TOTAL_FILES / TOTAL_FILES_IN_BROWSER_PAGE);
-            if (FILE_TOTAL_FILES % TOTAL_FILES_IN_BROWSER_PAGE != 0)
+            int totalPages = ((FILE_TOTAL_FILES-1) / TOTAL_FILES_IN_BROWSER_PAGE);
+            if ((FILE_TOTAL_FILES-1) % TOTAL_FILES_IN_BROWSER_PAGE != 0)
             {
                 totalPages+=1;
             }            
@@ -1399,7 +1401,7 @@ class HMI
 
             if (!FILE_DIR_OPEN_FAILED)
             {
-                clearFilesInScreen();
+                // clearFilesInScreen(); // 02/12/2024
                 putFilesInScreen();
                 FILE_STATUS = 1;
                 // El GFIL desconecta el filtro de busqueda
@@ -1419,20 +1421,20 @@ class HMI
             getFilesFromSD(false,SOURCE_FILE_TO_MANAGE,SOURCE_FILE_INF_TO_MANAGE);
             // Refrescamos el listado de ficheros visualizado
             refreshFiles();  
-            delay(125);
+            delay(50);
             showInformationAboutFiles();                     
         }
         else if (strCmd.indexOf("FEND") != -1) 
         {
             // Posicionamos entonces en la ultima página
-            int totalPages = (FILE_TOTAL_FILES / TOTAL_FILES_IN_BROWSER_PAGE);
+            int totalPages = ((FILE_TOTAL_FILES-1) / TOTAL_FILES_IN_BROWSER_PAGE);
             // Cogemos el primer item y refrescamos
             FILE_PTR_POS = (totalPages * TOTAL_FILES_IN_BROWSER_PAGE) + 1;
             // Actualizamos la lista con la posición nueva del puntero
             getFilesFromSD(false,SOURCE_FILE_TO_MANAGE,SOURCE_FILE_INF_TO_MANAGE);
             // Refrescamos el listado de ficheros visualizado
             refreshFiles(); 
-            delay(125);
+            delay(50);
             showInformationAboutFiles();                       
         }        
         else if (strCmd.indexOf("FPUP") != -1) 
@@ -1443,12 +1445,12 @@ class HMI
       
             if (FILE_PTR_POS < 0)
             {
-                FILE_PTR_POS = 0;
+                FILE_PTR_POS = 1;
             }
 
             getFilesFromSD(false,SOURCE_FILE_TO_MANAGE,SOURCE_FILE_INF_TO_MANAGE);
             refreshFiles();
-            delay(125);
+            delay(50);
             showInformationAboutFiles();            
         }
         else if (strCmd.indexOf("FPDOWN") != -1) 
@@ -1457,7 +1459,12 @@ class HMI
             // le devolvamos ficheros en la posición actual del puntero
             FILE_PTR_POS = FILE_PTR_POS + TOTAL_FILES_IN_BROWSER_PAGE;
   
-            if (FILE_PTR_POS > FILE_TOTAL_FILES)
+            #ifdef DEBUGMODE
+              logln("");
+              logln("files in page: " + String(FILE_TOTAL_FILES-1));
+            #endif
+
+            if (FILE_PTR_POS > (FILE_TOTAL_FILES-1))
             {
                 // Hacemos esto para permanecer en la misma pagina
                 FILE_PTR_POS -= TOTAL_FILES_IN_BROWSER_PAGE;
@@ -1465,7 +1472,7 @@ class HMI
 
             getFilesFromSD(false,SOURCE_FILE_TO_MANAGE,SOURCE_FILE_INF_TO_MANAGE);
             refreshFiles();
-            delay(125);
+            delay(50);
             showInformationAboutFiles();
         }
         else if (strCmd.indexOf("FPHOME") != -1) 
@@ -1640,8 +1647,8 @@ class HMI
             FILE_LAST_DIR = dir_ch;
             FILE_LAST_DIR_LAST = FILE_LAST_DIR;
      
-            FILE_PTR_POS = 0;
-            clearFilesInScreen();
+            FILE_PTR_POS = 1;
+            // clearFilesInScreen(); // 02/12/2024
                      
             getFilesFromSD(false,SOURCE_FILE_TO_MANAGE,SOURCE_FILE_INF_TO_MANAGE);
             
@@ -1685,7 +1692,7 @@ class HMI
             }
             //
             //
-            FILE_PTR_POS = 0;    
+            FILE_PTR_POS = 1;    
             getFilesFromSD(false,SOURCE_FILE_TO_MANAGE,SOURCE_FILE_INF_TO_MANAGE);
             
             if (!FILE_DIR_OPEN_FAILED)

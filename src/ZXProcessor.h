@@ -309,7 +309,7 @@ class ZXProcessor
         void createPulse(int width, int bytes, uint16_t sample_R, uint16_t sample_L)
         {
                 size_t result = 0;                
-                uint8_t buffer[bytes+4];                
+                uint8_t buffer[bytes+4];            
                 int16_t *ptr = (int16_t*)buffer;
                 int chn = channels;        
 
@@ -340,7 +340,7 @@ class ZXProcessor
                 }            
 
                 // Volcamos en el buffer
-                m_kit.write(buffer, result);                
+                m_kit.write(buffer, result);             
         }
 
         void sampleDR(int width, int amp)

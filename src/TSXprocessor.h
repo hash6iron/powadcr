@@ -284,6 +284,7 @@ class TSXprocessor
     {
         int sizeB = 0;
         uint8_t* ptr = (uint8_t*)ps_calloc(1+1,sizeof(uint8_t));
+
         sdm.readFileRange32(mFile,ptr,offset,1,false);
         sizeB = ptr[0];
         free(ptr);
@@ -309,10 +310,7 @@ class TSXprocessor
     int getID(File32 mFile, int offset)
     {
         // Obtenemos el ID
-        int ID = 0;
-        ID = getBYTE(mFile,offset);
-
-        return ID;      
+        return(getBYTE(mFile,offset));
     }
 
     void getBlock(File32 mFile, uint8_t* &block, int offset, int size)
@@ -1008,7 +1006,8 @@ class TSXprocessor
         _myTSX.descriptor[currentBlock].lengthOfData = getNBYTE(mFile,currentOffset+1,4)-12;
         _myTSX.descriptor[currentBlock].size=_myTSX.descriptor[currentBlock].lengthOfData;
         #ifdef DEBUGMODE
-          logln("Tamaño datos: 0x" + String(_myTSX.descriptor[currentBlock].lengthOfData));
+          logln("");
+          logln("Tamaño datos: " + String(_myTSX.descriptor[currentBlock].lengthOfData) + " bytes");
         #endif
 
         _myTSX.descriptor[currentBlock].offsetData=currentOffset+17;
@@ -1518,7 +1517,6 @@ class TSXprocessor
                 // Obtenemos la dirección del siguiente offset
                 analyzeID75(mFile,currentOffset, currentBlock);
                 nextIDoffset = currentOffset + _myTSX.descriptor[currentBlock].size + 17;
-                //SerialHW.println("nextIDoffset"+String(nextIDoffset));
                 strncpy(_myTSX.descriptor[currentBlock].typeName,ID4BSTR,35);
             }   
             else
@@ -1585,9 +1583,6 @@ class TSXprocessor
               // El objetivo es ENCONTRAR IDs y ultimo byte, y analizar el bloque completo para el descriptor.
               currentID = getID(mFile, currentOffset);
               
-             
-                
-
               // Por defecto el bloque no es reproducible
               _myTSX.descriptor[currentBlock].playeable	= false;
 
@@ -1605,48 +1600,47 @@ class TSXprocessor
                 endWithErrors = true;
               }
 
-                SerialHW.println("");
-                SerialHW.println("-----------------------------------------------");
-                SerialHW.print("TSX ID: 0x");
-                SerialHW.print(currentID, HEX);
-                SerialHW.println("");
-                SerialHW.println("block: " + String(currentBlock));
-                SerialHW.println("");
-                SerialHW.print("offset: 0x");
-                SerialHW.print(currentOffset, HEX);
-                SerialHW.println("");
-                SerialHW.print("next offset 0x");
-                SerialHW.println(nextIDoffset,HEX);
+              logln("");
+              logln("-----------------------------------------------");
+              log("TSX ID: ");
+              logHEX(currentID);
+              logln("");
+              logln("block: " + String(currentBlock));
+              logln("");
+              log("offset: ");
+              logHEX(currentOffset);
+              logln("");
+              log("next offset: ");
+              logHEX(nextIDoffset);
+              logln("");
+              logln("");
 
-                if(currentBlock > maxAllocationBlocks)
-                {
-                  #ifdef DEBUGMODE
-                    SerialHW.println("Error. TSX not possible to allocate in memory");
-                  #endif
+              if(currentBlock > maxAllocationBlocks)
+              {
+                #ifdef DEBUGMODE
+                  logln("Error. TSX not possible to allocate in memory");
+                #endif
 
-                  LAST_MESSAGE = "Error. Not enough memory for TSX";
+                LAST_MESSAGE = "Error. Not enough memory for TSX";
+                endTSX = true;
+                // Salimos
+                return;  
+              }
+              else
+              {}
+ 
+ 
+              if (nextIDoffset >= sizeTSX)
+              {
+                  // Finalizamos
                   endTSX = true;
-                  // Salimos
-                  return;  
-                }
-                else
-                {}
-                if (nextIDoffset >= sizeTSX)
-                {
-                    // Finalizamos
-                    endTSX = true;
-                }
-                else
-                {
-                    currentOffset = nextIDoffset;
-                }
+              }
+              else
+              {
+                  currentOffset = nextIDoffset;
+              }
 
-                TOTAL_BLOCKS = currentBlock;
-
-                //SerialHW.println("");
-                //SerialHW.println("+++++++++++++++++++++++++++++++++++++++++++++++");
-                //SerialHW.println("");
-
+              TOTAL_BLOCKS = currentBlock;
           }
 
           _myTSX.numBlocks = currentBlock;
