@@ -1421,7 +1421,7 @@ class HMI
             getFilesFromSD(false,SOURCE_FILE_TO_MANAGE,SOURCE_FILE_INF_TO_MANAGE);
             // Refrescamos el listado de ficheros visualizado
             refreshFiles();  
-            delay(50);
+            delay(125);
             showInformationAboutFiles();                     
         }
         else if (strCmd.indexOf("FEND") != -1) 
@@ -1434,7 +1434,7 @@ class HMI
             getFilesFromSD(false,SOURCE_FILE_TO_MANAGE,SOURCE_FILE_INF_TO_MANAGE);
             // Refrescamos el listado de ficheros visualizado
             refreshFiles(); 
-            delay(50);
+            delay(125);
             showInformationAboutFiles();                       
         }        
         else if (strCmd.indexOf("FPUP") != -1) 
@@ -1450,7 +1450,7 @@ class HMI
 
             getFilesFromSD(false,SOURCE_FILE_TO_MANAGE,SOURCE_FILE_INF_TO_MANAGE);
             refreshFiles();
-            delay(50);
+            delay(125);
             showInformationAboutFiles();            
         }
         else if (strCmd.indexOf("FPDOWN") != -1) 
@@ -1472,7 +1472,7 @@ class HMI
 
             getFilesFromSD(false,SOURCE_FILE_TO_MANAGE,SOURCE_FILE_INF_TO_MANAGE);
             refreshFiles();
-            delay(50);
+            delay(125);
             showInformationAboutFiles();
         }
         else if (strCmd.indexOf("FPHOME") != -1) 
