@@ -48,21 +48,21 @@ class BlockProcessor
       {
         char* path;
         int numBlocks;
-        TZXprocessor::tTZXBlockDescriptor descriptor;
+        tTZXBlockDescriptor descriptor;
       };
 
       struct tBlDscTSX
       {
         char* path;
         int numBlocks;
-        TSXprocessor::tTSXBlockDescriptor descriptor;
+        tTSXBlockDescriptor descriptor;
       };      
 
       struct tBlDscTAP
       {
         char* path;
         int numBlocks;
-        TAPprocessor::tBlockDescriptor descriptor;
+        tTAPBlockDescriptor descriptor;
       };  
 
     private:
@@ -118,7 +118,7 @@ class BlockProcessor
           mFile.open(_blTAP.path,O_WRITE | O_CREAT | O_TRUNC);
         }
 
-        void putBlocksDescriptor(File32 &mFile,int pos,TSXprocessor::tTSXBlockDescriptor descriptor)
+        void putBlocksDescriptorTSX(File32 &mFile,int pos,tTSXBlockDescriptor &descriptor)
         {
             // Ahora vamos a pasarle todo el descriptor TSX completo
             mFile.println(String(pos) + "," + 
@@ -160,7 +160,7 @@ class BlockProcessor
             _blTSX.descriptor = descriptor;
         }
 
-        void putBlocksDescriptor(File32 &mFile,int pos,TZXprocessor::tTZXBlockDescriptor descriptor)
+        void putBlocksDescriptorTZX(File32 &mFile,int pos, tTZXBlockDescriptor &descriptor)
         {
             // Ahora vamos a pasarle todo el descriptor TZX completo
             mFile.println(String(pos) + "," + 
@@ -200,31 +200,31 @@ class BlockProcessor
             _blTZX.descriptor = descriptor;
         }
 
-        TZXprocessor::tTZXBlockDescriptor* getBlockDescriptorTZX(File32 mFile)
+        tTZXBlockDescriptor* getBlockDescriptorTZX(File32 mFile)
         {}
 
-        TZXprocessor::tTZXBlockDescriptor getBlockInformationTZX(File32 mFile, int blockPosition)
+        tTZXBlockDescriptor getBlockInformationTZX(File32 mFile, int blockPosition)
         {}
 
-        TSXprocessor::tTSXBlockDescriptor* getBlockDescriptorTSX(File32 mFile)
+        tTSXBlockDescriptor* getBlockDescriptorTSX(File32 mFile)
         {}
 
-        TSXprocessor::tTSXBlockDescriptor getBlockInformationTSX(File32 mFile, int blockPosition)
+        tTSXBlockDescriptor getBlockInformationTSX(File32 mFile, int blockPosition)
         {}
 
-        TAPprocessor::tBlockDescriptor* getBlockDescriptorTAP(File32 mFile)
+        tTAPBlockDescriptor* getBlockDescriptorTAP(File32 mFile)
         {}
 
-        TAPprocessor::tBlockDescriptor getBlockInformationTAP(File32 mFile, int blockPosition)
+        tTAPBlockDescriptor getBlockInformationTAP(File32 mFile, int blockPosition)
         {}
 
-        TAPprocessor::tBlockDescriptor convertToTAPDescritor(File32 mFile, TAPprocessor::tBlockDescriptor descriptor)
+        tTAPBlockDescriptor convertToTAPDescritor(File32 mFile, tTAPBlockDescriptor descriptor)
         {}
 
-        TSXprocessor::tTSXBlockDescriptor convertToTSXDescriptor(File32 mFile, TSXprocessor::tTSXBlockDescriptor descriptor)
+        tTSXBlockDescriptor convertToTSXDescriptor(File32 mFile, tTSXBlockDescriptor descriptor)
         {}
 
-        TZXprocessor::tTZXBlockDescriptor convertToTZXDescriptor(File32 mFile, TZXprocessor::tTZXBlockDescriptor descriptor)
+        tTZXBlockDescriptor convertToTZXDescriptor(File32 mFile, tTZXBlockDescriptor descriptor)
         {}
 
         void putPathTZX(char* path)
@@ -242,29 +242,29 @@ class BlockProcessor
           _blTAP.path = path;
         }
 
-        BlockProcessor(int type)
+        BlockProcessor()
         {
-          switch (type)
-          {
+            // switch (type)
+            // {
 
-          case 0:
-            _blTAP.path = {"/0"};
-            _blTAP.numBlocks = 0;
-            break;
+            // case 0:
+            //   _blTAP.path = {"/0"};
+            //   _blTAP.numBlocks = 0;
+            //   break;
 
-          case 1:
-            _blTZX.path = {"/0"};
-            _blTZX.numBlocks = 0;
-            break;
+            // case 1:
+            //   _blTZX.path = {"/0"};
+            //   _blTZX.numBlocks = 0;
+            //   break;
 
-          case 2:
-            _blTSX.path = {"/0"};
-            _blTSX.numBlocks = 0;
-            break;
+            // case 2:
+            //   _blTSX.path = {"/0"};
+            //   _blTSX.numBlocks = 0;
+            //   break;
 
-          default:
-            break;
-          }
+            // default:
+            //   break;
+            // }
         }
        
 };

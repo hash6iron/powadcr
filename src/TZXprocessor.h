@@ -34,59 +34,6 @@
 class TZXprocessor
 {
 
-    public:
-
-      struct tTimming
-      {
-        int bit_0 = 855;
-        int bit_1 = 1710;
-        int pilot_len = 2168;
-        int pilot_num_pulses = 0;
-        int sync_1 = 667;
-        int sync_2 = 735;
-        int pure_tone_len = 0;
-        int pure_tone_num_pulses = 0;
-        int pulse_seq_num_pulses = 0;
-        int* pulse_seq_array=nullptr;
-      };
-
-      // Estructura de un descriptor de TZX
-      struct tTZXBlockDescriptor 
-      {
-        int ID = 0;
-        int offset = 0;
-        int size = 0;
-        int chk = 0;
-        int pauseAfterThisBlock = 1000;   //ms
-        int lengthOfData = 0;
-        int offsetData = 0;
-        char name[15];
-        bool nameDetected = false;
-        bool header = false;
-        bool screen = false;
-        int type = 0;
-        bool playeable = false;
-        int delay = 1000;
-        int silent;
-        int maskLastByte = 8;
-        bool hasMaskLastByte = false;
-        tTimming timming;
-        char typeName[36];
-        int group = 0;
-        int loop_count = 0;
-        bool jump_this_ID = false;
-        int samplingRate = 79;
-      };
-
-      // Estructura tipo TZX
-      struct tTZX
-      {
-        char name[11];                               // Nombre del TZX
-        uint32_t size = 0;                             // Tamaño
-        int numBlocks = 0;                        // Numero de bloques
-        tTZXBlockDescriptor* descriptor = nullptr;          // Descriptor
-      };
-
     private:
 
     const char ID10STR[35] = "ID 10 - Standard block            ";
@@ -100,7 +47,7 @@ class TZXprocessor
 
     // Procesador de audio output
     ZXProcessor _zxp;
-    BlockProcessor _blDscTZX(1);
+    BlockProcessor _blDscTZX;
 
     HMI _hmi;
 
@@ -1614,7 +1561,8 @@ class TZXprocessor
               // completar todo el fichero
               if (getTZXBlock(mFile, currentBlock, currentID, currentOffset, nextIDoffset))
               {
-                  _blDscTZX.putBlocksDescriptorTZX(mFile,_myTZX.descriptor[currentBlock]);
+                  // tTZXBlockDescriptor &t = _myTZX.descriptor[currentBlock];
+                  // _blDscTZX.putBlocksDescriptorTZX(mFile,t);
                   currentBlock++;               
               }
               else
@@ -1888,7 +1836,7 @@ class TZXprocessor
         FILE_IS_OPEN = true;
 
         // Asignamos el path al objeto blockDescriptor
-        blDsc.putPath(path);        
+        _blDscTZX.putPathTZX(path);        
         // creamos un objeto TZXproccesor
         set_file(tzxFile, _rlen);
         proccess_tzx(tzxFile);

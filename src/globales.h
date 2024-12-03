@@ -47,6 +47,121 @@ int SD_SPEED_MHZ = 4;
 // ************************************************************
 
 // Estructura de un bloque
+struct tTimming
+{
+  int bit_0 = 855;
+  int bit_1 = 1710;
+  int pilot_len = 2168;
+  int pilot_num_pulses = 0;
+  int sync_1 = 667;
+  int sync_2 = 735;
+  int pure_tone_len = 0;
+  int pure_tone_num_pulses = 0;
+  int pulse_seq_num_pulses = 0;
+  int* pulse_seq_array=nullptr;
+  int bitcfg = 0;
+  int bytecfg = 0;
+};
+
+// Estructura del descriptor de bloques
+struct tTAPBlockDescriptor 
+{
+    bool corrupted = false;
+    int offset = 0;
+    int size = 0;
+    int chk = 0;
+    char name[11];
+    bool nameDetected = false;
+    bool header = false;
+    bool screen = false;
+    int type = 0;
+    char typeName[11];
+    bool playeable = true;
+}; 
+
+// Estructura de un descriptor de TZX
+struct tTZXBlockDescriptor 
+{
+  int ID = 0;
+  int offset = 0;
+  int size = 0;
+  int chk = 0;
+  int pauseAfterThisBlock = 1000;   //ms
+  int lengthOfData = 0;
+  int offsetData = 0;
+  char name[15];
+  bool nameDetected = false;
+  bool header = false;
+  bool screen = false;
+  int type = 0;
+  bool playeable = false;
+  int delay = 1000;
+  int silent;
+  int maskLastByte = 8;
+  bool hasMaskLastByte = false;
+  tTimming timming;
+  char typeName[36];
+  int group = 0;
+  int loop_count = 0;
+  bool jump_this_ID = false;
+  int samplingRate = 79;
+};
+
+// Estructura de un descriptor de TSX
+struct tTSXBlockDescriptor 
+{
+  int ID = 0;
+  int offset = 0;
+  int size = 0;
+  int chk = 0;
+  int pauseAfterThisBlock = 1000;   //ms
+  int lengthOfData = 0;
+  int offsetData = 0;
+  char name[15];
+  bool nameDetected = false;
+  bool header = false;
+  bool screen = false;
+  int type = 0;
+  bool playeable = false;
+  int delay = 1000;
+  int silent;
+  int maskLastByte = 8;
+  bool hasMaskLastByte = false;
+  tTimming timming;
+  char typeName[36];
+  int group = 0;
+  int loop_count = 0;
+  bool jump_this_ID = false;
+  int samplingRate = 79;
+};
+
+// Estructura tipo TZX
+struct tTZX
+{
+  char name[11];                               // Nombre del TZX
+  uint32_t size = 0;                             // Tamaño
+  int numBlocks = 0;                        // Numero de bloques
+  tTZXBlockDescriptor* descriptor = nullptr;          // Descriptor
+};
+
+// Estructura tipo TSX
+struct tTSX
+{
+  char name[11];                               // Nombre del TSX
+  uint32_t size = 0;                             // Tamaño
+  int numBlocks = 0;                        // Numero de bloques
+  tTSXBlockDescriptor* descriptor = nullptr;          // Descriptor
+};
+
+// Estructura tipo TAP
+struct tTAP 
+{
+    char name[11];                                  // Nombre del TAP
+    uint32_t size = 0;                                   // Tamaño
+    int numBlocks = 0;                              // Numero de bloques
+    tTAPBlockDescriptor* descriptor;            // Descriptor
+};
+
 struct tBlock 
 {
   int index = 0;            // Numero del bloque
@@ -54,7 +169,6 @@ struct tBlock
   uint8_t* header;      // Cabecera del bloque
   uint8_t* data;        // Datos del bloque
 };
-
 
 // Estructura para el HMI
 struct tFileBuffer

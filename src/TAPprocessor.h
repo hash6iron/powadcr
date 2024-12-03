@@ -49,34 +49,6 @@
 class TAPprocessor
 {
 
-    public:
-
-        // Estructura del descriptor de bloques
-        struct tBlockDescriptor 
-        {
-            bool corrupted = false;
-            int offset = 0;
-            int size = 0;
-            int chk = 0;
-            char name[11];
-            bool nameDetected = false;
-            bool header = false;
-            bool screen = false;
-            int type = 0;
-            char typeName[11];
-            bool playeable = true;
-        };    
-
-        // Estructura tipo TAP
-        struct tTAP 
-        {
-            char name[11];                                  // Nombre del TAP
-            uint32_t size = 0;                                   // Tamaño
-            int numBlocks = 0;                              // Numero de bloques
-            tBlockDescriptor* descriptor;            // Descriptor
-        };
-
-
     private:
         // Procesador de audio output
         ZXProcessor _zxp;     
@@ -95,7 +67,7 @@ class TAPprocessor
         int CURRENT_LOADING_BLOCK = 0;
 
         // Creamos el contenedor de bloques. Descriptor de bloques
-        //tBlockDescriptor* bDscr = new tBlockDescriptor[255];
+        //tTAPBlockDescriptor* bDscr = new tTAPBlockDescriptor[255];
         // Gestión de bloques
         int _startBlock = 0;
         int _lastStartBlock = 0;
@@ -453,7 +425,7 @@ class TAPprocessor
         //     return numBlocks;
         // }
 
-        bool getInformationOfHead(tBlockDescriptor &tB, int flagByte, int typeBlock, int startBlock, int sizeB, char (&nameTAP)[11])
+        bool getInformationOfHead(tTAPBlockDescriptor &tB, int flagByte, int typeBlock, int startBlock, int sizeB, char (&nameTAP)[11])
         {
         
             // Obtenemos informacion de la cabecera
@@ -987,7 +959,7 @@ class TAPprocessor
             _myTAP = tap;
         }
 
-        tBlockDescriptor* getDescriptor()
+        tTAPBlockDescriptor* getDescriptor()
         {
             return _myTAP.descriptor;
         }

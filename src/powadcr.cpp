@@ -136,17 +136,11 @@ HMI hmi;
 ZXProcessor zxp;
 
 // Procesadores de cinta
+#include "BlockProcessor.h"
+
 #include "TZXprocessor.h"
 #include "TAPprocessor.h"
 #include "TSXprocessor.h"
-
-#include "BlockProcessor.h"
-
-// Registro del descriptor
-BlockProcessor blDscTAP(0);
-BlockProcessor blDscTZX(1);
-BlockProcessor blDscTSX(2);
-
 
 //#include "test.h"
 
@@ -167,11 +161,11 @@ TSXprocessor pTSX(ESP32kit);
 TAPrecorder taprec;
 
 // Procesador de TAP
-TAPprocessor::tTAP myTAP;
+tTAP myTAP;
 // Procesador de TZX
-TZXprocessor::tTZX myTZX;
+tTZX myTZX;
 // Procesador de TSX
-TSXprocessor::tTSX myTSX;
+tTSX myTSX;
 
 bool last_headPhoneDetection = false;
 
@@ -211,7 +205,7 @@ StreamCopy copier(kit, kit);  // copies data
 // Prototype function
 void ejectingFile();
 
-void freeMemoryFromDescriptorTZX(TZXprocessor::tTZXBlockDescriptor* descriptor)
+void freeMemoryFromDescriptorTZX(tTZXBlockDescriptor* descriptor)
 {
   // Vamos a liberar el descriptor completo
   for (int n=0;n<TOTAL_BLOCKS;n++)
@@ -230,7 +224,7 @@ void freeMemoryFromDescriptorTZX(TZXprocessor::tTZXBlockDescriptor* descriptor)
   }
 }
 
-void freeMemoryFromDescriptorTSX(TSXprocessor::tTSXBlockDescriptor* descriptor)
+void freeMemoryFromDescriptorTSX(tTSXBlockDescriptor* descriptor)
 {
   // Vamos a liberar el descriptor completo
   for (int n=0;n<TOTAL_BLOCKS;n++)
@@ -1608,7 +1602,7 @@ void loadingFile(char* file_ch)
     {
         changeLogo(41);
         // Reservamos memoria
-        myTAP.descriptor = (TAPprocessor::tBlockDescriptor*)ps_calloc(MAX_BLOCKS_IN_TAP, sizeof(struct TAPprocessor::tBlockDescriptor));        
+        myTAP.descriptor = (tTAPBlockDescriptor*)ps_calloc(MAX_BLOCKS_IN_TAP, sizeof(struct tTAPBlockDescriptor));        
         // Pasamos el control a la clase
         pTAP.setTAP(myTAP);   
         // Lo procesamos
@@ -1630,7 +1624,7 @@ void loadingFile(char* file_ch)
         }
 
         // Reservamos memoria
-        myTZX.descriptor = (TZXprocessor::tTZXBlockDescriptor*)ps_calloc(MAX_BLOCKS_IN_TZX , sizeof(struct TZXprocessor::tTZXBlockDescriptor));        
+        myTZX.descriptor = (tTZXBlockDescriptor*)ps_calloc(MAX_BLOCKS_IN_TZX , sizeof(struct tTZXBlockDescriptor));        
         // Pasamos el control a la clase
         pTZX.setTZX(myTZX);
 
@@ -1650,7 +1644,7 @@ void loadingFile(char* file_ch)
         changeLogo(40);
 
         // Reservamos memoria
-        myTSX.descriptor = (TSXprocessor::tTSXBlockDescriptor*)ps_calloc(MAX_BLOCKS_IN_TZX , sizeof(struct TSXprocessor::tTSXBlockDescriptor));        
+        myTSX.descriptor = (tTSXBlockDescriptor*)ps_calloc(MAX_BLOCKS_IN_TZX , sizeof(struct tTSXBlockDescriptor));        
         // Pasamos el control a la clase
         pTSX.setTSX(myTSX);
 
@@ -1857,7 +1851,7 @@ void setPolarization()
     }  
 }
 
-void getPlayeableBlockTZX(TZXprocessor::tTZX tB, int inc)
+void getPlayeableBlockTZX(tTZX tB, int inc)
 {
     // Esta funcion busca el bloque valido siguiente
     // inc sera +1 o -1 dependiendo de si es FFWD o RWD
@@ -1877,7 +1871,7 @@ void getPlayeableBlockTZX(TZXprocessor::tTZX tB, int inc)
     }
 }
 
-void getPlayeableBlockTSX(TSXprocessor::tTSX tB, int inc)
+void getPlayeableBlockTSX(tTSX tB, int inc)
 {
     // Esta funcion busca el bloque valido siguiente
     // inc sera +1 o -1 dependiendo de si es FFWD o RWD
