@@ -1643,6 +1643,11 @@ class TSXprocessor
               TOTAL_BLOCKS = currentBlock;
           }
 
+         
+          // Nos posicionamos en el bloque 1
+          BLOCK_SELECTED = 0;
+          _hmi.writeString("currentBlock.val=" + String(BLOCK_SELECTED + 1));
+                   
           _myTSX.numBlocks = currentBlock;
           _myTSX.size = sizeTSX;
           

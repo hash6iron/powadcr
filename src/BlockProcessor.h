@@ -33,93 +33,238 @@
 
 #pragma once
 
-class blockProcessor
+#define TAPtype 0
+#define TZXtype 1
+#define TSXtype 2
+
+class BlockProcessor
 {
 
     public:
 
-      struct tTimming
+
+
+      struct tBlDscTZX
       {
-        int bit_0 = 855;
-        int bit_1 = 1710;
-        int pilot_len = 2168;
-        int pilot_num_pulses = 0;
-        int sync_1 = 667;
-        int sync_2 = 735;
-        int pure_tone_len = 0;
-        int pure_tone_num_pulses = 0;
-        int pulse_seq_num_pulses = 0;
-        int* pulse_seq_array = nullptr;
-        int bitcfg;
-        int bytecfg;
+        char* path;
+        int numBlocks;
+        TZXprocessor::tTZXBlockDescriptor descriptor;
       };
 
-      struct tBlockDescriptor 
+      struct tBlDscTSX
       {
-        int ID = 0;
-        int offset = 0;
-        int size = 0;
-        int chk = 0;
-        int pauseAfterThisBlock = 1000;   //ms
-        int lengthOfData = 0;
-        int offsetData = 0;
-        char name[15];
-        bool nameDetected = false;
-        bool header = false;
-        bool screen = false;
-        int type = 0;
-        bool playeable = false;
-        int delay = 1000;
-        int silent;
-        int maskLastByte = 8;
-        bool hasMaskLastByte = false;
-        tTimming timming;
-        char typeName[36];
-        int group = 0;
-        int loop_count = 0;
-        bool jump_this_ID = false;
-        int samplingRate = 79;
-      };
+        char* path;
+        int numBlocks;
+        TSXprocessor::tTSXBlockDescriptor descriptor;
+      };      
 
-      // Estructura tipo TSX
-      struct tFile
+      struct tBlDscTAP
       {
-        char name[11];                                  // Nombre del programa
-        uint32_t size = 0;                              // Tamaño
-        int numBlocks = 0;                              // Numero de bloques
-        tBlockDescriptor* descriptor = nullptr;         // Descriptor
-      };
-
+        char* path;
+        int numBlocks;
+        TAPprocessor::tBlockDescriptor descriptor;
+      };  
 
     private:
 
         SdFat32 _sdf32;
         File32 _mFile;
-        TAPprocessor fTAP;
-        TZXprocessor fTZX;
-        TSXprocessor fTSX;
+
+        tBlDscTZX _blTZX;
+        tBlDscTAP _blTAP;
+        tBlDscTSX _blTSX;
 
 
     public:
-        void createBlockDescriptorFile(File32 mFile)
+        void createBlockDescriptorFileTZX(File32 &mFile)
+        {
+          // Creamos un fichero con el descriptor de bloques para TZX
+          strcat(_blTZX.path,".dsc");
+
+          // el fichero sera, xxxx.dsc
+          if(mFile.exists(_blTZX.path))
+          {
+            mFile.remove(_blTZX.path);
+          }
+          // Lo creamos otra vez
+          mFile.open(_blTZX.path,O_WRITE | O_CREAT | O_TRUNC);
+        }
+
+        void createBlockDescriptorFileTSX(File32 &mFile)
+        {
+          // Creamos un fichero con el descriptor de bloques para TSX
+          strcat(_blTSX.path,".dsc");
+
+          // el fichero sera, xxxx.dsc
+          if(mFile.exists(_blTSX.path))
+          {
+            mFile.remove(_blTSX.path);
+          }
+          // Lo creamos otra vez
+          mFile.open(_blTSX.path,O_WRITE | O_CREAT | O_TRUNC);
+        }
+
+        void createBlockDescriptorFileTAP(File32 &mFile)
+        {
+          // Creamos un fichero con el descriptor de bloques para TAP
+          strcat(_blTAP.path,".dsc");
+
+          // el fichero sera, xxxx.dsc
+          if(mFile.exists(_blTAP.path))
+          {
+            mFile.remove(_blTAP.path);
+          }
+          // Lo creamos otra vez
+          mFile.open(_blTAP.path,O_WRITE | O_CREAT | O_TRUNC);
+        }
+
+        void putBlocksDescriptor(File32 &mFile,int pos,TSXprocessor::tTSXBlockDescriptor descriptor)
+        {
+            // Ahora vamos a pasarle todo el descriptor TSX completo
+            mFile.println(String(pos) + "," + 
+                          String(descriptor.ID) + "," + 
+                          String(descriptor.chk) +
+                          String(descriptor.delay)+
+                          String(descriptor.group) +
+                          String(descriptor.hasMaskLastByte) +
+                          String(descriptor.header) +
+                          String(descriptor.jump_this_ID) +
+                          String(descriptor.lengthOfData) +
+                          String(descriptor.loop_count) +
+                          String(descriptor.offset) + "," + 
+                          String(descriptor.offsetData) +
+                          String(descriptor.lengthOfData) +
+                          String(descriptor.name) +
+                          String(descriptor.nameDetected) +
+                          String(descriptor.pauseAfterThisBlock) +
+                          String(descriptor.playeable) +
+                          String(descriptor.samplingRate) +
+                          String(descriptor.screen) +
+                          String(descriptor.silent) +
+                          String(descriptor.size) +
+                          String(descriptor.timming.bit_0) +
+                          String(descriptor.timming.bit_1) +
+                          String(descriptor.timming.bitcfg) +
+                          String(descriptor.timming.bytecfg) +
+                          String(descriptor.timming.pilot_len) +
+                          String(descriptor.timming.pilot_num_pulses) +
+                          String(descriptor.timming.pulse_seq_num_pulses) +
+                          String(descriptor.timming.pure_tone_len) +
+                          String(descriptor.timming.pure_tone_num_pulses) +
+                          String(descriptor.timming.sync_1) +
+                          String(descriptor.timming.sync_2));
+
+            mFile.close();
+
+            // Ahora pasamos todo al descriptor global
+            _blTSX.descriptor = descriptor;
+        }
+
+        void putBlocksDescriptor(File32 &mFile,int pos,TZXprocessor::tTZXBlockDescriptor descriptor)
+        {
+            // Ahora vamos a pasarle todo el descriptor TZX completo
+            mFile.println(String(pos) + "," + 
+                          String(descriptor.ID) + "," + 
+                          String(descriptor.chk) +
+                          String(descriptor.delay)+
+                          String(descriptor.group) +
+                          String(descriptor.hasMaskLastByte) +
+                          String(descriptor.header) +
+                          String(descriptor.jump_this_ID) +
+                          String(descriptor.lengthOfData) +
+                          String(descriptor.loop_count) +
+                          String(descriptor.offset) + "," + 
+                          String(descriptor.offsetData) +
+                          String(descriptor.lengthOfData) +
+                          String(descriptor.name) +
+                          String(descriptor.nameDetected) +
+                          String(descriptor.pauseAfterThisBlock) +
+                          String(descriptor.playeable) +
+                          String(descriptor.samplingRate) +
+                          String(descriptor.screen) +
+                          String(descriptor.silent) +
+                          String(descriptor.size) +
+                          String(descriptor.timming.bit_0) +
+                          String(descriptor.timming.bit_1) +
+                          String(descriptor.timming.pilot_len) +
+                          String(descriptor.timming.pilot_num_pulses) +
+                          String(descriptor.timming.pulse_seq_num_pulses) +
+                          String(descriptor.timming.pure_tone_len) +
+                          String(descriptor.timming.pure_tone_num_pulses) +
+                          String(descriptor.timming.sync_1) +
+                          String(descriptor.timming.sync_2));
+
+            mFile.close();
+
+            // Ahora pasamos todo al descriptor global
+            _blTZX.descriptor = descriptor;
+        }
+
+        TZXprocessor::tTZXBlockDescriptor* getBlockDescriptorTZX(File32 mFile)
         {}
 
-        void putBlocksDescriptor(File32 mFile, tBlockDescriptor* descriptor)
+        TZXprocessor::tTZXBlockDescriptor getBlockInformationTZX(File32 mFile, int blockPosition)
         {}
 
-        tBlockDescriptor* getBlockDescriptor(File32 mFile)
+        TSXprocessor::tTSXBlockDescriptor* getBlockDescriptorTSX(File32 mFile)
         {}
 
-        tBlockDescriptor getBlockInformation(File32 mFile, int blockPosition)
+        TSXprocessor::tTSXBlockDescriptor getBlockInformationTSX(File32 mFile, int blockPosition)
         {}
 
-        TAPprocessor::tBlockDescriptor convertToTAPDescritor(File32 mFile, tBlockDescriptor descriptor)
+        TAPprocessor::tBlockDescriptor* getBlockDescriptorTAP(File32 mFile)
         {}
 
-        TSXprocessor::tTSXBlockDescriptor convertToTSXDescriptor(File32 mFile, tBlockDescriptor descriptor)
+        TAPprocessor::tBlockDescriptor getBlockInformationTAP(File32 mFile, int blockPosition)
         {}
 
-        TZXprocessor::tTZXBlockDescriptor convertToTZXDescriptor(File32 mFile, tBlockDescriptor descriptor)
+        TAPprocessor::tBlockDescriptor convertToTAPDescritor(File32 mFile, TAPprocessor::tBlockDescriptor descriptor)
         {}
 
+        TSXprocessor::tTSXBlockDescriptor convertToTSXDescriptor(File32 mFile, TSXprocessor::tTSXBlockDescriptor descriptor)
+        {}
+
+        TZXprocessor::tTZXBlockDescriptor convertToTZXDescriptor(File32 mFile, TZXprocessor::tTZXBlockDescriptor descriptor)
+        {}
+
+        void putPathTZX(char* path)
+        {
+          _blTZX.path = path;
+        }
+
+        void putPathTSX(char* path)
+        {
+          _blTSX.path = path;
+        }
+
+        void putPathTAP(char* path)
+        {
+          _blTAP.path = path;
+        }
+
+        BlockProcessor(int type)
+        {
+          switch (type)
+          {
+
+          case 0:
+            _blTAP.path = {"/0"};
+            _blTAP.numBlocks = 0;
+            break;
+
+          case 1:
+            _blTZX.path = {"/0"};
+            _blTZX.numBlocks = 0;
+            break;
+
+          case 2:
+            _blTSX.path = {"/0"};
+            _blTSX.numBlocks = 0;
+            break;
+
+          default:
+            break;
+          }
+        }
+       
 };

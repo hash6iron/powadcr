@@ -100,6 +100,7 @@ class TZXprocessor
 
     // Procesador de audio output
     ZXProcessor _zxp;
+    BlockProcessor _blDscTZX(1);
 
     HMI _hmi;
 
@@ -1574,6 +1575,11 @@ class TZXprocessor
           // Inicializamos
           ID_NOT_IMPLEMENTED = false;
 
+          // Le pasamos el path del fichero, la extension se le asigna despues en 
+          // la funcion createBlockDescriptorFile
+          _blDscTZX.createBlockDescriptorFileTZX(_mFile);
+
+
           while (!endTZX && !forzeEnd && !ID_NOT_IMPLEMENTED)
           {
              
@@ -1608,6 +1614,7 @@ class TZXprocessor
               // completar todo el fichero
               if (getTZXBlock(mFile, currentBlock, currentID, currentOffset, nextIDoffset))
               {
+                  _blDscTZX.putBlocksDescriptorTZX(mFile,_myTZX.descriptor[currentBlock]);
                   currentBlock++;               
               }
               else
@@ -1644,6 +1651,10 @@ class TZXprocessor
                 TOTAL_BLOCKS = currentBlock;
 
           }
+
+          // Nos posicionamos en el bloque 1
+          BLOCK_SELECTED = 0;
+          _hmi.writeString("currentBlock.val=" + String(BLOCK_SELECTED + 1));
 
           _myTZX.numBlocks = currentBlock;
           _myTZX.size = sizeTZX;
@@ -1876,6 +1887,8 @@ class TZXprocessor
       {
         FILE_IS_OPEN = true;
 
+        // Asignamos el path al objeto blockDescriptor
+        blDsc.putPath(path);        
         // creamos un objeto TZXproccesor
         set_file(tzxFile, _rlen);
         proccess_tzx(tzxFile);

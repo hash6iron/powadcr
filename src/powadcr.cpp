@@ -139,7 +139,13 @@ ZXProcessor zxp;
 #include "TZXprocessor.h"
 #include "TAPprocessor.h"
 #include "TSXprocessor.h"
+
 #include "BlockProcessor.h"
+// Registro del descriptor
+BlockProcessor blDscTAP(0);
+BlockProcessor blDscTZX(1);
+BlockProcessor blDscTSX(2);
+
 
 //#include "test.h"
 

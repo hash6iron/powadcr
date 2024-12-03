@@ -1108,6 +1108,8 @@ class TAPprocessor
                     // Entregamos información por consola
                     PROGRAM_NAME = _myTAP.name;
                     TOTAL_BLOCKS = _myTAP.numBlocks;
+                    BLOCK_SELECTED = 0;
+
                     strncpy(LAST_TYPE,&INITCHAR2[0],sizeof(&INITCHAR2[0]));
                 
                     #ifdef DEBUGMODE
@@ -1120,6 +1122,7 @@ class TAPprocessor
                     _hmi.setBasicFileInformation(_myTAP.descriptor[BLOCK_SELECTED].name,_myTAP.descriptor[BLOCK_SELECTED].typeName,_myTAP.descriptor[BLOCK_SELECTED].size,true);
                     // Actualizamos la pantalla
                     //
+                    _hmi.writeString("currentBlock.val=" + String(BLOCK_SELECTED + 1)); 
                 }          
             }
             else
