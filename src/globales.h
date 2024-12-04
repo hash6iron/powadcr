@@ -434,7 +434,8 @@ tFileBuffer FILES_FOUND_BUFF[MAX_FILES_FOUND_BUFF];
 
 int DIRCURRENTPOS = 0;
 int DIRPREVPOS = 0;
-String FILE_TO_LOAD = "";
+String PATH_FILE_TO_LOAD = "";
+String FILE_LOAD = "";
 String FILE_TO_DELETE = "";
 bool FILE_SELECTED_DELETE = false;
 String FILE_DIR_TO_CHANGE = "";

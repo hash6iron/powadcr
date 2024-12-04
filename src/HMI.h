@@ -167,12 +167,7 @@ class HMI
                               // ¿No está oculto?
                               if (!sdm.file.isHidden())
                               {
-                                  // // Ok. Entonces es un fichero y cogemos su extensión
-                                  // sdm.file.getName(szName,254);                       
-                                  // int8_t len = strlen(szName);
-                                  // char* substr = strlwr(szName + (len - 4));    
-                                  // uint32_t posf = sdm.dir.position();
-                                  
+                                  // Ok. Entonces es un fichero y cogemos su extensión                               
                                   // Si tiene una de las extensiones esperadas, se almacena
                                   if (strstr(substr, ".tap") || strstr(substr, ".tzx") || strstr(substr, ".tsx") || strstr(substr, ".cdt") || strstr(substr, ".wav")) 
                                   {
@@ -619,6 +614,10 @@ class HMI
                 forze_rescan=true;
               }
               else if (recDirTmp == "/FAV/")
+              {
+                forze_rescan=true;
+              }
+              else if (recDirTmp == "/WAV/")
               {
                 forze_rescan=true;
               }
@@ -1792,19 +1791,13 @@ class HMI
             FILE_IDX_SELECTED = num.toInt();
             FILE_SELECTED = false;
       
-            //Cogemos el fichero
-            // if (!FILE_BROWSER_SEARCHING)
-            // {
-                FILE_TO_LOAD = FILE_LAST_DIR + FILES_BUFF[FILE_IDX_SELECTED+1].path;                    
-            //}
-            // else
-            // {
-            //     FILE_TO_LOAD = FILE_LAST_DIR + FILES_FOUND_BUFF[FILE_IDX_SELECTED+1].path;           
-            // }
-      
+            // Path completo del fichero
+            PATH_FILE_TO_LOAD = FILE_LAST_DIR + FILES_BUFF[FILE_IDX_SELECTED+1].path;  
+            // Fichero sin path
+            FILE_LOAD = FILES_BUFF[FILE_IDX_SELECTED+1].path;                
       
             // Cambiamos el estado de fichero seleccionado
-            if (FILE_TO_LOAD != "")
+            if (PATH_FILE_TO_LOAD != "")
             {
                 #ifdef DEBUGMODE
                   logAlert("File was selected");
@@ -1817,7 +1810,7 @@ class HMI
             #ifdef DEBUGMODE
               logln("");
               logln("File to load = ");
-              log(FILE_TO_LOAD);
+              log(PATH_FILE_TO_LOAD);
               logln("");
             #endif
 
@@ -2193,8 +2186,8 @@ class HMI
 
           //Guardamos la configuracion en un fichero
           String path = FILE_LAST_DIR;
-          char strpath[FILE_TO_LOAD.length() + 5] = {};
-          strcpy(strpath,FILE_TO_LOAD.c_str());
+          char strpath[PATH_FILE_TO_LOAD.length() + 5] = {};
+          strcpy(strpath,PATH_FILE_TO_LOAD.c_str());
           strcat(strpath,".cfg");
 
           File32 cfg;

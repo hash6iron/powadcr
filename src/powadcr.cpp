@@ -191,7 +191,7 @@ bool pageScreenIsShown = false;
 // -----------------------------------------------------------------------
 #include "AudioTools.h"
 #include "AudioTools/AudioLibs/AudioKit.h"
-
+#include "AudioTools/AudioLibs/AudioSourceSDFAT.h"
 
 using namespace audio_tools;  
 // 
@@ -823,13 +823,13 @@ void setWavRecording(char* file_name,bool start=true)
             // Configure WAVEncoder
             AudioInfo info(16000, 1, 16);
             EncodedAudioStream out(&wavfile, new WAVEncoder());
-
             info.bits_per_sample = 16;
             info.sample_rate = 44100;
             info.channels = 2;
+
             WAVEncoder().begin(info);
 
-            // setup input
+            // setup input  
             auto cfg = kit.defaultConfig(RX_MODE);
             cfg.is_master = true;
             cfg.input_device = AUDIO_HAL_ADC_INPUT_LINE2;
@@ -839,21 +839,19 @@ void setWavRecording(char* file_name,bool start=true)
             cfg.sd_active = true;
             cfg.copyFrom(info);
 
+            // Inicializamos la entrada al ADC
             kit.begin(cfg);
+
             logln("Setting i2C");
             logln("");
 
-            // Inicializamos la salida del encoder
+            // Inicializamos la salida a un WAV encoder
             AudioInfo out_info(44100,2,16);
             out.begin(out_info);
             // Inicializamos el copier
             copier.setCheckAvailableForWrite(false);
             copier.begin(wavfile, kit);  
             AudioLogger::instance().begin(Serial, AudioLogger::Warning);
-
-            // auto cfg2 = kit.defaultConfig(RXTX_MODE);
-            // cfg2.input_device = AUDIO_HAL_ADC_INPUT_LINE2;
-            // kit.begin(cfg2);
 
             LAST_MESSAGE = "Recording to WAV - Press STOP to finish.";
             
@@ -1310,6 +1308,39 @@ void setSTOP()
   // sendStatus(END_ST, 1);
   // sendStatus(READY_ST, 1);
 }
+
+void playWAV()
+{
+  WAVDecoder decoder;
+  AudioSourceSDFAT source("/wav", ".wav");
+  AudioKitStream i2s;
+  AudioPlayer player(source, i2s, decoder);
+
+  // setup output
+  source.setFileFilter("*file_*");
+
+  auto cfg = i2s.defaultConfig(TX_MODE);
+  cfg.sd_active = true;
+  cfg.channels = 2;
+  cfg.sample_rate = 44100;
+  cfg.bits_per_sample = 16;
+  i2s.begin(cfg);
+
+  // setup player
+
+  source.selectStream(FILE_LOAD.c_str());
+
+  player.setVolume(1.0); 
+  player.begin();
+  
+  tapeAnimationON();
+  while(!STOP)
+  {
+    player.copy();
+  }
+  tapeAnimationOFF();
+}
+
 void playingFile()
 {
   setAudioOutput();
@@ -1332,6 +1363,12 @@ void playingFile()
       //Paramos la animación
       tapeAnimationOFF(); 
   }
+  else if (TYPE_FILE_LOAD == "WAV")
+  {
+    // Reproducimos el WAV file
+    LAST_MESSAGE = "WAV file loaded";
+    playWAV();
+  }
   // else if (TYPE_FILE_LOAD == "TSX")
   // {
   //     #ifdef DEBUGMODE
@@ -1351,8 +1388,8 @@ void verifyConfigFileForSelection()
   const int max_params = 4;
   String path = FILE_LAST_DIR;
   tConfig *fileCfg;
-  char strpath[FILE_TO_LOAD.length() + 5] = {};
-  strcpy(strpath,FILE_TO_LOAD.c_str());
+  char strpath[PATH_FILE_TO_LOAD.length() + 5] = {};
+  strcpy(strpath,PATH_FILE_TO_LOAD.c_str());
   strcat(strpath,".cfg");
 
   // Abrimos el fichero de configuracion.
@@ -1512,7 +1549,7 @@ void loadingFile(char* file_ch)
   {
 
     // Convierto a mayusculas
-    FILE_TO_LOAD.toUpperCase();
+    PATH_FILE_TO_LOAD.toUpperCase();
   
     // Eliminamos la memoria ocupado por el actual insertado
     // y lo ejectamos
@@ -1525,7 +1562,7 @@ void loadingFile(char* file_ch)
     verifyConfigFileForSelection();
 
     // Cargamos el seleccionado.
-    if (FILE_TO_LOAD.indexOf(".TAP") != -1)
+    if (PATH_FILE_TO_LOAD.indexOf(".TAP") != -1)
     {
         // changeLogo(41);
         // Reservamos memoria
@@ -1538,7 +1575,7 @@ void loadingFile(char* file_ch)
         BYTES_TOBE_LOAD = myTAP.size;
      
     }
-    else if ((FILE_TO_LOAD.indexOf(".TZX") != -1) || (FILE_TO_LOAD.indexOf(".TSX") != -1) || (FILE_TO_LOAD.indexOf(".CDT") != -1))    
+    else if ((PATH_FILE_TO_LOAD.indexOf(".TZX") != -1) || (PATH_FILE_TO_LOAD.indexOf(".TSX") != -1) || (PATH_FILE_TO_LOAD.indexOf(".CDT") != -1))    
     {
 
         // Reservamos memoria
@@ -1549,11 +1586,11 @@ void loadingFile(char* file_ch)
         // Lo procesamos. Para ZX Spectrum
         proccesingTZX(file_ch);
 
-        if (FILE_TO_LOAD.indexOf(".TZX") != -1)
+        if (PATH_FILE_TO_LOAD.indexOf(".TZX") != -1)
         {
             TYPE_FILE_LOAD = "TZX";    
         } 
-        else if (FILE_TO_LOAD.indexOf(".TSX") != -1)
+        else if (PATH_FILE_TO_LOAD.indexOf(".TSX") != -1)
         {
           TYPE_FILE_LOAD = "TSX";
         }
@@ -1562,6 +1599,10 @@ void loadingFile(char* file_ch)
             TYPE_FILE_LOAD = "CDT";
         }
         BYTES_TOBE_LOAD = myTZX.size;
+    }
+    else if(PATH_FILE_TO_LOAD.indexOf(".WAV") != -1)
+    {
+      FILE_PREPARED = true;
     }
    
   }
@@ -2175,7 +2216,7 @@ void tapeControl()
           {
               // Si se ha seleccionado lo cargo en el cassette.     
               char* file_ch = (char*)ps_calloc(256,sizeof(char));
-              FILE_TO_LOAD.toCharArray(file_ch, 256);
+              PATH_FILE_TO_LOAD.toCharArray(file_ch, 256);
               
               loadingFile(file_ch);
               free(file_ch);
