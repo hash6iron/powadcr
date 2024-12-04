@@ -55,7 +55,7 @@ class BlockProcessor
       {
         char* path;
         int numBlocks;
-        tTSXBlockDescriptor descriptor;
+        tTZXBlockDescriptor descriptor;
       };      
 
       struct tBlDscTAP
@@ -118,48 +118,6 @@ class BlockProcessor
           mFile.open(_blTAP.path,O_WRITE | O_CREAT | O_TRUNC);
         }
 
-        void putBlocksDescriptorTSX(File32 &mFile,int pos,tTSXBlockDescriptor &descriptor)
-        {
-            // Ahora vamos a pasarle todo el descriptor TSX completo
-            mFile.println(String(pos) + "," + 
-                          String(descriptor.ID) + "," + 
-                          String(descriptor.chk) +
-                          String(descriptor.delay)+
-                          String(descriptor.group) +
-                          String(descriptor.hasMaskLastByte) +
-                          String(descriptor.header) +
-                          String(descriptor.jump_this_ID) +
-                          String(descriptor.lengthOfData) +
-                          String(descriptor.loop_count) +
-                          String(descriptor.offset) + "," + 
-                          String(descriptor.offsetData) +
-                          String(descriptor.lengthOfData) +
-                          String(descriptor.name) +
-                          String(descriptor.nameDetected) +
-                          String(descriptor.pauseAfterThisBlock) +
-                          String(descriptor.playeable) +
-                          String(descriptor.samplingRate) +
-                          String(descriptor.screen) +
-                          String(descriptor.silent) +
-                          String(descriptor.size) +
-                          String(descriptor.timming.bit_0) +
-                          String(descriptor.timming.bit_1) +
-                          String(descriptor.timming.bitcfg) +
-                          String(descriptor.timming.bytecfg) +
-                          String(descriptor.timming.pilot_len) +
-                          String(descriptor.timming.pilot_num_pulses) +
-                          String(descriptor.timming.pulse_seq_num_pulses) +
-                          String(descriptor.timming.pure_tone_len) +
-                          String(descriptor.timming.pure_tone_num_pulses) +
-                          String(descriptor.timming.sync_1) +
-                          String(descriptor.timming.sync_2));
-
-            mFile.close();
-
-            // Ahora pasamos todo al descriptor global
-            _blTSX.descriptor = descriptor;
-        }
-
         void putBlocksDescriptorTZX(File32 &mFile,int pos, tTZXBlockDescriptor &descriptor)
         {
             // Ahora vamos a pasarle todo el descriptor TZX completo
@@ -200,17 +158,7 @@ class BlockProcessor
             _blTZX.descriptor = descriptor;
         }
 
-        tTZXBlockDescriptor* getBlockDescriptorTZX(File32 mFile)
-        {}
-
-        tTZXBlockDescriptor getBlockInformationTZX(File32 mFile, int blockPosition)
-        {}
-
-        tTSXBlockDescriptor* getBlockDescriptorTSX(File32 mFile)
-        {}
-
-        tTSXBlockDescriptor getBlockInformationTSX(File32 mFile, int blockPosition)
-        {}
+        // Para TAP
 
         tTAPBlockDescriptor* getBlockDescriptorTAP(File32 mFile)
         {}
@@ -221,11 +169,16 @@ class BlockProcessor
         tTAPBlockDescriptor convertToTAPDescritor(File32 mFile, tTAPBlockDescriptor descriptor)
         {}
 
-        tTSXBlockDescriptor convertToTSXDescriptor(File32 mFile, tTSXBlockDescriptor descriptor)
-        {}
 
+        // Para TZX
         tTZXBlockDescriptor convertToTZXDescriptor(File32 mFile, tTZXBlockDescriptor descriptor)
         {}
+
+        tTZXBlockDescriptor* getBlockDescriptorTZX(File32 mFile)
+        {}
+
+        tTZXBlockDescriptor getBlockInformationTZX(File32 mFile, int blockPosition)
+        {}        
 
         void putPathTZX(char* path)
         {

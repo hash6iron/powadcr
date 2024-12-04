@@ -140,7 +140,6 @@ ZXProcessor zxp;
 
 #include "TZXprocessor.h"
 #include "TAPprocessor.h"
-#include "TSXprocessor.h"
 
 //#include "test.h"
 
@@ -154,7 +153,6 @@ File32 wavfile;
 // Creamos los distintos objetos
 TZXprocessor pTZX(ESP32kit);
 TAPprocessor pTAP(ESP32kit);
-TSXprocessor pTSX(ESP32kit);
 
 // Procesador de audio input
 #include "TAPrecorder.h"
@@ -162,10 +160,9 @@ TAPrecorder taprec;
 
 // Procesador de TAP
 tTAP myTAP;
-// Procesador de TZX
+// Procesador de TZX/TSX/CDT
 tTZX myTZX;
-// Procesador de TSX
-tTSX myTSX;
+
 
 bool last_headPhoneDetection = false;
 
@@ -224,7 +221,7 @@ void freeMemoryFromDescriptorTZX(tTZXBlockDescriptor* descriptor)
   }
 }
 
-void freeMemoryFromDescriptorTSX(tTSXBlockDescriptor* descriptor)
+void freeMemoryFromDescriptorTSX(tTZXBlockDescriptor* descriptor)
 {
   // Vamos a liberar el descriptor completo
   for (int n=0;n<TOTAL_BLOCKS;n++)
@@ -236,11 +233,6 @@ void freeMemoryFromDescriptorTSX(tTSXBlockDescriptor* descriptor)
         // delete[] descriptor[n].timming.pulse_seq_array;
         free(descriptor[n].timming.pulse_seq_array);
         break;
-
-      // case 75:
-      //   // delete[] descriptor[n].timming.pulse_seq_array;
-      //   free(descriptor[n].timming.pulse_seq_array);
-      //   break;
 
       default:
         break;
@@ -451,6 +443,7 @@ void proccesingTAP(char* file_ch)
 
 void proccesingTZX(char* file_ch)
 {
+    // Procesamos ficheros CDT, TSX y TZX
     pTZX.initialize();
 
     pTZX.getInfoFileTZX(file_ch);
@@ -476,37 +469,6 @@ void proccesingTZX(char* file_ch)
       }      
     }
 
-}
-
-void proccesingTSX(char* file_ch)
-{
-    pTSX.initialize();
-
-    pTSX.getInfoFileTSX(file_ch);
-
-    if (ABORT)
-    {
-      //LAST_MESSAGE = "Aborting proccess.";
-      //
-      FILE_PREPARED = false;      
-      // ABORT=false;
-    }
-    else
-    {
-      if (TOTAL_BLOCKS !=0)
-      {
-        FILE_PREPARED = true;
-        
-        #ifdef DEBUGMODE
-          logAlert("TSX prepared");
-        #endif         
-
-      }
-      else
-      {
-        FILE_PREPARED = false;
-      }
-    }
 }
 
 void sendStatus(int action, int value=0) {
@@ -668,11 +630,6 @@ int setSDFrequency(int SD_Speed)
   return SD_Speed;
 }
 
-void test() 
-{
-  // Bloque de pruebas
-}
-
 void waitForHMI(bool waitAndNotForze)
 {
     // Le decimos que no queremos esperar sincronización
@@ -691,10 +648,6 @@ void waitForHMI(bool waitAndNotForze)
       }
 
       LCD_ON = true;
-
-      //SerialHW.println("");
-      //SerialHW.println("LCD READY");
-      //SerialHW.println("");
 
       sendStatus(ACK_LCD, 1);  
     }
@@ -842,7 +795,6 @@ void recAnimationFIXED_OFF()
   hmi.writeString("tape.recIndicator.bco=32768");
 }
 
-
 void setWavRecording(char* file_name,bool start=true)
 {
     AudioLogger::instance().begin(Serial, AudioLogger::Error);
@@ -855,7 +807,7 @@ void setWavRecording(char* file_name,bool start=true)
         }  
 
         // open file for recording WAV
-        wavfile = sdf.open(file_name, O_WRITE | O_CREAT);
+        wavfile = sdf.open(file_name, O_WRITE | O_CREAT | O_TRUNC);
 
         if (!wavfile)
         {
@@ -899,9 +851,9 @@ void setWavRecording(char* file_name,bool start=true)
             copier.begin(wavfile, kit);  
             AudioLogger::instance().begin(Serial, AudioLogger::Warning);
 
-            auto cfg2 = kit.defaultConfig(RXTX_MODE);
-            cfg2.input_device = AUDIO_HAL_ADC_INPUT_LINE2;
-            kit.begin(cfg2);
+            // auto cfg2 = kit.defaultConfig(RXTX_MODE);
+            // cfg2.input_device = AUDIO_HAL_ADC_INPUT_LINE2;
+            // kit.begin(cfg2);
 
             LAST_MESSAGE = "Recording to WAV - Press STOP to finish.";
             
@@ -940,31 +892,6 @@ void setWavRecording(char* file_name,bool start=true)
     {
 
     }
-}
-
-void changeLogo(int logo)
-{
-    // El cambio de logo se hace directamente en el HMI porque desde el Audiokit no funcionaba
-    // correctamente.
-
-    // 42 - Vacio
-    // 41 - ZX Spectrum
-    // 40 - MSX
-    // 39 - Amstrad
-    // if (logo==0)
-    // {
-    //   hmi.writeString("tape.logo.pic=42");
-    //   delay(50);
-    //   hmi.writeString("tape.logo.pic=42");
-    //   delay(50);
-    // }
-    // else
-    // {
-    //   hmi.writeString("tape.logo.pic=" + String(logo));
-    //   delay(50);
-    //   hmi.writeString("tape.logo.pic=" + String(logo));
-    //   delay(50);
-    // }
 }
 
 void pauseRecording()
@@ -1398,24 +1325,24 @@ void playingFile()
       tapeAnimationOFF();  
       //pTAP.updateMemIndicator();
   }
-  else if (TYPE_FILE_LOAD == "TZX" || TYPE_FILE_LOAD == "CDT")
+  else if (TYPE_FILE_LOAD == "TZX" || TYPE_FILE_LOAD == "CDT" || TYPE_FILE_LOAD == "TSX")
   {
       //hmi.getMemFree();
       pTZX.play();
       //Paramos la animación
       tapeAnimationOFF(); 
   }
-  else if (TYPE_FILE_LOAD == "TSX")
-  {
-      #ifdef DEBUGMODE
-        logln("");
-        log("TSX - Starting to PLAY");
-      #endif
-      //hmi.getMemFree();
-      pTSX.play();
-      //Paramos la animación
-      tapeAnimationOFF(); 
-  }  
+  // else if (TYPE_FILE_LOAD == "TSX")
+  // {
+  //     #ifdef DEBUGMODE
+  //       logln("");
+  //       log("TSX - Starting to PLAY");
+  //     #endif
+  //     //hmi.getMemFree();
+  //     pTSX.play();
+  //     //Paramos la animación
+  //     tapeAnimationOFF(); 
+  // }  
 }
 
 void verifyConfigFileForSelection()
@@ -1600,7 +1527,7 @@ void loadingFile(char* file_ch)
     // Cargamos el seleccionado.
     if (FILE_TO_LOAD.indexOf(".TAP") != -1)
     {
-        changeLogo(41);
+        // changeLogo(41);
         // Reservamos memoria
         myTAP.descriptor = (tTAPBlockDescriptor*)ps_calloc(MAX_BLOCKS_IN_TAP, sizeof(struct tTAPBlockDescriptor));        
         // Pasamos el control a la clase
@@ -1611,17 +1538,8 @@ void loadingFile(char* file_ch)
         BYTES_TOBE_LOAD = myTAP.size;
      
     }
-    else if ((FILE_TO_LOAD.indexOf(".TZX") != -1) || (FILE_TO_LOAD.indexOf(".CDT") != -1))    
+    else if ((FILE_TO_LOAD.indexOf(".TZX") != -1) || (FILE_TO_LOAD.indexOf(".TSX") != -1) || (FILE_TO_LOAD.indexOf(".CDT") != -1))    
     {
-
-        if (TYPE_FILE_LOAD=="CDT")
-        {
-          changeLogo(39);
-        }
-        else
-        {
-          changeLogo(41);
-        }
 
         // Reservamos memoria
         myTZX.descriptor = (tTZXBlockDescriptor*)ps_calloc(MAX_BLOCKS_IN_TZX , sizeof(struct tTZXBlockDescriptor));        
@@ -1630,36 +1548,29 @@ void loadingFile(char* file_ch)
 
         // Lo procesamos. Para ZX Spectrum
         proccesingTZX(file_ch);
+
         if (FILE_TO_LOAD.indexOf(".TZX") != -1)
         {
             TYPE_FILE_LOAD = "TZX";    
-        } else {
+        } 
+        else if (FILE_TO_LOAD.indexOf(".TSX") != -1)
+        {
+          TYPE_FILE_LOAD = "TSX";
+        }
+        else        
+        {
             TYPE_FILE_LOAD = "CDT";
         }
         BYTES_TOBE_LOAD = myTZX.size;
     }
-    else if (FILE_TO_LOAD.indexOf(".TSX") != -1)
-    {
-
-        changeLogo(40);
-
-        // Reservamos memoria
-        myTSX.descriptor = (tTSXBlockDescriptor*)ps_calloc(MAX_BLOCKS_IN_TZX , sizeof(struct tTSXBlockDescriptor));        
-        // Pasamos el control a la clase
-        pTSX.setTSX(myTSX);
-
-        // Lo procesamos. Para ZX Spectrum
-        proccesingTSX(file_ch);
-        TYPE_FILE_LOAD = "TSX";    
-        BYTES_TOBE_LOAD = myTSX.size;
-    }   
+   
   }
   else
   {
       #ifdef DEBUGMODE
         logAlert("Nothing was prepared.");
       #endif 
-      changeLogo(0);
+      // changeLogo(0);
 
       if (FILE_PREPARED)
       {
@@ -1701,7 +1612,7 @@ void ejectingFile()
         pTAP.terminate();
       }
   }
-  else if (TYPE_FILE_LOAD == "TZX" || TYPE_FILE_LOAD == "CDT")
+  else if (TYPE_FILE_LOAD == "TZX" || TYPE_FILE_LOAD == "CDT" || TYPE_FILE_LOAD == "TSX")
   {
       // Solicitamos el puntero _myTZX de la clase
       // para liberarlo
@@ -1715,20 +1626,20 @@ void ejectingFile()
         pTZX.terminate();
       }
   }  
-  else if (TYPE_FILE_LOAD == "TSX")
-  {
-      // Solicitamos el puntero _myTSX de la clase
-      // para liberarlo
-      if (myTSX.descriptor != nullptr)
-      {
-        LAST_MESSAGE = "PSRAM cleanning";
-        delay(1500);
-        freeMemoryFromDescriptorTSX(pTSX.getDescriptor());
-        free(pTSX.getDescriptor());
-        // Finalizamos
-        pTSX.terminate();
-      }
-  }    
+  // else if (TYPE_FILE_LOAD == "TSX")
+  // {
+  //     // Solicitamos el puntero _myTSX de la clase
+  //     // para liberarlo
+  //     if (myTSX.descriptor != nullptr)
+  //     {
+  //       LAST_MESSAGE = "PSRAM cleanning";
+  //       delay(1500);
+  //       freeMemoryFromDescriptorTSX(pTSX.getDescriptor());
+  //       free(pTSX.getDescriptor());
+  //       // Finalizamos
+  //       pTSX.terminate();
+  //     }
+  // }    
 }
 
 
@@ -1871,7 +1782,7 @@ void getPlayeableBlockTZX(tTZX tB, int inc)
     }
 }
 
-void getPlayeableBlockTSX(tTSX tB, int inc)
+void getPlayeableBlockTSX(tTZX tB, int inc)
 {
     // Esta funcion busca el bloque valido siguiente
     // inc sera +1 o -1 dependiendo de si es FFWD o RWD
@@ -1899,20 +1810,20 @@ void updateHMIOnBlockChange()
       // BYTES_LOADED = myTAP.size;
       // PROGRESS_BAR_TOTAL_VALUE = (myTAP.descriptor[BLOCK_SELECTED].offset * 100 ) / BYTES_TOBE_LOAD ;
     }
-    else if(TYPE_FILE_LOAD=="TZX" || TYPE_FILE_LOAD=="CDT")
+    else if(TYPE_FILE_LOAD=="TZX" || TYPE_FILE_LOAD=="CDT" || TYPE_FILE_LOAD=="TSX")
     {
       hmi.setBasicFileInformation(myTZX.descriptor[BLOCK_SELECTED].name,myTZX.descriptor[BLOCK_SELECTED].typeName,myTZX.descriptor[BLOCK_SELECTED].size,myTZX.descriptor[BLOCK_SELECTED].playeable);
       // BYTES_LOADED = myTZX.size;
       // PROGRESS_BAR_TOTAL_VALUE = (myTZX.descriptor[BLOCK_SELECTED].offset * 100 ) / BYTES_TOBE_LOAD ;
     }
-    else if(TYPE_FILE_LOAD=="TSX")
-    {
-      hmi.setBasicFileInformation(myTSX.descriptor[BLOCK_SELECTED].name,myTSX.descriptor[BLOCK_SELECTED].typeName,myTSX.descriptor[BLOCK_SELECTED].size,myTSX.descriptor[BLOCK_SELECTED].playeable);
-      // BYTES_LOADED = myTSX.size;
-      // PROGRESS_BAR_TOTAL_VALUE = (myTSX.descriptor[BLOCK_SELECTED].offset * 100 ) / BYTES_TOBE_LOAD ;
-      // logln("");
-      // logln("File size: " + String(BYTES_TOBE_LOAD));
-    }   
+    // else if(TYPE_FILE_LOAD=="TSX")
+    // {
+    //   hmi.setBasicFileInformation(myTSX.descriptor[BLOCK_SELECTED].name,myTSX.descriptor[BLOCK_SELECTED].typeName,myTSX.descriptor[BLOCK_SELECTED].size,myTSX.descriptor[BLOCK_SELECTED].playeable);
+    //   // BYTES_LOADED = myTSX.size;
+    //   // PROGRESS_BAR_TOTAL_VALUE = (myTSX.descriptor[BLOCK_SELECTED].offset * 100 ) / BYTES_TOBE_LOAD ;
+    //   // logln("");
+    //   // logln("File size: " + String(BYTES_TOBE_LOAD));
+    // }   
 
     hmi.updateInformationMainPage(true);
 }
@@ -2330,7 +2241,21 @@ void tapeControl()
     case 120:
       if (PAUSE)
       {
-        setWavRecording("/rec.wav");
+        
+        //Generamos un numero aleatorio para el final del nombre
+        char* cPath = (char*)ps_calloc(55,sizeof(char));
+        String wavfile = "/WAV/rec";
+        cPath = strcpy(cPath, wavfile.c_str());
+        srand(time(0));
+        delay(125);
+        int rn = rand()%999999;
+        //Le unimos la extensión .TAP
+        String txtRn = "-" + String(rn) + ".wav";
+        char const *extPath = txtRn.c_str();
+        strcat(cPath,extPath);
+
+        // Comenzamos la grabacion
+        setWavRecording(cPath);
 
         TAPESTATE = 0;
         LOADING_STATE = 0;
@@ -2338,6 +2263,7 @@ void tapeControl()
         REC = false;
         recAnimationOFF();
         recAnimationFIXED_OFF();  
+        free(cPath);
       }
       else
       {
@@ -2698,12 +2624,12 @@ void setup()
     delay(750);
 
     // Creamos el directorio /fav
-    String favDir = "/FAV";
+    String fDir = "/FAV";
     
     //Esto lo hacemos para ver si el directorio existe
-    if (!sdf.chdir(favDir))
+    if (!sdf.chdir(fDir))
     {
-        if (!sdf.mkdir(favDir))
+        if (!sdf.mkdir(fDir))
         {
           #ifdef DEBUGMODE
             logln("");
@@ -2718,13 +2644,54 @@ void setup()
         }
     }
 
+    // Creamos el directorio /rec
+    fDir = "/REC";
+    
+    //Esto lo hacemos para ver si el directorio existe
+    if (!sdf.chdir(fDir))
+    {
+        if (!sdf.mkdir(fDir))
+        {
+          #ifdef DEBUGMODE
+            logln("");
+            log("Error! Directory exists or wasn't created");
+          #endif
+        } 
+        else
+        {
+          hmi.writeString("statusLCD.txt=\"Creating REC directory\"" );
+          hmi.reloadCustomDir("/");
+          delay(750);
+        }
+    }
+
+    // Creamos el directorio /rec
+    fDir = "/WAV";
+    
+    //Esto lo hacemos para ver si el directorio existe
+    if (!sdf.chdir(fDir))
+    {
+        if (!sdf.mkdir(fDir))
+        {
+          #ifdef DEBUGMODE
+            logln("");
+            log("Error! Directory exists or wasn't created");
+          #endif
+        } 
+        else
+        {
+          hmi.writeString("statusLCD.txt=\"Creating WAV directory\"" );
+          hmi.reloadCustomDir("/");
+          delay(750);
+        }
+    }    
     // -------------------------------------------------------------------------
     // Esperando control del HMI
     // -------------------------------------------------------------------------
     
     //Paramos la animación de la cinta1
     tapeAnimationOFF();  
-    changeLogo(0);
+    // changeLogo(0);
 
     hmi.writeString("statusLCD.txt=\"WAITING FOR HMI\"" );
     waitForHMI(CFG_FORZE_SINC_HMI);
@@ -2742,11 +2709,11 @@ void setup()
     // Asignamos el HMI
     pTAP.set_HMI(hmi);
     pTZX.set_HMI(hmi);
-    pTSX.set_HMI(hmi);
+    // pTSX.set_HMI(hmi);
     //y el gestor de ficheros
     pTAP.set_SDM(sdm);
     pTZX.set_SDM(sdm);
-    pTSX.set_SDM(sdm);
+    // pTSX.set_SDM(sdm);
 
     zxp.set_ESP32kit(ESP32kit);
     

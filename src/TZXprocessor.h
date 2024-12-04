@@ -41,6 +41,7 @@ class TZXprocessor
     const char ID12STR[35] = "ID 12 - Pure tone                 ";
     const char ID13STR[35] = "ID 13 - Pulse seq.                ";
     const char ID14STR[35] = "ID 14 - Pure data                 ";
+    const char ID4BSTR[35] = "ID 4B - TSX Block                 ";
     const char IDXXSTR[35] = "ID                                ";
 
     const int maxAllocationBlocks = 4000;
@@ -191,7 +192,7 @@ class TZXprocessor
                 //String fileExtension = szNameStr.substring(szNameStr.length()-3);
                 fileName.toUpperCase();
                 
-                if (fileName.indexOf(".TZX") != -1 || fileName.indexOf(".CDT") != -1 )
+                if (fileName.indexOf(".TZX") != -1 || fileName.indexOf(".TSX") != -1 || fileName.indexOf(".CDT") != -1 )
                 {
                     //La extensión es TZX o CDT pero ahora vamos a comprobar si internamente también lo es
                     if (isHeaderTZX(tzxFile))
@@ -1027,6 +1028,83 @@ class TZXprocessor
         _myTZX.descriptor[currentBlock].size = sizeTextInformation;
     }
 
+    void analyzeID53(File32 mFile, int currentOffset, int currentBlock)
+    {
+        _myTZX.descriptor[currentBlock].ID = 53;
+        _myTZX.descriptor[currentBlock].playeable = false;
+        // Size block
+        int sizeBlock = 0;
+        sizeBlock = getWORD(mFile,currentOffset+0x10+1);
+        _myTZX.descriptor[currentBlock].size = sizeBlock;
+        _myTZX.descriptor[currentBlock].offset = currentOffset+0x14;
+        SerialHW.print("Tamaño: 0x");
+        SerialHW.println(sizeBlock,HEX);
+    }
+
+    void analyzeID75(File32 mFile, int currentOffset, int currentBlock)
+    {
+        // ID 0x4B
+
+        _myTZX.descriptor[currentBlock].ID = 75;
+        _myTZX.descriptor[currentBlock].playeable = true;
+        _myTZX.descriptor[currentBlock].offset = currentOffset;
+        _myTZX.descriptor[currentBlock].timming.sync_1 = 0;
+        _myTZX.descriptor[currentBlock].timming.sync_2 = 0;
+        
+        //Tamaño de los datos
+        _myTZX.descriptor[currentBlock].lengthOfData = getNBYTE(mFile,currentOffset+1,4)-12;
+        _myTZX.descriptor[currentBlock].size=_myTZX.descriptor[currentBlock].lengthOfData;
+        #ifdef DEBUGMODE
+          logln("");
+          logln("Tamaño datos: " + String(_myTZX.descriptor[currentBlock].lengthOfData) + " bytes");
+        #endif
+
+        _myTZX.descriptor[currentBlock].offsetData=currentOffset+17;
+
+        //Pausa despues del bloque
+        _myTZX.descriptor[currentBlock].pauseAfterThisBlock = getWORD(mFile,currentOffset+5);
+        #ifdef DEBUGMODE
+          logln("Pause after block: " + String(_myTZX.descriptor[currentBlock].pauseAfterThisBlock));
+        #endif
+        
+        // Timming de PULSE PILOT
+        _myTZX.descriptor[currentBlock].timming.pilot_len = getWORD(mFile,currentOffset+7);
+        #ifdef DEBUGMODE
+          logln(",PULSE PILOT = " + String(_myTZX.descriptor[currentBlock].timming.pilot_len));
+        #endif
+        
+        // Timming de PILOT TONE
+        _myTZX.descriptor[currentBlock].timming.pilot_num_pulses = getWORD(mFile,currentOffset+9);
+        #ifdef DEBUGMODE
+          logln(",PULSE TONE = " + String(_myTZX.descriptor[currentBlock].timming.pilot_num_pulses));
+        #endif
+
+        // Timming de ZERO
+        _myTZX.descriptor[currentBlock].timming.bit_0 = getWORD(mFile,currentOffset+11);
+        #ifdef DEBUGMODE
+          logln("PULSE ZERO = " + String(_myTZX.descriptor[currentBlock].timming.bit_0));
+        #endif
+        
+        // Timming de ONE
+        _myTZX.descriptor[currentBlock].timming.bit_1 = getWORD(mFile,currentOffset+13);
+        #ifdef DEBUGMODE
+          logln("PULSE ONE = " + String(_myTZX.descriptor[currentBlock].timming.bit_1));
+        #endif
+        
+        // Configuracion de los bits
+         _myTZX.descriptor[currentBlock].timming.bitcfg = getBYTE(mFile,currentOffset+15);     
+
+
+        _myTZX.descriptor[currentBlock].timming.bytecfg = getBYTE(mFile,currentOffset+16);
+               
+        #ifdef DEBUGMODE
+          logln(",ENDIANNESS=");
+          logln(String(_myTZX.descriptor[currentBlock].timming.bitcfg & 0b00000001));
+        #endif
+
+        _myTZX.descriptor[currentBlock].type = 99;
+    }
+    
     void analyzeBlockUnknow(int id_num, int currentOffset, int currentBlock)
     {
         _myTZX.descriptor[currentBlock].ID = id_num;
@@ -1467,8 +1545,8 @@ class TZXprocessor
 
           // ID 35 - Custom info block
           case 53:
-            analyzeBlockUnknow(currentID,currentOffset, currentBlock);
-            nextIDoffset = currentOffset + 1;            
+            analyzeID53(mFile,currentOffset,currentBlock);
+            nextIDoffset = currentOffset + 0x15 + _myTZX.descriptor[currentBlock].size;
 
             //_myTZX.descriptor[currentBlock].typeName = "ID 35 - Custom info block";
             strncpy(_myTZX.descriptor[currentBlock].typeName,IDXXSTR,35);
@@ -1476,6 +1554,22 @@ class TZXprocessor
             // Esto le indica a los bloque de control de flujo que puede saltarse
             _myTZX.descriptor[currentBlock].jump_this_ID = true;
 
+            break;
+
+          // ID 4B - Standard Speed Data Block
+          case 75:
+
+            if (_myTZX.descriptor != nullptr)
+            {
+                // Obtenemos la dirección del siguiente offset
+                analyzeID75(mFile,currentOffset, currentBlock);
+                nextIDoffset = currentOffset + _myTZX.descriptor[currentBlock].size + 17;
+                strncpy(_myTZX.descriptor[currentBlock].typeName,ID4BSTR,35);
+            }   
+            else
+            {
+                res = false;
+            }
             break;
 
           // ID 5A - "Glue" block (90 dec, ASCII Letter 'Z')
@@ -1578,7 +1672,7 @@ class TZXprocessor
                     SerialHW.println("Error. TZX not possible to allocate in memory");
                   #endif
 
-                  LAST_MESSAGE = "Error. Not enough memory for TZX";
+                  LAST_MESSAGE = "Error. Not enough memory for TZX/TSX/CDT";
                   endTZX = true;
                   // Salimos
                   return;  
@@ -1852,7 +1946,7 @@ class TZXprocessor
         }
         else
         {
-          LAST_MESSAGE = "Error in TZX or ID not supported";
+          LAST_MESSAGE = "Error in TZX/TSX/CDT or ID not supported";
           //_hmi.updateInformationMainPage();
         }
 
@@ -1860,7 +1954,7 @@ class TZXprocessor
       else
       {
         FILE_IS_OPEN = false;
-        LAST_MESSAGE = "Error in TZX file has 0 bytes";
+        LAST_MESSAGE = "Error in TZX/TSX/CDT file has 0 bytes";
       }
 
 
@@ -2069,8 +2163,8 @@ class TZXprocessor
     {
       // Definimos los ID playeables (en decimal)
       bool res = false;
-      int playeableListID[] = {16, 17, 18, 19, 20, 21, 24, 25, 32, 35, 36, 37, 38, 39, 40, 42, 43, 90};
-      for (int i = 0; i < 18; i++) 
+      int playeableListID[] = {16, 17, 18, 19, 20, 21, 24, 25, 32, 35, 36, 37, 38, 39, 40, 42, 43, 75, 90};
+      for (int i = 0; i < 19; i++) 
       {
         if (playeableListID[i] == id) 
         { 
@@ -2082,6 +2176,141 @@ class TZXprocessor
       return res;
     }
 
+    void prepareID4B(int currentBlock, File32 mFile, int nlb, int vlb, int ntb, int vtb, int pzero, int pone, int offset, int ldatos, bool begin)
+    {
+        // Generamos la señal de salida
+        int pulsosmaximos;
+        int npulses[2];
+        int vpulse[2];
+
+        npulses[0] = pzero/2;
+        npulses[1] = pone/2;
+        vpulse[0] = (_myTZX.descriptor[currentBlock].timming.bit_0);
+        vpulse[1] = (_myTZX.descriptor[currentBlock].timming.bit_1);
+        pulsosmaximos = (_myTZX.descriptor[currentBlock].timming.pilot_num_pulses) + ((npulses[vlb] * nlb) + 128 + (npulses[vtb] * ntb)) * ldatos;
+
+
+        // Reservamos memoria dinamica
+        _myTZX.descriptor[currentBlock].timming.pulse_seq_array = (int*)ps_calloc(pulsosmaximos+1,sizeof(int));
+        // _myTZX.descriptor[currentBlock].timming.pulse_seq_array = new int[pulsosmaximos + 1]; 
+
+        #ifdef DEBUGMODE
+          logln("");
+          log(" - Numero de pulsos: " + String(_myTZX.descriptor[currentBlock].timming.pilot_num_pulses));
+          logln("");
+          log(" - Pulsos maximos: "+String(pulsosmaximos));
+          logln("");
+          log(" - Longitud de los datos: " + String(ldatos));
+        #endif
+
+        // metemos el pilot SOLO AL PRINCIPIO
+        int i;
+        int p;
+
+        if (begin)
+        {
+          for (p=0; p < (_myTZX.descriptor[currentBlock].timming.pilot_num_pulses); p++)
+          {
+              _myTZX.descriptor[currentBlock].timming.pulse_seq_array[p] = _myTZX.descriptor[currentBlock].timming.pilot_len;
+          }
+
+          i=p;
+        }
+        else
+        {
+          i=0;
+        }   
+
+        #ifdef DEBUGMODE
+          log(">> Bucle del pilot - Iteraciones: " + String(p));
+        #endif
+
+        // metemos los datos
+        uint8_t *bRead = (uint8_t*)ps_calloc(ldatos + 1,sizeof(uint8_t));
+        int lenPulse;
+        
+        // Leemos el bloque definido por la particion (ldatos) del fichero
+        getBlock(mFile, bRead, offset, ldatos);
+
+        for (int i2=0;i2<ldatos;i2++) // por cada byte
+        {
+
+            for (int i3=0;i3<nlb;i3++)  // por cada bit de inicio
+            {
+                for (int i4=0;i4<npulses[vlb];i4++)
+                { 
+                    lenPulse=vpulse[vlb];
+                    _myTZX.descriptor[currentBlock].timming.pulse_seq_array[i]=lenPulse;
+                  
+                    i++;
+                    _myTZX.descriptor[currentBlock].timming.pulse_seq_array[i]=lenPulse;
+                  
+                    i++;
+                }
+            }
+
+            //metemos el byte leido 
+            for (int n=0;n < 8;n++)                  
+            {
+                // Obtenemos el bit a transmitir
+                uint8_t bitMasked = bitRead(bRead[i2], 0 + n);
+
+                // Si el bit leido del BYTE es un "1"
+                if(bitMasked == 1)
+                {
+                    // Procesamos "1"
+                    for (int b1=0;b1<npulses[1];b1++)
+                    {
+                        _myTZX.descriptor[currentBlock].timming.pulse_seq_array[i]=vpulse[1];
+                        
+                        i++;
+                        _myTZX.descriptor[currentBlock].timming.pulse_seq_array[i]=vpulse[1];
+                      
+                        i++;
+                    }                       
+                }
+                else
+                {
+                    // En otro caso
+                    // procesamos "0"
+                    for (int b0=0;b0<npulses[0];b0++)
+                    { 
+                      _myTZX.descriptor[currentBlock].timming.pulse_seq_array[i]=vpulse[0];
+                      
+                      i++;
+                      _myTZX.descriptor[currentBlock].timming.pulse_seq_array[i]=vpulse[0];
+                    
+                      i++;
+                    }
+                }
+            }
+
+            for (int i3=0;i3<ntb;i3++)
+            {
+                for (int i4=0;i4<npulses[vtb];i4++)
+                { lenPulse=vpulse[vtb];
+                    _myTZX.descriptor[currentBlock].timming.pulse_seq_array[i]=lenPulse;
+                    
+                    i++;
+                    _myTZX.descriptor[currentBlock].timming.pulse_seq_array[i]=lenPulse;
+                    
+                    i++;
+                }
+            }
+        }
+
+        _myTZX.descriptor[currentBlock].timming.pulse_seq_num_pulses=i;
+        
+        #ifdef DEBUGMODE
+          logln("datos: "+String(ldatos));
+          logln("pulsos: "+String(i));
+        
+          logln("---------------------------------------------------------------------");
+        #endif    
+
+        free(bRead);
+    }
+    
     int getIDAndPlay(int i)
     {
         // Inicializamos el buffer de reproducción. Memoria dinamica
@@ -2350,8 +2579,161 @@ class TZXprocessor
                         //
                         //int num_pulses = 0;
 
+                        // Variables para el ID 0x4B (75)
+                        int nlb;
+                        int vlb;
+                        int ntb;
+                        int vtb;
+                        int pzero;
+                        int pone;
+
+                        int ldatos;
+                        int offset;
+
+                        int bufferD;
+                        int partitions;
+                        int lastPartitionSize;
+                        int silence;
+
+                        bool begin = false;
+
                         switch (_myTZX.descriptor[i].ID)
                         {
+
+                            case 75:
+
+
+
+                              //configuracion del byte
+                              pzero=((_myTZX.descriptor[i].timming.bitcfg & 0b11110000)>>4);
+                              pone=((_myTZX.descriptor[i].timming.bitcfg & 0b00001111));
+                              nlb=((_myTZX.descriptor[i].timming.bytecfg & 0b11000000)>>6);
+                              vlb=((_myTZX.descriptor[i].timming.bytecfg & 0b00100000)>>5);    
+                              ntb=((_myTZX.descriptor[i].timming.bytecfg & 0b00011000)>>3);
+                              vtb=((_myTZX.descriptor[i].timming.bitcfg & 0b00000100)>>2);
+
+                              #ifdef DEBUGMODE
+                                logln("");
+                                log("ID 0x4B:");
+                                log("PULSES FOR ZERO = " + String(pzero));
+                                log(" - " + String(_myTZX.descriptor[i].timming.bit_0) + " - ");
+                                log(",PULSES FOR ONE = " + String(pone));
+                                log(" - " + String(_myTZX.descriptor[i].timming.bit_1) + " - ");
+                                log(",NUMBERS OF LEADING BITS = "+String(nlb));
+                                log(",VALUE OF LEADING BITS = "+String(vlb));
+                                log(",NUMBER OF TRAILING BITS = "
+                                +String(ntb));
+                                log(",VALUE OF TRAILING BITS = "+String(vtb));
+                              #endif
+
+
+                              // Conocemos la longitud total del bloque de datos a reproducir
+                              ldatos = _myTZX.descriptor[i].lengthOfData;
+                              // Nos quedamos con el offset inicial
+                              offset = _myTZX.descriptor[i].offsetData;
+                              
+                              BYTES_INI = offset;
+                              PROGRESS_BAR_TOTAL_VALUE = (BYTES_INI * 100 ) / BYTES_TOBE_LOAD ;
+
+                              bufferD = 1024;  // Buffer de BYTES de datos convertidos a samples
+                              // Reservamos memoria dinamica
+
+
+                              partitions = ldatos / bufferD;
+                              lastPartitionSize = ldatos - (partitions * bufferD);
+
+                              silence = _myTZX.descriptor[i].pauseAfterThisBlock;
+                              
+                              #ifdef DEBUGMODE
+                                log(",SILENCE = "+String(silence) + " ms");                              
+
+                                logln("");
+                                log("Total data parts: " + String(partitions));
+                                logln("");
+                                log("----------------------------------------");
+                              #endif          
+
+                              TSX_PARTITIONED = false;
+
+                              if (ldatos > bufferD)
+                              {
+                                  TSX_PARTITIONED = true;
+                                  for(int n=0;n<partitions && !STOP && !PAUSE;n++)
+                                  {
+                                      if (n==0)
+                                      {
+                                        begin = true;
+                                      }
+                                      else
+                                      {
+                                        begin = false;
+                                      }
+
+                                      #ifdef DEBUGMODE
+                                        logln("");
+                                        log("Part [" + String(n) + "] - offset: ");
+                                        logHEX(offset);
+                                      #endif
+
+                                      prepareID4B(i,_mFile,nlb,vlb,ntb,vtb,pzero,pone, offset, bufferD, begin);
+                                      // ID 0x4B - Reproducimos una secuencia. Pulsos de longitud contenidos en un array y repetición                                                                    
+                                      
+
+                                      _zxp.playCustomSequence(_myTZX.descriptor[i].timming.pulse_seq_array,_myTZX.descriptor[i].timming.pulse_seq_num_pulses,0.0);                                                                           
+                                      offset += bufferD;
+                                      BYTES_INI += bufferD;
+                                      PROGRESS_BAR_TOTAL_VALUE = (BYTES_INI * 100 ) / BYTES_TOBE_LOAD ;
+
+                                      // Liberamos el array
+                                      free(_myTZX.descriptor[i].timming.pulse_seq_array);
+                                      // delete[] _myTZX.descriptor[i].timming.pulse_seq_array;
+                                  }
+
+
+                                  if (!STOP && !PAUSE)
+                                  {
+                                      // Ultima particion
+                                      prepareID4B(i,_mFile,nlb,vlb,ntb,vtb,pzero,pone, offset, lastPartitionSize,false);
+                                      // ID 0x4B - Reproducimos una secuencia. Pulsos de longitud contenidos en un array y repetición                                                                    
+                                      BYTES_INI += lastPartitionSize;
+
+                                      _zxp.playCustomSequence(_myTZX.descriptor[i].timming.pulse_seq_array,_myTZX.descriptor[i].timming.pulse_seq_num_pulses,0.0); 
+                                      // Liberamos el array
+                                      free(_myTZX.descriptor[i].timming.pulse_seq_array);
+                                      // delete[] _myTZX.descriptor[i].timming.pulse_seq_array;
+                                      // Pausa despues de bloque                                  
+                                      _zxp.silence(silence,0.0);
+                                  }
+
+                                  #ifdef DEBUGMODE
+                                    logln("Finish");
+                                  #endif
+
+                              }
+                              else
+                              {
+                                  #ifdef DEBUGMODE
+                                    logln(" - Only one data part");
+                                  #endif
+
+                                  if (!STOP && !PAUSE)
+                                  {                                      
+                                      // Una sola particion
+                                      prepareID4B(i,_mFile,nlb,vlb,ntb,vtb,pzero,pone, offset, ldatos,true);
+
+                                      // ID 0x4B - Reproducimos una secuencia. Pulsos de longitud contenidos en un array y repetición                                                                    
+                                      _zxp.playCustomSequence(_myTZX.descriptor[i].timming.pulse_seq_array,_myTZX.descriptor[i].timming.pulse_seq_num_pulses,0); 
+
+                                      // Liberamos el array
+                                      free(_myTZX.descriptor[i].timming.pulse_seq_array); 
+                                      // delete[] _myTZX.descriptor[i].timming.pulse_seq_array;
+                                      // Pausa despues de bloque 
+                                      _zxp.silence(silence,0.0); 
+                                  }                              
+                              }
+                             
+                              break; 
+
                             case 18:
                               // ID 0x12 - Reproducimos un tono puro. Pulso repetido n veces       
                               #ifdef DEBUGMODE
