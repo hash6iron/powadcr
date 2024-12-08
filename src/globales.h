@@ -522,7 +522,8 @@ void log(String txt)
 
 void logln(String txt)
 {
-    Serial.println(txt);
+    Serial.println("");
+    Serial.print(txt);
 }
 
 String lastAlertTxt = "";
@@ -534,7 +535,7 @@ void logAlert(String txt)
     if (lastAlertTxt != txt)
     {
       Serial.println("");
-      Serial.println(txt);
+      Serial.print(txt);
       Serial.println("");
     }
 

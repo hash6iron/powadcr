@@ -190,7 +190,7 @@ bool pageScreenIsShown = false;
 // WAV Recorder
 // -----------------------------------------------------------------------
 #include "AudioTools.h"
-#include "AudioTools/AudioLibs/AudioKit.h"
+// #include "AudioTools/AudioLibs/AudioKit.h"
 #include "AudioTools/AudioLibs/AudioSourceSDFAT.h"
 
 using namespace audio_tools;  
@@ -536,7 +536,8 @@ int setSDFrequency(int SD_Speed)
   while (!SD_ok) 
   {
       // Comenzamos con una frecuencia dada
-      if (!sdf.begin(ESP32kit.pinSpiCs(), SD_SCK_MHZ(SD_Speed)) || lastStatus) 
+      SdSpiConfig sdcfg(ESP32kit.pinSpiCs(),SHARED_SPI,SD_SCK_MHZ(SD_SPEED_MHZ),&SPI);
+      if (!sdf.begin(sdcfg) || lastStatus) 
       {
 
           // La frecuencia anterior no fue compatible
@@ -659,7 +660,8 @@ void setAudioOutput()
 
   if(!ESP32kit.begin(cfg))
   {
-    //log("Error in Audiokit output setting");
+    logln("");
+    log("Error in Audiokit output setting");
   }
 
   switch (SAMPLING_RATE)
@@ -667,7 +669,7 @@ void setAudioOutput()
       case 48000:
         if(!ESP32kit.setSampleRate(AUDIO_HAL_48K_SAMPLES))
         {
-          //log("Error in Audiokit sampling rate setting");
+          //logln("Error in Audiokit sampling rate setting");
         }
         else
         {
@@ -680,7 +682,7 @@ void setAudioOutput()
       case 44100:
         if(!ESP32kit.setSampleRate(AUDIO_HAL_44K_SAMPLES))
         {
-          //log("Error in Audiokit sampling rate setting");
+          //logln("Error in Audiokit sampling rate setting");
         }
         else
         {
@@ -693,7 +695,7 @@ void setAudioOutput()
       case 32000:
         if(!ESP32kit.setSampleRate(AUDIO_HAL_32K_SAMPLES))
         {
-          //log("Error in Audiokit sampling rate setting");
+          //logln("Error in Audiokit sampling rate setting");
         }
         else
         {
@@ -706,7 +708,7 @@ void setAudioOutput()
       default:
         if(!ESP32kit.setSampleRate(AUDIO_HAL_22K_SAMPLES))
         {
-          //log("Error in Audiokit sampling rate setting");
+          //logln("Error in Audiokit sampling rate setting");
         }
         else
         {
@@ -1311,45 +1313,65 @@ void setSTOP()
 
 void playWAV()
 {
-  WAVDecoder decoder;
-  AudioSourceSDFAT source("/wav", ".wav");
-  AudioKitStream i2s;
-  AudioPlayer player(source, i2s, decoder);
+    WAVDecoder decoder;
+    SdSpiConfig sdcfg(PIN_AUDIO_KIT_SD_CARD_CS,SHARED_SPI,SD_SCK_MHZ(SD_SPEED_MHZ),&SPI);
+    AudioSourceSDFAT source("/wav","wav",sdcfg);
+    AudioKitStream kit;
+    AudioPlayer player(source,kit,decoder);
 
-  // setup output
-  source.setFileFilter("*file_*");
+    // setup output
+    // sdf.end();
 
-  auto cfg = i2s.defaultConfig(TX_MODE);
-  cfg.sd_active = true;
-  cfg.channels = 2;
-  cfg.sample_rate = 44100;
-  cfg.bits_per_sample = 16;
-  i2s.begin(cfg);
+    auto cfg = kit.defaultConfig(TX_MODE);
+    kit.begin(cfg);
+    
+    // setup player
+    player.setVolume(1.0); 
+    
+    if(player.begin())
+    {
+        player.setPath(PATH_FILE_TO_LOAD.c_str());
 
-  // setup player
+        LAST_MESSAGE = "WAV file: " + FILE_LOAD;
+        
+        tapeAnimationON();
+        player.setActive(true);
+        while(!STOP)
+        {
+          player.copy();
+        }
+        tapeAnimationOFF();   
+        // kit.end();
+        // player.end();   
+        // source.end(); 
+    }
+    else
+    {
+      logln("Error player initialization");
+      // kit.end();
+      // source.end();
+      STOP=true;
+    } 
 
-  source.selectStream(FILE_LOAD.c_str());
-
-  player.setVolume(1.0); 
-  player.begin();
-  
-  tapeAnimationON();
-  while(!STOP)
-  {
-    player.copy();
-  }
-  tapeAnimationOFF();
+      // Recupero la SD para el resto de procesadores.
+      if (!sdf.begin(sdcfg)) 
+      {
+        logln("Error recovering spi initialization");
+      }
 }
 
 void playingFile()
 {
-  setAudioOutput();
-  ESP32kit.setVolume(MAX_MAIN_VOL);
 
-  sendStatus(REC_ST, 0);
 
   if (TYPE_FILE_LOAD == "TAP")
   {
+
+      setAudioOutput();
+      ESP32kit.setVolume(MAX_MAIN_VOL);
+
+      sendStatus(REC_ST, 0);
+
       //hmi.getMemFree();
       pTAP.play();
       //Paramos la animación
@@ -1358,6 +1380,12 @@ void playingFile()
   }
   else if (TYPE_FILE_LOAD == "TZX" || TYPE_FILE_LOAD == "CDT" || TYPE_FILE_LOAD == "TSX")
   {
+
+      setAudioOutput();
+      ESP32kit.setVolume(MAX_MAIN_VOL);
+
+      sendStatus(REC_ST, 0);
+
       //hmi.getMemFree();
       pTZX.play();
       //Paramos la animación
@@ -1368,18 +1396,13 @@ void playingFile()
     // Reproducimos el WAV file
     LAST_MESSAGE = "WAV file loaded";
     playWAV();
+    LAST_MESSAGE = "WAV file stop";
   }
-  // else if (TYPE_FILE_LOAD == "TSX")
-  // {
-  //     #ifdef DEBUGMODE
-  //       logln("");
-  //       log("TSX - Starting to PLAY");
-  //     #endif
-  //     //hmi.getMemFree();
-  //     pTSX.play();
-  //     //Paramos la animación
-  //     tapeAnimationOFF(); 
-  // }  
+  else
+  {
+      logAlert("Unknown type_file_load");
+  }
+ 
 }
 
 void verifyConfigFileForSelection()
@@ -1387,9 +1410,10 @@ void verifyConfigFileForSelection()
   // Vamos a localizar el fichero de configuracion especifico para el fichero seleccionado
   const int max_params = 4;
   String path = FILE_LAST_DIR;
+  String tmpPath = PATH_FILE_TO_LOAD;
   tConfig *fileCfg;
-  char strpath[PATH_FILE_TO_LOAD.length() + 5] = {};
-  strcpy(strpath,PATH_FILE_TO_LOAD.c_str());
+  char strpath[tmpPath.length() + 5] = {};
+  strcpy(strpath,tmpPath.c_str());
   strcat(strpath,".cfg");
 
   // Abrimos el fichero de configuracion.
@@ -1558,12 +1582,12 @@ void loadingFile(char* file_ch)
       ejectingFile();
       FILE_PREPARED = false;      
     }
-    // Verificamos si hay fichero de configuracion para este archivo seleccionado
-    verifyConfigFileForSelection();
 
     // Cargamos el seleccionado.
     if (PATH_FILE_TO_LOAD.indexOf(".TAP") != -1)
     {
+        // Verificamos si hay fichero de configuracion para este archivo seleccionado
+        verifyConfigFileForSelection();
         // changeLogo(41);
         // Reservamos memoria
         myTAP.descriptor = (tTAPBlockDescriptor*)ps_calloc(MAX_BLOCKS_IN_TAP, sizeof(struct tTAPBlockDescriptor));        
@@ -1578,7 +1602,9 @@ void loadingFile(char* file_ch)
     else if ((PATH_FILE_TO_LOAD.indexOf(".TZX") != -1) || (PATH_FILE_TO_LOAD.indexOf(".TSX") != -1) || (PATH_FILE_TO_LOAD.indexOf(".CDT") != -1))    
     {
 
-        // Reservamos memoria
+        // Verificamos si hay fichero de configuracion para este archivo seleccionado
+        verifyConfigFileForSelection();        // Reservamos memoria
+        // 
         myTZX.descriptor = (tTZXBlockDescriptor*)ps_calloc(MAX_BLOCKS_IN_TZX , sizeof(struct tTZXBlockDescriptor));        
         // Pasamos el control a la clase
         pTZX.setTZX(myTZX);
@@ -1602,7 +1628,9 @@ void loadingFile(char* file_ch)
     }
     else if(PATH_FILE_TO_LOAD.indexOf(".WAV") != -1)
     {
+      logln("Wav file to load: " + PATH_FILE_TO_LOAD);
       FILE_PREPARED = true;
+      TYPE_FILE_LOAD = "WAV";
     }
    
   }
@@ -1971,9 +1999,7 @@ void tapeControl()
       //
       // PLAY / STOP
       //
-      #ifdef DEBUGMODE
-        logAlert("Tape state 1");
-      #endif
+
 
       if (PLAY)
       {
@@ -1984,7 +2010,10 @@ void tapeControl()
           //Activamos la animación
           tapeAnimationON();   
           // Reproducimos el fichero
-          LAST_MESSAGE = "Loading in progress. Please wait.";
+          if (TYPE_FILE_LOAD != "WAV")
+          {
+            LAST_MESSAGE = "Loading in progress. Please wait.";
+          }          
           //            
           playingFile();
       }

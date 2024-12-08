@@ -2183,11 +2183,11 @@ class HMI
         // Save polarization in ID 0x2B
         else if (strCmd.indexOf("SAV") != -1) 
         {
-
           //Guardamos la configuracion en un fichero
           String path = FILE_LAST_DIR;
-          char strpath[PATH_FILE_TO_LOAD.length() + 5] = {};
-          strcpy(strpath,PATH_FILE_TO_LOAD.c_str());
+          String tmpPath = PATH_FILE_TO_LOAD;
+          char strpath[tmpPath.length() + 5] = {};
+          strcpy(strpath,tmpPath.c_str());
           strcat(strpath,".cfg");
 
           File32 cfg;
