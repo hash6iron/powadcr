@@ -192,6 +192,9 @@ bool pageScreenIsShown = false;
 #include "AudioTools.h"
 // #include "AudioTools/AudioLibs/AudioKit.h"
 #include "AudioTools/AudioLibs/AudioSourceSDFAT.h"
+#include <AudioTools/AudioCodecs/CodecADPCM.h>
+#include "AudioTools/AudioCodecs/CodecWAV.h" 
+
 
 using namespace audio_tools;  
 // 
@@ -823,13 +826,16 @@ void setWavRecording(char* file_name,bool start=true)
         else
         {
             // Configure WAVEncoder
+            ADPCMEncoder adpcm_encoder(AV_CODEC_ID_ADPCM_IMA_WAV);  
+            WAVEncoder wav_encoder(adpcm_encoder, AudioFormat::ADPCM);
+
             AudioInfo info(16000, 1, 16);
-            EncodedAudioStream out(&wavfile, new WAVEncoder());
+            EncodedAudioStream out(&wavfile, &wav_encoder);
             info.bits_per_sample = 16;
             info.sample_rate = 44100;
             info.channels = 2;
 
-            WAVEncoder().begin(info);
+            wav_encoder.begin(info);
 
             // setup input  
             auto cfg = kit.defaultConfig(RX_MODE);
@@ -1313,7 +1319,11 @@ void setSTOP()
 
 void playWAV()
 {
-    WAVDecoder decoder;
+
+    ADPCMDecoder adpcm_decoder(AV_CODEC_ID_ADPCM_IMA_WAV); 
+    WAVDecoder decoder(adpcm_decoder, AudioFormat::ADPCM);
+
+    // WAVDecoder decoder;
     SdSpiConfig sdcfg(PIN_AUDIO_KIT_SD_CARD_CS,SHARED_SPI,SD_SCK_MHZ(SD_SPEED_MHZ),&SPI);
     AudioSourceSDFAT source("/wav","wav",sdcfg);
     AudioKitStream kit;
@@ -1323,6 +1333,9 @@ void playWAV()
     // sdf.end();
 
     auto cfg = kit.defaultConfig(TX_MODE);
+    cfg.bits_per_sample = 16;
+    cfg.channels = 2;
+    cfg.sample_rate = 44100;
     kit.begin(cfg);
     
     // setup player
@@ -1341,15 +1354,10 @@ void playWAV()
           player.copy();
         }
         tapeAnimationOFF();   
-        // kit.end();
-        // player.end();   
-        // source.end(); 
     }
     else
     {
       logln("Error player initialization");
-      // kit.end();
-      // source.end();
       STOP=true;
     } 
 
