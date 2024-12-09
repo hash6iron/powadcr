@@ -198,8 +198,8 @@ bool pageScreenIsShown = false;
 
 using namespace audio_tools;  
 // 
-AudioKitStream kit;
-StreamCopy copier(kit, kit);  // copies data
+// AudioKitStream kit;
+// StreamCopy copier(kit, kit);  // copies data
 
 // -----------------------------------------------------------------------
 // Prototype function
@@ -802,7 +802,8 @@ void recAnimationFIXED_OFF()
 
 void setWavRecording(char* file_name,bool start=true)
 {
-    AudioLogger::instance().begin(Serial, AudioLogger::Error);
+    // AudioLogger::instance().begin(Serial, AudioLogger::Error);
+
 
     if (start)
     {
@@ -812,7 +813,7 @@ void setWavRecording(char* file_name,bool start=true)
         }  
 
         // open file for recording WAV
-        wavfile = sdf.open(file_name, O_WRITE | O_CREAT | O_TRUNC);
+        wavfile = sdf.open(file_name, O_WRITE | O_CREAT);
 
         if (!wavfile)
         {
@@ -825,42 +826,22 @@ void setWavRecording(char* file_name,bool start=true)
         }            
         else
         {
-            // Configure WAVEncoder
-            ADPCMEncoder adpcm_encoder(AV_CODEC_ID_ADPCM_IMA_WAV);  
-            WAVEncoder wav_encoder(adpcm_encoder, AudioFormat::ADPCM);
+            // Paramos el ESp32kit antes de configurar otra vez
+            ESP32kit.end();
+            AudioInfo lineInCfg(44100, 2, 16);
+            // ADPCMEncoder adpcm_encoder(AV_CODEC_ID_ADPCM_MS); 
+            // WAVEncoder wavencoder(adpcm_encoder, AudioFormat::ADPCM);            
+            AudioKitStream in;
+            EncodedAudioStream out(&wavfile, new WAVEncoder());
+            StreamCopy copier(out, in);  // copies data
 
-            AudioInfo info(16000, 1, 16);
-            EncodedAudioStream out(&wavfile, &wav_encoder);
-            info.bits_per_sample = 16;
-            info.sample_rate = 44100;
-            info.channels = 2;
-
-            wav_encoder.begin(info);
-
-            // setup input  
-            auto cfg = kit.defaultConfig(RX_MODE);
-            cfg.is_master = true;
-            cfg.input_device = AUDIO_HAL_ADC_INPUT_LINE2;
-            cfg.bits_per_sample = 16;
-            cfg.sample_rate = 44100;
-            cfg.channels = 2;
-            cfg.sd_active = true;
-            cfg.copyFrom(info);
-
-            // Inicializamos la entrada al ADC
-            kit.begin(cfg);
-
-            logln("Setting i2C");
-            logln("");
-
-            // Inicializamos la salida a un WAV encoder
-            AudioInfo out_info(44100,2,16);
-            out.begin(out_info);
-            // Inicializamos el copier
-            copier.setCheckAvailableForWrite(false);
-            copier.begin(wavfile, kit);  
-            AudioLogger::instance().begin(Serial, AudioLogger::Warning);
-
+            auto cfg = in.defaultConfig(RX_MODE);
+            cfg.copyFrom(lineInCfg);
+            cfg.input_device = AUDIO_HAL_ADC_INPUT_LINE2; // Line in
+            in.begin(cfg);
+            // we need to provide the audio information to the encoder
+            out.begin(lineInCfg);
+            
             LAST_MESSAGE = "Recording to WAV - Press STOP to finish.";
             
             recAnimationOFF();
@@ -874,14 +855,19 @@ void setWavRecording(char* file_name,bool start=true)
             }
 
             wavfile.flush();
-            logln("File has ");
-            logln(String(wavfile.size()));
-            logln(" bytes");
+
+              logln("File has ");
+              log(String(wavfile.size()/1024));
+              log(" Kbytes");
 
             wavfile.close();
-            
+
+            in.end();
+            out.end();
+            // copier.end();
+
             LAST_MESSAGE = "Recording to WAV - Finished.";
-            logln("Recording finish!");
+              logln("Recording finish!");
 
             delay(2000);    
 
@@ -1319,19 +1305,21 @@ void setSTOP()
 
 void playWAV()
 {
-
-    ADPCMDecoder adpcm_decoder(AV_CODEC_ID_ADPCM_IMA_WAV); 
-    WAVDecoder decoder(adpcm_decoder, AudioFormat::ADPCM);
-
+    // ESP32kit.end();
+    int status = 0;
+    AudioInfo info(44100, 2, 16);
+    // ADPCMDecoder adpcm_decoder(AV_CODEC_ID_ADPCM_IMA_WAV); 
+    // WAVDecoder wavdecoder(adpcm_decoder, AudioFormat::ADPCM);
     // WAVDecoder decoder;
     SdSpiConfig sdcfg(PIN_AUDIO_KIT_SD_CARD_CS,SHARED_SPI,SD_SCK_MHZ(SD_SPEED_MHZ),&SPI);
     AudioSourceSDFAT source("/wav","wav",sdcfg);
     AudioKitStream kit;
+    WAVDecoder decoder;
     AudioPlayer player(source,kit,decoder);
 
     // setup output
     // sdf.end();
-
+    
     auto cfg = kit.defaultConfig(TX_MODE);
     cfg.bits_per_sample = 16;
     cfg.channels = 2;
@@ -1339,21 +1327,49 @@ void playWAV()
     kit.begin(cfg);
     
     // setup player
-    player.setVolume(1.0); 
+    player.setVolume(1.0);
+    player.setAutoNext(false); 
     
     if(player.begin())
     {
         player.setPath(PATH_FILE_TO_LOAD.c_str());
 
-        LAST_MESSAGE = "WAV file: " + FILE_LOAD;
-        
+        LAST_MESSAGE = "Playing WAV: " + FILE_LOAD;
         tapeAnimationON();
         player.setActive(true);
+        
         while(!STOP)
-        {
-          player.copy();
+        {          
+          if (!PAUSE)
+          {
+            if (status == 2)
+            {
+              status = 0;
+              tapeAnimationON();
+            }
+            player.copy();
+          }
+          else
+          {
+            if (status == 0)
+            {
+              status = 1;
+            }
+            else if (status == 1)
+            {
+              tapeAnimationOFF(); 
+              status = 2;
+            }
+            else if (status == 2)
+            {
+              delay(50);
+            }
+          }
         }
-        tapeAnimationOFF();   
+        
+        tapeAnimationOFF(); 
+        // kit.end();  
+        player.end();
     }
     else
     {
@@ -1905,6 +1921,18 @@ void updateHMIOnBlockChange()
     hmi.updateInformationMainPage(true);
 }
 
+void getRandomFilename (char* &currentPath, String currentFileBaseName)
+{
+      currentPath = strcpy(currentPath, currentFileBaseName.c_str());
+      srand(time(0));
+      delay(125);
+      int rn = rand()%999999;
+      //Le unimos la extensión .TAP
+      String txtRn = "-" + String(rn) + ".wav";
+      char const *extPath = txtRn.c_str();
+      strcat(currentPath,extPath);  
+}
+
 void tapeControl()
 {
   // Estados de funcionamiento del TAPE
@@ -2041,7 +2069,15 @@ void tapeControl()
       else if (PAUSE)       
       {
           TAPESTATE = 3;
-          LAST_MESSAGE = "Tape paused. Press play or select block.";
+          if (TYPE_FILE_LOAD = "WAV")
+          {
+            LAST_MESSAGE = "Playing paused.";
+          }
+          else
+          {
+            LAST_MESSAGE = "Tape paused. Press play or select block.";
+          }
+          
       }
       else if (STOP)
       {
@@ -2090,7 +2126,15 @@ void tapeControl()
           LAST_MESSAGE = "Rec paused. Press PAUSE to start recording.";
           tapeAnimationOFF();
           recAnimationON();
-          TAPESTATE = 220;          
+
+          if (MODEWAV)
+          {
+              TAPESTATE = 120;
+          }
+          else
+          {
+              TAPESTATE = 220;
+          }          
         }
       }
       else
@@ -2322,15 +2366,9 @@ void tapeControl()
         
         //Generamos un numero aleatorio para el final del nombre
         char* cPath = (char*)ps_calloc(55,sizeof(char));
-        String wavfile = "/WAV/rec";
-        cPath = strcpy(cPath, wavfile.c_str());
-        srand(time(0));
-        delay(125);
-        int rn = rand()%999999;
-        //Le unimos la extensión .TAP
-        String txtRn = "-" + String(rn) + ".wav";
-        char const *extPath = txtRn.c_str();
-        strcat(cPath,extPath);
+        String wavfileBaseName = "/WAV/rec";
+
+        getRandomFilename(cPath, wavfileBaseName);
 
         // Comenzamos la grabacion
         setWavRecording(cPath);
@@ -2557,13 +2595,14 @@ void setup()
     // Configuramos el ESP32kit
     LOGLEVEL_AUDIOKIT = AudioKitError;
 
+    // ----------------------------------------------------------------------
+    // ES IMPORTANTE NO ELIMINAR ESTA LINEA PORQUE HABILITA EL SLOT de la SD
     // Configuracion de las librerias del AudioKit
     hmi.writeString("statusLCD.txt=\"Setting audio\"");
     setAudioOutput();
+    // 
+    // ----------------------------------------------------------------------
 
-    //SerialHW.println("Done!");
-
-    //SerialHW.println("Initializing SD SLOT.");
     
     // Configuramos acceso a la SD
     hmi.writeString("statusLCD.txt=\"WAITING FOR SD CARD\"" );
