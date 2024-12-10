@@ -1995,6 +1995,9 @@ class HMI
           
           // Ajustamos el volumen
           SerialHW.println("Main volume value=" + String(MAIN_VOL));
+          // Control del Master volume
+          MAIN_VOL_L = MAIN_VOL;
+          MAIN_VOL_R = MAIN_VOL;
 
           //ESP32kit.setVolume(MAIN_VOL);
           //ESP32kit.maxAmplitude = 

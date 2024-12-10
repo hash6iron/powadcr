@@ -195,7 +195,6 @@ bool pageScreenIsShown = false;
 #include <AudioTools/AudioCodecs/CodecADPCM.h>
 #include "AudioTools/AudioCodecs/CodecWAV.h" 
 
-
 using namespace audio_tools;  
 // 
 // AudioKitStream kit;
@@ -804,6 +803,9 @@ void setWavRecording(char* file_name,bool start=true)
 {
     // AudioLogger::instance().begin(Serial, AudioLogger::Error);
 
+    unsigned long progress_millis = 0;
+    int rectime_s = 0;
+    int rectime_m = 0;
 
     if (start)
     {
@@ -845,13 +847,30 @@ void setWavRecording(char* file_name,bool start=true)
             LAST_MESSAGE = "Recording to WAV - Press STOP to finish.";
             
             recAnimationOFF();
-            delay(500);
+            delay(125);
             recAnimationFIXED_ON();
             tapeAnimationON();
 
             while(!STOP)
             {
               copier.copy();
+
+              if (millis() - progress_millis > 1000) 
+              {
+                  progress_millis = millis();
+                  LAST_MESSAGE = "Recording time: " + ((rectime_m < 10 ? "0" : "") + String(rectime_m)) 
+                                          + ":" 
+                                          + ((rectime_s < 10 ? "0" : "") + String(rectime_s));
+
+                  rectime_s++;
+
+                  if (rectime_s > 59)
+                  {
+                    rectime_s = 0;
+                    rectime_m++;
+                  }
+              }
+             
             }
 
             wavfile.flush();
@@ -860,24 +879,36 @@ void setWavRecording(char* file_name,bool start=true)
               log(String(wavfile.size()/1024));
               log(" Kbytes");
 
-            wavfile.close();
-
-            in.end();
-            out.end();
-            // copier.end();
-
-            LAST_MESSAGE = "Recording to WAV - Finished.";
-              logln("Recording finish!");
-
-            delay(2000);    
-
             TAPESTATE = 0;
             LOADING_STATE = 0;
             RECORDING_ERROR = 0;
             REC = false;
             recAnimationOFF();
             recAnimationFIXED_OFF(); 
-            tapeAnimationOFF();            
+            tapeAnimationOFF(); 
+
+            LAST_MESSAGE = "Recording finish - " + String(file_name);
+              logln("Recording finish!");
+
+            delay(1500);    
+
+            if (wavfile.size() > 1000000)
+            {
+              // Megabytes
+              LAST_MESSAGE = "File size: " + String(wavfile.size()/1024/1024) + " MB";
+            }
+            else
+            {
+              // Kilobytes
+              LAST_MESSAGE = "File size: " + String(wavfile.size()/1024) + " KB";
+            }
+            wavfile.close();
+
+            in.end();
+            out.end();
+            // copier.end();
+
+            delay(2000);               
         }
     }
     else
@@ -1303,6 +1334,14 @@ void setSTOP()
   // sendStatus(READY_ST, 1);
 }
 
+// metadata callback
+void printMetaDataWAVplayer(MetaDataType type, const char* str, int len){
+  SerialHW.print("==> ");
+  SerialHW.print(MetaDataTypeStr[type]);
+  SerialHW.print(": ");
+  SerialHW.println(str);
+}
+
 void playWAV()
 {
     // ESP32kit.end();
@@ -1329,7 +1368,9 @@ void playWAV()
     // setup player
     player.setVolume(1.0);
     player.setAutoNext(false); 
-    
+    player.setMetadataCallback(printMetaDataWAVplayer);
+
+    // setup player
     if(player.begin())
     {
         player.setPath(PATH_FILE_TO_LOAD.c_str());
@@ -1340,6 +1381,9 @@ void playWAV()
         
         while(!STOP)
         {          
+          
+          player.setVolume(MAIN_VOL/100);
+          
           if (!PAUSE)
           {
             if (status == 2)
@@ -2068,15 +2112,25 @@ void tapeControl()
       }       
       else if (PAUSE)       
       {
-          TAPESTATE = 3;
-          if (TYPE_FILE_LOAD = "WAV")
+          if (TAPESTATE == 3)
           {
-            LAST_MESSAGE = "Playing paused.";
+            TAPESTATE = 1;
+            PLAY = true;
+            PAUSE = false;
           }
           else
           {
-            LAST_MESSAGE = "Tape paused. Press play or select block.";
+            TAPESTATE = 3;
+            if (TYPE_FILE_LOAD = "WAV")
+            {
+              LAST_MESSAGE = "Playing paused.";
+            }
+            else
+            {
+              LAST_MESSAGE = "Tape paused. Press play or select block.";
+            }
           }
+
           
       }
       else if (STOP)
