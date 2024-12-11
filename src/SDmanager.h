@@ -118,13 +118,13 @@ class SDmanager
         if (!fFile.open(path, O_RDWR)) 
         {
             #ifdef DEBUGMODE
-                log("open failed");
+                logln("open failed");
             #endif
         }
         else
         {
             #ifdef DEBUGMODE
-                log("open success");
+                logln("open success");
             #endif
         }
 

@@ -408,10 +408,16 @@ class TZXprocessor
                   PROGRAM_NAME = String(gName);
                   PROGRAM_NAME_DETECTED = true;
                   free(block);
+                  strncpy(_myTZX.descriptor[currentBlock].name,gName,14);
+              }
+              else
+              {
+                strncpy(_myTZX.descriptor[currentBlock].name,_myTZX.name,14);
               }
 
               // Almacenamos el nombre del bloque
-              strncpy(_myTZX.descriptor[currentBlock].name,_myTZX.name,14);
+              // 
+              
 
             }
             else if (typeBlock == 1)
@@ -1592,7 +1598,7 @@ class TZXprocessor
       return res;
     }
 
-    void getBlockDescriptor(File32 mFile, int sizeTZX)
+    void getBlockDescriptor(File32 mFile, File32 &dscFile, int sizeTZX)
     {
           // Para ello tenemos que ir leyendo el TZX poco a poco
           // Detectaremos los IDs a partir del byte 9 (empezando por offset = 0)
@@ -1606,7 +1612,7 @@ class TZXprocessor
           int nextIDoffset = 0;
           int currentOffset = 0;
           int lenghtDataBlock = 0;
-          int currentBlock = 1;
+          int currentBlock = 0; 
           bool endTZX = false;
           bool forzeEnd = false;
           bool endWithErrors = false;
@@ -1618,7 +1624,7 @@ class TZXprocessor
 
           // Le pasamos el path del fichero, la extension se le asigna despues en 
           // la funcion createBlockDescriptorFile
-          _blDscTZX.createBlockDescriptorFileTZX(_mFile);
+          // _blDscTZX.createBlockDescriptorFileTZX();
 
 
           while (!endTZX && !forzeEnd && !ID_NOT_IMPLEMENTED)
@@ -1655,8 +1661,11 @@ class TZXprocessor
               // completar todo el fichero
               if (getTZXBlock(mFile, currentBlock, currentID, currentOffset, nextIDoffset))
               {
-                  // tTZXBlockDescriptor &t = _myTZX.descriptor[currentBlock];
-                  // _blDscTZX.putBlocksDescriptorTZX(mFile,t);
+                  // Copiamos la estructura del bloque, apuntando a ella
+                  tTZXBlockDescriptor t = _myTZX.descriptor[currentBlock];
+                  // Agregamos la informacion del bloque al fichero del descriptor .dsc
+                  _blDscTZX.putBlocksDescriptorTZX(dscFile, currentBlock,t,sizeTZX);
+                  // Incrementamos un bloque
                   currentBlock++;               
               }
               else
@@ -1693,7 +1702,6 @@ class TZXprocessor
                 TOTAL_BLOCKS = currentBlock;
 
           }
-
           // Nos posicionamos en el bloque 1
           BLOCK_SELECTED = 0;
           _hmi.writeString("currentBlock.val=" + String(BLOCK_SELECTED + 1));
@@ -1703,7 +1711,7 @@ class TZXprocessor
           
     }
    
-    void proccess_tzx(File32 tzxFileName)
+    void proccess_tzx(File32 tzxFileName, File32 &dscFile)
     {
           // Procesamos el fichero
 
@@ -1711,7 +1719,7 @@ class TZXprocessor
         {
             // Esto lo hacemos para poder abortar
             ABORT=false;
-            getBlockDescriptor(_mFile,_sizeTZX);
+            getBlockDescriptor(_mFile,dscFile,_sizeTZX);
         }      
     }
 
@@ -1904,10 +1912,328 @@ class TZXprocessor
       _sizeTZX = sizeTZX;
     }  
 
+    bool getBlocksFromDescriptorFile(char* path, tTZX &myTZX)
+    {
+        File32 mFileDsc;
+        uint32_t sizeTZX = 0;
+        char strLine[300];
+        String str;
+        int nlines = 0;
+        int nparam = 0;
+        // Estamos indicando con nblock = -1 que es la cabecera del .dsc
+        // y no la queremos.
+        int nblock = -1;
+        // Agregamos la extension del fichero al path del .TZX
+
+        logln("Trying open DSC file: " + String(path));
+        // if (mFileDsc.isBusy())
+        // {
+        //   logln("DSC file is busy");
+        // }
+        
+        if (mFileDsc.isLFN())
+        {
+          logln("DSC file is LFN");
+        }
+
+        if (mFileDsc.isReadOnly())
+        {
+          logln("DSC file is READONLY");
+        }        
+        
+        if (!mFileDsc.isReadable())
+        {
+          logln("DSC file is not readeable.");
+        }
+
+        if (mFileDsc.isOpen())
+        {
+          mFileDsc.close();
+          logln("DSC file was opened.");
+        }
+
+        // Ahora abrimos el fichero .dsc
+        if (mFileDsc.open(path,O_READ))
+        {
+            // Ahora vamos a ir leyendo linea a linea y metiendo la informacion de los bloques en el descriptor.
+
+            // ------------------------------------------------------------------------------
+            // OJO! Si strLine supera el numero de caracteres declarado no entra en el WHILE 
+            // ------------------------------------------------------------------------------
+            logln("DSC File open: " + String(path));
+            
+            mFileDsc.rewind();
+
+            while ((nlines = mFileDsc.fgets(strLine, sizeof(strLine))) > 0)
+            {
+              
+              #ifdef DEBUGMODE
+                logln("Getting line: " + String(strLine));
+              #endif
+
+              str = strtok(strLine, ",");
+              
+              // Ahora cogemos todos los parametros de strLine. Son 30 parametros
+              // los vamos leyendo uno a uno.
+              nparam = 0;
+              // Estamos indicando con nblock = -1 que es la cabecera del .dsc
+              // y no la queremos.
+              if (nblock > -1)
+              {
+                  while (str != NULL)
+                  {
+
+                    #ifdef DEBUGMODE
+                        if (nparam != 12)
+                        {
+                          // Otros
+                          logln("[" + String(nblock) + "] - Param: [" + String(nparam) + "] - Value: " + String(str.toInt()));
+                        }
+                        else
+                        {
+                          // Name
+                          logln("[" + String(nblock) + "] - Param: [" + String(nparam) + "] - Value: " + String(str));                    
+                        }
+                    #endif
+
+                    // Vemos en cada momento que posicion de parametro estamos leyendo y lo procesamos
+                    switch (nparam)
+                    {
+                        case 0:
+                          // Posicion en el fichero
+                          break;
+
+                        case 1:
+                          // .ID (Block ID)
+                          myTZX.descriptor[nblock].ID = str.toInt();
+                          break;
+
+                        case 2:
+                          // .chk (Checksum)
+                          myTZX.descriptor[nblock].chk = str.toInt();
+                          break;
+
+                        case 3:
+                          // .delay
+                          myTZX.descriptor[nblock].delay = str.toInt();
+                          break;
+
+                        case 4:
+                          // .group
+                          myTZX.descriptor[nblock].group = str.toInt();
+                          break;
+
+                        case 5:
+                          // .hasMaskLastByte
+                          myTZX.descriptor[nblock].hasMaskLastByte = (str.toInt() == 0) ? false : true;
+                          break;
+
+                        case 6:
+                          // .header
+                          myTZX.descriptor[nblock].header = (str.toInt() == 0) ? false : true;             
+                          break;
+
+                        case 7:
+                          // .jump_this_ID
+                          myTZX.descriptor[nblock].jump_this_ID = (str.toInt() == 0) ? false : true;
+                          break;
+
+                        case 8:
+                          // .lengthOfData
+                          myTZX.descriptor[nblock].lengthOfData = str.toInt();
+                          break;
+
+                        case 9:
+                          // .loop_count
+                          myTZX.descriptor[nblock].loop_count = str.toInt();
+                          break;
+
+                        case 10:
+                          // .offset
+                          myTZX.descriptor[nblock].offset = str.toInt();
+                          break;
+
+                        case 11:
+                          // .offsetData
+                          myTZX.descriptor[nblock].offsetData = str.toInt();
+                          break;
+
+                        case 12:
+                          // .name
+                          strcpy(myTZX.descriptor[nblock].name,str.c_str());
+                          break;
+
+                        case 13:
+                          // .nameDetected
+                          myTZX.descriptor[nblock].nameDetected = (str.toInt() == 0) ? false : true;
+                          break;
+
+                        case 14:
+                          // .pauseAfterThisBlock
+                          myTZX.descriptor[nblock].pauseAfterThisBlock = str.toInt();
+                          break;
+
+                        case 15:
+                          // .playeable
+                          myTZX.descriptor[nblock].playeable = (str.toInt() == 0) ? false : true;
+                          break;
+
+                        case 16:
+                          // .samplingRate
+                          myTZX.descriptor[nblock].samplingRate = str.toInt();
+                          break;
+
+                        case 17:
+                          // .screen
+                          myTZX.descriptor[nblock].screen = (str.toInt() == 0) ? false : true;
+                          break;
+
+                        case 18:
+                          // .silent
+                          myTZX.descriptor[nblock].silent = str.toInt();
+                          break;
+
+                        case 19:
+                          // .size
+                          myTZX.descriptor[nblock].size = str.toInt();
+                          break;
+
+                        case 20:
+                          // .timming.bit_0
+                          myTZX.descriptor[nblock].timming.bit_0 = str.toInt();
+                          break;
+
+                        case 21:
+                          // .timming.bit_1
+                          myTZX.descriptor[nblock].timming.bit_1 = str.toInt();
+                          break;
+
+                        case 22:
+                          // .timming.pilot_len
+                          myTZX.descriptor[nblock].timming.pilot_len = str.toInt();
+                          break;
+
+                        case 23:
+                          // .timming.pilot_num_pulses
+                          myTZX.descriptor[nblock].timming.pilot_num_pulses = str.toInt();
+                          break;
+
+                        case 24:
+                          // .timming.pulse_seq_num_pulses
+                          myTZX.descriptor[nblock].timming.pulse_seq_num_pulses = str.toInt();
+                          break;
+
+                        case 25:
+                          // .timming.pure_tone_len
+                          myTZX.descriptor[nblock].timming.pure_tone_len = str.toInt();
+                          break;
+
+                        case 26:
+                          // .timming.pure_tone_num_pulses
+                          myTZX.descriptor[nblock].timming.pure_tone_num_pulses = str.toInt();
+                          break;
+
+                        case 27:
+                          // .timming.sync_1
+                          myTZX.descriptor[nblock].timming.sync_1 = str.toInt();
+                          break;
+
+                        case 28:
+                          // .timming.sync_2
+                          myTZX.descriptor[nblock].timming.sync_2 = str.toInt();
+                          break;
+
+                        case 29:
+                          // .name
+                          strcpy(myTZX.descriptor[nblock].typeName,str.c_str());
+                          break;
+
+                        case 30:
+                          // sizeTZX actual
+                          myTZX.size = str.toInt();
+                          sizeTZX = myTZX.size;
+                          break;
+
+                        default:
+                          break;
+                    }
+
+                    // Cogemos el parametro siguiente
+                    str = strtok(NULL, ",");
+                    nparam++;
+                  }
+
+                  if (nblock > 0 && nparam==0)
+                  {
+                    logln("Error. No params were read.");
+                    mFileDsc.close();
+                    return false;
+                  }
+                  // 
+              }
+              nblock++;
+              TOTAL_BLOCKS = nblock;
+            }
+
+            if (TOTAL_BLOCKS == 0)
+            {
+              logln("Error, any block captured.");
+              mFileDsc.close();
+              return false;
+            }
+
+            logln("Total blocks captured from DSC: " + String(TOTAL_BLOCKS));
+
+            // Nos posicionamos en el bloque 1
+            BLOCK_SELECTED = 0;
+            _hmi.writeString("currentBlock.val=" + String(BLOCK_SELECTED + 1));
+            myTZX.numBlocks = TOTAL_BLOCKS;  
+
+            mFileDsc.close();
+            // Decimos que ha ido bien
+            return true;
+        }
+        else
+        {
+          
+          // Decimos que NO ha ido bien
+          logln("Error opening DSC file.");
+          mFileDsc.close();
+          return false;
+        }
+    }
+    
+    void proccessingDescriptor(File32 &dscFile, File32 &tzxFile, char* pathDSC)
+    {
+        if (dscFile.exists(pathDSC))
+        {
+          dscFile.remove();
+        }
+        
+       _blDscTZX.createBlockDescriptorFileTZX(dscFile,pathDSC); 
+        // creamos un objeto TZXproccesor
+        set_file(tzxFile, _rlen);
+        proccess_tzx(tzxFile, dscFile);
+        
+        dscFile.close();
+
+        if (_myTZX.descriptor != nullptr && !ID_NOT_IMPLEMENTED)
+        {
+            // Entregamos información por consola
+            strcpy(LAST_NAME,"              ");
+        }
+        else
+        {
+          LAST_MESSAGE = "Error in TZX/TSX/CDT or ID not supported";
+        }      
+    }
+
     void getInfoFileTZX(char* path) 
     {
       
       File32 tzxFile;
+      File32 dscFile;
+
       
       PROGRAM_NAME_DETECTED = false;
       PROGRAM_NAME = "";
@@ -1919,6 +2245,7 @@ class TZXprocessor
 
       // Abrimos el fichero
       tzxFile = sdm.openFile32(tzxFile, path);
+      char* pathDSC = path;
 
       // Obtenemos su tamaño total
       _mFile = tzxFile;
@@ -1927,37 +2254,39 @@ class TZXprocessor
 
       if (_rlen != 0)
       {
-        FILE_IS_OPEN = true;
+          FILE_IS_OPEN = true;
 
-        // Asignamos el path al objeto blockDescriptor
-        _blDscTZX.putPathTZX(path);        
-        // creamos un objeto TZXproccesor
-        set_file(tzxFile, _rlen);
-        proccess_tzx(tzxFile);
-        
-        ////SerialHW.println("");
-        ////SerialHW.println("END PROCCESING TZX: ");
-
-        if (_myTZX.descriptor != nullptr && !ID_NOT_IMPLEMENTED)
-        {
-            // Entregamos información por consola
-            //PROGRAM_NAME = _myTZX.name;
-            strcpy(LAST_NAME,"              ");
-        }
-        else
-        {
-          LAST_MESSAGE = "Error in TZX/TSX/CDT or ID not supported";
-          //_hmi.updateInformationMainPage();
-        }
-
+          // Asignamos el path al objeto blockDescriptor
+          strcat(pathDSC,".dsc");
+          
+          if (_blDscTZX.existBlockDescriptorFile(dscFile, pathDSC))
+          {
+              // No lo creamos mas, ahora cogemos todo el descriptor del fichero
+              // y nos ahorramos el procesado
+              if (!getBlocksFromDescriptorFile(pathDSC, _myTZX))
+              {
+                // Lanzamos entonces la extraccion directa desde el .TZX
+                proccessingDescriptor(dscFile,tzxFile,pathDSC);
+                logln("All blocks captured from TZX file");
+              }
+              else
+              {
+                logln("All blocks captured from DSC file");
+              }
+          }
+          else
+          {
+            // Lanzamos la extraccion directa desde el TZX
+            // y creamos el nuevo .dsc
+            proccessingDescriptor(dscFile,tzxFile,pathDSC);
+            logln("All blocks captured from TZX file");
+          }
       }
       else
       {
-        FILE_IS_OPEN = false;
-        LAST_MESSAGE = "Error in TZX/TSX/CDT file has 0 bytes";
-      }
-
-
+          FILE_IS_OPEN = false;
+          LAST_MESSAGE = "Error in TZX/TSX/CDT file has 0 bytes";
+      }              
     }
 
     void initialize()
@@ -2330,7 +2659,7 @@ class TZXprocessor
         
 
         // Ahora lo voy actualizando a medida que van avanzando los bloques.
-        //PROGRAM_NAME_2 = _myTZX.descriptor[BLOCK_SELECTED].name;
+        PROGRAM_NAME = _myTZX.descriptor[BLOCK_SELECTED].name;
         
         DIRECT_RECORDING = false;
 
@@ -2477,6 +2806,8 @@ class TZXprocessor
 
               if (_myTZX.descriptor[i].playeable)
               {
+                
+
                     //Silent
                     _zxp.silent = _myTZX.descriptor[i].pauseAfterThisBlock;        
                     //SYNC1
@@ -2490,10 +2821,24 @@ class TZXprocessor
                     // BIT1                                          
                     _zxp.BIT_1 = _myTZX.descriptor[i].timming.bit_1;
 
+
+
                     // Obtenemos el nombre del bloque
                     strncpy(LAST_NAME,_myTZX.descriptor[i].name,14);
                     LAST_SIZE = _myTZX.descriptor[i].size;
                     strncpy(LAST_TYPE,_myTZX.descriptor[i].typeName,35);
+
+                    #ifdef DEBUGMODE
+                      logln("Bl: " + String(i) + "Playeable block");
+                      logln("Bl: " + String(i) + "Name: " + LAST_NAME);
+                      logln("Bl: " + String(i) + "Type name: " + LAST_TYPE);
+                      logln("Bl: " + String(i) + "pauseAfterThisBlock: " + String(_zxp.silent));
+                      logln("Bl: " + String(i) + "Sync1: " + String(_zxp.SYNC1));
+                      logln("Bl: " + String(i) + "Sync2: " + String(_zxp.SYNC2));
+                      logln("Bl: " + String(i) + "Pilot pulse len: " + String(_zxp.PILOT_PULSE_LEN));
+                      logln("Bl: " + String(i) + "Bit0: " + String(_zxp.BIT_0));
+                      logln("Bl: " + String(i) + "Bit1: " + String(_zxp.BIT_1));
+                    #endif
 
                     // Almacenmas el bloque en curso para un posible PAUSE
                     if (LOADING_STATE != 2) 
@@ -2886,7 +3231,16 @@ class TZXprocessor
                         }
 
                     }                  
-            }                
+            }
+            else
+            {
+              #ifdef DEBUGMODE
+                logln("");
+                logln("Bl: " + String(i) + " - Not playeable block");
+                logln("");
+              #endif
+            }
+
             break;
 
         }      
@@ -2923,6 +3277,12 @@ class TZXprocessor
 
               // Recorremos ahora todos los bloques que hay en el descriptor
               //-------------------------------------------------------------
+              #ifdef DEBUGMODE
+                  logln("Total blocks " + String(_myTZX.numBlocks));
+                  logln("First block " + String(firstBlockToBePlayed));
+                  logln("");
+              #endif
+
               for (int i = firstBlockToBePlayed; i < _myTZX.numBlocks; i++) 
               {               
 

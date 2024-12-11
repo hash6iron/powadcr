@@ -67,95 +67,103 @@ class BlockProcessor
 
     private:
 
-        SdFat32 _sdf32;
-        File32 _mFile;
-
         tBlDscTZX _blTZX;
         tBlDscTAP _blTAP;
         tBlDscTSX _blTSX;
 
 
     public:
-        void createBlockDescriptorFileTZX(File32 &mFile)
+        
+        bool existBlockDescriptorFile(File32 mFile, char* path)
+        {
+            logln("Existe? " + String(path));
+
+            if(mFile.open(path,O_READ))
+            {
+              mFile.close();
+              logln("SI");
+              return true;
+            }
+            else
+            {
+              logln("NO");
+              return false;
+            }
+        }
+
+        void createBlockDescriptorFileTZX(File32 &mFile, char* path)
         {
           // Creamos un fichero con el descriptor de bloques para TZX
-          strcat(_blTZX.path,".dsc");
+          _blTZX.path = path;
 
-          // el fichero sera, xxxx.dsc
-          if(mFile.exists(_blTZX.path))
-          {
-            mFile.remove(_blTZX.path);
-          }
           // Lo creamos otra vez
-          mFile.open(_blTZX.path,O_WRITE | O_CREAT | O_TRUNC);
+          if(mFile.open(_blTZX.path, O_RDWR | O_CREAT))
+          {
+            logln("DSC file created or overwrite");
+            mFile.println("pos,ID,chk,delay,group,hasMaskLastByte,header,jump_this_ID,lenOfData,loopCount,offset,offsetData,name,nameDetected,pauseATB,playeable,samplingrate,screen,silent,size,t.Bit0,t.Bit1,t.PilotLen,t.PilotNPulses,t.PulseSeq,t.PureTone,t.PureToneNP,t.Sync1,t.Sync2,SizeTZX");
+          }
         }
 
-        void createBlockDescriptorFileTSX(File32 &mFile)
-        {
-          // Creamos un fichero con el descriptor de bloques para TSX
-          strcat(_blTSX.path,".dsc");
-
-          // el fichero sera, xxxx.dsc
-          if(mFile.exists(_blTSX.path))
-          {
-            mFile.remove(_blTSX.path);
-          }
-          // Lo creamos otra vez
-          mFile.open(_blTSX.path,O_WRITE | O_CREAT | O_TRUNC);
-        }
-
-        void createBlockDescriptorFileTAP(File32 &mFile)
+        void createBlockDescriptorFileTAP(File32 &mFile, char* path)
         {
           // Creamos un fichero con el descriptor de bloques para TAP
-          strcat(_blTAP.path,".dsc");
+          _blTAP.path = path;
 
-          // el fichero sera, xxxx.dsc
-          if(mFile.exists(_blTAP.path))
-          {
-            mFile.remove(_blTAP.path);
-          }
           // Lo creamos otra vez
-          mFile.open(_blTAP.path,O_WRITE | O_CREAT | O_TRUNC);
+          if(mFile.open(_blTAP.path,O_WRITE))
+          {
+            logln("DSC file created or overwrite");
+            mFile.println("pos,ID,chk,delay,group,hasMaskLastByte,header,jump_this_ID,lenOfData,loopCount,offset,offsetData,name,nameDetected,pauseATB,playeable,samplingrate,screen,silent,size,t.Bit0,t.Bit1,t.PilotLen,t.PilotNPulses,t.PulseSeq,t.PureTone,t.PureToneNP,t.Sync1,t.Sync2,SizeTZX");
+          }
+
         }
 
-        void putBlocksDescriptorTZX(File32 &mFile,int pos, tTZXBlockDescriptor &descriptor)
+        void putBlocksDescriptorTZX(File32 &mFile,int pos, tTZXBlockDescriptor &descriptor, uint32_t sizeTZX)
         {
+            // Creamos un fichero con el descriptor de bloques para TZX
+            char name[20];
+            char typeName[36];
+
+            strncpy(name,descriptor.name,14);
+            strcpy(typeName,descriptor.typeName);
+
+            #ifdef DEBUGMODE
+              logln("Writing in: " + String(_blTZX.path));
+            #endif
+            
             // Ahora vamos a pasarle todo el descriptor TZX completo
             mFile.println(String(pos) + "," + 
                           String(descriptor.ID) + "," + 
-                          String(descriptor.chk) +
-                          String(descriptor.delay)+
-                          String(descriptor.group) +
-                          String(descriptor.hasMaskLastByte) +
-                          String(descriptor.header) +
-                          String(descriptor.jump_this_ID) +
-                          String(descriptor.lengthOfData) +
-                          String(descriptor.loop_count) +
-                          String(descriptor.offset) + "," + 
-                          String(descriptor.offsetData) +
-                          String(descriptor.lengthOfData) +
-                          String(descriptor.name) +
-                          String(descriptor.nameDetected) +
-                          String(descriptor.pauseAfterThisBlock) +
-                          String(descriptor.playeable) +
-                          String(descriptor.samplingRate) +
-                          String(descriptor.screen) +
-                          String(descriptor.silent) +
-                          String(descriptor.size) +
-                          String(descriptor.timming.bit_0) +
-                          String(descriptor.timming.bit_1) +
-                          String(descriptor.timming.pilot_len) +
-                          String(descriptor.timming.pilot_num_pulses) +
-                          String(descriptor.timming.pulse_seq_num_pulses) +
-                          String(descriptor.timming.pure_tone_len) +
-                          String(descriptor.timming.pure_tone_num_pulses) +
-                          String(descriptor.timming.sync_1) +
-                          String(descriptor.timming.sync_2));
+                          String(descriptor.chk) + "," +
+                          String(descriptor.delay)+ "," +
+                          String(descriptor.group) + "," +
+                          String(descriptor.hasMaskLastByte) + "," +
+                          String(descriptor.header) + "," +
+                          String(descriptor.jump_this_ID) + "," +
+                          String(descriptor.lengthOfData) + "," +
+                          String(descriptor.loop_count) + "," +
+                          String(descriptor.offset) + "," +
+                          String(descriptor.offsetData) + "," +     
+                          name + " ," +
+                          String(descriptor.nameDetected) + "," +
+                          String(descriptor.pauseAfterThisBlock) + "," +
+                          String(descriptor.playeable) + "," +
+                          String(descriptor.samplingRate) + "," +
+                          String(descriptor.screen) + "," +
+                          String(descriptor.silent) + "," +
+                          String(descriptor.size) + "," +
+                          String(descriptor.timming.bit_0) + "," +
+                          String(descriptor.timming.bit_1) + "," +
+                          String(descriptor.timming.pilot_len) + "," +
+                          String(descriptor.timming.pilot_num_pulses) + "," +
+                          String(descriptor.timming.pulse_seq_num_pulses) + "," +
+                          String(descriptor.timming.pure_tone_len) + "," +
+                          String(descriptor.timming.pure_tone_num_pulses) + "," +
+                          String(descriptor.timming.sync_1) + "," +
+                          String(descriptor.timming.sync_2) + "," +
+                          typeName + " ," +
+                          String(sizeTZX));              
 
-            mFile.close();
-
-            // Ahora pasamos todo al descriptor global
-            _blTZX.descriptor = descriptor;
         }
 
         // Para TAP
@@ -180,20 +188,20 @@ class BlockProcessor
         tTZXBlockDescriptor getBlockInformationTZX(File32 mFile, int blockPosition)
         {}        
 
-        void putPathTZX(char* path)
-        {
-          _blTZX.path = path;
-        }
+        // void putPathTZX(char* path)
+        // {
+        //   _blTZX.path = path;
+        // }
 
-        void putPathTSX(char* path)
-        {
-          _blTSX.path = path;
-        }
+        // void putPathTSX(char* path)
+        // {
+        //   _blTSX.path = path;
+        // }
 
-        void putPathTAP(char* path)
-        {
-          _blTAP.path = path;
-        }
+        // void putPathTAP(char* path)
+        // {
+        //   _blTAP.path = path;
+        // }
 
         BlockProcessor()
         {

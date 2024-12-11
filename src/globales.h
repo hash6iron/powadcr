@@ -490,9 +490,9 @@ double MAIN_VOL_FACTOR = 100;
 double MAIN_VOL = 0.9 * MAIN_VOL_FACTOR;
 double MAIN_VOL_R = 0.9 * MAIN_VOL_FACTOR;
 double MAIN_VOL_L = 0.9 * MAIN_VOL_FACTOR;
-double LAST_MAIN_VOL = 0.9 * MAIN_VOL_FACTOR;
-double LAST_MAIN_VOL_R = 0.9 * MAIN_VOL_FACTOR;
-double LAST_MAIN_VOL_L = 0.9 * MAIN_VOL_FACTOR;
+// double LAST_MAIN_VOL = 0.9 * MAIN_VOL_FACTOR;
+// double LAST_MAIN_VOL_R = 0.9 * MAIN_VOL_FACTOR;
+// double LAST_MAIN_VOL_L = 0.9 * MAIN_VOL_FACTOR;
 double MAX_MAIN_VOL = 1 * MAIN_VOL_FACTOR;
 double MAX_MAIN_VOL_R = 1 * MAIN_VOL_FACTOR;
 double MAX_MAIN_VOL_L = 1 * MAIN_VOL_FACTOR;
@@ -501,7 +501,7 @@ bool wasHeadphoneDetected = false;
 bool wasHeadphoneAmpDetected = false;
 bool preparingTestInOut = false;
 
-bool SCREEN_IS_LOADING = false;
+// bool SCREEN_IS_LOADING = false;
 bool BLOCK_REC_COMPLETED = false;
 
 // Gestion de menú

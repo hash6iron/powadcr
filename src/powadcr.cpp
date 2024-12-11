@@ -116,7 +116,6 @@ EasyNex myNex(SerialHW);
 #include "SdFat.h"
 #include "globales.h"
 
-// #include "AudioKitHAL.h"
 #include "AudioTools/AudioLibs/AudioKit.h"
 AudioKit ESP32kit;
 
@@ -129,7 +128,7 @@ SDmanager sdm;
 #include "HMI.h"
 HMI hmi;
 
-#include "interface.h"
+// #include "interface.h"
 #include "ZXProcessor.h"
 
 // ZX Spectrum. Procesador de audio output
@@ -189,11 +188,10 @@ bool pageScreenIsShown = false;
 
 // WAV Recorder
 // -----------------------------------------------------------------------
-#include "AudioTools.h"
-// #include "AudioTools/AudioLibs/AudioKit.h"
 #include "AudioTools/AudioLibs/AudioSourceSDFAT.h"
-#include <AudioTools/AudioCodecs/CodecADPCM.h>
-#include "AudioTools/AudioCodecs/CodecWAV.h" 
+// #include <AudioTools/AudioCodecs/CodecADPCM.h>
+#include "AudioTools/AudioCodecs/CodecWAV.h"
+#include "AudioTools/AudioLibs/A2DPStream.h"
 
 using namespace audio_tools;  
 // 
@@ -1334,14 +1332,6 @@ void setSTOP()
   // sendStatus(READY_ST, 1);
 }
 
-// metadata callback
-void printMetaDataWAVplayer(MetaDataType type, const char* str, int len){
-  SerialHW.print("==> ");
-  SerialHW.print(MetaDataTypeStr[type]);
-  SerialHW.print(": ");
-  SerialHW.println(str);
-}
-
 void playWAV()
 {
     // ESP32kit.end();
@@ -1353,9 +1343,12 @@ void playWAV()
     SdSpiConfig sdcfg(PIN_AUDIO_KIT_SD_CARD_CS,SHARED_SPI,SD_SCK_MHZ(SD_SPEED_MHZ),&SPI);
     AudioSourceSDFAT source("/wav","wav",sdcfg);
     AudioKitStream kit;
+    // A2DPStream outbt;
     WAVDecoder decoder;
+    // WAVDecoder decoderbt;
     AudioPlayer player(source,kit,decoder);
-
+    // AudioPlayer playerbt(source, outbt, decoder);
+    
     // setup output
     // sdf.end();
     
@@ -1366,11 +1359,17 @@ void playWAV()
     kit.begin(cfg);
     
     // setup player
-    player.setVolume(1.0);
+    player.setVolume(MAIN_VOL/100);
+    // playerbt.setVolume(1.0);
     player.setAutoNext(false); 
-    player.setMetadataCallback(printMetaDataWAVplayer);
-
-    // setup player
+    // playerbt.begin();
+    // auto cfgbt = outbt.defaultConfig(TX_MODE);
+    // cfgbt.silence_on_nodata = true; // prevent disconnect when there is no audio data
+    // cfgbt.name = "JBL T450BT";  // set the device here. Otherwise the first available device is used for output
+    // //cfg.auto_reconnect = true;  // if this is use we just quickly connect to the last device ignoring cfg.name
+    // outbt.begin(cfgbt);    
+    PROGRAM_NAME = "WAV file";
+    
     if(player.begin())
     {
         player.setPath(PATH_FILE_TO_LOAD.c_str());
@@ -1392,6 +1391,7 @@ void playWAV()
               tapeAnimationON();
             }
             player.copy();
+            // playerbt.copy();
           }
           else
           {
@@ -1414,6 +1414,7 @@ void playWAV()
         tapeAnimationOFF(); 
         // kit.end();  
         player.end();
+        // playerbt.end();
     }
     else
     {
