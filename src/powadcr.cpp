@@ -1016,7 +1016,7 @@ void stopRecording()
 }
 
 // -------------------------------------------------------------------------------------------------------------------
-unsigned long ota_progress_millis = 0;
+// unsigned long ota_progress_millis = 0;
 
 void onOTAStart() 
 {
@@ -1025,42 +1025,24 @@ void onOTAStart()
 
 void onOTAProgress(size_t currSize, size_t totalSize)
 {
-  log_v("CALLBACK:  Update process at %d of %d bytes...", currSize, totalSize);
+    // log_v("CALLBACK:  Update process at %d of %d bytes...", currSize, totalSize);
+  
+    #ifdef DEBUGMODE
+      logln("Uploading status: " + String(currSize/1024) + "/" + String(totalSize/1024) + " KB");
+    #endif
 
-  // Log every 1 second
-  if (millis() - ota_progress_millis > 250) 
-  {
-      ota_progress_millis = millis();
+    if(!pageScreenIsShown)
+    {
+      hmi.writeString("page screen");
+      hmi.writeString("screen.updateBar.bco=23275");     
+      pageScreenIsShown = true;
+    }
 
-      if(!pageScreenIsShown)
-      {
-        hmi.writeString("page screen");
-        //hmi.writeString("screen.updateBar.bco=23275");     
-        pageScreenIsShown = true;
-      }
+    int prg = 0;
+    prg = (currSize * 100) / totalSize;
 
-      size_t fileSize = totalSize / 1024;
-      fileSize = (round(fileSize*10)) / 10;
-      // int prg = 0;
-
-      // if (upload.totalSize != 0)
-      // {
-      //   prg = (upload.currentSize / upload.totalSize)*100;
-      // }
-      // else
-      // {
-      //   prg = 0;
-      // }
-      
-      //String fileName = upload.filename;
-      hmi.writeString("statusLCD.txt=\"FIRMWARE UPDATING " + String(fileSize) + " KB\""); 
-
-      // if(final!=0)
-      // {
-      //   hmi.writeString("screen.updateBar.val=" + String((current * 100) / final));    
-      // }
-      
-  }
+    hmi.writeString("statusLCD.txt=\"FIRMWARE UPDATING " + String(prg) + " %\""); 
+    hmi.writeString("screen.updateBar.val=" + String(prg));
 }
 
 void onOTAEnd(bool success) 
