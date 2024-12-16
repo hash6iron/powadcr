@@ -1,8 +1,11 @@
 # POWADCR
 TAP/TZX/TSX/CDT Digital cassette recorder for 8-bit machines
+![powadcr](https://github.com/user-attachments/assets/a08fac69-2d37-4e3b-a12b-77840da8b77e)
+
 -----
 
-![20241114_094439](https://github.com/user-attachments/assets/16d5ab1f-d37f-4b59-890f-74684e86956a)
+![20241114_094439](https://git![Uploading powadcr.png…]()
+hub.com/user-attachments/assets/16d5ab1f-d37f-4b59-890f-74684e86956a)
 This project pretend to implement a Digital Cassette Recorder (for TAP/TZX files playing and recording on TAP) for ZX Spectrum machines based on ESP32 Audio kit development board and using HMI over touch 3.5" screen.
 
 ![20241114_094902](https://github.com/user-attachments/assets/112a1133-2ad4-4a44-b31e-9115065462c2)
