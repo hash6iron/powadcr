@@ -1,7 +1,6 @@
 # POWADCR
 TAP/TZX/TSX/CDT Digital cassette recorder for 8-bit machines
-![powadcr](https://github.com/user-attachments/assets/a08fac69-2d37-4e3b-a12b-77840da8b77e)
-
+![powadcr](https://github.com/user-attachments/assets/095c6871-04af-4d0d-a695-d6893d664c81)
 -----
 
 ![20241114_094439](https://github.com/user-attachments/assets/16d5ab1f-d37f-4b59-890f-74684e86956a)
