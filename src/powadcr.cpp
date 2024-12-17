@@ -1982,6 +1982,48 @@ void getRandomFilename (char* &currentPath, String currentFileBaseName)
       strcat(currentPath,extPath);  
 }
 
+void getTheFirstPlayeableBlock()
+{
+  // Buscamos ahora el primer bloque playeable
+  
+  if (TYPE_FILE_LOAD !="TAP")
+  {
+    int i=1;
+    while(!myTZX.descriptor[i].playeable)
+    {
+      BLOCK_SELECTED=i;
+      i++;
+    }
+
+    BLOCK_SELECTED=i;
+    logln("Primero playeable: " + String(i));
+
+    PROGRAM_NAME = myTZX.descriptor[i].name;
+    strcpy(LAST_TYPE,myTZX.descriptor[i].typeName);
+    LAST_SIZE = myTZX.descriptor[i].size;
+
+  }
+  else
+  {
+    int i=1;
+    while(!myTAP.descriptor[i].playeable)
+    {
+      BLOCK_SELECTED=i;
+      i++;
+    }
+
+    logln("Primero playeable: " + String(i));
+
+    PROGRAM_NAME = myTAP.descriptor[i].name;
+    strcpy(LAST_TYPE,myTAP.descriptor[i].typeName);
+    LAST_SIZE = myTAP.descriptor[i].size;
+
+  }
+
+  hmi.updateInformationMainPage(true);
+
+}
+
 void tapeControl()
 {
   // Estados de funcionamiento del TAPE
@@ -2390,8 +2432,10 @@ void tapeControl()
                   logAlert("File inside the tape.");
                 #endif
                 
+                // Avanzamos ahora hasta el primer bloque playeable
                 if (!ABORT)
                 {
+                  getTheFirstPlayeableBlock();
                   LAST_MESSAGE = "File inside the TAPE.";
                   HMI_FNAME = FILE_LOAD;
 
@@ -2605,7 +2649,7 @@ void Task0code( void * pvParameters )
     int startTime2 = millis();
     int tClock = millis();
     int ho=0;int mi=0;int se=0;
-    int tScrRfsh = 125;
+    int tScrRfsh = 10;
     int tAckRfsh = 1500;
 
 
@@ -2627,7 +2671,7 @@ void Task0code( void * pvParameters )
           }
           else
           {
-              tScrRfsh = 125;
+              tScrRfsh = 10;
           }
 
           if ((millis() - startTime) > tScrRfsh)
