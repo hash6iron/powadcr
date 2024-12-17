@@ -194,10 +194,13 @@ double INTPART = 0.0;
 
 // Timming estandar de la ROM
 // Frecuencia de la CPU
-//double DfreqCPU = 3476604.8;
-//double DfreqCPU = 3450000;
-double DfreqCPU = 3500000;
-//double DfreqCPU = 3250000;
+// double DfreqCPU = 3450000;
+// double DfreqCPU = 3476604.8;
+// double DfreqCPU = 3500000;
+
+// Ajustamos este valor para un exacta frecuencia de oscilacion
+// aunque no coincida con el valor exacto real de la CPU
+double DfreqCPU = 3450000;
 
 const int DPULSES_HEADER = 8063;
 const int DPULSES_DATA = 3223;
@@ -262,11 +265,17 @@ uint8_t TAPESTATE = 0;
 //  ZXProcessor
 //
 // --------------------------------------------------------------------------
-// Inicialmente se define como flanco up para que empiece en down.
+// Inicialmente se define como flanco DOWN para que empiece en UP.
 // Polarización de la señal.
-// Con esto hacemos que el primer pulso sea DOWN 
+// Con esto hacemos que el primer pulso sea UP 
 // (porque el ultimo era DOWN supuestamente)
-edge POLARIZATION = up;
+
+// Inversion de pulso
+// ------------------
+// Para que empiece en DOWN tenemos que poner POLARIZATION en UP
+// Una señal con INVERSION de pulso es POLARIZACION = UP (empieza en DOWN)
+
+edge POLARIZATION = down;
 edge LAST_EAR_IS = POLARIZATION;
 //edge SCOPE = down;
 bool APPLY_END = false;

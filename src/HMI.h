@@ -2074,16 +2074,16 @@ class HMI
           //
           if (valEn==1)
           {
-              // Empieza en UP
-              POLARIZATION = down;
-              LAST_EAR_IS = down;
+              // Empieza en DOWN
+              POLARIZATION = up;
+              LAST_EAR_IS = up;
               INVERSETRAIN = true;
           }
           else
           {
-              // Empieza en DOWN
-              POLARIZATION = up;
-              LAST_EAR_IS = up;
+              // Empieza en UP
+              POLARIZATION = down;
+              LAST_EAR_IS = down;
               INVERSETRAIN = false;
           }
 
@@ -2210,7 +2210,7 @@ class HMI
             cfg.println("<zerolevel>" + String(ZEROLEVEL) + "</zerolevel>");
             cfg.println("<blockend>" + String(APPLY_END) + "</blockend>");     
 
-            if (POLARIZATION == down)
+            if (POLARIZATION == up)
             {
                cfg.println("<polarized>1</polarized>");       
             } 
@@ -2642,6 +2642,27 @@ class HMI
 
       void updateInformationMainPage(bool FORZE_REFRESH = false) 
       {            
+          // String msgPol = "";
+          // String msgEAR = "";
+
+          // if (POLARIZATION == up)
+          // {
+          //   msgPol = "UP";
+          // }
+          // else
+          // {
+          //   msgPol = "DOWN";
+          // }
+
+          // if (LAST_EAR_IS == up)
+          // {
+          //   msgEAR = "UP";
+          // }
+          // else
+          // {
+          //   msgEAR = "DOWN";
+          // }
+
           if (PLAY)
           {
             if (CURRENT_PAGE == 3)

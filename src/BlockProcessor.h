@@ -42,7 +42,7 @@ class BlockProcessor
 
     public:
 
-      String dscVersion = "v3.0";
+      String dscVersion = "v4.0";
 
       struct tBlDscTZX
       {
@@ -100,7 +100,7 @@ class BlockProcessor
           if(mFile.open(_blTZX.path, O_RDWR | O_CREAT))
           {
             logln("DSC file created or overwrite");
-            mFile.println(dscVersion + ",pos,ID,chk,delay,group,hasMaskLastByte,header,jump_this_ID,lenOfData,loopCount,offset,offsetData,name,nameDetected,pauseATB,playeable,samplingrate,screen,silent,size,t.Bit0,t.Bit1,t.PilotLen,t.PilotNPulses,t.PulseSeq,t.PureTone,t.PureToneNP,t.Sync1,t.Sync2,typeName,type,t.bitcfg,t.bytecfg,SizeTZX");
+            mFile.println(dscVersion + ",pos,ID,chk,delay,group,hasMaskLastByte,header,jump_this_ID,lenOfData,loopCount,offset,offsetData,name,nameDetected,pauseATB,playeable,samplingrate,screen,silent,size,t.Bit0,t.Bit1,t.PilotLen,t.PilotNPulses,t.PulseSeq,t.PureTone,t.PureToneNP,t.Sync1,t.Sync2,typeName,type,t.bitcfg,t.bytecfg,maskLastByte,SizeTZX");
           }
         }
 
@@ -113,7 +113,7 @@ class BlockProcessor
           if(mFile.open(_blTAP.path,O_WRITE))
           {
             logln("DSC file created or overwrite");
-            mFile.println(dscVersion + ",pos,ID,chk,delay,group,hasMaskLastByte,header,jump_this_ID,lenOfData,loopCount,offset,offsetData,name,nameDetected,pauseATB,playeable,samplingrate,screen,silent,size,t.Bit0,t.Bit1,t.PilotLen,t.PilotNPulses,t.PulseSeq,t.PureTone,t.PureToneNP,t.Sync1,t.Sync2,typeName,type,t.bitcfg,t.bytecfg,SizeTZX");
+            mFile.println(dscVersion + ",pos,ID,chk,delay,group,hasMaskLastByte,header,jump_this_ID,lenOfData,loopCount,offset,offsetData,name,nameDetected,pauseATB,playeable,samplingrate,screen,silent,size,t.Bit0,t.Bit1,t.PilotLen,t.PilotNPulses,t.PulseSeq,t.PureTone,t.PureToneNP,t.Sync1,t.Sync2,typeName,type,t.bitcfg,t.bytecfg,maskLastByte,SizeTZX");
           }
 
         }
@@ -165,6 +165,7 @@ class BlockProcessor
                           String(descriptor.type) + "," +
                           String(descriptor.timming.bitcfg) + "," +
                           String(descriptor.timming.bytecfg) + "," +
+                          String(descriptor.maskLastByte) + "," +
                           String(sizeTZX));              
 
         }

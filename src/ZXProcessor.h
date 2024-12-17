@@ -391,7 +391,8 @@ class ZXProcessor
             double amplitude = 0;
             
             // Calculamos el numero de samples
-            double rsamples = ((width / freqCPU) * SAMPLING_RATE) + calibrationValue;
+            double dwidth = width;
+            double rsamples = ((dwidth / freqCPU) * SAMPLING_RATE) + calibrationValue;
             
             
             // ********************************************************************************************
@@ -499,8 +500,8 @@ class ZXProcessor
             // para asegurar el cambio de flanco alto->bajo, del ultimo bit
             // Obtenemos los samples
             semiPulse(width,true);
-            
-            double rsamples = (width / freqCPU) * SAMPLING_RATE;
+            double dwidth = width;
+            double rsamples = (dwidth / freqCPU) * SAMPLING_RATE;
             return rsamples;
         }
 
@@ -753,7 +754,8 @@ class ZXProcessor
 
 
                 // Aplicamos ahora el silencio
-                double width = ((samples / SAMPLING_RATE) * freqCPU) + calibrationValue;
+                double dsapling = SAMPLING_RATE;
+                double width = ((samples / dsapling) * freqCPU) + calibrationValue;
 
                 semiPulse(width, true); 
                 

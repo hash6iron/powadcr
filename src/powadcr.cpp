@@ -103,6 +103,7 @@ TaskHandle_t Task1;
 #define SerialHWDataBits 921600
 #define hmiTxD 23
 #define hmiRxD 18
+#define powerLed 15
 
 
 #include <esp_task_wdt.h>
@@ -768,32 +769,47 @@ void setAudioInOut()
 void tapeAnimationON()
 {
     hmi.writeString("tape2.tmAnimation.en=1"); 
-    hmi.writeString("tape.tmAnimation.en=1");   
+    hmi.writeString("tape.tmAnimation.en=1");
+    delay(250);
+    hmi.writeString("tape2.tmAnimation.en=1"); 
+    hmi.writeString("tape.tmAnimation.en=1");         
 }
 
 void tapeAnimationOFF()
 {
     hmi.writeString("tape2.tmAnimation.en=0"); 
-    hmi.writeString("tape.tmAnimation.en=0");   
+    hmi.writeString("tape.tmAnimation.en=0"); 
+    delay(250);  
+    hmi.writeString("tape2.tmAnimation.en=0"); 
+    hmi.writeString("tape.tmAnimation.en=0"); 
 }
 
 void recAnimationON()
 {
   hmi.writeString("tape.RECst.val=1");
+    delay(250);  
+  hmi.writeString("tape.RECst.val=1");
+
 }
 
 void recAnimationOFF()
 {
+  hmi.writeString("tape.RECst.val=0");
+    delay(250);  
   hmi.writeString("tape.RECst.val=0");
 }
 
 void recAnimationFIXED_ON()
 {
   hmi.writeString("tape.recIndicator.bco=63848");
+    delay(250);  
+  hmi.writeString("tape.recIndicator.bco=63848");
 }
 
 void recAnimationFIXED_OFF()
 {
+  hmi.writeString("tape.recIndicator.bco=32768");
+    delay(250);  
   hmi.writeString("tape.recIndicator.bco=32768");
 }
 
@@ -1442,8 +1458,9 @@ void playingFile()
       //Paramos la animación
       tapeAnimationOFF(); 
   }
-  else if (TYPE_FILE_LOAD == "WAV")
+  else if (TYPE_FILE_LOAD == "WAV" && MODEWAV)
   {
+    logln("Type file load: " + TYPE_FILE_LOAD + " and MODEWAV: " + String(MODEWAV));
     // Reproducimos el WAV file
     LAST_MESSAGE = "WAV file loaded";
     playWAV();
@@ -1558,30 +1575,32 @@ void verifyConfigFileForSelection()
           {
             if((sdm.getValueOfParam(fileCfg[i].cfgLine,"polarized")) == "1")
             {
-              POLARIZATION = down;
-              LAST_EAR_IS = down;
-              INVERSETRAIN = true;
+                // Para que empiece en DOWN tenemos que poner POLARIZATION en UP
+                // Una señal con INVERSION de pulso es POLARIZACION = UP (empieza en DOWN)
+                POLARIZATION = up;
+                LAST_EAR_IS = up;
+                INVERSETRAIN = true;
 
-              if (POLARIZATION==down)
-              {
-                hmi.writeString("menuAudio2.polValue.val=1");
+                if (POLARIZATION==up)
+                {
+                  hmi.writeString("menuAudio2.polValue.val=1");
 
-                logln("");
-                log("Polarization INV: " + String(APPLY_END));
+                  logln("");
+                  log("Polarization INV: " + String(APPLY_END));
 
-              }
-              else
-              {
-                hmi.writeString("menuAudio2.polValue.val=0");
+                }
+                else
+                {
+                  hmi.writeString("menuAudio2.polValue.val=0");
 
-                logln("");
-                log("Polarization DIR: " + String(APPLY_END));
-              }
+                  logln("");
+                  log("Polarization DIR: " + String(APPLY_END));
+                }
             }
             else
             {
-              POLARIZATION = up;
-              LAST_EAR_IS = up;
+              POLARIZATION = down;
+              LAST_EAR_IS = down;
               INVERSETRAIN = false;
             }            
           }
@@ -1591,22 +1610,22 @@ void verifyConfigFileForSelection()
       {
         if (ZEROLEVEL)
         {
-          hmi.writeString("tape.pulseInd.pic=35");
+          hmi.writeString("tape.pulseInd.pic=36");
         }
         else
         {
-          hmi.writeString("tape.pulseInd.pic=34");
+          hmi.writeString("tape.pulseInd.pic=33");
         }
       }
       else
       {
         if (ZEROLEVEL)
         {
-          hmi.writeString("tape.pulseInd.pic=36");
+          hmi.writeString("tape.pulseInd.pic=35");
         }
         else
         {
-          hmi.writeString("tape.pulseInd.pic=33");
+          hmi.writeString("tape.pulseInd.pic=34");
         }        
       }
     }
@@ -1725,7 +1744,7 @@ void ejectingFile()
       // para liberarlo
       if (myTAP.descriptor != nullptr)
       {
-        // LAST_MESSAGE = "PSRAM cleanning";
+        LAST_MESSAGE = "PSRAM cleanning";
         // delay(1500);
         free(pTAP.getDescriptor());
         // Finalizamos
@@ -1849,11 +1868,13 @@ void getAudioSettingFromHMI()
 
     if(myNex.readNumber("menuAdio.polValue.val")==1)
     {
-      POLARIZATION = down;
+      // Para que empiece en DOWN tenemos que poner POLARIZATION en UP
+      // Una señal con INVERSION de pulso es POLARIZACION = UP (empieza en DOWN)
+      POLARIZATION = up;
     }
     else
     {
-      POLARIZATION = up;
+      POLARIZATION = down;
     }
 
     if(myNex.readNumber("menuAdio.lvlLowZero.val")==1)
@@ -1870,15 +1891,16 @@ void setPolarization()
 {
     if (INVERSETRAIN)
     {
-        // Empieza en UP
-        POLARIZATION = down;
-        LAST_EAR_IS = down;
+        // Para que empiece en DOWN tenemos que poner POLARIZATION en UP
+        // Una señal con INVERSION de pulso es POLARIZACION = UP (empieza en DOWN)
+        POLARIZATION = up;
+        LAST_EAR_IS = up;
     }
     else
     {
-        // Empieza en DOWN
-        POLARIZATION = up;
-        LAST_EAR_IS = up;
+        // Empieza en UP
+        POLARIZATION = down;
+        LAST_EAR_IS = down;
     }  
 }
 
@@ -2026,13 +2048,13 @@ void tapeControl()
           // 
           AUTO_STOP = false;
         }
-        else if (STOP)
-        {
-          // Esto lo hacemos para evitar repetir el mensaje infinitamente
-          LAST_MESSAGE = "Press EJECT to select a file or REC.";
-          STOP=false;
-          setPolarization();                
-        }
+        // else if (STOP)
+        // {
+        //   // Esto lo hacemos para evitar repetir el mensaje infinitamente
+        //   LAST_MESSAGE = "Press EJECT to select a file or REC.";
+        //   STOP=false;
+        //   setPolarization();                
+        // }
         else if (DISABLE_SD)
         {
           DISABLE_SD = false;
@@ -2085,36 +2107,28 @@ void tapeControl()
         TAPESTATE = 0;
         LOADING_STATE = 0;
       }
-      else if (FFWIND || RWIND)
-      {
-        // Actualizamos el HMI
-        updateHMIOnBlockChange();                  
-        //
-        FFWIND = false;
-        RWIND = false;         
-      }       
+      // else if (FFWIND || RWIND)
+      // {
+      //   // Actualizamos el HMI
+      //   updateHMIOnBlockChange();                  
+      //   //
+      //   FFWIND = false;
+      //   RWIND = false;         
+      // }       
       else if (PAUSE)       
       {
-          if (TAPESTATE == 3)
-          {
-            TAPESTATE = 1;
-            PLAY = true;
-            PAUSE = false;
-          }
-          else
-          {
-            TAPESTATE = 3;
-            if (TYPE_FILE_LOAD = "WAV")
-            {
-              LAST_MESSAGE = "Playing paused.";
-            }
-            else
-            {
-              LAST_MESSAGE = "Tape paused. Press play or select block.";
-            }
-          }
-
-          
+        // Nos vamos al estado PAUSA para seleccion de bloques
+        TAPESTATE = 3;
+        // Esto la hacemos para evitar una salida inesperada de seleccion de bloques.
+        PAUSE = false;
+        if (TYPE_FILE_LOAD == "WAV")
+        {
+          LAST_MESSAGE = "Playing paused.";
+        }
+        else
+        {
+          LAST_MESSAGE = "Tape paused. Press play or select block.";
+        }
       }
       else if (STOP)
       {
@@ -2189,11 +2203,6 @@ void tapeControl()
       #endif
 
       TAPESTATE = 1;
-      // LOADING_STATE = 2;
-      // //Activamos la animación
-      // tapeAnimationOFF();
-      // // Reproducimos el fichero
-      // LAST_MESSAGE = "Stop playing.";
       //            
       break;
 
@@ -2213,7 +2222,13 @@ void tapeControl()
       //          
       if (PLAY)
       {
+          // Reanudamos la reproduccion
           TAPESTATE = 1;
+      }
+      else if (PAUSE)
+      {
+          // Reanudamos la reproduccion pero con PAUSE
+          TAPESTATE = 5;
       }
       else if (STOP)
       {
@@ -2237,6 +2252,14 @@ void tapeControl()
       {
         TAPESTATE = 3;
       }
+      break;
+
+    case 5:
+      // Si venimos del estado de seleccion de bloques
+      // y pulso PAUSE continuo la carga en TAPESTATE = 1
+      TAPESTATE = 1;
+      PLAY = true;
+      PAUSE = false;
       break;
 
     case 10: 

@@ -52,8 +52,10 @@ class TZXprocessor
     const char ID25STR[35] = "ID 25 - Loop start                ";
     const char ID26STR[35] = "ID 26 - Loop end                  ";
     const char ID28STR[35] = "ID 28 - Select block              ";
+    const char ID2ASTR[35] = "ID 2A - Stop TAPE (48k mode)      ";
+    const char ID2BSTR[35] = "ID 2B - Set signal level          ";
     const char ID4BSTR[35] = "ID 4B - TSX Block                 ";
-    const char IDXXSTR[35] = "ID                                ";
+    const char IDXXSTR[35] = "TZX Block                         ";
 
     const int maxAllocationBlocks = 4000;
 
@@ -1446,7 +1448,7 @@ class TZXprocessor
             nextIDoffset = currentOffset + 1;            
 
             //_myTZX.descriptor[currentBlock].typeName = "ID 2A - Stop TAPE (48k mode)";
-            strncpy(_myTZX.descriptor[currentBlock].typeName,IDXXSTR,35);
+            strncpy(_myTZX.descriptor[currentBlock].typeName,ID2ASTR,35);
               
             break;
 
@@ -1455,9 +1457,12 @@ class TZXprocessor
             if (_myTZX.descriptor != nullptr)
             {
               int signalLevel = getBYTE(mFile,currentOffset+4);
-              if(signalLevel==0)
+              
+              // Inversion de señal            
+              if(signalLevel==1)
               {
-                // Para que empiece en DOWN tiene que ser UP
+                // Para que empiece en DOWN tiene que ser POLARIZATION = UP
+                // esto seria una señal invertida
                 POLARIZATION = up;
               }
               else
@@ -1468,7 +1473,7 @@ class TZXprocessor
               nextIDoffset = currentOffset + 5;            
 
               //_myTZX.descriptor[currentBlock].typeName = "ID 2B - Set signal level";
-              strncpy(_myTZX.descriptor[currentBlock].typeName,IDXXSTR,35);
+              strncpy(_myTZX.descriptor[currentBlock].typeName,ID2BSTR,35);
             }
             else
             {
@@ -2202,6 +2207,11 @@ class TZXprocessor
                           break;
 
                         case 33:
+                          // .maskLastByte
+                          myTZX.descriptor[nblock].maskLastByte = str.toInt();
+                          break;
+
+                        case 34:
                           // sizeTZX actual
                           myTZX.size = str.toInt();
                           sizeTZX = myTZX.size;
@@ -2812,6 +2822,7 @@ class TZXprocessor
 
                   hmi.writeString("click btnPause,1"); 
 
+                  MODEWAV = false;
                   PLAY = false;
                   STOP = false;
                   PAUSE = true;
