@@ -514,7 +514,7 @@ void configureWebServer()
   oldDir = "/";
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request)
             {
-              getSdInfo();
+              //getSdInfo();
               String logMessage = "Client:" + request->client()->remoteIP().toString() + +" " + request->url();
                 log_i("%s", logMessage.c_str());
                 request->send_P(200, "text/html", index_html, webParser); 
