@@ -200,7 +200,7 @@ double INTPART = 0.0;
 
 // Ajustamos este valor para un exacta frecuencia de oscilacion
 // aunque no coincida con el valor exacto real de la CPU
-double DfreqCPU = 3450000;
+double DfreqCPU = 3500000;
 
 const int DPULSES_HEADER = 8063;
 const int DPULSES_DATA = 3223;
