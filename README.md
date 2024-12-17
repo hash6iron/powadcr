@@ -33,7 +33,7 @@ This project need set PCB switches to
 
 |Switch|Value|
 |---|---|
-|1|On|
+|1|Off|
 |2|On|
 |3|On|
 |4|Off|
