@@ -1179,7 +1179,7 @@ class HMI
           writeString("tape.totalBlocks.val=0");
           writeString("tape.currentBlock.val=0");
           writeString("tape.progressTotal.val=0");
-          writeString("tape.progression.val=0");
+          writeString("tape.progressBlock.val=0");
 
           TOTAL_BLOCKS = 0;
           BLOCK_SELECTED = 0;
@@ -2636,6 +2636,7 @@ class HMI
           writeString("tape2.type.txt=\"" + String(LAST_TYPE) + " " + LAST_GROUP + "\"");
           writeString("progression.val=" + String(PROGRESS_BAR_BLOCK_VALUE));   
           writeString("progressTotal.val=" + String(PROGRESS_BAR_TOTAL_VALUE));
+          writeString("progressBlock.val=" + String(PROGRESS_BAR_BLOCK_VALUE));
           writeString("totalBlocks.val=" + String(TOTAL_BLOCKS));       
           writeString("currentBlock.val=" + String(BLOCK_SELECTED + 1));                              
       }
@@ -2780,13 +2781,18 @@ class HMI
             //writeString("totalBlocks.val=0");
             //writeString("currentBlock.val=0");
           }
-        
+
+          if (lastfname != HMI_FNAME || FORZE_REFRESH)
+          {writeString("fname.txt=\"" + HMI_FNAME + "\"");}
+          lastfname = HMI_FNAME;
+
+
           if (lastMsn != LAST_MESSAGE || FORZE_REFRESH)
           {writeString("g0.txt=\"" + LAST_MESSAGE + "\"");}
           lastMsn = LAST_MESSAGE;
           
           if (lastPr1 != PROGRESS_BAR_BLOCK_VALUE || FORZE_REFRESH)
-          {writeString("progression.val=" + String(PROGRESS_BAR_BLOCK_VALUE));}
+          {writeString("progressBlock.val=" + String(PROGRESS_BAR_BLOCK_VALUE));}
           lastPr1 = PROGRESS_BAR_BLOCK_VALUE;
 
           if (lastPr2 != PROGRESS_BAR_TOTAL_VALUE || FORZE_REFRESH)

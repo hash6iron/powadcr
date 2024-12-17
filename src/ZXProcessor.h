@@ -674,6 +674,7 @@ class ZXProcessor
  
                     
                     PROGRESS_BAR_TOTAL_VALUE = ((BYTES_INI + (i+1)) * 100 ) / BYTES_TOBE_LOAD ;
+                    PROGRESS_BAR_BLOCK_VALUE = ((BYTES_INI + (i+1)) * 100 ) / (BYTES_INI + BYTES_IN_THIS_BLOCK) ;
 
                 }
                 

@@ -2726,6 +2726,8 @@ class TZXprocessor
 
         // Ahora lo voy actualizando a medida que van avanzando los bloques.
         PROGRAM_NAME = _myTZX.descriptor[BLOCK_SELECTED].name;
+
+        BYTES_IN_THIS_BLOCK = _myTZX.descriptor[i].size;
         
         DIRECT_RECORDING = false;
 
@@ -2820,15 +2822,18 @@ class TZXprocessor
                   // PAUSE
                   // Pausamos la reproducción a través del HMI 
 
-                  hmi.writeString("click btnPause,1"); 
-
-                  MODEWAV = false;
-                  PLAY = false;
-                  STOP = false;
-                  PAUSE = true;
-
-                  LAST_MESSAGE = "Playing PAUSE.";
+                  // hmi.writeString("click btnPause,1"); 
+                  // LAST_MESSAGE = "Playing PAUSE.";
                   LAST_GROUP = "[STOP BLOCK]";
+
+                  // MODEWAV = false;
+                  // PLAY = false;
+                  // STOP = false;
+                  // PAUSE = true;
+
+                  // Lanzamos una PAUSA automatica
+                  AUTO_PAUSE = true;
+                  _hmi.verifyCommand("PAUSE");
 
                   // Dejamos preparado el sieguiente bloque
                   CURRENT_BLOCK_IN_PROGRESS++;
@@ -3043,7 +3048,9 @@ class TZXprocessor
                               offset = _myTZX.descriptor[i].offsetData;
                               
                               BYTES_INI = offset;
+
                               PROGRESS_BAR_TOTAL_VALUE = (BYTES_INI * 100 ) / BYTES_TOBE_LOAD ;
+                              PROGRESS_BAR_BLOCK_VALUE = (BYTES_INI * 100 ) / (_myTZX.descriptor[i].offset + BYTES_IN_THIS_BLOCK) ;
 
                               bufferD = 1024;  // Buffer de BYTES de datos convertidos a samples
                               // Reservamos memoria dinamica
@@ -3093,6 +3100,7 @@ class TZXprocessor
                                       offset += bufferD;
                                       BYTES_INI += bufferD;
                                       PROGRESS_BAR_TOTAL_VALUE = (BYTES_INI * 100 ) / BYTES_TOBE_LOAD ;
+                                      PROGRESS_BAR_BLOCK_VALUE = (BYTES_INI * 100 ) / (_myTZX.descriptor[i].offset + BYTES_IN_THIS_BLOCK);
 
                                       // Liberamos el array
                                       free(_myTZX.descriptor[i].timming.pulse_seq_array);

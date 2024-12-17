@@ -1092,15 +1092,15 @@ bool wifiSetup()
 
     int trying_wifi = 0;
 
-    while ((WiFi.waitForConnectResult() != WL_CONNECTED) && trying_wifi <= 10)
+    while ((WiFi.waitForConnectResult() != WL_CONNECTED) && trying_wifi <= 2)
     {
       hmi.writeString("statusLCD.txt=\"WiFi Connection failed! - try " + String(trying_wifi) + "\"" );
       trying_wifi++;
       wifiActive = false;
-      delay(500);
+      // delay(125);
     }  
 
-    if (trying_wifi > 10)
+    if (trying_wifi > 2)
     {
       wifiActive = false;
     }
@@ -2127,7 +2127,15 @@ void tapeControl()
         }
         else
         {
-          LAST_MESSAGE = "Tape paused. Press play or select block.";
+          
+          if (AUTO_PAUSE)
+          {
+              LAST_MESSAGE = "Tape auto-paused. Follow machine instructions.";
+          }
+          else
+          {
+              LAST_MESSAGE = "Tape paused. Press play or select block.";
+          }
         }
       }
       else if (STOP)
@@ -2224,15 +2232,24 @@ void tapeControl()
       {
           // Reanudamos la reproduccion
           TAPESTATE = 1;
+          AUTO_PAUSE = false;
       }
       else if (PAUSE)
       {
           // Reanudamos la reproduccion pero con PAUSE
           TAPESTATE = 5;
+          AUTO_PAUSE = false;
+
+          HMI_FNAME = "";
+          HMI_FNAME = FILE_LOAD;
       }
       else if (STOP)
       {
           TAPESTATE = 1;
+          AUTO_PAUSE = false;
+          
+          HMI_FNAME = "";
+          HMI_FNAME = FILE_LOAD;
       }
       else if (FFWIND || RWIND)
       {
@@ -2247,6 +2264,7 @@ void tapeControl()
       {
         TAPESTATE = 0;
         LOADING_STATE = 0;
+        AUTO_PAUSE = false;
       }      
       else
       {
@@ -2375,6 +2393,8 @@ void tapeControl()
                 if (!ABORT)
                 {
                   LAST_MESSAGE = "File inside the TAPE.";
+                  HMI_FNAME = FILE_LOAD;
+
                   TAPESTATE = 10;
                   LOADING_STATE = 0;
                 }
