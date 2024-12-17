@@ -236,15 +236,15 @@ class HMI
                           //
                           FILE_TOTAL_FILES = cdir + cfiles;
 
- 
+                          // Devolvemos el total de ITEMS cargados 
+                          writeString("statusFILE.txt=\"ITEMS " + String(FILE_TOTAL_FILES-1) +"\"");
+
                       }
                   }
 
                   sdm.file.close();
               }
           }
-          // Devolvemos el total de ITEMS cargados 
-          writeString("statusFILE.txt=\"ITEMS " + String(FILE_TOTAL_FILES-1) +"\"");
      }
 
       void registerFiles(String path, String filename, String filename_inf,String search_pattern)
@@ -508,6 +508,9 @@ class HMI
           File32 f;
           String fFileList = path + filename;
 
+          // Informamos
+          writeString("statusFILE.txt=\"READING FILES\"");
+
           #ifdef DEBUGMODE
             logln("");
             log("Path to register in LST file: " + fFileList);
@@ -623,7 +626,7 @@ class HMI
               }
 
               // Si no existe el historico de los ficheros se genera un _file.lst
-              registerFileLST(FILE_LAST_DIR, forze_rescan, output_file, output_file_inf, search_pattern);
+              // registerFileLST(FILE_LAST_DIR, forze_rescan, output_file, output_file_inf, search_pattern);
 
               // Usamos el fichero que contiene el mapa del directorio actual, _files.lst
               manageFileLST(fFileLST, FILE_LAST_DIR, SOURCE_FILE_TO_MANAGE);
@@ -1084,7 +1087,7 @@ class HMI
                   szName = String("<DIR>  ") + szName;
                   szName.toUpperCase();
               }     
-              else if (type == "TAP" || type == "TZX" || type == "TSX" || type == "CDT")
+              else if (type == "TAP" || type == "TZX" || type == "TSX" || type == "CDT" || type == "WAV")
               {
                   //Fichero
                   if (_sdf.exists("/fav/" + szName))

@@ -2020,6 +2020,7 @@ void getTheFirstPlayeableBlock()
 
   }
 
+  // Forzamos un refresco de los indicadores
   hmi.updateInformationMainPage(true);
 
 }
