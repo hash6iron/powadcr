@@ -1458,7 +1458,7 @@ void playingFile()
       //Paramos la animación
       tapeAnimationOFF(); 
   }
-  else if (TYPE_FILE_LOAD == "WAV" && MODEWAV)
+  else if (TYPE_FILE_LOAD == "WAV")
   {
     logln("Type file load: " + TYPE_FILE_LOAD + " and MODEWAV: " + String(MODEWAV));
     // Reproducimos el WAV file
