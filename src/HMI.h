@@ -236,15 +236,15 @@ class HMI
                           //
                           FILE_TOTAL_FILES = cdir + cfiles;
 
- 
+                          // Devolvemos el total de ITEMS cargados 
+                          writeString("statusFILE.txt=\"ITEMS " + String(FILE_TOTAL_FILES-1) +"\"");
+
                       }
                   }
 
                   sdm.file.close();
               }
           }
-          // Devolvemos el total de ITEMS cargados 
-          writeString("statusFILE.txt=\"ITEMS " + String(FILE_TOTAL_FILES-1) +"\"");
      }
 
       void registerFiles(String path, String filename, String filename_inf,String search_pattern)
@@ -507,6 +507,9 @@ class HMI
           // Si el _files.lst ya existe no se vuelve a crear, a no ser que sea forzado el rescan.
           File32 f;
           String fFileList = path + filename;
+
+          // Informamos
+          writeString("statusFILE.txt=\"READING FILES\"");
 
           #ifdef DEBUGMODE
             logln("");
@@ -1084,7 +1087,7 @@ class HMI
                   szName = String("<DIR>  ") + szName;
                   szName.toUpperCase();
               }     
-              else if (type == "TAP" || type == "TZX" || type == "TSX" || type == "CDT")
+              else if (type == "TAP" || type == "TZX" || type == "TSX" || type == "CDT" || type == "WAV")
               {
                   //Fichero
                   if (_sdf.exists("/fav/" + szName))
