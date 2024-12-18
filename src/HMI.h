@@ -626,7 +626,7 @@ class HMI
               }
 
               // Si no existe el historico de los ficheros se genera un _file.lst
-              // registerFileLST(FILE_LAST_DIR, forze_rescan, output_file, output_file_inf, search_pattern);
+              registerFileLST(FILE_LAST_DIR, forze_rescan, output_file, output_file_inf, search_pattern);
 
               // Usamos el fichero que contiene el mapa del directorio actual, _files.lst
               manageFileLST(fFileLST, FILE_LAST_DIR, SOURCE_FILE_TO_MANAGE);
