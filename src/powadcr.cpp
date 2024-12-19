@@ -1520,22 +1520,38 @@ void verifyConfigFileForSelection()
             {
             case 48000:
               hmi.writeString("menuAudio2.r0.val=1");
+              hmi.writeString("menuAudio2.r1.val=0");
+              hmi.writeString("menuAudio2.r2.val=0");
+              hmi.writeString("menuAudio2.r3.val=0");
               break;
 
             case 44100:
+              hmi.writeString("menuAudio2.r0.val=0");
               hmi.writeString("menuAudio2.r1.val=1");
+              hmi.writeString("menuAudio2.r2.val=0");
+              hmi.writeString("menuAudio2.r3.val=0");
               break;
 
             case 32000:
+              hmi.writeString("menuAudio2.r0.val=0");
+              hmi.writeString("menuAudio2.r1.val=0");
               hmi.writeString("menuAudio2.r2.val=1");
+              hmi.writeString("menuAudio2.r3.val=0");
               break;
 
             case 22050:
+              hmi.writeString("menuAudio2.r0.val=0");
+              hmi.writeString("menuAudio2.r1.val=0");
+              hmi.writeString("menuAudio2.r2.val=0");
               hmi.writeString("menuAudio2.r3.val=1");
               break;
 
             default:
+              // Por defecto es 44.1KHz
+              hmi.writeString("menuAudio2.r0.val=0");
               hmi.writeString("menuAudio2.r1.val=1");
+              hmi.writeString("menuAudio2.r2.val=0");
+              hmi.writeString("menuAudio2.r3.val=0");
               break;
             }
           }
@@ -2212,6 +2228,10 @@ void tapeControl()
         setPolarization();
         STOP=false; //28/11
 
+        if (TYPE_FILE_LOAD != "WAV")
+        {
+          getTheFirstPlayeableBlock();
+        }
 
         
       }
@@ -2296,6 +2316,12 @@ void tapeControl()
           
           HMI_FNAME = "";
           HMI_FNAME = FILE_LOAD;
+
+          if (TYPE_FILE_LOAD != "WAV")
+          {
+            getTheFirstPlayeableBlock();
+          }
+
       }
       else if (FFWIND || RWIND)
       {
@@ -2443,7 +2469,7 @@ void tapeControl()
                   {
                     getTheFirstPlayeableBlock();
                   }
-                  
+
                   LAST_MESSAGE = "File inside the TAPE.";
                   HMI_FNAME = FILE_LOAD;
 
@@ -2657,7 +2683,7 @@ void Task0code( void * pvParameters )
     int startTime2 = millis();
     int tClock = millis();
     int ho=0;int mi=0;int se=0;
-    int tScrRfsh = 10;
+    int tScrRfsh = 125;
     int tAckRfsh = 1500;
 
 
@@ -2679,7 +2705,7 @@ void Task0code( void * pvParameters )
           }
           else
           {
-              tScrRfsh = 10;
+              tScrRfsh = 125;
           }
 
           if ((millis() - startTime) > tScrRfsh)
