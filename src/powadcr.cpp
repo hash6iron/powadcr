@@ -2211,6 +2211,9 @@ void tapeControl()
 
         setPolarization();
         STOP=false; //28/11
+
+
+        
       }
       else if (REC)
       {
@@ -2436,7 +2439,11 @@ void tapeControl()
                 // Avanzamos ahora hasta el primer bloque playeable
                 if (!ABORT)
                 {
-                  getTheFirstPlayeableBlock();
+                  if (TYPE_FILE_LOAD != "WAV")
+                  {
+                    getTheFirstPlayeableBlock();
+                  }
+                  
                   LAST_MESSAGE = "File inside the TAPE.";
                   HMI_FNAME = FILE_LOAD;
 
