@@ -201,7 +201,12 @@ using namespace audio_tools;
 
 // -----------------------------------------------------------------------
 // Prototype function
+
 void ejectingFile();
+void isGroupStart();
+void isGroupEnd();
+
+// -----------------------------------------------------------------------
 
 void freeMemoryFromDescriptorTZX(tTZXBlockDescriptor* descriptor)
 {
@@ -1940,24 +1945,94 @@ void getPlayeableBlockTZX(tTZX tB, int inc)
     }
 }
 
-void getPlayeableBlockTSX(tTZX tB, int inc)
+void nextGroupBlock()
 {
-    // Esta funcion busca el bloque valido siguiente
-    // inc sera +1 o -1 dependiendo de si es FFWD o RWD
-    while(!((tB.descriptor)[BLOCK_SELECTED].playeable))
+  logln("Seacrh Next Group Block");
+  
+  if (TYPE_FILE_LOAD !="TAP" && TYPE_FILE_LOAD != "WAV")
+  {
+    while(myTZX.descriptor[BLOCK_SELECTED].ID != 34 && BLOCK_SELECTED <= TOTAL_BLOCKS)
     {
-      BLOCK_SELECTED += inc;
-
-      if (BLOCK_SELECTED > TOTAL_BLOCKS)
-      {
-        BLOCK_SELECTED = 1;
-      }
-
-      if (BLOCK_SELECTED < 1)
-      {
-        BLOCK_SELECTED = TOTAL_BLOCKS;
-      }
+      BLOCK_SELECTED++;
     }
+
+    if (BLOCK_SELECTED > (TOTAL_BLOCKS-1))
+    {
+      // No he encontrado el Group End
+      BLOCK_SELECTED = 1;
+    }
+    else
+    {
+      // Avanzo uno mas
+      PROGRAM_NAME_2 = "";
+      LAST_BLOCK_WAS_GROUP_END = true;
+      LAST_BLOCK_WAS_GROUP_START = false;
+      // BLOCK_SELECTED++;
+      // isGroupStart();
+    }
+  }
+}
+
+void prevGroupBlock()
+{
+  logln("Seacrh Previous Group Block");
+
+  if (TYPE_FILE_LOAD !="TAP" && TYPE_FILE_LOAD != "WAV")
+  {
+    while(myTZX.descriptor[BLOCK_SELECTED].ID != 33 && BLOCK_SELECTED > 1)
+    {
+      BLOCK_SELECTED--;
+    }
+
+    if (BLOCK_SELECTED < 1)
+    {
+      // No he encontrado el Group Start
+      BLOCK_SELECTED = TOTAL_BLOCKS - 1;
+    }
+    else
+    {
+      // Le pasamos el nombre del grupo al PROGRAM_NAME_2
+      // BLOCK_SELECTED++;
+      PROGRAM_NAME_2 = myTZX.descriptor[BLOCK_SELECTED].name;
+      LAST_BLOCK_WAS_GROUP_START = true;
+      LAST_BLOCK_WAS_GROUP_END = false;
+    }
+  }
+}
+
+void isGroupStart()
+{
+  // Verificamos si se entra en un grupo
+  logln("ID: " + String(myTZX.descriptor[BLOCK_SELECTED].ID));
+
+  if (TYPE_FILE_LOAD != "TAP" && TYPE_FILE_LOAD != "WAV")
+  {
+    if (myTZX.descriptor[BLOCK_SELECTED].ID == 33)
+    {
+      // Es un group start
+      LAST_BLOCK_WAS_GROUP_START = true;
+      LAST_BLOCK_WAS_GROUP_END = false;
+      // Le pasamos el nombre del grupo al PROGRAM_NAME_2
+      PROGRAM_NAME_2 = myTZX.descriptor[BLOCK_SELECTED].name;
+    }
+  }
+}
+
+void isGroupEnd()
+{
+  // Verificamos si se entra en un grupo
+  logln("ID: " + String(myTZX.descriptor[BLOCK_SELECTED].ID));
+
+  if (TYPE_FILE_LOAD != "TAP" && TYPE_FILE_LOAD != "WAV")
+  {
+    if (myTZX.descriptor[BLOCK_SELECTED].ID == 34)
+    {
+      // Es un group start
+      LAST_BLOCK_WAS_GROUP_END = true;
+      LAST_BLOCK_WAS_GROUP_START = false;
+      prevGroupBlock();      
+    }
+  }
 }
 
 void updateHMIOnBlockChange()
@@ -1965,23 +2040,11 @@ void updateHMIOnBlockChange()
     if (TYPE_FILE_LOAD=="TAP")
     {
       hmi.setBasicFileInformation(myTAP.descriptor[BLOCK_SELECTED].name,myTAP.descriptor[BLOCK_SELECTED].typeName,myTAP.descriptor[BLOCK_SELECTED].size,true);
-      // BYTES_LOADED = myTAP.size;
-      // PROGRESS_BAR_TOTAL_VALUE = (myTAP.descriptor[BLOCK_SELECTED].offset * 100 ) / BYTES_TOBE_LOAD ;
     }
     else if(TYPE_FILE_LOAD=="TZX" || TYPE_FILE_LOAD=="CDT" || TYPE_FILE_LOAD=="TSX")
     {
       hmi.setBasicFileInformation(myTZX.descriptor[BLOCK_SELECTED].name,myTZX.descriptor[BLOCK_SELECTED].typeName,myTZX.descriptor[BLOCK_SELECTED].size,myTZX.descriptor[BLOCK_SELECTED].playeable);
-      // BYTES_LOADED = myTZX.size;
-      // PROGRESS_BAR_TOTAL_VALUE = (myTZX.descriptor[BLOCK_SELECTED].offset * 100 ) / BYTES_TOBE_LOAD ;
-    }
-    // else if(TYPE_FILE_LOAD=="TSX")
-    // {
-    //   hmi.setBasicFileInformation(myTSX.descriptor[BLOCK_SELECTED].name,myTSX.descriptor[BLOCK_SELECTED].typeName,myTSX.descriptor[BLOCK_SELECTED].size,myTSX.descriptor[BLOCK_SELECTED].playeable);
-    //   // BYTES_LOADED = myTSX.size;
-    //   // PROGRESS_BAR_TOTAL_VALUE = (myTSX.descriptor[BLOCK_SELECTED].offset * 100 ) / BYTES_TOBE_LOAD ;
-    //   // logln("");
-    //   // logln("File size: " + String(BYTES_TOBE_LOAD));
-    // }   
+    } 
 
     hmi.updateInformationMainPage(true);
 }
@@ -2040,6 +2103,57 @@ void getTheFirstPlayeableBlock()
   hmi.updateInformationMainPage(true);
 
 }
+
+void setFWIND()
+{
+    logln("Set FFWD - " + String(LAST_BLOCK_WAS_GROUP_START));
+    if (LAST_BLOCK_WAS_GROUP_START)
+    {
+      // Si el ultimo bloque fue un GroupStart entonces busco un Group End y avanzo 1
+      nextGroupBlock();
+      // LAST_BLOCK_WAS_GROUP_START = false;
+    }
+    else
+    {
+      // Modo normal avanzo 1 a 1 y verifico si hay Group Start
+      BLOCK_SELECTED++;
+      isGroupStart();
+    }
+
+    if (BLOCK_SELECTED > (TOTAL_BLOCKS - 1)) 
+    {
+      BLOCK_SELECTED = 0;
+    }
+
+    // Forzamos un refresco de los indicadores
+    hmi.updateInformationMainPage(true);
+}
+
+void setRWIND()
+{
+
+    logln("Set RWD - " + String(LAST_BLOCK_WAS_GROUP_END));
+    if (LAST_BLOCK_WAS_GROUP_END)
+    {
+      // Si el ultimo bloque fue un Group End entonces busco un Group Start y avanzo 1
+      prevGroupBlock();
+      // LAST_BLOCK_WAS_GROUP_END = false;
+    } 
+    else
+    {
+      BLOCK_SELECTED--;
+      isGroupEnd();
+    }
+
+    if (BLOCK_SELECTED < 0) 
+    {
+      BLOCK_SELECTED = TOTAL_BLOCKS - 1;
+    }
+
+    // Forzamos un refresco de los indicadores
+    hmi.updateInformationMainPage(true);    
+}
+
 
 void tapeControl()
 {
@@ -2107,13 +2221,6 @@ void tapeControl()
           // 
           AUTO_STOP = false;
         }
-        // else if (STOP)
-        // {
-        //   // Esto lo hacemos para evitar repetir el mensaje infinitamente
-        //   LAST_MESSAGE = "Press EJECT to select a file or REC.";
-        //   STOP=false;
-        //   setPolarization();                
-        // }
         else if (DISABLE_SD)
         {
           DISABLE_SD = false;
@@ -2143,8 +2250,6 @@ void tapeControl()
       //
       // PLAY / STOP
       //
-
-
       if (PLAY)
       {
           // Inicializamos la polarización de la señal al iniciar la reproducción.
@@ -2165,15 +2270,7 @@ void tapeControl()
       {
         TAPESTATE = 0;
         LOADING_STATE = 0;
-      }
-      // else if (FFWIND || RWIND)
-      // {
-      //   // Actualizamos el HMI
-      //   updateHMIOnBlockChange();                  
-      //   //
-      //   FFWIND = false;
-      //   RWIND = false;         
-      // }       
+      }     
       else if (PAUSE)       
       {
         // Nos vamos al estado PAUSA para seleccion de bloques
@@ -2194,6 +2291,12 @@ void tapeControl()
           else
           {
               LAST_MESSAGE = "Tape paused. Press play or select block.";
+
+              if (LAST_BLOCK_WAS_GROUP_START)
+              {
+                // Localizamos el GROUP START
+                prevGroupBlock();
+              }
           }
         }
       }
@@ -2203,6 +2306,9 @@ void tapeControl()
         // esta condicion evita solicitar la parada de manera infinita
         logln("");
         log("Tape state 1");
+        
+        // Volvemos al estado de fichero preparado
+        TAPESTATE = 10;
 
         if (LOADING_STATE == 1)
         {
@@ -2223,6 +2329,10 @@ void tapeControl()
         {
           LAST_MESSAGE = "Auto-Stop playing.";
           AUTO_STOP = false;
+          PLAY = false;
+          PAUSE = false;
+          REC = false;
+          EJECT = false;
         }
 
         setPolarization();
@@ -2233,7 +2343,6 @@ void tapeControl()
           getTheFirstPlayeableBlock();
         }
 
-        
       }
       else if (REC)
       {
@@ -2321,16 +2430,25 @@ void tapeControl()
           {
             getTheFirstPlayeableBlock();
           }
-
       }
       else if (FFWIND || RWIND)
-      {
+      {        
+        logln("Cambio de bloque");
+        // Actuamos sobre el cassette
+        if (FFWIND)
+        {
+          setFWIND();
+          FFWIND = false;
+        }
+        else
+        {
+          setRWIND();
+          RWIND = false;
+        }
+       
         // Actualizamos el HMI
         updateHMIOnBlockChange();        
-        //
-        TAPESTATE = 3;
-        FFWIND = false;
-        RWIND = false; 
+
       }
       else if(EJECT)
       {
@@ -2383,11 +2501,21 @@ void tapeControl()
         }
         else if (FFWIND || RWIND)
         {
+          // Actuamos sobre el cassette
+          logln("Cambio de bloque - case 10");
+          if (FFWIND)
+          {
+            setFWIND();
+            FFWIND = false;
+          }
+          else
+          {
+            setRWIND();
+            RWIND = false;
+          }
+
           // Actualizamos el HMI
           updateHMIOnBlockChange();
-          //
-          FFWIND = false;
-          RWIND = false; 
         }        
         else
         {

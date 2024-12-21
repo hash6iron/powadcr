@@ -508,9 +508,6 @@ class HMI
           File32 f;
           String fFileList = path + filename;
 
-          // Informamos
-          writeString("statusFILE.txt=\"READING FILES\"");
-
           #ifdef DEBUGMODE
             logln("");
             log("Path to register in LST file: " + fFileList);
@@ -581,7 +578,7 @@ class HMI
 
           // Cadena para un filePath
           char szName[255];
-          int j = 0;
+          int j = 0;          
 
           File32 fFileLST;
           tFileLST fl;
@@ -604,6 +601,7 @@ class HMI
           if (!sdm.dir.open(FILE_LAST_DIR.c_str())) 
           {
               FILE_DIR_OPEN_FAILED = true;
+              // manageFile();
           }
           else
           {
@@ -694,14 +692,13 @@ class HMI
 
                   idptr++;
               }
-          }
 
-          writeString("statusFILE.txt=\"ITEMS " + String(FILE_TOTAL_FILES-1) +"\"");
+              writeString("statusFILE.txt=\"ITEMS " + String(FILE_TOTAL_FILES-1) +"\"");
+          }
 
           // Cerramos todos los ficheros (añadido el 25/07/2023)
           sdm.dir.close();
           fFileLST.close();
-
       }
 
       void printFileRows(int row, int color, String szName)
@@ -1289,16 +1286,17 @@ class HMI
         {
             // Con este procedimiento capturamos el bloque seleccionado
             // desde la pantalla.
-            uint8_t buff[8];
+            if (TAPESTATE == 10 || TAPESTATE == 3 || TAPESTATE == 2)
+            {
+              uint8_t buff[8];
 
-            strCmd.getBytes(buff, 7);
-            long val = (long)((int)buff[4] + (256*(int)buff[5]) + (65536*(int)buff[6]));
-            String num = String(val);
-            BLOCK_SELECTED = num.toInt();
-            
-            // Esto lo hacemos para poder actualizar la info del TAPE
-            FFWIND=true;
-            RWIND=true;
+              strCmd.getBytes(buff, 7);
+              long val = (long)((int)buff[4] + (256*(int)buff[5]) + (65536*(int)buff[6]));
+              String num = String(val);
+              BLOCK_SELECTED = num.toInt();
+              updateInformationMainPage(true);
+            }
+
         }
         else if (strCmd.indexOf("REL=") != -1)
         {
@@ -1651,7 +1649,7 @@ class HMI
      
             FILE_PTR_POS = 1;
             // clearFilesInScreen(); // 02/12/2024
-                     
+            writeString("statusFILE.txt=\"READING\"");                     
             getFilesFromSD(false,SOURCE_FILE_TO_MANAGE,SOURCE_FILE_INF_TO_MANAGE);
             
             if (!FILE_DIR_OPEN_FAILED)
@@ -1692,11 +1690,16 @@ class HMI
                 //Cogemos el directorio anterior de la cadena
                 FILE_PREVIOUS_DIR = getPreviousDirFromPath(FILE_LAST_DIR);
             }
+
             //
             //
             FILE_PTR_POS = 1;    
             getFilesFromSD(false,SOURCE_FILE_TO_MANAGE,SOURCE_FILE_INF_TO_MANAGE);
+            refreshFiles();
+            delay(125);
+            showInformationAboutFiles();            
             
+            // 
             if (!FILE_DIR_OPEN_FAILED)
             {
                 putFilesInScreen();
@@ -1708,6 +1711,8 @@ class HMI
                 delay(1500);
                 writeString("currentDir.txt=\"" + String(FILE_LAST_DIR_LAST) + "\"");             
             }
+
+            refreshFiles();
       
         }
         else if (strCmd.indexOf("TRS=") != -1) 
@@ -1863,36 +1868,15 @@ class HMI
         // Control de TAPE
         else if (strCmd.indexOf("FFWD") != -1) 
         {
-          
-          if (LOADING_STATE == 2 || LOADING_STATE == 3 || LOADING_STATE == 0) 
-          {
-            BLOCK_SELECTED++;
-      
-            if (BLOCK_SELECTED > TOTAL_BLOCKS - 1) 
-            {
-              BLOCK_SELECTED = 0;
-            }
-
+            logln("FFWD pressed");
             FFWIND = true;
             RWIND = false;
-          }
         }
         else if (strCmd.indexOf("RWD") != -1) 
         {
-          if (LOADING_STATE == 2 || LOADING_STATE == 3 || LOADING_STATE == 0) 
-          {
-      
-            BLOCK_SELECTED--;
-      
-            if (BLOCK_SELECTED < 0) 
-            {
-              BLOCK_SELECTED = TOTAL_BLOCKS - 1;
-            }
-      
+            logln("RWD pressed");
             FFWIND = false;
             RWIND = true;
-
-          }
         }
         else if (strCmd.indexOf("PLAY") != -1) 
         {

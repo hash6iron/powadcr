@@ -1034,15 +1034,25 @@ class TZXprocessor
         _myTZX.descriptor[currentBlock].group = MULTIGROUP_COUNT;
         MULTIGROUP_COUNT++;
 
+        // Tomamos el tamaño del nombre del Grupo
         sizeTextInformation = getBYTE(mFile,currentOffset+1);
-
-        ////SerialHW.println("");
-        ////SerialHW.println("ID33 - TextSize: " + String(sizeTextInformation));
-        
-        // El tamaño del bloque es "1 byte de longitud de texto + TAMAÑO_TEXTO"
-        // el bloque comienza en el offset del ID y acaba en
-        // offset[ID] + tamaño_bloque
         _myTZX.descriptor[currentBlock].size = sizeTextInformation;
+
+        // Ahora cogemos el texto en el siguiente byte
+        char groupName[30] = {(char)getNBYTE(mFile,currentOffset+2,sizeTextInformation)};
+
+        // Cogemos solo 15 letras
+        if (sizeTextInformation < 30)
+        {
+          strncpy(_myTZX.descriptor[currentBlock].name,groupName,sizeTextInformation);
+        }
+        else
+        {
+          strncpy(_myTZX.descriptor[currentBlock].name,groupName,29);
+        }
+
+        logln("ID33 - Gruop start: " + String(groupName));
+
     }
 
     void analyzeID53(File32 mFile, int currentOffset, int currentBlock)
@@ -1612,7 +1622,7 @@ class TZXprocessor
       return res;
     }
 
-    void getBlockDescriptor(File32 mFile, File32 &dscFile, int sizeTZX)
+    void getBlockDescriptor(File32 mFile, File32 &dscFile, int sizeTZX, bool hasGroupBlocks)
     {
           // Para ello tenemos que ir leyendo el TZX poco a poco
           // Detectaremos los IDs a partir del byte 9 (empezando por offset = 0)
@@ -1678,7 +1688,7 @@ class TZXprocessor
                   // Copiamos la estructura del bloque, apuntando a ella
                   tTZXBlockDescriptor t = _myTZX.descriptor[currentBlock];
                   // Agregamos la informacion del bloque al fichero del descriptor .dsc
-                  _blDscTZX.putBlocksDescriptorTZX(dscFile, currentBlock,t,sizeTZX);
+                  _blDscTZX.putBlocksDescriptorTZX(dscFile, currentBlock,t,sizeTZX,hasGroupBlocks);
                   // Incrementamos un bloque
                   currentBlock++;               
               }
@@ -1732,7 +1742,7 @@ class TZXprocessor
         {
             // Esto lo hacemos para poder abortar
             ABORT=false;
-            getBlockDescriptor(_mFile,dscFile,_sizeTZX);
+            getBlockDescriptor(_mFile,dscFile,_sizeTZX,_myTZX.hasGroupBlocks);
         }      
     }
 
@@ -2212,6 +2222,11 @@ class TZXprocessor
                           break;
 
                         case 34:
+                          // El TZX tiene bloques Group start y Group End
+                          myTZX.hasGroupBlocks = str.toInt();
+                          break;
+
+                        case 35:
                           // sizeTZX actual
                           myTZX.size = str.toInt();
                           sizeTZX = myTZX.size;
@@ -2861,11 +2876,16 @@ class TZXprocessor
             case 33:
               // Comienza multigrupo
               LAST_GROUP = "[META BLK: " + String(_myTZX.descriptor[i].group) + "]";
+              LAST_BLOCK_WAS_GROUP_START = true;
+              LAST_BLOCK_WAS_GROUP_END = false;
               break;
 
             case 34:
               //LAST_GROUP = &INITCHAR[0];
-              LAST_GROUP = "[GROUP END]";
+              // Finaliza el multigrupo
+              LAST_GROUP = "...";
+              LAST_BLOCK_WAS_GROUP_END = true;
+              LAST_BLOCK_WAS_GROUP_START = false;
               break;
 
             default:
@@ -2874,7 +2894,7 @@ class TZXprocessor
 
               // Reseteamos el indicador de META BLOCK
               // (añadido el 26/03/2024)
-              LAST_GROUP = "...";
+              // LAST_GROUP = "...";
 
               if (_myTZX.descriptor[i].playeable)
               {

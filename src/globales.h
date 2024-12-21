@@ -89,7 +89,7 @@ struct tTZXBlockDescriptor
   int pauseAfterThisBlock = 1000;   //ms
   int lengthOfData = 0;
   int offsetData = 0;
-  char name[15];
+  char name[30];
   bool nameDetected = false;
   bool header = false;
   bool screen = false;
@@ -107,40 +107,13 @@ struct tTZXBlockDescriptor
   int samplingRate = 79;
 };
 
-// // Estructura de un descriptor de TSX
-// struct tTSXBlockDescriptor 
-// {
-//   int ID = 0;
-//   int offset = 0;
-//   int size = 0;
-//   int chk = 0;
-//   int pauseAfterThisBlock = 1000;   //ms
-//   int lengthOfData = 0;
-//   int offsetData = 0;
-//   char name[15];
-//   bool nameDetected = false;
-//   bool header = false;
-//   bool screen = false;
-//   int type = 0;
-//   bool playeable = false;
-//   int delay = 1000;
-//   int silent;
-//   int maskLastByte = 8;
-//   bool hasMaskLastByte = false;
-//   tTimming timming;
-//   char typeName[36];
-//   int group = 0;
-//   int loop_count = 0;
-//   bool jump_this_ID = false;
-//   int samplingRate = 79;
-// };
-
 // Estructura tipo TZX
 struct tTZX
 {
   char name[11];                               // Nombre del TZX
   uint32_t size = 0;                             // Tamaño
   int numBlocks = 0;                        // Numero de bloques
+  bool hasGroupBlocks = false; 
   tTZXBlockDescriptor* descriptor = nullptr;          // Descriptor
 };
 
@@ -382,6 +355,8 @@ char LAST_TYPE[36];
 String lastType = "";
 // Para TZX / TSX
 String LAST_GROUP = "";
+bool LAST_BLOCK_WAS_GROUP_START = false;
+bool LAST_BLOCK_WAS_GROUP_END = false;
 String lastGrp = "";
 String LAST_MESSAGE = "";
 String HMI_FNAME = "";

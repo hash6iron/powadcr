@@ -42,7 +42,7 @@ class BlockProcessor
 
     public:
 
-      String dscVersion = "v4.0";
+      String dscVersion = "v1.1";
 
       struct tBlDscTZX
       {
@@ -100,25 +100,11 @@ class BlockProcessor
           if(mFile.open(_blTZX.path, O_RDWR | O_CREAT))
           {
             logln("DSC file created or overwrite");
-            mFile.println(dscVersion + ",pos,ID,chk,delay,group,hasMaskLastByte,header,jump_this_ID,lenOfData,loopCount,offset,offsetData,name,nameDetected,pauseATB,playeable,samplingrate,screen,silent,size,t.Bit0,t.Bit1,t.PilotLen,t.PilotNPulses,t.PulseSeq,t.PureTone,t.PureToneNP,t.Sync1,t.Sync2,typeName,type,t.bitcfg,t.bytecfg,maskLastByte,SizeTZX");
+            mFile.println(dscVersion + ",pos,ID,chk,delay,group,hasMaskLastByte,header,jump_this_ID,lenOfData,loopCount,offset,offsetData,name,nameDetected,pauseATB,playeable,samplingrate,screen,silent,size,t.Bit0,t.Bit1,t.PilotLen,t.PilotNPulses,t.PulseSeq,t.PureTone,t.PureToneNP,t.Sync1,t.Sync2,typeName,type,t.bitcfg,t.bytecfg,maskLastByte,hasGroupBlocks,SizeTZX");
           }
         }
 
-        void createBlockDescriptorFileTAP(File32 &mFile, char* path)
-        {
-          // Creamos un fichero con el descriptor de bloques para TAP
-          _blTAP.path = path;
-
-          // Lo creamos otra vez
-          if(mFile.open(_blTAP.path,O_WRITE))
-          {
-            logln("DSC file created or overwrite");
-            mFile.println(dscVersion + ",pos,ID,chk,delay,group,hasMaskLastByte,header,jump_this_ID,lenOfData,loopCount,offset,offsetData,name,nameDetected,pauseATB,playeable,samplingrate,screen,silent,size,t.Bit0,t.Bit1,t.PilotLen,t.PilotNPulses,t.PulseSeq,t.PureTone,t.PureToneNP,t.Sync1,t.Sync2,typeName,type,t.bitcfg,t.bytecfg,maskLastByte,SizeTZX");
-          }
-
-        }
-
-        void putBlocksDescriptorTZX(File32 &mFile,int pos, tTZXBlockDescriptor &descriptor, uint32_t sizeTZX)
+        void putBlocksDescriptorTZX(File32 &mFile,int pos, tTZXBlockDescriptor &descriptor, uint32_t sizeTZX, bool hasGroupBlocks)
         {
             // Creamos un fichero con el descriptor de bloques para TZX
             char name[20];
@@ -166,70 +152,12 @@ class BlockProcessor
                           String(descriptor.timming.bitcfg) + "," +
                           String(descriptor.timming.bytecfg) + "," +
                           String(descriptor.maskLastByte) + "," +
+                          String(hasGroupBlocks) + "," +
                           String(sizeTZX));              
 
         }
 
-        // Para TAP
-
-        tTAPBlockDescriptor* getBlockDescriptorTAP(File32 mFile)
-        {}
-
-        tTAPBlockDescriptor getBlockInformationTAP(File32 mFile, int blockPosition)
-        {}
-
-        tTAPBlockDescriptor convertToTAPDescritor(File32 mFile, tTAPBlockDescriptor descriptor)
-        {}
-
-
-        // Para TZX
-        tTZXBlockDescriptor convertToTZXDescriptor(File32 mFile, tTZXBlockDescriptor descriptor)
-        {}
-
-        tTZXBlockDescriptor* getBlockDescriptorTZX(File32 mFile)
-        {}
-
-        tTZXBlockDescriptor getBlockInformationTZX(File32 mFile, int blockPosition)
-        {}        
-
-        // void putPathTZX(char* path)
-        // {
-        //   _blTZX.path = path;
-        // }
-
-        // void putPathTSX(char* path)
-        // {
-        //   _blTSX.path = path;
-        // }
-
-        // void putPathTAP(char* path)
-        // {
-        //   _blTAP.path = path;
-        // }
-
         BlockProcessor()
-        {
-            // switch (type)
-            // {
-
-            // case 0:
-            //   _blTAP.path = {"/0"};
-            //   _blTAP.numBlocks = 0;
-            //   break;
-
-            // case 1:
-            //   _blTZX.path = {"/0"};
-            //   _blTZX.numBlocks = 0;
-            //   break;
-
-            // case 2:
-            //   _blTSX.path = {"/0"};
-            //   _blTSX.numBlocks = 0;
-            //   break;
-
-            // default:
-            //   break;
-            // }
-        }
+        {}
        
 };
