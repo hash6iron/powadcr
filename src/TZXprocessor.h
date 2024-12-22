@@ -2863,7 +2863,7 @@ class TZXprocessor
                   }
 
                   // Enviamos info al HMI.
-                  _hmi.setBasicFileInformation(_myTZX.descriptor[BLOCK_SELECTED].name,_myTZX.descriptor[BLOCK_SELECTED].typeName,_myTZX.descriptor[BLOCK_SELECTED].size,_myTZX.descriptor[BLOCK_SELECTED].playeable);                        
+                  // _hmi.setBasicFileInformation(_myTZX.descriptor[BLOCK_SELECTED].name,_myTZX.descriptor[BLOCK_SELECTED].typeName,_myTZX.descriptor[BLOCK_SELECTED].size,_myTZX.descriptor[BLOCK_SELECTED].playeable);                        
                   //return newPosition;
               }
               else
@@ -2961,7 +2961,7 @@ class TZXprocessor
 
                     //Ahora vamos lanzando bloques dependiendo de su tipo
                     // Actualizamos HMI
-                    _hmi.setBasicFileInformation(_myTZX.descriptor[i].name,_myTZX.descriptor[i].typeName,_myTZX.descriptor[i].size,_myTZX.descriptor[i].playeable);
+                    // _hmi.setBasicFileInformation(_myTZX.descriptor[i].name,_myTZX.descriptor[i].typeName,_myTZX.descriptor[i].size,_myTZX.descriptor[i].playeable);
 
                     // Reproducimos el fichero
                     if (_myTZX.descriptor[i].type == 0) 
@@ -3391,6 +3391,7 @@ class TZXprocessor
                     BYTES_INI = _myTZX.descriptor[BLOCK_SELECTED].offset;
                   }
 
+                  _hmi.setBasicFileInformation(_myTZX.descriptor[i].ID,_myTZX.descriptor[i].group,_myTZX.descriptor[i].name,_myTZX.descriptor[i].typeName,_myTZX.descriptor[i].size,_myTZX.descriptor[i].playeable);
                   int new_i = getIDAndPlay(i);
                   // Entonces viene cambiada de un loop
                   if (new_i != -1)
@@ -3440,7 +3441,7 @@ class TZXprocessor
 
                   AUTO_STOP = true;
 
-                  _hmi.setBasicFileInformation(_myTZX.descriptor[BLOCK_SELECTED].name,_myTZX.descriptor[BLOCK_SELECTED].typeName,_myTZX.descriptor[BLOCK_SELECTED].size,_myTZX.descriptor[BLOCK_SELECTED].playeable);
+                  _hmi.setBasicFileInformation(_myTZX.descriptor[BLOCK_SELECTED].ID,_myTZX.descriptor[BLOCK_SELECTED].group,_myTZX.descriptor[BLOCK_SELECTED].name,_myTZX.descriptor[BLOCK_SELECTED].typeName,_myTZX.descriptor[BLOCK_SELECTED].size,_myTZX.descriptor[BLOCK_SELECTED].playeable);
               }
 
               // Cerrando
@@ -3458,7 +3459,7 @@ class TZXprocessor
         else
         {
             LAST_MESSAGE = "No file selected.";
-            _hmi.setBasicFileInformation(_myTZX.descriptor[BLOCK_SELECTED].name,_myTZX.descriptor[BLOCK_SELECTED].typeName,_myTZX.descriptor[BLOCK_SELECTED].size,_myTZX.descriptor[BLOCK_SELECTED].playeable);
+            _hmi.setBasicFileInformation(_myTZX.descriptor[BLOCK_SELECTED].ID,_myTZX.descriptor[BLOCK_SELECTED].group,_myTZX.descriptor[BLOCK_SELECTED].name,_myTZX.descriptor[BLOCK_SELECTED].typeName,_myTZX.descriptor[BLOCK_SELECTED].size,_myTZX.descriptor[BLOCK_SELECTED].playeable);
         }        
 
     }

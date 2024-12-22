@@ -1091,7 +1091,7 @@ class TAPprocessor
                         SerialHW.println("TOTAL_BLOCKS: " + String(TOTAL_BLOCKS));
                     #endif                
                     // Pasamos informacion del descriptor al HMI         
-                    _hmi.setBasicFileInformation(_myTAP.descriptor[BLOCK_SELECTED].name,_myTAP.descriptor[BLOCK_SELECTED].typeName,_myTAP.descriptor[BLOCK_SELECTED].size,true);
+                    _hmi.setBasicFileInformation(0,0,_myTAP.descriptor[BLOCK_SELECTED].name,_myTAP.descriptor[BLOCK_SELECTED].typeName,_myTAP.descriptor[BLOCK_SELECTED].size,true);
                     // Actualizamos la pantalla
                     //
                     _hmi.writeString("currentBlock.val=" + String(BLOCK_SELECTED + 1)); 
@@ -1367,7 +1367,7 @@ class TAPprocessor
                         showInfoBlockInProgress(_myTAP.descriptor[i].type);
 
                         // Actualizamos HMI
-                        _hmi.setBasicFileInformation(_myTAP.descriptor[BLOCK_SELECTED].name,_myTAP.descriptor[BLOCK_SELECTED].typeName,_myTAP.descriptor[BLOCK_SELECTED].size,true);
+                        _hmi.setBasicFileInformation(0,0,_myTAP.descriptor[BLOCK_SELECTED].name,_myTAP.descriptor[BLOCK_SELECTED].typeName,_myTAP.descriptor[BLOCK_SELECTED].size,true);
 
                         //
                         #ifdef DEBUGMODE
@@ -1532,7 +1532,7 @@ class TAPprocessor
 
                         AUTO_STOP = true;
 
-                        _hmi.setBasicFileInformation(_myTAP.descriptor[BLOCK_SELECTED].name,_myTAP.descriptor[BLOCK_SELECTED].typeName,_myTAP.descriptor[BLOCK_SELECTED].size,true);
+                        _hmi.setBasicFileInformation(0,0,_myTAP.descriptor[BLOCK_SELECTED].name,_myTAP.descriptor[BLOCK_SELECTED].typeName,_myTAP.descriptor[BLOCK_SELECTED].size,true);
                         //
                     }              
             }
@@ -1540,7 +1540,7 @@ class TAPprocessor
             {
                 // No se ha seleccionado ningún fichero
                 LAST_MESSAGE = "No file selected.";
-                _hmi.setBasicFileInformation(_myTAP.descriptor[BLOCK_SELECTED].name,_myTAP.descriptor[BLOCK_SELECTED].typeName,_myTAP.descriptor[BLOCK_SELECTED].size,true);
+                _hmi.setBasicFileInformation(0,0,_myTAP.descriptor[BLOCK_SELECTED].name,_myTAP.descriptor[BLOCK_SELECTED].typeName,_myTAP.descriptor[BLOCK_SELECTED].size,true);
                 
                 #ifdef DEBUGMODE
                     log("Error - No file selected");

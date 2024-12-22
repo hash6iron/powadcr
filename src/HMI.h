@@ -2576,24 +2576,41 @@ class HMI
           }
       }
 
-      void setBasicFileInformation(char* name,char* typeName,int size, bool playeable)
+      void setBasicFileInformation(int id, int group, char* name,char* typeName,int size, bool playeable)
       {
-          
+          // El ID y el GROUP solo tiene sentido en .TZX version y compatibles pero no en TAP
           if(size < 0)
           {size=0;}
-          
-          if (playeable)
+
+          if (id == 33)
           {
-            LAST_SIZE = size;
-            strncpy(LAST_NAME,name,14);
-            strncpy(LAST_TYPE,typeName,35);
+            LAST_GROUP = "[META BLK: " + String(group) + "]";
+          }
+          else if (id == 34)
+          {
+            LAST_GROUP = "[END META BLK: " + String(group) + "]";
           }
           else
           {
-            LAST_SIZE = 0;
-            strncpy(LAST_NAME,"...",14);
-            strncpy(LAST_TYPE,"...",35);
+            LAST_GROUP = "";
           }
+          
+          LAST_SIZE = size;
+          strncpy(LAST_NAME,name,14);
+          strncpy(LAST_TYPE,typeName,35);
+
+
+          if (!playeable)
+          {
+            LAST_SIZE = 0;
+          }
+          // }
+          // else
+          // {
+          //   LAST_SIZE = 0;
+          //   strncpy(LAST_NAME,"...",14);
+          //   strncpy(LAST_TYPE,typeName,35);
+          // }
       }
 
       void clearInformationFile()

@@ -2015,6 +2015,11 @@ void isGroupStart()
       // Le pasamos el nombre del grupo al PROGRAM_NAME_2
       PROGRAM_NAME_2 = myTZX.descriptor[BLOCK_SELECTED].name;
     }
+    else
+    {
+      LAST_BLOCK_WAS_GROUP_START = false;
+      LAST_BLOCK_WAS_GROUP_END = false;
+    }
   }
 }
 
@@ -2032,6 +2037,11 @@ void isGroupEnd()
       LAST_BLOCK_WAS_GROUP_START = false;
       prevGroupBlock();      
     }
+    else
+    {
+      LAST_BLOCK_WAS_GROUP_START = false;
+      LAST_BLOCK_WAS_GROUP_END = false;
+    }    
   }
 }
 
@@ -2039,11 +2049,11 @@ void updateHMIOnBlockChange()
 {
     if (TYPE_FILE_LOAD=="TAP")
     {
-      hmi.setBasicFileInformation(myTAP.descriptor[BLOCK_SELECTED].name,myTAP.descriptor[BLOCK_SELECTED].typeName,myTAP.descriptor[BLOCK_SELECTED].size,true);
+      hmi.setBasicFileInformation(0,0,myTAP.descriptor[BLOCK_SELECTED].name,myTAP.descriptor[BLOCK_SELECTED].typeName,myTAP.descriptor[BLOCK_SELECTED].size,true);
     }
     else if(TYPE_FILE_LOAD=="TZX" || TYPE_FILE_LOAD=="CDT" || TYPE_FILE_LOAD=="TSX")
     {
-      hmi.setBasicFileInformation(myTZX.descriptor[BLOCK_SELECTED].name,myTZX.descriptor[BLOCK_SELECTED].typeName,myTZX.descriptor[BLOCK_SELECTED].size,myTZX.descriptor[BLOCK_SELECTED].playeable);
+      hmi.setBasicFileInformation(myTZX.descriptor[BLOCK_SELECTED].ID,myTZX.descriptor[BLOCK_SELECTED].group,myTZX.descriptor[BLOCK_SELECTED].name,myTZX.descriptor[BLOCK_SELECTED].typeName,myTZX.descriptor[BLOCK_SELECTED].size,myTZX.descriptor[BLOCK_SELECTED].playeable);
     } 
 
     hmi.updateInformationMainPage(true);
@@ -2100,6 +2110,7 @@ void getTheFirstPlayeableBlock()
   }
 
   // Forzamos un refresco de los indicadores
+  hmi.setBasicFileInformation(myTZX.descriptor[BLOCK_SELECTED].ID,myTZX.descriptor[BLOCK_SELECTED].group,myTZX.descriptor[BLOCK_SELECTED].name,myTZX.descriptor[BLOCK_SELECTED].typeName,myTZX.descriptor[BLOCK_SELECTED].size,myTZX.descriptor[BLOCK_SELECTED].playeable);
   hmi.updateInformationMainPage(true);
 
 }
@@ -2126,6 +2137,7 @@ void setFWIND()
     }
 
     // Forzamos un refresco de los indicadores
+    hmi.setBasicFileInformation(myTZX.descriptor[BLOCK_SELECTED].ID,myTZX.descriptor[BLOCK_SELECTED].group,myTZX.descriptor[BLOCK_SELECTED].name,myTZX.descriptor[BLOCK_SELECTED].typeName,myTZX.descriptor[BLOCK_SELECTED].size,myTZX.descriptor[BLOCK_SELECTED].playeable);
     hmi.updateInformationMainPage(true);
 }
 
