@@ -2098,44 +2098,33 @@ void getTheFirstPlayeableBlock()
 
       hmi.setBasicFileInformation(myTZX.descriptor[BLOCK_SELECTED].ID,myTZX.descriptor[BLOCK_SELECTED].group,myTZX.descriptor[BLOCK_SELECTED].name,myTZX.descriptor[BLOCK_SELECTED].typeName,myTZX.descriptor[BLOCK_SELECTED].size,myTZX.descriptor[BLOCK_SELECTED].playeable);
       hmi.updateInformationMainPage(true);
-
   }
-  // else
-  // {
-  //   int i=1;
-  //   while(!myTAP.descriptor[i].playeable)
-  //   {
-  //     BLOCK_SELECTED=i;
-  //     i++;
-  //   }
-
-  //   logln("Primero playeable: " + String(i));
-
-  //   PROGRAM_NAME = myTAP.descriptor[i].name;
-  //   strcpy(LAST_TYPE,myTAP.descriptor[i].typeName);
-  //   LAST_SIZE = myTAP.descriptor[i].size;
-
-  // }
-
-  // Forzamos un refresco de los indicadores
-
-
 }
 
 void setFWIND()
 {
     logln("Set FFWD - " + String(LAST_BLOCK_WAS_GROUP_START));
-    if (LAST_BLOCK_WAS_GROUP_START)
+
+
+
+    if (TYPE_FILE_LOAD != "TAP")
     {
-      // Si el ultimo bloque fue un GroupStart entonces busco un Group End y avanzo 1
-      nextGroupBlock();
-      // LAST_BLOCK_WAS_GROUP_START = false;
+        if (LAST_BLOCK_WAS_GROUP_START)
+        {
+          // Si el ultimo bloque fue un GroupStart entonces busco un Group End y avanzo 1
+          nextGroupBlock();
+          // LAST_BLOCK_WAS_GROUP_START = false;
+        }
+        else
+        {
+          // Modo normal avanzo 1 a 1 y verifico si hay Group Start
+          BLOCK_SELECTED++;
+          isGroupStart();
+        }
     }
     else
     {
-      // Modo normal avanzo 1 a 1 y verifico si hay Group Start
       BLOCK_SELECTED++;
-      isGroupStart();
     }
 
     if (BLOCK_SELECTED > (TOTAL_BLOCKS - 1)) 
@@ -2143,25 +2132,51 @@ void setFWIND()
       BLOCK_SELECTED = 0;
     }
 
-    // Forzamos un refresco de los indicadores
-    hmi.setBasicFileInformation(myTZX.descriptor[BLOCK_SELECTED].ID,myTZX.descriptor[BLOCK_SELECTED].group,myTZX.descriptor[BLOCK_SELECTED].name,myTZX.descriptor[BLOCK_SELECTED].typeName,myTZX.descriptor[BLOCK_SELECTED].size,myTZX.descriptor[BLOCK_SELECTED].playeable);
+    if (TYPE_FILE_LOAD != "TAP")
+    {
+        // Forzamos un refresco de los indicadores
+        hmi.setBasicFileInformation(myTZX.descriptor[BLOCK_SELECTED].ID,
+                                    myTZX.descriptor[BLOCK_SELECTED].group,
+                                    myTZX.descriptor[BLOCK_SELECTED].name,
+                                    myTZX.descriptor[BLOCK_SELECTED].typeName,
+                                    myTZX.descriptor[BLOCK_SELECTED].size,
+                                    myTZX.descriptor[BLOCK_SELECTED].playeable);
+    }
+    else
+    {
+        // Forzamos un refresco de los indicadores
+        hmi.setBasicFileInformation(0,0,myTAP.descriptor[BLOCK_SELECTED].name,
+                                        myTAP.descriptor[BLOCK_SELECTED].typeName,
+                                        myTAP.descriptor[BLOCK_SELECTED].size,
+                                        myTAP.descriptor[BLOCK_SELECTED].playeable);
+    }
+
     hmi.updateInformationMainPage(true);
+
 }
 
 void setRWIND()
 {
 
     logln("Set RWD - " + String(LAST_BLOCK_WAS_GROUP_END));
-    if (LAST_BLOCK_WAS_GROUP_END)
+    
+    if (TYPE_FILE_LOAD != "TAP")
     {
-      // Si el ultimo bloque fue un Group End entonces busco un Group Start y avanzo 1
-      prevGroupBlock();
-      // LAST_BLOCK_WAS_GROUP_END = false;
-    } 
+        if (LAST_BLOCK_WAS_GROUP_END)
+        {
+          // Si el ultimo bloque fue un Group End entonces busco un Group Start y avanzo 1
+          prevGroupBlock();
+          // LAST_BLOCK_WAS_GROUP_END = false;
+        } 
+        else
+        {
+          BLOCK_SELECTED--;
+          isGroupEnd();
+        }      
+    }
     else
     {
-      BLOCK_SELECTED--;
-      isGroupEnd();
+        BLOCK_SELECTED--;      
     }
 
     if (BLOCK_SELECTED < 0) 
@@ -2169,8 +2184,26 @@ void setRWIND()
       BLOCK_SELECTED = TOTAL_BLOCKS - 1;
     }
 
-    // Forzamos un refresco de los indicadores
-    hmi.updateInformationMainPage(true);    
+    if (TYPE_FILE_LOAD != "TAP")
+    {
+        // Forzamos un refresco de los indicadores
+        hmi.setBasicFileInformation(myTZX.descriptor[BLOCK_SELECTED].ID,
+                                    myTZX.descriptor[BLOCK_SELECTED].group,
+                                    myTZX.descriptor[BLOCK_SELECTED].name,
+                                    myTZX.descriptor[BLOCK_SELECTED].typeName,
+                                    myTZX.descriptor[BLOCK_SELECTED].size,
+                                    myTZX.descriptor[BLOCK_SELECTED].playeable);
+    }
+    else
+    {
+        // Forzamos un refresco de los indicadores
+        hmi.setBasicFileInformation(0,0,myTAP.descriptor[BLOCK_SELECTED].name,
+                                        myTAP.descriptor[BLOCK_SELECTED].typeName,
+                                        myTAP.descriptor[BLOCK_SELECTED].size,
+                                        myTAP.descriptor[BLOCK_SELECTED].playeable);
+    }
+
+    hmi.updateInformationMainPage(true);   
 }
 
 
