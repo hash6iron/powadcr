@@ -2077,41 +2077,48 @@ void getTheFirstPlayeableBlock()
   
   if (TYPE_FILE_LOAD !="TAP")
   {
-    int i=1;
-    while(!myTZX.descriptor[i].playeable)
-    {
+      int i=1;
+      while(!myTZX.descriptor[i].playeable)
+      {
+        BLOCK_SELECTED=i;
+        i++;
+      }
+
+      if (i > MAX_BLOCKS_IN_TZX)
+      {
+        i=1;
+      }
+
       BLOCK_SELECTED=i;
-      i++;
-    }
+      logln("Primero playeable: " + String(i));
 
-    BLOCK_SELECTED=i;
-    logln("Primero playeable: " + String(i));
+      PROGRAM_NAME = myTZX.descriptor[i].name;
+      strcpy(LAST_TYPE,myTZX.descriptor[i].typeName);
+      LAST_SIZE = myTZX.descriptor[i].size;
 
-    PROGRAM_NAME = myTZX.descriptor[i].name;
-    strcpy(LAST_TYPE,myTZX.descriptor[i].typeName);
-    LAST_SIZE = myTZX.descriptor[i].size;
+      hmi.setBasicFileInformation(myTZX.descriptor[BLOCK_SELECTED].ID,myTZX.descriptor[BLOCK_SELECTED].group,myTZX.descriptor[BLOCK_SELECTED].name,myTZX.descriptor[BLOCK_SELECTED].typeName,myTZX.descriptor[BLOCK_SELECTED].size,myTZX.descriptor[BLOCK_SELECTED].playeable);
+      hmi.updateInformationMainPage(true);
 
   }
-  else
-  {
-    int i=1;
-    while(!myTAP.descriptor[i].playeable)
-    {
-      BLOCK_SELECTED=i;
-      i++;
-    }
+  // else
+  // {
+  //   int i=1;
+  //   while(!myTAP.descriptor[i].playeable)
+  //   {
+  //     BLOCK_SELECTED=i;
+  //     i++;
+  //   }
 
-    logln("Primero playeable: " + String(i));
+  //   logln("Primero playeable: " + String(i));
 
-    PROGRAM_NAME = myTAP.descriptor[i].name;
-    strcpy(LAST_TYPE,myTAP.descriptor[i].typeName);
-    LAST_SIZE = myTAP.descriptor[i].size;
+  //   PROGRAM_NAME = myTAP.descriptor[i].name;
+  //   strcpy(LAST_TYPE,myTAP.descriptor[i].typeName);
+  //   LAST_SIZE = myTAP.descriptor[i].size;
 
-  }
+  // }
 
   // Forzamos un refresco de los indicadores
-  hmi.setBasicFileInformation(myTZX.descriptor[BLOCK_SELECTED].ID,myTZX.descriptor[BLOCK_SELECTED].group,myTZX.descriptor[BLOCK_SELECTED].name,myTZX.descriptor[BLOCK_SELECTED].typeName,myTZX.descriptor[BLOCK_SELECTED].size,myTZX.descriptor[BLOCK_SELECTED].playeable);
-  hmi.updateInformationMainPage(true);
+
 
 }
 

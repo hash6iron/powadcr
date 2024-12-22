@@ -1253,21 +1253,6 @@ class TAPprocessor
 
                     // Ahora reproducimos todos los bloques desde el seleccionado (para cuando se quiera uno concreto)
                     int m = BLOCK_SELECTED;
-                    //BYTES_TOBE_LOAD = _rlen;
-
-                    // Reiniciamos
-                    // if (BLOCK_SELECTED == 0) 
-                    // {
-                    //     BYTES_LOADED = 0;
-                    //     BYTES_TOBE_LOAD = _rlen;
-                    //     //_hmi.writeString("");
-                    //     _hmi.writeString("progressTotal.val=" + String((int)((BYTES_LOADED * 100) / (BYTES_TOBE_LOAD))));
-                    // } 
-                    // else 
-                    // {
-                    //     BYTES_TOBE_LOAD = _rlen - _myTAP.descriptor[BLOCK_SELECTED - 1].offset;
-                    // }
-
  
                     // Reiniciamos
                     BYTES_TOBE_LOAD = _rlen;
@@ -1283,6 +1268,7 @@ class TAPprocessor
                     for (int i = m; i < _myTAP.numBlocks; i++) 
                     {
                         BLOCK_PLAYED = false;
+        
 
                         // BYTES_LOADED =_myTAP.descriptor[i - 1].offset;
                         // PROGRESS_BAR_TOTAL_VALUE = (int)((BYTES_LOADED*100)/(BYTES_TOBE_LOAD));
@@ -1290,6 +1276,7 @@ class TAPprocessor
                         // Obtenemos el nombre del bloque
                         strncpy(LAST_NAME,_myTAP.descriptor[i].name,sizeof(_myTAP.descriptor[i].name));
                         LAST_SIZE = _myTAP.descriptor[i].size;
+                        BYTES_IN_THIS_BLOCK = _myTAP.descriptor[i].size;
 
                         // LOADING_STATE se usa también para detener el procesador de audio (ZXProcessor.h).
                         //
