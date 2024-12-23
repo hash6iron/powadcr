@@ -2075,7 +2075,7 @@ void rewindAnimation(int direction)
 {
     int p=0;
     int frames = 38;
-    int fdelay = 20;
+    int fdelay = 15;
 
     while (p < frames)
     {
@@ -2178,7 +2178,7 @@ void setFWIND()
 
     hmi.updateInformationMainPage(true);
 
-    rewindAnimation(-1);
+    rewindAnimation(1);
 
 }
 
@@ -2233,7 +2233,7 @@ void setRWIND()
 
     hmi.updateInformationMainPage(true);   
 
-    rewindAnimation(1);
+    rewindAnimation(-1);
 
 }
 
