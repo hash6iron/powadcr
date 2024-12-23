@@ -1293,8 +1293,10 @@ class HMI
               strCmd.getBytes(buff, 7);
               long val = (long)((int)buff[4] + (256*(int)buff[5]) + (65536*(int)buff[6]));
               String num = String(val);
-              BLOCK_SELECTED = num.toInt();
-              updateInformationMainPage(true);
+              BLOCK_SELECTED = num.toInt() + 1;
+              // updateInformationMainPage(true);
+              // Esto lo hacemos para poder actualizar la info del bloque
+              UPDATE = true;
             }
 
         }

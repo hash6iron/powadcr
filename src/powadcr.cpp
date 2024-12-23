@@ -2533,6 +2533,32 @@ void tapeControl()
         updateHMIOnBlockChange();        
 
       }
+      else if (UPDATE)
+      {
+          // Esto se hace para solicitar una actualizacion con los parametros del TAP / TZX
+          // desde el HMI.
+          if (TYPE_FILE_LOAD != "TAP")
+          {
+              // Forzamos un refresco de los indicadores
+              hmi.setBasicFileInformation(myTZX.descriptor[BLOCK_SELECTED].ID,
+                                          myTZX.descriptor[BLOCK_SELECTED].group,
+                                          myTZX.descriptor[BLOCK_SELECTED].name,
+                                          myTZX.descriptor[BLOCK_SELECTED].typeName,
+                                          myTZX.descriptor[BLOCK_SELECTED].size,
+                                          myTZX.descriptor[BLOCK_SELECTED].playeable);
+          }
+          else
+          {
+              // Forzamos un refresco de los indicadores
+              hmi.setBasicFileInformation(0,0,myTAP.descriptor[BLOCK_SELECTED].name,
+                                              myTAP.descriptor[BLOCK_SELECTED].typeName,
+                                              myTAP.descriptor[BLOCK_SELECTED].size,
+                                              myTAP.descriptor[BLOCK_SELECTED].playeable);
+          }
+
+          hmi.updateInformationMainPage(true);   
+          UPDATE = false;     
+      }
       else if(EJECT)
       {
         TAPESTATE = 0;
@@ -2600,6 +2626,32 @@ void tapeControl()
           // Actualizamos el HMI
           updateHMIOnBlockChange();
         }        
+        else if (UPDATE)
+        {
+            // Esto se hace para solicitar una actualizacion con los parametros del TAP / TZX
+            // desde el HMI.
+            if (TYPE_FILE_LOAD != "TAP")
+            {
+                // Forzamos un refresco de los indicadores
+                hmi.setBasicFileInformation(myTZX.descriptor[BLOCK_SELECTED].ID,
+                                            myTZX.descriptor[BLOCK_SELECTED].group,
+                                            myTZX.descriptor[BLOCK_SELECTED].name,
+                                            myTZX.descriptor[BLOCK_SELECTED].typeName,
+                                            myTZX.descriptor[BLOCK_SELECTED].size,
+                                            myTZX.descriptor[BLOCK_SELECTED].playeable);
+            }
+            else
+            {
+                // Forzamos un refresco de los indicadores
+                hmi.setBasicFileInformation(0,0,myTAP.descriptor[BLOCK_SELECTED].name,
+                                                myTAP.descriptor[BLOCK_SELECTED].typeName,
+                                                myTAP.descriptor[BLOCK_SELECTED].size,
+                                                myTAP.descriptor[BLOCK_SELECTED].playeable);
+            }
+
+            hmi.updateInformationMainPage(true);   
+            UPDATE = false;     
+        }
         else
         {
           TAPESTATE = 10;
