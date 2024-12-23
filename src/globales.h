@@ -310,6 +310,7 @@ String LAST_COMMAND = "";
 // Variables para intercambio de información con el HMI
 // DEBUG
 int BLOCK_SELECTED = 0;
+int POS_ROTATE_CASSETTE = 4;
 int PARTITION_BLOCK = 0;
 int TOTAL_PARTS = 0;
 

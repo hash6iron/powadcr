@@ -2154,6 +2154,21 @@ void setFWIND()
 
     hmi.updateInformationMainPage(true);
 
+
+
+    int p=0;
+    while (p < 20)
+    {
+      POS_ROTATE_CASSETTE-=2;
+
+      if (POS_ROTATE_CASSETTE > 23)
+      { POS_ROTATE_CASSETTE = 4;}
+
+      hmi.writeString("tape.animation.pic=" + String(POS_ROTATE_CASSETTE));
+      delay(5);
+      p++;
+    }
+
 }
 
 void setRWIND()
@@ -2206,6 +2221,20 @@ void setRWIND()
     }
 
     hmi.updateInformationMainPage(true);   
+
+    int p=0;
+    while (p < 20)
+    {
+      POS_ROTATE_CASSETTE+=2;
+
+      if (POS_ROTATE_CASSETTE < 4)
+      { POS_ROTATE_CASSETTE = 23;}
+
+      hmi.writeString("tape.animation.pic=" + String(POS_ROTATE_CASSETTE));
+      delay(5);
+      p++;
+    }
+
 }
 
 
