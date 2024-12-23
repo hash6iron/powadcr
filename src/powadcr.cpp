@@ -2074,7 +2074,7 @@ void getRandomFilename (char* &currentPath, String currentFileBaseName)
 void rewindAnimation(int direction)
 {
     int p=0;
-    int frames = 38;
+    int frames = 19;
     int fdelay = 5;
 
     while (p < frames)
