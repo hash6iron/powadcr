@@ -2157,9 +2157,9 @@ void setFWIND()
 
 
     int p=0;
-    while (p < 20)
+    while (p < 12)
     {
-      POS_ROTATE_CASSETTE-=2;
+      POS_ROTATE_CASSETTE-=1;
 
       if (POS_ROTATE_CASSETTE > 23)
       { POS_ROTATE_CASSETTE = 4;}
@@ -2223,9 +2223,9 @@ void setRWIND()
     hmi.updateInformationMainPage(true);   
 
     int p=0;
-    while (p < 20)
+    while (p < 12)
     {
-      POS_ROTATE_CASSETTE+=2;
+      POS_ROTATE_CASSETTE+=1;
 
       if (POS_ROTATE_CASSETTE < 4)
       { POS_ROTATE_CASSETTE = 23;}
