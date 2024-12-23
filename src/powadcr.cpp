@@ -2129,7 +2129,8 @@ void setFWIND()
 
     if (BLOCK_SELECTED > (TOTAL_BLOCKS - 1)) 
     {
-      BLOCK_SELECTED = 0;
+      BLOCK_SELECTED = 1;
+      isGroupStart();
     }
 
     if (TYPE_FILE_LOAD != "TAP")
@@ -2179,9 +2180,10 @@ void setRWIND()
         BLOCK_SELECTED--;      
     }
 
-    if (BLOCK_SELECTED < 0) 
+    if (BLOCK_SELECTED < 1) 
     {
-      BLOCK_SELECTED = TOTAL_BLOCKS - 1;
+      BLOCK_SELECTED = (TOTAL_BLOCKS-1);
+      isGroupEnd();
     }
 
     if (TYPE_FILE_LOAD != "TAP")

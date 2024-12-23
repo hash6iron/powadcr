@@ -2588,7 +2588,7 @@ class HMI
           }
           else if (id == 34)
           {
-            LAST_GROUP = "[END META BLK: " + String(group) + "]";
+            LAST_GROUP = "[END MET.BLK]";
           }
           else
           {
@@ -2804,11 +2804,20 @@ class HMI
           lastPr2 = PROGRESS_BAR_TOTAL_VALUE;
 
           if (lastBl1 != TOTAL_BLOCKS || FORZE_REFRESH)
-          {writeString("totalBlocks.val=" + String(TOTAL_BLOCKS));}
+          {
+              if (TOTAL_BLOCKS == 0)
+              {
+                writeString("totalBlocks.val=" + String(TOTAL_BLOCKS));
+              }
+              else
+              {
+                writeString("totalBlocks.val=" + String(TOTAL_BLOCKS-1));                
+              }
+          }
           lastBl1 = TOTAL_BLOCKS;
 
           if (lastBl2 != BLOCK_SELECTED || FORZE_REFRESH)
-          {writeString("currentBlock.val=" + String(BLOCK_SELECTED + 1));}
+          {writeString("currentBlock.val=" + String(BLOCK_SELECTED));}
           lastBl2 = BLOCK_SELECTED;
                             
           if (CURRENT_PAGE == 2)

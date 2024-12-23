@@ -1039,9 +1039,19 @@ class TZXprocessor
         _myTZX.descriptor[currentBlock].size = sizeTextInformation;
 
         // Ahora cogemos el texto en el siguiente byte
-        char groupName[30] = {(char)getNBYTE(mFile,currentOffset+2,sizeTextInformation)};
+        uint8_t* grpN = (uint8_t*)ps_calloc(sizeTextInformation+1,sizeof(uint8_t));
+        sdm.readFileRange32(mFile,grpN,currentOffset+2,sizeTextInformation,false);
+        char groupName[sizeTextInformation+1];
 
-        // Cogemos solo 15 letras
+        for(int i=0;i<sizeTextInformation-1;i++)
+        {
+            groupName[i] = (char)grpN[i];
+        }
+
+        logln("Group name: " + String(groupName));
+        free(grpN);
+
+        // Cogemos solo 29 letras
         if (sizeTextInformation < 30)
         {
           strncpy(_myTZX.descriptor[currentBlock].name,groupName,sizeTextInformation);
@@ -2740,7 +2750,7 @@ class TZXprocessor
         
 
         // Ahora lo voy actualizando a medida que van avanzando los bloques.
-        PROGRAM_NAME = _myTZX.descriptor[BLOCK_SELECTED].name;
+        PROGRAM_NAME_2 = _myTZX.descriptor[BLOCK_SELECTED].name;
 
         BYTES_IN_THIS_BLOCK = _myTZX.descriptor[i].size;
         
