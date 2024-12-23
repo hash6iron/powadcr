@@ -2075,7 +2075,7 @@ void rewindAnimation(int direction)
 {
     int p=0;
     int frames = 38;
-    int fdelay = 15;
+    int fdelay = 5;
 
     while (p < frames)
     {
