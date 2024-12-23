@@ -2071,6 +2071,30 @@ void getRandomFilename (char* &currentPath, String currentFileBaseName)
       strcat(currentPath,extPath);  
 }
 
+void rewindAnimation(int direction)
+{
+    int p=0;
+    int frames = 38;
+    int fdelay = 20;
+
+    while (p < frames)
+    {
+      
+      POS_ROTATE_CASSETTE+=direction;
+
+      if (POS_ROTATE_CASSETTE > 23)
+      { POS_ROTATE_CASSETTE = 4;}
+
+      if (POS_ROTATE_CASSETTE < 4)
+      { POS_ROTATE_CASSETTE = 23;}
+
+      hmi.writeString("tape.animation.pic=" + String(POS_ROTATE_CASSETTE));
+      delay(20);
+
+      p++;
+    }  
+}
+
 void getTheFirstPlayeableBlock()
 {
   // Buscamos ahora el primer bloque playeable
@@ -2154,21 +2178,7 @@ void setFWIND()
 
     hmi.updateInformationMainPage(true);
 
-
-
-    int p=0;
-    int frames = 20;
-    while (p < frames)
-    {
-      POS_ROTATE_CASSETTE-=1;
-
-      if (POS_ROTATE_CASSETTE < 4)
-      { POS_ROTATE_CASSETTE = 23;}
-
-      hmi.writeString("tape.animation.pic=" + String(POS_ROTATE_CASSETTE));
-      delay(5);
-      p++;
-    }
+    rewindAnimation(-1);
 
 }
 
@@ -2223,19 +2233,7 @@ void setRWIND()
 
     hmi.updateInformationMainPage(true);   
 
-    int p=0;
-    int frames = 20;
-    while (p < frames)
-    {
-      POS_ROTATE_CASSETTE+=1;
-
-      if (POS_ROTATE_CASSETTE > 23)
-      { POS_ROTATE_CASSETTE = 4;}
-
-      hmi.writeString("tape.animation.pic=" + String(POS_ROTATE_CASSETTE));
-      delay(5);
-      p++;
-    }
+    rewindAnimation(1);
 
 }
 
