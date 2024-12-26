@@ -2529,7 +2529,6 @@ void tapeControl()
           TAPESTATE = 5;
           AUTO_PAUSE = false;
 
-          HMI_FNAME = "";
           HMI_FNAME = FILE_LOAD;
       }
       else if (STOP)
@@ -2537,7 +2536,6 @@ void tapeControl()
           TAPESTATE = 1;
           AUTO_PAUSE = false;
           
-          HMI_FNAME = "";
           HMI_FNAME = FILE_LOAD;
 
           if (TYPE_FILE_LOAD != "WAV")
