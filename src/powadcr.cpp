@@ -2240,11 +2240,11 @@ void setRWIND()
 void openBlocksBrowser()
 {
     // Rellenamos el browser con todos los bloques
-    int max = 14;
+    int max = MAX_BLOCKS_IN_BROWSER;
 
-    if (TOTAL_BLOCKS > 13)
+    if (TOTAL_BLOCKS > (max - 1))
     {
-      max = 14;
+      max = MAX_BLOCKS_IN_BROWSER;
     }
     else
     {
@@ -2256,15 +2256,19 @@ void openBlocksBrowser()
 
     for(int i=1;i<max;i++)
     {
-      hmi.writeString("blocks.id" + String(i-1) + ".txt=\"" + String(i + BB_PTR_ITEM) + "\"");
+      hmi.writeString("blocks.id" + String(i) + ".txt=\"" + String(i + BB_PTR_ITEM) + "\"");
 
       if (TYPE_FILE_LOAD != "TAP")
-      {
-        hmi.writeString("blocks.data" + String(i-1) + ".txt=\"" + myTZX.descriptor[i + BB_PTR_ITEM].typeName + " - " + myTZX.descriptor[i + BB_PTR_ITEM].name + "\"");
+      {       
+        hmi.writeString("blocks.data" + String(i) + ".txt=\"" + myTZX.descriptor[i + BB_PTR_ITEM].typeName + "\"");
+        hmi.writeString("blocks.name" + String(i) + ".txt=\"" + myTZX.descriptor[i + BB_PTR_ITEM].name + "\"");
+        hmi.writeString("blocks.size" + String(i) + ".txt=\"" + String(myTZX.descriptor[i + BB_PTR_ITEM].size / 1024) + "\"");
       }
       else
       {
-        hmi.writeString("blocks.data" + String(i-1) + ".txt=\"" + myTAP.descriptor[i + BB_PTR_ITEM].typeName + " - " + myTAP.descriptor[i + BB_PTR_ITEM].name + "\"");
+        hmi.writeString("blocks.data" + String(i) + ".txt=\"" + myTAP.descriptor[i + BB_PTR_ITEM].typeName + "\"");
+        hmi.writeString("blocks.name" + String(i) + ".txt=\"" + myTAP.descriptor[i + BB_PTR_ITEM].name + "\"");
+        hmi.writeString("blocks.size" + String(i) + ".txt=\"" + String(myTAP.descriptor[i + BB_PTR_ITEM].size / 1024) + "\"");
       }
     }  
 }

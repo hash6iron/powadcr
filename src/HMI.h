@@ -1670,9 +1670,11 @@ class HMI
           // Block browser cerrado con ID seleccionado o -1 para ninguno
           // Con este procedimiento obtenemos la pàgina del filebrowser
           // que se desea visualizar
-          uint8_t buff[9];
-          strCmd.getBytes(buff, 8);
-          long val = (long)((int)buff[5] + (256*(int)buff[6]) + (65536*(int)buff[7]));
+          logln("Command: " + strCmd);
+          
+          uint8_t buff[11];
+          strCmd.getBytes(buff, 10);
+          long val = (long)((int)buff[6] + (256*(int)buff[7]) + (65536*(int)buff[8]));
           String num = String(val);
 
           // Obtenemos el ID seleccionado
@@ -1689,11 +1691,11 @@ class HMI
         else if (strCmd.indexOf("BDOWN") != -1)
         {
           // Pagina arriba block browser
-          BB_PTR_ITEM += 14;
+          BB_PTR_ITEM += MAX_BLOCKS_IN_BROWSER;
 
-          if (BB_PTR_ITEM > (TOTAL_BLOCKS-14))
+          if (BB_PTR_ITEM > (TOTAL_BLOCKS - MAX_BLOCKS_IN_BROWSER))
           {
-            BB_PTR_ITEM -= 14;
+            BB_PTR_ITEM -= MAX_BLOCKS_IN_BROWSER;
           }
 
           BB_UPDATE = true;
@@ -1702,7 +1704,7 @@ class HMI
         else if (strCmd.indexOf("BUP") != -1)
         {
           // Pagina arriba block browser
-          BB_PTR_ITEM -= 14;
+          BB_PTR_ITEM -= MAX_BLOCKS_IN_BROWSER;
 
           if (BB_PTR_ITEM < 0)
           {
