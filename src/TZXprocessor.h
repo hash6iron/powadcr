@@ -55,7 +55,7 @@ class TZXprocessor
     const char ID2ASTR[35] = "ID 2A - Stop TAPE (48k mode)      ";
     const char ID2BSTR[35] = "ID 2B - Set signal level          ";
     const char ID4BSTR[35] = "ID 4B - TSX Block                 ";
-    const char IDXXSTR[35] = "TZX Block                         ";
+    const char IDXXSTR[35] = "Information block                 ";
 
     const int maxAllocationBlocks = 4000;
 

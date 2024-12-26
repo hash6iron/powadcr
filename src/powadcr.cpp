@@ -2252,19 +2252,19 @@ void openBlocksBrowser()
     }
 
     hmi.writeString("blocks.path.txt=\"" + HMI_FNAME + "\"");
-    hmi.writeString("blocks.totalBl.txt=\"" + String(TOTAL_BLOCKS) + "\"");
+    hmi.writeString("blocks.totalBl.txt=\"" + String(TOTAL_BLOCKS-1) + "\"");
 
     for(int i=1;i<max;i++)
     {
-      hmi.writeString("blocks.id" + String(i) + ".txt=\"" + String(i + BB_PTR_ITEM) + "\"");
+      hmi.writeString("blocks.id" + String(i-1) + ".txt=\"" + String(i + BB_PTR_ITEM) + "\"");
 
       if (TYPE_FILE_LOAD != "TAP")
       {
-        hmi.writeString("blocks.data" + String(i) + ".txt=\"" + myTZX.descriptor[i + BB_PTR_ITEM].typeName + " - " + myTZX.descriptor[i + BB_PTR_ITEM].name + "\"");
+        hmi.writeString("blocks.data" + String(i-1) + ".txt=\"" + myTZX.descriptor[i + BB_PTR_ITEM].typeName + " - " + myTZX.descriptor[i + BB_PTR_ITEM].name + "\"");
       }
       else
       {
-        hmi.writeString("blocks.data" + String(i) + ".txt=\"" + myTAP.descriptor[i + BB_PTR_ITEM].typeName + " - " + myTAP.descriptor[i + BB_PTR_ITEM].name + "\"");
+        hmi.writeString("blocks.data" + String(i-1) + ".txt=\"" + myTAP.descriptor[i + BB_PTR_ITEM].typeName + " - " + myTAP.descriptor[i + BB_PTR_ITEM].name + "\"");
       }
     }  
 }

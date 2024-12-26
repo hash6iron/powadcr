@@ -1663,6 +1663,7 @@ class HMI
         {
           // Block browser abierto
           BB_OPEN = true;
+          BB_PTR_ITEM = 0;
         }
         else if (strCmd.indexOf("BBCL=") != -1)
         {
@@ -1692,7 +1693,7 @@ class HMI
 
           if (BB_PTR_ITEM > (TOTAL_BLOCKS-14))
           {
-            BB_PTR_ITEM = TOTAL_BLOCKS - 14;
+            BB_PTR_ITEM -= 14;
           }
 
           BB_UPDATE = true;
@@ -1703,9 +1704,9 @@ class HMI
           // Pagina arriba block browser
           BB_PTR_ITEM -= 14;
 
-          if (BB_PTR_ITEM < 1)
+          if (BB_PTR_ITEM < 0)
           {
-            BB_PTR_ITEM = 1;
+            BB_PTR_ITEM = 0;
           }
 
           BB_UPDATE = true;
