@@ -40,6 +40,7 @@ class HMI
 
       SDmanager _sdm;
       SdFat32 _sdf;
+      File32 fFileLST;
       
       private:
 
@@ -501,60 +502,75 @@ class HMI
           return (stat (name.c_str(), &buffer) == 0); 
       }
 
-      void registerFileLST(String path, bool forze_rescan, String filename, String filename_inf, String search_pattern)
+      bool exist_LST_file(String path, String filename)
       {
-          // registramos todos los ficheros
-          // Si el _files.lst ya existe no se vuelve a crear, a no ser que sea forzado el rescan.
           File32 f;
           String fFileList = path + filename;
 
-          #ifdef DEBUGMODE
-            logln("");
-            log("Path to register in LST file: " + fFileList);
-            logln("");
-          #endif
-
-          if(!f.open(fFileList.c_str(), O_RDONLY))
+          if(f.open(fFileList.c_str(), O_RDONLY))
           {
-              #ifdef DEBUGMODE
-                logln("Registering files in: " + fFileList);
-              #endif
-              registerFiles(path,filename,filename_inf,search_pattern);
+            f.close();
+            logln("File.lst existe!!!!!");
+            return true;
           }
           else
           {
-              f.close();
-
-              if(forze_rescan)
-              {
-                  #ifdef DEBUGMODE
-                    logln("Registering files FORZED");
-                  #endif
-                  registerFiles(path,filename,filename_inf,search_pattern);
-              }
+            logln("File.lst NOOO existe!!!!!");
+            return false;
           }
       }
+
+      // void registerFileLST(String path, bool forze_rescan, String filename, String filename_inf, String search_pattern)
+      // {
+      //     // registramos todos los ficheros
+      //     // Si el _files.lst ya existe no se vuelve a crear, a no ser que sea forzado el rescan.
+      //     File32 f;
+      //     String fFileList = path + filename;
+
+      //     #ifdef DEBUGMODE
+      //       logln("");
+      //       log("Path to register in LST file: " + fFileList);
+      //       logln("");
+      //     #endif
+
+      //     if(!f.open(fFileList.c_str(), O_RDONLY))
+      //     {
+      //         #ifdef DEBUGMODE
+      //           logln("Registering files in: " + fFileList);
+      //         #endif
+      //         registerFiles(path,filename,filename_inf,search_pattern);
+      //     }
+      //     else
+      //     {
+      //         f.close();
+
+      //         if(forze_rescan)
+      //         {
+      //             #ifdef DEBUGMODE
+      //               logln("Registering files FORZED");
+      //             #endif
+      //             registerFiles(path,filename,filename_inf,search_pattern);
+      //         }
+      //     }
+      // }
 
       void manageFileLST(File32& fFileLST, String path, String sourceFile)
       {
         String fFileList = path + sourceFile;
 
         // Abrimos ahora el _files.lst, para manejarlo
-        // if (!IN_THE_SAME_DIR)
-        // {
-        if (!fFileLST.isOpen())
+        if (!LST_FILE_IS_OPEN)
         {
             // Abrimos el fichero
             fFileLST.open(fFileList.c_str(), O_RDONLY);
             fFileLST.rewind();
 
-            #ifdef DEBUGMODE
+            // #ifdef DEBUGMODE
               logln("Opening again - rewind");
-            #endif
+            // #endif
 
             IN_THE_SAME_DIR = true;
             // Mostramos el contenido y obtenemos el total de ficheros
-            //showFileLST(fFileLST);
             //
             FILE_TOTAL_FILES = 1;
             char line[256];
@@ -564,10 +580,8 @@ class HMI
                 FILE_TOTAL_FILES++;
             }
 
-            // Quitamos un item porque empezamos en 0
-            // FILE_TOTAL_FILES -= 1;
-        } 
-        // }       
+            LST_FILE_IS_OPEN = true;
+        }       
       }
 
       void getFilesFromSD(bool forze_rescan, String output_file, String output_file_inf, String search_pattern="")
@@ -580,7 +594,7 @@ class HMI
           char szName[255];
           int j = 0;          
 
-          File32 fFileLST;
+
           tFileLST fl;
 
           clearFileBuffer();
@@ -623,8 +637,21 @@ class HMI
                 forze_rescan=true;
               }
 
-              // Si no existe el historico de los ficheros se genera un _file.lst
-              registerFileLST(FILE_LAST_DIR, forze_rescan, output_file, output_file_inf, search_pattern);
+
+              // Si el fichero manejador esta abierto no se hacen mas comprobaciones.
+              if (!LST_FILE_IS_OPEN)
+              {
+                  // Si no existe el historico de los ficheros se genera un _file.lst
+                  if (forze_rescan || !exist_LST_file(FILE_LAST_DIR,output_file))
+                  {
+                      logln("Registrando ficheros");
+                      registerFiles(FILE_LAST_DIR, output_file, output_file_inf,search_pattern);
+                  }
+              }
+              else
+              {
+                logln("Manejando los ficheros en buffer");
+              }
 
               // Usamos el fichero que contiene el mapa del directorio actual, _files.lst
               manageFileLST(fFileLST, FILE_LAST_DIR, SOURCE_FILE_TO_MANAGE);
@@ -698,7 +725,7 @@ class HMI
 
           // Cerramos todos los ficheros (añadido el 25/07/2023)
           sdm.dir.close();
-          fFileLST.close();
+          // fFileLST.close();
       }
 
       void printFileRows(int row, int color, String szName)
@@ -1137,6 +1164,13 @@ class HMI
           // Hacemos una busqueda
           SOURCE_FILE_TO_MANAGE = "_fsearch.lst";
           SOURCE_FILE_INF_TO_MANAGE = "_fsearch.inf";
+
+          LST_FILE_IS_OPEN = false;
+          if (fFileLST.isOpen())
+          {
+            fFileLST.close();
+          }
+
           FILE_PTR_POS = 1;
           getFilesFromSD(true,SOURCE_FILE_TO_MANAGE,SOURCE_FILE_INF_TO_MANAGE,FILE_TXT_TO_SEARCH);
           //putFilesInScreen();
@@ -1244,6 +1278,13 @@ class HMI
       {
           // Recarga el directorio
           FILE_PTR_POS = 1;
+
+          LST_FILE_IS_OPEN = false;
+          if (fFileLST.isOpen())
+          {
+            fFileLST.close();
+          }
+
           getFilesFromSD(true,SOURCE_FILE_TO_MANAGE,SOURCE_FILE_INF_TO_MANAGE);      
           refreshFiles();        
       }
@@ -1483,6 +1524,13 @@ class HMI
             // le devolvamos ficheros en la posición actual del puntero
             SOURCE_FILE_TO_MANAGE = "_files.lst";
             SOURCE_FILE_INF_TO_MANAGE = "_files.inf"; 
+
+            LST_FILE_IS_OPEN = false;
+            if (fFileLST.isOpen())
+            {
+              fFileLST.close();
+            }
+
             putInHome();
          
             getFilesFromSD(false,SOURCE_FILE_TO_MANAGE,SOURCE_FILE_INF_TO_MANAGE);
@@ -1644,14 +1692,25 @@ class HMI
             String dir_ch = FILE_DIR_TO_CHANGE;
 
             //
-            //FILE_DIR_TO_CHANGE.toCharArray(dir_ch,FILE_DIR_TO_CHANGE.length()+1);
             FILE_PREVIOUS_DIR = FILE_LAST_DIR;
             FILE_LAST_DIR = dir_ch;
             FILE_LAST_DIR_LAST = FILE_LAST_DIR;
      
             FILE_PTR_POS = 1;
             // clearFilesInScreen(); // 02/12/2024
-            writeString("statusFILE.txt=\"READING\"");                     
+            writeString("statusFILE.txt=\"READING\"");  
+
+            // if(!exist_LST_file(FILE_LAST_DIR, SOURCE_FILE_TO_MANAGE))
+            // {
+            //     logln("Ruta: " + FILE_LAST_DIR);
+            //     registerFiles(FILE_LAST_DIR,SOURCE_FILE_TO_MANAGE,SOURCE_FILE_INF_TO_MANAGE,"");
+            // }
+            LST_FILE_IS_OPEN = false;
+            if (fFileLST.isOpen())
+            {
+              fFileLST.close();
+            }
+
             getFilesFromSD(false,SOURCE_FILE_TO_MANAGE,SOURCE_FILE_INF_TO_MANAGE);
             
             if (!FILE_DIR_OPEN_FAILED)
@@ -1672,6 +1731,12 @@ class HMI
             // Con este comando capturamos el directorio padre
             String oldDir = FILE_PREVIOUS_DIR;
             
+            LST_FILE_IS_OPEN = false;
+            if (fFileLST.isOpen())
+            {
+              fFileLST.close();
+            }
+
             // Forzamos a leer el repositorio de ficheros del directorio.
             SOURCE_FILE_TO_MANAGE = "_files.lst"; 
             SOURCE_FILE_INF_TO_MANAGE = "_files.inf"; 

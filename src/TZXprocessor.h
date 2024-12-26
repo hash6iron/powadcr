@@ -412,7 +412,6 @@ class TZXprocessor
               _myTZX.descriptor[currentBlock].header = true;
               _myTZX.descriptor[currentBlock].type = 0;
 
-              //_myTZX.name = "TZX";
               if (!PROGRAM_NAME_DETECTED)
               {
                   uint8_t* block = (uint8_t*)ps_calloc(19+1,sizeof(uint8_t));
@@ -1042,6 +1041,8 @@ class TZXprocessor
         uint8_t* grpN = (uint8_t*)ps_calloc(sizeTextInformation+1,sizeof(uint8_t));
         sdm.readFileRange32(mFile,grpN,currentOffset+2,sizeTextInformation,false);
         char groupName[sizeTextInformation+1];
+        // Limpiamos de basura todo el buffer
+        strcpy(groupName,"                             ");
 
         for(int i=0;i<sizeTextInformation-1;i++)
         {
