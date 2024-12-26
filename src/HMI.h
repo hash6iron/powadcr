@@ -1659,6 +1659,58 @@ class HMI
                 }
             }     
         }              
+        else if (strCmd.indexOf("BBOPEN") != -1)
+        {
+          // Block browser abierto
+          BB_OPEN = true;
+        }
+        else if (strCmd.indexOf("BBCL=") != -1)
+        {
+          // Block browser cerrado con ID seleccionado o -1 para ninguno
+          // Con este procedimiento obtenemos la pàgina del filebrowser
+          // que se desea visualizar
+          uint8_t buff[9];
+          strCmd.getBytes(buff, 8);
+          long val = (long)((int)buff[5] + (256*(int)buff[6]) + (65536*(int)buff[7]));
+          String num = String(val);
+
+          // Obtenemos el ID seleccionado
+          int blsel = num.toInt();
+          
+          logln("Bloque seleccionado: " + String(blsel));
+
+          if (blsel <= TOTAL_BLOCKS)
+          {
+            BLOCK_SELECTED = blsel;
+          }         
+          BB_OPEN = false;
+        }        
+        else if (strCmd.indexOf("BDOWN") != -1)
+        {
+          // Pagina arriba block browser
+          BB_PTR_ITEM += 14;
+
+          if (BB_PTR_ITEM > (TOTAL_BLOCKS-14))
+          {
+            BB_PTR_ITEM = TOTAL_BLOCKS - 14;
+          }
+
+          BB_UPDATE = true;
+
+        }
+        else if (strCmd.indexOf("BUP") != -1)
+        {
+          // Pagina arriba block browser
+          BB_PTR_ITEM -= 14;
+
+          if (BB_PTR_ITEM < 1)
+          {
+            BB_PTR_ITEM = 1;
+          }
+
+          BB_UPDATE = true;
+
+        }
         else if (strCmd.indexOf("CHD=") != -1) 
         {
             // Con este comando capturamos el directorio a cambiar
@@ -2853,9 +2905,9 @@ class HMI
             //writeString("currentBlock.val=0");
           }
 
-          if (lastfname != HMI_FNAME || FORZE_REFRESH)
-          {writeString("fname.txt=\"" + HMI_FNAME + "\"");}
-          lastfname = HMI_FNAME;
+          // if (lastfname != HMI_FNAME || FORZE_REFRESH)
+          // {writeString("fname.txt=\"" + HMI_FNAME + "\"");}
+          // lastfname = HMI_FNAME;
 
 
           if (lastMsn != LAST_MESSAGE || FORZE_REFRESH)

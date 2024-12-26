@@ -446,6 +446,12 @@ String FILE_TXT_TO_SEARCH = "";
 //bool waitingRecMessageShown = false;
 int CURRENT_PAGE = 0;
 
+// Block browser
+bool BB_OPEN = false;
+bool BB_UPDATE = false;
+int BB_PAGE = 0;
+int BB_PTR_ITEM = 0;
+
 // Variables de control de la reproducción
 bool PLAY = false;
 bool PAUSE = true;

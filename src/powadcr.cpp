@@ -2237,6 +2237,37 @@ void setRWIND()
 
 }
 
+void openBlocksBrowser()
+{
+    // Rellenamos el browser con todos los bloques
+    int max = 14;
+
+    if (TOTAL_BLOCKS > 13)
+    {
+      max = 14;
+    }
+    else
+    {
+      max = TOTAL_BLOCKS;
+    }
+
+    hmi.writeString("blocks.path.txt=\"" + HMI_FNAME + "\"");
+    hmi.writeString("blocks.totalBl.txt=\"" + String(TOTAL_BLOCKS) + "\"");
+
+    for(int i=1;i<max;i++)
+    {
+      hmi.writeString("blocks.id" + String(i) + ".txt=\"" + String(i + BB_PTR_ITEM) + "\"");
+
+      if (TYPE_FILE_LOAD != "TAP")
+      {
+        hmi.writeString("blocks.data" + String(i) + ".txt=\"" + myTZX.descriptor[i + BB_PTR_ITEM].typeName + " - " + myTZX.descriptor[i + BB_PTR_ITEM].name + "\"");
+      }
+      else
+      {
+        hmi.writeString("blocks.data" + String(i) + ".txt=\"" + myTAP.descriptor[i + BB_PTR_ITEM].typeName + " - " + myTAP.descriptor[i + BB_PTR_ITEM].name + "\"");
+      }
+    }  
+}
 
 void tapeControl()
 {
@@ -2533,6 +2564,12 @@ void tapeControl()
         updateHMIOnBlockChange();        
 
       }
+      else if (BB_OPEN || BB_UPDATE)
+      {
+          openBlocksBrowser();
+          BB_UPDATE = false;
+          BB_OPEN = false;          
+      }
       else if (UPDATE)
       {
           // Esto se hace para solicitar una actualizacion con los parametros del TAP / TZX
@@ -2625,7 +2662,13 @@ void tapeControl()
 
           // Actualizamos el HMI
           updateHMIOnBlockChange();
-        }        
+        }   
+        else if (BB_OPEN || BB_UPDATE)
+        {
+          openBlocksBrowser();
+          BB_UPDATE = false;
+          BB_OPEN = false;  
+        }             
         else if (UPDATE)
         {
             // Esto se hace para solicitar una actualizacion con los parametros del TAP / TZX
