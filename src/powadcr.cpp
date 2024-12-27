@@ -1338,6 +1338,9 @@ void setSTOP()
 void playWAV()
 {
     // ESP32kit.end();
+    ESP32kit.setSampleRate(AUDIO_HAL_44K_SAMPLES);
+    SAMPLING_RATE = 44100;
+    
     int status = 0;
     AudioInfo info(44100, 2, 16);
     // ADPCMDecoder adpcm_decoder(AV_CODEC_ID_ADPCM_IMA_WAV); 
