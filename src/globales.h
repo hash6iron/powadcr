@@ -461,6 +461,7 @@ bool BB_OPEN = false;
 bool BB_UPDATE = false;
 int BB_PAGE = 0;
 int BB_PTR_ITEM = 0;
+bool UPDATE_HMI = false;
 
 // Variables de control de la reproducción
 bool PLAY = false;

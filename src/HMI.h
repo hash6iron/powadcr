@@ -1681,6 +1681,7 @@ class HMI
           if (blsel >= 0 && blsel <= TOTAL_BLOCKS)
           {
             BLOCK_SELECTED = blsel;
+            UPDATE_HMI = true;
           }         
           BB_OPEN = false;
         }        
