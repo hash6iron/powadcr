@@ -88,11 +88,8 @@ class ZXProcessor
     int SYNC2 = DSYNC2;
     int BIT_0 = DBIT_0;
     int BIT_1 = DBIT_1;
-    // Para direcrecord
-    int BIT_DR44_1 = DBIT_DR44_1;
-    int BIT_DR44_0 = DBIT_DR44_0;
-    int BIT_DR22_1 = DBIT_DR22_1;
-    int BIT_DR22_0 = DBIT_DR22_0;
+
+
     //
     int PILOT_PULSE_LEN = DPILOT_LEN;
     // int PILOT_TONE = DPILOT_TONE;
@@ -674,7 +671,7 @@ class ZXProcessor
  
                     
                     PROGRESS_BAR_TOTAL_VALUE = ((BYTES_INI + (i+1)) * 100 ) / BYTES_TOBE_LOAD ;
-                    PROGRESS_BAR_BLOCK_VALUE = ((BYTES_INI + (i+1)) * 100 ) / (BYTES_INI + BYTES_IN_THIS_BLOCK) ;
+                    PROGRESS_BAR_BLOCK_VALUE = ((BYTES_INI + (i+1)) * 100 ) / (BYTES_INI + BYTES_IN_THIS_BLOCK);
 
                 }
                 
@@ -934,11 +931,11 @@ class ZXProcessor
                             // Si el bit leido del BYTE es un "1"
                             if(bitMasked == 1)
                             {
-                                sampleDR(BIT_DR22_1, maxLevelUp);                               
+                                sampleDR(BIT_DR_1, maxLevelUp);                               
                             }
                             else
                             {
-                                sampleDR(BIT_DR22_0, maxLevelDown);
+                                sampleDR(BIT_DR_0, maxLevelDown);
                             }
                         }
 
@@ -958,7 +955,9 @@ class ZXProcessor
                     // Esto lo hacemos para asegurarnos que la barra se llena entera
                     // if (BYTES_LOADED > BYTES_TOBE_LOAD)
                     // {BYTES_LOADED = BYTES_TOBE_LOAD;}
-                    // PROGRESS_BAR_TOTAL_VALUE = ((BYTES_INI + (i+1)) * 100 ) / BYTES_TOBE_LOAD ;                    
+                    // PROGRESS_BAR_TOTAL_VALUE = ((BYTES_INI + (i+1)) * 100 ) / BYTES_TOBE_LOAD ;      
+                    PROGRESS_BAR_TOTAL_VALUE = ((BYTES_INI + (i+1)) * 100 ) / BYTES_TOBE_LOAD ;
+                    PROGRESS_BAR_BLOCK_VALUE = ((BYTES_INI + (i+1)) * 100 ) / (BYTES_INI + BYTES_IN_THIS_BLOCK);                                  
             }
         }
 

@@ -49,12 +49,14 @@ class TZXprocessor
     const char ID22STR[35] = "ID 22 - Group end                 ";
     const char ID23STR[35] = "ID 23 - Jump to block             ";
     const char ID24STR[35] = "ID 24 - Loop start                ";
-    const char ID25STR[35] = "ID 25 - Loop start                ";
-    const char ID26STR[35] = "ID 26 - Loop end                  ";
+    const char ID25STR[35] = "ID 25 - Loop end                  ";
+    const char ID26STR[35] = "ID 26 - Call sequence             ";
+    const char ID27STR[35] = "ID 27 - Return from sequence      ";
     const char ID28STR[35] = "ID 28 - Select block              ";
     const char ID2ASTR[35] = "ID 2A - Stop TAPE (48k mode)      ";
     const char ID2BSTR[35] = "ID 2B - Set signal level          ";
     const char ID4BSTR[35] = "ID 4B - TSX Block                 ";
+    const char ID5ASTR[35] = "ID 5A - Glue block                ";
     const char IDXXSTR[35] = "Information block                 ";
 
     const int maxAllocationBlocks = 4000;
@@ -1290,6 +1292,7 @@ class TZXprocessor
             // analyzeBlockUnknow(currentID,currentOffset, currentBlock);
             // nextIDoffset = currentOffset + 1;            
             // _myTZX.descriptor[currentBlock].typeName = "ID 18 - CSW Rec";
+            strncpy(_myTZX.descriptor[currentBlock].typeName,ID18STR,35);
             res=false;              
             break;
 
@@ -1299,6 +1302,7 @@ class TZXprocessor
             // analyzeBlockUnknow(currentID,currentOffset, currentBlock);
             // nextIDoffset = currentOffset + 1;            
             // _myTZX.descriptor[currentBlock].typeName = "ID 19 - General Data block";
+            strncpy(_myTZX.descriptor[currentBlock].typeName,ID19STR,35);
             res=false;              
             break;
 
@@ -1374,6 +1378,7 @@ class TZXprocessor
             // nextIDoffset = currentOffset + 1;            
 
             // _myTZX.descriptor[currentBlock].typeName = "ID 23 - Jump to block";
+            strncpy(_myTZX.descriptor[currentBlock].typeName,ID23STR,35);
             res=false;
             break;
 
@@ -1431,6 +1436,7 @@ class TZXprocessor
             // nextIDoffset = currentOffset + 1;            
 
             // _myTZX.descriptor[currentBlock].typeName = "ID 26 - Call seq.";
+            strncpy(_myTZX.descriptor[currentBlock].typeName,ID26STR,35);
             res=false;
             break;
 
@@ -1441,6 +1447,7 @@ class TZXprocessor
             // nextIDoffset = currentOffset + 1;            
 
             // _myTZX.descriptor[currentBlock].typeName = "ID 27 - Return from seq.";
+            strncpy(_myTZX.descriptor[currentBlock].typeName,ID27STR,35);
             res=false;              
             break;
 
@@ -1619,7 +1626,7 @@ class TZXprocessor
             nextIDoffset = currentOffset + 8;            
 
             //_myTZX.descriptor[currentBlock].typeName = "ID 5A - Glue block";
-            strncpy(_myTZX.descriptor[currentBlock].typeName,IDXXSTR,35);
+            strncpy(_myTZX.descriptor[currentBlock].typeName,ID5ASTR,35);
             break;
 
           default:
@@ -2496,6 +2503,8 @@ class TZXprocessor
                       log("> Playing DR block - Splitted - begin");
                     #endif                    
                     _zxp.playDRBlock(bufferPlay,blockSizeSplit,false);
+
+
                   }
               }
               else
@@ -2768,24 +2777,33 @@ class TZXprocessor
               if (_myTZX.descriptor[i].samplingRate == 79)
               {
                   SAMPLING_RATE = 44100;
+                  BIT_DR_0 = DBIT_DR44_0;
+                  BIT_DR_1 = DBIT_DR44_1;
+
                   ESP32kit.setSampleRate(AUDIO_HAL_44K_SAMPLES);
                   LAST_MESSAGE = "Direct recording at 44.1KHz";
               }
               else if (_myTZX.descriptor[i].samplingRate == 158)
               {
                   SAMPLING_RATE = 22050;
+                  BIT_DR_0 = DBIT_DR22_0;
+                  BIT_DR_1 = DBIT_DR22_1;
                   ESP32kit.setSampleRate(AUDIO_HAL_22K_SAMPLES);
                   LAST_MESSAGE = "Direct recording at 22.05KHz";
               }
               else if (_myTZX.descriptor[i].samplingRate == 316)
               {
-                  SAMPLING_RATE = 11000;
+                  SAMPLING_RATE = 11025;
+                  BIT_DR_0 = DBIT_DR11_0;
+                  BIT_DR_1 = DBIT_DR11_1;
                   ESP32kit.setSampleRate(AUDIO_HAL_11K_SAMPLES);
                   LAST_MESSAGE = "Direct recording at 11KHz";
               }              
               else if (_myTZX.descriptor[i].samplingRate == 319)
               {
                   SAMPLING_RATE = 8000;
+                  BIT_DR_0 = DBIT_DR08_0;
+                  BIT_DR_1 = DBIT_DR08_1;
                   ESP32kit.setSampleRate(AUDIO_HAL_08K_SAMPLES);
                   LAST_MESSAGE = "Direct recording at 8KHz";
               }              

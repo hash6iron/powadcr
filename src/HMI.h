@@ -1675,10 +1675,10 @@ class HMI
 
           // Obtenemos el ID seleccionado
           int blsel = sbstr.toInt();
-          
+         
           logln("Bloque seleccionado: " + String(blsel));
 
-          if (blsel <= TOTAL_BLOCKS)
+          if (blsel >= 0 && blsel <= TOTAL_BLOCKS)
           {
             BLOCK_SELECTED = blsel;
           }         
@@ -1689,7 +1689,7 @@ class HMI
           // Pagina arriba block browser
           BB_PTR_ITEM += MAX_BLOCKS_IN_BROWSER;
 
-          if (BB_PTR_ITEM > (TOTAL_BLOCKS - MAX_BLOCKS_IN_BROWSER))
+          if (BB_PTR_ITEM > TOTAL_BLOCKS - 1)
           {
             BB_PTR_ITEM -= MAX_BLOCKS_IN_BROWSER;
           }

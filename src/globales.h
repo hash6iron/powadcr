@@ -193,6 +193,16 @@ int DBIT_DR44_1 = 79;
 // A 22.05KHz
 int DBIT_DR22_0 = 158;
 int DBIT_DR22_1 = 158;
+// A 11KHz
+int DBIT_DR11_0 = 316;
+int DBIT_DR11_1 = 316;
+// A 22.05KHz
+int DBIT_DR08_0 = 319;
+int DBIT_DR08_1 = 319;
+//
+// Para direcrecord
+int BIT_DR_1 = 0;
+int BIT_DR_0 = 0;
 //
 bool DIRECT_RECORDING = false;
 
