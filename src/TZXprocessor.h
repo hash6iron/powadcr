@@ -2783,7 +2783,7 @@ class TZXprocessor
                   ESP32kit.setSampleRate(AUDIO_HAL_11K_SAMPLES);
                   LAST_MESSAGE = "Direct recording at 11KHz";
               }              
-              else if (_myTZX.descriptor[i].samplingRate == 395)
+              else if (_myTZX.descriptor[i].samplingRate == 319)
               {
                   SAMPLING_RATE = 8000;
                   ESP32kit.setSampleRate(AUDIO_HAL_08K_SAMPLES);

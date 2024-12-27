@@ -1670,15 +1670,11 @@ class HMI
           // Block browser cerrado con ID seleccionado o -1 para ninguno
           // Con este procedimiento obtenemos la pàgina del filebrowser
           // que se desea visualizar
-          logln("Command: " + strCmd);
-          
-          uint8_t buff[11];
-          strCmd.getBytes(buff, 10);
-          long val = (long)((int)buff[6] + (256*(int)buff[7]) + (65536*(int)buff[8]));
-          String num = String(val);
+          int posEq = strCmd.indexOf("=");
+          String sbstr = strCmd.substring(posEq+1);
 
           // Obtenemos el ID seleccionado
-          int blsel = num.toInt();
+          int blsel = sbstr.toInt();
           
           logln("Bloque seleccionado: " + String(blsel));
 
