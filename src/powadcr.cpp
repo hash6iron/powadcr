@@ -2258,39 +2258,47 @@ void openBlocksBrowser()
     {
       if (i+BB_PTR_ITEM > TOTAL_BLOCKS-1)
       {
-        return;
-      }
-      
-      hmi.writeString("blocks.id" + String(i) + ".txt=\"" + String(i + BB_PTR_ITEM) + "\"");
-
-      if (TYPE_FILE_LOAD != "TAP")
-      {       
-
-            if (String(myTZX.descriptor[i + BB_PTR_ITEM].typeName).indexOf("ID 21") != -1)
-            {
-                hmi.writeString("blocks.id" + String(i) + ".pco=34815");
-                hmi.writeString("blocks.data" + String(i) + ".pco=34815");
-                hmi.writeString("blocks.size" + String(i) + ".pco=34815");
-                hmi.writeString("blocks.name" + String(i) + ".pco=34815");
-            }
-            else
-            {
-                hmi.writeString("blocks.id" + String(i) + ".pco=60868");
-                hmi.writeString("blocks.data" + String(i) + ".pco=60868");
-                hmi.writeString("blocks.size" + String(i) + ".pco=60868");
-                hmi.writeString("blocks.name" + String(i) + ".pco=60868");
-            }
-
-            hmi.writeString("blocks.data" + String(i) + ".txt=\"" + myTZX.descriptor[i + BB_PTR_ITEM].typeName + "\"");
-            hmi.writeString("blocks.name" + String(i) + ".txt=\"" + myTZX.descriptor[i + BB_PTR_ITEM].name + "\"");
-            hmi.writeString("blocks.size" + String(i) + ".txt=\"" + String(myTZX.descriptor[i + BB_PTR_ITEM].size / 1024) + "\"");
+        // Los dejamos limpios pero sin informacion
+        hmi.writeString("blocks.id" + String(i) + ".txt=\"\"");
+        hmi.writeString("blocks.data" + String(i) + ".txt=\"\"");
+        hmi.writeString("blocks.size" + String(i) + ".txt=\"\"");
+        hmi.writeString("blocks.name" + String(i) + ".txt=\"\"");
       }
       else
       {
-            hmi.writeString("blocks.data" + String(i) + ".txt=\"" + myTAP.descriptor[i + BB_PTR_ITEM].typeName + "\"");
-            hmi.writeString("blocks.name" + String(i) + ".txt=\"" + myTAP.descriptor[i + BB_PTR_ITEM].name + "\"");
-            hmi.writeString("blocks.size" + String(i) + ".txt=\"" + String(myTAP.descriptor[i + BB_PTR_ITEM].size / 1024) + "\"");
+          // En otro caso metemos informacion
+          hmi.writeString("blocks.id" + String(i) + ".txt=\"" + String(i + BB_PTR_ITEM) + "\"");
+
+          if (TYPE_FILE_LOAD != "TAP")
+          {       
+
+                if (String(myTZX.descriptor[i + BB_PTR_ITEM].typeName).indexOf("ID 21") != -1)
+                {
+                    hmi.writeString("blocks.id" + String(i) + ".pco=34815");
+                    hmi.writeString("blocks.data" + String(i) + ".pco=34815");
+                    hmi.writeString("blocks.size" + String(i) + ".pco=34815");
+                    hmi.writeString("blocks.name" + String(i) + ".pco=34815");
+                }
+                else
+                {
+                    hmi.writeString("blocks.id" + String(i) + ".pco=60868");
+                    hmi.writeString("blocks.data" + String(i) + ".pco=60868");
+                    hmi.writeString("blocks.size" + String(i) + ".pco=60868");
+                    hmi.writeString("blocks.name" + String(i) + ".pco=60868");
+                }
+
+                hmi.writeString("blocks.data" + String(i) + ".txt=\"" + myTZX.descriptor[i + BB_PTR_ITEM].typeName + "\"");
+                hmi.writeString("blocks.name" + String(i) + ".txt=\"" + myTZX.descriptor[i + BB_PTR_ITEM].name + "\"");
+                hmi.writeString("blocks.size" + String(i) + ".txt=\"" + String(myTZX.descriptor[i + BB_PTR_ITEM].size / 1024) + "\"");
+          }
+          else
+          {
+                hmi.writeString("blocks.data" + String(i) + ".txt=\"" + myTAP.descriptor[i + BB_PTR_ITEM].typeName + "\"");
+                hmi.writeString("blocks.name" + String(i) + ".txt=\"" + myTAP.descriptor[i + BB_PTR_ITEM].name + "\"");
+                hmi.writeString("blocks.size" + String(i) + ".txt=\"" + String(myTAP.descriptor[i + BB_PTR_ITEM].size / 1024) + "\"");
+          }        
       }
+
     }  
 }
 
