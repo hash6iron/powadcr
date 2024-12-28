@@ -2791,6 +2791,14 @@ class TZXprocessor
                   ESP32kit.setSampleRate(AUDIO_HAL_22K_SAMPLES);
                   LAST_MESSAGE = "Direct recording at 22.05KHz";
               }
+              else if (_myTZX.descriptor[i].samplingRate == 238)
+              {
+                  SAMPLING_RATE = 16000;
+                  BIT_DR_0 = 238;
+                  BIT_DR_1 = 238;
+                  ESP32kit.setSampleRate(AUDIO_HAL_16K_SAMPLES);
+                  LAST_MESSAGE = "Direct recording at 16KHz";
+              } 
               else if (_myTZX.descriptor[i].samplingRate == 316)
               {
                   SAMPLING_RATE = 11025;
@@ -2810,11 +2818,6 @@ class TZXprocessor
               else
               {
                 LAST_MESSAGE = "Direct recording sampling rate unknow";
-                SAMPLING_RATE = 44100;
-                BIT_DR_0 = _myTZX.descriptor[i].samplingRate;
-                BIT_DR_1 = _myTZX.descriptor[i].samplingRate;
-                ESP32kit.setSampleRate(AUDIO_HAL_44K_SAMPLES);
-
                 delay(1500);
                 //Paramos la reproducción.
 
