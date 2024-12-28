@@ -2810,6 +2810,11 @@ class TZXprocessor
               else
               {
                 LAST_MESSAGE = "Direct recording sampling rate unknow";
+                SAMPLING_RATE = 44100;
+                BIT_DR_0 = _myTZX.descriptor[i].samplingRate;
+                BIT_DR_1 = _myTZX.descriptor[i].samplingRate;
+                ESP32kit.setSampleRate(AUDIO_HAL_44K_SAMPLES);
+
                 delay(1500);
                 //Paramos la reproducción.
 
