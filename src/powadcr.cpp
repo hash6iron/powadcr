@@ -1421,7 +1421,7 @@ void playWAV()
     // cfgbt.name = "JBL T450BT";  // set the device here. Otherwise the first available device is used for output
     // //cfg.auto_reconnect = true;  // if this is use we just quickly connect to the last device ignoring cfg.name
     // outbt.begin(cfgbt);    
-    PROGRAM_NAME = "WAV file";
+    // PROGRAM_NAME = "WAV file";
     logln("Current position: " + String(FILE_PTR_POS + FILE_IDX_SELECTED));
 
     if(player.begin())
@@ -2240,7 +2240,7 @@ void prevGroupBlock()
     {
       // Le pasamos el nombre del grupo al PROGRAM_NAME_2
       // BLOCK_SELECTED++;
-      PROGRAM_NAME_2 = myTZX.descriptor[BLOCK_SELECTED].name;
+      LAST_GROUP = myTZX.descriptor[BLOCK_SELECTED].name;
       LAST_BLOCK_WAS_GROUP_START = true;
       LAST_BLOCK_WAS_GROUP_END = false;
     }
@@ -2260,7 +2260,7 @@ void isGroupStart()
       LAST_BLOCK_WAS_GROUP_START = true;
       LAST_BLOCK_WAS_GROUP_END = false;
       // Le pasamos el nombre del grupo al PROGRAM_NAME_2
-      PROGRAM_NAME_2 = myTZX.descriptor[BLOCK_SELECTED].name;
+      LAST_GROUP = myTZX.descriptor[BLOCK_SELECTED].name;
     }
     else
     {
@@ -2363,7 +2363,7 @@ void getTheFirstPlayeableBlock()
       BLOCK_SELECTED=i;
       logln("Primero playeable: " + String(i));
 
-      PROGRAM_NAME = myTZX.descriptor[i].name;
+      // PROGRAM_NAME = myTZX.descriptor[i].name;
       strcpy(LAST_TYPE,myTZX.descriptor[i].typeName);
       LAST_SIZE = myTZX.descriptor[i].size;
 
@@ -3069,6 +3069,7 @@ void tapeControl()
                     getTheFirstPlayeableBlock();
 
                     LAST_MESSAGE = "File inside the TAPE.";
+                    PROGRAM_NAME = FILE_LOAD;
                     HMI_FNAME = FILE_LOAD;
 
                     TAPESTATE = 10;

@@ -2751,7 +2751,8 @@ class HMI
 
 
           // Forzamos un actualizado de la información del tape
-          writeString("name.txt=\"" + PROGRAM_NAME + " : " + PROGRAM_NAME_2 + "\"");
+          // writeString("name.txt=\"" + PROGRAM_NAME + " : " + PROGRAM_NAME_2 + "\"");
+          writeString("name.txt=\"" + PROGRAM_NAME + "\"");
           writeString("tape2.name.txt=\"" + PROGRAM_NAME + " : " + PROGRAM_NAME_2 + "\"");
           writeString("size.txt=\"0 bytes\"");
           writeString("tape2.size.txt=\"0 bytes\"");
@@ -2826,9 +2827,10 @@ class HMI
             if (TYPE_FILE_LOAD != "TAP" || REC || FORZE_REFRESH)
             {
                 // Para TZX
-                if (lastPrgName!=PROGRAM_NAME || lastPrgName2!=PROGRAM_NAME_2)
+                if (lastPrgName!=PROGRAM_NAME)// || lastPrgName2!=PROGRAM_NAME_2)
                 {
-                  writeString("name.txt=\"" + PROGRAM_NAME + " : " + PROGRAM_NAME_2 + "\"");
+                  // writeString("name.txt=\"" + PROGRAM_NAME + " : " + PROGRAM_NAME_2 + "\"");
+                  writeString("name.txt=\"" + PROGRAM_NAME + "\"");
                   writeString("tape2.name.txt=\"" + PROGRAM_NAME + " : " + PROGRAM_NAME_2 + "\"");
                 }
                 lastPrgName = PROGRAM_NAME;
