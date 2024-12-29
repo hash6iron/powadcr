@@ -1352,6 +1352,33 @@ void setSTOP()
   // sendStatus(READY_ST, 1);
 }
 
+int getWAVfileSize(String path)
+{
+    char pfile[255] = {};
+    strcpy(pfile,path.c_str());
+    File32 f = sdm.openFile32(pfile);
+    int fsize = f.size();
+    f.close();  
+
+    if (fsize < 1000000)
+    {
+      hmi.writeString("size.txt=\"" + String(fsize/1024) + " KB\"");
+    }
+    else
+    {
+      hmi.writeString("size.txt=\"" + String(fsize/1024/1024) + " MB\"");
+    }
+
+    return fsize;
+}
+
+void updateIndicators(int size, int pos)
+{
+    hmi.writeString("tape.totalBlocks.val=" + String(size));
+    hmi.writeString("tape.currentBlock.val=" + String(pos));
+    hmi.writeString("type.txt=\"WAV file\"");
+}
+
 void playWAV()
 {
     // ESP32kit.end();
@@ -1359,6 +1386,9 @@ void playWAV()
     SAMPLING_RATE = 44100;
 
     int status = 0;
+    int fileSize = 0;
+    int fileread = 0;
+
     AudioInfo info(44100, 2, 16);
     // ADPCMDecoder adpcm_decoder(AV_CODEC_ID_ADPCM_IMA_WAV); 
     // WAVDecoder wavdecoder(adpcm_decoder, AudioFormat::ADPCM);
@@ -1392,20 +1422,23 @@ void playWAV()
     // //cfg.auto_reconnect = true;  // if this is use we just quickly connect to the last device ignoring cfg.name
     // outbt.begin(cfgbt);    
     PROGRAM_NAME = "WAV file";
-    
+    logln("Current position: " + String(FILE_PTR_POS + FILE_IDX_SELECTED));
+
     if(player.begin())
     {
-        player.setPath(PATH_FILE_TO_LOAD.c_str());
-
         LAST_MESSAGE =  "WAV ready to play";
+
+        player.setPath(PATH_FILE_TO_LOAD.c_str());
+        fileSize = getWAVfileSize(PATH_FILE_TO_LOAD);
+
         player.setActive(true);
-        
+        // Indicamos cual es el fichero seleccionado
+        source.selectStream(FILE_PTR_POS + FILE_IDX_SELECTED - 1);
+
         // Esto lo hacemos para parar cuando termine el audio.
-        int currentIdx = source.index();
-        hmi.writeString("tape.totalBlocks.val=" + String(source.size()+1));
-        hmi.writeString("tape.currentBlock.val=" + String(source.index()+1));
-        hmi.writeString("type.txt=\"WAV file\"");
-     
+        int currentIdx = (FILE_PTR_POS + FILE_IDX_SELECTED) - 1;
+        updateIndicators(source.size() + 1, source.index() + 1); 
+
         int stateWAVplayer = 0;
         
         while(!EJECT && !REC)
@@ -1419,49 +1452,67 @@ void playWAV()
                 // Fichero a la espera
                 if (PLAY)
                 {
-                  stateWAVplayer = 1;
-                  LAST_MESSAGE =  "Playing WAV.";
-                  tapeAnimationON();
+                    LAST_MESSAGE =  "Playing WAV.";
+                    updateIndicators(source.size() + 1, source.index() + 1); 
+                    tapeAnimationON();
+                    stateWAVplayer = 1;
                 }
                 
                 // Control de avance de ficheros                
                 if (FFWIND)
                 {
-                  player.next();
-                  // Controlamos el extremo superior
-                  if (source.index() > source.size())
-                  {
-                    source.selectStream(0);
-                  }
+                    // Lo hacemos asi porque si avanzamos con player.next() 
+                    // da error si se pasa del total
+                    int idx = source.index() + 1;
+                    // Comprobamos
+                    if (idx > source.size())
+                    {
+                      source.selectStream(0);
+                    }
+                    else
+                    {
+                      player.next();
+                    }
 
-                  hmi.writeString("name.txt=\"" + String(source.toStr()) + "\"");
+                    hmi.writeString("name.txt=\"" + String(source.toStr()) + "\"");
+                    fileSize = getWAVfileSize(source.toStr());
 
-                  // Ahora el current index ha cambiado
-                  currentIdx = source.index();
 
-                  // Informamos
-                  hmi.writeString("tape.currentBlock.val=" + String(source.index()+1));
-                  FFWIND = false;
-                  RWIND = false;
+                    // Ahora el current index ha cambiado
+                    currentIdx = source.index();
+
+                    // Informamos
+                    updateIndicators(source.size() + 1, source.index() + 1); 
+                    FFWIND = false;
+                    RWIND = false;
+                    fileread = 0;
                 }
                 else if (RWIND)
                 {
-                  player.previous();
-                  // Controlamos el extremo inferior
-                  if (source.index() < 0)
-                  {
-                    source.selectStream(source.size());
-                  }
+                    // Lo hacemos asi porque si avanzamos con player.next() 
+                    // da error si se pasa del total
+                    int idx = source.index() - 1;
+                    // Comprobamos
+                    if (idx < 0)
+                    {
+                      source.selectStream(source.size());
+                    }
+                    else
+                    {
+                      player.previous();
+                    }
 
-                  hmi.writeString("name.txt=\"" + String(source.toStr()) + "\"");
+                    hmi.writeString("name.txt=\"" + String(source.toStr()) + "\"");
+                    fileSize = getWAVfileSize(source.toStr());
 
-                  // Ahora el current index ha cambiado
-                  currentIdx = source.index();
+                    // Ahora el current index ha cambiado
+                    currentIdx = source.index();
 
-                  // Informamos
-                  hmi.writeString("tape.currentBlock.val=" + String(source.index()+1));
-                  FFWIND = false;
-                  RWIND = false;
+                    // Informamos
+                    updateIndicators(source.size() + 1, source.index() + 1); 
+                    FFWIND = false;
+                    RWIND = false;
+                    fileread = 0;
                 }
                 
                 break;
@@ -1470,64 +1521,88 @@ void playWAV()
                 // Play
                 if (PLAY)
                 {
-                  player.copy();              
-                  // 
-                  // Cuando cambie automaticamente al proximo fichero, me paro.
-                  if (currentIdx != source.index())
-                  {
-                    PAUSE = true;
-                    LAST_MESSAGE = "Stop playing";
-                    stateWAVplayer = 2;
-                  }              
+                    // Vamos transmitiendo y quedandonos con el numero de bytes transmitidos
+                    fileread += player.copy();
+
+                    // Mostramos la progresion de la reproduccion
+                    PROGRESS_BAR_TOTAL_VALUE = (fileread * 100) / fileSize;
+                    PROGRESS_BAR_BLOCK_VALUE = PROGRESS_BAR_TOTAL_VALUE;
+
+                    // hmi.writeString("progressTotal.val=" + String((fileread * 100) / fileSize));
+                    // hmi.writeString("progressBlock.val=" + String((fileread * 100) / fileSize));
+
+                    // Cuando cambie automaticamente al proximo fichero, me paro.
+                    if (currentIdx != source.index())
+                    {
+                      LAST_MESSAGE = "Stop playing";
+                      stateWAVplayer = 4;
+                    }              
                 } 
                 else if (PAUSE)
                 {
-                  stateWAVplayer = 2;
-                  tapeAnimationOFF();
-                  PAUSE = false;
+                    tapeAnimationOFF();
+                    PAUSE = false;
+                    stateWAVplayer = 2;
                 }
                 else if (STOP)
                 {
                     stateWAVplayer = 3;
+                    fileread = 0;
                 }
                 
                 if (FFWIND)
                 {
-                  player.next();
-                  // Controlamos el extremo superior
-                  if (source.index() > source.size())
-                  {
-                    source.selectStream(0);
-                  }
+                    // Lo hacemos asi porque si avanzamos con player.next() 
+                    // da error si se pasa del total
+                    int idx = source.index() + 1;
+                    // Comprobamos
+                    if (idx > source.size())
+                    {
+                      source.selectStream(0);
+                    }
+                    else
+                    {
+                      player.next();
+                    }
 
-                  hmi.writeString("name.txt=\"" + String(source.toStr()) + "\"");
+                    hmi.writeString("name.txt=\"" + String(source.toStr()) + "\"");
+                    fileSize = getWAVfileSize(source.toStr());
 
-                  // Ahora el current index ha cambiado
-                  currentIdx = source.index();
+                    // Ahora el current index ha cambiado
+                    currentIdx = source.index();
 
-                  // Informamos
-                  hmi.writeString("tape.currentBlock.val=" + String(source.index()+1));
-                  FFWIND = false;
-                  RWIND = false;
+                    // Informamos
+                    updateIndicators(source.size() + 1, source.index() + 1); 
+                    FFWIND = false;
+                    RWIND = false;
+                    fileread = 0;
                 }
                 else if (RWIND)
                 {
-                  player.previous();
-                  // Controlamos el extremo inferior
-                  if (source.index() < 0)
-                  {
-                    source.selectStream(source.size());
-                  }
+                    // Lo hacemos asi porque si avanzamos con player.next() 
+                    // da error si se pasa del total
+                    int idx = source.index() - 1;
+                    // Comprobamos
+                    if (idx < 0)
+                    {
+                      source.selectStream(source.size());
+                    }
+                    else
+                    {
+                      player.previous();
+                    }
 
-                  hmi.writeString("name.txt=\"" + String(source.toStr()) + "\"");
+                    hmi.writeString("name.txt=\"" + String(source.toStr()) + "\"");
+                    fileSize = getWAVfileSize(source.toStr());
 
-                  // Ahora el current index ha cambiado
-                  currentIdx = source.index();
+                    // Ahora el current index ha cambiado
+                    currentIdx = source.index();
 
-                  // Informamos
-                  hmi.writeString("tape.currentBlock.val=" + String(source.index()+1));
-                  FFWIND = false;
-                  RWIND = false;
+                    // Informamos
+                    updateIndicators(source.size() + 1, source.index() + 1); 
+                    FFWIND = false;
+                    RWIND = false;
+                    fileread = 0;
                 }
                 break;
 
@@ -1546,63 +1621,42 @@ void playWAV()
 
                 if (STOP)
                 {
-                  tapeAnimationOFF();
-                  LAST_MESSAGE = "Stop playing";
-                  stateWAVplayer = 0;        
-                  player.stop();
-                  source.selectStream(currentIdx);
-                  STOP = false;           
+                    LAST_MESSAGE = "Stop playing";
+                    tapeAnimationOFF();
+                    currentIdx = source.index();  
+                    stateWAVplayer = 0;  
+                    player.begin();
+                    source.selectStream(currentIdx);
+                    updateIndicators(source.size() + 1, source.index() + 1); 
                 }
-                else if (PLAY)
+                break;
+          case 4:
+                // Auto-stop
+
+                // Ponemos esta condicion para que no de error 
+                // la declaracion "int idx = source.index()"
+                if (true)
                 {
-                  source.selectStream(currentIdx);
-                  player.previous();
-                  player.next();
-                  player.setActive(true);
-                  player.copy();
-
-                  stateWAVplayer = 1;
-                  tapeAnimationON();
+                    // Mandamos parar el reproductor
+                    hmi.verifyCommand("STOP");
+                    // Lo indicamos
+                    LAST_MESSAGE = "Stop playing";
+                    // Paramos la animacion de la cinta
+                    tapeAnimationOFF();
+                    // Ponemos la pista al principio
+                    player.begin();
+                    // Nos quedamos en la misma pista
+                    source.selectStream(currentIdx);
+                    // Actualizamos indicadores
+                    updateIndicators(source.size() + 1, source.index() + 1);  
+                    hmi.writeString("name.txt=\"" + String(source.toStr()) + "\""); 
+                    // Reseteamos el contador de progreso                  
+                    fileread = 0;
+                    // Saltamos al estado de reposo  
+                    stateWAVplayer = 0;  
                 }
+                break;
 
-                if (FFWIND)
-                {
-                  player.next();
-                  // Controlamos el extremo superior
-                  if (source.index() > source.size())
-                  {
-                    source.selectStream(0);
-                  }
-
-                  hmi.writeString("name.txt=\"" + String(source.toStr()) + "\"");
-
-                  // Ahora el current index ha cambiado
-                  currentIdx = source.index();
-
-                  // Informamos
-                  hmi.writeString("tape.currentBlock.val=" + String(source.index()+1));
-                  FFWIND = false;
-                  RWIND = false;
-                }
-                else if (RWIND)
-                {
-                  player.previous();
-                  // Controlamos el extremo inferior
-                  if (source.index() < 0)
-                  {
-                    source.selectStream(source.size());
-                  }
-
-                  hmi.writeString("name.txt=\"" + String(source.toStr()) + "\"");
-
-                  // Ahora el current index ha cambiado
-                  currentIdx = source.index();
-
-                  // Informamos
-                  hmi.writeString("tape.currentBlock.val=" + String(source.index()+1));
-                  FFWIND = false;
-                  RWIND = false;
-                }
           default:
             break;
           }
@@ -1620,11 +1674,11 @@ void playWAV()
       STOP=true;
     } 
 
-      // Recupero la SD para el resto de procesadores.
-      if (!sdf.begin(sdcfg)) 
-      {
-        logln("Error recovering spi initialization");
-      }
+    // Recupero la SD para el resto de procesadores.
+    if (!sdf.begin(sdcfg)) 
+    {
+      logln("Error recovering spi initialization");
+    }
 }
 
 void playingFile()
@@ -1662,9 +1716,7 @@ void playingFile()
   {
     logln("Type file load: " + TYPE_FILE_LOAD + " and MODEWAV: " + String(MODEWAV));
     // Reproducimos el WAV file
-    // LAST_MESSAGE = "WAV file loaded";
     playWAV();
-    // LAST_MESSAGE = "WAV file stop";
   }
   else
   {
