@@ -3363,7 +3363,7 @@ void Task0code( void * pvParameters )
             hmi.updateInformationMainPage();
           }    
 
-          if ((millis() - startTime2) > tRotateNameRfsh)
+          if ((millis() - startTime2) > tRotateNameRfsh && FILE_LOAD.length() > 44)
           {
             // Capturamos el texto con tamaño de la ventana
             PROGRAM_NAME = FILE_LOAD.substring(posRotateName, posRotateName + windowNameLength);
@@ -3384,7 +3384,6 @@ void Task0code( void * pvParameters )
 
             // Movemos el display de NAME
             startTime2 = millis();
-
           }     
 
 
