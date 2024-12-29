@@ -3328,7 +3328,7 @@ void Task0code( void * pvParameters )
     int tClock = millis();
     int ho=0;int mi=0;int se=0;
     int tScrRfsh = 125;
-    int tRotateNameRfsh = 250;
+    int tRotateNameRfsh = 200;
     int waitUntilChangeDirection = 700;
     bool canChageDirection = false;
     bool waitForDelay = false;
@@ -3365,9 +3365,6 @@ void Task0code( void * pvParameters )
 
           if ((millis() - startTime2) > tRotateNameRfsh)
           {
-            // Movemos el display de NAME
-            startTime2 = millis();
-            
             // Capturamos el texto con tamaño de la ventana
             PROGRAM_NAME = FILE_LOAD.substring(posRotateName, posRotateName + windowNameLength);
 
@@ -3378,11 +3375,15 @@ void Task0code( void * pvParameters )
             {
                 moveDirection = -1;
             }
-            else if (posRotateName < 0)
+            
+            if (posRotateName < 0)
             {
                 moveDirection = 1;
                 posRotateName = 0;
             }
+
+            // Movemos el display de NAME
+            startTime2 = millis();
 
           }     
 
