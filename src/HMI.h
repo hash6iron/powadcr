@@ -2010,6 +2010,8 @@ class HMI
           REC = false;
           EJECT = false;
           ABORT = false;
+
+          BTN_PLAY_PRESSED = true;
         }   
         else if (strCmd.indexOf("REC") != -1) 
         {

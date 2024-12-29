@@ -199,6 +199,13 @@ using namespace audio_tools;
 // AudioKitStream kit;
 // StreamCopy copier(kit, kit);  // copies data
 
+// Variables
+//
+// -----------------------------------------------------------------------
+int posRotateName = 0;  // Posicion del texto rotativo en tape.name.txt (HMI)
+int moveDirection = 1;
+bool disable_auto_wav_stop = false;
+
 // -----------------------------------------------------------------------
 // Prototype function
 
@@ -1521,6 +1528,21 @@ void playWAV()
                 // Play
                 if (PLAY)
                 {
+                    if (BTN_PLAY_PRESSED)
+                    {
+                      BTN_PLAY_PRESSED = false;
+                      
+                      if (disable_auto_wav_stop)
+                      {
+                          disable_auto_wav_stop = false;
+                          LAST_MESSAGE = "Auto-stop playing";
+                      }
+                      else
+                      {
+                          disable_auto_wav_stop = true;
+                          LAST_MESSAGE = "Continuos playing";
+                      }
+                    }
                     // Vamos transmitiendo y quedandonos con el numero de bytes transmitidos
                     fileread += player.copy();
 
@@ -1532,11 +1554,14 @@ void playWAV()
                     // hmi.writeString("progressBlock.val=" + String((fileread * 100) / fileSize));
 
                     // Cuando cambie automaticamente al proximo fichero, me paro.
-                    if (currentIdx != source.index())
+                    if (!disable_auto_wav_stop)
                     {
-                      LAST_MESSAGE = "Stop playing";
-                      stateWAVplayer = 4;
-                    }              
+                        if (currentIdx != source.index())
+                        {
+                          LAST_MESSAGE = "Stop playing";
+                          stateWAVplayer = 4;
+                        }
+                    }
                 } 
                 else if (PAUSE)
                 {
@@ -3293,14 +3318,20 @@ void Task1code( void * pvParameters )
 void Task0code( void * pvParameters )
 {
 
+  const int windowNameLength = 44;
+
   #ifndef SAMPLINGTEST
     // Core 0 - Para el HMI
     int startTime = millis();
     int startTime2 = millis();
+    int startTime3 = millis();
     int tClock = millis();
     int ho=0;int mi=0;int se=0;
     int tScrRfsh = 125;
-    int tAckRfsh = 1500;
+    int tRotateNameRfsh = 250;
+    int waitUntilChangeDirection = 700;
+    bool canChageDirection = false;
+    bool waitForDelay = false;
 
 
     for(;;)
@@ -3330,7 +3361,32 @@ void Task0code( void * pvParameters )
             stackFreeCore1 = uxTaskGetStackHighWaterMark(Task1);    
             stackFreeCore0 = uxTaskGetStackHighWaterMark(Task0);        
             hmi.updateInformationMainPage();
-          }           
+          }    
+
+          if ((millis() - startTime2) > tRotateNameRfsh)
+          {
+            // Movemos el display de NAME
+            startTime2 = millis();
+            
+            // Capturamos el texto con tamaño de la ventana
+            PROGRAM_NAME = FILE_LOAD.substring(posRotateName, posRotateName + windowNameLength);
+
+            // Lo rotamos segun el sentido que toque
+            posRotateName += moveDirection;
+            // Comprobamos limites para ver si hay que cambiar sentido
+            if (posRotateName > (FILE_LOAD.length() - windowNameLength))
+            {
+                moveDirection = -1;
+            }
+            else if (posRotateName < 0)
+            {
+                moveDirection = 1;
+                posRotateName = 0;
+            }
+
+          }     
+
+
         #endif
     }
   #endif

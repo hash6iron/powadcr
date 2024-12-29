@@ -465,6 +465,8 @@ bool UPDATE_HMI = false;
 
 // Variables de control de la reproducción
 bool PLAY = false;
+bool BTN_PLAY_PRESSED = false;
+
 bool PAUSE = true;
 bool REC = false;
 bool STOP = false;
