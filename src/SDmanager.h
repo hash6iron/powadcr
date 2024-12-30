@@ -118,13 +118,13 @@ class SDmanager
         if (!fFile.open(path, O_RDWR)) 
         {
             #ifdef DEBUGMODE
-                log("open failed");
+                logln("open failed");
             #endif
         }
         else
         {
             #ifdef DEBUGMODE
-                log("open success");
+                logln("open success");
             #endif
         }
 
@@ -190,74 +190,34 @@ class SDmanager
         return bufferFile;
     }
     
-    uint8_t* readFileRange32(File32 mFile, int startByte, int size, bool logOn)
-    {
-        //Redimensionamos el buffer al tamaño acordado del rango
-        uint8_t* bufferFile = (uint8_t*)ps_calloc(size+1,sizeof(uint8_t));
-            
-        // Ponemos a cero el puntero de lectura del fichero
-        mFile.rewind();
-        // Nos posicionamos en el uint8_t definido
-        mFile.seek(startByte);
-    
-        ////SerialHW.println("***** readFileRange32 *****");
-
-        #ifdef DEBUGMODE
-            // log("..SDM - Info");
-            // SerialHW.print("   + Offset: ");
-            // SerialHW.print(startByte,HEX);
-            // SerialHW.print(" | Size: ");
-            // SerialHW.print(String(size));
-        #endif
-
-        // Almacenamos el tamaño del bloque, para información
-        //LAST_SIZE = size;
-        // Actualizamos HMI
-        //updateInformationMainPage();
-    
+    void readFileRange32(File32 mFile, uint8_t* &bufferFile, uint32_t offset, int size, bool logOn=false)
+    {         
         if (mFile) 
         {
+            // Ponemos a cero el puntero de lectura del fichero
+            mFile.rewind();          
+
+            // Obtenemos el tamano del fichero
             int rlen = mFile.available();
             FILE_LENGTH = rlen;
 
-            #if LOG > 3
-              //SerialHW.println("");
-              //SerialHW.println("LENGTH: " + String(rlen));            
-            #endif
+            // Posicionamos el puntero en la posicion indicada por offset
+            mFile.seek(offset); 
 
+            // Si el fichero tiene aun datos entonces capturo
             if (rlen != 0)
             {
+                // Leo el bloque y lo meto en bufferFile.
                 mFile.read(bufferFile,size);
-                
-                #if LOG > 3
-                  //SerialHW.println(" - Block red");
-                #endif
             }
-
         } 
         else 
         {
-            //SerialHW.print(F("SD Card: error opening file. Please check SD frequency."));
+            #ifdef DEBUGMODE
+                logln("SD Card: error opening file. Please check SD frequency.");
+            #endif
         }
-    
-        return bufferFile;
     }
-
-    // void createCfgFile(char* path)
-    // {
-    //     File32 fFile;
-        
-    //     if (!fFile.create(path, O_RDWR)) 
-    //     {
-    //         log("create failed");
-    //         return false;
-    //     }
-    //     else
-    //     {
-    //         log("create success");
-    //         return true;
-    //     }
-    // }
 
     void writeParamCfg(File32 mFile, String param, String value)
     {

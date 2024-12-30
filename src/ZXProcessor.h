@@ -88,11 +88,8 @@ class ZXProcessor
     int SYNC2 = DSYNC2;
     int BIT_0 = DBIT_0;
     int BIT_1 = DBIT_1;
-    // Para direcrecord
-    int BIT_DR44_1 = DBIT_DR44_1;
-    int BIT_DR44_0 = DBIT_DR44_0;
-    int BIT_DR22_1 = DBIT_DR22_1;
-    int BIT_DR22_0 = DBIT_DR22_0;
+
+
     //
     int PILOT_PULSE_LEN = DPILOT_LEN;
     // int PILOT_TONE = DPILOT_TONE;
@@ -309,7 +306,7 @@ class ZXProcessor
         void createPulse(int width, int bytes, uint16_t sample_R, uint16_t sample_L)
         {
                 size_t result = 0;                
-                uint8_t buffer[bytes+4];                
+                uint8_t buffer[bytes+4];            
                 int16_t *ptr = (int16_t*)buffer;
                 int chn = channels;        
 
@@ -340,7 +337,7 @@ class ZXProcessor
                 }            
 
                 // Volcamos en el buffer
-                m_kit.write(buffer, result);                
+                m_kit.write(buffer, result);             
         }
 
         void sampleDR(int width, int amp)
@@ -376,7 +373,7 @@ class ZXProcessor
             }
         }
 
-        void semiPulse(int width, bool changeNextEARedge = true)
+        void semiPulse(int width, bool changeNextEARedge = true, long calibrationValue = 0)
         {
             // Calculamos el tamaño del buffer
             int bytes = 0; //Cada muestra ocupa 2 bytes (16 bits)
@@ -390,7 +387,9 @@ class ZXProcessor
             // Amplitud de la señal
             double amplitude = 0;
             
-            double rsamples = (width / freqCPU) * SAMPLING_RATE;
+            // Calculamos el numero de samples
+            double dwidth = width;
+            double rsamples = ((dwidth / freqCPU) * SAMPLING_RATE) + calibrationValue;
             
             
             // ********************************************************************************************
@@ -498,8 +497,8 @@ class ZXProcessor
             // para asegurar el cambio de flanco alto->bajo, del ultimo bit
             // Obtenemos los samples
             semiPulse(width,true);
-            
-            double rsamples = (width / freqCPU) * SAMPLING_RATE;
+            double dwidth = width;
+            double rsamples = (dwidth / freqCPU) * SAMPLING_RATE;
             return rsamples;
         }
 
@@ -588,12 +587,11 @@ class ZXProcessor
                     if (!TEST_RUNNING)
                     {
                         // Informacion para la barra de progreso
-                        PROGRESS_BAR_BLOCK_VALUE = (int)(((i+1)*100)/(size));
+                        // PROGRESS_BAR_BLOCK_VALUE = (int)(((i+1)*100)/(size));
 
-                        if (BYTES_LOADED > BYTES_TOBE_LOAD)
-                        {BYTES_LOADED = BYTES_TOBE_LOAD;}
+                        // if (BYTES_LOADED > BYTES_TOBE_LOAD)
+                        // {BYTES_LOADED = BYTES_TOBE_LOAD;}
                         // Informacion para la barra de progreso total
-                        PROGRESS_BAR_TOTAL_VALUE = (int)((BYTES_LOADED*100)/(BYTES_TOBE_LOAD));
                         
                         if (stopOrPauseRequest())
                         {
@@ -670,11 +668,14 @@ class ZXProcessor
                     {
                         return;
                     }
+ 
+                    
+                    PROGRESS_BAR_TOTAL_VALUE = ((BYTES_INI + (i+1)) * 100 ) / BYTES_TOBE_LOAD ;
+                    PROGRESS_BAR_BLOCK_VALUE = ((BYTES_INI + (i+1)) * 100 ) / (BYTES_INI + BYTES_IN_THIS_BLOCK);
+
                 }
                 
-                // Esto lo hacemos para asegurarnos que la barra se llena entera
-                if (BYTES_LOADED > BYTES_TOBE_LOAD)
-                {BYTES_LOADED = BYTES_TOBE_LOAD;}
+
 
             }       
         }
@@ -687,8 +688,9 @@ class ZXProcessor
             _mask_last_byte = mask;
         }
 
-        void silence(double duration)
+        void silence(double duration, long calibrationValue = 0)
         {
+            // la duracion se da en ms
             LAST_SILENCE_DURATION = duration;
 
             // Paso la duración a T-States
@@ -709,7 +711,7 @@ class ZXProcessor
                 // tStateSilenceOri = tStateSilence;
                 // tStateSilence = (duration / OneSecondTo_ms) * freqCPU;    
 
-                samples = (duration / 1000.0) * SAMPLING_RATE;
+                samples = ((duration / 1000.0) * SAMPLING_RATE);
 
                 // Esto lo hacemos para acabar bien un ultimo flanco en down.
                 // Hay que tener en cuenta que el terminador se quita del tiempo de PAUSA
@@ -750,7 +752,8 @@ class ZXProcessor
 
 
                 // Aplicamos ahora el silencio
-                double width = (samples / SAMPLING_RATE) * freqCPU;
+                double dsapling = SAMPLING_RATE;
+                double width = ((samples / dsapling) * freqCPU) + calibrationValue;
 
                 semiPulse(width, true); 
                 
@@ -771,7 +774,7 @@ class ZXProcessor
             customPilotTone(lenPulse, numPulses);          
         }
 
-        void playCustomSequence(int* data, int numPulses)
+        void playCustomSequence(int* data, int numPulses, long calibrationValue = 0)
         {
             //
             // Esto lo usamos para el PULSE_SEQUENCE ID-13
@@ -784,8 +787,11 @@ class ZXProcessor
             {
                 // Generamos los semipulsos        
                 semiPulse(data[i],true);
+                // if (!TSX_PARTITIONED)
+                // {
+                //     PROGRESS_BAR_TOTAL_VALUE = ((BYTES_INI + i) * 100 ) / BYTES_TOBE_LOAD;
+                // }
             }
-
         }   
 
         void playData(uint8_t* bBlock, int lenBlock, int pulse_len, int num_pulses)
@@ -925,11 +931,11 @@ class ZXProcessor
                             // Si el bit leido del BYTE es un "1"
                             if(bitMasked == 1)
                             {
-                                sampleDR(BIT_DR22_1, maxLevelUp);                               
+                                sampleDR(BIT_DR_1, maxLevelUp);                               
                             }
                             else
                             {
-                                sampleDR(BIT_DR22_0, maxLevelDown);
+                                sampleDR(BIT_DR_0, maxLevelDown);
                             }
                         }
 
@@ -947,8 +953,11 @@ class ZXProcessor
                     }
                 
                     // Esto lo hacemos para asegurarnos que la barra se llena entera
-                    if (BYTES_LOADED > BYTES_TOBE_LOAD)
-                    {BYTES_LOADED = BYTES_TOBE_LOAD;}
+                    // if (BYTES_LOADED > BYTES_TOBE_LOAD)
+                    // {BYTES_LOADED = BYTES_TOBE_LOAD;}
+                    // PROGRESS_BAR_TOTAL_VALUE = ((BYTES_INI + (i+1)) * 100 ) / BYTES_TOBE_LOAD ;      
+                    PROGRESS_BAR_TOTAL_VALUE = ((BYTES_INI + (i+1)) * 100 ) / BYTES_TOBE_LOAD ;
+                    PROGRESS_BAR_BLOCK_VALUE = ((BYTES_INI + (i+1)) * 100 ) / (BYTES_IN_THIS_BLOCK);                                  
             }
         }
 

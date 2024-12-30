@@ -84,6 +84,7 @@
 
 // Esencial para poder variar la ganancia de salida de HPLINE y ROUT, LOUT
 #define AI_THINKER_ES8388_VOLUME_HACK 1
+// #define USE_A2DP
 
 #include <Arduino.h>
 #include <WiFi.h>
@@ -98,21 +99,25 @@
 TaskHandle_t Task0;
 TaskHandle_t Task1;
 
+// Definicion del puerto serie para la pantalla
 #define SerialHWDataBits 921600
+#define hmiTxD 23
+#define hmiRxD 18
+#define powerLed 15
+
 
 #include <esp_task_wdt.h>
 #define WDT_TIMEOUT 360000  
 
 #include <HardwareSerial.h>
-HardwareSerial SerialHW(0);
+HardwareSerial SerialHW(2);
 
 EasyNex myNex(SerialHW);
 
 #include "SdFat.h"
 #include "globales.h"
 
-// Para WAV recording
-#include "AudioKitHAL.h"
+#include "AudioTools/AudioLibs/AudioKit.h"
 AudioKit ESP32kit;
 
 // Estos includes deben ir en este orden por dependencias
@@ -124,16 +129,17 @@ SDmanager sdm;
 #include "HMI.h"
 HMI hmi;
 
-#include "interface.h"
+// #include "interface.h"
 #include "ZXProcessor.h"
 
 // ZX Spectrum. Procesador de audio output
 ZXProcessor zxp;
 
 // Procesadores de cinta
+#include "BlockProcessor.h"
+
 #include "TZXprocessor.h"
 #include "TAPprocessor.h"
-#include "TSXprocessor.h"
 
 //#include "test.h"
 
@@ -142,22 +148,21 @@ SdFat sd;
 SdFat32 sdf;
 SdFile sdFile;
 File32 sdFile32;
+File32 wavfile;
 
 // Creamos los distintos objetos
 TZXprocessor pTZX(ESP32kit);
 TAPprocessor pTAP(ESP32kit);
-TSXprocessor pTSX(ESP32kit);
 
 // Procesador de audio input
 #include "TAPrecorder.h"
 TAPrecorder taprec;
 
 // Procesador de TAP
-TAPprocessor::tTAP myTAP;
-// Procesador de TZX
-TZXprocessor::tTZX myTZX;
-// Procesador de TSX
-TSXprocessor::tTSX myTSX;
+tTAP myTAP;
+// Procesador de TZX/TSX/CDT
+tTZX myTZX;
+
 
 bool last_headPhoneDetection = false;
 
@@ -168,31 +173,49 @@ bool pageScreenIsShown = false;
   uint16_t USER_CONFIG_ARDUINO_LOOP_STACK_SIZE = 16384;
 #endif
 
-// Elegant OTA
+// OTA SD Update
 // -----------------------------------------------------------------------
+#include <Update.h>
 
-#include <WiFiClient.h>
-#include <WebServer.h>
-WebServer server(80);
-
-#include <ElegantOTA.h>
-
+// SPIFFS
 // -----------------------------------------------------------------------
-//#include "lib\NexUpload.h"
+#include "esp_err.h"
+#include "esp_spiffs.h"
 
-// #include "powaFileServer.h"
-// powaFileServer fileServer(&fserver,sdf);
+// WEBFILE SERVER
+// -----------------------------------------------------------------------
+#include "webpage.h"
+#include "webserver.h"
 
-// #include <AudioTools.h>
-// #include <AudioLibs/AudioKit.h>
+// WAV Recorder
+// -----------------------------------------------------------------------
+#include "AudioTools/AudioLibs/AudioSourceSDFAT.h"
+// #include <AudioTools/AudioCodecs/CodecADPCM.h>
+#include "AudioTools/AudioCodecs/CodecWAV.h"
+#include "AudioTools/AudioLibs/A2DPStream.h"
 
+using namespace audio_tools;  
+// 
 // AudioKitStream kit;
 // StreamCopy copier(kit, kit);  // copies data
 
-// Prototype function
-void ejectingFile();
+// Variables
+//
+// -----------------------------------------------------------------------
+int posRotateName = 0;  // Posicion del texto rotativo en tape.name.txt (HMI)
+int moveDirection = 1;
+bool disable_auto_wav_stop = false;
 
-void freeMemoryFromDescriptorTZX(TZXprocessor::tTZXBlockDescriptor* descriptor)
+// -----------------------------------------------------------------------
+// Prototype function
+
+void ejectingFile();
+void isGroupStart();
+void isGroupEnd();
+
+// -----------------------------------------------------------------------
+
+void freeMemoryFromDescriptorTZX(tTZXBlockDescriptor* descriptor)
 {
   // Vamos a liberar el descriptor completo
   for (int n=0;n<TOTAL_BLOCKS;n++)
@@ -201,7 +224,8 @@ void freeMemoryFromDescriptorTZX(TZXprocessor::tTZXBlockDescriptor* descriptor)
     {
       case 19:  // bloque 0x13
         // Hay que liberar el array
-        delete[] descriptor[n].timming.pulse_seq_array;
+        // delete[] descriptor[n].timming.pulse_seq_array;
+        free(descriptor[n].timming.pulse_seq_array);
         break;
       
       default:
@@ -210,7 +234,7 @@ void freeMemoryFromDescriptorTZX(TZXprocessor::tTZXBlockDescriptor* descriptor)
   }
 }
 
-void freeMemoryFromDescriptorTSX(TSXprocessor::tTSXBlockDescriptor* descriptor)
+void freeMemoryFromDescriptorTSX(tTZXBlockDescriptor* descriptor)
 {
   // Vamos a liberar el descriptor completo
   for (int n=0;n<TOTAL_BLOCKS;n++)
@@ -219,9 +243,10 @@ void freeMemoryFromDescriptorTSX(TSXprocessor::tTSXBlockDescriptor* descriptor)
     {
       case 19:  // bloque 0x13
         // Hay que liberar el array
-        delete[] descriptor[n].timming.pulse_seq_array;
+        // delete[] descriptor[n].timming.pulse_seq_array;
+        free(descriptor[n].timming.pulse_seq_array);
         break;
-      
+
       default:
         break;
     }
@@ -362,7 +387,7 @@ bool loadWifiCfgFile()
           fWifi.println("<SN>255.255.255.0</SN>");
           fWifi.println("<GW>192.168.1.1</GW>");
           fWifi.println("<DNS1>192.168.1.1</DNS1>");
-          fWifi.println("<DNS2>192.168.1.1</DNS1>");
+          fWifi.println("<DNS2>192.168.1.1</DNS2>");
 
           #ifdef DEBUGMODE
             logln("wifi.cfg new file created");
@@ -377,21 +402,21 @@ bool loadWifiCfgFile()
   
 }
 
-void loadHMICfgFile()
-{
-  char pathCfgFile[10] = {};
-  strcpy(pathCfgFile,"/hmi.cfg");
+// void loadHMICfgFile()
+// {
+//   char pathCfgFile[10] = {};
+//   strcpy(pathCfgFile,"/hmi.cfg");
 
-  File32 fHMI = sdm.openFile32(pathCfgFile);
+//   File32 fHMI = sdm.openFile32(pathCfgFile);
   
-  //Leemos ahora toda la configuración
-  if(fHMI)
-  {
-      CFGHMI = sdm.readAllParamCfg(fHMI,20);
-      log("Open config. HMI-success");
-  }
-  fHMI.close();
-}
+//   //Leemos ahora toda la configuración
+//   if(fHMI)
+//   {
+//       CFGHMI = sdm.readAllParamCfg(fHMI,20);
+//       log("Open config. HMI-success");
+//   }
+//   fHMI.close();
+// }
 
 void proccesingTAP(char* file_ch)
 {    
@@ -431,6 +456,7 @@ void proccesingTAP(char* file_ch)
 
 void proccesingTZX(char* file_ch)
 {
+    // Procesamos ficheros CDT, TSX y TZX
     pTZX.initialize();
 
     pTZX.getInfoFileTZX(file_ch);
@@ -456,39 +482,6 @@ void proccesingTZX(char* file_ch)
       }      
     }
 
-}
-
-void proccesingTSX(char* file_ch)
-{
-    pTSX.initialize();
-
-    pTSX.getInfoFileTSX(file_ch);
-
-    if (ABORT)
-    {
-      //LAST_MESSAGE = "Aborting proccess.";
-      //
-      FILE_PREPARED = false;      
-      ABORT=false;
-    }
-    else
-    {
-      //LAST_MESSAGE = "Press PLAY to enjoy!";
-      //
-      if (TOTAL_BLOCKS !=0)
-      {
-        FILE_PREPARED = true;
-        
-        #ifdef DEBUGMODE
-          logAlert("TSX prepared");
-        #endif         
-
-      }
-      else
-      {
-        FILE_PREPARED = false;
-      }
-    }
 }
 
 void sendStatus(int action, int value=0) {
@@ -556,7 +549,8 @@ int setSDFrequency(int SD_Speed)
   while (!SD_ok) 
   {
       // Comenzamos con una frecuencia dada
-      if (!sdf.begin(ESP32kit.pinSpiCs(), SD_SCK_MHZ(SD_Speed)) || lastStatus) 
+      SdSpiConfig sdcfg(ESP32kit.pinSpiCs(),SHARED_SPI,SD_SCK_MHZ(SD_SPEED_MHZ),&SPI);
+      if (!sdf.begin(sdcfg) || lastStatus) 
       {
 
           // La frecuencia anterior no fue compatible
@@ -650,11 +644,6 @@ int setSDFrequency(int SD_Speed)
   return SD_Speed;
 }
 
-void test() 
-{
-  // Bloque de pruebas
-}
-
 void waitForHMI(bool waitAndNotForze)
 {
     // Le decimos que no queremos esperar sincronización
@@ -674,10 +663,6 @@ void waitForHMI(bool waitAndNotForze)
 
       LCD_ON = true;
 
-      //SerialHW.println("");
-      //SerialHW.println("LCD READY");
-      //SerialHW.println("");
-
       sendStatus(ACK_LCD, 1);  
     }
 }
@@ -688,7 +673,8 @@ void setAudioOutput()
 
   if(!ESP32kit.begin(cfg))
   {
-    //log("Error in Audiokit output setting");
+    logln("");
+    log("Error in Audiokit output setting");
   }
 
   switch (SAMPLING_RATE)
@@ -696,7 +682,7 @@ void setAudioOutput()
       case 48000:
         if(!ESP32kit.setSampleRate(AUDIO_HAL_48K_SAMPLES))
         {
-          //log("Error in Audiokit sampling rate setting");
+          //logln("Error in Audiokit sampling rate setting");
         }
         else
         {
@@ -709,7 +695,7 @@ void setAudioOutput()
       case 44100:
         if(!ESP32kit.setSampleRate(AUDIO_HAL_44K_SAMPLES))
         {
-          //log("Error in Audiokit sampling rate setting");
+          //logln("Error in Audiokit sampling rate setting");
         }
         else
         {
@@ -722,7 +708,7 @@ void setAudioOutput()
       case 32000:
         if(!ESP32kit.setSampleRate(AUDIO_HAL_32K_SAMPLES))
         {
-          //log("Error in Audiokit sampling rate setting");
+          //logln("Error in Audiokit sampling rate setting");
         }
         else
         {
@@ -735,7 +721,7 @@ void setAudioOutput()
       default:
         if(!ESP32kit.setSampleRate(AUDIO_HAL_22K_SAMPLES))
         {
-          //log("Error in Audiokit sampling rate setting");
+          //logln("Error in Audiokit sampling rate setting");
         }
         else
         {
@@ -790,99 +776,188 @@ void setAudioInOut()
   {
     //log("Error in volumen setting");
   }   
-
-
 }
-
-// void setWavRecording(char* file_name)
-// {
-//     // AudioLogger::instance().begin(Serial, AudioLogger::Error);
-
-//     // // Cleanup if necessary
-//     // if (sdf.exists(file_name))
-//     // {
-//     //     sdf.remove(file_name);
-//     // }  
-
-//     // // open file for recording WAV
-//     // wavfile = sdf.open(file_name, O_WRITE | O_CREAT);
-//     // if (!wavfile)
-//     // {
-//     //     logln("file failed!");
-//     //     delay(5000);
-//     //     TAPESTATE=0;
-//     //     STOP=true;
-//     //     REC=false;
-//     //     return;
-//     // }
-
-//     // // Configure WAVEncoder
-//     // auto cfg_WAVEncoder = WAVEncoder().defaultConfig();
-//     // wavInfo.bits_per_sample = 16;
-//     // wavInfo.sample_rate = 44100;
-//     // wavInfo.channels = 2;
-//     // WAVEncoder().begin(wavInfo);
-
-//     // // setup input
-//     // kitCfg = kitStrm.defaultConfig(TX_MODE);
-//     // kitCfg.driver = AUDIO_CODEC_ES8388_DEFAULT_HANDLE;
-//     // kitCfg.is_master = true;
-//     // kitCfg.input_device = AUDIO_HAL_ADC_INPUT_LINE2;
-//     // kitCfg.bits_per_sample = 16;
-//     // kitCfg.sample_rate = 44100;
-//     // kitCfg.channels = 2;
-//     // kitCfg.sd_active = true;
-//     // kitCfg.copyFrom(info);
-
-//     // kitStrm.begin(kitCfg);
-//     // logln("Setting i2C");
-//     // logln("");
-//     // delay(10000);
-
-//     // // Inicializamos la salida del encoder
-//     // AudioInfo out_info(44100,2,16);
-//     // out.begin(out_info);
-//     // // Inicializamos el copier
-//     // copier.setCheckAvailableForWrite(false);
-//     // copier.begin(wavfile, kitStrm);  
-//     AudioLogger::instance().begin(Serial, AudioLogger::Warning);
-
-//     auto cfg = kit.defaultConfig(RXTX_MODE);
-//     cfg.input_device = AUDIO_HAL_ADC_INPUT_LINE2;
-//     kit.begin(cfg);
-
-// }
 
 void tapeAnimationON()
 {
     hmi.writeString("tape2.tmAnimation.en=1"); 
-    hmi.writeString("tape.tmAnimation.en=1");   
+    hmi.writeString("tape.tmAnimation.en=1");
+    delay(250);
+    hmi.writeString("tape2.tmAnimation.en=1"); 
+    hmi.writeString("tape.tmAnimation.en=1");         
 }
 
 void tapeAnimationOFF()
 {
     hmi.writeString("tape2.tmAnimation.en=0"); 
-    hmi.writeString("tape.tmAnimation.en=0");   
+    hmi.writeString("tape.tmAnimation.en=0"); 
+    delay(250);  
+    hmi.writeString("tape2.tmAnimation.en=0"); 
+    hmi.writeString("tape.tmAnimation.en=0"); 
 }
 
 void recAnimationON()
 {
   hmi.writeString("tape.RECst.val=1");
+    delay(250);  
+  hmi.writeString("tape.RECst.val=1");
+
 }
 
 void recAnimationOFF()
 {
+  hmi.writeString("tape.RECst.val=0");
+    delay(250);  
   hmi.writeString("tape.RECst.val=0");
 }
 
 void recAnimationFIXED_ON()
 {
   hmi.writeString("tape.recIndicator.bco=63848");
+    delay(250);  
+  hmi.writeString("tape.recIndicator.bco=63848");
 }
 
 void recAnimationFIXED_OFF()
 {
   hmi.writeString("tape.recIndicator.bco=32768");
+    delay(250);  
+  hmi.writeString("tape.recIndicator.bco=32768");
+}
+
+void setWavRecording(char* file_name,bool start=true)
+{
+    // AudioLogger::instance().begin(Serial, AudioLogger::Error);
+
+    unsigned long progress_millis = 0;
+    int rectime_s = 0;
+    int rectime_m = 0;
+
+    if (start)
+    {
+        if (sdf.exists(file_name))
+        {
+            sdf.remove(file_name);
+        }  
+
+        // open file for recording WAV
+        wavfile = sdf.open(file_name, O_WRITE | O_CREAT);
+
+        if (!wavfile)
+        {
+            LAST_MESSAGE = "WAVFILE error!";
+            delay(1500);
+            logln("file failed!");
+            STOP=true;
+            REC=false;
+            TAPESTATE=0;
+        }            
+        else
+        {
+            // Paramos el ESp32kit antes de configurar otra vez
+            ESP32kit.end();
+            AudioInfo lineInCfg(44100, 2, 16);
+            // ADPCMEncoder adpcm_encoder(AV_CODEC_ID_ADPCM_MS); 
+            // WAVEncoder wavencoder(adpcm_encoder, AudioFormat::ADPCM);            
+            AudioKitStream in;
+            EncodedAudioStream out(&wavfile, new WAVEncoder());
+            StreamCopy copier(out, in);  // copies data
+
+            auto cfg = in.defaultConfig(RX_MODE);
+            cfg.copyFrom(lineInCfg);
+            cfg.input_device = AUDIO_HAL_ADC_INPUT_LINE2; // Line in
+            in.begin(cfg);
+            // we need to provide the audio information to the encoder
+            out.begin(lineInCfg);
+            
+            LAST_MESSAGE = "Recording to WAV - Press STOP to finish.";
+            
+            recAnimationOFF();
+            delay(125);
+            recAnimationFIXED_ON();
+            tapeAnimationON();
+
+            // Muestro solo el nombre. Le elimino la primera parte que es el directorio.
+            hmi.writeString("name.txt=\"" + String(file_name).substring(6) + "\"");
+            hmi.writeString("type.txt=\"WAV file\"");
+
+            while(!STOP)
+            {
+              copier.copy();
+
+              if (millis() - progress_millis > 1000) 
+              {
+                  progress_millis = millis();
+                  LAST_MESSAGE = "Recording time: " + ((rectime_m < 10 ? "0" : "") + String(rectime_m)) 
+                                          + ":" 
+                                          + ((rectime_s < 10 ? "0" : "") + String(rectime_s));
+
+                  rectime_s++;
+
+                  if (rectime_s > 59)
+                  {
+                    rectime_s = 0;
+                    rectime_m++;
+                  }
+              }
+
+              if (wavfile.size() > 1000000)
+              {
+                // Megabytes
+                hmi.writeString("size.txt=\"" + String(wavfile.size() / 1024 / 1024) + " MB\"");
+              }
+              else
+              {
+                // Kilobytes
+                hmi.writeString("size.txt=\"" + String(wavfile.size() / 1024) + " KB\"");
+              }
+
+            }
+
+            wavfile.flush();
+
+              logln("File has ");
+              log(String(wavfile.size()/1024));
+              log(" Kbytes");
+
+            
+            TAPESTATE = 0;
+            LOADING_STATE = 0;
+            RECORDING_ERROR = 0;
+            REC = false;
+            recAnimationOFF();
+            recAnimationFIXED_OFF(); 
+            tapeAnimationOFF(); 
+
+            LAST_MESSAGE = "Recording finish";
+            logln("Recording finish!");
+
+            // delay(1500);    
+
+            if (wavfile.size() > 1000000)
+            {
+              // Megabytes
+              hmi.writeString("size.txt=\"" + String(wavfile.size() / 1024 / 1024) + " MB\"");
+            }
+            else
+            {
+              // Kilobytes
+              hmi.writeString("size.txt=\"" + String(wavfile.size() / 1024) + " KB\"");
+            }
+
+            wavfile.close();
+
+            in.end();
+            out.end();
+            // copier.end();
+
+            // delay(2000);               
+        }
+    }
+    else
+    {
+
+    }
 }
 
 void pauseRecording()
@@ -986,86 +1061,54 @@ void stopRecording()
 }
 
 // -------------------------------------------------------------------------------------------------------------------
-unsigned long ota_progress_millis = 0;
+// unsigned long ota_progress_millis = 0;
 
 void onOTAStart() 
 {
-  // Log when OTA has started
   pageScreenIsShown = false;
-  // <Add your own code here>
 }
-void onOTAProgress(size_t current, size_t final) 
+
+void onOTAProgress(size_t currSize, size_t totalSize)
 {
-  // Log every 1 second
-  if (millis() - ota_progress_millis > 250) 
-  {
-      ota_progress_millis = millis();
+    // log_v("CALLBACK:  Update process at %d of %d bytes...", currSize, totalSize);
+  
+    #ifdef DEBUGMODE
+      logln("Uploading status: " + String(currSize/1024) + "/" + String(totalSize/1024) + " KB");
+    #endif
 
-      if(!pageScreenIsShown)
-      {
-        hmi.writeString("page screen");
-        //hmi.writeString("screen.updateBar.bco=23275");     
-        pageScreenIsShown = true;
-      }
+    if(!pageScreenIsShown)
+    {
+      hmi.writeString("page screen");
+      hmi.writeString("screen.updateBar.bco=23275");     
+      pageScreenIsShown = true;
+    }
 
-      HTTPUpload &upload = server.upload();
-      size_t fileSize = upload.totalSize / 1024;
-      fileSize = (round(fileSize*10)) / 10;
-      // int prg = 0;
+    int prg = 0;
+    prg = (currSize * 100) / totalSize;
 
-      // if (upload.totalSize != 0)
-      // {
-      //   prg = (upload.currentSize / upload.totalSize)*100;
-      // }
-      // else
-      // {
-      //   prg = 0;
-      // }
-      
-      String fileName = upload.filename;
-      hmi.writeString("statusLCD.txt=\"FIRMWARE UPDATING " + String(fileSize) + " KB\""); 
-
-      // if(final!=0)
-      // {
-      //   hmi.writeString("screen.updateBar.val=" + String((current * 100) / final));    
-      // }
-      
-  }
+    hmi.writeString("statusLCD.txt=\"FIRMWARE UPDATING " + String(prg) + " %\""); 
+    hmi.writeString("screen.updateBar.val=" + String(prg));
 }
 
 void onOTAEnd(bool success) 
 {
-  // Log when OTA has finished
   if (success) 
   {
     hmi.writeString("statusLCD.txt=\"SUCCEESSFUL UPDATE\"");
-    // Cerramos la conexión antes de resetear el ESP32
-    server.sendHeader("Connection", "close");
-    server.send(200,"text/plain","OK");    
-    delay(2000);
-    // Reiniciamos  
-    ESP.restart();
   } 
   else 
   {
     hmi.writeString("statusLCD.txt=\"UPDATE FAIL\"");
-    // Cerramos la conexión
-    server.sendHeader("Connection", "close");
-    server.send(400,"text/plain","Uploading process fail.");     
   }
-  // <Add your own code here>
 }
 
-bool wifiOTASetup()
+bool wifiSetup()
 {
     bool wifiActive = true;
 
     WiFi.mode(WIFI_STA);
     WiFi.begin(ssid, password);
-    
-      // Disable Auto Reboot
-    ElegantOTA.setAutoReboot(false);
-      
+       
     hmi.writeString("statusLCD.txt=\"SSID: [" + String(ssid) + "]\"" );
     delay(1500);
     
@@ -1078,15 +1121,15 @@ bool wifiOTASetup()
 
     int trying_wifi = 0;
 
-    while ((WiFi.waitForConnectResult() != WL_CONNECTED) && trying_wifi <= 10)
+    while ((WiFi.waitForConnectResult() != WL_CONNECTED) && trying_wifi <= 2)
     {
       hmi.writeString("statusLCD.txt=\"WiFi Connection failed! - try " + String(trying_wifi) + "\"" );
       trying_wifi++;
       wifiActive = false;
-      delay(500);
+      // delay(125);
     }  
 
-    if (trying_wifi > 10)
+    if (trying_wifi > 2)
     {
       wifiActive = false;
     }
@@ -1097,31 +1140,17 @@ bool wifiOTASetup()
 
     if (wifiActive)
     {
-        server.on("/", HTTP_GET,[]()
-        {
-          server.send(200, "text/html", "<meta http-equiv=\"refresh\" content=\"0; url=http://" + POWAIP + "/update\" />");
-        });
+      // hmi.writeString("statusLCD.txt=\"Wifi + OTA - Enabled\"");
+      // delay(125);
 
-
-        ElegantOTA.begin(&server);    // Start ElegantOTA
-        // ElegantOTA callbacks
-        ElegantOTA.onStart(onOTAStart);
-        ElegantOTA.onProgress(onOTAProgress);
-        ElegantOTA.onEnd(onOTAEnd);
-
-        server.begin();
-
-        // hmi.writeString("statusLCD.txt=\"Wifi + OTA - Enabled\"");
-        // delay(125);
-
-        hmi.writeString("statusLCD.txt=\"IP " + WiFi.localIP().toString() + "\""); 
-        delay(50);
+      hmi.writeString("statusLCD.txt=\"IP " + WiFi.localIP().toString() + "\""); 
+      delay(50);
     }
     else
     {
-        hmi.writeString("statusLCD.txt=\"Wifi disabled\"");
-        wifiActive = false;
-        delay(750);
+      hmi.writeString("statusLCD.txt=\"Wifi disabled\"");
+      wifiActive = false;
+      delay(750);
     }
 
     return wifiActive;
@@ -1329,162 +1358,764 @@ void setSTOP()
   // sendStatus(END_ST, 1);
   // sendStatus(READY_ST, 1);
 }
+
+int getWAVfileSize(String path)
+{
+    char pfile[255] = {};
+    strcpy(pfile,path.c_str());
+    File32 f = sdm.openFile32(pfile);
+    int fsize = f.size();
+    f.close();  
+
+    if (fsize < 1000000)
+    {
+      hmi.writeString("size.txt=\"" + String(fsize/1024) + " KB\"");
+    }
+    else
+    {
+      hmi.writeString("size.txt=\"" + String(fsize/1024/1024) + " MB\"");
+    }
+
+    return fsize;
+}
+
+void updateIndicators(int size, int pos, int fsize, String fname)
+{
+    hmi.writeString("tape.totalBlocks.val=" + String(size));
+    hmi.writeString("tape.currentBlock.val=" + String(pos));
+    hmi.writeString("type.txt=\"WAV file\"");
+    hmi.writeString("name.txt=\"" + String(fname) + "\"");
+
+    if (fsize < 1000000)
+    {
+      hmi.writeString("size.txt=\"" + String(fsize/1024) + " KB\"");
+    }
+    else
+    {
+      hmi.writeString("size.txt=\"" + String(fsize/1024/1024) + " MB\"");
+    }
+}
+
+void playWAV()
+{
+    ESP32kit.setSampleRate(AUDIO_HAL_44K_SAMPLES);
+    SAMPLING_RATE = 44100;
+
+    int status = 0;
+    int fileSize = 0;
+    int fileread = 0;
+    int startTime = millis();
+
+    int totalFilesIdx = 0;
+    int currentFileIdx = 0;
+    String currentFileName = "";
+
+    AudioInfo info(44100, 2, 16);
+    // ADPCMDecoder adpcm_decoder(AV_CODEC_ID_ADPCM_IMA_WAV); 
+    // WAVDecoder wavdecoder(adpcm_decoder, AudioFormat::ADPCM);
+    // WAVDecoder decoder;
+    SdSpiConfig sdcfg(PIN_AUDIO_KIT_SD_CARD_CS,SHARED_SPI,SD_SCK_MHZ(SD_SPEED_MHZ),&SPI);
+    AudioSourceSDFAT source("/wav","wav",sdcfg);
+    AudioKitStream kit;
+    // A2DPStream outbt;
+    WAVDecoder decoder;
+    // WAVDecoder decoderbt;
+    AudioPlayer player(source,kit,decoder);
+    // AudioPlayer playerbt(source, outbt, decoder);
+    
+    // setup output
+    // sdf.end();
+    
+    auto cfg = kit.defaultConfig(TX_MODE);
+    cfg.bits_per_sample = 16;
+    cfg.channels = 2;
+    cfg.sample_rate = 44100;
+    kit.begin(cfg);
+    
+    // setup player
+    player.setVolume(MAIN_VOL/100);
+    // playerbt.setVolume(1.0);
+    player.setAutoNext(false); 
+    // playerbt.begin();
+    // auto cfgbt = outbt.defaultConfig(TX_MODE);
+    // cfgbt.silence_on_nodata = true; // prevent disconnect when there is no audio data
+    // cfgbt.name = "JBL T450BT";  // set the device here. Otherwise the first available device is used for output
+    // //cfg.auto_reconnect = true;  // if this is use we just quickly connect to the last device ignoring cfg.name
+    // outbt.begin(cfgbt);    
+    // PROGRAM_NAME = "WAV file";
+    logln("Current position: " + String(FILE_PTR_POS + FILE_IDX_SELECTED));
+
+    if(player.begin())
+    {
+        LAST_MESSAGE =  "WAV ready to play";
+
+        player.setPath(PATH_FILE_TO_LOAD.c_str());
+        fileSize = getWAVfileSize(PATH_FILE_TO_LOAD);
+
+        player.setActive(true);
+        // Indicamos cual es el fichero seleccionado
+        source.selectStream(FILE_PTR_POS + FILE_IDX_SELECTED - 1);
+
+        // Esto lo hacemos para parar cuando termine el audio.
+        int currentIdx = (FILE_PTR_POS + FILE_IDX_SELECTED) - 1;
+
+        // Indicadores
+        totalFilesIdx = source.size() + 1;
+        currentFileIdx = source.index() + 1;
+        currentFileName = source.toStr();
+
+        // updateIndicators(, source.index() + 1, fileSize, ); 
+
+        int stateWAVplayer = 0;
+        
+        while(!EJECT && !REC)
+        {          
+          
+          player.setVolume(MAIN_VOL/100);
+  
+          switch (stateWAVplayer)
+          {
+            case 0:
+                // Fichero a la espera
+                if (PLAY)
+                {
+                    LAST_MESSAGE =  "Playing WAV.";
+                    // updateIndicators(source.size() + 1, source.index() + 1, fileSize, source.toStr()); 
+                    // Indicadores
+                    totalFilesIdx = source.size() + 1;
+                    currentFileIdx = source.index() + 1;
+                    currentFileName = source.toStr();   
+
+                    currentIdx = source.index();
+                    logln("Current IDX: " + String(currentIdx));
+
+                    tapeAnimationON();
+                    stateWAVplayer = 1;
+                }
+                
+                // Control de avance de ficheros                
+                if (FFWIND)
+                {
+                    // Lo hacemos asi porque si avanzamos con player.next() 
+                    // da error si se pasa del total
+                    int idx = source.index() + 1;
+                    // Comprobamos
+                    if (idx > source.size())
+                    {
+                      source.selectStream(0);
+                    }
+                    else
+                    {
+                      player.next();
+                    }
+
+                    // hmi.writeString("name.txt=\"" + String(source.toStr()) + "\"");
+                    fileSize = getWAVfileSize(source.toStr());
+
+
+                    // Ahora el current index ha cambiado
+                    currentIdx = source.index();
+
+                    // Informamos
+                    // updateIndicators(source.size() + 1, source.index() + 1, fileSize, source.toStr()); 
+  
+                    // Indicadores
+                    totalFilesIdx = source.size() + 1;
+                    currentFileIdx = source.index() + 1;
+                    currentFileName = source.toStr();
+
+                    FFWIND = false;
+                    RWIND = false;
+                    fileread = 0;
+                }
+                else if (RWIND)
+                {
+                    // Lo hacemos asi porque si avanzamos con player.next() 
+                    // da error si se pasa del total
+                    int idx = source.index() - 1;
+                    // Comprobamos
+                    if (idx < 0)
+                    {
+                      source.selectStream(source.size());
+                    }
+                    else
+                    {
+                      player.previous();
+                    }
+
+                    // hmi.writeString("name.txt=\"" + String(source.toStr()) + "\"");
+                    fileSize = getWAVfileSize(source.toStr());
+
+                    // Ahora el current index ha cambiado
+                    currentIdx = source.index();
+
+                    // Informamos
+                    // updateIndicators(source.size() + 1, source.index() + 1, fileSize, source.toStr()); 
+
+                    // Indicadores
+                    totalFilesIdx = source.size() + 1;
+                    currentFileIdx = source.index() + 1;
+                    currentFileName = source.toStr();
+
+                    FFWIND = false;
+                    RWIND = false;
+                    fileread = 0;
+                }
+                
+                break;
+          
+          case 1:
+                // Play
+                if (PLAY)
+                {
+                    if (BTN_PLAY_PRESSED)
+                    {
+                      BTN_PLAY_PRESSED = false;
+                      
+                      if (disable_auto_wav_stop)
+                      {
+                          disable_auto_wav_stop = false;
+                          LAST_MESSAGE = "Auto-stop playing";
+                      }
+                      else
+                      {
+                          disable_auto_wav_stop = true;
+                          LAST_MESSAGE = "Continuos playing";
+                      }
+                    }
+                    // Vamos transmitiendo y quedandonos con el numero de bytes transmitidos
+                    fileread += player.copy();
+
+                    // Mostramos la progresion de la reproduccion
+                    PROGRESS_BAR_TOTAL_VALUE = (fileread * 100) / fileSize;
+                    PROGRESS_BAR_BLOCK_VALUE = PROGRESS_BAR_TOTAL_VALUE;
+
+                    // Cuando cambie automaticamente al proximo fichero, me paro.
+                    int idx = source.index();
+                    if (currentIdx != idx)
+                    {
+                        if (!disable_auto_wav_stop)
+                        {
+                            LAST_MESSAGE = "Stop playing";
+                            stateWAVplayer = 4;
+                        }
+                        else
+                        {
+                            // Pasamos a la siguiente pista
+                            logln("Current IDX: " + String(currentIdx + 1) + " / " + String(source.size()));
+
+                            // Comprobamos si hemos llegado al final de
+                            // la lista de reproduccion (play list)
+                            if ((currentIdx + 1) > source.size())
+                            {
+                              source.selectStream(0);
+                              player.begin();
+
+                              logln("Change IDX: " + String(source.index()) + " / " + String(source.size()));
+                            }
+
+                            // Indicadores
+                            totalFilesIdx = source.size() + 1;
+                            currentFileIdx = source.index() + 1;
+                            currentFileName = source.toStr();       
+                            fileSize = getWAVfileSize(source.toStr());
+                            // Actualizamos la referencia de cambio de pista 
+                            currentIdx = source.index();  
+                            fileread = 0;                                         
+                        }
+                    }                  
+                } 
+                else if (PAUSE)
+                {
+                    tapeAnimationOFF();
+                    PAUSE = false;
+                    stateWAVplayer = 2;
+                }
+                else if (STOP)
+                {
+                    stateWAVplayer = 3;
+                    fileread = 0;
+                    // Lo ponemos asi para que empiece en CONTINUOS PLAYING
+                    // ya que en el if se hace un cambio dependiendo del valor anterior
+                    disable_auto_wav_stop = false;
+                }
+                
+                if (FFWIND)
+                {
+                    // Lo hacemos asi porque si avanzamos con player.next() 
+                    // da error si se pasa del total
+                    int idx = source.index() + 1;
+                    // Comprobamos
+                    if (idx > source.size())
+                    {
+                      source.selectStream(0);
+                    }
+                    else
+                    {
+                      player.next();
+                    }
+
+                    // hmi.writeString("name.txt=\"" + String(source.toStr()) + "\"");
+                    fileSize = getWAVfileSize(source.toStr());
+
+                    // Ahora el current index ha cambiado
+                    currentIdx = source.index();
+
+                    // Informamos
+                    // updateIndicators(source.size() + 1, source.index() + 1, fileSize, source.toStr()); 
+
+                    // Indicadores
+                    totalFilesIdx = source.size() + 1;
+                    currentFileIdx = source.index() + 1;
+                    currentFileName = source.toStr();
+
+                    FFWIND = false;
+                    RWIND = false;
+                    fileread = 0;
+                }
+                else if (RWIND)
+                {
+                    // Lo hacemos asi porque si avanzamos con player.next() 
+                    // da error si se pasa del total
+                    int idx = source.index() - 1;
+                    // Comprobamos
+                    if (idx < 0)
+                    {
+                      source.selectStream(source.size());
+                    }
+                    else
+                    {
+                      player.previous();
+                    }
+
+                    // hmi.writeString("name.txt=\"" + String(source.toStr()) + "\"");
+                    fileSize = getWAVfileSize(source.toStr());
+
+                    // Ahora el current index ha cambiado
+                    currentIdx = source.index();
+
+                    // Informamos
+                    // updateIndicators(source.size() + 1, source.index() + 1, fileSize, source.toStr()); 
+
+                    // Indicadores
+                    totalFilesIdx = source.size() + 1;
+                    currentFileIdx = source.index() + 1;
+                    currentFileName = source.toStr();
+
+                    FFWIND = false;
+                    RWIND = false;
+                    fileread = 0;
+                }
+                break;
+
+          case 2:
+                // Pausa reanudamos el PLAY
+                if (PAUSE || PLAY)
+                {
+                    tapeAnimationON();
+                    stateWAVplayer = 1;
+                    PLAY = true;
+                    PAUSE = false;
+                    // Lo ponemos asi para que empiece en CONTINUOS PLAYING
+                    // ya que en el if se hace un cambio dependiendo del valor anterior
+                    disable_auto_wav_stop = false;                    
+                }             
+                break;
+          case 3:
+                // STOP tape
+
+                if (STOP)
+                {
+                    LAST_MESSAGE = "Stop playing";
+                    tapeAnimationOFF();
+                    currentIdx = source.index();  
+                    stateWAVplayer = 0;  
+                    player.begin();
+                    source.selectStream(currentIdx);
+                    // updateIndicators(source.size() + 1, source.index() + 1, fileSize, source.toStr()); 
+
+                    // Indicadores
+                    totalFilesIdx = source.size() + 1;
+                    currentFileIdx = source.index() + 1;
+                    currentFileName = source.toStr();
+                    // Lo ponemos asi para que empiece en CONTINUOS PLAYING
+                    // ya que en el if se hace un cambio dependiendo del valor anterior
+                    disable_auto_wav_stop = false;                    
+
+                }
+                break;
+          case 4:
+                // Auto-stop
+
+                // Ponemos esta condicion para que no de error 
+                // la declaracion "int idx = source.index()"
+                if (true)
+                {
+                    // Mandamos parar el reproductor
+                    hmi.verifyCommand("STOP");
+                    // Lo indicamos
+                    LAST_MESSAGE = "Stop playing";
+                    // Paramos la animacion de la cinta
+                    tapeAnimationOFF();
+                    // Ponemos la pista al principio
+                    player.begin();
+                    // Nos quedamos en la misma pista
+                    source.selectStream(currentIdx);
+                    // Actualizamos indicadores
+                    // updateIndicators(source.size() + 1, source.index() + 1, fileSize, source.toStr());  
+
+                    // Indicadores
+                    totalFilesIdx = source.size() + 1;
+                    currentFileIdx = source.index() + 1;
+                    currentFileName = source.toStr();
+
+                    // hmi.writeString("name.txt=\"" + String(source.toStr()) + "\""); 
+                    // Reseteamos el contador de progreso                  
+                    fileread = 0;
+                    // Saltamos al estado de reposo  
+                    stateWAVplayer = 0;  
+                    // Lo ponemos asi para que empiece en CONTINUOS PLAYING
+                    // ya que en el if se hace un cambio dependiendo del valor anterior
+                    disable_auto_wav_stop = false;                    
+                }
+                break;
+
+          default:
+            break;
+          }
+
+          // Actualizamos el indicador
+          if ((millis() - startTime) > 250)
+          {
+            updateIndicators(totalFilesIdx, currentFileIdx, fileSize, currentFileName);
+            startTime = millis();
+          }
+          
+        }
+        
+        tapeAnimationOFF(); 
+        // kit.end();  
+        player.end();
+        // playerbt.end();
+    }
+    else
+    {
+      logln("Error player initialization");
+      STOP=true;
+    } 
+
+    // Recupero la SD para el resto de procesadores.
+    if (!sdf.begin(sdcfg)) 
+    {
+      logln("Error recovering spi initialization");
+    }
+}
+
 void playingFile()
 {
-  setAudioOutput();
-  ESP32kit.setVolume(MAX_MAIN_VOL);
 
-  sendStatus(REC_ST, 0);
 
   if (TYPE_FILE_LOAD == "TAP")
   {
+
+      setAudioOutput();
+      ESP32kit.setVolume(MAX_MAIN_VOL);
+
+      sendStatus(REC_ST, 0);
+
       //hmi.getMemFree();
       pTAP.play();
       //Paramos la animación
       tapeAnimationOFF();  
       //pTAP.updateMemIndicator();
   }
-  else if (TYPE_FILE_LOAD == "TZX" || TYPE_FILE_LOAD == "CDT")
+  else if (TYPE_FILE_LOAD == "TZX" || TYPE_FILE_LOAD == "CDT" || TYPE_FILE_LOAD == "TSX")
   {
+
+      setAudioOutput();
+      ESP32kit.setVolume(MAX_MAIN_VOL);
+
+      sendStatus(REC_ST, 0);
+
       //hmi.getMemFree();
       pTZX.play();
       //Paramos la animación
       tapeAnimationOFF(); 
   }
-  else if (TYPE_FILE_LOAD == "TSX")
+  else if (TYPE_FILE_LOAD == "WAV")
   {
-      //hmi.getMemFree();
-      pTSX.play();
-      //Paramos la animación
-      tapeAnimationOFF(); 
-  }  
+    logln("Type file load: " + TYPE_FILE_LOAD + " and MODEWAV: " + String(MODEWAV));
+    // Reproducimos el WAV file
+    playWAV();
+  }
+  else
+  {
+      logAlert("Unknown type_file_load");
+  }
+ 
 }
 
 void verifyConfigFileForSelection()
 {
   // Vamos a localizar el fichero de configuracion especifico para el fichero seleccionado
+  const int max_params = 4;
   String path = FILE_LAST_DIR;
+  String tmpPath = PATH_FILE_TO_LOAD;
   tConfig *fileCfg;
-  char strpath[FILE_TO_LOAD.length() + 5] = {};
-  strcpy(strpath,FILE_TO_LOAD.c_str());
-  if (sdf.exists(FILE_TO_LOAD + ".cfg"))
-  {
-    // Abrimos el fichero de configuracion.
-    File32 cfg = sdm.openFile32(strpath);
+  char strpath[tmpPath.length() + 5] = {};
+  strcpy(strpath,tmpPath.c_str());
+  strcat(strpath,".cfg");
 
-    if (cfg.isOpen())
+  // Abrimos el fichero de configuracion.
+  File32 cfg;
+
+  logln("");
+  log("path: " + String(strpath));
+
+  if (sdf.exists(strpath))
+  {
+    logln("");
+    log("cfg path: " + String(strpath));
+
+    if (cfg.open(strpath,O_READ))
     {
       // Leemos todos los parametros
-      fileCfg = sdm.readAllParamCfg(cfg,4);
+      fileCfg = sdm.readAllParamCfg(cfg,max_params);
 
-      // Ahora vamos a tomar los valores de cada uno de ellos.
-      // ZEROLEVEL
-      if((sdm.getValueOfParam(fileCfg[0].cfgLine,"zerolevel")) == "1")
+      logln("");
+      log("cfg open");  
+
+      for (int i;i<max_params;i++)
       {
-        ZEROLEVEL = 1;
+
+          logln("");
+          log("Param: " + fileCfg[i].cfgLine);
+
+          if((fileCfg[i].cfgLine).indexOf("freq") != -1)
+          {
+            SAMPLING_RATE = (sdm.getValueOfParam(fileCfg[i].cfgLine,"freq")).toInt();
+
+            logln("");
+            log("Sampling rate: " + String(SAMPLING_RATE));
+
+            switch (SAMPLING_RATE)
+            {
+            case 48000:
+              hmi.writeString("menuAudio2.r0.val=1");
+              hmi.writeString("menuAudio2.r1.val=0");
+              hmi.writeString("menuAudio2.r2.val=0");
+              hmi.writeString("menuAudio2.r3.val=0");
+              break;
+
+            case 44100:
+              hmi.writeString("menuAudio2.r0.val=0");
+              hmi.writeString("menuAudio2.r1.val=1");
+              hmi.writeString("menuAudio2.r2.val=0");
+              hmi.writeString("menuAudio2.r3.val=0");
+              break;
+
+            case 32000:
+              hmi.writeString("menuAudio2.r0.val=0");
+              hmi.writeString("menuAudio2.r1.val=0");
+              hmi.writeString("menuAudio2.r2.val=1");
+              hmi.writeString("menuAudio2.r3.val=0");
+              break;
+
+            case 22050:
+              hmi.writeString("menuAudio2.r0.val=0");
+              hmi.writeString("menuAudio2.r1.val=0");
+              hmi.writeString("menuAudio2.r2.val=0");
+              hmi.writeString("menuAudio2.r3.val=1");
+              break;
+
+            default:
+              // Por defecto es 44.1KHz
+              hmi.writeString("menuAudio2.r0.val=0");
+              hmi.writeString("menuAudio2.r1.val=1");
+              hmi.writeString("menuAudio2.r2.val=0");
+              hmi.writeString("menuAudio2.r3.val=0");
+              break;
+            }
+          }
+          else if((fileCfg[i].cfgLine).indexOf("zerolevel") != -1)
+          {
+            ZEROLEVEL = sdm.getValueOfParam(fileCfg[i].cfgLine,"zerolevel").toInt();
+
+            logln("");
+            log("Zero level: " + String(ZEROLEVEL));
+
+            if (ZEROLEVEL==1)
+            {
+              hmi.writeString("menuAudio2.lvlLowZero.val=1");
+            }
+            else
+            {
+              hmi.writeString("menuAudio2.lvlLowZero.val=0");
+            }
+          }
+          else if((fileCfg[i].cfgLine).indexOf("blockend") != -1)
+          {
+            APPLY_END = sdm.getValueOfParam(fileCfg[i].cfgLine,"blockend").toInt();
+
+            logln("");
+            log("Terminator forzed: " + String(APPLY_END));
+
+            if (APPLY_END==1)
+            {
+              hmi.writeString("menuAudio2.enTerm.val=1");
+            }
+            else
+            {
+              hmi.writeString("menuAudio2.enTerm.val=0");
+            }
+          }
+          else if((fileCfg[i].cfgLine).indexOf("polarized") != -1)
+          {
+            if((sdm.getValueOfParam(fileCfg[i].cfgLine,"polarized")) == "1")
+            {
+                // Para que empiece en DOWN tenemos que poner POLARIZATION en UP
+                // Una señal con INVERSION de pulso es POLARIZACION = UP (empieza en DOWN)
+                POLARIZATION = up;
+                LAST_EAR_IS = up;
+                INVERSETRAIN = true;
+
+                if (POLARIZATION==up)
+                {
+                  hmi.writeString("menuAudio2.polValue.val=1");
+
+                  logln("");
+                  log("Polarization INV: " + String(APPLY_END));
+
+                }
+                else
+                {
+                  hmi.writeString("menuAudio2.polValue.val=0");
+
+                  logln("");
+                  log("Polarization DIR: " + String(APPLY_END));
+                }
+            }
+            else
+            {
+              POLARIZATION = down;
+              LAST_EAR_IS = down;
+              INVERSETRAIN = false;
+            }            
+          }
+      }
+
+      if (INVERSETRAIN)
+      {
+        if (ZEROLEVEL)
+        {
+          hmi.writeString("tape.pulseInd.pic=36");
+        }
+        else
+        {
+          hmi.writeString("tape.pulseInd.pic=33");
+        }
       }
       else
       {
-        ZEROLEVEL = 0;
+        if (ZEROLEVEL)
+        {
+          hmi.writeString("tape.pulseInd.pic=35");
+        }
+        else
+        {
+          hmi.writeString("tape.pulseInd.pic=34");
+        }        
       }
-
-      // POLARIZED
-      if((sdm.getValueOfParam(fileCfg[1].cfgLine,"blockend")) == "1")
-      {
-        APPLY_END = 1;
-      }
-      else
-      {
-        APPLY_END = 0;
-      }
-
-      // BLOCKEND
-      if((sdm.getValueOfParam(fileCfg[2].cfgLine,"polarized")) == "1")
-      {
-        POLARIZATION = down;
-        LAST_EAR_IS = down;
-        INVERSETRAIN = true;
-      }
-      else
-      {
-        POLARIZATION = up;
-        LAST_EAR_IS = up;
-        INVERSETRAIN = false;
-      }
-
-
     }
+
+    cfg.close();
   }
 }
 
 void loadingFile(char* file_ch)
 {
   // Cogemos el fichero seleccionado y lo cargamos           
-  FILE_PREPARED = false;
 
   // Si no está vacio
   if (FILE_SELECTED) 
   {
 
     // Convierto a mayusculas
-    FILE_TO_LOAD.toUpperCase();
+    PATH_FILE_TO_LOAD.toUpperCase();
   
     // Eliminamos la memoria ocupado por el actual insertado
     // y lo ejectamos
-    ejectingFile();
-
-    // Verificamos si hay fichero de configuracion para este archivo seleccionado
-    // verifyConfigFileForSelection();
+    if (FILE_PREPARED)
+    {
+      ejectingFile();
+      FILE_PREPARED = false;      
+    }
 
     // Cargamos el seleccionado.
-    if (FILE_TO_LOAD.indexOf(".TAP") != -1)
+    if (PATH_FILE_TO_LOAD.indexOf(".TAP") != -1)
     {
+        // Verificamos si hay fichero de configuracion para este archivo seleccionado
+        verifyConfigFileForSelection();
+        // changeLogo(41);
         // Reservamos memoria
-        myTAP.descriptor = (TAPprocessor::tBlockDescriptor*)ps_malloc(MAX_BLOCKS_IN_TAP * sizeof(struct TAPprocessor::tBlockDescriptor));        
+        myTAP.descriptor = (tTAPBlockDescriptor*)ps_calloc(MAX_BLOCKS_IN_TAP, sizeof(struct tTAPBlockDescriptor));        
         // Pasamos el control a la clase
         pTAP.setTAP(myTAP);   
         // Lo procesamos
         proccesingTAP(file_ch);
-        TYPE_FILE_LOAD = "TAP";       
+        TYPE_FILE_LOAD = "TAP";  
+        BYTES_TOBE_LOAD = myTAP.size;
+     
     }
-    else if ((FILE_TO_LOAD.indexOf(".TZX") != -1) || (FILE_TO_LOAD.indexOf(".CDT") != -1))    
+    else if ((PATH_FILE_TO_LOAD.indexOf(".TZX") != -1) || (PATH_FILE_TO_LOAD.indexOf(".TSX") != -1) || (PATH_FILE_TO_LOAD.indexOf(".CDT") != -1))    
     {
-        // Reservamos memoria
-        myTZX.descriptor = (TZXprocessor::tTZXBlockDescriptor*)ps_malloc(MAX_BLOCKS_IN_TZX * sizeof(struct TZXprocessor::tTZXBlockDescriptor));        
+
+        // Verificamos si hay fichero de configuracion para este archivo seleccionado
+        verifyConfigFileForSelection();        // Reservamos memoria
+        // 
+        myTZX.descriptor = (tTZXBlockDescriptor*)ps_calloc(MAX_BLOCKS_IN_TZX , sizeof(struct tTZXBlockDescriptor));        
         // Pasamos el control a la clase
         pTZX.setTZX(myTZX);
 
         // Lo procesamos. Para ZX Spectrum
         proccesingTZX(file_ch);
-        if (FILE_TO_LOAD.indexOf(".TZX") != -1)
+
+        if (PATH_FILE_TO_LOAD.indexOf(".TZX") != -1)
         {
             TYPE_FILE_LOAD = "TZX";    
-        } else {
+        } 
+        else if (PATH_FILE_TO_LOAD.indexOf(".TSX") != -1)
+        {
+          TYPE_FILE_LOAD = "TSX";
+        }
+        else        
+        {
             TYPE_FILE_LOAD = "CDT";
         }
+        BYTES_TOBE_LOAD = myTZX.size;
     }
-    else if (FILE_TO_LOAD.indexOf(".TSX") != -1)
+    else if(PATH_FILE_TO_LOAD.indexOf(".WAV") != -1)
     {
-        // Reservamos memoria
-        myTSX.descriptor = (TSXprocessor::tTSXBlockDescriptor*)ps_malloc(MAX_BLOCKS_IN_TZX * sizeof(struct TSXprocessor::tTSXBlockDescriptor));        
-        // Pasamos el control a la clase
-        pTSX.setTSX(myTSX);
-
-        // Lo procesamos. Para ZX Spectrum
-        proccesingTSX(file_ch);
-        TYPE_FILE_LOAD = "TSX";    
-    }   
+      logln("Wav file to load: " + PATH_FILE_TO_LOAD);
+      FILE_PREPARED = true;
+      TYPE_FILE_LOAD = "WAV";
+    }
+   
   }
   else
   {
       #ifdef DEBUGMODE
         logAlert("Nothing was prepared.");
       #endif 
-      FILE_PREPARED = false;
+      // changeLogo(0);
+
+      if (FILE_PREPARED)
+      {
+        ejectingFile();
+        FILE_PREPARED = false;      
+      }
   }
 
-  // Liberamos
-  //free(file_ch);
 }
 void stopFile()
 {
@@ -1504,7 +2135,6 @@ void pauseFile()
 void ejectingFile()
 {
   //log("Eject executing");
-
   // Terminamos los players
   if (TYPE_FILE_LOAD == "TAP")
   {
@@ -1512,14 +2142,14 @@ void ejectingFile()
       // para liberarlo
       if (myTAP.descriptor != nullptr)
       {
-        // LAST_MESSAGE = "PSRAM cleanning";
+        LAST_MESSAGE = "PSRAM cleanning";
         // delay(1500);
         free(pTAP.getDescriptor());
         // Finalizamos
         pTAP.terminate();
       }
   }
-  else if (TYPE_FILE_LOAD == "TZX" || TYPE_FILE_LOAD == "CDT")
+  else if (TYPE_FILE_LOAD == "TZX" || TYPE_FILE_LOAD == "CDT" || TYPE_FILE_LOAD == "TSX")
   {
       // Solicitamos el puntero _myTZX de la clase
       // para liberarlo
@@ -1533,20 +2163,20 @@ void ejectingFile()
         pTZX.terminate();
       }
   }  
-  else if (TYPE_FILE_LOAD == "TSX")
-  {
-      // Solicitamos el puntero _myTSX de la clase
-      // para liberarlo
-      if (myTSX.descriptor != nullptr)
-      {
-        LAST_MESSAGE = "PSRAM cleanning";
-        delay(1500);
-        freeMemoryFromDescriptorTSX(pTSX.getDescriptor());
-        free(pTSX.getDescriptor());
-        // Finalizamos
-        pTSX.terminate();
-      }
-  }    
+  // else if (TYPE_FILE_LOAD == "TSX")
+  // {
+  //     // Solicitamos el puntero _myTSX de la clase
+  //     // para liberarlo
+  //     if (myTSX.descriptor != nullptr)
+  //     {
+  //       LAST_MESSAGE = "PSRAM cleanning";
+  //       delay(1500);
+  //       freeMemoryFromDescriptorTSX(pTSX.getDescriptor());
+  //       free(pTSX.getDescriptor());
+  //       // Finalizamos
+  //       pTSX.terminate();
+  //     }
+  // }    
 }
 
 
@@ -1636,11 +2266,13 @@ void getAudioSettingFromHMI()
 
     if(myNex.readNumber("menuAdio.polValue.val")==1)
     {
-      POLARIZATION = down;
+      // Para que empiece en DOWN tenemos que poner POLARIZATION en UP
+      // Una señal con INVERSION de pulso es POLARIZACION = UP (empieza en DOWN)
+      POLARIZATION = up;
     }
     else
     {
-      POLARIZATION = up;
+      POLARIZATION = down;
     }
 
     if(myNex.readNumber("menuAdio.lvlLowZero.val")==1)
@@ -1651,6 +2283,400 @@ void getAudioSettingFromHMI()
     {
       ZEROLEVEL = false;
     }
+}
+
+void setPolarization()
+{
+    if (INVERSETRAIN)
+    {
+        // Para que empiece en DOWN tenemos que poner POLARIZATION en UP
+        // Una señal con INVERSION de pulso es POLARIZACION = UP (empieza en DOWN)
+        POLARIZATION = up;
+        LAST_EAR_IS = up;
+    }
+    else
+    {
+        // Empieza en UP
+        POLARIZATION = down;
+        LAST_EAR_IS = down;
+    }  
+}
+
+void getPlayeableBlockTZX(tTZX tB, int inc)
+{
+    // Esta funcion busca el bloque valido siguiente
+    // inc sera +1 o -1 dependiendo de si es FFWD o RWD
+    while(!((tB.descriptor)[BLOCK_SELECTED].playeable))
+    {
+      BLOCK_SELECTED += inc;
+
+      if (BLOCK_SELECTED > TOTAL_BLOCKS)
+      {
+        BLOCK_SELECTED = 1;
+      }
+
+      if (BLOCK_SELECTED < 1)
+      {
+        BLOCK_SELECTED = TOTAL_BLOCKS;
+      }
+    }
+}
+
+void nextGroupBlock()
+{
+  logln("Seacrh Next Group Block");
+  
+  if (TYPE_FILE_LOAD !="TAP" && TYPE_FILE_LOAD != "WAV")
+  {
+    while(myTZX.descriptor[BLOCK_SELECTED].ID != 34 && BLOCK_SELECTED <= TOTAL_BLOCKS)
+    {
+      BLOCK_SELECTED++;
+    }
+
+    if (BLOCK_SELECTED > (TOTAL_BLOCKS-1))
+    {
+      // No he encontrado el Group End
+      BLOCK_SELECTED = 1;
+    }
+    else
+    {
+      // Avanzo uno mas
+      PROGRAM_NAME_2 = "";
+      LAST_BLOCK_WAS_GROUP_END = true;
+      LAST_BLOCK_WAS_GROUP_START = false;
+      // BLOCK_SELECTED++;
+      // isGroupStart();
+    }
+  }
+}
+
+void prevGroupBlock()
+{
+  logln("Seacrh Previous Group Block");
+
+  if (TYPE_FILE_LOAD !="TAP" && TYPE_FILE_LOAD != "WAV")
+  {
+    while(myTZX.descriptor[BLOCK_SELECTED].ID != 33 && BLOCK_SELECTED > 1)
+    {
+      BLOCK_SELECTED--;
+    }
+
+    if (BLOCK_SELECTED < 1)
+    {
+      // No he encontrado el Group Start
+      BLOCK_SELECTED = TOTAL_BLOCKS - 1;
+    }
+    else
+    {
+      // Le pasamos el nombre del grupo al PROGRAM_NAME_2
+      // BLOCK_SELECTED++;
+      LAST_GROUP = myTZX.descriptor[BLOCK_SELECTED].name;
+      LAST_BLOCK_WAS_GROUP_START = true;
+      LAST_BLOCK_WAS_GROUP_END = false;
+    }
+  }
+}
+
+void isGroupStart()
+{
+  // Verificamos si se entra en un grupo
+  logln("ID: " + String(myTZX.descriptor[BLOCK_SELECTED].ID));
+
+  if (TYPE_FILE_LOAD != "TAP" && TYPE_FILE_LOAD != "WAV")
+  {
+    if (myTZX.descriptor[BLOCK_SELECTED].ID == 33)
+    {
+      // Es un group start
+      LAST_BLOCK_WAS_GROUP_START = true;
+      LAST_BLOCK_WAS_GROUP_END = false;
+      // Le pasamos el nombre del grupo al PROGRAM_NAME_2
+      LAST_GROUP = myTZX.descriptor[BLOCK_SELECTED].name;
+    }
+    else
+    {
+      LAST_BLOCK_WAS_GROUP_START = false;
+      LAST_BLOCK_WAS_GROUP_END = false;
+    }
+  }
+}
+
+void isGroupEnd()
+{
+  // Verificamos si se entra en un grupo
+  logln("ID: " + String(myTZX.descriptor[BLOCK_SELECTED].ID));
+
+  if (TYPE_FILE_LOAD != "TAP" && TYPE_FILE_LOAD != "WAV")
+  {
+    if (myTZX.descriptor[BLOCK_SELECTED].ID == 34)
+    {
+      // Es un group start
+      LAST_BLOCK_WAS_GROUP_END = true;
+      LAST_BLOCK_WAS_GROUP_START = false;
+      prevGroupBlock();      
+    }
+    else
+    {
+      LAST_BLOCK_WAS_GROUP_START = false;
+      LAST_BLOCK_WAS_GROUP_END = false;
+    }    
+  }
+}
+
+void updateHMIOnBlockChange()
+{
+    if (TYPE_FILE_LOAD=="TAP")
+    {
+      hmi.setBasicFileInformation(0,0,myTAP.descriptor[BLOCK_SELECTED].name,myTAP.descriptor[BLOCK_SELECTED].typeName,myTAP.descriptor[BLOCK_SELECTED].size,true);
+    }
+    else if(TYPE_FILE_LOAD=="TZX" || TYPE_FILE_LOAD=="CDT" || TYPE_FILE_LOAD=="TSX")
+    {
+      hmi.setBasicFileInformation(myTZX.descriptor[BLOCK_SELECTED].ID,myTZX.descriptor[BLOCK_SELECTED].group,myTZX.descriptor[BLOCK_SELECTED].name,myTZX.descriptor[BLOCK_SELECTED].typeName,myTZX.descriptor[BLOCK_SELECTED].size,myTZX.descriptor[BLOCK_SELECTED].playeable);
+    } 
+
+    hmi.updateInformationMainPage(true);
+}
+
+void getRandomFilename (char* &currentPath, String currentFileBaseName)
+{
+      currentPath = strcpy(currentPath, currentFileBaseName.c_str());
+      srand(time(0));
+      delay(125);
+      int rn = rand()%999999;
+      //Le unimos la extensión .TAP
+      String txtRn = "-" + String(rn) + ".wav";
+      char const *extPath = txtRn.c_str();
+      strcat(currentPath,extPath);  
+}
+
+void rewindAnimation(int direction)
+{
+    int p=0;
+    int frames = 19;
+    int fdelay = 5;
+
+    while (p < frames)
+    {
+      
+      POS_ROTATE_CASSETTE+=direction;
+
+      if (POS_ROTATE_CASSETTE > 23)
+      { POS_ROTATE_CASSETTE = 4;}
+
+      if (POS_ROTATE_CASSETTE < 4)
+      { POS_ROTATE_CASSETTE = 23;}
+
+      hmi.writeString("tape.animation.pic=" + String(POS_ROTATE_CASSETTE));
+      delay(20);
+
+      p++;
+    }  
+}
+
+void getTheFirstPlayeableBlock()
+{
+  // Buscamos ahora el primer bloque playeable
+  
+  if (TYPE_FILE_LOAD !="TAP")
+  {
+      int i=1;
+      while(!myTZX.descriptor[i].playeable)
+      {
+        BLOCK_SELECTED=i;
+        i++;
+      }
+
+      if (i > MAX_BLOCKS_IN_TZX)
+      {
+        i=1;
+      }
+
+      BLOCK_SELECTED=i;
+      logln("Primero playeable: " + String(i));
+
+      // PROGRAM_NAME = myTZX.descriptor[i].name;
+      strcpy(LAST_TYPE,myTZX.descriptor[i].typeName);
+      LAST_SIZE = myTZX.descriptor[i].size;
+
+      hmi.setBasicFileInformation(myTZX.descriptor[BLOCK_SELECTED].ID,myTZX.descriptor[BLOCK_SELECTED].group,myTZX.descriptor[BLOCK_SELECTED].name,myTZX.descriptor[BLOCK_SELECTED].typeName,myTZX.descriptor[BLOCK_SELECTED].size,myTZX.descriptor[BLOCK_SELECTED].playeable);
+      hmi.updateInformationMainPage(true);
+  }
+}
+
+void setFWIND()
+{
+    logln("Set FFWD - " + String(LAST_BLOCK_WAS_GROUP_START));
+
+
+
+    if (TYPE_FILE_LOAD != "TAP")
+    {
+        if (LAST_BLOCK_WAS_GROUP_START)
+        {
+          // Si el ultimo bloque fue un GroupStart entonces busco un Group End y avanzo 1
+          nextGroupBlock();
+          // LAST_BLOCK_WAS_GROUP_START = false;
+        }
+        else
+        {
+          // Modo normal avanzo 1 a 1 y verifico si hay Group Start
+          BLOCK_SELECTED++;
+          isGroupStart();
+        }
+    }
+    else
+    {
+      BLOCK_SELECTED++;
+    }
+
+    if (BLOCK_SELECTED > (TOTAL_BLOCKS - 1)) 
+    {
+      BLOCK_SELECTED = 1;
+      isGroupStart();
+    }
+
+    if (TYPE_FILE_LOAD != "TAP")
+    {
+        // Forzamos un refresco de los indicadores
+        hmi.setBasicFileInformation(myTZX.descriptor[BLOCK_SELECTED].ID,
+                                    myTZX.descriptor[BLOCK_SELECTED].group,
+                                    myTZX.descriptor[BLOCK_SELECTED].name,
+                                    myTZX.descriptor[BLOCK_SELECTED].typeName,
+                                    myTZX.descriptor[BLOCK_SELECTED].size,
+                                    myTZX.descriptor[BLOCK_SELECTED].playeable);
+    }
+    else
+    {
+        // Forzamos un refresco de los indicadores
+        hmi.setBasicFileInformation(0,0,myTAP.descriptor[BLOCK_SELECTED].name,
+                                        myTAP.descriptor[BLOCK_SELECTED].typeName,
+                                        myTAP.descriptor[BLOCK_SELECTED].size,
+                                        myTAP.descriptor[BLOCK_SELECTED].playeable);
+    }
+
+    hmi.updateInformationMainPage(true);
+
+    rewindAnimation(1);
+
+}
+
+void setRWIND()
+{
+
+    logln("Set RWD - " + String(LAST_BLOCK_WAS_GROUP_END));
+    
+    if (TYPE_FILE_LOAD != "TAP")
+    {
+        if (LAST_BLOCK_WAS_GROUP_END)
+        {
+          // Si el ultimo bloque fue un Group End entonces busco un Group Start y avanzo 1
+          prevGroupBlock();
+          // LAST_BLOCK_WAS_GROUP_END = false;
+        } 
+        else
+        {
+          BLOCK_SELECTED--;
+          isGroupEnd();
+        }      
+    }
+    else
+    {
+        BLOCK_SELECTED--;      
+    }
+
+    if (BLOCK_SELECTED < 1) 
+    {
+      BLOCK_SELECTED = (TOTAL_BLOCKS-1);
+      isGroupEnd();
+    }
+
+    if (TYPE_FILE_LOAD != "TAP")
+    {
+        // Forzamos un refresco de los indicadores
+        hmi.setBasicFileInformation(myTZX.descriptor[BLOCK_SELECTED].ID,
+                                    myTZX.descriptor[BLOCK_SELECTED].group,
+                                    myTZX.descriptor[BLOCK_SELECTED].name,
+                                    myTZX.descriptor[BLOCK_SELECTED].typeName,
+                                    myTZX.descriptor[BLOCK_SELECTED].size,
+                                    myTZX.descriptor[BLOCK_SELECTED].playeable);
+    }
+    else
+    {
+        // Forzamos un refresco de los indicadores
+        hmi.setBasicFileInformation(0,0,myTAP.descriptor[BLOCK_SELECTED].name,
+                                        myTAP.descriptor[BLOCK_SELECTED].typeName,
+                                        myTAP.descriptor[BLOCK_SELECTED].size,
+                                        myTAP.descriptor[BLOCK_SELECTED].playeable);
+    }
+
+    hmi.updateInformationMainPage(true);   
+
+    rewindAnimation(-1);
+
+}
+
+void openBlocksBrowser()
+{
+    // Rellenamos el browser con todos los bloques
+    int max = MAX_BLOCKS_IN_BROWSER;
+
+    if (TOTAL_BLOCKS > max)
+    {
+      max = MAX_BLOCKS_IN_BROWSER;
+    }
+    else
+    {
+      max = TOTAL_BLOCKS - 1;
+    }
+
+    hmi.writeString("blocks.path.txt=\"" + HMI_FNAME + "\"");
+    hmi.writeString("blocks.totalBl.txt=\"" + String(TOTAL_BLOCKS-1) + "\"");
+
+    for(int i=1;i<=max;i++)
+    {
+      if (i+BB_PTR_ITEM > TOTAL_BLOCKS-1)
+      {
+        // Los dejamos limpios pero sin informacion
+        hmi.writeString("blocks.id" + String(i) + ".txt=\"\"");
+        hmi.writeString("blocks.data" + String(i) + ".txt=\"\"");
+        hmi.writeString("blocks.size" + String(i) + ".txt=\"\"");
+        hmi.writeString("blocks.name" + String(i) + ".txt=\"\"");
+      }
+      else
+      {
+          // En otro caso metemos informacion
+          hmi.writeString("blocks.id" + String(i) + ".txt=\"" + String(i + BB_PTR_ITEM) + "\"");
+
+          if (TYPE_FILE_LOAD != "TAP")
+          {       
+
+                if (String(myTZX.descriptor[i + BB_PTR_ITEM].typeName).indexOf("ID 21") != -1)
+                {
+                    hmi.writeString("blocks.id" + String(i) + ".pco=34815");
+                    hmi.writeString("blocks.data" + String(i) + ".pco=34815");
+                    hmi.writeString("blocks.size" + String(i) + ".pco=34815");
+                    hmi.writeString("blocks.name" + String(i) + ".pco=34815");
+                }
+                else
+                {
+                    hmi.writeString("blocks.id" + String(i) + ".pco=60868");
+                    hmi.writeString("blocks.data" + String(i) + ".pco=60868");
+                    hmi.writeString("blocks.size" + String(i) + ".pco=60868");
+                    hmi.writeString("blocks.name" + String(i) + ".pco=60868");
+                }
+
+                hmi.writeString("blocks.data" + String(i) + ".txt=\"" + myTZX.descriptor[i + BB_PTR_ITEM].typeName + "\"");
+                hmi.writeString("blocks.name" + String(i) + ".txt=\"" + myTZX.descriptor[i + BB_PTR_ITEM].name + "\"");
+                hmi.writeString("blocks.size" + String(i) + ".txt=\"" + String(myTZX.descriptor[i + BB_PTR_ITEM].size / 1024) + "\"");
+          }
+          else
+          {
+                hmi.writeString("blocks.data" + String(i) + ".txt=\"" + myTAP.descriptor[i + BB_PTR_ITEM].typeName + "\"");
+                hmi.writeString("blocks.name" + String(i) + ".txt=\"" + myTAP.descriptor[i + BB_PTR_ITEM].name + "\"");
+                hmi.writeString("blocks.size" + String(i) + ".txt=\"" + String(myTAP.descriptor[i + BB_PTR_ITEM].size / 1024) + "\"");
+          }        
+      }
+
+    }  
 }
 
 void tapeControl()
@@ -1665,6 +2691,13 @@ void tapeControl()
   // 4 - REC
   //
   // Nuevo tapeControl
+
+  if (UPDATE_HMI)
+  {
+    updateHMIOnBlockChange();
+    UPDATE_HMI = false;
+  }
+
   switch (TAPESTATE)
   {
     case 0:
@@ -1694,26 +2727,47 @@ void tapeControl()
 
           TAPESTATE = 99;
           // Expulsamos la cinta
-          FILE_PREPARED = false;
+          //FILE_PREPARED = false; // Esto lo comentamos para hacerlo cuando haga el ejecting() 
+                                   // para poder descargar el anterior de la PSRAM
           FILE_SELECTED = false;
           // 
           AUTO_STOP = false;
+          // 
+          setPolarization();
 
         }
         else if (REC)
         {
           LAST_MESSAGE = "Rec paused. Press PAUSE to start recording.";
           recAnimationON();
-          TAPESTATE = 220;
+
+          if (MODEWAV)
+          {
+              TAPESTATE = 120;
+          }
+          else
+          {
+            TAPESTATE = 220;
+          }
           // 
           AUTO_STOP = false;
         }
-        else if (STOP)
+        else if (DISABLE_SD)
         {
-          // Esto lo hacemos para evitar repetir el mensaje infinitamente
-          LAST_MESSAGE = "Press EJECT to select a file or REC.";
-          STOP=false;                
-        }
+          DISABLE_SD = false;
+          // Deshabilitamos temporalmente la SD para poder subir un firmware
+          sdf.end();
+          int tout = 59;
+          while(tout != 0)
+          {
+            delay(1000);
+            hmi.writeString("debug.blockLoading.txt=\"" + String(tout) +"\"");
+            tout--;
+          }
+
+          hmi.writeString("debug.blockLoading.txt=\"..\"");
+          sdf.begin(ESP32kit.pinSpiCs(), SD_SCK_MHZ(SD_SPEED_MHZ));  
+        }        
         else
         {
           TAPESTATE = 0;
@@ -1727,10 +2781,6 @@ void tapeControl()
       //
       // PLAY / STOP
       //
-      #ifdef DEBUGMODE
-        logAlert("Tape state 1");
-      #endif
-
       if (PLAY)
       {
           // Inicializamos la polarización de la señal al iniciar la reproducción.
@@ -1740,7 +2790,10 @@ void tapeControl()
           //Activamos la animación
           tapeAnimationON();   
           // Reproducimos el fichero
-          LAST_MESSAGE = "Loading in progress. Please wait.";
+          if (TYPE_FILE_LOAD != "WAV")
+          {
+            LAST_MESSAGE = "Loading in progress. Please wait.";
+          }          
           //            
           playingFile();
       }
@@ -1748,35 +2801,46 @@ void tapeControl()
       {
         TAPESTATE = 0;
         LOADING_STATE = 0;
-      }
-      else if (FFWIND || RWIND)
-      {
-        // Actualizamos el HMI
-        if (TYPE_FILE_LOAD=="TAP")
-        {
-            hmi.setBasicFileInformation(myTAP.descriptor[BLOCK_SELECTED].name,myTAP.descriptor[BLOCK_SELECTED].typeName,myTAP.descriptor[BLOCK_SELECTED].size);
-        }
-        else if(TYPE_FILE_LOAD=="TZX" || TYPE_FILE_LOAD=="CDT")
-        {
-            hmi.setBasicFileInformation(myTZX.descriptor[BLOCK_SELECTED].name,myTZX.descriptor[BLOCK_SELECTED].typeName,myTZX.descriptor[BLOCK_SELECTED].size);
-        }  
-        else if(TYPE_FILE_LOAD=="TSX")
-        {
-            hmi.setBasicFileInformation(myTSX.descriptor[BLOCK_SELECTED].name,myTSX.descriptor[BLOCK_SELECTED].typeName,myTSX.descriptor[BLOCK_SELECTED].size);
-        }                  
-        //
-        FFWIND = false;
-        RWIND = false;         
-      }       
+      }     
       else if (PAUSE)       
       {
-          TAPESTATE = 3;
-          LAST_MESSAGE = "Tape paused. Press play or select block.";
+        // Nos vamos al estado PAUSA para seleccion de bloques
+        TAPESTATE = 3;
+        // Esto la hacemos para evitar una salida inesperada de seleccion de bloques.
+        PAUSE = false;
+        if (TYPE_FILE_LOAD == "WAV")
+        {
+          LAST_MESSAGE = "Playing paused.";
+        }
+        else
+        {
+          
+          if (AUTO_PAUSE)
+          {
+              LAST_MESSAGE = "Tape auto-paused. Follow machine instructions.";
+          }
+          else
+          {
+              LAST_MESSAGE = "Tape paused. Press play or select block.";
+
+              if (LAST_BLOCK_WAS_GROUP_START)
+              {
+                // Localizamos el GROUP START
+                prevGroupBlock();
+              }
+          }
+        }
       }
       else if (STOP)
       {
         // Desactivamos la animación
         // esta condicion evita solicitar la parada de manera infinita
+        logln("");
+        log("Tape state 1");
+        
+        // Volvemos al estado de fichero preparado
+        TAPESTATE = 10;
+
         if (LOADING_STATE == 1)
         {
           tapeAnimationOFF();
@@ -1785,7 +2849,8 @@ void tapeControl()
 
         LOADING_STATE = 2;
         // Al parar el c.block del HMI se pone a 1.
-        BLOCK_SELECTED = 1;
+        BLOCK_SELECTED = 0; // 29/11
+
         // Reproducimos el fichero
         if (!AUTO_STOP)
         {
@@ -1794,21 +2859,47 @@ void tapeControl()
         else
         {
           LAST_MESSAGE = "Auto-Stop playing.";
+          AUTO_STOP = false;
+          PLAY = false;
+          PAUSE = false;
+          REC = false;
+          EJECT = false;
         }
-              
+
+        setPolarization();
+        STOP=false; //28/11
+
+        if (TYPE_FILE_LOAD != "WAV")
+        {
+          getTheFirstPlayeableBlock();
+        }
+
       }
       else if (REC)
       {
         // Expulsamos la cinta
         if (LOADING_STATE == 0 || LOADING_STATE == 2)
         {
+          if (FILE_PREPARED)
+          {
+            ejectingFile();
+          }
+
           FILE_PREPARED = false;
           FILE_SELECTED = false;
           hmi.clearInformationFile();        
           LAST_MESSAGE = "Rec paused. Press PAUSE to start recording.";
           tapeAnimationOFF();
           recAnimationON();
-          TAPESTATE = 220;          
+
+          if (MODEWAV)
+          {
+              TAPESTATE = 120;
+          }
+          else
+          {
+              TAPESTATE = 220;
+          }          
         }
       }
       else
@@ -1826,11 +2917,6 @@ void tapeControl()
       #endif
 
       TAPESTATE = 1;
-      // LOADING_STATE = 2;
-      // //Activamos la animación
-      // tapeAnimationOFF();
-      // // Reproducimos el fichero
-      // LAST_MESSAGE = "Stop playing.";
       //            
       break;
 
@@ -1850,36 +2936,90 @@ void tapeControl()
       //          
       if (PLAY)
       {
+          // Reanudamos la reproduccion
           TAPESTATE = 1;
+          AUTO_PAUSE = false;
+      }
+      else if (PAUSE)
+      {
+          // Reanudamos la reproduccion pero con PAUSE
+          TAPESTATE = 5;
+          AUTO_PAUSE = false;
+
+          HMI_FNAME = FILE_LOAD;
       }
       else if (STOP)
       {
           TAPESTATE = 1;
+          AUTO_PAUSE = false;
+          
+          HMI_FNAME = FILE_LOAD;
+
+          if (TYPE_FILE_LOAD != "WAV")
+          {
+            getTheFirstPlayeableBlock();
+          }
       }
       else if (FFWIND || RWIND)
+      {        
+        
+        if (TYPE_FILE_LOAD != "WAV")
+        {
+          logln("Cambio de bloque");
+          // Actuamos sobre el cassette
+          if (FFWIND)
+          {
+            setFWIND();
+            FFWIND = false;
+          }
+          else
+          {
+            setRWIND();
+            RWIND = false;
+          }
+        
+          // Actualizamos el HMI
+          updateHMIOnBlockChange();        
+        }
+
+      }
+      else if (BB_OPEN || BB_UPDATE)
       {
-        // Actualizamos el HMI
-        if (TYPE_FILE_LOAD=="TAP")
-        {
-          hmi.setBasicFileInformation(myTAP.descriptor[BLOCK_SELECTED].name,myTAP.descriptor[BLOCK_SELECTED].typeName,myTAP.descriptor[BLOCK_SELECTED].size);
-        }
-        else if(TYPE_FILE_LOAD=="TZX" || TYPE_FILE_LOAD=="CDT")
-        {
-          hmi.setBasicFileInformation(myTZX.descriptor[BLOCK_SELECTED].name,myTZX.descriptor[BLOCK_SELECTED].typeName,myTZX.descriptor[BLOCK_SELECTED].size);
-        }
-        else if(TYPE_FILE_LOAD=="TSX")
-        {
-          hmi.setBasicFileInformation(myTSX.descriptor[BLOCK_SELECTED].name,myTSX.descriptor[BLOCK_SELECTED].typeName,myTSX.descriptor[BLOCK_SELECTED].size);
-        }          
-        //
-        TAPESTATE = 3;
-        FFWIND = false;
-        RWIND = false; 
+          openBlocksBrowser();
+          BB_UPDATE = false;
+          BB_OPEN = false;    
+      }
+      else if (UPDATE)
+      {
+          // Esto se hace para solicitar una actualizacion con los parametros del TAP / TZX
+          // desde el HMI.
+          if (TYPE_FILE_LOAD != "TAP")
+          {
+              // Forzamos un refresco de los indicadores
+              hmi.setBasicFileInformation(myTZX.descriptor[BLOCK_SELECTED].ID,
+                                          myTZX.descriptor[BLOCK_SELECTED].group,
+                                          myTZX.descriptor[BLOCK_SELECTED].name,
+                                          myTZX.descriptor[BLOCK_SELECTED].typeName,
+                                          myTZX.descriptor[BLOCK_SELECTED].size,
+                                          myTZX.descriptor[BLOCK_SELECTED].playeable);
+          }
+          else
+          {
+              // Forzamos un refresco de los indicadores
+              hmi.setBasicFileInformation(0,0,myTAP.descriptor[BLOCK_SELECTED].name,
+                                              myTAP.descriptor[BLOCK_SELECTED].typeName,
+                                              myTAP.descriptor[BLOCK_SELECTED].size,
+                                              myTAP.descriptor[BLOCK_SELECTED].playeable);
+          }
+
+          hmi.updateInformationMainPage(true);   
+          UPDATE = false;     
       }
       else if(EJECT)
       {
         TAPESTATE = 0;
         LOADING_STATE = 0;
+        AUTO_PAUSE = false;
       }      
       else
       {
@@ -1887,9 +3027,17 @@ void tapeControl()
       }
       break;
 
+    case 5:
+      // Si venimos del estado de seleccion de bloques
+      // y pulso PAUSE continuo la carga en TAPESTATE = 1
+      TAPESTATE = 1;
+      PLAY = true;
+      PAUSE = false;
+      break;
+
     case 10: 
         //
-        //File prepared
+        //File prepared. Esperando a PLAY / FFWD o RWD
         //
         if (PLAY)
         {
@@ -1906,10 +3054,69 @@ void tapeControl()
         }
         else if (REC)
         {
+          if (FILE_PREPARED)
+          {
+            ejectingFile();
+          }
+          
           FILE_PREPARED = false;
           FILE_SELECTED = false;
           hmi.clearInformationFile();        
           TAPESTATE = 0; 
+        }
+        else if (FFWIND || RWIND)
+        {
+          // Actuamos sobre el cassette
+          if (TYPE_FILE_LOAD != "WAV")
+          {
+            logln("Cambio de bloque - CASE 10");
+            // Actuamos sobre el cassette
+            if (FFWIND)
+            {
+              setFWIND();
+              FFWIND = false;
+            }
+            else
+            {
+              setRWIND();
+              RWIND = false;
+            }
+          
+            // Actualizamos el HMI
+            updateHMIOnBlockChange();        
+          }
+        }   
+        else if (BB_OPEN || BB_UPDATE)
+        {
+          openBlocksBrowser();
+          BB_UPDATE = false;
+          BB_OPEN = false;  
+        }             
+        else if (UPDATE)
+        {
+            // Esto se hace para solicitar una actualizacion con los parametros del TAP / TZX
+            // desde el HMI.
+            if (TYPE_FILE_LOAD != "TAP")
+            {
+                // Forzamos un refresco de los indicadores
+                hmi.setBasicFileInformation(myTZX.descriptor[BLOCK_SELECTED].ID,
+                                            myTZX.descriptor[BLOCK_SELECTED].group,
+                                            myTZX.descriptor[BLOCK_SELECTED].name,
+                                            myTZX.descriptor[BLOCK_SELECTED].typeName,
+                                            myTZX.descriptor[BLOCK_SELECTED].size,
+                                            myTZX.descriptor[BLOCK_SELECTED].playeable);
+            }
+            else
+            {
+                // Forzamos un refresco de los indicadores
+                hmi.setBasicFileInformation(0,0,myTAP.descriptor[BLOCK_SELECTED].name,
+                                                myTAP.descriptor[BLOCK_SELECTED].typeName,
+                                                myTAP.descriptor[BLOCK_SELECTED].size,
+                                                myTAP.descriptor[BLOCK_SELECTED].playeable);
+            }
+
+            hmi.updateInformationMainPage(true);   
+            UPDATE = false;     
         }
         else
         {
@@ -1968,8 +3175,8 @@ void tapeControl()
           if(FILE_SELECTED)
           {
               // Si se ha seleccionado lo cargo en el cassette.     
-              char* file_ch = (char*)ps_malloc(256 * sizeof(char));
-              FILE_TO_LOAD.toCharArray(file_ch, 256);
+              char* file_ch = (char*)ps_calloc(256,sizeof(char));
+              PATH_FILE_TO_LOAD.toCharArray(file_ch, 256);
               
               loadingFile(file_ch);
               free(file_ch);
@@ -1984,11 +3191,36 @@ void tapeControl()
                   logAlert("File inside the tape.");
                 #endif
                 
+                // Avanzamos ahora hasta el primer bloque playeable
                 if (!ABORT)
                 {
-                  LAST_MESSAGE = "File inside the TAPE.";
-                  TAPESTATE = 10;
-                  LOADING_STATE = 0;
+                  if (TYPE_FILE_LOAD != "WAV")
+                  {
+                    getTheFirstPlayeableBlock();
+
+                    LAST_MESSAGE = "File inside the TAPE.";
+                    PROGRAM_NAME = FILE_LOAD;
+                    HMI_FNAME = FILE_LOAD;
+
+                    TAPESTATE = 10;
+                    LOADING_STATE = 0;
+
+                  }
+                  else
+                  {
+                    PROGRAM_NAME = FILE_LOAD;
+                    hmi.writeString("name.txt=\"" + FILE_LOAD + "\"");
+
+                    LAST_MESSAGE = "File inside the TAPE.";
+                    HMI_FNAME = FILE_LOAD;
+
+                    TAPESTATE = 10;
+                    LOADING_STATE = 0;
+
+                    // Esto lo hacemos para llevar el control desde el WAV player 
+                    playingFile();
+                  }
+
                 }
                 else
                 {
@@ -2013,12 +3245,49 @@ void tapeControl()
               // Volvemos al estado inicial.
               TAPESTATE = 0;
               LOADING_STATE = 0;
+
+                // LAST_MESSAGE = "TYPE LOAD: " + TYPE_FILE_LOAD;
+                // delay(2000);
+
+              if (FILE_PREPARED)
+              {
+
+                ejectingFile();
+                FILE_PREPARED = false;
+              }              
           }
       }
       else
       {
           TAPESTATE = 100;
           LOADING_STATE = 0;
+      }
+      break;
+
+    case 120:
+      if (PAUSE)
+      {
+        
+        //Generamos un numero aleatorio para el final del nombre
+        char* cPath = (char*)ps_calloc(55,sizeof(char));
+        String wavfileBaseName = "/WAV/rec";
+
+        getRandomFilename(cPath, wavfileBaseName);
+
+        // Comenzamos la grabacion
+        setWavRecording(cPath);
+
+        TAPESTATE = 0;
+        LOADING_STATE = 0;
+        RECORDING_ERROR = 0;
+        REC = false;
+        recAnimationOFF();
+        recAnimationFIXED_OFF();  
+        free(cPath);
+      }
+      else
+      {
+        TAPESTATE = 120;
       }
       break;
 
@@ -2095,6 +3364,43 @@ bool headPhoneDetection()
   return !gpio_get_level((gpio_num_t)HEADPHONE_DETECT);
 }
 
+/**
+ * @brief SPIFFS Init
+ *
+ */
+esp_err_t initSPIFFS()
+{
+  log_i("Initializing SPIFFS");
+
+  esp_vfs_spiffs_conf_t conf = {
+    .base_path = "/spiffs",
+    .partition_label = NULL,
+    .max_files = 5,
+    .format_if_mount_failed = false
+  };
+
+  esp_err_t ret = esp_vfs_spiffs_register(&conf);
+
+  if (ret !=ESP_OK)
+  {
+    if (ret == ESP_FAIL)
+      log_e("Failed to mount or format filesystem");
+    else if (ret == ESP_ERR_NOT_FOUND)
+      log_e("Failed to find SPIFFS partition");
+    else
+      log_e("Failed to initialize SPIFFS (%s)",esp_err_to_name(ret));
+    return ESP_FAIL;
+  }
+
+  size_t total = 0, used = 0;
+  ret = esp_spiffs_info(NULL, &total, &used);
+  if (ret!= ESP_OK)
+    log_e("Failed to get SPIFFS partition information (%s)", esp_err_to_name(ret));
+  else
+    log_i("Partition size: total: %d used: %d", total, used);
+  
+  return ESP_OK;
+}
 
 // ******************************************************************
 //
@@ -2117,20 +3423,25 @@ void Task1code( void * pvParameters )
 void Task0code( void * pvParameters )
 {
 
+  const int windowNameLength = 44;
+
   #ifndef SAMPLINGTEST
     // Core 0 - Para el HMI
     int startTime = millis();
     int startTime2 = millis();
+    int startTime3 = millis();
     int tClock = millis();
     int ho=0;int mi=0;int se=0;
     int tScrRfsh = 125;
-    int tAckRfsh = 1500;
+    int tRotateNameRfsh = 200;
+    int waitUntilChangeDirection = 700;
+    bool canChageDirection = false;
+    bool waitForDelay = false;
 
 
     for(;;)
     {
 
-        server.handleClient();
         hmi.readUART();
 
         // Control por botones
@@ -2155,7 +3466,31 @@ void Task0code( void * pvParameters )
             stackFreeCore1 = uxTaskGetStackHighWaterMark(Task1);    
             stackFreeCore0 = uxTaskGetStackHighWaterMark(Task0);        
             hmi.updateInformationMainPage();
-          }           
+          }    
+
+          if ((millis() - startTime2) > tRotateNameRfsh && FILE_LOAD.length() > 44)
+          {
+            // Capturamos el texto con tamaño de la ventana
+            PROGRAM_NAME = FILE_LOAD.substring(posRotateName, posRotateName + windowNameLength);
+
+            // Lo rotamos segun el sentido que toque
+            posRotateName += moveDirection;
+            // Comprobamos limites para ver si hay que cambiar sentido
+            if (posRotateName > (FILE_LOAD.length() - windowNameLength))
+            {
+                moveDirection = -1;
+            }
+            
+            if (posRotateName < 0)
+            {
+                moveDirection = 1;
+                posRotateName = 0;
+            }
+
+            // Movemos el display de NAME
+            startTime2 = millis();
+          }     
+
         #endif
     }
   #endif
@@ -2163,11 +3498,14 @@ void Task0code( void * pvParameters )
 
 void setup() 
 {
+    // Inicializar puerto USB Serial a 115200 para depurar / subida de firm
+    Serial.begin(115200);
+    
     // Configuramos el size de los buffers de TX y RX del puerto serie
     SerialHW.setRxBufferSize(4096);
     SerialHW.setTxBufferSize(4096);
     // Configuramos la velocidad del puerto serie
-    SerialHW.begin(921600);
+    SerialHW.begin(SerialHWDataBits,SERIAL_8N1,hmiRxD,hmiTxD);
     //SerialHW.begin(512000);
     delay(125);
 
@@ -2186,17 +3524,19 @@ void setup()
     //SerialHW.println("Setting Audiokit.");
 
     // Configuramos los pulsadores
-    configureButtons();
+    // configureButtons();
 
     // Configuramos el ESP32kit
     LOGLEVEL_AUDIOKIT = AudioKitError;
 
+    // ----------------------------------------------------------------------
+    // ES IMPORTANTE NO ELIMINAR ESTA LINEA PORQUE HABILITA EL SLOT de la SD
     // Configuracion de las librerias del AudioKit
+    hmi.writeString("statusLCD.txt=\"Setting audio\"");
     setAudioOutput();
+    // 
+    // ----------------------------------------------------------------------
 
-    //SerialHW.println("Done!");
-
-    //SerialHW.println("Initializing SD SLOT.");
     
     // Configuramos acceso a la SD
     hmi.writeString("statusLCD.txt=\"WAITING FOR SD CARD\"" );
@@ -2223,6 +3563,73 @@ void setup()
     delay(125);
 
     // -------------------------------------------------------------------------
+    // Inicializar SPIFFS mínimo
+    // -------------------------------------------------------------------------
+    hmi.writeString("statusLCD.txt=\"Initializing SPIFFS\"" );    
+    initSPIFFS();
+    if (esp_spiffs_mounted)
+    {
+      hmi.writeString("statusLCD.txt=\"SPIFFS mounted\"" );
+    }
+    else
+    {
+      hmi.writeString("statusLCD.txt=\"SPIFFS error\"" );
+    }
+    delay(2000);
+    
+
+    // -------------------------------------------------------------------------
+    // Actualización OTA por SD
+    // -------------------------------------------------------------------------
+
+    log_v("");
+    log_v("Search for firmware..");
+    char strpath[20] = {};
+    strcpy(strpath,"/firmware.bin");
+    File32 firmware =  sdm.openFile32(strpath);
+    if (firmware) 
+    {
+      hmi.writeString("statusLCD.txt=\"New powadcr firmware found\"" );       
+      onOTAStart();
+      log_v("found!");
+      log_v("Try to update!");
+ 
+      Update.onProgress(onOTAProgress);
+ 
+      Update.begin(firmware.size(), U_FLASH);
+      Update.writeStream(firmware);
+      if (Update.end())
+      {
+        log_v("Update finished!");
+        hmi.writeString("statusLCD.txt=\"Update finished\"" );        
+        onOTAEnd(true);
+      }
+      else
+      {
+        log_e("Update error!");
+        hmi.writeString("statusLCD.txt=\"Update error\"" );         
+        onOTAEnd(false);
+      }
+ 
+      firmware.close();
+ 
+      if (sdf.remove(strpath))
+      {
+        log_v("Firmware deleted succesfully!");
+      }
+      else{
+        log_e("Firmware delete error!");
+      }
+      delay(2000);
+ 
+      ESP.restart();
+    }
+    else
+    {
+      log_v("not found!");
+    }
+
+    // -------------------------------------------------------------------------
     // Actualizacion del HMI
     // -------------------------------------------------------------------------
     if (sdf.exists("/powadcr_iface.tft"))
@@ -2247,7 +3654,7 @@ void setup()
     if(loadWifiCfgFile());
     {
       //Si la conexión es correcta se actualiza el estado del HMI
-      if(wifiOTASetup())
+      if(wifiSetup())
       {
           // Enviamos información al menu
           hmi.writeString("menu.wifissid.txt=\"" + String(ssid) + "\"");
@@ -2258,18 +3665,22 @@ void setup()
           delay(125);
           hmi.writeString("menu.wifiEn.val=1");      
           delay(125);
+
+
+          configureWebServer();
+          server.begin(); 
       }
     }
 
     delay(750);
 
     // Creamos el directorio /fav
-    String favDir = "/FAV";
+    String fDir = "/FAV";
     
     //Esto lo hacemos para ver si el directorio existe
-    if (!sdf.chdir(favDir))
+    if (!sdf.chdir(fDir))
     {
-        if (!sdf.mkdir(favDir))
+        if (!sdf.mkdir(fDir))
         {
           #ifdef DEBUGMODE
             logln("");
@@ -2284,12 +3695,54 @@ void setup()
         }
     }
 
+    // Creamos el directorio /rec
+    fDir = "/REC";
+    
+    //Esto lo hacemos para ver si el directorio existe
+    if (!sdf.chdir(fDir))
+    {
+        if (!sdf.mkdir(fDir))
+        {
+          #ifdef DEBUGMODE
+            logln("");
+            log("Error! Directory exists or wasn't created");
+          #endif
+        } 
+        else
+        {
+          hmi.writeString("statusLCD.txt=\"Creating REC directory\"" );
+          hmi.reloadCustomDir("/");
+          delay(750);
+        }
+    }
+
+    // Creamos el directorio /rec
+    fDir = "/WAV";
+    
+    //Esto lo hacemos para ver si el directorio existe
+    if (!sdf.chdir(fDir))
+    {
+        if (!sdf.mkdir(fDir))
+        {
+          #ifdef DEBUGMODE
+            logln("");
+            log("Error! Directory exists or wasn't created");
+          #endif
+        } 
+        else
+        {
+          hmi.writeString("statusLCD.txt=\"Creating WAV directory\"" );
+          hmi.reloadCustomDir("/");
+          delay(750);
+        }
+    }    
     // -------------------------------------------------------------------------
     // Esperando control del HMI
     // -------------------------------------------------------------------------
     
     //Paramos la animación de la cinta1
     tapeAnimationOFF();  
+    // changeLogo(0);
 
     hmi.writeString("statusLCD.txt=\"WAITING FOR HMI\"" );
     waitForHMI(CFG_FORZE_SINC_HMI);
@@ -2307,11 +3760,11 @@ void setup()
     // Asignamos el HMI
     pTAP.set_HMI(hmi);
     pTZX.set_HMI(hmi);
-    pTSX.set_HMI(hmi);
+    // pTSX.set_HMI(hmi);
     //y el gestor de ficheros
     pTAP.set_SDM(sdm);
     pTZX.set_SDM(sdm);
-    pTSX.set_SDM(sdm);
+    // pTSX.set_SDM(sdm);
 
     zxp.set_ESP32kit(ESP32kit);
     
@@ -2369,7 +3822,6 @@ void setup()
     #ifdef DEBUGMODE
       hmi.writeString("tape.name.txt=\"DEBUG MODE ACTIVE\"" );
     #endif
-
 }
 
 void loop()

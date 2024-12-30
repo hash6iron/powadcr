@@ -36,60 +36,6 @@
 class TSXprocessor
 {
 
-    public:
-
-      struct tTimming
-      {
-        int bit_0 = 855;
-        int bit_1 = 1710;
-        int pilot_len = 2168;
-        int pilot_num_pulses = 0;
-        int sync_1 = 667;
-        int sync_2 = 735;
-        int pure_tone_len = 0;
-        int pure_tone_num_pulses = 0;
-        int pulse_seq_num_pulses = 0;
-        int* pulse_seq_array;
-        int bitcfg;
-        int bytecfg;
-      };
-
-      // Estructura de un descriptor de TSX
-      struct tTSXBlockDescriptor 
-      {
-        int ID = 0;
-        int offset = 0;
-        int size = 0;
-        int chk = 0;
-        int pauseAfterThisBlock = 1000;   //ms
-        int lengthOfData = 0;
-        int offsetData = 0;
-        char name[15];
-        bool nameDetected = false;
-        bool header = false;
-        bool screen = false;
-        int type = 0;
-        bool playeable = false;
-        int delay = 1000;
-        int silent;
-        int maskLastByte = 8;
-        bool hasMaskLastByte = false;
-        tTimming timming;
-        char typeName[36];
-        int group = 0;
-        int loop_count = 0;
-        bool jump_this_ID = false;
-      };
-
-      // Estructura tipo TSX
-      struct tTSX
-      {
-        char name[11];                               // Nombre del TSX
-        int size = 0;                             // Tamaño
-        int numBlocks = 0;                        // Numero de bloques
-        tTSXBlockDescriptor* descriptor = nullptr;          // Descriptor
-      };
-
     private:
 
     const char ID10STR[35] = "ID 10 - Standard block            ";
@@ -140,23 +86,12 @@ class TSXprocessor
         // Calculamos el checksum de un bloque de bytes
         uint8_t newChk = 0;
 
-        #if LOG>3
-          ////SerialHW.println("");
-          ////SerialHW.println("Block len: ");
-          ////SerialHW.print(sizeof(bBlock)/sizeof(uint8_t*));
-        #endif
-
         // Calculamos el checksum (no se contabiliza el ultimo numero que es precisamente el checksum)
         
         for (int n=startByte;n<(startByte+numBytes);n++)
         {
             newChk = newChk ^ bBlock[n];
         }
-
-        #if LOG>3
-          ////SerialHW.println("");
-          ////SerialHW.println("Checksum: " + String(newChk));
-        #endif
 
         return newChk;
     }      
@@ -192,18 +127,15 @@ class TSXprocessor
       if (TSXFile != 0)
       {
 
-          ////SerialHW.println("");
-          ////SerialHW.println("Begin isHeaderTSX");
-
           // Capturamos la cabecera
+          uint8_t* bBlock = (uint8_t*)ps_calloc(10+1,sizeof(uint8_t));
+          sdm.readFileRange32(TSXFile,bBlock,0,10,false); 
 
-          uint8_t* bBlock = sdm.readFileRange32(TSXFile,0,10,false); 
+          // Obtenemos la firma del TSX
+          char signTSXHeader[9];
 
-        // Obtenemos la firma del TSX
-        char signTSXHeader[9];
-
-        // Analizamos la cabecera
-        // Extraemos el nombre del programa
+          // Analizamos la cabecera
+          // Extraemos el nombre del programa
           for (int n=0;n<7;n++)
           {   
               signTSXHeader[n] = (char)bBlock[n];
@@ -216,9 +148,6 @@ class TSXprocessor
           //Convertimos a String
           String signStr = String(signTSXHeader);
           
-          ////SerialHW.println("");
-          ////SerialHW.println("Sign: " + signStr);
-
           if (signStr.indexOf("ZXTape!") != -1)
           {
               return true;
@@ -239,10 +168,9 @@ class TSXprocessor
         if (TSXFile != 0)
         {
           // Capturamos el nombre del fichero en szName
-          char* szName = (char*)ps_calloc(255,sizeof(char));
+          char szName[254];
           TSXFile.getName(szName,254);
           String fileName = String(szName);
-          free(szName);
 
           if (fileName != "")
           {
@@ -286,8 +214,10 @@ class TSXprocessor
     int getWORD(File32 mFile, int offset)
     {
         int sizeDW = 0;
-        uint8_t* ptr1 = sdm.readFileRange32(mFile,offset+1,1,false);
-        uint8_t* ptr2 = sdm.readFileRange32(mFile,offset,1,false);
+        uint8_t* ptr1 = (uint8_t*)ps_calloc(1+1,sizeof(uint8_t));
+        uint8_t* ptr2 = (uint8_t*)ps_calloc(1+1,sizeof(uint8_t));
+        sdm.readFileRange32(mFile,ptr1,offset+1,1,false);
+        sdm.readFileRange32(mFile,ptr2,offset,1,false);
         sizeDW = (256*ptr1[0]) + ptr2[0];
         free(ptr1);
         free(ptr2);
@@ -298,7 +228,9 @@ class TSXprocessor
     int getBYTE(File32 mFile, int offset)
     {
         int sizeB = 0;
-        uint8_t* ptr = sdm.readFileRange32(mFile,offset,1,false);
+        uint8_t* ptr = (uint8_t*)ps_calloc(1+1,sizeof(uint8_t));
+
+        sdm.readFileRange32(mFile,ptr,offset,1,false);
         sizeB = ptr[0];
         free(ptr);
 
@@ -308,32 +240,31 @@ class TSXprocessor
     int getNBYTE(File32 mFile, int offset, int n)
     {
         int sizeNB = 0;
-
+        uint8_t* ptr = (uint8_t*)ps_calloc(1+1,sizeof(uint8_t));
+        
         for (int i = 0; i<n;i++)
         {
-            sizeNB += pow(2,(8*i)) * (sdm.readFileRange32(mFile,offset+i,1,false)[0]);  
+            sdm.readFileRange32(mFile,ptr,offset+i,1,false);
+            sizeNB += pow(2,(8*i)) * (ptr[0]);  
         }
 
+        free(ptr);
         return sizeNB;           
     }
 
     int getID(File32 mFile, int offset)
     {
         // Obtenemos el ID
-        int ID = 0;
-        ID = getBYTE(mFile,offset);
-
-        return ID;      
+        return(getBYTE(mFile,offset));
     }
 
-    uint8_t* getBlock(File32 mFile, int offset, int size)
+    void getBlock(File32 mFile, uint8_t* &block, int offset, int size)
     {
         //Entonces recorremos el TSX. 
         // La primera cabecera SIEMPRE debe darse.
         // Obtenemos el bloque
-        uint8_t* block = (uint8_t*)ps_calloc(size+1,sizeof(uint8_t));
-        block = sdm.readFileRange32(mFile,offset,size,false);
-        return(block);
+        // uint8_t* block = (uint8_t*)ps_calloc(size+1,sizeof(uint8_t));
+        sdm.readFileRange32(mFile,block,offset,size,false);
     }
 
     bool verifyChecksum(File32 mFile, int offset, int size)
@@ -343,7 +274,7 @@ class TSXprocessor
         uint8_t chk = getBYTE(mFile,offset+size-1);
 
         uint8_t* block = (uint8_t*)ps_calloc(size+1,sizeof(uint8_t));
-        block = getBlock(mFile,offset,size-1);
+        getBlock(mFile,block,offset,size-1);
         uint8_t calcChk = calculateChecksum(block,0,size-1);
         free(block);
 
@@ -390,23 +321,7 @@ class TSXprocessor
         _myTSX.descriptor[currentBlock].ID = 16;
         _myTSX.descriptor[currentBlock].playeable = true;
         _myTSX.descriptor[currentBlock].offset = currentOffset;
-
-        // ////SerialHW.println("");
-        // ////SerialHW.println("Offset begin: ");
-        // ////SerialHW.print(currentOffset,HEX);
-
-        //SYNC1
-        // _zxp.SYNC1 = DSYNC1;
-        // //SYNC2
-        // _zxp.SYNC2 = DSYNC2;
-        // //PULSE PILOT
-        // _zxp.PILOT_PULSE_LEN = DPILOT_LEN;                              
-        // // BTI 0
-        // _zxp.BIT_0 = DBIT_0;
-        // // BIT1                                          
-        // _zxp.BIT_1 = DBIT_1;
-        // No contamos el ID. Entonces:
-        
+       
         // Timming de la ROM
         _myTSX.descriptor[currentBlock].timming.pilot_len = DPILOT_LEN;
         _myTSX.descriptor[currentBlock].timming.sync_1 = DSYNC1;
@@ -418,22 +333,12 @@ class TSXprocessor
         // BYTE 0x00 y 0x01
         _myTSX.descriptor[currentBlock].pauseAfterThisBlock = getWORD(mFile,currentOffset+1);
 
-        // ////SerialHW.println("");
-        // ////SerialHW.println("Pause after block: " + String(_myTSX.descriptor[currentBlock].pauseAfterThisBlock));
         // Obtenemos el "tamaño de los datos"
         // BYTE 0x02 y 0x03
         _myTSX.descriptor[currentBlock].lengthOfData = getWORD(mFile,currentOffset+3);
 
-        // ////SerialHW.println("");
-        // ////SerialHW.println("Length of data: ");
-        // ////SerialHW.print(_myTSX.descriptor[currentBlock].lengthOfData,HEX);
-
         // Los datos (TAP) empiezan en 0x04. Posición del bloque de datos.
         _myTSX.descriptor[currentBlock].offsetData = currentOffset + 5;
-
-        // ////SerialHW.println("");
-        // ////SerialHW.println("Offset of data: ");
-        // ////SerialHW.print(_myTSX.descriptor[currentBlock].offsetData,HEX);
 
         // Vamos a verificar el flagByte
         int flagByte = getBYTE(mFile,_myTSX.descriptor[currentBlock].offsetData);
@@ -456,7 +361,8 @@ class TSXprocessor
               //_myTSX.name = "TSX";
               if (!PROGRAM_NAME_DETECTED)
               {
-                  uint8_t* block = getBlock(mFile,_myTSX.descriptor[currentBlock].offsetData,19);
+                  uint8_t* block = (uint8_t*)ps_calloc(19+1,sizeof(uint8_t));
+                  getBlock(mFile,block,_myTSX.descriptor[currentBlock].offsetData,19);
                   gName = getNameFromStandardBlock(block);
                   PROGRAM_NAME = String(gName);
                   PROGRAM_NAME_DETECTED = true;
@@ -487,7 +393,8 @@ class TSXprocessor
                   _myTSX.descriptor[currentBlock].type = 7;
 
                   // Almacenamos el nombre del bloque
-                  uint8_t* block =getBlock(mFile,_myTSX.descriptor[currentBlock].offsetData,19);
+                  uint8_t* block = (uint8_t*)ps_calloc(19+1,sizeof(uint8_t));
+                  getBlock(mFile,block,_myTSX.descriptor[currentBlock].offsetData,19);
                   gName = getNameFromStandardBlock(block);
                   strncpy(_myTSX.descriptor[currentBlock].name,gName,14);
                   free(block);
@@ -498,7 +405,8 @@ class TSXprocessor
                 _myTSX.descriptor[currentBlock].type = 1;     
 
                 // Almacenamos el nombre del bloque
-                uint8_t* block = getBlock(mFile,_myTSX.descriptor[currentBlock].offsetData,19);
+                uint8_t* block = (uint8_t*)ps_calloc(19+1,sizeof(uint8_t));
+                getBlock(mFile,block,_myTSX.descriptor[currentBlock].offsetData,19);
                 gName = getNameFromStandardBlock(block);
                 strncpy(_myTSX.descriptor[currentBlock].name,gName,14);                       
                 free(block);
@@ -558,52 +466,24 @@ class TSXprocessor
         // Timming de PULSE PILOT
         _myTSX.descriptor[currentBlock].timming.pilot_len = getWORD(mFile,currentOffset+1);
 
-        ////SerialHW.println("");
-        ////SerialHW.print("PULSE PILOT=");
-        ////SerialHW.print(_myTSX.descriptor[currentBlock].timming.pulse_pilot, HEX);
-
         // Timming de SYNC_1
         _myTSX.descriptor[currentBlock].timming.sync_1 = getWORD(mFile,currentOffset+3);
-
-          //////SerialHW.println("");
-          ////SerialHW.print(",SYNC1=");
-          ////SerialHW.print(_myTSX.descriptor[currentBlock].timming.sync_1, HEX);
 
         // Timming de SYNC_2
         _myTSX.descriptor[currentBlock].timming.sync_2 = getWORD(mFile,currentOffset+5);
 
-          //////SerialHW.println("");
-          ////SerialHW.print(",SYNC2=");
-          ////SerialHW.print(_myTSX.descriptor[currentBlock].timming.sync_2, HEX);
-
         // Timming de BIT 0
         _myTSX.descriptor[currentBlock].timming.bit_0 = getWORD(mFile,currentOffset+7);
-
-          //////SerialHW.println("");
-          ////SerialHW.print(",BIT_0=");
-          ////SerialHW.print(_myTSX.descriptor[currentBlock].timming.bit_0, HEX);
 
         // Timming de BIT 1
         _myTSX.descriptor[currentBlock].timming.bit_1 = getWORD(mFile,currentOffset+9);        
 
-          //////SerialHW.println("");
-          ////SerialHW.print(",BIT_1=");
-          ////SerialHW.print(_myTSX.descriptor[currentBlock].timming.bit_1, HEX);
-
         // Timming de PILOT TONE
         _myTSX.descriptor[currentBlock].timming.pilot_num_pulses = getWORD(mFile,currentOffset+11);
-
-          //////SerialHW.println("");
-          ////SerialHW.print(",PILOT TONE=");
-          ////SerialHW.print(_myTSX.descriptor[currentBlock].timming.pilot_num_pulses, HEX);
 
         // Cogemos el byte de bits of the last byte
         _myTSX.descriptor[currentBlock].maskLastByte = getBYTE(mFile,currentOffset+13);
         _myTSX.descriptor[currentBlock].hasMaskLastByte = true;
-
-          //////SerialHW.println("");
-          ////SerialHW.print(",MASK LAST BYTE=");
-          ////SerialHW.print(_myTSX.descriptor[currentBlock].maskLastByte, HEX);
 
 
         // ********************************************************************
@@ -622,18 +502,9 @@ class TSXprocessor
         // BYTE 0x00 y 0x01
         _myTSX.descriptor[currentBlock].pauseAfterThisBlock = getWORD(mFile,currentOffset+14);
 
-        ////SerialHW.println("");
-        ////SerialHW.print("Pause after block: " + String(_myTSX.descriptor[currentBlock].pauseAfterThisBlock)+ " - 0x");
-        ////SerialHW.print(_myTSX.descriptor[currentBlock].pauseAfterThisBlock,HEX);
-        ////SerialHW.println("");
         // Obtenemos el "tamaño de los datos"
         // BYTE 0x02 y 0x03
         _myTSX.descriptor[currentBlock].lengthOfData = getNBYTE(mFile,currentOffset+16,3);
-
-        ////SerialHW.println("");
-        ////SerialHW.print("Length of data: ");
-        ////SerialHW.print(String(_myTSX.descriptor[currentBlock].lengthOfData));
-        ////SerialHW.println("");
 
         // Los datos (TAP) empiezan en 0x04. Posición del bloque de datos.
         _myTSX.descriptor[currentBlock].offsetData = currentOffset + 19;
@@ -641,11 +512,6 @@ class TSXprocessor
         // Almacenamos el nombre del bloque
         //_myTSX.descriptor[currentBlock].name = getNameFromStandardBlock(getBlock(mFile,_myTSX.descriptor[currentBlock].offsetData,19));
         
-        ////SerialHW.println("");
-        ////SerialHW.print("Offset of data: 0x");
-        ////SerialHW.print(_myTSX.descriptor[currentBlock].offsetData,HEX);
-        ////SerialHW.println("");
-
         // Vamos a verificar el flagByte
 
         int flagByte = getBYTE(mFile,_myTSX.descriptor[currentBlock].offsetData);
@@ -654,7 +520,8 @@ class TSXprocessor
         if (flagByte < 128)
         {
             // Es una cabecera
-            uint8_t* block = getBlock(mFile,_myTSX.descriptor[currentBlock].offsetData,19);
+            uint8_t* block = (uint8_t*)ps_calloc(19+1,sizeof(uint8_t));
+            getBlock(mFile,block,_myTSX.descriptor[currentBlock].offsetData,19);
             gName = getNameFromStandardBlock(block);
             strncpy(_myTSX.descriptor[currentBlock].name,gName,14);                       
             free(block);  
@@ -748,7 +615,8 @@ class TSXprocessor
         _myTSX.descriptor[currentBlock].timming.pulse_seq_num_pulses = num_pulses;
         
         // Reservamos memoria.
-        _myTSX.descriptor[currentBlock].timming.pulse_seq_array = new int[num_pulses]; 
+        _myTSX.descriptor[currentBlock].timming.pulse_seq_array = (int*)ps_calloc(num_pulses + 1,sizeof(int));
+        // _myTSX.descriptor[currentBlock].timming.pulse_seq_array = new int[num_pulses]; 
         
         // Tomamos ahora las longitudes
         int coff = currentOffset+2;
@@ -879,6 +747,45 @@ class TSXprocessor
         _myTSX.descriptor[currentBlock].size = _myTSX.descriptor[currentBlock].lengthOfData;        
     }
 
+    void analyzeID21(File32 mFile, int currentOffset, int currentBlock)
+    {
+      // ID-15 - Direct recording
+
+        _myTSX.descriptor[currentBlock].ID = 21;
+        _myTSX.descriptor[currentBlock].playeable = true;
+        _myTSX.descriptor[currentBlock].offset = currentOffset;
+
+        // Obtenemos el "pause despues del bloque"
+        // BYTE 0x00 y 0x01
+        _myTSX.descriptor[currentBlock].samplingRate = getWORD(mFile,currentOffset+1);
+        _myTSX.descriptor[currentBlock].pauseAfterThisBlock = getWORD(mFile,currentOffset+3);
+        // Esto es muy importante para el ID 0x15
+        // Used bits (samples) in last byte of data (1-8) (e.g. if this is 2, only first two samples of the last byte will be played)
+        _myTSX.descriptor[currentBlock].hasMaskLastByte = true;
+        _myTSX.descriptor[currentBlock].maskLastByte = getBYTE(mFile,currentOffset+5);
+
+        // Obtenemos el "tamaño de los datos"
+        // BYTE 0x02 y 0x03
+        _myTSX.descriptor[currentBlock].lengthOfData = getNBYTE(mFile,currentOffset+6,3);
+
+        // Los datos (TAP) empiezan en 0x04. Posición del bloque de datos.
+        _myTSX.descriptor[currentBlock].offsetData = currentOffset + 9;
+
+        // Vamos a verificar el flagByte
+
+        _myTSX.descriptor[currentBlock].type = 0; // Importante
+        _myTSX.descriptor[currentBlock].header = false;
+
+        // No contamos el ID
+        // La cabecera tiene 4 bytes de parametros y N bytes de datos
+        // pero para saber el total de bytes de datos hay que analizar el TAP
+        // int positionOfTAPblock = currentOffset + 4;
+        // dataTAPsize = getWORD(mFile,positionOfTAPblock + headerTAPsize + 1);
+        
+        // NOTA: Sumamos 2 bytes que son la DWORD que indica el dataTAPsize
+        _myTSX.descriptor[currentBlock].size = _myTSX.descriptor[currentBlock].lengthOfData;         
+    }
+
     void analyzeID32(File32 mFile, int currentOffset, int currentBlock)
     {
         // Pause or STOP the TAPE
@@ -995,7 +902,6 @@ class TSXprocessor
         _myTSX.descriptor[currentBlock].size = sizeBlock-1;         
     }
 
-
     void analyzeID33(File32 mFile, int currentOffset, int currentBlock)
     {
         // Group start
@@ -1017,7 +923,8 @@ class TSXprocessor
         // offset[ID] + tamaño_bloque
         _myTSX.descriptor[currentBlock].size = sizeTextInformation;
     }
-   void analyzeID53(File32 mFile, int currentOffset, int currentBlock)
+
+    void analyzeID53(File32 mFile, int currentOffset, int currentBlock)
     {
         _myTSX.descriptor[currentBlock].ID = 53;
         _myTSX.descriptor[currentBlock].playeable = false;
@@ -1030,219 +937,68 @@ class TSXprocessor
         SerialHW.println(sizeBlock,HEX);
     }
 
-
     void analyzeID75(File32 mFile, int currentOffset, int currentBlock)
     {
-        // _myTSX.descriptor[currentBlock].ID = 75;
-        // _myTSX.descriptor[currentBlock].playeable = true;
-        // _myTSX.descriptor[currentBlock].offset = currentOffset;
-        // _myTSX.descriptor[currentBlock].timming.sync_1 = 0;
-        // _myTSX.descriptor[currentBlock].timming.sync_2 = 0;
-        
-        // //Tamaño de los datos
-        // _myTSX.descriptor[currentBlock].lengthOfData = getNBYTE(mFile,currentOffset+1,4)-12;
-        // _myTSX.descriptor[currentBlock].size=_myTSX.descriptor[currentBlock].lengthOfData;
-        // #ifdef DEBUGMODE
-        //   logln("Tamaño datos: 0x" + String(_myTSX.descriptor[currentBlock].lengthOfData));
-        // #endif
+        // ID 0x4B
 
-        // _myTSX.descriptor[currentBlock].offsetData=currentOffset+17;
-
-        // //Pausa despues del bloque
-        // _myTSX.descriptor[currentBlock].pauseAfterThisBlock = getWORD(mFile,currentOffset+5);
-        // #ifdef DEBUGMODE
-        //   logln("Pause after block: " + String(_myTSX.descriptor[currentBlock].pauseAfterThisBlock));
-        // #endif
+        _myTSX.descriptor[currentBlock].ID = 75;
+        _myTSX.descriptor[currentBlock].playeable = true;
+        _myTSX.descriptor[currentBlock].offset = currentOffset;
+        _myTSX.descriptor[currentBlock].timming.sync_1 = 0;
+        _myTSX.descriptor[currentBlock].timming.sync_2 = 0;
         
-        // // Timming de PULSE PILOT
-        // _myTSX.descriptor[currentBlock].timming.pilot_len = getWORD(mFile,currentOffset+7);
-        // #ifdef DEBUGMODE
-        //   logln(",PULSE PILOT = " + String(_myTSX.descriptor[currentBlock].timming.pilot_len));
-        // #endif
-        
-        // // Timming de PILOT TONE
-        // _myTSX.descriptor[currentBlock].timming.pilot_num_pulses = getWORD(mFile,currentOffset+9);
-        // #ifdef DEBUGMODE
-        //   logln(",PULSE TONE = " + String(_myTSX.descriptor[currentBlock].timming.pilot_num_pulses));
-        // #endif
+        //Tamaño de los datos
+        _myTSX.descriptor[currentBlock].lengthOfData = getNBYTE(mFile,currentOffset+1,4)-12;
+        _myTSX.descriptor[currentBlock].size=_myTSX.descriptor[currentBlock].lengthOfData;
+        #ifdef DEBUGMODE
+          logln("");
+          logln("Tamaño datos: " + String(_myTSX.descriptor[currentBlock].lengthOfData) + " bytes");
+        #endif
 
-        // // Timming de ZERO
-        // _myTSX.descriptor[currentBlock].timming.bit_0 = getWORD(mFile,currentOffset+11);
-        // #ifdef DEBUGMODE
-        //   logln("PULSE ZERO = " + String(_myTSX.descriptor[currentBlock].timming.bit_0));
-        // #endif
-        
-        // // Timming de ONE
-        // _myTSX.descriptor[currentBlock].timming.bit_1 = getWORD(mFile,currentOffset+13);
-        // #ifdef DEBUGMODE
-        //   logln("PULSE ONE = " + String(_myTSX.descriptor[currentBlock].timming.bit_1));
-        // #endif
-        
-        // // Configuracion de los bits
-        //  _myTSX.descriptor[currentBlock].timming.bitcfg = getBYTE(mFile,currentOffset+15);
-        // int pzero;
-        // int pone;
-        // pzero=((_myTSX.descriptor[currentBlock].timming.bitcfg & 0b11110000)>>4);
-        // #ifdef DEBUGMODE
-        //   logln("PULSES FOR ZERO = " + String(pzero));
-        // #endif
-        // pone=((_myTSX.descriptor[currentBlock].timming.bitcfg & 0b00001111));
-        // #ifdef DEBUGMODE
-        //   logln("PULSES FOR ONE = " + String(pone));
-        // #endif
-      
+        _myTSX.descriptor[currentBlock].offsetData=currentOffset+17;
 
-        // //configuracion del byte
-        // int nlb;
-        // int vlb;
-        // int ntb;
-        // int vtb;
-        // _myTSX.descriptor[currentBlock].timming.bytecfg = getBYTE(mFile,currentOffset+16);
+        //Pausa despues del bloque
+        _myTSX.descriptor[currentBlock].pauseAfterThisBlock = getWORD(mFile,currentOffset+5);
+        #ifdef DEBUGMODE
+          logln("Pause after block: " + String(_myTSX.descriptor[currentBlock].pauseAfterThisBlock));
+        #endif
         
-        // nlb=((_myTSX.descriptor[currentBlock].timming.bytecfg & 0b11000000)>>6);
-        // #ifdef DEBUGMODE
-        //   logln(",NUMBERS OF LEADING BITS = "+String(nlb));
-        // #endif
+        // Timming de PULSE PILOT
+        _myTSX.descriptor[currentBlock].timming.pilot_len = getWORD(mFile,currentOffset+7);
+        #ifdef DEBUGMODE
+          logln(",PULSE PILOT = " + String(_myTSX.descriptor[currentBlock].timming.pilot_len));
+        #endif
         
-        // vlb=((_myTSX.descriptor[currentBlock].timming.bytecfg & 0b00100000)>>5);    
-        // #ifdef DEBUGMODE
-        //   logln(",VALUE OF LEADING BITS = "+String(vlb));
-        // #endif
+        // Timming de PILOT TONE
+        _myTSX.descriptor[currentBlock].timming.pilot_num_pulses = getWORD(mFile,currentOffset+9);
+        #ifdef DEBUGMODE
+          logln(",PULSE TONE = " + String(_myTSX.descriptor[currentBlock].timming.pilot_num_pulses));
+        #endif
+
+        // Timming de ZERO
+        _myTSX.descriptor[currentBlock].timming.bit_0 = getWORD(mFile,currentOffset+11);
+        #ifdef DEBUGMODE
+          logln("PULSE ZERO = " + String(_myTSX.descriptor[currentBlock].timming.bit_0));
+        #endif
         
-        // ntb=((_myTSX.descriptor[currentBlock].timming.bytecfg & 0b00011000)>>3);
-        // #ifdef DEBUGMODE
-        //   logln(",NUMBER OF TRAILING BITS = "+String(ntb));
-        // #endif
-
-        // vtb=((_myTSX.descriptor[currentBlock].timming.bitcfg & 0b00000100)>>2);
-        // #ifdef DEBUGMODE
-        //   logln(",VALUE OF TRAILING BITS = "+String(vtb));
-        // #endif
+        // Timming de ONE
+        _myTSX.descriptor[currentBlock].timming.bit_1 = getWORD(mFile,currentOffset+13);
+        #ifdef DEBUGMODE
+          logln("PULSE ONE = " + String(_myTSX.descriptor[currentBlock].timming.bit_1));
+        #endif
         
-        // #ifdef DEBUGMODE
-        //   logln(",ENDIANNESS=");
-        //   logln((_myTSX.descriptor[currentBlock].timming.bitcfg & 0b00000001));
-        // #endif
+        // Configuracion de los bits
+         _myTSX.descriptor[currentBlock].timming.bitcfg = getBYTE(mFile,currentOffset+15);     
 
-        
-        // int ldatos;
-        // int pulsosmaximos;
-        // int npulses[2];
-        // int vpulse[2];
-        // npulses[0]=pzero/2;
-        // npulses[1]=pone/2;
-        // vpulse[0]=(_myTSX.descriptor[currentBlock].timming.bit_0);
-        // vpulse[1]=(_myTSX.descriptor[currentBlock].timming.bit_1);
-        // ldatos=(_myTSX.descriptor[currentBlock].lengthOfData);
-        // pulsosmaximos=(_myTSX.descriptor[currentBlock].timming.pilot_num_pulses)+((npulses[vlb]*nlb)+128+(npulses[vtb]*ntb))*_myTSX.descriptor[currentBlock].lengthOfData;
 
-        // #ifdef DEBUGMODE
-        //   logln("Numero de pulsos: " + String(_myTSX.descriptor[currentBlock].timming.pilot_num_pulses));
-        //   logln("Pulsos maximos: "+String(pulsosmaximos));
-        // #endif
-        
-        // // Reservamos memoria dinamica
-        // _myTSX.descriptor[currentBlock].timming.pulse_seq_array = (int*)ps_calloc(pulsosmaximos+1,sizeof(int));
+        _myTSX.descriptor[currentBlock].timming.bytecfg = getBYTE(mFile,currentOffset+16);
+               
+        #ifdef DEBUGMODE
+          logln(",ENDIANNESS=");
+          logln(String(_myTSX.descriptor[currentBlock].timming.bitcfg & 0b00000001));
+        #endif
 
-        // #ifdef DEBUGMODE
-        //   logln("Longitud de los datos: "+String(ldatos));
-        // #endif
-        // // metemos el pilot
-        // int i;
-        // int p;
-
-        // for (p=0; p < (_myTSX.descriptor[currentBlock].timming.pilot_num_pulses); p++)
-        // {
-        //     _myTSX.descriptor[currentBlock].timming.pulse_seq_array[p] = _myTSX.descriptor[currentBlock].timming.pilot_len;
-        // }
-
-        // i=p;
-        
-        // #ifdef DEBUGMODE
-        //   log(">> Bucle del pilot - Iteraciones: " + String(p));
-        // #endif
-
-        // // metemos los datos
-        // int bRead;
-        // int lenPulse;
-        
-        // for (int i2=0;i2<ldatos;i2++) // por cada byte
-        // {
-        //   bRead=getBYTE(mFile,(_myTSX.descriptor[currentBlock].offsetData)+i2);
-        //   for (int i3=0;i3<nlb;i3++)  // por cada bit de inicio
-        //   {
-        //     for (int i4=0;i4<npulses[vlb];i4++)
-          
-        //     { lenPulse=vpulse[vlb];
-        //     _myTSX.descriptor[currentBlock].timming.pulse_seq_array[i]=lenPulse;
-            
-        //     i++;
-        //     _myTSX.descriptor[currentBlock].timming.pulse_seq_array[i]=lenPulse;
-            
-        //     i++;
-        //     }
-        //   }
-
-        //   //metemos el byte leido 
-        //   for (int n=0;n < 8;n++)                  
-        //   {
-        //       // Obtenemos el bit a transmitir
-        //       uint8_t bitMasked = bitRead(bRead, 0+n);
-
-        //       // Si el bit leido del BYTE es un "1"
-        //       if(bitMasked == 1)
-        //       {
-        //           // Procesamos "1"
-        //         for (int b1=0;b1<npulses[1];b1++)
-        //         {
-        //             _myTSX.descriptor[currentBlock].timming.pulse_seq_array[i]=vpulse[1];
-                    
-        //           i++;
-        //             _myTSX.descriptor[currentBlock].timming.pulse_seq_array[i]=vpulse[1];
-                  
-        //           i++;
-        //         } 
-                    
-        //       }
-        //       else
-        //       {
-        //           // En otro caso
-        //           // procesamos "0"
-        //           for (int b0=0;b0<npulses[0];b0++)
-        //           { _myTSX.descriptor[currentBlock].timming.pulse_seq_array[i]=vpulse[0];
-                    
-        //           i++;
-        //           _myTSX.descriptor[currentBlock].timming.pulse_seq_array[i]=vpulse[0];
-                  
-        //           i++;
-        //           }
-        //       }
-        //   }
-        //   for (int i3=0;i3<ntb;i3++)
-        //   {
-        //     for (int i4=0;i4<npulses[vtb];i4++)
-        //     { lenPulse=vpulse[vtb];
-        //         _myTSX.descriptor[currentBlock].timming.pulse_seq_array[i]=lenPulse;
-                
-        //         i++;
-        //         _myTSX.descriptor[currentBlock].timming.pulse_seq_array[i]=lenPulse;
-                
-        //         i++;
-        //     }
-        //   }
-        // }
-
-        // // Esto es para que tome los bloques como especiales
-        // _myTSX.descriptor[currentBlock].type = 99;
-        // _myTSX.descriptor[currentBlock].timming.pulse_seq_num_pulses=i;
-        
-        // #ifdef DEBUGMODE
-        //   logln("datos: "+String(ldatos));
-        //   logln("pulsos: "+String(i));
-        
-        //   logln("---------------------------------------------------------------------");
-        // #endif
-
+        _myTSX.descriptor[currentBlock].type = 99;
     }
 
     void analyzeBlockUnknow(int id_num, int currentOffset, int currentBlock)
@@ -1284,8 +1040,6 @@ class TSXprocessor
             }
             else
             {
-                ////SerialHW.println("");
-                ////SerialHW.println("Error: Not allocation memory for block ID 0x10");
                 res = false;
             }
             break;
@@ -1306,8 +1060,6 @@ class TSXprocessor
             }
             else
             {
-                ////SerialHW.println("");
-                ////SerialHW.println("Error: Not allocation memory for block ID 0x11");
                 res = false;
 
             }
@@ -1326,8 +1078,6 @@ class TSXprocessor
             }
             else
             {
-                ////SerialHW.println("");
-                ////SerialHW.println("Error: Not allocation memory for block ID 0x12");
                 res = false;
 
             }
@@ -1372,11 +1122,26 @@ class TSXprocessor
 
           // ID 15 - Direct Recording
           case 21:
-            ID_NOT_IMPLEMENTED = true;
-            // analyzeBlockUnknow(currentID,currentOffset, currentBlock);
-            // nextIDoffset = currentOffset + 1;            
-            // _myTSX.descriptor[currentBlock].typeName = "ID 15 - Direct REC";
-            res=false;              
+            if (_myTSX.descriptor != nullptr)
+            {
+                // Obtenemos la dirección del siguiente offset
+                analyzeID21(mFile,currentOffset, currentBlock);
+
+                nextIDoffset = currentOffset + _myTSX.descriptor[currentBlock].size + 9 + 1;;  
+                strncpy(_myTSX.descriptor[currentBlock].typeName,IDXXSTR,35);
+
+                // Informacion minima del fichero
+                PROGRAM_NAME = "Audio block (WAV)";
+                LAST_SIZE = _myTSX.descriptor[currentBlock].size;
+                
+                #ifdef DEBUGMODE
+                  log("ID 0x21 - DIRECT RECORDING");
+                #endif
+            }
+            else
+            {
+                res = false;
+            }               
             break;
 
           // ID 18 - CSW Recording
@@ -1414,8 +1179,6 @@ class TSXprocessor
             }
             else
             {
-                ////SerialHW.println("");
-                ////SerialHW.println("Error: Not allocation memory for block ID 0x20");
                 res = false;
             }
             break;
@@ -1437,10 +1200,7 @@ class TSXprocessor
             }
             else
             {
-                ////SerialHW.println("");
-                ////SerialHW.println("Error: Not allocation memory for block ID 0x21");
                 res = false;
-
             }
             break;                
 
@@ -1463,10 +1223,7 @@ class TSXprocessor
             }
             else
             {
-                ////SerialHW.println("");
-                ////SerialHW.println("Error: Not allocation memory for block ID 0x22");
                 res = false;
-
             }
             break;
 
@@ -1501,10 +1258,7 @@ class TSXprocessor
             }
             else
             {
-                ////SerialHW.println("");
-                ////SerialHW.println("Error: Not allocation memory for block ID 0x22");
                 res = false;
-
             }                
             break;
 
@@ -1526,10 +1280,7 @@ class TSXprocessor
             }
             else
             {
-                ////SerialHW.println("");
-                ////SerialHW.println("Error: Not allocation memory for block ID 0x22");
                 res = false;
-
             }                
             break;
 
@@ -1568,10 +1319,7 @@ class TSXprocessor
             }
             else
             {
-                ////SerialHW.println("");
-                ////SerialHW.println("Error: Not allocation memory for block ID 0x22");
                 res = false;
-
             }                
             break;
 
@@ -1627,8 +1375,6 @@ class TSXprocessor
             }
             else
             {
-                ////SerialHW.println("");
-                ////SerialHW.println("Error: Not allocation memory for block ID 0x30");
                 res = false;
             }                  
             break;
@@ -1649,8 +1395,6 @@ class TSXprocessor
             }
             else
             {
-                ////SerialHW.println("");
-                ////SerialHW.println("Error: Not allocation memory for block ID 0x30");
                 res = false;
             }       
             break;
@@ -1672,8 +1416,6 @@ class TSXprocessor
             }
             else
             {
-                ////SerialHW.println("");
-                ////SerialHW.println("Error: Not allocation memory for block ID 0x32");
                 res = false;
             }                  
             break;
@@ -1695,8 +1437,6 @@ class TSXprocessor
             }
             else
             {
-                ////SerialHW.println("");
-                ////SerialHW.println("Error: Not allocation memory for block ID 0x33");
                 res = false;
             }                  
             break;
@@ -1722,13 +1462,10 @@ class TSXprocessor
                 // Obtenemos la dirección del siguiente offset
                 analyzeID75(mFile,currentOffset, currentBlock);
                 nextIDoffset = currentOffset + _myTSX.descriptor[currentBlock].size + 17;
-                //SerialHW.println("nextIDoffset"+String(nextIDoffset));
                 strncpy(_myTSX.descriptor[currentBlock].typeName,ID4BSTR,35);
             }   
             else
             {
-                ////SerialHW.println("");
-                ////SerialHW.println("Error: Not allocation memory for block ID 0x4B");
                 res = false;
             }
             break;
@@ -1791,9 +1528,6 @@ class TSXprocessor
               // El objetivo es ENCONTRAR IDs y ultimo byte, y analizar el bloque completo para el descriptor.
               currentID = getID(mFile, currentOffset);
               
-             
-                
-
               // Por defecto el bloque no es reproducible
               _myTSX.descriptor[currentBlock].playeable	= false;
 
@@ -1811,49 +1545,53 @@ class TSXprocessor
                 endWithErrors = true;
               }
 
-                SerialHW.println("");
-                SerialHW.println("-----------------------------------------------");
-                SerialHW.print("TSX ID: 0x");
-                SerialHW.print(currentID, HEX);
-                SerialHW.println("");
-                SerialHW.println("block: " + String(currentBlock));
-                SerialHW.println("");
-                SerialHW.print("offset: 0x");
-                SerialHW.print(currentOffset, HEX);
-                SerialHW.println("");
-                SerialHW.print("next offset 0x");
-                SerialHW.println(nextIDoffset,HEX);
+              logln("");
+              logln("-----------------------------------------------");
+              log("TSX ID: ");
+              logHEX(currentID);
+              logln("");
+              logln("block: " + String(currentBlock));
+              logln("");
+              log("offset: ");
+              logHEX(currentOffset);
+              logln("");
+              log("next offset: ");
+              logHEX(nextIDoffset);
+              logln("");
+              logln("");
 
-                if(currentBlock > maxAllocationBlocks)
-                {
-                  #ifdef DEBUGMODE
-                    SerialHW.println("Error. TSX not possible to allocate in memory");
-                  #endif
+              if(currentBlock > maxAllocationBlocks)
+              {
+                #ifdef DEBUGMODE
+                  logln("Error. TSX not possible to allocate in memory");
+                #endif
 
-                  LAST_MESSAGE = "Error. Not enough memory for TSX";
+                LAST_MESSAGE = "Error. Not enough memory for TSX";
+                endTSX = true;
+                // Salimos
+                return;  
+              }
+              else
+              {}
+ 
+ 
+              if (nextIDoffset >= sizeTSX)
+              {
+                  // Finalizamos
                   endTSX = true;
-                  // Salimos
-                  return;  
-                }
-                else
-                {}
-                if (nextIDoffset >= sizeTSX)
-                {
-                    // Finalizamos
-                    endTSX = true;
-                }
-                else
-                {
-                    currentOffset = nextIDoffset;
-                }
+              }
+              else
+              {
+                  currentOffset = nextIDoffset;
+              }
 
-                TOTAL_BLOCKS = currentBlock;
-
-                //SerialHW.println("");
-                //SerialHW.println("+++++++++++++++++++++++++++++++++++++++++++++++");
-                //SerialHW.println("");
-
+              TOTAL_BLOCKS = currentBlock;
           }
+
+         
+          // Nos posicionamos en el bloque 1
+          BLOCK_SELECTED = 0;
+          _hmi.writeString("currentBlock.val=" + String(BLOCK_SELECTED + 1));
 
           _myTSX.numBlocks = currentBlock;
           _myTSX.size = sizeTSX;
@@ -2082,6 +1820,7 @@ class TSXprocessor
       // Obtenemos su tamaño total
       _mFile = TSXFile;
       _rlen = TSXFile.available();
+      _myTSX.size = TSXFile.size();
 
       if (_rlen != 0)
       {
@@ -2197,8 +1936,11 @@ class TSXprocessor
 
               // Calculamos el offset del bloque
               newOffset = offsetBase + (blockSizeSplit*n);
+              BYTES_INI = newOffset;
+
               // Accedemos a la SD y capturamos el bloque del fichero
-              bufferPlay = sdm.readFileRange32(_mFile, newOffset, blockSizeSplit, true);
+              bufferPlay = (uint8_t*)ps_calloc(blockSizeSplit,sizeof(uint8_t));
+              sdm.readFileRange32(_mFile,bufferPlay, newOffset, blockSizeSplit, true);
               // Mostramos en la consola los primeros y últimos bytes
               showBufferPlay(bufferPlay,blockSizeSplit,newOffset);     
               
@@ -2211,6 +1953,8 @@ class TSXprocessor
               {
                 _zxp.playDataPartition(bufferPlay, blockSizeSplit);
               }
+
+              free(bufferPlay);
             }
 
             // Ultimo bloque
@@ -2218,9 +1962,12 @@ class TSXprocessor
 
             // Calculamos el offset del último bloque
             newOffset = offsetBase + (blockSizeSplit*blocks);
+            BYTES_INI = newOffset;
+
             blockSizeSplit = lastBlockSize;
             // Accedemos a la SD y capturamos el bloque del fichero
-            bufferPlay = sdm.readFileRange32(_mFile, newOffset,blockSizeSplit, true);
+            bufferPlay = (uint8_t*)ps_calloc(blockSizeSplit,sizeof(uint8_t));
+            sdm.readFileRange32(_mFile,bufferPlay, newOffset,blockSizeSplit, true);
             // Mostramos en la consola los primeros y últimos bytes
             showBufferPlay(bufferPlay,blockSizeSplit,newOffset);         
             
@@ -2232,7 +1979,8 @@ class TSXprocessor
         else
         {
             // Si es mas pequeño que el SPLIT, se reproduce completo.
-            bufferPlay = sdm.readFileRange32(_mFile, descriptor.offsetData, descriptor.size, true);
+            bufferPlay = (uint8_t*)ps_calloc(descriptor.size,sizeof(uint8_t));
+            sdm.readFileRange32(_mFile,bufferPlay, descriptor.offsetData, descriptor.size, true);
             showBufferPlay(bufferPlay,descriptor.size,descriptor.offsetData);
             verifyChecksum(_mFile,descriptor.offsetData,descriptor.size);    
 
@@ -2263,6 +2011,142 @@ class TSXprocessor
       return res;
     }
 
+    void prepareID4B(int currentBlock, File32 mFile, int nlb, int vlb, int ntb, int vtb, int pzero, int pone, int offset, int ldatos, bool begin)
+    {
+        // Generamos la señal de salida
+        int pulsosmaximos;
+        int npulses[2];
+        int vpulse[2];
+
+        npulses[0] = pzero/2;
+        npulses[1] = pone/2;
+        vpulse[0] = (_myTSX.descriptor[currentBlock].timming.bit_0);
+        vpulse[1] = (_myTSX.descriptor[currentBlock].timming.bit_1);
+        pulsosmaximos = (_myTSX.descriptor[currentBlock].timming.pilot_num_pulses) + ((npulses[vlb] * nlb) + 128 + (npulses[vtb] * ntb)) * ldatos;
+
+
+        // Reservamos memoria dinamica
+        _myTSX.descriptor[currentBlock].timming.pulse_seq_array = (int*)ps_calloc(pulsosmaximos+1,sizeof(int));
+        // _myTSX.descriptor[currentBlock].timming.pulse_seq_array = new int[pulsosmaximos + 1]; 
+
+        #ifdef DEBUGMODE
+          logln("");
+          log(" - Numero de pulsos: " + String(_myTSX.descriptor[currentBlock].timming.pilot_num_pulses));
+          logln("");
+          log(" - Pulsos maximos: "+String(pulsosmaximos));
+          logln("");
+          log(" - Longitud de los datos: " + String(ldatos));
+        #endif
+
+        // metemos el pilot SOLO AL PRINCIPIO
+        int i;
+        int p;
+
+        if (begin)
+        {
+          for (p=0; p < (_myTSX.descriptor[currentBlock].timming.pilot_num_pulses); p++)
+          {
+              _myTSX.descriptor[currentBlock].timming.pulse_seq_array[p] = _myTSX.descriptor[currentBlock].timming.pilot_len;
+          }
+
+          i=p;
+        }
+        else
+        {
+          i=0;
+        }   
+
+        #ifdef DEBUGMODE
+          log(">> Bucle del pilot - Iteraciones: " + String(p));
+        #endif
+
+        // metemos los datos
+        uint8_t *bRead = (uint8_t*)ps_calloc(ldatos + 1,sizeof(uint8_t));
+        int lenPulse;
+        
+        // Leemos el bloque definido por la particion (ldatos) del fichero
+        getBlock(mFile, bRead, offset, ldatos);
+
+        for (int i2=0;i2<ldatos;i2++) // por cada byte
+        {
+
+            for (int i3=0;i3<nlb;i3++)  // por cada bit de inicio
+            {
+                for (int i4=0;i4<npulses[vlb];i4++)
+                { 
+                    lenPulse=vpulse[vlb];
+                    _myTSX.descriptor[currentBlock].timming.pulse_seq_array[i]=lenPulse;
+                  
+                    i++;
+                    _myTSX.descriptor[currentBlock].timming.pulse_seq_array[i]=lenPulse;
+                  
+                    i++;
+                }
+            }
+
+            //metemos el byte leido 
+            for (int n=0;n < 8;n++)                  
+            {
+                // Obtenemos el bit a transmitir
+                uint8_t bitMasked = bitRead(bRead[i2], 0 + n);
+
+                // Si el bit leido del BYTE es un "1"
+                if(bitMasked == 1)
+                {
+                    // Procesamos "1"
+                    for (int b1=0;b1<npulses[1];b1++)
+                    {
+                        _myTSX.descriptor[currentBlock].timming.pulse_seq_array[i]=vpulse[1];
+                        
+                        i++;
+                        _myTSX.descriptor[currentBlock].timming.pulse_seq_array[i]=vpulse[1];
+                      
+                        i++;
+                    }                       
+                }
+                else
+                {
+                    // En otro caso
+                    // procesamos "0"
+                    for (int b0=0;b0<npulses[0];b0++)
+                    { 
+                      _myTSX.descriptor[currentBlock].timming.pulse_seq_array[i]=vpulse[0];
+                      
+                      i++;
+                      _myTSX.descriptor[currentBlock].timming.pulse_seq_array[i]=vpulse[0];
+                    
+                      i++;
+                    }
+                }
+            }
+
+            for (int i3=0;i3<ntb;i3++)
+            {
+                for (int i4=0;i4<npulses[vtb];i4++)
+                { lenPulse=vpulse[vtb];
+                    _myTSX.descriptor[currentBlock].timming.pulse_seq_array[i]=lenPulse;
+                    
+                    i++;
+                    _myTSX.descriptor[currentBlock].timming.pulse_seq_array[i]=lenPulse;
+                    
+                    i++;
+                }
+            }
+        }
+
+        _myTSX.descriptor[currentBlock].timming.pulse_seq_num_pulses=i;
+        
+        #ifdef DEBUGMODE
+          logln("datos: "+String(ldatos));
+          logln("pulsos: "+String(i));
+        
+          logln("---------------------------------------------------------------------");
+        #endif    
+
+        free(bRead);
+    }
+
+
     int getIdAndPlay(int i)
     {
         // Inicializamos el buffer de reproducción. Memoria dinamica
@@ -2284,8 +2168,52 @@ class TSXprocessor
         // Ahora lo voy actualizando a medida que van avanzando los bloques.
         //PROGRAM_NAME_2 = _myTSX.descriptor[BLOCK_SELECTED].name;
 
+        DIRECT_RECORDING = false;
+
         switch (_myTSX.descriptor[i].ID)
         {
+            case 21:
+              DIRECT_RECORDING = true;
+              // 
+              PROGRAM_NAME = "Audio block (WAV)";
+              LAST_SIZE = _myTSX.descriptor[i].size;          
+              // 
+              if (_myTSX.descriptor[i].samplingRate == 79)
+              {
+                  SAMPLING_RATE = 44100;
+                  ESP32kit.setSampleRate(AUDIO_HAL_44K_SAMPLES);
+                  LAST_MESSAGE = "Direct recording at 44.1KHz";
+              }
+              else if (_myTSX.descriptor[i].samplingRate == 158)
+              {
+                  SAMPLING_RATE = 22050;
+                  ESP32kit.setSampleRate(AUDIO_HAL_22K_SAMPLES);
+                  LAST_MESSAGE = "Direct recording at 22.05KHz";
+              }
+              else
+              {
+                LAST_MESSAGE = "Direct recording sampling rate unknow";
+                delay(1500);
+                //Paramos la reproducción.
+
+                PAUSE = false;
+                STOP = true;
+                PLAY = false;
+
+                i = _myTSX.numBlocks+1;
+
+                LOOP_PLAYED = 0;
+                LAST_EAR_IS = down;
+                LOOP_START = 0;
+                LOOP_END = 0;
+                BL_LOOP_START = 0;
+                BL_LOOP_END = 0;                
+              }
+              // Ahora reproducimos
+              playBlock(_myTSX.descriptor[i]);
+              break;
+
+
             case 36:  
               //Loop start ID 0x24
               // El loop controla el cursor de bloque por tanto debe estar el primero
@@ -2356,7 +2284,7 @@ class TSXprocessor
                   }
 
                   // Enviamos info al HMI.
-                  _hmi.setBasicFileInformation(_myTSX.descriptor[BLOCK_SELECTED].name,_myTSX.descriptor[BLOCK_SELECTED].typeName,_myTSX.descriptor[BLOCK_SELECTED].size);                        
+                  _hmi.setBasicFileInformation(_myTSX.descriptor[BLOCK_SELECTED].name,_myTSX.descriptor[BLOCK_SELECTED].typeName,_myTSX.descriptor[BLOCK_SELECTED].size,_myTSX.descriptor[BLOCK_SELECTED].playeable);                        
                   //return newPosition;
               }
               else
@@ -2433,7 +2361,7 @@ class TSXprocessor
 
                     //Ahora vamos lanzando bloques dependiendo de su tipo
                     // Actualizamos HMI
-                    _hmi.setBasicFileInformation(_myTSX.descriptor[i].name,_myTSX.descriptor[i].typeName,_myTSX.descriptor[i].size);
+                    _hmi.setBasicFileInformation(_myTSX.descriptor[i].name,_myTSX.descriptor[i].typeName,_myTSX.descriptor[i].size,_myTSX.descriptor[i].playeable);
 
                     // Reproducimos el fichero
                     if (_myTSX.descriptor[i].type == 0) 
@@ -2478,11 +2406,8 @@ class TSXprocessor
                           case 17:
                             // Speed data - ID-11                            
                             playBlock(_myTSX.descriptor[i]);
-                            break;
-                                          
-                     
-                        }
-                                              
+                            break;                     
+                        }                                              
                     } 
                     else if (_myTSX.descriptor[i].type == 99)
                     {
@@ -2490,12 +2415,157 @@ class TSXprocessor
                         // Son bloques especiales de TONO GUIA o SECUENCIAS para SYNC
                         //
                         //int num_pulses = 0;
+                        int nlb;
+                        int vlb;
+                        int ntb;
+                        int vtb;
+                        int pzero;
+                        int pone;
+
+                        int ldatos;
+                        int offset;
+
+                        int bufferD;
+                        int partitions;
+                        int lastPartitionSize;
+                        int silence;
+
+                        bool begin = false;
+                      
 
                         switch (_myTSX.descriptor[i].ID)
                         {
                             case 75:
-                              // ID 0x4B - Reproducimos una secuencia. Pulsos de longitud contenidos en un array y repetición                                                                    
-                              _zxp.playCustomSequence(_myTSX.descriptor[i].timming.pulse_seq_array,_myTSX.descriptor[i].timming.pulse_seq_num_pulses);                                                                           
+
+
+                              //configuracion del byte
+                              pzero=((_myTSX.descriptor[i].timming.bitcfg & 0b11110000)>>4);
+                              pone=((_myTSX.descriptor[i].timming.bitcfg & 0b00001111));
+                              nlb=((_myTSX.descriptor[i].timming.bytecfg & 0b11000000)>>6);
+                              vlb=((_myTSX.descriptor[i].timming.bytecfg & 0b00100000)>>5);    
+                              ntb=((_myTSX.descriptor[i].timming.bytecfg & 0b00011000)>>3);
+                              vtb=((_myTSX.descriptor[i].timming.bitcfg & 0b00000100)>>2);
+
+                              #ifdef DEBUGMODE
+                                logln("");
+                                log("ID 0x4B:");
+                                log("PULSES FOR ZERO = " + String(pzero));
+                                log(" - " + String(_myTSX.descriptor[i].timming.bit_0) + " - ");
+                                log(",PULSES FOR ONE = " + String(pone));
+                                log(" - " + String(_myTSX.descriptor[i].timming.bit_1) + " - ");
+                                log(",NUMBERS OF LEADING BITS = "+String(nlb));
+                                log(",VALUE OF LEADING BITS = "+String(vlb));
+                                log(",NUMBER OF TRAILING BITS = "
+                                +String(ntb));
+                                log(",VALUE OF TRAILING BITS = "+String(vtb));
+                              #endif
+
+
+                              // Conocemos la longitud total del bloque de datos a reproducir
+                              ldatos = _myTSX.descriptor[i].lengthOfData;
+                              // Nos quedamos con el offset inicial
+                              offset = _myTSX.descriptor[i].offsetData;
+                              
+                              BYTES_INI = offset;
+                              PROGRESS_BAR_TOTAL_VALUE = (BYTES_INI * 100 ) / BYTES_TOBE_LOAD ;
+
+                              bufferD = 1024;  // Buffer de BYTES de datos convertidos a samples
+                              // Reservamos memoria dinamica
+
+
+                              partitions = ldatos / bufferD;
+                              lastPartitionSize = ldatos - (partitions * bufferD);
+
+                              silence = _myTSX.descriptor[i].pauseAfterThisBlock;
+                              
+                              #ifdef DEBUGMODE
+                                log(",SILENCE = "+String(silence) + " ms");                              
+
+                                logln("");
+                                log("Total data parts: " + String(partitions));
+                                logln("");
+                                log("----------------------------------------");
+                              #endif          
+
+                              TSX_PARTITIONED = false;
+
+                              if (ldatos > bufferD)
+                              {
+                                  TSX_PARTITIONED = true;
+                                  for(int n=0;n<partitions && !STOP && !PAUSE;n++)
+                                  {
+                                      if (n==0)
+                                      {
+                                        begin = true;
+                                      }
+                                      else
+                                      {
+                                        begin = false;
+                                      }
+
+                                      #ifdef DEBUGMODE
+                                        logln("");
+                                        log("Part [" + String(n) + "] - offset: ");
+                                        logHEX(offset);
+                                      #endif
+
+                                      prepareID4B(i,_mFile,nlb,vlb,ntb,vtb,pzero,pone, offset, bufferD, begin);
+                                      // ID 0x4B - Reproducimos una secuencia. Pulsos de longitud contenidos en un array y repetición                                                                    
+                                      
+
+                                      _zxp.playCustomSequence(_myTSX.descriptor[i].timming.pulse_seq_array,_myTSX.descriptor[i].timming.pulse_seq_num_pulses,0.0);                                                                           
+                                      offset += bufferD;
+                                      BYTES_INI += bufferD;
+                                      PROGRESS_BAR_TOTAL_VALUE = (BYTES_INI * 100 ) / BYTES_TOBE_LOAD ;
+
+                                      // Liberamos el array
+                                      free(_myTSX.descriptor[i].timming.pulse_seq_array);
+                                      // delete[] _myTSX.descriptor[i].timming.pulse_seq_array;
+                                  }
+
+
+                                  if (!STOP && !PAUSE)
+                                  {
+                                      // Ultima particion
+                                      prepareID4B(i,_mFile,nlb,vlb,ntb,vtb,pzero,pone, offset, lastPartitionSize,false);
+                                      // ID 0x4B - Reproducimos una secuencia. Pulsos de longitud contenidos en un array y repetición                                                                    
+                                      BYTES_INI += lastPartitionSize;
+
+                                      _zxp.playCustomSequence(_myTSX.descriptor[i].timming.pulse_seq_array,_myTSX.descriptor[i].timming.pulse_seq_num_pulses,0.0); 
+                                      // Liberamos el array
+                                      free(_myTSX.descriptor[i].timming.pulse_seq_array);
+                                      // delete[] _myTSX.descriptor[i].timming.pulse_seq_array;
+                                      // Pausa despues de bloque                                  
+                                      _zxp.silence(silence,0.0);
+                                  }
+
+                                  #ifdef DEBUGMODE
+                                    logln("Finish");
+                                  #endif
+
+                              }
+                              else
+                              {
+                                  #ifdef DEBUGMODE
+                                    logln(" - Only one data part");
+                                  #endif
+
+                                  if (!STOP && !PAUSE)
+                                  {                                      
+                                      // Una sola particion
+                                      prepareID4B(i,_mFile,nlb,vlb,ntb,vtb,pzero,pone, offset, ldatos,true);
+
+                                      // ID 0x4B - Reproducimos una secuencia. Pulsos de longitud contenidos en un array y repetición                                                                    
+                                      _zxp.playCustomSequence(_myTSX.descriptor[i].timming.pulse_seq_array,_myTSX.descriptor[i].timming.pulse_seq_num_pulses,0); 
+
+                                      // Liberamos el array
+                                      free(_myTSX.descriptor[i].timming.pulse_seq_array); 
+                                      // delete[] _myTSX.descriptor[i].timming.pulse_seq_array;
+                                      // Pausa despues de bloque 
+                                      _zxp.silence(silence,0.0); 
+                                  }                              
+                              }
+                             
                               break; 
 
                             case 18:
@@ -2538,12 +2608,15 @@ class TSXprocessor
                                   _zxp.BIT_1 = _myTSX.descriptor[i].timming.bit_1;
 
                                   // Recorremos el vector de particiones del bloque.
-                                  for (int n=0;n < blocks;n++)
+                                  for (int n=0;n < blocks && !STOP && !PAUSE;n++)
                                   {
                                     // Calculamos el offset del bloque
                                     newOffset = offsetBase + (blockSizeSplit*n);
+                                    BYTES_INI = newOffset;
+
                                     // Accedemos a la SD y capturamos el bloque del fichero
-                                    bufferPlay = sdm.readFileRange32(_mFile, newOffset, blockSizeSplit, true);
+                                    bufferPlay = (uint8_t*)ps_calloc(blockSizeSplit,sizeof(uint8_t));
+                                    sdm.readFileRange32(_mFile,bufferPlay, newOffset, blockSizeSplit, true);
                                     // Mostramos en la consola los primeros y últimos bytes
                                     showBufferPlay(bufferPlay,blockSizeSplit,newOffset);     
 
@@ -2567,49 +2640,63 @@ class TSXprocessor
                                       _zxp.playDataPartition(bufferPlay, blockSizeSplit);                                      
                                     #endif
 
+                                    free(bufferPlay);
+
                                   }
 
                                   // Ultimo bloque
-                                  // Calculamos el offset del último bloque
-                                  newOffset = offsetBase + (blockSizeSplit*blocks);
-                                  blockSizeSplit = lastBlockSize;
-                                  // Accedemos a la SD y capturamos el bloque del fichero
-                                  bufferPlay = sdm.readFileRange32(_mFile, newOffset,blockSizeSplit, true);
-                                  // Mostramos en la consola los primeros y últimos bytes
-                                  showBufferPlay(bufferPlay,blockSizeSplit,newOffset);         
+                                  if (!STOP && !PAUSE)
+                                  {
+                                      // Calculamos el offset del último bloque
+                                      newOffset = offsetBase + (blockSizeSplit*blocks);
+                                      BYTES_INI = newOffset;
 
-                                  #ifdef DEBUGMODE                                            
-                                    log("Block. LAST");
-                                    SerialHW.print(newOffset,HEX);
-                                    SerialHW.print(" - ");                                              
-                                    SerialHW.print(newOffset+blockSizeSplit,HEX);                                              
-                                    log("");
-                                    for (int j=0;j<blockSizeSplit;j++)
-                                    {
-                                        SerialHW.print(bufferPlay[j],HEX);
-                                        SerialHW.print(",");                                              
-                                    }
-                                  #else
-                                    // Reproducimos el ultimo bloque con su terminador y silencio si aplica
-                                    _zxp.playPureData(bufferPlay, blockSizeSplit);                                     
-                                  #endif
+                                      blockSizeSplit = lastBlockSize;
+                                      // Accedemos a la SD y capturamos el bloque del fichero
+                                      bufferPlay = (uint8_t*)ps_calloc(blockSizeSplit,sizeof(uint8_t));
+                                      sdm.readFileRange32(_mFile,bufferPlay, newOffset,blockSizeSplit, true);
+                                      // Mostramos en la consola los primeros y últimos bytes
+                                      showBufferPlay(bufferPlay,blockSizeSplit,newOffset);         
 
-                                  free(bufferPlay); 
+                                      #ifdef DEBUGMODE                                            
+                                        log("Block. LAST");
+                                        SerialHW.print(newOffset,HEX);
+                                        SerialHW.print(" - ");                                              
+                                        SerialHW.print(newOffset+blockSizeSplit,HEX);                                              
+                                        log("");
+                                        for (int j=0;j<blockSizeSplit;j++)
+                                        {
+                                            SerialHW.print(bufferPlay[j],HEX);
+                                            SerialHW.print(",");                                              
+                                        }
+                                      #else
+                                        // Reproducimos el ultimo bloque con su terminador y silencio si aplica
+                                        _zxp.playPureData(bufferPlay, blockSizeSplit);                                     
+                                      #endif
+
+                                      free(bufferPlay); 
+                                  }
                               }
                               else
                               {
-                                  bufferPlay = sdm.readFileRange32(_mFile, _myTSX.descriptor[i].offsetData, _myTSX.descriptor[i].size, true);
+                                      
+                                  if (!STOP && !PAUSE)
+                                  {
+                                      bufferPlay = (uint8_t*)ps_calloc(_myTSX.descriptor[i].size,sizeof(uint8_t));
+                                      sdm.readFileRange32(_mFile,bufferPlay, _myTSX.descriptor[i].offsetData, _myTSX.descriptor[i].size, true);
+                                      BYTES_INI = _myTSX.descriptor[i].offsetData;
 
-                                  showBufferPlay(bufferPlay,_myTSX.descriptor[i].size,_myTSX.descriptor[i].offsetData);
-                                  verifyChecksum(_mFile,_myTSX.descriptor[i].offsetData,_myTSX.descriptor[i].size);    
+                                      showBufferPlay(bufferPlay,_myTSX.descriptor[i].size,_myTSX.descriptor[i].offsetData);
+                                      verifyChecksum(_mFile,_myTSX.descriptor[i].offsetData,_myTSX.descriptor[i].size);    
 
-                                  // BTI 0
-                                  _zxp.BIT_0 = _myTSX.descriptor[i].timming.bit_0;
-                                  // BIT1                                          
-                                  _zxp.BIT_1 = _myTSX.descriptor[i].timming.bit_1;
-                                  //
-                                  _zxp.playPureData(bufferPlay, _myTSX.descriptor[i].size);
-                                  free(bufferPlay);                                  
+                                      // BTI 0
+                                      _zxp.BIT_0 = _myTSX.descriptor[i].timming.bit_0;
+                                      // BIT1                                          
+                                      _zxp.BIT_1 = _myTSX.descriptor[i].timming.bit_1;
+                                      //
+                                      _zxp.playPureData(bufferPlay, _myTSX.descriptor[i].size);
+                                      free(bufferPlay); 
+                                  }                                 
                               }                               
                               break;                          
                         }                      
@@ -2654,8 +2741,7 @@ class TSXprocessor
     {
 
         LOOP_PLAYED = 0;
-        // Inicializamos el buffer de reproducción. Memoria dinamica
-        //uint8_t* bufferPlay = nullptr;
+
         int firstBlockToBePlayed = 0;
         int dly = 0;
 
@@ -2675,23 +2761,35 @@ class TSXprocessor
               firstBlockToBePlayed = BLOCK_SELECTED;
 
               // Reiniciamos
-              if (BLOCK_SELECTED == 0) 
-              {
-                BYTES_LOADED = 0;
-                BYTES_TOBE_LOAD = _rlen;
-                PROGRESS_BAR_TOTAL_VALUE = (BYTES_LOADED * 100) / (BYTES_TOBE_LOAD);
-              } 
-              else 
-              {
-                BYTES_TOBE_LOAD = _rlen - _myTSX.descriptor[BLOCK_SELECTED - 1].offset;
-              }
+              BYTES_TOBE_LOAD = _rlen;
+              BYTES_LOADED = 0;
+
             
+              #ifdef DEBUGMODE
+                logln("");
+                log("Starting blocks loop");
+              #endif
 
               // Recorremos ahora todos los bloques que hay en el descriptor
               //-------------------------------------------------------------
               for (int i = firstBlockToBePlayed; i < _myTSX.numBlocks; i++) 
               {               
-                  BLOCK_SELECTED = i;                
+                  #ifdef DEBUGMODE
+                    logln("");
+                    log("Playing block " + String(i));
+                  #endif              
+
+                  BLOCK_SELECTED = i; 
+
+                  if (BLOCK_SELECTED == 0) 
+                  {
+                    BYTES_INI = 0;
+                  }
+                  else
+                  {
+                    BYTES_INI = _myTSX.descriptor[BLOCK_SELECTED].offset;
+                  }
+               
                   int new_i = getIdAndPlay(i);
                   // Entonces viene cambiada de un loop
                   if (new_i != -1)
@@ -2718,20 +2816,30 @@ class TSXprocessor
               if (LOADING_STATE == 1) 
               {
 
-                if(LAST_SILENCE_DURATION==0)
-                {_zxp.silence(2000);}
+                  if(LAST_SILENCE_DURATION==0)
+                  {_zxp.silence(2000);}
 
-                // Inicializamos la polarización de la señal
-                LAST_EAR_IS = POLARIZATION;       
+                  // Inicializamos la polarización de la señal
+                  LAST_EAR_IS = POLARIZATION;       
 
-                // Paramos
-                PLAY = false;
-                STOP = true;
-                PAUSE = false;
-                AUTO_STOP = true;
-                // LAST_MESSAGE = "Playing end. Automatic STOP.";
+                  // Paramos
+                  #ifdef DEBUGMODE
+                      logAlert("AUTO STOP launch.");
+                  #endif
 
-                _hmi.setBasicFileInformation(_myTSX.descriptor[BLOCK_SELECTED].name,_myTSX.descriptor[BLOCK_SELECTED].typeName,_myTSX.descriptor[BLOCK_SELECTED].size);
+                  PLAY = false;
+                  PAUSE = false;
+                  STOP = true;
+                  REC = false;
+                  ABORT = true;
+                  EJECT = false;
+
+                  BLOCK_SELECTED = 0;
+                  BYTES_LOADED = 0; 
+
+                  AUTO_STOP = true;
+
+                  _hmi.setBasicFileInformation(_myTSX.descriptor[BLOCK_SELECTED].name,_myTSX.descriptor[BLOCK_SELECTED].typeName,_myTSX.descriptor[BLOCK_SELECTED].size,_myTSX.descriptor[BLOCK_SELECTED].playeable);
               }
 
               // Cerrando
@@ -2749,7 +2857,7 @@ class TSXprocessor
         else
         {
             LAST_MESSAGE = "No file selected.";
-            _hmi.setBasicFileInformation(_myTSX.descriptor[BLOCK_SELECTED].name,_myTSX.descriptor[BLOCK_SELECTED].typeName,_myTSX.descriptor[BLOCK_SELECTED].size);
+            _hmi.setBasicFileInformation(_myTSX.descriptor[BLOCK_SELECTED].name,_myTSX.descriptor[BLOCK_SELECTED].typeName,_myTSX.descriptor[BLOCK_SELECTED].size,_myTSX.descriptor[BLOCK_SELECTED].playeable);
         }        
 
     }

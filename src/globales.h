@@ -47,6 +47,94 @@ int SD_SPEED_MHZ = 4;
 // ************************************************************
 
 // Estructura de un bloque
+struct tTimming
+{
+  int bit_0 = 855;
+  int bit_1 = 1710;
+  int pilot_len = 2168;
+  int pilot_num_pulses = 0;
+  int sync_1 = 667;
+  int sync_2 = 735;
+  int pure_tone_len = 0;
+  int pure_tone_num_pulses = 0;
+  int pulse_seq_num_pulses = 0;
+  int* pulse_seq_array=nullptr;
+  int bitcfg = 0;
+  int bytecfg = 0;
+};
+
+// Estructura del descriptor de bloques
+struct tTAPBlockDescriptor 
+{
+    bool corrupted = false;
+    int offset = 0;
+    int size = 0;
+    int chk = 0;
+    char name[11];
+    bool nameDetected = false;
+    bool header = false;
+    bool screen = false;
+    int type = 0;
+    char typeName[11];
+    bool playeable = true;
+}; 
+
+// Estructura de un descriptor de TZX
+struct tTZXBlockDescriptor 
+{
+  int ID = 0;
+  int offset = 0;
+  int size = 0;
+  int chk = 0;
+  int pauseAfterThisBlock = 1000;   //ms
+  int lengthOfData = 0;
+  int offsetData = 0;
+  char name[30];
+  bool nameDetected = false;
+  bool header = false;
+  bool screen = false;
+  int type = 0;
+  bool playeable = false;
+  int delay = 1000;
+  int silent;
+  int maskLastByte = 8;
+  bool hasMaskLastByte = false;
+  tTimming timming;
+  char typeName[36];
+  int group = 0;
+  int loop_count = 0;
+  bool jump_this_ID = false;
+  int samplingRate = 79;
+};
+
+// Estructura tipo TZX
+struct tTZX
+{
+  char name[11];                               // Nombre del TZX
+  uint32_t size = 0;                             // Tamaño
+  int numBlocks = 0;                        // Numero de bloques
+  bool hasGroupBlocks = false; 
+  tTZXBlockDescriptor* descriptor = nullptr;          // Descriptor
+};
+
+// Estructura tipo TSX
+// struct tTSX
+// {
+//   char name[11];                               // Nombre del TSX
+//   uint32_t size = 0;                             // Tamaño
+//   int numBlocks = 0;                        // Numero de bloques
+//   tTSXBlockDescriptor* descriptor = nullptr;          // Descriptor
+// };
+
+// Estructura tipo TAP
+struct tTAP 
+{
+    char name[11];                                  // Nombre del TAP
+    uint32_t size = 0;                                   // Tamaño
+    int numBlocks = 0;                              // Numero de bloques
+    tTAPBlockDescriptor* descriptor;            // Descriptor
+};
+
 struct tBlock 
 {
   int index = 0;            // Numero del bloque
@@ -54,7 +142,6 @@ struct tBlock
   uint8_t* header;      // Cabecera del bloque
   uint8_t* data;        // Datos del bloque
 };
-
 
 // Estructura para el HMI
 struct tFileBuffer
@@ -80,10 +167,13 @@ double INTPART = 0.0;
 
 // Timming estandar de la ROM
 // Frecuencia de la CPU
-//double DfreqCPU = 3476604.8;
-//double DfreqCPU = 3450000;
+// double DfreqCPU = 3450000;
+// double DfreqCPU = 3476604.8;
+// double DfreqCPU = 3500000;
+
+// Ajustamos este valor para un exacta frecuencia de oscilacion
+// aunque no coincida con el valor exacto real de la CPU
 double DfreqCPU = 3500000;
-//double DfreqCPU = 3250000;
 
 const int DPULSES_HEADER = 8063;
 const int DPULSES_DATA = 3223;
@@ -103,6 +193,16 @@ int DBIT_DR44_1 = 79;
 // A 22.05KHz
 int DBIT_DR22_0 = 158;
 int DBIT_DR22_1 = 158;
+// A 11KHz
+int DBIT_DR11_0 = 316;
+int DBIT_DR11_1 = 316;
+// A 22.05KHz
+int DBIT_DR08_0 = 319;
+int DBIT_DR08_1 = 319;
+//
+// Para direcrecord
+int BIT_DR_1 = 0;
+int BIT_DR_0 = 0;
 //
 bool DIRECT_RECORDING = false;
 
@@ -148,11 +248,17 @@ uint8_t TAPESTATE = 0;
 //  ZXProcessor
 //
 // --------------------------------------------------------------------------
-// Inicialmente se define como flanco up para que empiece en down.
+// Inicialmente se define como flanco DOWN para que empiece en UP.
 // Polarización de la señal.
-// Con esto hacemos que el primer pulso sea DOWN 
+// Con esto hacemos que el primer pulso sea UP 
 // (porque el ultimo era DOWN supuestamente)
-edge POLARIZATION = up;
+
+// Inversion de pulso
+// ------------------
+// Para que empiece en DOWN tenemos que poner POLARIZATION en UP
+// Una señal con INVERSION de pulso es POLARIZACION = UP (empieza en DOWN)
+
+edge POLARIZATION = down;
 edge LAST_EAR_IS = POLARIZATION;
 //edge SCOPE = down;
 bool APPLY_END = false;
@@ -214,6 +320,7 @@ String LAST_COMMAND = "";
 // Variables para intercambio de información con el HMI
 // DEBUG
 int BLOCK_SELECTED = 0;
+int POS_ROTATE_CASSETTE = 4;
 int PARTITION_BLOCK = 0;
 int TOTAL_PARTS = 0;
 
@@ -259,9 +366,13 @@ char LAST_TYPE[36];
 String lastType = "";
 // Para TZX / TSX
 String LAST_GROUP = "";
+bool LAST_BLOCK_WAS_GROUP_START = false;
+bool LAST_BLOCK_WAS_GROUP_END = false;
 String lastGrp = "";
 String LAST_MESSAGE = "";
+String HMI_FNAME = "";
 String lastMsn = "";
+String lastfname = "";
 int lastPr1 = 0;
 int lastPr2 = 0;
 int lastBl1 = 0;
@@ -278,8 +389,11 @@ int LAST_BIT_WIDTH = 0;
 int MULTIGROUP_COUNT = 1;
 
 int BYTES_LOADED = 0;
+int BYTES_INI = 0;
 int BYTES_TOBE_LOAD = 0;
+int BYTES_IN_THIS_BLOCK = 0;
 int BYTES_LAST_BLOCK = 0;
+bool TSX_PARTITIONED = false;
 int TOTAL_BLOCKS = 0;
 int LOOP_START = 0;
 int BL_LOOP_START = 0;
@@ -306,6 +420,7 @@ String FILE_PREVIOUS_DIR = "/";
 String FILE_LAST_DIR_LAST = "../";
 String SOURCE_FILE_TO_MANAGE = "_files.lst";
 String SOURCE_FILE_INF_TO_MANAGE = "_files.inf";
+bool LST_FILE_IS_OPEN = false;
 int FILE_LAST_INDEX = 0;
 int FILE_IDX_SELECTED = -1;
 bool FILE_SELECTED = false;
@@ -318,11 +433,12 @@ tFileBuffer FILES_FOUND_BUFF[MAX_FILES_FOUND_BUFF];
 
 int DIRCURRENTPOS = 0;
 int DIRPREVPOS = 0;
-String FILE_TO_LOAD = "";
+String PATH_FILE_TO_LOAD = "";
+String FILE_LOAD = "";
 String FILE_TO_DELETE = "";
 bool FILE_SELECTED_DELETE = false;
 String FILE_DIR_TO_CHANGE = "";
-int FILE_PTR_POS = 0;
+int FILE_PTR_POS = 1;
 int FILE_TOTAL_FILES = 0;
 int FILE_TOTAL_FILES_SEARCH = 0;
 int FILE_STATUS = 0;
@@ -330,6 +446,7 @@ int FILE_STATUS = 0;
 String FILE_PATH_SELECTED = "";
 bool FILE_DIR_OPEN_FAILED = false;
 bool FILE_BROWSER_OPEN = false;
+bool UPDATE = false;
 //bool FILE_BROWSER_SEARCHING = false;
 bool FILE_CORRUPTED = false;
 
@@ -339,12 +456,22 @@ String FILE_TXT_TO_SEARCH = "";
 //bool waitingRecMessageShown = false;
 int CURRENT_PAGE = 0;
 
+// Block browser
+bool BB_OPEN = false;
+bool BB_UPDATE = false;
+int BB_PAGE = 0;
+int BB_PTR_ITEM = 0;
+bool UPDATE_HMI = false;
+
 // Variables de control de la reproducción
 bool PLAY = false;
+bool BTN_PLAY_PRESSED = false;
+
 bool PAUSE = true;
 bool REC = false;
 bool STOP = false;
 bool AUTO_STOP = false;
+bool AUTO_PAUSE = false;
 bool FFWIND = false;
 bool RWIND = false;
 bool EJECT = false;
@@ -355,6 +482,7 @@ bool RIGHT = false;
 bool ENTER = false;
 bool LCD_ON = false;
 bool ABORT = false;
+bool DISABLE_SD = false;
 
 //Estado de acciones de reproducción
 const int PLAY_ST = 0;
@@ -372,18 +500,19 @@ double MAIN_VOL_FACTOR = 100;
 double MAIN_VOL = 0.9 * MAIN_VOL_FACTOR;
 double MAIN_VOL_R = 0.9 * MAIN_VOL_FACTOR;
 double MAIN_VOL_L = 0.9 * MAIN_VOL_FACTOR;
-double LAST_MAIN_VOL = 0.9 * MAIN_VOL_FACTOR;
-double LAST_MAIN_VOL_R = 0.9 * MAIN_VOL_FACTOR;
-double LAST_MAIN_VOL_L = 0.9 * MAIN_VOL_FACTOR;
+// double LAST_MAIN_VOL = 0.9 * MAIN_VOL_FACTOR;
+// double LAST_MAIN_VOL_R = 0.9 * MAIN_VOL_FACTOR;
+// double LAST_MAIN_VOL_L = 0.9 * MAIN_VOL_FACTOR;
 double MAX_MAIN_VOL = 1 * MAIN_VOL_FACTOR;
 double MAX_MAIN_VOL_R = 1 * MAIN_VOL_FACTOR;
 double MAX_MAIN_VOL_L = 1 * MAIN_VOL_FACTOR;
 int EN_STEREO = 0;
+bool ACTIVE_AMP = false;
 bool wasHeadphoneDetected = false;
 bool wasHeadphoneAmpDetected = false;
 bool preparingTestInOut = false;
 
-bool SCREEN_IS_LOADING = false;
+// bool SCREEN_IS_LOADING = false;
 bool BLOCK_REC_COMPLETED = false;
 
 // Gestion de menú
@@ -393,18 +522,19 @@ int nMENU = 0;
 
 void logHEX(int n)
 {
-    SerialHW.print(" 0x");
-    SerialHW.print(n,HEX);
+    Serial.print(" 0x");
+    Serial.print(n,HEX);
 }
 
 void log(String txt)
 {
-    SerialHW.print(txt);
+    Serial.print(txt);
 }
 
 void logln(String txt)
 {
-    SerialHW.println(txt);
+    Serial.println("");
+    Serial.print(txt);
 }
 
 String lastAlertTxt = "";
@@ -415,9 +545,9 @@ void logAlert(String txt)
     // esta rutina es perfecta para no llenar el buffer de salida serie con mensajes ciclicos
     if (lastAlertTxt != txt)
     {
-      SerialHW.println("");
-      SerialHW.println(txt);
-      SerialHW.println("");
+      Serial.println("");
+      Serial.print(txt);
+      Serial.println("");
     }
 
     lastAlertTxt = txt;
