@@ -140,5 +140,8 @@ IPAddress gateway(0, 0, 0, 0);
 IPAddress primaryDNS(0, 0, 0, 0); // Not Mandatory
 IPAddress secondaryDNS(0, 0, 0, 0);     // Not Mandatory
 
+// HMI
+#define windowNameLength 44
+#define tRotateNameRfsh 230
 
 

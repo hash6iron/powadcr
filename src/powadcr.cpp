@@ -1384,7 +1384,6 @@ void updateIndicators(int size, int pos, int fsize, String fname)
     hmi.writeString("tape.totalBlocks.val=" + String(size));
     hmi.writeString("tape.currentBlock.val=" + String(pos));
     hmi.writeString("type.txt=\"WAV file\"");
-    hmi.writeString("name.txt=\"" + String(fname) + "\"");
 
     if (fsize < 1000000)
     {
@@ -1404,11 +1403,12 @@ void playWAV()
     int status = 0;
     int fileSize = 0;
     int fileread = 0;
-    int startTime = millis();
-
+    int startTime = millis(); 
+    int stateWAVplayer = 0;
     int totalFilesIdx = 0;
     int currentFileIdx = 0;
-    String currentFileName = "";
+    String txtR = "";
+
 
     AudioInfo info(44100, 2, 16);
     // ADPCMDecoder adpcm_decoder(AV_CODEC_ID_ADPCM_IMA_WAV); 
@@ -1462,12 +1462,8 @@ void playWAV()
         // Indicadores
         totalFilesIdx = source.size() + 1;
         currentFileIdx = source.index() + 1;
-        currentFileName = source.toStr();
+        FILE_LOAD = source.toStr();
 
-        // updateIndicators(, source.index() + 1, fileSize, ); 
-
-        int stateWAVplayer = 0;
-        
         while(!EJECT && !REC)
         {          
           
@@ -1484,7 +1480,7 @@ void playWAV()
                     // Indicadores
                     totalFilesIdx = source.size() + 1;
                     currentFileIdx = source.index() + 1;
-                    currentFileName = source.toStr();   
+                    FILE_LOAD = source.toStr();   
 
                     currentIdx = source.index();
                     logln("Current IDX: " + String(currentIdx));
@@ -1512,17 +1508,13 @@ void playWAV()
                     // hmi.writeString("name.txt=\"" + String(source.toStr()) + "\"");
                     fileSize = getWAVfileSize(source.toStr());
 
-
                     // Ahora el current index ha cambiado
                     currentIdx = source.index();
-
-                    // Informamos
-                    // updateIndicators(source.size() + 1, source.index() + 1, fileSize, source.toStr()); 
   
                     // Indicadores
                     totalFilesIdx = source.size() + 1;
                     currentFileIdx = source.index() + 1;
-                    currentFileName = source.toStr();
+                    FILE_LOAD = source.toStr();
 
                     FFWIND = false;
                     RWIND = false;
@@ -1555,7 +1547,7 @@ void playWAV()
                     // Indicadores
                     totalFilesIdx = source.size() + 1;
                     currentFileIdx = source.index() + 1;
-                    currentFileName = source.toStr();
+                    FILE_LOAD = source.toStr();
 
                     FFWIND = false;
                     RWIND = false;
@@ -1617,7 +1609,7 @@ void playWAV()
                             // Indicadores
                             totalFilesIdx = source.size() + 1;
                             currentFileIdx = source.index() + 1;
-                            currentFileName = source.toStr();       
+                            FILE_LOAD = source.toStr();       
                             fileSize = getWAVfileSize(source.toStr());
                             // Actualizamos la referencia de cambio de pista 
                             currentIdx = source.index();  
@@ -1667,7 +1659,7 @@ void playWAV()
                     // Indicadores
                     totalFilesIdx = source.size() + 1;
                     currentFileIdx = source.index() + 1;
-                    currentFileName = source.toStr();
+                    FILE_LOAD = source.toStr();
 
                     FFWIND = false;
                     RWIND = false;
@@ -1700,7 +1692,7 @@ void playWAV()
                     // Indicadores
                     totalFilesIdx = source.size() + 1;
                     currentFileIdx = source.index() + 1;
-                    currentFileName = source.toStr();
+                    FILE_LOAD = source.toStr();
 
                     FFWIND = false;
                     RWIND = false;
@@ -1737,7 +1729,7 @@ void playWAV()
                     // Indicadores
                     totalFilesIdx = source.size() + 1;
                     currentFileIdx = source.index() + 1;
-                    currentFileName = source.toStr();
+                    FILE_LOAD = source.toStr();
                     // Lo ponemos asi para que empiece en CONTINUOS PLAYING
                     // ya que en el if se hace un cambio dependiendo del valor anterior
                     disable_auto_wav_stop = false;                    
@@ -1767,7 +1759,7 @@ void playWAV()
                     // Indicadores
                     totalFilesIdx = source.size() + 1;
                     currentFileIdx = source.index() + 1;
-                    currentFileName = source.toStr();
+                    FILE_LOAD = source.toStr();
 
                     // hmi.writeString("name.txt=\"" + String(source.toStr()) + "\""); 
                     // Reseteamos el contador de progreso                  
@@ -1787,16 +1779,45 @@ void playWAV()
           // Actualizamos el indicador
           if ((millis() - startTime) > 250)
           {
-            updateIndicators(totalFilesIdx, currentFileIdx, fileSize, currentFileName);
+            updateIndicators(totalFilesIdx, currentFileIdx, fileSize, FILE_LOAD);
             startTime = millis();
           }
+
+
+          // if ((millis() - startTime) > tRotateNameRfsh && FILE_LOAD.length() > windowNameLength)
+          // {
+          //   // Capturamos el texto con tamaño de la ventana
+          //   txtR = FILE_LOAD.substring(posRotateName, posRotateName + windowNameLength);
+          //   hmi.writeString("name.txt=\"" + txtR + "\"");
+
+          //   // Lo rotamos segun el sentido que toque
+          //   posRotateName += moveDirection;
+          //   // Comprobamos limites para ver si hay que cambiar sentido
+          //   if (posRotateName > (FILE_LOAD.length() - windowNameLength))
+          //   {
+          //       moveDirection = -1;
+          //   }
+            
+          //   if (posRotateName < 0)
+          //   {
+          //       moveDirection = 1;
+          //       posRotateName = 0;
+          //   }
+
+          //   // Movemos el display de NAME
+          //   startTime = millis();
+          // }    
+          // else if (FILE_LOAD.length() <= windowNameLength) 
+          // {
+          //   hmi.writeString("name.txt=\"" + FILE_LOAD + "\"");
+          // }          
           
         }
         
         tapeAnimationOFF(); 
-        // kit.end();  
         player.end();
-        // playerbt.end();
+        moveDirection = 1;
+        posRotateName = 0;        
     }
     else
     {
@@ -3423,7 +3444,7 @@ void Task1code( void * pvParameters )
 void Task0code( void * pvParameters )
 {
 
-  const int windowNameLength = 44;
+  // const int windowNameLength = 44;
 
   #ifndef SAMPLINGTEST
     // Core 0 - Para el HMI
@@ -3433,11 +3454,7 @@ void Task0code( void * pvParameters )
     int tClock = millis();
     int ho=0;int mi=0;int se=0;
     int tScrRfsh = 125;
-    int tRotateNameRfsh = 200;
-    int waitUntilChangeDirection = 700;
-    bool canChageDirection = false;
-    bool waitForDelay = false;
-
+    // int tRotateNameRfsh = 200;
 
     for(;;)
     {
@@ -3468,11 +3485,17 @@ void Task0code( void * pvParameters )
             hmi.updateInformationMainPage();
           }    
 
-          if ((millis() - startTime2) > tRotateNameRfsh && FILE_LOAD.length() > 44)
+          if ((millis() - startTime2) > tRotateNameRfsh && FILE_LOAD.length() > windowNameLength)
           {
             // Capturamos el texto con tamaño de la ventana
-            PROGRAM_NAME = FILE_LOAD.substring(posRotateName, posRotateName + windowNameLength);
-
+            if (TYPE_FILE_LOAD == "WAV")
+            {
+              hmi.writeString("name.txt=\"" + FILE_LOAD.substring(posRotateName, posRotateName + windowNameLength) + "\"");
+            }
+            else
+            {
+              PROGRAM_NAME = FILE_LOAD.substring(posRotateName, posRotateName + windowNameLength);
+            }
             // Lo rotamos segun el sentido que toque
             posRotateName += moveDirection;
             // Comprobamos limites para ver si hay que cambiar sentido
@@ -3489,7 +3512,11 @@ void Task0code( void * pvParameters )
 
             // Movemos el display de NAME
             startTime2 = millis();
-          }     
+          }
+          else if (FILE_LOAD.length() <= windowNameLength && TYPE_FILE_LOAD == "WAV")
+          {
+            hmi.writeString("name.txt=\"" + FILE_LOAD + "\"");  
+          }   
 
         #endif
     }
