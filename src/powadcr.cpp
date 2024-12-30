@@ -402,21 +402,21 @@ bool loadWifiCfgFile()
   
 }
 
-void loadHMICfgFile()
-{
-  char pathCfgFile[10] = {};
-  strcpy(pathCfgFile,"/hmi.cfg");
+// void loadHMICfgFile()
+// {
+//   char pathCfgFile[10] = {};
+//   strcpy(pathCfgFile,"/hmi.cfg");
 
-  File32 fHMI = sdm.openFile32(pathCfgFile);
+//   File32 fHMI = sdm.openFile32(pathCfgFile);
   
-  //Leemos ahora toda la configuración
-  if(fHMI)
-  {
-      CFGHMI = sdm.readAllParamCfg(fHMI,20);
-      log("Open config. HMI-success");
-  }
-  fHMI.close();
-}
+//   //Leemos ahora toda la configuración
+//   if(fHMI)
+//   {
+//       CFGHMI = sdm.readAllParamCfg(fHMI,20);
+//       log("Open config. HMI-success");
+//   }
+//   fHMI.close();
+// }
 
 void proccesingTAP(char* file_ch)
 {    
