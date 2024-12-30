@@ -1273,7 +1273,7 @@ class TZXprocessor
                 strncpy(_myTZX.descriptor[currentBlock].typeName,ID15STR,35);
 
                 // Informacion minima del fichero
-                PROGRAM_NAME = "Audio block (WAV)";
+                // PROGRAM_NAME = "Audio block (WAV)";
                 LAST_SIZE = _myTZX.descriptor[currentBlock].size;
                 
                 #ifdef DEBUGMODE
@@ -2771,10 +2771,10 @@ class TZXprocessor
             case 21:
               DIRECT_RECORDING = true;
               // 
-              PROGRAM_NAME = "Audio block (WAV)";
+              // PROGRAM_NAME = "Audio block (WAV)";
               LAST_SIZE = _myTZX.descriptor[i].size;          
               // 
-              if (_myTZX.descriptor[i].samplingRate == 79)
+              if (_myTZX.descriptor[i].samplingRate == 79 || _myTZX.descriptor[i].samplingRate == 80)
               {
                   SAMPLING_RATE = 44100;
                   BIT_DR_0 = DBIT_DR44_0;
@@ -2783,7 +2783,7 @@ class TZXprocessor
                   ESP32kit.setSampleRate(AUDIO_HAL_44K_SAMPLES);
                   LAST_MESSAGE = "Direct recording at 44.1KHz";
               }
-              else if (_myTZX.descriptor[i].samplingRate == 158)
+              else if (_myTZX.descriptor[i].samplingRate == 158 || _myTZX.descriptor[i].samplingRate == 159)
               {
                   SAMPLING_RATE = 22050;
                   BIT_DR_0 = DBIT_DR22_0;
@@ -2791,7 +2791,7 @@ class TZXprocessor
                   ESP32kit.setSampleRate(AUDIO_HAL_22K_SAMPLES);
                   LAST_MESSAGE = "Direct recording at 22.05KHz";
               }
-              else if (_myTZX.descriptor[i].samplingRate == 238)
+              else if (_myTZX.descriptor[i].samplingRate == 238 || _myTZX.descriptor[i].samplingRate == 239)
               {
                   SAMPLING_RATE = 16000;
                   BIT_DR_0 = 238;
@@ -2799,7 +2799,7 @@ class TZXprocessor
                   ESP32kit.setSampleRate(AUDIO_HAL_16K_SAMPLES);
                   LAST_MESSAGE = "Direct recording at 16KHz";
               } 
-              else if (_myTZX.descriptor[i].samplingRate == 316)
+              else if (_myTZX.descriptor[i].samplingRate == 315 || _myTZX.descriptor[i].samplingRate == 316)
               {
                   SAMPLING_RATE = 11025;
                   BIT_DR_0 = DBIT_DR11_0;

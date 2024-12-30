@@ -1379,22 +1379,36 @@ int getWAVfileSize(String path)
     return fsize;
 }
 
-void updateIndicators(int size, int pos)
+void updateIndicators(int size, int pos, int fsize, String fname)
 {
     hmi.writeString("tape.totalBlocks.val=" + String(size));
     hmi.writeString("tape.currentBlock.val=" + String(pos));
     hmi.writeString("type.txt=\"WAV file\"");
+    hmi.writeString("name.txt=\"" + String(fname) + "\"");
+
+    if (fsize < 1000000)
+    {
+      hmi.writeString("size.txt=\"" + String(fsize/1024) + " KB\"");
+    }
+    else
+    {
+      hmi.writeString("size.txt=\"" + String(fsize/1024/1024) + " MB\"");
+    }
 }
 
 void playWAV()
 {
-    // ESP32kit.end();
     ESP32kit.setSampleRate(AUDIO_HAL_44K_SAMPLES);
     SAMPLING_RATE = 44100;
 
     int status = 0;
     int fileSize = 0;
     int fileread = 0;
+    int startTime = millis();
+
+    int totalFilesIdx = 0;
+    int currentFileIdx = 0;
+    String currentFileName = "";
 
     AudioInfo info(44100, 2, 16);
     // ADPCMDecoder adpcm_decoder(AV_CODEC_ID_ADPCM_IMA_WAV); 
@@ -1444,7 +1458,13 @@ void playWAV()
 
         // Esto lo hacemos para parar cuando termine el audio.
         int currentIdx = (FILE_PTR_POS + FILE_IDX_SELECTED) - 1;
-        updateIndicators(source.size() + 1, source.index() + 1); 
+
+        // Indicadores
+        totalFilesIdx = source.size() + 1;
+        currentFileIdx = source.index() + 1;
+        currentFileName = source.toStr();
+
+        // updateIndicators(, source.index() + 1, fileSize, ); 
 
         int stateWAVplayer = 0;
         
@@ -1460,7 +1480,15 @@ void playWAV()
                 if (PLAY)
                 {
                     LAST_MESSAGE =  "Playing WAV.";
-                    updateIndicators(source.size() + 1, source.index() + 1); 
+                    // updateIndicators(source.size() + 1, source.index() + 1, fileSize, source.toStr()); 
+                    // Indicadores
+                    totalFilesIdx = source.size() + 1;
+                    currentFileIdx = source.index() + 1;
+                    currentFileName = source.toStr();   
+
+                    currentIdx = source.index();
+                    logln("Current IDX: " + String(currentIdx));
+
                     tapeAnimationON();
                     stateWAVplayer = 1;
                 }
@@ -1481,7 +1509,7 @@ void playWAV()
                       player.next();
                     }
 
-                    hmi.writeString("name.txt=\"" + String(source.toStr()) + "\"");
+                    // hmi.writeString("name.txt=\"" + String(source.toStr()) + "\"");
                     fileSize = getWAVfileSize(source.toStr());
 
 
@@ -1489,7 +1517,13 @@ void playWAV()
                     currentIdx = source.index();
 
                     // Informamos
-                    updateIndicators(source.size() + 1, source.index() + 1); 
+                    // updateIndicators(source.size() + 1, source.index() + 1, fileSize, source.toStr()); 
+  
+                    // Indicadores
+                    totalFilesIdx = source.size() + 1;
+                    currentFileIdx = source.index() + 1;
+                    currentFileName = source.toStr();
+
                     FFWIND = false;
                     RWIND = false;
                     fileread = 0;
@@ -1509,14 +1543,20 @@ void playWAV()
                       player.previous();
                     }
 
-                    hmi.writeString("name.txt=\"" + String(source.toStr()) + "\"");
+                    // hmi.writeString("name.txt=\"" + String(source.toStr()) + "\"");
                     fileSize = getWAVfileSize(source.toStr());
 
                     // Ahora el current index ha cambiado
                     currentIdx = source.index();
 
                     // Informamos
-                    updateIndicators(source.size() + 1, source.index() + 1); 
+                    // updateIndicators(source.size() + 1, source.index() + 1, fileSize, source.toStr()); 
+
+                    // Indicadores
+                    totalFilesIdx = source.size() + 1;
+                    currentFileIdx = source.index() + 1;
+                    currentFileName = source.toStr();
+
                     FFWIND = false;
                     RWIND = false;
                     fileread = 0;
@@ -1550,18 +1590,40 @@ void playWAV()
                     PROGRESS_BAR_TOTAL_VALUE = (fileread * 100) / fileSize;
                     PROGRESS_BAR_BLOCK_VALUE = PROGRESS_BAR_TOTAL_VALUE;
 
-                    // hmi.writeString("progressTotal.val=" + String((fileread * 100) / fileSize));
-                    // hmi.writeString("progressBlock.val=" + String((fileread * 100) / fileSize));
-
                     // Cuando cambie automaticamente al proximo fichero, me paro.
-                    if (!disable_auto_wav_stop)
+                    int idx = source.index();
+                    if (currentIdx != idx)
                     {
-                        if (currentIdx != source.index())
+                        if (!disable_auto_wav_stop)
                         {
-                          LAST_MESSAGE = "Stop playing";
-                          stateWAVplayer = 4;
+                            LAST_MESSAGE = "Stop playing";
+                            stateWAVplayer = 4;
                         }
-                    }
+                        else
+                        {
+                            // Pasamos a la siguiente pista
+                            logln("Current IDX: " + String(currentIdx + 1) + " / " + String(source.size()));
+
+                            // Comprobamos si hemos llegado al final de
+                            // la lista de reproduccion (play list)
+                            if ((currentIdx + 1) > source.size())
+                            {
+                              source.selectStream(0);
+                              player.begin();
+
+                              logln("Change IDX: " + String(source.index()) + " / " + String(source.size()));
+                            }
+
+                            // Indicadores
+                            totalFilesIdx = source.size() + 1;
+                            currentFileIdx = source.index() + 1;
+                            currentFileName = source.toStr();       
+                            fileSize = getWAVfileSize(source.toStr());
+                            // Actualizamos la referencia de cambio de pista 
+                            currentIdx = source.index();  
+                            fileread = 0;                                         
+                        }
+                    }                  
                 } 
                 else if (PAUSE)
                 {
@@ -1573,6 +1635,9 @@ void playWAV()
                 {
                     stateWAVplayer = 3;
                     fileread = 0;
+                    // Lo ponemos asi para que empiece en CONTINUOS PLAYING
+                    // ya que en el if se hace un cambio dependiendo del valor anterior
+                    disable_auto_wav_stop = false;
                 }
                 
                 if (FFWIND)
@@ -1590,14 +1655,20 @@ void playWAV()
                       player.next();
                     }
 
-                    hmi.writeString("name.txt=\"" + String(source.toStr()) + "\"");
+                    // hmi.writeString("name.txt=\"" + String(source.toStr()) + "\"");
                     fileSize = getWAVfileSize(source.toStr());
 
                     // Ahora el current index ha cambiado
                     currentIdx = source.index();
 
                     // Informamos
-                    updateIndicators(source.size() + 1, source.index() + 1); 
+                    // updateIndicators(source.size() + 1, source.index() + 1, fileSize, source.toStr()); 
+
+                    // Indicadores
+                    totalFilesIdx = source.size() + 1;
+                    currentFileIdx = source.index() + 1;
+                    currentFileName = source.toStr();
+
                     FFWIND = false;
                     RWIND = false;
                     fileread = 0;
@@ -1617,14 +1688,20 @@ void playWAV()
                       player.previous();
                     }
 
-                    hmi.writeString("name.txt=\"" + String(source.toStr()) + "\"");
+                    // hmi.writeString("name.txt=\"" + String(source.toStr()) + "\"");
                     fileSize = getWAVfileSize(source.toStr());
 
                     // Ahora el current index ha cambiado
                     currentIdx = source.index();
 
                     // Informamos
-                    updateIndicators(source.size() + 1, source.index() + 1); 
+                    // updateIndicators(source.size() + 1, source.index() + 1, fileSize, source.toStr()); 
+
+                    // Indicadores
+                    totalFilesIdx = source.size() + 1;
+                    currentFileIdx = source.index() + 1;
+                    currentFileName = source.toStr();
+
                     FFWIND = false;
                     RWIND = false;
                     fileread = 0;
@@ -1639,6 +1716,9 @@ void playWAV()
                     stateWAVplayer = 1;
                     PLAY = true;
                     PAUSE = false;
+                    // Lo ponemos asi para que empiece en CONTINUOS PLAYING
+                    // ya que en el if se hace un cambio dependiendo del valor anterior
+                    disable_auto_wav_stop = false;                    
                 }             
                 break;
           case 3:
@@ -1652,7 +1732,16 @@ void playWAV()
                     stateWAVplayer = 0;  
                     player.begin();
                     source.selectStream(currentIdx);
-                    updateIndicators(source.size() + 1, source.index() + 1); 
+                    // updateIndicators(source.size() + 1, source.index() + 1, fileSize, source.toStr()); 
+
+                    // Indicadores
+                    totalFilesIdx = source.size() + 1;
+                    currentFileIdx = source.index() + 1;
+                    currentFileName = source.toStr();
+                    // Lo ponemos asi para que empiece en CONTINUOS PLAYING
+                    // ya que en el if se hace un cambio dependiendo del valor anterior
+                    disable_auto_wav_stop = false;                    
+
                 }
                 break;
           case 4:
@@ -1673,17 +1762,33 @@ void playWAV()
                     // Nos quedamos en la misma pista
                     source.selectStream(currentIdx);
                     // Actualizamos indicadores
-                    updateIndicators(source.size() + 1, source.index() + 1);  
-                    hmi.writeString("name.txt=\"" + String(source.toStr()) + "\""); 
+                    // updateIndicators(source.size() + 1, source.index() + 1, fileSize, source.toStr());  
+
+                    // Indicadores
+                    totalFilesIdx = source.size() + 1;
+                    currentFileIdx = source.index() + 1;
+                    currentFileName = source.toStr();
+
+                    // hmi.writeString("name.txt=\"" + String(source.toStr()) + "\""); 
                     // Reseteamos el contador de progreso                  
                     fileread = 0;
                     // Saltamos al estado de reposo  
                     stateWAVplayer = 0;  
+                    // Lo ponemos asi para que empiece en CONTINUOS PLAYING
+                    // ya que en el if se hace un cambio dependiendo del valor anterior
+                    disable_auto_wav_stop = false;                    
                 }
                 break;
 
           default:
             break;
+          }
+
+          // Actualizamos el indicador
+          if ((millis() - startTime) > 250)
+          {
+            updateIndicators(totalFilesIdx, currentFileIdx, fileSize, currentFileName);
+            startTime = millis();
           }
           
         }
@@ -3385,7 +3490,6 @@ void Task0code( void * pvParameters )
             // Movemos el display de NAME
             startTime2 = millis();
           }     
-
 
         #endif
     }

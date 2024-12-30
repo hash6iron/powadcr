@@ -1890,7 +1890,7 @@ class HMI
                     else
                     {
                       FILE_SELECTED_DELETE = false;
-                      SerialHW.println("File remove. " + FILE_TO_DELETE);
+                      logln("File remove. " + FILE_TO_DELETE);
                       
                       // Tras borrar hacemos un rescan
                       getFilesFromSD(true,SOURCE_FILE_TO_MANAGE,SOURCE_FILE_INF_TO_MANAGE);      
@@ -2102,12 +2102,12 @@ class HMI
           MAIN_VOL = valVol;
           
           // Ajustamos el volumen
-          SerialHW.println("Main volume value=" + String(MAIN_VOL));
+          logln("Main volume value=" + String(MAIN_VOL));
           // Control del Master volume
           MAIN_VOL_L = MAIN_VOL;
           MAIN_VOL_R = MAIN_VOL;
 
-          //ESP32kit.setVolume(MAIN_VOL);
+          // ESP32kit.setVolume(MAIN_VOL);
           //ESP32kit.maxAmplitude = 
           //_zxp.set_amplitude(MAIN_VOL * 32767 / 100);
         }
@@ -2120,7 +2120,6 @@ class HMI
           int valVol = (int)buff[4];
 
           MAIN_VOL_R = valVol;
-          
         }
         // Ajuste el vol canal L
         else if (strCmd.indexOf("VLL=") != -1) 
@@ -2133,9 +2132,9 @@ class HMI
           
           // Ajustamos el volumen
           #ifdef DEBUGMODE
-            SerialHW.println("");
-            SerialHW.println("L-Channel volume value=" + String(MAIN_VOL_L));
-            SerialHW.println("");
+            logln("");
+            logln("L-Channel volume value=" + String(MAIN_VOL_L));
+            logln("");
           #endif
         }
         // Devuelve el % de filtrado aplicado en pantalla. Filtro del recording
@@ -2146,7 +2145,7 @@ class HMI
           strCmd.getBytes(buff, 7);
           int valThr = (int)buff[4];
           SCHMITT_THR = valThr;
-          SerialHW.println("Threshold value=" + String(SCHMITT_THR));
+          logln("Threshold value=" + String(SCHMITT_THR));
         }
         // Habilitar terminadores para forzar siguiente pulso a HIGH
         else if (strCmd.indexOf("TER=") != -1) 
@@ -2243,6 +2242,26 @@ class HMI
           log("Threshold enable=" + String(EN_SCHMITT_CHANGE));
 
         }
+        // Mutea la salida amplificada
+        else if (strCmd.indexOf("MAM=") != -1) 
+        {
+          //Cogemos el valor
+          uint8_t buff[8];
+          strCmd.getBytes(buff, 7);
+          int valEn = (int)buff[4];
+          //
+          ACTIVE_AMP = !valEn;
+
+          // Bajamos el volumen del speaker que esta en el canal amplificado DERECHO
+          MAIN_VOL_R = 5;
+          // Actualizamos el HMI
+          writeString("menuAudio.volR.val=" + String(MAIN_VOL_R));
+          writeString("menuAudio.volLevel.val=" + String(MAIN_VOL_R));
+
+          // Habilitamos/Deshabilitamos el amplificador
+          ESP32kit.setSpeakerActive(ACTIVE_AMP);
+          logln("Active amp=" + String(ACTIVE_AMP));
+        }        
         // Habilita los dos canales
         else if (strCmd.indexOf("STE=") != -1) 
         {
@@ -2253,7 +2272,7 @@ class HMI
           //
           EN_STEREO = valEn;
 
-          SerialHW.println("Mute enable=" + String(EN_STEREO));
+          logln("Mute enable=" + String(EN_STEREO));
         }
         // Enable MIC left channel - Option
         else if (strCmd.indexOf("EMI=") != -1) 
@@ -2271,7 +2290,7 @@ class HMI
           {
               SWAP_MIC_CHANNEL = false;
           }
-          SerialHW.println("MIC LEFT enable=" + String(SWAP_MIC_CHANNEL));
+          logln("MIC LEFT enable=" + String(SWAP_MIC_CHANNEL));
         }
         // Enable MIC left channel - Option
         else if (strCmd.indexOf("EAR=") != -1) 
@@ -2284,12 +2303,21 @@ class HMI
           if (valEn==1)
           {
               SWAP_EAR_CHANNEL = true;
+
           }
           else
           {
               SWAP_EAR_CHANNEL = false;
           }
-          SerialHW.println("EAR LEFT enable=" + String(SWAP_EAR_CHANNEL));
+
+          // Ahora mutamos el Amplificador en ambos estados del SWAP
+          // ya que el usuario decida si lo activa al quitar el swap
+          ACTIVE_AMP = false;
+          writeString("menuAudio.mutAmp.val=1");
+          // Habilitamos/Deshabilitamos el amplificador
+          ESP32kit.setSpeakerActive(ACTIVE_AMP);
+
+          logln("EAR LEFT enable=" + String(SWAP_EAR_CHANNEL));
         }
         // Save polarization in ID 0x2B
         else if (strCmd.indexOf("SAV") != -1) 
@@ -2452,7 +2480,7 @@ class HMI
           {
               SHOW_DATA_DEBUG = false;
           }
-          SerialHW.println("SHOW_DATA_DEBUG enable=" + String(SHOW_DATA_DEBUG));
+          logln("SHOW_DATA_DEBUG enable=" + String(SHOW_DATA_DEBUG));
         }     
         // Parametrizado del timming maquinas. ROM estandar (no se usa)
         else if (strCmd.indexOf("MP1=") != -1) 
@@ -2463,7 +2491,7 @@ class HMI
           int val = (int)buff[4];
           //
           MIN_SYNC=val;
-          SerialHW.println("MP1=" + String(MIN_SYNC));
+          logln("MP1=" + String(MIN_SYNC));
         }
         else if (strCmd.indexOf("MP2=") != -1) 
         {
@@ -2473,7 +2501,7 @@ class HMI
           int val = (int)buff[4];
           //
           MAX_SYNC=val;
-          SerialHW.println("MP2=" + String(MAX_SYNC));
+          logln("MP2=" + String(MAX_SYNC));
         }
         else if (strCmd.indexOf("MP3=") != -1) 
         {
@@ -2483,7 +2511,7 @@ class HMI
           int val = (int)buff[4];
           //
           MIN_BIT0=val;
-          SerialHW.println("MP3=" + String(MIN_BIT0));
+          logln("MP3=" + String(MIN_BIT0));
         }
         else if (strCmd.indexOf("MP4=") != -1) 
         {
@@ -2493,7 +2521,7 @@ class HMI
           int val = (int)buff[4];
           //
           MAX_BIT0=val;
-          SerialHW.println("MP4=" + String(MAX_BIT0));
+          logln("MP4=" + String(MAX_BIT0));
         }
         else if (strCmd.indexOf("MP5=") != -1) 
         {
@@ -2503,7 +2531,7 @@ class HMI
           int val = (int)buff[4];
           //
           MIN_BIT1=val;
-          SerialHW.println("MP5=" + String(MIN_BIT1));
+          logln("MP5=" + String(MIN_BIT1));
         }
         else if (strCmd.indexOf("MP6=") != -1) 
         {
@@ -2513,7 +2541,7 @@ class HMI
           int val = (int)buff[4];
           //
           MAX_BIT1=val;
-          SerialHW.println("MP6=" + String(MAX_BIT1));
+          logln("MP6=" + String(MAX_BIT1));
         }
         else if (strCmd.indexOf("MP7=") != -1) 
         {
@@ -2521,19 +2549,19 @@ class HMI
           uint8_t buff[8];
           strCmd.getBytes(buff, 7);
 
-          // SerialHW.println("0: " + String((char)buff[0]));
-          // SerialHW.println("1: " + String((char)buff[1]));
-          // SerialHW.println("2: " + String((char)buff[2]));
-          // SerialHW.println("3: " + String((char)buff[3]));
-          // SerialHW.println("4: " + String(buff[4]));
-          // SerialHW.println("5: " + String(buff[5]));
-          // SerialHW.println("6: " + String(buff[6]));
-          // SerialHW.println("7: " + String(buff[7]));
+          // logln("0: " + String((char)buff[0]));
+          // logln("1: " + String((char)buff[1]));
+          // logln("2: " + String((char)buff[2]));
+          // logln("3: " + String((char)buff[3]));
+          // logln("4: " + String(buff[4]));
+          // logln("5: " + String(buff[5]));
+          // logln("6: " + String(buff[6]));
+          // logln("7: " + String(buff[7]));
 
           long val = (long)((int)buff[4] + (256*(int)buff[5]) + (65536*(int)buff[6]));
           //
           MAX_PULSES_LEAD=val;
-          SerialHW.println("MP7=" + String(MAX_PULSES_LEAD));
+          logln("MP7=" + String(MAX_PULSES_LEAD));
         }
         else if (strCmd.indexOf("MP8=") != -1) 
         {
@@ -2543,7 +2571,7 @@ class HMI
           int val = (int)buff[4];
           //
           MIN_LEAD=val;
-          SerialHW.println("MP8=" + String(MIN_LEAD));
+          logln("MP8=" + String(MIN_LEAD));
         }
         else if (strCmd.indexOf("MP9=") != -1) 
         {
@@ -2553,7 +2581,7 @@ class HMI
           int val = buff[4];
           //
           MAX_LEAD=val;
-          SerialHW.println("MP9=" + String(MAX_LEAD));
+          logln("MP9=" + String(MAX_LEAD));
         }
         // Control de volumen por botones - MASTER
         else if (strCmd.indexOf("VOLUP") != -1) 
@@ -2574,9 +2602,9 @@ class HMI
           {
             MAIN_VOL = 30;
           }
-          // SerialHW.println("");
-          // SerialHW.println("VOL DOWN");
-          // SerialHW.println("");
+          // logln("");
+          // logln("VOL DOWN");
+          // logln("");
         }
         // Busqueda de ficheros
         else if (strCmd.indexOf("TXTF=") != -1) 
@@ -2953,13 +2981,13 @@ class HMI
       
       int getEndCharPosition(String str,int start)
       {
-        //SerialHW.println(">> " + str);
+        //logln(">> " + str);
         int pos=-1;
         int stateCr=0;
         for (int i = start; i < str.length(); i++) 
         {
           char cr = str[i];
-          //SerialHW.println(String(cr) + " - " + String(int(cr)));
+          //logln(String(cr) + " - " + String(int(cr)));
 
           // Buscamos 0xFF 0xFF 0xFF
           switch(stateCr)
@@ -3007,7 +3035,7 @@ class HMI
 
         }
 
-        //SerialHW.println("Pos: " + String(pos));
+        //logln("Pos: " + String(pos));
         return pos;
       }
 
@@ -3136,17 +3164,17 @@ class HMI
 
       void getMemFree()
       {
-          SerialHW.println("");
-          SerialHW.println("");
-          SerialHW.println("> MEM REPORT");
-          SerialHW.println("------------------------------------------------------------");
-          SerialHW.println("");
-          SerialHW.println("Total heap: " + String(ESP.getHeapSize() / 1024) + "KB");
-          SerialHW.println("Free heap: " + String(ESP.getFreeHeap() / 1024) + "KB");
-          SerialHW.println("Total PSRAM: " + String(ESP.getPsramSize() / 1024) + "KB");
-          SerialHW.println("Free PSRAM: " + String (ESP.getFreePsram() / 1024) + "KB");  
-          SerialHW.println("");
-          SerialHW.println("------------------------------------------------------------");
+          logln("");
+          logln("");
+          logln("> MEM REPORT");
+          logln("------------------------------------------------------------");
+          logln("");
+          logln("Total heap: " + String(ESP.getHeapSize() / 1024) + "KB");
+          logln("Free heap: " + String(ESP.getFreeHeap() / 1024) + "KB");
+          logln("Total PSRAM: " + String(ESP.getPsramSize() / 1024) + "KB");
+          logln("Free PSRAM: " + String (ESP.getFreePsram() / 1024) + "KB");  
+          logln("");
+          logln("------------------------------------------------------------");
           //
           updateMem();
       }           

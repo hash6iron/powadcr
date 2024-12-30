@@ -507,6 +507,7 @@ double MAX_MAIN_VOL = 1 * MAIN_VOL_FACTOR;
 double MAX_MAIN_VOL_R = 1 * MAIN_VOL_FACTOR;
 double MAX_MAIN_VOL_L = 1 * MAIN_VOL_FACTOR;
 int EN_STEREO = 0;
+bool ACTIVE_AMP = false;
 bool wasHeadphoneDetected = false;
 bool wasHeadphoneAmpDetected = false;
 bool preparingTestInOut = false;
