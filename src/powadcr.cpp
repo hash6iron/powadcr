@@ -1814,6 +1814,7 @@ void playMP3()
 {
     ESP32kit.setSampleRate(AUDIO_HAL_44K_SAMPLES);
     ESP32kit.setSpeakerActive(ACTIVE_AMP);
+
     SAMPLING_RATE = 44100;
     
     int status = 0;
@@ -1848,6 +1849,7 @@ void playMP3()
     cfg.channels = 2;
     cfg.sample_rate = 44100;
     kit.begin(cfg);
+    kit.setSpeakerActive(ACTIVE_AMP);
     
     // setup player
     player.setVolume(MAIN_VOL/100);
@@ -2256,6 +2258,7 @@ void playWAV()
     cfg.channels = 2;
     cfg.sample_rate = 44100;
     kit.begin(cfg);
+    kit.setSpeakerActive(ACTIVE_AMP);
     
     // setup player
     player.setVolume(MAIN_VOL/100);
