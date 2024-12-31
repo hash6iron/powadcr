@@ -170,7 +170,7 @@ class HMI
                               {
                                   // Ok. Entonces es un fichero y cogemos su extensión                               
                                   // Si tiene una de las extensiones esperadas, se almacena
-                                  if (strstr(substr, ".tap") || strstr(substr, ".tzx") || strstr(substr, ".tsx") || strstr(substr, ".cdt") || strstr(substr, ".wav")) 
+                                  if (strstr(substr, ".tap") || strstr(substr, ".tzx") || strstr(substr, ".tsx") || strstr(substr, ".cdt") || strstr(substr, ".wav") || strstr(substr, ".mp3") || strstr(substr, ".flac")) 
                                   {
                                       // ***************************
                                       // Cogemos la info del fichero
@@ -1111,7 +1111,7 @@ class HMI
                   szName = String("<DIR>  ") + szName;
                   szName.toUpperCase();
               }     
-              else if (type == "TAP" || type == "TZX" || type == "TSX" || type == "CDT" || type == "WAV")
+              else if (type == "TAP" || type == "TZX" || type == "TSX" || type == "CDT" || type == "WAV" || type == "MP3")
               {
                   //Fichero
                   if (_sdf.exists("/fav/" + szName))
@@ -1172,6 +1172,7 @@ class HMI
           }
 
           FILE_PTR_POS = 1;
+          writeString("statusFILE.txt=\"SEARCHING\""); 
           getFilesFromSD(true,SOURCE_FILE_TO_MANAGE,SOURCE_FILE_INF_TO_MANAGE,FILE_TXT_TO_SEARCH);
           //putFilesInScreen();
           refreshFiles(); //07/11/2024          
