@@ -1399,7 +1399,7 @@ void playWAV()
 {
     ESP32kit.setSampleRate(AUDIO_HAL_44K_SAMPLES);
     SAMPLING_RATE = 44100;
-
+    
     int status = 0;
     int fileSize = 0;
     int fileread = 0;
@@ -1434,8 +1434,11 @@ void playWAV()
     
     // setup player
     player.setVolume(MAIN_VOL/100);
-    // playerbt.setVolume(1.0);
+    // playerbt.setVolume(MAIN_VOL/100);
     player.setAutoNext(false); 
+    
+    player.setBufferSize(4096);
+
     // playerbt.begin();
     // auto cfgbt = outbt.defaultConfig(TX_MODE);
     // cfgbt.silence_on_nodata = true; // prevent disconnect when there is no audio data
