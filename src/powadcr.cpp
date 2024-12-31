@@ -1813,6 +1813,7 @@ void updateIndicators(int size, int pos, int fsize, String fname)
 void playMP3()
 {
     ESP32kit.setSampleRate(AUDIO_HAL_44K_SAMPLES);
+    ESP32kit.setSpeakerActive(ACTIVE_AMP);
     SAMPLING_RATE = 44100;
     
     int status = 0;
@@ -2225,6 +2226,8 @@ void playMP3()
 void playWAV()
 {
     ESP32kit.setSampleRate(AUDIO_HAL_44K_SAMPLES);
+    ESP32kit.setSpeakerActive(ACTIVE_AMP);
+
     SAMPLING_RATE = 44100;
     
     int status = 0;
