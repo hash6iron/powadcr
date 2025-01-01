@@ -725,7 +725,7 @@ class TAPprocessor
                     // //SerialHW.println("Success. End: ");
                 }
 
-                TOTAL_BLOCKS = numBlocks;
+                TOTAL_BLOCKS = numBlocks + 1;
             }
 
             // Añadimos información importante
@@ -999,7 +999,7 @@ class TAPprocessor
             _myTAP.size = 0;
             CURRENT_BLOCK_IN_PROGRESS = 0;
             BLOCK_SELECTED = 0;
-            _hmi.writeString("currentBlock.val=" + String(BLOCK_SELECTED));
+            _hmi.writeString("currentBlock.val=" + String(BLOCK_SELECTED + 1));
             _hmi.writeString("progression.val=" + String(0));     
         }
 
@@ -1078,8 +1078,8 @@ class TAPprocessor
                 if (_myTAP.descriptor != nullptr)
                 {
                     // Entregamos información por consola
-                    PROGRAM_NAME = _myTAP.name;
-                    TOTAL_BLOCKS = _myTAP.numBlocks;
+                    // PROGRAM_NAME = FILE_LOAD;
+                    TOTAL_BLOCKS = _myTAP.numBlocks + 1;
                     BLOCK_SELECTED = 0;
 
                     strncpy(LAST_TYPE,&INITCHAR2[0],sizeof(&INITCHAR2[0]));
@@ -1247,8 +1247,8 @@ class TAPprocessor
                     uint8_t* bufferPlay;
 
                     // Entregamos información por consola
-                    PROGRAM_NAME = _myTAP.name;
-                    TOTAL_BLOCKS = _myTAP.numBlocks;
+                    // PROGRAM_NAME = FILE_LOAD;
+                    TOTAL_BLOCKS = _myTAP.numBlocks + 1;
                     strncpy(LAST_NAME,&INITCHAR2[0],sizeof(&INITCHAR2[0]));
 
                     // Ahora reproducimos todos los bloques desde el seleccionado (para cuando se quiera uno concreto)

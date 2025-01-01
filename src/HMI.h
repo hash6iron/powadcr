@@ -2062,36 +2062,45 @@ class HMI
         }     
         else if (strCmd.indexOf("EJECT") != -1) 
         {
+          
+          
           #ifdef DEBUGMODE
             logAlert("EJECT pressed.");
           #endif
 
-          PLAY = false;
-          PAUSE = false;
-          STOP = true;
-          REC = false;
-          ABORT = false;
-          EJECT = true;
-
-          // Esto lo hacemos así porque el EJECT lanza un comando en paralelo
-          // al control del tape (tapeControl)
-          // no quitar!!
-          if (PROGRAM_NAME != "" || TOTAL_BLOCKS !=0)
+          // Si no se esta subiendo nada a la SD desde WiFi podemos abrir
+          if (!WF_UPLOAD_TO_SD)
           {
-              LAST_MESSAGE = "Ejecting cassette.";
-              writeString("g0.txt=\"" + LAST_MESSAGE + "\"");
-              delay(500);
-              clearInformationFile();
+              PLAY = false;
+              PAUSE = false;
+              STOP = true;
+              REC = false;
+              ABORT = false;
+              EJECT = true;
+
+              // Esto lo hacemos así porque el EJECT lanza un comando en paralelo
+              // al control del tape (tapeControl)
+              // no quitar!!
+              if (PROGRAM_NAME != "" || TOTAL_BLOCKS !=0)
+              {
+                  LAST_MESSAGE = "Ejecting cassette.";
+                  writeString("g0.txt=\"" + LAST_MESSAGE + "\"");
+                  delay(500);
+                  clearInformationFile();
+                  delay(250);
+              }
+
+              FILE_BROWSER_OPEN = true;
+              //
+              // Entramos en el file browser
+              writeString("page file");          
               delay(250);
+              refreshFiles();
           }
-
-          FILE_BROWSER_OPEN = true;
-          //
-          // Entramos en el file browser
-          writeString("page file");          
-          delay(250);
-          refreshFiles();
-
+          else
+          {
+            LAST_MESSAGE = "Wait to finish the uploading process.";
+          }
         }    
         // Ajuste del volumen
         else if (strCmd.indexOf("VOL=") != -1) 
@@ -2656,7 +2665,7 @@ class HMI
               logAlert("PAGE MENU");
             #endif
             CURRENT_PAGE = 2;
-        }
+        }       
         else if (strCmd.indexOf("PTAPE") != -1)
         {
             // Estamos en la pantalla TAPE
@@ -2969,8 +2978,17 @@ class HMI
           lastBl1 = TOTAL_BLOCKS;
 
           if (lastBl2 != BLOCK_SELECTED || FORZE_REFRESH)
-          {writeString("currentBlock.val=" + String(BLOCK_SELECTED));}
-          lastBl2 = BLOCK_SELECTED;
+          {
+              if(TYPE_FILE_LOAD == "TAP")
+              {
+                  writeString("currentBlock.val=" + String(BLOCK_SELECTED + 1));
+              }
+              else
+              {
+                  writeString("currentBlock.val=" + String(BLOCK_SELECTED));
+              }
+              lastBl2 = BLOCK_SELECTED;
+          }
                             
           if (CURRENT_PAGE == 2)
           {

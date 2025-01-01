@@ -520,6 +520,9 @@ bool MENU = false;
 bool menuOn = false;
 int nMENU = 0;
 
+// Indica cuando el WEBFILE esta ocupado
+bool WF_UPLOAD_TO_SD = 0;
+
 void logHEX(int n)
 {
     Serial.print(" 0x");
