@@ -274,6 +274,7 @@ class TAPrecorder
             if (!nameFileRead)
             {
                 PROGRAM_NAME = prgName;
+                FILE_LOAD = prgName;
             }
             else
             {
@@ -702,7 +703,8 @@ class TAPrecorder
                   //waitingNextBlock = false;
 
                   // Informamos del bloque en curso
-                  BLOCK_SELECTED = blockCount;
+                  BLOCK_SELECTED = blockCount+1;
+                  TOTAL_BLOCKS = BLOCK_SELECTED;
                   
                   // Procesamos información del bloque
                   LAST_SIZE = byteCount;
@@ -780,7 +782,8 @@ class TAPrecorder
                   //waitingNextBlock = false;
 
                   // Informamos del bloque en curso
-                  BLOCK_SELECTED = blockCount;
+                  BLOCK_SELECTED = blockCount+1;
+                  TOTAL_BLOCKS = BLOCK_SELECTED;
                   
                   // Procesamos información del bloque
                   LAST_SIZE = byteCount;
@@ -1266,12 +1269,20 @@ class TAPrecorder
 
             if (REC_AUDIO_LOOP)
             {
-              //R-OUT
-              *ptrOut++ = finalValue * (MAIN_VOL_R / 100);
-              //L-OUT
-              *ptrOut++ = finalValue * (MAIN_VOL_L / 100);
-                                     
-              resultOut+=2*chn; 
+                //R-OUT
+                if (ACTIVE_AMP)
+                {
+                    *ptrOut++ = finalValue * (MAIN_VOL_R / 100);
+                }
+                else
+                {
+                    *ptrOut++ = 0;
+                }
+                
+                //L-OUT
+                *ptrOut++ = finalValue * (MAIN_VOL_L / 100);
+                  
+                resultOut+=2*chn; 
             }
         }
 

@@ -1745,7 +1745,7 @@ class TZXprocessor
           }
           // Nos posicionamos en el bloque 1
           BLOCK_SELECTED = 0;
-          _hmi.writeString("currentBlock.val=" + String(BLOCK_SELECTED + 1));
+          _hmi.writeString("currentBlock.val=" + String(BLOCK_SELECTED));
 
           _myTZX.numBlocks = currentBlock;
           _myTZX.size = sizeTZX;
@@ -2282,7 +2282,7 @@ class TZXprocessor
 
             // Nos posicionamos en el bloque 1
             BLOCK_SELECTED = 0;
-            _hmi.writeString("currentBlock.val=" + String(BLOCK_SELECTED + 1));
+            _hmi.writeString("currentBlock.val=" + String(BLOCK_SELECTED));
             myTZX.numBlocks = TOTAL_BLOCKS;  
 
             mFileDsc.close();

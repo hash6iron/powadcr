@@ -190,16 +190,13 @@ bool pageScreenIsShown = false;
 // WAV Recorder
 // -----------------------------------------------------------------------
 #include "AudioTools/AudioLibs/AudioSourceSDFAT.h"
-// #include <AudioTools/AudioCodecs/CodecADPCM.h>
 #include "AudioTools/AudioCodecs/CodecWAV.h"
-#include "AudioTools/AudioLibs/A2DPStream.h"
 #include "AudioTools/AudioCodecs/CodecMP3Helix.h"
+// #include <AudioTools/AudioCodecs/CodecADPCM.h>
+// #include "AudioTools/AudioLibs/A2DPStream.h"
 // #include "AudioTools/AudioCodecs/CodecFLAC.h"
 
 using namespace audio_tools;  
-// 
-// AudioKitStream kit;
-// StreamCopy copier(kit, kit);  // copies data
 
 // Variables
 //
@@ -525,7 +522,7 @@ void sendStatus(int action, int value=0) {
       //hmi.writeString("statusLCD.txt=\"READY. PRESS SCREEN\"");
 
       // Enviamos la version del firmware del powaDCR
-      hmi.writeString("menu.verFirmware.txt=\" PowaDCR " + String(VERSION) + "\"");
+      hmi.writeString("mainmenu.verFirmware.txt=\" PowaDCR " + String(VERSION) + "\"");
       hmi.writeString("page tape");
       break;
     
@@ -757,6 +754,8 @@ void setAudioInput()
   {
     //log("Error in Audiokit sampling rate setting");
   }
+
+  ESP32kit.setSpeakerActive(ACTIVE_AMP);
 }
 
 void setAudioInOut()
@@ -778,6 +777,9 @@ void setAudioInOut()
   {
     //log("Error in volumen setting");
   }   
+
+  ESP32kit.setSpeakerActive(ACTIVE_AMP);
+
 }
 
 void tapeAnimationON()
@@ -856,6 +858,8 @@ void setWavRecording(char* file_name,bool start=true)
         }            
         else
         {
+            FILE_LOAD = file_name;
+
             // Paramos el ESp32kit antes de configurar otra vez
             ESP32kit.end();
             AudioInfo lineInCfg(44100, 2, 16);
@@ -3099,7 +3103,6 @@ void recordingFile()
     // si devuelve true --> acaba
     if (taprec.recording())
     {
-
         // No ha finalizado la grabación.
         // LOADING_STATE = 4;
     }
@@ -3654,6 +3657,12 @@ void tapeControl()
           //            
           playingFile();
       }
+      else if (BB_OPEN || BB_UPDATE)
+      {
+          openBlocksBrowser();
+          BB_UPDATE = false;
+          BB_OPEN = false;    
+      }      
       else if(EJECT)
       {
         TAPESTATE = 0;
