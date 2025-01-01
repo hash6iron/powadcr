@@ -118,10 +118,12 @@ How PowaDCR parts are connected?
 
 How .bin firmware is uploaded in ESP32-A1S Audiokit? 
 -----
+You can flash the binaries directly to the board if you do not want to mess with code and compilers. 
+
 1. Download ESP32 Flash Downloading Tool - https://www.espressif.com/en/support/download/other-tools?keys=&field_type_tid%5B%5D=13
 2. Unzip file and execute - flash_download_tool_x.x.x.exe file
 
-   See example image below.
+   See the example image below.
 
    ![image](https://github.com/hash6iron/powadcr_IO/assets/118267564/e7158518-4af8-4e6e-b4ab-eff6b9693307)
 
