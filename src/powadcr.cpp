@@ -4080,8 +4080,8 @@ void tapeControl()
                 }
                 else
                 {
-                  LAST_MESSAGE = "Aborting proccess.";
-                  delay(2000);
+                  // Abortamos proceso de analisis
+                  LAST_MESSAGE = "No file inside the tape";
                   TAPESTATE = 0;
                   LOADING_STATE = 0;
                 }
@@ -4093,7 +4093,7 @@ void tapeControl()
                   logAlert("No file selected or empty file.");
                 #endif
 
-                LAST_MESSAGE = "No file selected or empty file.";                
+                LAST_MESSAGE = "No file inside the tape";                
               }
           }
           else
@@ -4102,15 +4102,16 @@ void tapeControl()
               TAPESTATE = 0;
               LOADING_STATE = 0;
 
-                // LAST_MESSAGE = "TYPE LOAD: " + TYPE_FILE_LOAD;
-                // delay(2000);
+              // LAST_MESSAGE = "TYPE LOAD: " + TYPE_FILE_LOAD;
+              // delay(2000);
 
               if (FILE_PREPARED)
               {
-
                 ejectingFile();
                 FILE_PREPARED = false;
-              }              
+              }      
+
+              LAST_MESSAGE = "No file inside the tape";        
           }
       }
       else
