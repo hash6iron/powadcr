@@ -394,6 +394,10 @@ void handleUpload(AsyncWebServerRequest *request, String filename, size_t index,
 
   if (!index)
   {
+    // Esto lo hacemos para evitar abrir el file browser cuando estamos
+    // subiendo ficheros, nos quedamos sin RAM
+    WF_UPLOAD_TO_SD = true;
+    // 
     request->client()->setRxTimeout(15000);
     request->_tempFile = webFile.open(strpath, "w+", true);  
   }
@@ -405,6 +409,8 @@ void handleUpload(AsyncWebServerRequest *request, String filename, size_t index,
   {
     request->_tempFile.close();
     updateList = true;
+    // 
+    WF_UPLOAD_TO_SD = false;
   }
 }
 

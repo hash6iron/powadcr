@@ -428,6 +428,7 @@ bool FILE_PREPARED = false;
 bool FILE_INSIDE_TAPE = false;
 bool PROGRAM_NAME_DETECTED = false;
 
+
 tFileBuffer FILES_BUFF[MAX_FILES_TO_LOAD];
 tFileBuffer FILES_FOUND_BUFF[MAX_FILES_FOUND_BUFF];
 
@@ -448,6 +449,8 @@ bool FILE_DIR_OPEN_FAILED = false;
 bool FILE_BROWSER_OPEN = false;
 bool UPDATE = false;
 //bool FILE_BROWSER_SEARCHING = false;
+bool FB_READING_FILES = false;
+bool FB_CANCEL_READING_FILES = false;
 bool FILE_CORRUPTED = false;
 
 bool IN_THE_SAME_DIR = false;

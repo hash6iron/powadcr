@@ -2360,7 +2360,7 @@ class TZXprocessor
           {
               // No lo creamos mas, ahora cogemos todo el descriptor del fichero
               // y nos ahorramos el procesado
-              LAST_MESSAGE = "Capturing blocks from DSC";
+              LAST_MESSAGE = "Loading blocks from DSC";
 
               if (!getBlocksFromDescriptorFile(tzxFile, pathDSC, _myTZX))
               {

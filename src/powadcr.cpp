@@ -2975,6 +2975,8 @@ void loadingFile(char* file_ch)
         ejectingFile();
         FILE_PREPARED = false;      
       }
+
+      LAST_MESSAGE = "No file inside the tape";
   }
 
 }
@@ -3003,8 +3005,7 @@ void ejectingFile()
       // para liberarlo
       if (myTAP.descriptor != nullptr)
       {
-        LAST_MESSAGE = "PSRAM cleanning";
-        // delay(1500);
+        LAST_MESSAGE = "Preparing structure";
         free(pTAP.getDescriptor());
         // Finalizamos
         pTAP.terminate();
@@ -3016,28 +3017,15 @@ void ejectingFile()
       // para liberarlo
       if (myTZX.descriptor != nullptr)
       {
-        LAST_MESSAGE = "PSRAM cleanning";
-        delay(1500);
+        LAST_MESSAGE = "Preparing structure";
         freeMemoryFromDescriptorTZX(pTZX.getDescriptor());
         free(pTZX.getDescriptor());
         // Finalizamos
         pTZX.terminate();
       }
   }  
-  // else if (TYPE_FILE_LOAD == "TSX")
-  // {
-  //     // Solicitamos el puntero _myTSX de la clase
-  //     // para liberarlo
-  //     if (myTSX.descriptor != nullptr)
-  //     {
-  //       LAST_MESSAGE = "PSRAM cleanning";
-  //       delay(1500);
-  //       freeMemoryFromDescriptorTSX(pTSX.getDescriptor());
-  //       free(pTSX.getDescriptor());
-  //       // Finalizamos
-  //       pTSX.terminate();
-  //     }
-  // }    
+
+  LAST_MESSAGE = "No file inside the tape";    
 }
 
 
