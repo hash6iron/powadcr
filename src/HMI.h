@@ -189,7 +189,6 @@ class HMI
           // F --> File
           // D --> Directory
 
-
           // Declaramos el nombre del fichero
           char szName[512];
           const String separator="|";
@@ -276,9 +275,9 @@ class HMI
                                   // Si tiene una de las extensiones esperadas, se almacena
                                   if (strstr(substr, ".tap") || strstr(substr, ".tzx") || strstr(substr, ".tsx") || strstr(substr, ".cdt") || strstr(substr, ".wav") || strstr(substr, ".mp3") || strstr(substr, ".flac")) 
                                   {
-                                      // ***************************
-                                      // Cogemos la info del fichero
-                                      // ***************************
+                                      // ********************************
+                                      // Escribimos la info en el fichero
+                                      // ********************************
 
                                       // numero del fichero
                                       fout.print(String(lpos));
@@ -333,8 +332,6 @@ class HMI
                               }                   
                           }
 
-                          // Cerramos el fichero
-                          //sdm.file.close();
                           //
                           FILE_TOTAL_FILES = cdir + cfiles;
 
@@ -343,13 +340,15 @@ class HMI
                       }
                   }
 
-                  // Registramos la ruta y el total de ficheros y directorios en _files.inf
-                  fstatus.println("CFIL=" + String(cfiles));
-                  fstatus.println("CDIR=" + String(cdir));
+
 
                   sdm.file.close();
                   itemsCount++;
               }
+
+              // Registramos la ruta y el total de ficheros y directorios en _files.inf
+              fstatus.println("CFIL=" + String(cfiles));
+              fstatus.println("CDIR=" + String(cdir));              
           }
      }
 
@@ -370,9 +369,9 @@ class HMI
           path.toCharArray(path_ch, 256);
 
           // Manejador del fichero _files.lst
-          File32 f = sdm.file;
+          File32 f;// = sdm.file;
           // Manejador del fichero _files.inf
-          File32 fstatus = sdm.file;
+          File32 fstatus;// = sdm.file;
 
 
           if (sdm.createEmptyFile32(file_ch) && sdm.createEmptyFile32(filest_ch))
@@ -386,8 +385,11 @@ class HMI
               #endif
 
               // Abrimos el fichero
-              f = sdm.openFile32(file_ch);
-              fstatus = sdm.openFile32(filest_ch);
+              // f = sdm.openFile32(file_ch);
+              // fstatus = sdm.openFile32(filest_ch);
+              f.open(file_ch, O_RDWR);
+              fstatus.open(filest_ch, O_RDWR);
+
 
               //f.println("Esto es un prueba");
               // Ahora lo rellenamos con los ficheros incluidos en el path (que hemos convertido a char*)
@@ -616,23 +618,23 @@ class HMI
           return (stat (name.c_str(), &buffer) == 0); 
       }
 
-      bool exist_LST_file(String path, String filename)
-      {
-          File32 f;
-          String fFileList = path + filename;
+      // bool exist_LST_file(String path, String filename)
+      // {
+      //     File32 f;
+      //     String fFileList = path + filename;
 
-          if(f.open(fFileList.c_str(), O_RDONLY))
-          {
-            f.close();
-            logln("File.lst existe!!!!!");
-            return true;
-          }
-          else
-          {
-            logln("File.lst NOOO existe!!!!!");
-            return false;
-          }
-      }
+      //     if(f.open(fFileList.c_str(), O_RDONLY))
+      //     {
+      //       f.close();
+      //       logln("File.lst existe!!!!!");
+      //       return true;
+      //     }
+      //     else
+      //     {
+      //       logln("File.lst NOOO existe!!!!!");
+      //       return false;
+      //     }
+      // }
 
       // void registerFileLST(String path, bool forze_rescan, String filename, String filename_inf, String search_pattern)
       // {
@@ -780,6 +782,9 @@ class HMI
       void getFilesFromSD(bool forze_rescan, String output_file, String output_file_inf, String search_pattern="")
       {
           
+          // Abrimos ahora el _files.lst, para manejarlo
+          String fFileList = FILE_LAST_DIR + SOURCE_FILE_TO_MANAGE;
+
           FB_READING_FILES = true;
 
           #ifdef DEBUGMOCE
@@ -791,6 +796,8 @@ class HMI
           int j = 0;          
 
           clearFileBuffer();
+
+          logln("Paso 3");
 
           #ifdef DEBUGMODE
             logln("");
@@ -805,6 +812,8 @@ class HMI
               sdm.dir.close();
           }
 
+          logln("Paso 4");
+
           if (!sdm.dir.open(FILE_LAST_DIR.c_str())) 
           {
               FILE_DIR_OPEN_FAILED = true;
@@ -812,54 +821,43 @@ class HMI
           }
           else
           {
+              
+              logln("Paso 5");
+
+
               // El directorio se ha abierto sin problemas
               FILE_DIR_OPEN_FAILED = false;
-
-              String recDirTmp = FILE_LAST_DIR;
-              recDirTmp.toUpperCase();
-              if (recDirTmp == "/REC/")
-              {
-                forze_rescan=true;
-              }
-              else if (recDirTmp == "/FAV/")
-              {
-                forze_rescan=true;
-              }
-              else if (recDirTmp == "/WAV/")
-              {
-                forze_rescan=true;
-              }
-
 
               // Si el fichero manejador esta abierto no se hacen mas comprobaciones.
               if (!LST_FILE_IS_OPEN)
               {
                   // Si no existe el historico de los ficheros se genera un _file.lst
-                  if (forze_rescan || !exist_LST_file(FILE_LAST_DIR,output_file))
+                  String pathTmp = FILE_LAST_DIR + output_file;
+                  if (forze_rescan || !_sdf.exists(pathTmp.c_str()))
                   {
-                      logln("Registrando ficheros");
+                      logln("Registrando ficheros en buffer");
                       registerFiles(FILE_LAST_DIR, output_file, output_file_inf,search_pattern);
                   }
+
+                  fFileLST.open(fFileList.c_str(), O_RDONLY);
+                  fFileLST.rewind();
+                  LST_FILE_IS_OPEN = true;
               }
               else
               {
                 logln("Manejando los ficheros en buffer");
               }
 
-              // Abrimos ahora el _files.lst, para manejarlo
-              String fFileList = FILE_LAST_DIR + SOURCE_FILE_TO_MANAGE;
-              if (!LST_FILE_IS_OPEN)
-              {
-                fFileLST.open(fFileList.c_str(), O_RDONLY);
-                fFileLST.rewind();
-                LST_FILE_IS_OPEN = true;
-              }
-
               // Usamos el fichero que contiene el mapa del directorio actual, _files.inf
               // para obtener el numero de items pero solo si no estoy buscando nada.
               if (search_pattern == "")
               {
+                  logln("Paso 6");
+
                   countTotalLinesInLST(FILE_LAST_DIR, SOURCE_FILE_INF_TO_MANAGE);
+
+                  logln("Paso 7");
+
               }
     
               // AÑADIMOS AL INICIO EL PARENT DIR
@@ -876,13 +874,19 @@ class HMI
               if (FILE_PTR_POS!=0)
               {
                   putFilePtrInPosition(fFileLST,FILE_PTR_POS-1);
+                              logln("Paso 8");
+
               }
               else
               {
                   putFilePtrInPosition(fFileLST,0);
+                              logln("Paso 9");
+
               }
 
               putFilesInList();
+                          logln("Paso 10");
+
 
               // writeString("statusFILE.txt=\"ITEMS " + String(FILE_TOTAL_FILES) +"\"");
           }
@@ -1522,36 +1526,69 @@ class HMI
             String num = String(val);
             int pageSelected = num.toInt();
 
-            // Calculamos el total de páginas
-            int totalPages = ((FILE_TOTAL_FILES-1) / TOTAL_FILES_IN_BROWSER_PAGE);
-            if ((FILE_TOTAL_FILES-1) % TOTAL_FILES_IN_BROWSER_PAGE != 0)
-            {
-                totalPages+=1;
-            }            
 
-            #ifdef DEBUGMODE
-              logln("");
-              logln("Page selected: " + String(pageSelected+1) + "/" + String(totalPages));
-            #endif
+            // Vemos que pagina tenemos abierta
+            if (FILE_BROWSER_OPEN)
+            {
+                // Calculamos el total de páginas
+                int totalPages = ((FILE_TOTAL_FILES-1) / TOTAL_FILES_IN_BROWSER_PAGE);
+                if ((FILE_TOTAL_FILES-1) % TOTAL_FILES_IN_BROWSER_PAGE != 0)
+                {
+                    totalPages+=1;
+                }            
 
-            // Controlamos que no nos salgamos del total de páginas
-            if ((pageSelected+1) <= totalPages)
-            {
-                // Cogemos el primer item y refrescamos
-                FILE_PTR_POS = (pageSelected * TOTAL_FILES_IN_BROWSER_PAGE) + 1;
+                #ifdef DEBUGMODE
+                  logln("");
+                  logln("Page selected: " + String(pageSelected+1) + "/" + String(totalPages));
+                #endif
+
+                // Controlamos que no nos salgamos del total de páginas
+                if ((pageSelected+1) <= totalPages)
+                {
+                    // Cogemos el primer item y refrescamos
+                    FILE_PTR_POS = (pageSelected * TOTAL_FILES_IN_BROWSER_PAGE) + 1;
+                }
+                else
+                {
+                    // Posicionamos entonces en la ultima página
+                    pageSelected = totalPages-1;
+                    // Cogemos el primer item y refrescamos
+                    FILE_PTR_POS = (pageSelected * TOTAL_FILES_IN_BROWSER_PAGE) + 1;
+                }
+                
+                // Actualizamos la lista con la posición nueva del puntero
+                getFilesFromSD(false,SOURCE_FILE_TO_MANAGE,SOURCE_FILE_INF_TO_MANAGE);
+                // Refrescamos el listado de ficheros visualizado
+                refreshFiles();                   
             }
-            else
+            else if (BLOCK_BROWSER_OPEN)
             {
-                // Posicionamos entonces en la ultima página
-                pageSelected = totalPages-1;
-                // Cogemos el primer item y refrescamos
-                FILE_PTR_POS = (pageSelected * TOTAL_FILES_IN_BROWSER_PAGE) + 1;
+                // Calculamos el total de páginas
+                int totalPages = ((TOTAL_BLOCKS-1) / MAX_BLOCKS_IN_BROWSER);
+                if ((TOTAL_BLOCKS-1) % MAX_BLOCKS_IN_BROWSER != 0)
+                {
+                    totalPages+=1;
+                } 
+
+                // Controlamos que no nos salgamos del total de páginas
+                if ((pageSelected+1) <= totalPages)
+                {
+                    // Cogemos el primer item y refrescamos
+                    BB_PTR_ITEM = (pageSelected * MAX_BLOCKS_IN_BROWSER);
+                }
+                else
+                {
+                    // Posicionamos entonces en la ultima página
+                    pageSelected = totalPages-1;
+                    // Cogemos el primer item y refrescamos
+                    BB_PTR_ITEM = (pageSelected * MAX_BLOCKS_IN_BROWSER);
+                }
+
+
+                BB_PAGE_SELECTED = pageSelected+1;
+                BB_UPDATE = true;
             }
-            
-            // Actualizamos la lista con la posición nueva del puntero
-            getFilesFromSD(false,SOURCE_FILE_TO_MANAGE,SOURCE_FILE_INF_TO_MANAGE);
-            // Refrescamos el listado de ficheros visualizado
-            refreshFiles();            
+       
         }      
         else if (strCmd.indexOf("INFB") != -1) 
         {
@@ -1837,7 +1874,7 @@ class HMI
         {
           // Block browser abierto
           BB_OPEN = true;
-          BB_PTR_ITEM = 0;
+          BLOCK_BROWSER_OPEN = true;
         }
         else if (strCmd.indexOf("BBCL=") != -1)
         {
@@ -1848,16 +1885,19 @@ class HMI
           String sbstr = strCmd.substring(posEq+1);
 
           // Obtenemos el ID seleccionado
-          int blsel = sbstr.toInt();
-         
+          int idsel = sbstr.toInt();
+          int blsel = (MAX_BLOCKS_IN_BROWSER * BB_PAGE_SELECTED) - (MAX_BLOCKS_IN_BROWSER - idsel);
+
           logln("Bloque seleccionado: " + String(blsel));
 
           if (blsel >= 0 && blsel <= TOTAL_BLOCKS)
           {
             BLOCK_SELECTED = blsel;
-            UPDATE_HMI = true;
+            writeString("tape.currentBlock.val=" + String(BLOCK_SELECTED));
           }         
           BB_OPEN = false;
+          BLOCK_BROWSER_OPEN = false;
+          UPDATE_HMI = true;
         }        
         else if (strCmd.indexOf("BDOWN") != -1)
         {
@@ -1869,6 +1909,7 @@ class HMI
             BB_PTR_ITEM -= MAX_BLOCKS_IN_BROWSER;
           }
 
+          BB_PAGE_SELECTED = (BB_PTR_ITEM / MAX_BLOCKS_IN_BROWSER) + 1;
           BB_UPDATE = true;
 
         }
@@ -1882,9 +1923,45 @@ class HMI
             BB_PTR_ITEM = 0;
           }
 
+          BB_PAGE_SELECTED = (BB_PTR_ITEM / MAX_BLOCKS_IN_BROWSER) + 1;
           BB_UPDATE = true;
 
         }
+        else if (strCmd.indexOf("BHOME") != -1)
+        {
+          // Pagina arriba block browser
+          BB_PTR_ITEM = 0;
+          BB_PAGE_SELECTED = 1;
+          BB_UPDATE = true;
+        }        
+        else if (strCmd.indexOf("BPDOWN") != -1)
+        {
+          // Pagina arriba block browser
+          BB_PTR_ITEM += (MAX_BLOCKS_IN_BROWSER * 10);
+
+          if (BB_PTR_ITEM > TOTAL_BLOCKS - 1)
+          {
+            BB_PTR_ITEM -= (MAX_BLOCKS_IN_BROWSER * 10);
+          }
+          
+          BB_PAGE_SELECTED = (BB_PTR_ITEM / MAX_BLOCKS_IN_BROWSER) + 1;
+          BB_UPDATE = true;
+
+        }
+        else if (strCmd.indexOf("BPUP") != -1)
+        {
+          // Pagina arriba block browser
+          BB_PTR_ITEM -= (MAX_BLOCKS_IN_BROWSER * 10);
+
+          if (BB_PTR_ITEM < 0)
+          {
+            BB_PTR_ITEM = 0;
+          }
+
+          BB_PAGE_SELECTED = (BB_PTR_ITEM / MAX_BLOCKS_IN_BROWSER) + 1;
+          BB_UPDATE = true;
+
+        }        
         else if (strCmd.indexOf("CHD=") != -1) 
         {
             // Con este comando capturamos el directorio a cambiar
@@ -1926,14 +2003,27 @@ class HMI
             // clearFilesInScreen(); // 02/12/2024
             writeString("statusFILE.txt=\"READING\"");  
 
-            LST_FILE_IS_OPEN = false;
+            logln("Paso 1");
             if (fFileLST.isOpen())
             {
               fFileLST.close();
+              LST_FILE_IS_OPEN = false;
             }
 
-            getFilesFromSD(false,SOURCE_FILE_TO_MANAGE,SOURCE_FILE_INF_TO_MANAGE);
-            
+            logln("Paso 2");
+
+            String recDirTmp = FILE_LAST_DIR;
+            recDirTmp.toUpperCase();
+            if (recDirTmp == "/WAV/" || recDirTmp == "/FAV/" || recDirTmp == "/REC/")
+            {
+              getFilesFromSD(true,SOURCE_FILE_TO_MANAGE,SOURCE_FILE_INF_TO_MANAGE);
+
+            }
+            else
+            {
+              getFilesFromSD(false,SOURCE_FILE_TO_MANAGE,SOURCE_FILE_INF_TO_MANAGE);
+            }
+
             if (!FILE_DIR_OPEN_FAILED)
             {
                 //putFilesInScreen();

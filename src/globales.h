@@ -465,6 +465,8 @@ bool BB_UPDATE = false;
 int BB_PAGE = 0;
 int BB_PTR_ITEM = 0;
 bool UPDATE_HMI = false;
+bool BLOCK_BROWSER_OPEN = false;
+int BB_PAGE_SELECTED = 1;
 
 // Variables de control de la reproducción
 bool PLAY = false;

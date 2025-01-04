@@ -1856,7 +1856,8 @@ void playMP3()
     kit.setSpeakerActive(ACTIVE_AMP);
     
     // setup player
-    player.setVolume(MAIN_VOL/100);
+    player.setVolume(1);
+    kit.setVolume(MAIN_VOL/100);
     // playerbt.setVolume(MAIN_VOL/100);
     player.setAutoNext(false); 
 
@@ -1893,7 +1894,8 @@ void playMP3()
         while(!EJECT && !REC)
         {          
           
-          player.setVolume(MAIN_VOL/100);
+          player.setVolume(1);
+          kit.setVolume(MAIN_VOL/100);
   
           switch (stateWAVplayer)
           {
@@ -2265,7 +2267,9 @@ void playWAV()
     kit.setSpeakerActive(ACTIVE_AMP);
     
     // setup player
-    player.setVolume(MAIN_VOL/100);
+    player.setVolume(1);
+    kit.setVolume(MAIN_VOL/100);
+
     // playerbt.setVolume(MAIN_VOL/100);
     player.setAutoNext(false); 
 
@@ -2295,7 +2299,8 @@ void playWAV()
         while(!EJECT && !REC)
         {          
           
-          player.setVolume(MAIN_VOL/100);
+          player.setVolume(1);
+          kit.setVolume(MAIN_VOL/100);
   
           switch (stateWAVplayer)
           {
@@ -3465,7 +3470,9 @@ void setRWIND()
 void openBlocksBrowser()
 {
     // Rellenamos el browser con todos los bloques
+
     int max = MAX_BLOCKS_IN_BROWSER;
+    int totalPages = 0;
 
     if (TOTAL_BLOCKS > max)
     {
@@ -3476,8 +3483,18 @@ void openBlocksBrowser()
       max = TOTAL_BLOCKS - 1;
     }
 
+    BB_PAGE_SELECTED = (BB_PTR_ITEM / MAX_BLOCKS_IN_BROWSER) + 1;
+    
     hmi.writeString("blocks.path.txt=\"" + HMI_FNAME + "\"");
     hmi.writeString("blocks.totalBl.txt=\"" + String(TOTAL_BLOCKS-1) + "\"");
+    hmi.writeString("blocks.bbpag.txt=\"" + String(BB_PAGE_SELECTED) + "\"");
+
+    totalPages = ((TOTAL_BLOCKS-1) / MAX_BLOCKS_IN_BROWSER);
+    if ((FILE_TOTAL_FILES-1) % MAX_BLOCKS_IN_BROWSER != 0)
+    {
+        totalPages+=1;
+    }
+    hmi.writeString("blocks.totalPag.txt=\"" + String(totalPages) + "\"");
 
     for(int i=1;i<=max;i++)
     {
@@ -3499,31 +3516,39 @@ void openBlocksBrowser()
 
                 if (String(myTZX.descriptor[i + BB_PTR_ITEM].typeName).indexOf("ID 21") != -1)
                 {
-                    hmi.writeString("blocks.id" + String(i) + ".pco=34815");
-                    hmi.writeString("blocks.data" + String(i) + ".pco=34815");
-                    hmi.writeString("blocks.size" + String(i) + ".pco=34815");
-                    hmi.writeString("blocks.name" + String(i) + ".pco=34815");
+                    hmi.writeString("blocks.id" + String(i) + ".pco=2016");
+                    hmi.writeString("blocks.data" + String(i) + ".pco=2016");
+                    hmi.writeString("blocks.size" + String(i) + ".pco=2016");
+                    hmi.writeString("blocks.name" + String(i) + ".pco=2016");
                 }
+                else if (String(myTZX.descriptor[i + BB_PTR_ITEM].typeName).indexOf("ID 20") != -1)
+                {
+                    hmi.writeString("blocks.id" + String(i) + ".pco=64512");
+                    hmi.writeString("blocks.data" + String(i) + ".pco=64512");
+                    hmi.writeString("blocks.size" + String(i) + ".pco=64512");
+                    hmi.writeString("blocks.name" + String(i) + ".pco=64512");
+                }                
                 else
                 {
-                    hmi.writeString("blocks.id" + String(i) + ".pco=60868");
-                    hmi.writeString("blocks.data" + String(i) + ".pco=60868");
-                    hmi.writeString("blocks.size" + String(i) + ".pco=60868");
-                    hmi.writeString("blocks.name" + String(i) + ".pco=60868");
+                    hmi.writeString("blocks.id" + String(i) + ".pco=57051");
+                    hmi.writeString("blocks.data" + String(i) + ".pco=57051");
+                    hmi.writeString("blocks.size" + String(i) + ".pco=57051");
+                    hmi.writeString("blocks.name" + String(i) + ".pco=57051");
                 }
 
+                int tzxSize = myTZX.descriptor[i + BB_PTR_ITEM].size;
                 hmi.writeString("blocks.data" + String(i) + ".txt=\"" + myTZX.descriptor[i + BB_PTR_ITEM].typeName + "\"");
                 hmi.writeString("blocks.name" + String(i) + ".txt=\"" + myTZX.descriptor[i + BB_PTR_ITEM].name + "\"");
-                hmi.writeString("blocks.size" + String(i) + ".txt=\"" + String(myTZX.descriptor[i + BB_PTR_ITEM].size / 1024) + "\"");
+                hmi.writeString("blocks.size" + String(i) + ".txt=\"" + String(tzxSize) + "\"");
           }
           else
           {
+                int tapSize = myTAP.descriptor[i + BB_PTR_ITEM].size;
                 hmi.writeString("blocks.data" + String(i) + ".txt=\"" + myTAP.descriptor[i + BB_PTR_ITEM].typeName + "\"");
                 hmi.writeString("blocks.name" + String(i) + ".txt=\"" + myTAP.descriptor[i + BB_PTR_ITEM].name + "\"");
-                hmi.writeString("blocks.size" + String(i) + ".txt=\"" + String(myTAP.descriptor[i + BB_PTR_ITEM].size / 1024) + "\"");
+                hmi.writeString("blocks.size" + String(i) + ".txt=\"" + String(tapSize) + "\"");
           }        
       }
-
     }  
 }
 
@@ -3580,6 +3605,8 @@ void tapeControl()
           FILE_SELECTED = false;
           // 
           AUTO_STOP = false;
+          BB_PTR_ITEM = 0;
+          BB_PAGE_SELECTED = 0;
           // 
           setPolarization();
 
@@ -3629,6 +3656,16 @@ void tapeControl()
       //
       // PLAY / STOP
       //
+
+      // Esto nos permite abrir el Block Browser en reproduccion
+      if (BB_OPEN || BB_UPDATE)
+      {
+          openBlocksBrowser();
+          BB_UPDATE = false;
+          BB_OPEN = false;    
+      }      
+
+      // Estados en reproduccion
       if (PLAY)
       {
           // Inicializamos la polarización de la señal al iniciar la reproducción.
@@ -3645,12 +3682,6 @@ void tapeControl()
           //            
           playingFile();
       }
-      else if (BB_OPEN || BB_UPDATE)
-      {
-          openBlocksBrowser();
-          BB_UPDATE = false;
-          BB_OPEN = false;    
-      }      
       else if(EJECT)
       {
         TAPESTATE = 0;
