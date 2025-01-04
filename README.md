@@ -60,28 +60,28 @@ The LCD touch screen display chosen for this project is a TFT HMI LCD Display Mo
 
 -----
 
-About loading proccess in Sinclair ZX Spectrum
+About the loading process in Sinclair ZX Spectrum
 -----
-I recomend the Alessandro Grussu's website with an interesting information about the loading process and processor timming for this goal. https://www.alessandrogrussu.it/tapir/tzxform120.html#MACHINFO
+I recommend Alessandro Grussu's website with interesting information about the loading process and processor timing for this goal. https://www.alessandrogrussu.it/tapir/tzxform120.html#MACHINFO
 
-Now, I'd like to show you how the signal generated from TAP file that Sinclair ZX Spectrum is able to understand. The mechanism to read the audio signal is based on squarewave peaks counting, using the Z80 clock timming, then:
+Now, I'd like to show you how the signal generated from TAP file that Sinclair ZX Spectrum is able to understand. The mechanism to read the audio signal is based on squarewave peak counting, using the Z80 clock timing, then:
 
-The sequence for ZS Spectrum, is always for standard loading: 
+The sequence for ZS Spectrum is always for standard loading: 
 + LEADER TONE + SYNC1 + SYNC2 + DATA SEQUENCE + SILENCE
 
-<br>Where: LEADER TONE (2168 T-States) is two kind of length. 
+<br>Where: LEADER TONE (2168 T-States) is two kinds of length. 
 + Large (x 8063 T-States) for typical "PROGRAM" block (BASIC)
 + Short (x 3223 T-States) for typical "BYTE" block, Z80 machine code.</br>
 
 **What means T-State?**
 
-Well, this concept could be difficult to understand, but it's not far of reallity, as summarized full pulse (two peaks one to high and one to low) has a period equal to "2 x n T-State" time, where T-State = 1/3.5MHz = 0.28571 us, then for example: LARGE LEADER TONE.
+Well, this concept could be difficult to understand, but it's not far from reality, as summarized full pulse (two peaks one to high and one to low) has a period equal to "2 x n T-State" time, where T-State = 1/3.5MHz = 0.28571 us, then for example: LARGE LEADER TONE.
 + LEADER TONE = 2168 x 8063 T-States = 17480584 T-States
 + 1 T-State = 1 / 3.5MHz = 0.28571 us = 0.00000028571 s
 + LEADER TONE duration = 17480584 x 0.00000028571 s = 4.98s
 
-**How many peaks has the LARGE LEADER TONE pulse train?**
-+ The pulse train has 2168 peaks in both cases but short leader tone has a different duration (3223 T-States) versus large leader tone (8063 T-States)
+**How many peaks have the LARGE LEADER TONE pulse train?**
++ The pulse train has 2168 peaks in both cases but the short leader tone has a different duration (3223 T-States) versus the large leader tone (8063 T-States)
 
 **What's the signal frequency?**
 + We know that LARGE LEADER TONE pulse train is 4.98s 
@@ -90,12 +90,12 @@ Well, this concept could be difficult to understand, but it's not far of reallit
 
 About POWADCR Device.
 -----
-In this section we are going to describe parts to be needed to assemble the PowaDCR device.
+In this section, we are going to describe the parts to be needed to assemble the PowaDCR device.
 
 **Bill of material**
 + Main board: ESP32 Audiokit by AI-Thinker technology : https://docs.ai-thinker.com/en/esp32-audio-kit (Possible buy site. Alliexpress)
-+ Color LCD 3.5" 480x320 pixels. Resistive TouchScreen - TJC4832T035_011 resistive (low priced but possible to discontinued and replaced by TJC4832T135 _ 011C capacitive or TJC4832T135 _ 011R resistive)
-+ Cable XH2.5 to dupont to connecto LCD to the extended port of ESP32 Audiokit
++ Color LCD 3.5" 480x320 pixels. Resistive TouchScreen - TJC4832T035_011 resistive (low priced but possible to be discontinued and replaced by TJC4832T135 _ 011C capacitive or TJC4832T135 _ 011R resistive)
++ Cable XH2.5 to DuPont to connect LCD to the extended port of ESP32 Audiokit
 + Battery 2000mAh 3.7v (optional not needed)
 + Micro SD card FAT32 formatted (to contain all ZX Spectrum games in TAP and other formats to be red for PowaDCR in the future)
 + Micro SD card or FT232RL FTDI serial interface to program the TJC LCD (both methods are available)
@@ -106,7 +106,7 @@ In this section we are going to describe parts to be needed to assemble the Powa
 
 Hacking the Audiokit board.
 -----
-This board is build from the same design from AC101 audio chip version, but with ES8388 chip. In this case both mic and line-in are mixed. Not possible to select by independ way mic or line-in then the environment noise come in when the ZX Spectrum signal is capturing.
+This board is built from the same design from AC101 audio chip version but with ES8388 chip. In this case, both mic and line-in are mixed. Not possible to select by independent way mic or line-in then the environment noise comes in when the ZX Spectrum signal is captured.
 So, it shall be removed both integrated microphones.
 
 ![image](https://github.com/hash6iron/powadcr/assets/118267564/f47c2810-d573-4a8b-9608-7015e7462f15)
@@ -133,20 +133,20 @@ You can flash the binaries directly to the board if you do not want to mess with
    - Develop
      And press "OK" button
    
-5. Setting and begin the flash proccess.
-   - Select .bin file or type the path of it (from /build)
-   - Select all parameters exactly at the image below.
+5. Setting and beginning the flash process.
+   - Select the .bin file or type the path of it (from /build)
+   - Select all parameters exactly in the image below.
    - Connect ESP32-A1S Audiokit board from UART microUSB port (not power microUSB PORT) at PC USB port.
    - Select the available COM for this connection in COM: field on ESP32 Flash Downloading Tool.
-   - Select BAUD: speed at 921600
+   - Select BAUD: speed at 460800
    - Disconnect the Touch Screen cable in order to release serial port (Audiokit sharing USB and UART communications)
-   - Press START button in ESP32 Flash Downloading Tool. Then downloading proccess begin, and wait for FINISH message. Enjoy!
+   - Press the START button in ESP32 Flash Downloading Tool. Then the downloading process begins, wait for the FINISH message. Enjoy!
   
-     NOTES: If the proccess fail.
-      - Try to download again.
-      - Try to ERASE before START proccess.
+     NOTES: If the process fail.
+      - Try to download it again.
+      - Try to ERASE before the START process.
    
-   Show image below.
+   Show the image below.
    
    ![image](https://github.com/user-attachments/assets/b5c189c6-8945-4a65-9e22-e17a56d3eea6)
 
@@ -157,16 +157,16 @@ How custom firmware is uploaded in ESP32-A1S Audiokit?
    - https://code.visualstudio.com/download
 3. Install PlatformIO for VSCode
    - https://platformio.org/install
-5. Open powaDCR project into VSCode
+5. Open the powaDCR project into VSCode
 6. Connect the ESP32 Audiokit USART USB port to any USB PC port
-7. Press BUILD (arrow icon) from PlatformIO toolbar.
+7. Press BUILD (arrow icon) from the PlatformIO toolbar.
 
 How firmware is loaded in TJC LCD?
 -----
 Upload the file "HMI/../build/powadcr_iface.tft" to the root of the SD and insert this into powaDCR. Power on the powaDCR and Wait until firmware is uploaded.
 
 
-If you enjoy with this device and you want to colaborate, please.
+If you enjoy this device and you want to collaborate, please.
 
 <a href="https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=BAWGJFZGXE5GE&source=url"><img src="/doc/paypal_boton.png" /></a>
 
