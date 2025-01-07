@@ -8,7 +8,7 @@ TAP/TZX/TSX/CDT Digital cassette recorder for 8-bit machines
 
 ![20241120_172544](https://github.com/user-attachments/assets/f7f18624-5184-490f-a2b1-47833b4a70f2)
 
-This project pretend to implement a Digital Cassette Recorder (for TAP/TZX files playing and recording on TAP) for ZX Spectrum machines based on ESP32 Audio kit development board and using HMI over touch 3.5" screen.
+Initially, this project pretend to implement a Digital Cassette Recorder (for TAP/TZX files playing and recording on TAP) for ZX Spectrum machines based on ESP32 Audio kit development board and using HMI over touch 3.5" screen. Currently, powadcr support TAP, TZX, TSX, CDT, WAV and MP3 files, being compatible with ZX Spectrum, Amstrad, MSX and others 8-bit similar machines (see compatible list)
 
 ![image](https://github.com/user-attachments/assets/6d7ac494-c201-4113-875b-0324e44a8308)
 
@@ -161,7 +161,18 @@ How firmware is loaded in TJC LCD?
 -----
 Upload the file "HMI/../build/powadcr_iface.tft" to the root of the SD and insert this into powaDCR. Power on the powaDCR and Wait until firmware is uploaded.
 
+Compatible 8-bits machine list
+-----
+Currently, powadcr is compatible with
 
+| Machine       | File type   |
+| :---:         |    :----:   |
+| ZX Spectrum   | TAP, TZX    |
+| Amstrad       | CDT         |
+| MSX           | TSX         |
+
+Enjoy this device and support me.
+-----
 If you enjoy this device and you want to collaborate, please.
 
 <a href="https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=BAWGJFZGXE5GE&source=url"><img src="/doc/paypal_boton.png" /></a>
