@@ -56,11 +56,7 @@ The LCD touch screen display chosen for this project is a TFT HMI LCD Display Mo
 + Size: 3.5".
 + Resolution:  480x320.
 
-## About Sinclair ZX Spectrum TAP structure.
-
------
-
-About the loading process in Sinclair ZX Spectrum
+About the loading process with standard timing in Sinclair ZX Spectrum
 -----
 I recommend Alessandro Grussu's website with interesting information about the loading process and processor timing for this goal. https://www.alessandrogrussu.it/tapir/tzxform120.html#MACHINFO
 
