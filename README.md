@@ -165,11 +165,16 @@ Compatible 8-bits machine list
 -----
 Currently, powadcr is compatible with
 
-| Machine       | File type   |
-| :---:         |    :----:   |
-| ZX Spectrum   | TAP, TZX    |
-| Amstrad       | CDT         |
-| MSX           | TSX         |
+| Machine           | File type   |
+| :---:             |    :----:   |
+| ZX Spectrum       | TAP, TZX    |
+| Amstrad           | CDT         |
+| MSX               | TSX         |
+| Enter Enterprise  | TZX*        |
+| Oric              | TZX*        |
+| Lynx              | TZX*        |
+
+*In general, Powadcr is compatible with all systems using the TZX or TSX block ID15 (Direct Recording) 
 
 Enjoy this device and support me.
 -----
