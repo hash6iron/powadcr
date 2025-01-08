@@ -1390,9 +1390,16 @@ int getWAVfileSize(String path)
     return fsize;
 }
 
-void updateIndicators(int size, int pos, int fsize, String fname)
+void updateIndicators(int size, int pos, int fsize, int bitrate, String fname)
 {
         
+    String strBitrate = "(" + String(bitrate/1000) + " Kbps)";
+
+    if (TYPE_FILE_LOAD =="WAV")
+    {
+      strBitrate = "";
+    }
+
     // if (plLastSize != size)
     // {
     hmi.writeString("tape.totalBlocks.val=" + String(size));
@@ -1405,7 +1412,7 @@ void updateIndicators(int size, int pos, int fsize, String fname)
 
     // if (plLastName != fname)
     // {
-    hmi.writeString("type.txt=\"" + TYPE_FILE_LOAD + " file\"");
+    hmi.writeString("type.txt=\"" + TYPE_FILE_LOAD + " file " + strBitrate + "\"");
     // }
 
     // if (plLastFsize != fsize)
@@ -1837,7 +1844,28 @@ void updateIndicators(int size, int pos, int fsize, String fname)
 //       logln("Error recovering spi initialization");
 //     }  
 // }
+void estimatePlayingTime(int fileread, int filesize, int samprate)
+{
+    float totalTime = (filesize * 8) / (samprate);
+    int tmin = totalTime / 60.0;
+    int tsec = totalTime - (tmin * 60);
 
+    String utsec = (tsec < 10) ? "0" : "";
+    String utmin = (tmin < 10) ? "0" : "";
+
+    // Elapsed time
+    // logln("Bit rate por sample: " + String(ainfo.bits_per_sample));
+    // logln("Sampling rate:       " + String(ainfo.sample_rate));
+
+    float time = (fileread * 8) / (samprate);
+    int min = time / 60.0;
+    int sec = time - (min * 60);
+
+    String usec = (sec < 10) ? "0" : "";
+    String umin = (min < 10) ? "0" : "";                    
+
+    LAST_MESSAGE = "Total time:  [" + utmin + String(tmin) + ":" + utsec + String(tsec) + "]   -   Elapsed:  [" + umin + String(min) + ":" + usec + String(sec) + "]"; 
+}
 
 void playMP3()
 {
@@ -1943,7 +1971,8 @@ void playMP3()
         currentFileIdx = source.index() + 1;
         FILE_LOAD = source.toStr();
 
-        updateIndicators(totalFilesIdx, currentFileIdx, fileSize, FILE_LOAD);
+        player.copy();
+        updateIndicators(totalFilesIdx, currentFileIdx, fileSize, decoder.audioInfoEx().bitrate, FILE_LOAD);
 
         while(!EJECT && !REC)
         {          
@@ -1974,7 +2003,7 @@ void playMP3()
                     totalFilesIdx = source.size() + 1;
                     currentFileIdx = source.index() + 1;
                     FILE_LOAD = source.toStr();   
-                    updateIndicators(totalFilesIdx, currentFileIdx, fileSize, FILE_LOAD);
+                    updateIndicators(totalFilesIdx, currentFileIdx, fileSize, decoder.audioInfoEx().bitrate, FILE_LOAD);
 
                     currentIdx = source.index();
                     logln("Current IDX: " + String(currentIdx));
@@ -2009,7 +2038,7 @@ void playMP3()
                     totalFilesIdx = source.size() + 1;
                     currentFileIdx = source.index() + 1;
                     FILE_LOAD = source.toStr();
-                    updateIndicators(totalFilesIdx, currentFileIdx, fileSize, FILE_LOAD);
+                    updateIndicators(totalFilesIdx, currentFileIdx, fileSize, decoder.audioInfoEx().bitrate, FILE_LOAD);
 
                     FFWIND = false;
                     RWIND = false;
@@ -2043,7 +2072,7 @@ void playMP3()
                     totalFilesIdx = source.size() + 1;
                     currentFileIdx = source.index() + 1;
                     FILE_LOAD = source.toStr();
-                    updateIndicators(totalFilesIdx, currentFileIdx, fileSize, FILE_LOAD);
+                    updateIndicators(totalFilesIdx, currentFileIdx, fileSize, decoder.audioInfoEx().bitrate, FILE_LOAD);
 
                     FFWIND = false;
                     RWIND = false;
@@ -2076,15 +2105,8 @@ void playMP3()
                     // eqcpy.copy();
                     fileread += player.copy();
 
-                    float time = fileread / decoder.audioInfo().sample_rate / decoder.audioInfo().channels;
-                    int min = time / 60.0;
-                    int sec = time - (min * 60);
-             
-                    String usec = (sec < 10) ? "0" : "";
-                    String umin = (min < 10) ? "0" : "";
-
-                    LAST_MESSAGE = "Elapsed time: " + umin + String(min) + ":" + usec + String(sec);                  
-
+                    // Playing time
+                    estimatePlayingTime(fileread, fileSize, decoder.audioInfoEx().bitrate);                 
                     // Mostramos la progresion de la reproduccion
                     PROGRESS_BAR_TOTAL_VALUE = (fileread * 100) / fileSize;
                     PROGRESS_BAR_BLOCK_VALUE = PROGRESS_BAR_TOTAL_VALUE;
@@ -2118,7 +2140,7 @@ void playMP3()
                             currentFileIdx = source.index() + 1;
                             FILE_LOAD = source.toStr();       
                             fileSize = getWAVfileSize(source.toStr());
-                            updateIndicators(totalFilesIdx, currentFileIdx, fileSize, FILE_LOAD);
+                            updateIndicators(totalFilesIdx, currentFileIdx, fileSize, decoder.audioInfoEx().bitrate, FILE_LOAD);
                             // Actualizamos la referencia de cambio de pista 
                             currentIdx = source.index();  
                             fileread = 0;                                         
@@ -2168,7 +2190,7 @@ void playMP3()
                     totalFilesIdx = source.size() + 1;
                     currentFileIdx = source.index() + 1;
                     FILE_LOAD = source.toStr();
-                    updateIndicators(totalFilesIdx, currentFileIdx, fileSize, FILE_LOAD);
+                    updateIndicators(totalFilesIdx, currentFileIdx, fileSize, decoder.audioInfoEx().bitrate, FILE_LOAD);
 
                     FFWIND = false;
                     RWIND = false;
@@ -2202,7 +2224,7 @@ void playMP3()
                     totalFilesIdx = source.size() + 1;
                     currentFileIdx = source.index() + 1;
                     FILE_LOAD = source.toStr();
-                    updateIndicators(totalFilesIdx, currentFileIdx, fileSize, FILE_LOAD);
+                    updateIndicators(totalFilesIdx, currentFileIdx, fileSize, decoder.audioInfoEx().bitrate, FILE_LOAD);
 
                     FFWIND = false;
                     RWIND = false;
@@ -2240,7 +2262,7 @@ void playMP3()
                     totalFilesIdx = source.size() + 1;
                     currentFileIdx = source.index() + 1;
                     FILE_LOAD = source.toStr();
-                    updateIndicators(totalFilesIdx, currentFileIdx, fileSize, FILE_LOAD);
+                    updateIndicators(totalFilesIdx, currentFileIdx, fileSize, decoder.audioInfoEx().bitrate, FILE_LOAD);
 
                     // Lo ponemos asi para que empiece en CONTINUOS PLAYING
                     // ya que en el if se hace un cambio dependiendo del valor anterior
@@ -2273,7 +2295,7 @@ void playMP3()
                     currentFileIdx = source.index() + 1;
                     FILE_LOAD = source.toStr();
                     
-                    updateIndicators(totalFilesIdx, currentFileIdx, fileSize, FILE_LOAD);
+                    updateIndicators(totalFilesIdx, currentFileIdx, fileSize, decoder.audioInfoEx().bitrate, FILE_LOAD);
 
                     // hmi.writeString("name.txt=\"" + String(source.toStr()) + "\""); 
                     // Reseteamos el contador de progreso                  
@@ -2293,7 +2315,7 @@ void playMP3()
           // Actualizamos el indicador
           if ((millis() - startTime) > 4000)
           {
-            updateIndicators(totalFilesIdx, currentFileIdx, fileSize, FILE_LOAD);
+            updateIndicators(totalFilesIdx, currentFileIdx, fileSize, decoder.audioInfoEx().bitrate, FILE_LOAD);
             startTime = millis();
           }       
           
@@ -2698,7 +2720,7 @@ void playWAV()
           // Actualizamos el indicador
           if ((millis() - startTime) > 500)
           {
-            updateIndicators(totalFilesIdx, currentFileIdx, fileSize, FILE_LOAD);
+            updateIndicators(totalFilesIdx, currentFileIdx, fileSize, 0, FILE_LOAD);
             startTime = millis();
           }
 
