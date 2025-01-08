@@ -1974,6 +1974,7 @@ void playMP3()
                     totalFilesIdx = source.size() + 1;
                     currentFileIdx = source.index() + 1;
                     FILE_LOAD = source.toStr();   
+                    updateIndicators(totalFilesIdx, currentFileIdx, fileSize, FILE_LOAD);
 
                     currentIdx = source.index();
                     logln("Current IDX: " + String(currentIdx));
@@ -2008,6 +2009,7 @@ void playMP3()
                     totalFilesIdx = source.size() + 1;
                     currentFileIdx = source.index() + 1;
                     FILE_LOAD = source.toStr();
+                    updateIndicators(totalFilesIdx, currentFileIdx, fileSize, FILE_LOAD);
 
                     FFWIND = false;
                     RWIND = false;
@@ -2041,6 +2043,7 @@ void playMP3()
                     totalFilesIdx = source.size() + 1;
                     currentFileIdx = source.index() + 1;
                     FILE_LOAD = source.toStr();
+                    updateIndicators(totalFilesIdx, currentFileIdx, fileSize, FILE_LOAD);
 
                     FFWIND = false;
                     RWIND = false;
@@ -2135,6 +2138,7 @@ void playMP3()
                             currentFileIdx = source.index() + 1;
                             FILE_LOAD = source.toStr();       
                             fileSize = getWAVfileSize(source.toStr());
+                            updateIndicators(totalFilesIdx, currentFileIdx, fileSize, FILE_LOAD);
                             // Actualizamos la referencia de cambio de pista 
                             currentIdx = source.index();  
                             fileread = 0;                                         
@@ -2184,6 +2188,7 @@ void playMP3()
                     totalFilesIdx = source.size() + 1;
                     currentFileIdx = source.index() + 1;
                     FILE_LOAD = source.toStr();
+                    updateIndicators(totalFilesIdx, currentFileIdx, fileSize, FILE_LOAD);
 
                     FFWIND = false;
                     RWIND = false;
@@ -2217,6 +2222,7 @@ void playMP3()
                     totalFilesIdx = source.size() + 1;
                     currentFileIdx = source.index() + 1;
                     FILE_LOAD = source.toStr();
+                    updateIndicators(totalFilesIdx, currentFileIdx, fileSize, FILE_LOAD);
 
                     FFWIND = false;
                     RWIND = false;
@@ -2254,6 +2260,8 @@ void playMP3()
                     totalFilesIdx = source.size() + 1;
                     currentFileIdx = source.index() + 1;
                     FILE_LOAD = source.toStr();
+                    updateIndicators(totalFilesIdx, currentFileIdx, fileSize, FILE_LOAD);
+
                     // Lo ponemos asi para que empiece en CONTINUOS PLAYING
                     // ya que en el if se hace un cambio dependiendo del valor anterior
                     disable_auto_wav_stop = false;                    
@@ -2284,6 +2292,8 @@ void playMP3()
                     totalFilesIdx = source.size() + 1;
                     currentFileIdx = source.index() + 1;
                     FILE_LOAD = source.toStr();
+                    
+                    updateIndicators(totalFilesIdx, currentFileIdx, fileSize, FILE_LOAD);
 
                     // hmi.writeString("name.txt=\"" + String(source.toStr()) + "\""); 
                     // Reseteamos el contador de progreso                  
@@ -2301,7 +2311,7 @@ void playMP3()
           }
 
           // Actualizamos el indicador
-          if ((millis() - startTime) > 250)
+          if ((millis() - startTime) > 4000)
           {
             updateIndicators(totalFilesIdx, currentFileIdx, fileSize, FILE_LOAD);
             startTime = millis();
