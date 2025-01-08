@@ -2076,34 +2076,14 @@ void playMP3()
                     // eqcpy.copy();
                     fileread += player.copy();
 
-                    int time = (fileread) / (44100);
-                    int min = time / 60;
+                    float time = fileread / decoder.audioInfo().sample_rate / decoder.audioInfo().channels;
+                    int min = time / 60.0;
                     int sec = time - (min * 60);
-                    String usec = "0";
-                    String umin = "0";
+             
+                    String usec = (sec < 10) ? "0" : "";
+                    String umin = (min < 10) ? "0" : "";
 
-                    if (sec < 10)
-                    {
-                      usec = "0";
-                    }
-                    else
-                    {
-                      usec = "";
-                    }
-
-                    if (min < 10)
-                    {
-                      umin = "0";
-                    }
-                    else
-                    {
-                      umin = "";
-                    }
-
-                    LAST_MESSAGE = "Elapsed time: " + umin + String(min) + ":" + usec + String(sec);
-
-
-                    
+                    LAST_MESSAGE = "Elapsed time: " + umin + String(min) + ":" + usec + String(sec);                  
 
                     // Mostramos la progresion de la reproduccion
                     PROGRESS_BAR_TOTAL_VALUE = (fileread * 100) / fileSize;

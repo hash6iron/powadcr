@@ -3171,155 +3171,150 @@ class HMI
 
       void updateInformationMainPage(bool FORZE_REFRESH = false) 
       {            
-          // String msgPol = "";
-          // String msgEAR = "";
-
-          // if (POLARIZATION == up)
-          // {
-          //   msgPol = "UP";
-          // }
-          // else
-          // {
-          //   msgPol = "DOWN";
-          // }
-
-          // if (LAST_EAR_IS == up)
-          // {
-          //   msgEAR = "UP";
-          // }
-          // else
-          // {
-          //   msgEAR = "DOWN";
-          // }
-
-          if (PLAY)
+          // Para el caso de los players, no se usa esto.
+          if (TYPE_FILE_LOAD != "MP3" && TYPE_FILE_LOAD != "WAV")
           {
-            if (CURRENT_PAGE == 3)
-            {
-                writeString("debug.dataOffset1.txt=\"" + dataOffset1 +"\"");
-                writeString("debug.dataOffset2.txt=\"" + dataOffset2 +"\"");
-                writeString("debug.dataOffset3.txt=\"" + dataOffset3 +"\"");
-                writeString("debug.dataOffset4.txt=\"" + dataOffset4 +"\"");
+                if (PLAY)
+                {
+                  if (CURRENT_PAGE == 3)
+                  {
+                      writeString("debug.dataOffset1.txt=\"" + dataOffset1 +"\"");
+                      writeString("debug.dataOffset2.txt=\"" + dataOffset2 +"\"");
+                      writeString("debug.dataOffset3.txt=\"" + dataOffset3 +"\"");
+                      writeString("debug.dataOffset4.txt=\"" + dataOffset4 +"\"");
 
-                writeString("debug.offset1.txt=\"" + Offset1 +"\"");
-                writeString("debug.offset2.txt=\"" + Offset2 +"\"");
-                writeString("debug.offset3.txt=\"" + Offset3 +"\"");
-                writeString("debug.offset4.txt=\"" + Offset4 +"\"");
+                      writeString("debug.offset1.txt=\"" + Offset1 +"\"");
+                      writeString("debug.offset2.txt=\"" + Offset2 +"\"");
+                      writeString("debug.offset3.txt=\"" + Offset3 +"\"");
+                      writeString("debug.offset4.txt=\"" + Offset4 +"\"");
 
-                // DEBUG Information
-                writeString("debug.blockLoading.txt=\"" + String(BLOCK_SELECTED) +"\"");
-                
-                // Esto falla
-                writeString("debug.partLoading.txt=\"" + String(PARTITION_BLOCK) +"\"");
-                writeString("debug.totalParts.txt=\"" + String(TOTAL_PARTS) +"\"");
+                      // DEBUG Information
+                      writeString("debug.blockLoading.txt=\"" + String(BLOCK_SELECTED) +"\"");
+                      
+                      // Esto falla
+                      writeString("debug.partLoading.txt=\"" + String(PARTITION_BLOCK) +"\"");
+                      writeString("debug.totalParts.txt=\"" + String(TOTAL_PARTS) +"\"");
 
-                writeString("debug.dbgBlkInfo.txt=\"" + dbgBlkInfo +"\"");
-                writeString("debug.dbgPauseAB.txt=\"" + dbgPauseAB +"\"");
-                writeString("debug.dbgSync1.txt=\"" + dbgSync1 +"\"");
-                writeString("debug.dbgSync2.txt=\"" + dbgSync2 +"\"");
-                writeString("debug.dbgBit1.txt=\"" + dbgBit1 +"\"");
-                writeString("debug.dbgBit0.txt=\"" + dbgBit0 +"\"");
-                writeString("debug.dbgTState.txt=\"" + dbgTState +"\"");
-                writeString("debug.dbgRep.txt=\"" + dbgRep +"\"");
-            }
+                      writeString("debug.dbgBlkInfo.txt=\"" + dbgBlkInfo +"\"");
+                      writeString("debug.dbgPauseAB.txt=\"" + dbgPauseAB +"\"");
+                      writeString("debug.dbgSync1.txt=\"" + dbgSync1 +"\"");
+                      writeString("debug.dbgSync2.txt=\"" + dbgSync2 +"\"");
+                      writeString("debug.dbgBit1.txt=\"" + dbgBit1 +"\"");
+                      writeString("debug.dbgBit0.txt=\"" + dbgBit0 +"\"");
+                      writeString("debug.dbgTState.txt=\"" + dbgTState +"\"");
+                      writeString("debug.dbgRep.txt=\"" + dbgRep +"\"");
+                  }
+                }
+
+                if (TOTAL_BLOCKS != 0 || REC || EJECT || FORZE_REFRESH) 
+                {
+              
+                    // Enviamos información al HMI
+                    if (TYPE_FILE_LOAD != "TAP" || REC || FORZE_REFRESH)
+                    {
+                        // Para TZX
+                        if (lastPrgName!=PROGRAM_NAME)// || lastPrgName2!=PROGRAM_NAME_2)
+                        {
+                          writeString("name.txt=\"" + PROGRAM_NAME + "\"");
+                          writeString("tape2.name.txt=\"" + PROGRAM_NAME + " : " + PROGRAM_NAME_2 + "\"");
+                        }
+                        lastPrgName = PROGRAM_NAME;
+                        lastPrgName2 = PROGRAM_NAME_2;
+                    }
+                    else
+                    {
+                        // Para TAP
+                        if (lastPrgName!=PROGRAM_NAME || FORZE_REFRESH)
+                        {
+                          writeString("name.txt=\"" + PROGRAM_NAME + "\"");
+                          writeString("tape2.name.txt=\"" + PROGRAM_NAME + "\"");
+                        }
+                        lastPrgName = PROGRAM_NAME;
+                    }
+                    
+                    if (lstLastSize!=LAST_SIZE || FORZE_REFRESH)
+                    {
+                        if (LAST_SIZE > 9999)
+                        {
+                          writeString("size.txt=\"" + String(LAST_SIZE / 1024) + " Kb\"");
+                          writeString("tape2.size.txt=\"" + String(LAST_SIZE / 1024) + " Kb\"");
+                        }
+                        else
+                        {
+                          writeString("size.txt=\"" + String(LAST_SIZE) + " bytes\"");
+                          writeString("tape2.size.txt=\"" + String(LAST_SIZE) + " bytes\"");
+                        }
+                    }
+
+                    lstLastSize = LAST_SIZE;
+
+                    String cmpTypeStr = String(LAST_NAME);
+                    cmpTypeStr.trim();
+
+
+                    if (TYPE_FILE_LOAD != "TAP" || REC || FORZE_REFRESH)
+                    {
+                        if (lastType!=LAST_TYPE || lastGrp!=LAST_GROUP || FORZE_REFRESH)
+                        { 
+                          writeString("type.txt=\"" + String(LAST_TYPE) + " " + LAST_GROUP + "\"");
+                          writeString("tape2.type.txt=\"" + String(LAST_TYPE) + " " + LAST_GROUP + "\"");
+                        }
+                        lastType = LAST_TYPE;
+                        lastGrp = LAST_GROUP;
+                    }
+                    else
+                    {
+
+                        if (lastType!=LAST_TYPE || FORZE_REFRESH)
+                        { 
+                          writeString("type.txt=\"" + String(LAST_TYPE) + "\"");
+                          writeString("tape2.type.txt=\"" + String(LAST_TYPE) + "\"");
+                        }
+                        lastType = LAST_TYPE;     
+
+                        if (lastPrgName!=PROGRAM_NAME || FORZE_REFRESH)
+                        {
+                          writeString("name.txt=\"" + PROGRAM_NAME + "\"");
+                          writeString("tape2.name.txt=\"" + PROGRAM_NAME + "\"");
+                        }
+                        lastPrgName = PROGRAM_NAME;                
+                    }
+
+                }
+
+                if (lastBl1 != TOTAL_BLOCKS || FORZE_REFRESH)
+                {
+                    if (TOTAL_BLOCKS == 0)
+                    {
+                      writeString("totalBlocks.val=" + String(TOTAL_BLOCKS));
+                    }
+                    else
+                    {
+                      writeString("totalBlocks.val=" + String(TOTAL_BLOCKS-1));                
+                    }
+                }
+                lastBl1 = TOTAL_BLOCKS;
+
+                if (lastBl2 != BLOCK_SELECTED || FORZE_REFRESH)
+                {
+                    if(TYPE_FILE_LOAD == "TAP")
+                    {
+                        writeString("currentBlock.val=" + String(BLOCK_SELECTED + 1));
+                    }
+                    else
+                    {
+                        writeString("currentBlock.val=" + String(BLOCK_SELECTED));
+                    }
+                    lastBl2 = BLOCK_SELECTED;
+                }            
           }
 
-          if (TOTAL_BLOCKS != 0 || REC || EJECT || FORZE_REFRESH) 
-          {
-        
-            // Enviamos información al HMI
-            if (TYPE_FILE_LOAD != "TAP" || REC || FORZE_REFRESH)
-            {
-                // Para TZX
-                if (lastPrgName!=PROGRAM_NAME)// || lastPrgName2!=PROGRAM_NAME_2)
-                {
-                  // writeString("name.txt=\"" + PROGRAM_NAME + " : " + PROGRAM_NAME_2 + "\"");
-                  writeString("name.txt=\"" + PROGRAM_NAME + "\"");
-                  writeString("tape2.name.txt=\"" + PROGRAM_NAME + " : " + PROGRAM_NAME_2 + "\"");
-                }
-                lastPrgName = PROGRAM_NAME;
-                lastPrgName2 = PROGRAM_NAME_2;
-            }
-            else
-            {
-                // Para TAP
-                if (lastPrgName!=PROGRAM_NAME || FORZE_REFRESH)
-                {
-                  writeString("name.txt=\"" + PROGRAM_NAME + "\"");
-                  writeString("tape2.name.txt=\"" + PROGRAM_NAME + "\"");
-                }
-                lastPrgName = PROGRAM_NAME;
-            }
-            
-            if (lstLastSize!=LAST_SIZE || FORZE_REFRESH)
-            {
-                if (LAST_SIZE > 9999)
-                {
-                  writeString("size.txt=\"" + String(LAST_SIZE / 1024) + " Kb\"");
-                  writeString("tape2.size.txt=\"" + String(LAST_SIZE / 1024) + " Kb\"");
-                }
-                else
-                {
-                  writeString("size.txt=\"" + String(LAST_SIZE) + " bytes\"");
-                  writeString("tape2.size.txt=\"" + String(LAST_SIZE) + " bytes\"");
-                }
-            }
-
-            lstLastSize = LAST_SIZE;
-
-            String cmpTypeStr = String(LAST_NAME);
-            cmpTypeStr.trim();
-
-
-            if (TYPE_FILE_LOAD != "TAP" || REC || FORZE_REFRESH)
-            {
-                if (lastType!=LAST_TYPE || lastGrp!=LAST_GROUP || FORZE_REFRESH)
-                { 
-                  writeString("type.txt=\"" + String(LAST_TYPE) + " " + LAST_GROUP + "\"");
-                  writeString("tape2.type.txt=\"" + String(LAST_TYPE) + " " + LAST_GROUP + "\"");
-                }
-                lastType = LAST_TYPE;
-                lastGrp = LAST_GROUP;
-            }
-            else
-            {
-
-                if (lastType!=LAST_TYPE || FORZE_REFRESH)
-                { 
-                  writeString("type.txt=\"" + String(LAST_TYPE) + "\"");
-                  writeString("tape2.type.txt=\"" + String(LAST_TYPE) + "\"");
-                }
-                lastType = LAST_TYPE;  
-
-                // writeString("name.txt=\"" + PROGRAM_NAME + " : " + String(LAST_NAME) + "\"");           
-                // writeString("tape2.name.txt=\"" + PROGRAM_NAME + " : " + String(LAST_NAME) + "\"");     
-
-                if (lastPrgName!=PROGRAM_NAME || FORZE_REFRESH)
-                {
-                  writeString("name.txt=\"" + PROGRAM_NAME + "\"");
-                  writeString("tape2.name.txt=\"" + PROGRAM_NAME + "\"");
-                }
-                lastPrgName = PROGRAM_NAME;                
-            }
-        
-            //writeString("totalBlocks.val=" + String(TOTAL_BLOCKS));
-            //writeString("currentBlock.val=" + String(BLOCK_SELECTED + 1));
-          }
-          else if (TOTAL_BLOCKS == 0)
-          {
-            //writeString("totalBlocks.val=0");
-            //writeString("currentBlock.val=0");
-          }
-
-          // if (lastfname != HMI_FNAME || FORZE_REFRESH)
-          // {writeString("fname.txt=\"" + HMI_FNAME + "\"");}
-          // lastfname = HMI_FNAME;
-
-
+          // Actualizamos el LAST_MESSAGE
           if (lastMsn != LAST_MESSAGE || FORZE_REFRESH)
           {writeString("g0.txt=\"" + LAST_MESSAGE + "\"");}
           lastMsn = LAST_MESSAGE;
           
+          // Actualizamos la barra de progreso
           if (lastPr1 != PROGRESS_BAR_BLOCK_VALUE || FORZE_REFRESH)
           {writeString("progressBlock.val=" + String(PROGRESS_BAR_BLOCK_VALUE));}
           lastPr1 = PROGRESS_BAR_BLOCK_VALUE;
@@ -3328,31 +3323,6 @@ class HMI
           {writeString("progressTotal.val=" + String(PROGRESS_BAR_TOTAL_VALUE));}
           lastPr2 = PROGRESS_BAR_TOTAL_VALUE;
 
-          if (lastBl1 != TOTAL_BLOCKS || FORZE_REFRESH)
-          {
-              if (TOTAL_BLOCKS == 0)
-              {
-                writeString("totalBlocks.val=" + String(TOTAL_BLOCKS));
-              }
-              else
-              {
-                writeString("totalBlocks.val=" + String(TOTAL_BLOCKS-1));                
-              }
-          }
-          lastBl1 = TOTAL_BLOCKS;
-
-          if (lastBl2 != BLOCK_SELECTED || FORZE_REFRESH)
-          {
-              if(TYPE_FILE_LOAD == "TAP")
-              {
-                  writeString("currentBlock.val=" + String(BLOCK_SELECTED + 1));
-              }
-              else
-              {
-                  writeString("currentBlock.val=" + String(BLOCK_SELECTED));
-              }
-              lastBl2 = BLOCK_SELECTED;
-          }
                             
           if (CURRENT_PAGE == 2)
           {
