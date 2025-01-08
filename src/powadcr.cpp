@@ -1392,9 +1392,20 @@ int getWAVfileSize(String path)
 
 void updateIndicators(int size, int pos, int fsize, int bitrate, String fname)
 {
-        
-    String strBitrate = "(" + String(bitrate/1000) + " Kbps)";
+    
+    // logln("Bitrate: " + bitrate);
 
+    String strBitrate = "";
+
+    if (bitrate != 0)
+    {
+      strBitrate = "(" + String(bitrate / 1000) + " Kbps)";
+    }
+    else
+    {
+      strBitrate = "0";
+    }
+    
     if (TYPE_FILE_LOAD =="WAV")
     {
       strBitrate = "";
@@ -1846,6 +1857,7 @@ void updateIndicators(int size, int pos, int fsize, int bitrate, String fname)
 // }
 void estimatePlayingTime(int fileread, int filesize, int samprate)
 {
+
     if (samprate > 0 ) { 
       float totalTime = (filesize * 8) / (samprate);
       int tmin = totalTime / 60.0;
@@ -1866,6 +1878,8 @@ void estimatePlayingTime(int fileread, int filesize, int samprate)
       String umin = (min < 10) ? "0" : "";                    
 
       LAST_MESSAGE = "Total time:  [" + utmin + String(tmin) + ":" + utsec + String(tsec) + "]   -   Elapsed:  [" + umin + String(min) + ":" + usec + String(sec) + "]"; 
+
+
     }
 }
 
@@ -1973,7 +1987,11 @@ void playMP3()
         currentFileIdx = source.index() + 1;
         FILE_LOAD = source.toStr();
 
+        // Esto lo hacemos para coger el bitrate la primera vez
         player.copy();
+        // int br = decoder.audioInfoEx().bitrate;
+        
+        // logln("Bitrate: " + String(br));
         updateIndicators(totalFilesIdx, currentFileIdx, fileSize, decoder.audioInfoEx().bitrate, FILE_LOAD);
 
         while(!EJECT && !REC)
