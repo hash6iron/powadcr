@@ -413,7 +413,7 @@ int SCREEN_SECTION = 0;
 // File system
 int FILE_INDEX = 0;           // Índice de la fila seleccionada
 int FILE_PAGE = 0;            // Contador de la pagina leida
-String FILE_PATH="";         // Ruta del archivo seleccionado
+// String FILE_PATH="";         // Ruta del archivo seleccionado
 int FILE_LAST_DIR_LEVEL = 0;  // Nivel de profundida de directorio
 String FILE_LAST_DIR = "/";
 String FILE_PREVIOUS_DIR = "/";
@@ -479,6 +479,9 @@ bool AUTO_STOP = false;
 bool AUTO_PAUSE = false;
 bool FFWIND = false;
 bool RWIND = false;
+bool KEEP_FFWIND = false;
+bool KEEP_RWIND = false;
+
 bool EJECT = false;
 bool UP = false;
 bool DOWN = false;
@@ -505,6 +508,12 @@ double MAIN_VOL_FACTOR = 100;
 double MAIN_VOL = 0.9 * MAIN_VOL_FACTOR;
 double MAIN_VOL_R = 0.9 * MAIN_VOL_FACTOR;
 double MAIN_VOL_L = 0.9 * MAIN_VOL_FACTOR;
+float EQ_HIGH = 0.9;
+float EQ_MID = 0.5;
+float EQ_LOW = 0.7;
+bool EQ_CHANGE = false;
+bool VOL_LIMIT_HEADPHONE = false;
+
 // double LAST_MAIN_VOL = 0.9 * MAIN_VOL_FACTOR;
 // double LAST_MAIN_VOL_R = 0.9 * MAIN_VOL_FACTOR;
 // double LAST_MAIN_VOL_L = 0.9 * MAIN_VOL_FACTOR;

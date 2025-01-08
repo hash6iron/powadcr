@@ -205,6 +205,11 @@ int posRotateName = 0;  // Posicion del texto rotativo en tape.name.txt (HMI)
 int moveDirection = 1;
 bool disable_auto_wav_stop = false;
 
+int plLastSize = 0;
+int plLastpos = 0;
+int plLastFsize = 0;
+String plLastName = "";
+
 // -----------------------------------------------------------------------
 // Prototype function
 
@@ -1387,18 +1392,38 @@ int getWAVfileSize(String path)
 
 void updateIndicators(int size, int pos, int fsize, String fname)
 {
+        
+    // if (plLastSize != size)
+    // {
     hmi.writeString("tape.totalBlocks.val=" + String(size));
-    hmi.writeString("tape.currentBlock.val=" + String(pos));
-    hmi.writeString("type.txt=\"" + TYPE_FILE_LOAD + " file\"");
+    // }
 
-    if (fsize < 1000000)
-    {
-      hmi.writeString("size.txt=\"" + String(fsize/1024) + " KB\"");
-    }
-    else
-    {
-      hmi.writeString("size.txt=\"" + String(fsize/1024/1024) + " MB\"");
-    }
+    // if (plLastpos != pos)
+    // {
+    hmi.writeString("tape.currentBlock.val=" + String(pos));
+    // }
+
+    // if (plLastName != fname)
+    // {
+    hmi.writeString("type.txt=\"" + TYPE_FILE_LOAD + " file\"");
+    // }
+
+    // if (plLastFsize != fsize)
+    // {
+      if (fsize < 1000000)
+      {
+        hmi.writeString("size.txt=\"" + String(fsize/1024) + " KB\"");
+      }
+      else
+      {
+        hmi.writeString("size.txt=\"" + String(fsize/1024/1024) + " MB\"");
+      }
+    // }
+
+    // plLastName = fname;
+    // plLastSize = size;
+    // plLastFsize = fsize;
+    // plLastpos = pos;
 }
 
 // void playFLAC()
@@ -1828,6 +1853,9 @@ void playMP3()
     int stateWAVplayer = 0;
     int totalFilesIdx = 0;
     int currentFileIdx = 0;
+
+    Boost boost(0.5);
+
     String txtR = "";
 
 
@@ -1836,32 +1864,56 @@ void playMP3()
     // WAVDecoder wavdecoder(adpcm_decoder, AudioFormat::ADPCM);
     // WAVDecoder decoder;
     SdSpiConfig sdcfg(PIN_AUDIO_KIT_SD_CARD_CS,SHARED_SPI,SD_SCK_MHZ(SD_SPEED_MHZ),&SPI);
-    AudioSourceSDFAT source("/mp3","mp3",sdcfg);
+    AudioSourceSDFAT source(FILE_LAST_DIR.c_str(),"mp3",sdcfg);
     AudioKitStream kit;
+
     // A2DPStream outbt;
     MP3DecoderHelix decoder;
     
-    // WAVDecoder decoderbt;
+    // Ecualizer
+
     AudioPlayer player(source,kit,decoder);
+
+    Equilizer3Bands eq(kit);
+    ConfigEquilizer3Bands cfg_eq;
+
+    
+
     // AudioPlayer playerbt(source, outbt, decoder);
     
     // setup output
     // sdf.end();
     
-    auto cfg = kit.defaultConfig(TX_MODE);
+    auto cfg = kit.defaultConfig(TX_MODE);  
     cfg.bits_per_sample = 16;
     cfg.channels = 2;
     cfg.sample_rate = 44100;
+    cfg.buffer_count = 2;
+    cfg.buffer_size = 256;
+
+    cfg_eq = eq.defaultConfig();
+    cfg_eq.setAudioInfo(cfg); // use channels, bits_per_sample and sample_rate from kit
+    cfg_eq.gain_low = EQ_LOW; 
+    cfg_eq.gain_medium = EQ_MID;
+    cfg_eq.gain_high = EQ_HIGH;
+    
+    decoder.setOutput(eq);
     kit.begin(cfg);
     kit.setSpeakerActive(ACTIVE_AMP);
+ 
     
     // setup player
     player.setVolume(1);
     kit.setVolume(MAIN_VOL/100);
+
+    // Iniciamos ecualizador
+    eq.begin(cfg_eq);
+
     // playerbt.setVolume(MAIN_VOL/100);
     player.setAutoNext(false); 
 
     player.setBufferSize(4096);
+    
 
     // playerbt.begin();
     // auto cfgbt = outbt.defaultConfig(TX_MODE);
@@ -1891,11 +1943,24 @@ void playMP3()
         currentFileIdx = source.index() + 1;
         FILE_LOAD = source.toStr();
 
+        updateIndicators(totalFilesIdx, currentFileIdx, fileSize, FILE_LOAD);
+
         while(!EJECT && !REC)
         {          
           
           player.setVolume(1);
           kit.setVolume(MAIN_VOL/100);
+
+          if (EQ_CHANGE)
+          {
+            EQ_CHANGE = false;
+
+            cfg_eq.gain_low = EQ_LOW; 
+            cfg_eq.gain_medium = EQ_MID;
+            cfg_eq.gain_high = EQ_HIGH;
+
+            eq.begin(cfg_eq);
+          }
   
           switch (stateWAVplayer)
           {
@@ -2003,8 +2068,39 @@ void playMP3()
                           LAST_MESSAGE = "Continuos playing";
                       }
                     }
+
                     // Vamos transmitiendo y quedandonos con el numero de bytes transmitidos
+                    // eqcpy.copy();
                     fileread += player.copy();
+
+                    int time = (fileread) / (44100);
+                    int min = time / 60;
+                    int sec = time - (min * 60);
+                    String usec = "0";
+                    String umin = "0";
+
+                    if (sec < 10)
+                    {
+                      usec = "0";
+                    }
+                    else
+                    {
+                      usec = "";
+                    }
+
+                    if (min < 10)
+                    {
+                      umin = "0";
+                    }
+                    else
+                    {
+                      umin = "";
+                    }
+
+                    LAST_MESSAGE = "Elapsed time: " + umin + String(min) + ":" + usec + String(sec);
+
+
+                    
 
                     // Mostramos la progresion de la reproduccion
                     PROGRESS_BAR_TOTAL_VALUE = (fileread * 100) / fileSize;
@@ -2253,7 +2349,7 @@ void playWAV()
     // WAVDecoder wavdecoder(adpcm_decoder, AudioFormat::ADPCM);
     // WAVDecoder decoder;
     SdSpiConfig sdcfg(PIN_AUDIO_KIT_SD_CARD_CS,SHARED_SPI,SD_SCK_MHZ(SD_SPEED_MHZ),&SPI);
-    AudioSourceSDFAT source("/wav","wav",sdcfg);
+    AudioSourceSDFAT source(FILE_LAST_DIR.c_str(),"wav",sdcfg);
     AudioKitStream kit;
     // A2DPStream outbt;
     WAVDecoder decoder;
@@ -2427,7 +2523,7 @@ void playWAV()
                         else
                         {
                             // Pasamos a la siguiente pista
-                            logln("Current IDX: " + String(currentIdx + 1) + " / " + String(source.size()));
+                            // logln("Current IDX: " + String(currentIdx + 1) + " / " + String(source.size()));
 
                             // Comprobamos si hemos llegado al final de
                             // la lista de reproduccion (play list)
@@ -2436,7 +2532,7 @@ void playWAV()
                               source.selectStream(0);
                               player.begin();
 
-                              logln("Change IDX: " + String(source.index()) + " / " + String(source.size()));
+                              // logln("Change IDX: " + String(source.index()) + " / " + String(source.size()));
                             }
 
                             // Indicadores
@@ -2610,7 +2706,7 @@ void playWAV()
           }
 
           // Actualizamos el indicador
-          if ((millis() - startTime) > 250)
+          if ((millis() - startTime) > 500)
           {
             updateIndicators(totalFilesIdx, currentFileIdx, fileSize, FILE_LOAD);
             startTime = millis();

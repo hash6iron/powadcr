@@ -144,4 +144,7 @@ IPAddress secondaryDNS(0, 0, 0, 0);     // Not Mandatory
 #define windowNameLength 44
 #define tRotateNameRfsh 230
 
+// Limitador de volumen
+#define MAX_VOL_FOR_HEADPHONE_LIMIT 40
+
 

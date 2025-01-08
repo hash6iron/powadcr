@@ -2249,13 +2249,29 @@ class HMI
             logln("FFWD pressed");
             FFWIND = true;
             RWIND = false;
+            KEEP_FFWIND = false;
         }
         else if (strCmd.indexOf("RWD") != -1) 
         {
             logln("RWD pressed");
             FFWIND = false;
             RWIND = true;
+            KEEP_RWIND = false;
         }
+        else if (strCmd.indexOf("SFWD") != -1) 
+        {
+            logln("S_FFWD pressed");
+            FFWIND = false;
+            RWIND = false;
+            KEEP_FFWIND = true;
+        }
+        else if (strCmd.indexOf("SRWD") != -1) 
+        {
+            logln("S_RWD pressed");
+            FFWIND = false;
+            RWIND = false;
+            KEEP_RWIND = true;
+        }        
         else if (strCmd.indexOf("PLAY") != -1) 
         {
 
@@ -2360,6 +2376,42 @@ class HMI
             LAST_MESSAGE = "Wait to finish the uploading process.";
           }
         }    
+        else if (strCmd.indexOf("VLI=") != -1) 
+        {
+          //Cogemos el valor
+          uint8_t buff[8];
+          strCmd.getBytes(buff, 7);
+          int valVol = (int)buff[4];
+
+          if (valVol == 1)
+          {
+              VOL_LIMIT_HEADPHONE = true;
+
+              if (MAIN_VOL > MAX_VOL_FOR_HEADPHONE_LIMIT)
+              {
+                MAIN_VOL = MAX_VOL_FOR_HEADPHONE_LIMIT;
+              }
+
+              if (MAIN_VOL_R > MAX_VOL_FOR_HEADPHONE_LIMIT)
+              {
+                MAIN_VOL_R = MAX_VOL_FOR_HEADPHONE_LIMIT;
+              }     
+
+              if (MAIN_VOL_L > MAX_VOL_FOR_HEADPHONE_LIMIT)
+              {
+                MAIN_VOL_L = MAX_VOL_FOR_HEADPHONE_LIMIT;
+              }
+          }
+          else
+          {
+              // 
+              VOL_LIMIT_HEADPHONE = false;
+              // 
+              MAIN_VOL = myNex.readNumber("menuAudio.volM.val");
+              MAIN_VOL_R = myNex.readNumber("menuAudio.volR.val");
+              MAIN_VOL_L = myNex.readNumber("menuAudio.volL.val");
+          }
+        }
         // Ajuste del volumen
         else if (strCmd.indexOf("VOL=") != -1) 
         {
@@ -2368,16 +2420,21 @@ class HMI
           strCmd.getBytes(buff, 7);
           int valVol = (int)buff[4];
           MAIN_VOL = valVol;
-          
+
+          if (VOL_LIMIT_HEADPHONE)
+          {
+              if (MAIN_VOL > MAX_VOL_FOR_HEADPHONE_LIMIT)
+              {
+                MAIN_VOL = MAX_VOL_FOR_HEADPHONE_LIMIT;
+              }                 
+          }
+
           // Ajustamos el volumen
           logln("Main volume value=" + String(MAIN_VOL));
+
           // Control del Master volume
           MAIN_VOL_L = MAIN_VOL;
           MAIN_VOL_R = MAIN_VOL;
-
-          // ESP32kit.setVolume(MAIN_VOL);
-          //ESP32kit.maxAmplitude = 
-          //_zxp.set_amplitude(MAIN_VOL * 32767 / 100);
         }
         // Ajuste el vol canal R
         else if (strCmd.indexOf("VRR=") != -1) 
@@ -2388,6 +2445,13 @@ class HMI
           int valVol = (int)buff[4];
 
           MAIN_VOL_R = valVol;
+          if (VOL_LIMIT_HEADPHONE)
+          {
+            if (MAIN_VOL_R > MAX_VOL_FOR_HEADPHONE_LIMIT)
+            {
+              MAIN_VOL_R = MAX_VOL_FOR_HEADPHONE_LIMIT;
+            }
+          }          
         }
         // Ajuste el vol canal L
         else if (strCmd.indexOf("VLL=") != -1) 
@@ -2398,6 +2462,15 @@ class HMI
           int valVol = (int)buff[4];
           MAIN_VOL_L = valVol;
           
+          if (VOL_LIMIT_HEADPHONE)
+          {
+            if (MAIN_VOL_L > MAX_VOL_FOR_HEADPHONE_LIMIT)
+            {
+              MAIN_VOL_L = MAX_VOL_FOR_HEADPHONE_LIMIT;
+            }
+          }
+
+
           // Ajustamos el volumen
           #ifdef DEBUGMODE
             logln("");
@@ -2405,6 +2478,39 @@ class HMI
             logln("");
           #endif
         }
+        else if (strCmd.indexOf("EQH=") != -1) 
+        {
+          //Cogemos el valor
+          uint8_t buff[8];
+          strCmd.getBytes(buff, 7);
+          int valVol = (int)buff[4];
+
+          EQ_HIGH = valVol/100.0;      
+          EQ_CHANGE = true;    
+          logln("EQ HIGH: " + String(EQ_HIGH)); 
+        } 
+        else if (strCmd.indexOf("EQM=") != -1) 
+        {
+          //Cogemos el valor
+          uint8_t buff[8];
+          strCmd.getBytes(buff, 7);
+          int valVol = (int)buff[4];
+
+          EQ_MID = valVol/100.0;          
+          EQ_CHANGE = true;    
+          logln("EQ MID: " + String(EQ_MID)); 
+        }   
+        else if (strCmd.indexOf("EQL=") != -1) 
+        {
+          //Cogemos el valor
+          uint8_t buff[8];
+          strCmd.getBytes(buff, 7);
+          int valVol = (int)buff[4];
+
+          EQ_LOW = valVol/100.0;          
+          EQ_CHANGE = true;   
+          logln("EQ LOW: " + String(EQ_LOW)); 
+        }                      
         // Devuelve el % de filtrado aplicado en pantalla. Filtro del recording
         else if (strCmd.indexOf("THR=") != -1) 
         {
