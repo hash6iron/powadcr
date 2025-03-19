@@ -158,8 +158,6 @@ class SDmanager
         return fFile;
     }
 
-    
-
     void closeFile32(File32 fFile)
     {
         if (fFile != 0)
@@ -308,6 +306,34 @@ class SDmanager
         return cfgData;
     }
 
+    // int countFiles(char* path, String exts)
+    // {
+    //     SDmanager sdm;
+    //     SdFile sdf;
+    //     File32 f32;
+    //     SdFat32 sdff;
+    //     FsBaseFile *sfbf;
+        
+
+    //     int fileCount = 0;
+    //     sdm.openDir(path);
+    //     sdm.dir.rewindDirectory();
+    //     // Contamos ficheros
+    //     while (sdf.openNext(sfbf, O_READ)) 
+    //     {
+    //         char fname[255];
+    //         sdf.getName(fname,sizeof(fname)); 
+    //         String fileName = fname;
+    //         fileName.toLowerCase();
+    //         if (fileName.indexOf(exts)) 
+    //         {
+    //             fileCount++;
+    //         }
+    //         sdf.close();
+    //     }
+
+    //     return fileCount;  
+    // }
     // String getFileName(File32 f)
     // {
     //       char* szName[255] = (char*)ps_calloc(255,sizeof(char));

@@ -189,7 +189,7 @@ class TAPrecorder
       // tBlock blockrec[2000];
 
       int blockStartOffset = 0;
-      int blockEndOffset = 0;
+      int lastBlockEndOffset = 0;
 
       void tapeAnimationON()
       {
@@ -651,7 +651,7 @@ class TAPrecorder
 
           //
           blockStartOffset = 0;
-          blockEndOffset = 0;          
+          lastBlockEndOffset = 0;          
           
           // ===========================================================================================
 
@@ -1053,7 +1053,7 @@ class TAPrecorder
                                     
                                     byteCount++;
                                     // Actualizo el fin de bloque
-                                    blockEndOffset++;                                    
+                                    lastBlockEndOffset++;                                    
                                   }
                                   
                                 }
@@ -1095,7 +1095,7 @@ class TAPrecorder
                                       BLOCK_SELECTED = blockCount;
                                       LAST_SIZE = byteCount;
 
-                                      blockStartOffset += (byteCount + 1) + 2;
+                                      blockStartOffset = lastBlockEndOffset + 1;
 
                                       //Procesamos informacion del bloque                      
                                       showProgramName();
@@ -1279,11 +1279,11 @@ class TAPrecorder
             logln("");
             logln("Removing bad block");
             logln("Offset: " + String(blockStartOffset));
-            logln("End   : " + String(blockEndOffset));
-            logln("Size  : " + String(blockEndOffset-blockStartOffset) + " bytes");
+            logln("End   : " + String(lastBlockEndOffset));
+            logln("Size  : " + String(lastBlockEndOffset-blockStartOffset) + " bytes");
             logln("");
 
-            for (int n=0;n <= (blockEndOffset-blockStartOffset)+2;n++)
+            for (int n=0;n <= (lastBlockEndOffset-blockStartOffset)+2;n++)
             {
               tapf.write((uint8_t)0);
             }

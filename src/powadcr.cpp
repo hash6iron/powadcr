@@ -203,7 +203,8 @@ bool pageScreenIsShown = false;
 
 // WAV Recorder
 // -----------------------------------------------------------------------
-#include "AudioTools/AudioLibs/AudioSourceSDFAT.h"
+//#include "AudioTools/AudioLibs/LegacyAudioSourceSDFAT.h"
+#include "AudioTools/Disk/AudioSourceSDFAT.h"
 #include "AudioTools/AudioCodecs/CodecWAV.h"
 #include "AudioTools/AudioCodecs/CodecMP3Helix.h"
 // #include <AudioTools/AudioCodecs/CodecADPCM.h>
@@ -238,6 +239,8 @@ void rewindAnimation(int direction);
 
 
 // -----------------------------------------------------------------------
+
+
 
 void freeMemoryFromDescriptorTZX(tTZXBlockDescriptor* descriptor)
 {
@@ -1627,7 +1630,10 @@ void playMP3()
         int currentIdx = (FILE_PTR_POS + FILE_IDX_SELECTED) - 1;
 
         // Punteros de ficheros total y en curso
+        char path[255];
+        strcpy(path,FILE_LAST_DIR.c_str());
         totalFilesIdx = source.size();
+        //
         endStreamFile = totalFilesIdx - 1;
 
         // Esto lo hacemos para coger el bitrate
