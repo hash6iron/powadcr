@@ -106,7 +106,7 @@ class TAPrecorder
       const int16_t wBit1_min = 16;    //17  02/11/2024
       const int16_t wBit1_max = 40;    //30  02/11/2024
       
-      // Muestras a observar para encontrar los edges
+      // Muestras a observar para encontrar los edges (para modalidad tipo LDEDGE2)
       const int sTone = 40;
       const int sData = 20;
       const int sSync = 15;
