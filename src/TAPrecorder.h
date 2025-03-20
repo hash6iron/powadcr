@@ -105,6 +105,11 @@ class TAPrecorder
       // Bit 1
       const int16_t wBit1_min = 16;    //17  02/11/2024
       const int16_t wBit1_max = 40;    //30  02/11/2024
+      
+      // Muestras a observar para encontrar los edges
+      const int sTone = 40;
+      const int sData = 20;
+      const int sSync = 15;
     
       
       //Maximo numero de pulsos a leer antes de esperar una SYNC
@@ -127,6 +132,7 @@ class TAPrecorder
       int wPulseZero = 0;
       int pulseSilence = 0;
 
+      //
       int high = 16384;
       int low = -16384;
       int zero = 0;
@@ -448,13 +454,13 @@ class TAPrecorder
           }
       }
      
-      void initializePulse()
-      {
-        _measuredPulseUpWidth = 0;
-        _measuredPulseDownWidth = 0;
-        //_measuredWidth = 0;
-        //_edgeDetected = false;                                      
-      }
+      // void initializePulse()
+      // {
+      //   _measuredPulseUpWidth = 0;
+      //   _measuredPulseDownWidth = 0;
+      //   //_measuredWidth = 0;
+      //   //_edgeDetected = false;                                      
+      // }
      
 
     public:
@@ -475,19 +481,22 @@ class TAPrecorder
         _kit = kit;
       }
 
-      void selectThreshold()
-      {
-        if (EN_SCHMITT_CHANGE)
-        {           
-          threshold_high = (SCHMITT_THR * high)/100;
-          threshold_low = (-1)*(SCHMITT_THR * 32768)/100;            
-        }       
-        else
-        {
-          threshold_high = defaultThH;
-          threshold_low = defaultThL; 
-        }
-      }
+      // void selectThreshold()
+      // {
+      //   int AmpHi = high;
+      //   int AmpZe = zero;
+        
+      //   if (EN_SCHMITT_CHANGE)
+      //   {           
+      //     threshold_high = (SCHMITT_THR * AmpHi)/100;
+      //     threshold_low = (-1)*(SCHMITT_THR * 32768)/100;            
+      //   }       
+      //   else
+      //   {
+      //     threshold_high = defaultThH;
+      //     threshold_low = defaultThL; 
+      //   }
+      // }
 
       void newBlock(File32 &mFile)
       {
@@ -559,7 +568,630 @@ class TAPrecorder
         mFile.seek(ptrTmpPos);
       }
       
-      
+      // bool recording()
+      // {         
+      //     //AudioInfo info(44100, 2, 16);
+      //     AnalogAudioStream in;
+      //     AnalogAudioStream out;
+      //     // AnalogConfig anCfgIn;
+      //     // AnalogConfig anCfgOut;
+      //     auto anCfgIn = in.defaultConfig(RX_MODE);
+      //     auto anCfgOut = out.defaultConfig(TX_MODE);
+      //     // Frecuencia de muestreo es 4*frec de la Sync1 (667 T-states)
+      //     //cfg.sample_rate = 20244;
+
+      //     int AmpHi = high;
+      //     int low = low;
+      //     int AmpZe = zero;
+
+      //     // Por defecto esta es la configuracion
+      //     // -------------------------------------
+      //     // anCfg.sample_rate = 44100;
+      //     // anCfg.bits_per_sample = 16;
+      //     // anCfg.channels = 2;
+      //     // -------------------------------------
+
+      //     int16_t oneValueR = 0;
+      //     int16_t oneValueL = 0;
+      //     int16_t audioInValue = 0;
+      //     int16_t audioOutValue = 0;
+      //     int16_t lastPulseValue = zero;
+  
+      //     size_t resultOut = 0;    
+      //     size_t lenSamplesCaptured = 0;            
+      //     int chn = 2;            
+          
+      //     int stateRecording = 0;
+      //     int statusPulse = 0;
+      //     size_t bitCount = 0;
+      //     size_t byteCount = 0;
+      //     size_t blockCount = 0;
+
+      //     int numEdgesFound = 0;
+      //     int maxSamplesMargin = sTone;  // Para tono guia 
+      //     int countSamples = 0;
+      //     bool end2EdgeSearching = false;
+      //     bool silenceFound = false;
+
+      //     bool animationPause = false;
+
+      //     // Arrancamos el ADC y DAC
+      //     in.begin(anCfgIn);
+      //     out.begin(anCfgOut);
+          
+
+
+      //     // ======================================================================================================
+
+      //     // Creamos el buffer de grabacion
+      //     // uint8_t *bufferRec = (uint8_t*)ps_calloc(BUFFER_SIZE_REC,sizeof(uint8_t));
+      //     uint8_t   bufferRec[BUFFER_SIZE_REC];                          
+      //     uint8_t   bufferOut[BUFFER_SIZE_REC]; 
+
+      //     int16_t *value_ptr = (int16_t*)bufferRec;
+
+      //     // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+      //     // Creamos el fichero de salida
+      //     // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+      //     const char fileName[20] ={"_record\0"};
+
+      //     String dirR = RECORDING_DIR + "/\0";
+      //     strcpy(recDir, dirR.c_str());
+          
+      //     if (!_sdf32.mkdir(RECORDING_DIR))
+      //     {
+      //       #ifdef DEBUGMODE
+      //         log("Error! Directory exists or wasn't created");
+      //       #endif
+      //     }
+      //     else
+      //     {
+      //       // Actualizamos el sistema de ficheros.
+      //       _hmi.reloadCustomDir("/");
+      //     }
+
+      //     // Se crea un nuevo fichero temporal con la ruta del REC
+      //     strcat(recDir, fileName);
+      //     //SerialHW.println("Dir for REC: " + String(recDir));
+      //     File32 tapf = sdf.open(recDir, O_WRITE | O_CREAT);
+      //     tapf.rewind();
+
+      //     // Inicializo bit string
+      //     // bitChStr = (char*)ps_calloc(8, sizeof(char));
+      //     // datablock = (uint8_t*)ps_calloc(1, sizeof(uint8_t));
+
+          
+      //     // Inicializamos el array de nombre del header
+      //     for (int i=0;i<10;i++)
+      //     {
+      //       header.name[i] = ' ';
+      //       tapeName[i] = ' ';
+      //     }
+
+      //     strcpy(header.name,"noname");
+      //     strcpy(tapeName,"PROGRAM_ZX");
+
+      //     //
+      //     blockStartOffset = 0;
+      //     lastBlockEndOffset = 0;          
+          
+      //     // ===========================================================================================
+
+      //     // if (!WasfirstStepInTheRecordingProccess)
+      //     // {    
+      //     // Suponemos que cualquier PROGRAMA estandar comienza con una cabecera PROGRAM.
+      //     // al menos la primera, 
+      //     // entonces 0x13 0x00 sera su tamaño (19 bytes = [1 byte de FLAG + 17 bytes DATA + 1 byte Checksum])
+      //     isPrgHead = true; //*
+      //     BLOCK_REC_COMPLETED = false; //*
+
+      //     //
+      //     LAST_MESSAGE = "Recorder ready. Play source data.";
+          
+      //     // Hacemos una lectura residual
+      //     lenSamplesCaptured = in.readBytes(bufferRec, BUFFER_SIZE_REC);
+      //     lenSamplesCaptured = 0;
+
+      //     // Inicializamos el buffer
+      //     for (int i=0;i<BUFFER_SIZE_REC;i++)
+      //     {
+      //       bufferRec[i]=0;
+      //     }
+      //     delay(1000);
+
+      //     // Ya no pasamos por aquí hasta parar el recorder
+      //     //WasfirstStepInTheRecordingProccess=true;
+      //     //
+      //     newBlock(tapf);
+      //     headerNameCaptured = false;
+      //     // }  
+
+      //     // ======================================================================================================
+      //     // Esto lo hacemos porque el PAUSE entra como true en esta rutina
+          
+      //     //
+      //     REC = true;
+      //     PAUSE = false;  
+      //     STOP = false;
+      //     EJECT = false;
+      //     errorInDataRecording = false;
+      //     stopRecordingProccess = false;
+      //     errorDetected = 0;
+
+      //     // Funcion lambda para encontrar flancos en un tiempo (num de samples) determinado.
+      //     // La idea es cargar el maxSamplesMargin e ir decrementandolo hasta llegar a cero, cada vez que se analice un sample
+      //     auto searchEdgesInSamplingRange = [&numEdgesFound,&lastPulseValue](int16_t audioInValue, int &maxSamplesMargin)
+      //     {
+      //         // En esta rutina se entra cada vez que se lee un sample  
+      //         bool finishProcess = false;
+
+      //         if (maxSamplesMargin > 0)
+      //         {
+      //             if (audioInValue != lastPulseValue)
+      //             {
+      //               lastPulseValue = audioInValue;
+      //               numEdgesFound++;
+      //             }
+      //         }
+      //         else
+      //         {
+      //           finishProcess = true;
+      //         }
+              
+      //         // Decrementamos un sample
+      //         maxSamplesMargin--;
+
+      //         // Devolvemos estado del proceso de busqueda
+      //         return finishProcess;
+      //     };
+          
+
+      //     // Esto lo hacemos para mejorar la eficacia del recording
+      //     while(REC && !STOP && !EJECT && !errorInDataRecording && !stopRecordingProccess)
+      //     {
+      //         // Capturamos la configuracion del threshold para el disparador de Schmitt
+      //         if (EN_SCHMITT_CHANGE)
+      //         {
+      //           // Cuando se habilita la configuracion del disparador de Schmitt
+      //           // se pueden ajustar los parametros de amplitud y banda de schmitt (histeresis)
+                
+      //           // Amplitud
+      //           AmpHi = (SCHMITT_AMP * 32767)/100;
+      //           AmpZe = 0;
+      //           // Histeresis disparador de Schmitt
+      //           threshold_high = (SCHMITT_THR * AmpHi)/100;
+      //           threshold_low = (SCHMITT_THR * AmpZe)/100; 
+      //         }
+      //         else
+      //         {
+      //           // Por defecto
+      //           AmpHi = defaultAMP; // 50% de amplitud
+      //           AmpZe = 0;
+      //           // Histeresis disparador de Schmitt
+      //           threshold_high = defaultThH;
+      //           threshold_low = defaultThL;
+      //         }
+
+      //         // Capturamos muestras
+      //         lenSamplesCaptured = in.readBytes(bufferRec, BUFFER_SIZE_REC);
+
+      //         // Esperamos a que el buffer este lleno
+      //         if (lenSamplesCaptured >= BUFFER_SIZE_REC) 
+      //         {
+      //             // Apuntamos al buffer de grabacion
+      //             int16_t *value_ptr = (int16_t*)bufferRec;
+      //             // Apuntamos al buffer de salida
+      //             int16_t *ptrOut = (int16_t*)bufferOut;
+      //             resultOut = 0;
+
+      //             // Analizamos todas las muestras del buffer de entrada
+      //             for (int j=0;j<(lenSamplesCaptured / 4);j++)
+      //             {  
+      //                 // Leemos los samples del buffer
+      //                 // canal R
+      //                 oneValueR = *value_ptr++;
+      //                 // canal L
+      //                 oneValueL = *value_ptr++;  
+                      
+      //                 // Por defecto el canal que se coge es el izquierdo.
+      //                 // en el caso de swapping se coge el derecho
+      //                 audioInValue = (SWAP_MIC_CHANNEL) ? oneValueR:oneValueL;
+                      
+      //                 // ESPectrum solo va de 0 a 255;
+
+      //                 // Rectificamos la onda
+      //                 // Eliminamos la parte negativa
+      //                 audioInValue = (audioInValue <= 0) ? AmpZe:audioInValue;
+      //                 // Ahora aplicamos histeresis de 0 a threshold_high
+      //                 audioInValue = (audioInValue >= 0 && audioInValue <= threshold_high) ? AmpZe:AmpHi;
+      //                 audioOutValue = audioInValue;
+
+                      
+      //                 // ++++++++++++++++++++++++++++++++++++++++++
+      //                 // Control de cambios de flanco
+      //                 // ++++++++++++++++++++++++++++++++++++++++++
+      //                 if (!PAUSE)
+      //                 {
+      //                     if (animationPause)
+      //                     {
+      //                         recAnimationOFF();
+      //                         delay(125);
+      //                         recAnimationFIXED_ON();
+      //                         tapeAnimationON();
+      //                         animationPause = false;
+      //                     }
+
+                          
+      //                     // +++++++++++++++++++++++++++++++++++++++++++++
+      //                     // Analisis del tren de pulsos
+      //                     // +++++++++++++++++++++++++++++++++++++++++++++
+      //                     switch (stateRecording)
+      //                     {                           
+      //                       case 0:
+      //                         // Esperando un tono guia
+      //                         if (searchEdgesInSamplingRange(audioInValue,maxSamplesMargin))
+      //                         {
+      //                           // Cargamos el contador de samples a observar para el GUIDE TONE  
+      //                           maxSamplesMargin = sTone;
+      //                           //logln("Num edges found " + String(numEdgesFound));
+
+      //                             if (numEdgesFound == 2)
+      //                             {
+      //                                 cToneGuide++;
+
+      //                                 if (cToneGuide > 256)
+      //                                 {
+      //                                   stateRecording = 1;
+      //                                   cToneGuide = 0;
+
+      //                                   // Cargamos el contador de samples a observar para el SYNC
+      //                                   maxSamplesMargin = sSync;
+
+      //                                   // LAST_MESSAGE = "Waiting for SYNC";
+      //                                   if (isPrgHead)
+      //                                   {
+      //                                     LAST_MESSAGE = "Waiting for PROGRAM HEAD";
+      //                                   }
+      //                                   else
+      //                                   {
+      //                                     LAST_MESSAGE = "Waiting for DATA";
+      //                                   }                                  
+      //                                 }
+      //                             }
+      //                             else
+      //                             {
+      //                               //cToneGuide=0;
+      //                             }  
+                                  
+      //                             //Reset contador de edges
+      //                             end2EdgeSearching = false;
+      //                             countSamples = 0;
+      //                             numEdgesFound = 0;  
+
+      //                         }
+      //                         break;
+
+      //                       case 1: 
+      //                         //SYNC
+      //                         if (searchEdgesInSamplingRange(audioInValue,maxSamplesMargin))
+      //                         {
+      //                             if (numEdgesFound == 2)
+      //                             {
+      //                               numEdgesFound = 0;
+      //                               stateRecording = 2;
+      //                               //Reset contador de edges tone guide
+      //                               end2EdgeSearching = false;
+      //                               // Cargamos el contador de samples a observar para el DATA
+      //                               maxSamplesMargin = sData;                                    
+      //                             }
+      //                             else
+      //                             {
+      //                               //Reset contador de edges tone guide
+      //                               end2EdgeSearching = false;
+      //                               // Cargamos el contador de samples a observar para el GUIDE TONE
+      //                               maxSamplesMargin = sTone;
+      //                               stateRecording = 0;
+      //                             }
+
+      //                             //Reset contador de edges
+      //                             end2EdgeSearching = false;
+      //                             countSamples = 0;
+      //                             numEdgesFound = 0;
+      //                         }
+      //                         break;
+
+      //                       case 2:
+      //                         // Capturando DATA
+      //                         // Bit 0
+      //                         if (searchEdgesInSamplingRange(audioInValue,maxSamplesMargin))
+      //                         {
+
+      //                           numEdgesFound = 0;
+
+      //                             if (numEdgesFound == 2)
+      //                             {
+      //                               // Generamos un bit 0
+      //                               bitByte += (0 * pow(2,7-bitCount));                              
+      //                               bitCount++;
+      //                             }
+      //                             // Bit 1
+      //                             else 
+      //                             {
+      //                               // Esto lo hacemos para que ya no analice un silencio
+      //                               // Generamos un bit 1
+      //                               bitByte += (1 * pow(2,7-bitCount));                              
+      //                               bitCount++;
+      //                             }
+
+      //                             //Reset contador de edges tone guide
+      //                             end2EdgeSearching = false;
+      //                             maxSamplesMargin = sData; 
+      //                             countSamples = 0;
+      //                             numEdgesFound = 0;                                  
+        
+      //                             // ++++++++++++++++++++++++++++++++++++++++++++++++++++
+      //                             // Conteo de bytes
+      //                             // ++++++++++++++++++++++++++++++++++++++++++++++++++++
+      //                             if (bitCount > 7)
+      //                             { 
+      //                               // Se ha capturado 1 bytes
+      //                               bitCount = 0;
+      //                               byteRead = bitByte;
+      //                               // Procesamos el byte leido para saber si lleva cabecera, si no,
+      //                               // tipo de bloque, etc.
+      //                               proccesByteData(byteCount, byteRead);
+      //                               bitByte = 0;
+      //                               // Calculamos el CRC
+      //                               checksum = checksum ^ byteRead;
+      //                               //
+      //                               uint8_t valueToBeWritten = byteRead;
+      //                               // Escribimos en fichero el dato
+      //                               tapf.write(valueToBeWritten);
+
+      //                               LAST_MESSAGE = "Bytes loaded: " + String(byteCount) + " bytes";
+                                    
+      //                               byteCount++;
+      //                               // Actualizo el fin de bloque
+      //                               lastBlockEndOffset++;                                    
+      //                             }
+                                  
+      //                           }
+
+      //                         // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+      //                         //
+      //                         // Gestion del silencio despues de bloque
+      //                         // si no era bit1 o bit0
+      //                         // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+      //                         if (silenceFound)
+      //                         {
+      //                             silenceFound = false;
+                                
+      //                             // ++++++++++++++++++++++++++++++++++++++++
+      //                             // Encontre silencio. Acabo el estado DATA
+      //                             // ++++++++++++++++++++++++++++++++++++++++
+      //                             // Tambien acabo el bloque si encuentro un pulso por encima de un wBit1_max
+
+      //                             //
+      //                             if (checksum==0)
+      //                             {
+      //                               //
+      //                               // Incrementamos bloque reconocido
+      //                               blockCount++;
+      //                               //
+      //                               LAST_MESSAGE = "Block [ " + String(blockCount) + " ] - " + String(byteCount) + " bytes";
+      //                               TOTAL_BLOCKS = blockCount;
+      //                               BLOCK_SELECTED = blockCount;
+      //                               LAST_SIZE = byteCount;
+
+      //                               blockStartOffset = lastBlockEndOffset + 1;
+
+      //                               //Procesamos informacion del bloque                      
+      //                               showProgramName();
+      //                               proccesInfoBlockType();
+      //                               addBlockSize(tapf, byteCount);
+
+      //                               // Reseteo variables usadas
+      //                               wPulseHigh=0;
+      //                               wPulseZero=0;
+      //                               byteCount=0;                                  
+
+      //                               // Cambio de estado
+      //                               stateRecording = 3;    
+      //                             }
+      //                             else
+      //                             {
+      //                               // Error en los datos. Error de checksum
+      //                               //Procesamos informacion del bloque                      
+      //                               proccesInfoBlockType();
+      //                               //                                  
+      //                               char hex_string[20];
+      //                               sprintf(hex_string, "%X", checksum);
+      //                               LAST_MESSAGE = "Error in checksum. [ 0x" + String(hex_string) + " ]";
+      //                               errorInDataRecording = true;
+      //                               stopRecordingProccess = true;
+                                    
+      //                               // Error en checksum
+      //                               errorDetected=1;
+
+      //                               // Paramos la grabacion
+      //                               REC=false;
+      //                               //
+      //                               delay(3000); 
+      //                             }
+      //                             // Reseteamos el checksum
+      //                             checksum = 0;
+                                                             
+      //                         }                          
+      //                         break;
+
+      //                       case 3:
+      //                         if (searchEdgesInSamplingRange(audioInValue,maxSamplesMargin))
+      //                         {
+
+      //                           // Esperando un tono guia
+      //                           if (numEdgesFound == 2)
+      //                           {
+      //                               cToneGuide++;
+      //                               // Cargamos el contador de samples a observar para el GUIDE TONE
+      //                               maxSamplesMargin = sTone;
+
+      //                               if (cToneGuide > 256)
+      //                               {
+      //                                 stateRecording = 1;
+      //                                 cResidualToneGuide = 0;
+      //                                 cToneGuide = 0;
+      //                                 // +++++++++++++++++++++++++
+      //                                 //
+      //                                 //     Prepare new block
+      //                                 //
+      //                                 // +++++++++++++++++++++++++
+                                      
+      //                                 // Cambiamos el tipo de bloque 
+      //                                 // si antes era cabecer PROGRAM, supongo que ahora es DATA
+      //                                 // y asi sucesivamente
+      //                                 isPrgHead = !isPrgHead;
+
+      //                                 //guardamos la posición del puntero del fichero en este momento
+      //                                 //que es justo al final del ultimo bloque + 1 (inicio del siguiente)
+      //                                 //
+      //                                 ptrOffset = tapf.position();
+      //                                 //
+      //                                 newBlock(tapf);     
+      //                                 // Para SYNC
+      //                                 maxSamplesMargin = sSync;                             
+      //                               }
+      //                           } 
+
+      //                           //Reset contador de edges
+      //                           end2EdgeSearching = false;
+      //                           countSamples = 0;
+      //                           numEdgesFound = 0;
+      //                         }
+      //                         break;
+
+      //                       default:
+      //                         break;
+      //                     }                        
+                                                                                        
+      //                 }
+      //                 else
+      //                 {
+      //                   recAnimationON();
+      //                   delay(125);
+      //                   recAnimationFIXED_OFF();
+      //                   tapeAnimationOFF();
+      //                     animationPause = true;
+      //                 }
+
+      //                 uint8_t k = 1;
+
+      //                 if (REC_AUDIO_LOOP)
+      //                 {
+      //                     //R-OUT
+      //                     if (ACTIVE_AMP)
+      //                     {
+      //                         *ptrOut++ = (audioOutValue*k) * (MAIN_VOL_R / 100);
+      //                     }
+      //                     else
+      //                     {
+      //                         *ptrOut++ = 0;
+      //                     }
+                          
+      //                     //L-OUT
+      //                     *ptrOut++ = (audioOutValue*k) * (MAIN_VOL_L / 100);
+                            
+      //                 }            
+
+      //             }
+
+      //             // Volcamos el output en el buffer de salida
+      //             out.write(bufferOut, lenSamplesCaptured);                 
+      //         }
+      //         else
+      //         {
+      //           LAST_MESSAGE = "Buffer error";
+      //           logln("Incomplete capturing data");
+      //           REC = false;
+      //           delay(3000);
+      //         }   
+
+      //         // LAST_MESSAGE = "Bytes: " + String(byteCount) + "bytes ," + 
+      //         // String(statusPulse) + ", [" + 
+      //         // String(wPulseHigh) + "," + 
+      //         // String(wPulseZero) + "]";              
+      //     }
+
+      //     // +++++++++++++++++++++++++++++++++++++++++++++
+      //     // Lo renombramos con el nombre del BASIC
+      //     // +++++++++++++++++++++++++++++++++++++++++++++
+      //     char newFileName[25];  
+
+      //     if (headerNameCaptured)
+      //     {
+      //       strcpy(newFileName,tapeName);
+      //     }
+      //     else
+      //     {
+      //       strncpy(newFileName,"PROGRAM",sizeof(newFileName));
+      //     }
+          
+
+      //     logln("File name: " + String(newFileName));
+      //     logln("");
+
+      //     // Esto lo hacemos por si no hay nombre
+      //     // que no de fallos.
+      //     // newFileName[10] = '_';
+      //     // newFileName[11] = 'r';
+      //     // newFileName[12] = 'e';
+      //     // newFileName[13] = 'c';    
+      //     //      
+      //     if (!renameFile(newFileName, tapf))
+      //     {
+      //       logln("Error renaming file");
+      //     }      
+      //     delay(125); 
+
+      //     if (errorDetected !=0)
+      //     {
+      //       // Eliminamos desde blockStartOffset hasta el final
+      //       LAST_MESSAGE = "Removing bad block";
+      //       tapf.rewind();
+      //       tapf.seek(blockStartOffset);
+
+      //       logln("");
+      //       logln("Removing bad block");
+      //       logln("Offset: " + String(blockStartOffset));
+      //       logln("End   : " + String(lastBlockEndOffset));
+      //       logln("Size  : " + String(lastBlockEndOffset-blockStartOffset) + " bytes");
+      //       logln("");
+
+      //       for (int n=0;n <= (lastBlockEndOffset-blockStartOffset)+2;n++)
+      //       {
+      //         tapf.write((uint8_t)0);
+      //       }
+      //       delay(1250);
+
+      //       errorInDataRecording = true;
+      //       // Indicamos que la grabaci'on tenia errores en el ultimo bloque
+      //       // y no es completa
+      //       PROGRAM_NAME = String(newFileName) + " [+ERR]";
+      //     }
+      //     else
+      //     {
+      //       // Pasamos el nombre para mostrarlo arriba en el indicador.
+      //       PROGRAM_NAME = String(newFileName);            
+      //     }
+
+      //     tapf.close();
+      //     in.end();
+      //     out.end();
+
+      //     // Volvemos
+      //     return true;
+      // }
+
+
       bool recording()
       {         
           //AudioInfo info(44100, 2, 16);
@@ -578,6 +1210,9 @@ class TAPrecorder
           // anCfg.bits_per_sample = 16;
           // anCfg.channels = 2;
           // -------------------------------------
+          int AmpHi = high;
+          int low = low;
+          int AmpZe = zero;
 
           int16_t oneValueR = 0;
           int16_t oneValueL = 0;
@@ -718,17 +1353,17 @@ class TAPrecorder
                 // se pueden ajustar los parametros de amplitud y banda de schmitt (histeresis)
                 
                 // Amplitud
-                high = (SCHMITT_AMP * 32767)/100;
-                zero = 0;
+                AmpHi = (SCHMITT_AMP * 32767)/100;
+                AmpZe = 0;
                 // Histeresis disparador de Schmitt
-                threshold_high = (SCHMITT_THR * high)/100;
-                threshold_low = (SCHMITT_THR * zero)/100; 
+                threshold_high = (SCHMITT_THR * AmpHi)/100;
+                threshold_low = (SCHMITT_THR * AmpZe)/100; 
               }
               else
               {
                 // Por defecto
-                high = defaultAMP; // 50% de amplitud
-                zero = 0;
+                AmpHi = defaultAMP; // 50% de amplitud
+                AmpZe = 0;
                 // Histeresis disparador de Schmitt
                 threshold_high = defaultThH;
                 threshold_low = defaultThL;
@@ -767,9 +1402,9 @@ class TAPrecorder
 
                       // Rectificamos la onda
                       // Eliminamos la parte negativa
-                      audioInValue = (audioInValue <= 0) ? zero:audioInValue;
+                      audioInValue = (audioInValue <= 0) ? AmpZe:audioInValue;
                       // Ahora aplicamos histeresis de 0 a threshold_high
-                      audioInValue = (audioInValue >= 0 && audioInValue <= threshold_high) ? zero:high;
+                      audioInValue = (audioInValue >= 0 && audioInValue <= threshold_high) ? AmpZe:AmpHi;
                       
                       // ++++++++++++++++++++++++++++++++++++++++++
                       // Control de cambios de flanco
@@ -789,29 +1424,29 @@ class TAPrecorder
                           {
                             case 0:
                               // Estado inicial
-                              if (audioInValue == high)
+                              if (audioInValue == AmpHi)
                               {
                                 // Contabilizo esa muestra
                                 countSamplesHigh++;
-                                audioOutValue = high;
+                                audioOutValue = AmpHi;
 
                                 if (countSamplesHigh > delta)
                                 {
-                                  // La onda empieza en high
+                                  // La onda empieza en AmpHi
                                   statusPulse = 1;                              
                                   pulseOkZero = false;
                                   pulseOkHigh = false;
                                 }
                               }
-                              else if(audioInValue == zero)
+                              else if(audioInValue == AmpZe)
                               {
                                 // Contabilizo esa muestra
                                 countSamplesZero++;                            
-                                audioOutValue = zero;
+                                audioOutValue = AmpZe;
 
                                 if (countSamplesZero > delta)
                                 {
-                                  // La onda empieza en zero
+                                  // La onda empieza en AmpZe
                                   statusPulse = 2;                              
                                   pulseOkZero = false;
                                   pulseOkHigh = false;
@@ -820,11 +1455,11 @@ class TAPrecorder
                               break;
                           
                             case 1:
-                              // Estasdo en high
-                              if (audioInValue == high)
+                              // Estasdo en AmpHi
+                              if (audioInValue == AmpHi)
                               {
                                 countSamplesHigh++;
-                                audioOutValue = high;
+                                audioOutValue = AmpHi;
 
                                 countSamplesZero = 0;
 
@@ -840,12 +1475,12 @@ class TAPrecorder
                                   // Actualizo flags
                                   pulseOkZero = false;
                                   pulseOkHigh = true;
-                                  audioOutValue = high;
+                                  audioOutValue = AmpHi;
                                   // Cambio de estado
                                   statusPulse = 0;
                                 }                            
                               }
-                              else if (audioInValue == zero && countSamplesHigh > delta)
+                              else if (audioInValue == AmpZe && countSamplesHigh > delta)
                               {
                                 // Cambio de estado
                                 statusPulse = 0;
@@ -859,18 +1494,18 @@ class TAPrecorder
                                 // Actualizo los flags
                                 pulseOkHigh = true;
                                 pulseOkZero = false;
-                                audioOutValue = zero;
+                                audioOutValue = AmpZe;
                               }
                               break;
 
                             case 2:
-                              // Estado en zero
-                              if (audioInValue == zero)
+                              // Estado en AmpZe
+                              if (audioInValue == AmpZe)
                               {
                                 countSamplesZero++;
                                 countSamplesHigh = 0;
 
-                                audioOutValue = zero;
+                                audioOutValue = AmpZe;
 
                                 // Deteccion predictiva de un silencio
                                 if (countSamplesZero > 512)
@@ -888,7 +1523,7 @@ class TAPrecorder
                                   statusPulse = 0;
                                 }
                               }
-                              else if (audioInValue == high && countSamplesZero > delta)
+                              else if (audioInValue == AmpHi && countSamplesZero > delta)
                               {
                                 // Cambio de estado
                                 statusPulse = 0;
@@ -903,7 +1538,7 @@ class TAPrecorder
                                 pulseOkZero = true;
                                 pulseOkHigh = false;
 
-                                audioOutValue = high;
+                                audioOutValue = AmpHi;
                               }
                               break;
 
