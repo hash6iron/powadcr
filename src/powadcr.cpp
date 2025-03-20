@@ -128,8 +128,8 @@ AudioKit ESP32kit;
 // EncodedAudioStream outWAV(&fileOutToWav, new WAVEncoder());
 // StreamCopy copierOutToWav(outWAV, inWAV);  // copies data
 
-// #include "AudioTools/AudioLibs/I2SCodecStream.h"
-// I2SCodecStream i2sOut(AudioKitEs8388V2);
+//#include "AudioTools/AudioLibs/I2SCodecStream.h"
+
 
 
 // Estos includes deben ir en este orden por dependencias
@@ -203,10 +203,11 @@ bool pageScreenIsShown = false;
 
 // WAV Recorder
 // -----------------------------------------------------------------------
-//#include "AudioTools/AudioLibs/LegacyAudioSourceSDFAT.h"
-#include "AudioTools/Disk/AudioSourceSDFAT.h"
+#include "AudioTools/AudioLibs/AudioSourceSDFAT.h"
+// #include "AudioTools/Disk/AudioSourceSDFAT.h"
 #include "AudioTools/AudioCodecs/CodecWAV.h"
 #include "AudioTools/AudioCodecs/CodecMP3Helix.h"
+// #include "AudioTools/AudioLibs/I2SCodecStream.h"
 // #include <AudioTools/AudioCodecs/CodecADPCM.h>
 // #include "AudioTools/AudioLibs/A2DPStream.h"
 // #include "AudioTools/AudioCodecs/CodecFLAC.h"

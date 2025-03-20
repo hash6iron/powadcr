@@ -564,12 +564,20 @@ class TAPrecorder
       {         
           //AudioInfo info(44100, 2, 16);
           AnalogAudioStream in;
-          auto cfg = in.defaultConfig(RXTX_MODE);
+          AnalogAudioStream out;
+          // AnalogConfig anCfgIn;
+          // AnalogConfig anCfgOut;
+          auto anCfgIn = in.defaultConfig(RX_MODE);
+          auto anCfgOut = out.defaultConfig(TX_MODE);
           // Frecuencia de muestreo es 4*frec de la Sync1 (667 T-states)
           //cfg.sample_rate = 20244;
-          cfg.sample_rate = 44100;
-          cfg.bits_per_sample = 16;
-          cfg.channels = 2;
+
+          // Por defecto esta es la configuracion
+          // -------------------------------------
+          // anCfg.sample_rate = 44100;
+          // anCfg.bits_per_sample = 16;
+          // anCfg.channels = 2;
+          // -------------------------------------
 
           int16_t oneValueR = 0;
           int16_t oneValueL = 0;
@@ -594,8 +602,9 @@ class TAPrecorder
           uint8_t delta = wSyncMin;
           bool animationPause = false;
 
-          
-          in.begin(cfg);
+          // Arrancamos el ADC y DAC
+          in.begin(anCfgIn);
+          out.begin(anCfgOut);
           
           //delay(2000);
 
@@ -1222,7 +1231,7 @@ class TAPrecorder
                   }
 
                   // Volcamos el output en el buffer de salida
-                  in.write(bufferOut, lenSamplesCaptured);                 
+                  out.write(bufferOut, lenSamplesCaptured);                 
               }
               else
               {
@@ -1302,6 +1311,7 @@ class TAPrecorder
 
           tapf.close();
           in.end();
+          out.end();
 
           // Volvemos
           return true;
