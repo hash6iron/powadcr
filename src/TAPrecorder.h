@@ -85,7 +85,8 @@ class TAPrecorder
       int errorDetected = 0;
       //
       bool headerNameCaptured = false;
-
+      // uint8_t nextSizeLSB;
+      // uint8_t nextSizeMSB;
 
       int funTmax = 0;
 
@@ -152,6 +153,9 @@ class TAPrecorder
       bool _silenceTimeOverflow = false;
       bool _silenceDetected = false;
       char tapeName[11];
+
+      size_t lastByteCount = 0;
+      size_t byteCount = 0;
       //
 
 
@@ -254,8 +258,9 @@ class TAPrecorder
 
           // Flag para indicar DATA o HEAD
           if (byteCount == 0)
-          {
-              // Si esperabamos una cabecera PROGRAM ...
+          {   
+
+               // Si esperabamos una cabecera PROGRAM ...
               if (isPrgHead==true && header.sizeLSB == 17)
               {
                   // .. y vemos que el byte 1 es un flag DATA
@@ -265,6 +270,7 @@ class TAPrecorder
                       // entonvces el size del bloque lo tengo que añadir despues
                       blockWithoutPrgHead = true;
                       isPrgHead = false;
+                      BYTES_TOBE_LOAD = 1;
                       return;
                   }
                   else
@@ -274,6 +280,7 @@ class TAPrecorder
                       header.blockSize = 19;
                       blockWithoutPrgHead = false;              
                       isPrgHead = true;
+                      BYTES_TOBE_LOAD = 19;
                   }
               }
           }       
@@ -305,8 +312,18 @@ class TAPrecorder
                       header.name[byteCount-2] = (char)valueTmp;
                     }
               }
+              // Tamaño del siguiente bloque
+              else if (byteCount == 12)
+              {
+                    header.sizeNextBlLSB = byteRead;
+              }
               else if (byteCount == 13)
               {
+                
+                    header.sizeNextBlMSB = byteRead;
+                    int size = header.sizeNextBlLSB + (header.sizeNextBlMSB * 256);
+                    BYTES_TOBE_LOAD = size;
+
                     // Guardamos el nombre del cassette que solo se coge una vez por grabacion
                     if (!headerNameCaptured)
                     {
@@ -467,9 +484,17 @@ class TAPrecorder
       void newBlock(File32 &mFile)
       {
         checksum = 0; 
+        BYTES_TOBE_LOAD = 19;
         bitString = "";
+      
+        logln("New block");
+        logln("Start : " + String(blockStartOffset));
+        logln("End   : " + String(lastBlockEndOffset));
+        logln("Size  : " + String(lastBlockEndOffset - blockStartOffset + 1) + " bytes");
+        logln("");        
 
-        PROGRAM_NAME_ESTABLISHED = false;
+        blockStartOffset = lastByteCount;
+
 
         // El nuevo bloque tiene que registrar su tamaño en el fichero .tap
         // depende si es HEAD or DATA
@@ -552,6 +577,7 @@ class TAPrecorder
           // anCfg.bits_per_sample = 16;
           // anCfg.channels = 2;
           // -------------------------------------
+          long startTime = millis();
           int AmpHi = high;
           int low = low;
           int AmpZe = zero;
@@ -570,7 +596,7 @@ class TAPrecorder
           int countSamplesHigh = 0;
           int countSamplesZero = 0;
           size_t bitCount = 0;
-          size_t byteCount = 0;
+          // size_t byteCount = 0;
           size_t blockCount = 0;
           bool pulseOkHigh = false;
           bool pulseOkZero = false;
@@ -619,6 +645,7 @@ class TAPrecorder
           //SerialHW.println("Dir for REC: " + String(recDir));
           File32 tapf = sdf.open(recDir, O_WRITE | O_CREAT);
           tapf.rewind();
+          
 
           // Inicializo bit string
           // bitChStr = (char*)ps_calloc(8, sizeof(char));
@@ -635,17 +662,14 @@ class TAPrecorder
           strcpy(header.name,"noname");
           strcpy(tapeName,"PROGRAM_ZX");
 
-          //
+          // Inicializamos
           blockStartOffset = 0;
-          lastBlockEndOffset = 0;          
+          lastBlockEndOffset = 0;      
+          PROGRAM_NAME_ESTABLISHED = false;    
+          byteCount = 0;
           
           // ===========================================================================================
 
-          // if (!WasfirstStepInTheRecordingProccess)
-          // {    
-          // Suponemos que cualquier PROGRAMA estandar comienza con una cabecera PROGRAM.
-          // al menos la primera, 
-          // entonces 0x13 0x00 sera su tamaño (19 bytes = [1 byte de FLAG + 17 bytes DATA + 1 byte Checksum])
           isPrgHead = true; //*
           countSamplesHigh = 0;
           BLOCK_REC_COMPLETED = false; //*
@@ -665,11 +689,9 @@ class TAPrecorder
           delay(1000);
 
           // Ya no pasamos por aquí hasta parar el recorder
-          //WasfirstStepInTheRecordingProccess=true;
           //
           newBlock(tapf);
           headerNameCaptured = false;
-          // }  
 
           // ======================================================================================================
           // Esto lo hacemos porque el PAUSE entra como true en esta rutina
@@ -682,6 +704,8 @@ class TAPrecorder
           errorInDataRecording = false;
           stopRecordingProccess = false;
           errorDetected = 0;
+
+          BYTES_TOBE_LOAD = 19;
 
           //strcpy(header.name,"noname");
 
@@ -892,36 +916,8 @@ class TAPrecorder
                           // Analisis del tren de pulsos
                           // +++++++++++++++++++++++++++++++++++++++++++++
                           switch (stateRecording)
-                          {
+                          {                           
                             case 0:
-                              // Esperando un tono guia
-                              if (pulseOkHigh)
-                              {
-                                pulseOkHigh = false;
-                                if (wPulseHigh >= wToneMin &&
-                                  wPulseHigh <= wToneMax)
-                                  {
-                                      cResidualToneGuide++;
-
-                                      wPulseHigh=0;
-
-                                      if (cResidualToneGuide > 256)
-                                      {
-                                        stateRecording = 11;
-                                        wPulseHigh = 0;
-                                        cResidualToneGuide = 0;
-                                        cToneGuide = 0;
-                                      }
-                                  }
-                                  else
-                                  {
-                                    cResidualToneGuide=0;
-                                    wPulseHigh=0;
-                                  }                            
-                              }
-                              break;
-                            
-                            case 11:
                               // Esperando un tono guia
                               if (pulseOkHigh)
                               {
@@ -938,7 +934,7 @@ class TAPrecorder
                                       stateRecording = 1;
                                       wPulseHigh = 0;
                                       cToneGuide = 0;
-                                      // LAST_MESSAGE = "Waiting for SYNC";
+
                                       if (isPrgHead)
                                       {
                                         LAST_MESSAGE = "Waiting for PROGRAM HEAD";
@@ -1043,7 +1039,9 @@ class TAPrecorder
                                     
                                     byteCount++;
                                     // Actualizo el fin de bloque
-                                    lastBlockEndOffset++;                                    
+                                    lastBlockEndOffset++;   
+                                    //
+                                    PROGRESS_BAR_BLOCK_VALUE = (byteCount * 100 ) / BYTES_TOBE_LOAD ; 
                                   }
                                   
                                 }
@@ -1071,18 +1069,17 @@ class TAPrecorder
                                     {
                                     
                                     // Verificamos el checksum
-                                    if (true)
+                                    if (checksum==0)
                                     {
                                       //
                                       // Incrementamos bloque reconocido
                                       blockCount++;
+                                      lastByteCount += byteCount + 1;
                                       //
                                       LAST_MESSAGE = "Block [ " + String(blockCount) + " ] - " + String(byteCount) + " bytes";
                                       TOTAL_BLOCKS = blockCount;
                                       BLOCK_SELECTED = blockCount;
                                       LAST_SIZE = byteCount;
-
-                                      blockStartOffset = lastBlockEndOffset + 1;
 
                                       //Procesamos informacion del bloque     
                                       if (!PROGRAM_NAME_ESTABLISHED)               
@@ -1121,6 +1118,7 @@ class TAPrecorder
                                       //
                                       delay(3000); 
                                     }
+
                                     // Reseteamos el checksum
                                     checksum = 0;
                                   }                              
@@ -1135,15 +1133,15 @@ class TAPrecorder
                                 if (wPulseHigh >= wToneMin &&
                                     wPulseHigh <= wToneMax)
                                 {
-                                    cResidualToneGuide++;
+                                    cToneGuide++;
                                     wPulseHigh=0;
 
-                                    if (cResidualToneGuide > 256)
+                                    if (cToneGuide > 256)
                                     {
-                                      stateRecording = 11;
+                                      stateRecording = 0;
                                       wPulseHigh = 0;
                                       wPulseZero = 0;
-                                      cResidualToneGuide = 0;
+                                      //cResidualToneGuide = 0;
                                       cToneGuide = 0;
                                       // +++++++++++++++++++++++++
                                       //
@@ -1226,7 +1224,12 @@ class TAPrecorder
               // LAST_MESSAGE = "Bytes: " + String(byteCount) + "bytes ," + 
               // String(statusPulse) + ", [" + 
               // String(wPulseHigh) + "," + 
-              // String(wPulseZero) + "]";              
+              // String(wPulseZero) + "]";   
+              if ((millis() - startTime) > 500)
+              {
+                _hmi.updateInformationMainPage(true);
+                startTime = millis();
+              }                          
           }
 
           // +++++++++++++++++++++++++++++++++++++++++++++
@@ -1269,12 +1272,12 @@ class TAPrecorder
 
             logln("");
             logln("Removing bad block");
-            logln("Offset: " + String(blockStartOffset));
+            logln("Start : " + String(blockStartOffset));
             logln("End   : " + String(lastBlockEndOffset));
-            logln("Size  : " + String(lastBlockEndOffset-blockStartOffset) + " bytes");
+            logln("Size  : " + String(lastBlockEndOffset - blockStartOffset + 1) + " bytes");
             logln("");
 
-            for (int n=0;n <= (lastBlockEndOffset-blockStartOffset)+2;n++)
+            for (int n=0;n <= (lastBlockEndOffset-blockStartOffset)+1;n++)
             {
               tapf.write((uint8_t)0);
             }

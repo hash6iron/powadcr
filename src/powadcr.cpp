@@ -4351,18 +4351,6 @@ void Task0code( void * pvParameters )
                 hmi.writeString("name.txt=\"" + FILE_LOAD + "\"");  
               }              
           }
-          // else
-          // {
-          //   if (!FILE_BROWSER_OPEN)
-          //   {
-          //     hmi.writeString("name.txt=\"" + FILE_LOAD + "\"");
-          //   }
-          //   else
-          //   {
-          //     hmi.writeString("file.path.txt=\"" + ROTATE_FILENAME + "\"");
-          //   }
-          // }
- 
 
         #endif
     }
