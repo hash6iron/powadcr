@@ -198,8 +198,8 @@ bool pageScreenIsShown = false;
 
 // WEBFILE SERVER
 // -----------------------------------------------------------------------
-// #include "webpage.h"
-// #include "webserver.h"
+//  #include "webpage.h"
+//  #include "webserver.h"
 
 // WAV Recorder
 // -----------------------------------------------------------------------
@@ -430,22 +430,6 @@ bool loadWifiCfgFile()
   return cfgloaded;
   
 }
-
-// void loadHMICfgFile()
-// {
-//   char pathCfgFile[10] = {};
-//   strcpy(pathCfgFile,"/hmi.cfg");
-
-//   File32 fHMI = sdm.openFile32(pathCfgFile);
-  
-//   //Leemos ahora toda la configuración
-//   if(fHMI)
-//   {
-//       CFGHMI = sdm.readAllParamCfg(fHMI,20);
-//       log("Open config. HMI-success");
-//   }
-//   fHMI.close();
-// }
 
 void proccesingTAP(char* file_ch)
 {    
@@ -896,12 +880,20 @@ void setWavRecording(char* file_name,bool start=true)
             // WAVEncoder wavencoder(adpcm_encoder, AudioFormat::ADPCM);            
             AudioKitStream kit;
             EncodedAudioStream encoder(&wavfile, new WAVEncoder());
-            StreamCopy copier(encoder, kit);  // copies data
-
+            StreamCopy copier(encoder, kit);  // copies data to SD
+ 
             auto cfg = kit.defaultConfig(RX_MODE);
             cfg.copyFrom(lineInCfg);
+
             cfg.input_device = AUDIO_HAL_ADC_INPUT_LINE2; // Line in
+            cfg.channel_format = I2S_CHANNEL_STEREO;
+            cfg.channels = 2;
+            cfg.bits_per_sample = 16;
+            cfg.sample_rate = 44100;
+
+            // Inicializamos
             kit.begin(cfg);
+
             // we need to provide the audio information to the encoder
             encoder.begin(lineInCfg);
             
@@ -915,6 +907,9 @@ void setWavRecording(char* file_name,bool start=true)
             // Muestro solo el nombre. Le elimino la primera parte que es el directorio.
             hmi.writeString("name.txt=\"" + String(file_name).substring(5) + "\"");
             hmi.writeString("type.txt=\"WAV file\"");
+
+            // Redimensionamos el buffer de grabacion 
+            copier.resize(256 * 1024);
 
             while(!STOP)
             {
@@ -934,17 +929,18 @@ void setWavRecording(char* file_name,bool start=true)
                     rectime_s = 0;
                     rectime_m++;
                   }
-              }
 
-              if (wavfile.size() > 1000000)
-              {
-                // Megabytes
-                hmi.writeString("size.txt=\"" + String(wavfile.size() / 1024 / 1024) + " MB\"");
-              }
-              else
-              {
-                // Kilobytes
-                hmi.writeString("size.txt=\"" + String(wavfile.size() / 1024) + " KB\"");
+                  if (wavfile.size() > 1000000)
+                  {
+                    // Megabytes
+                    hmi.writeString("size.txt=\"" + String(wavfile.size() / 1024 / 1024) + " MB\"");
+                  }
+                  else
+                  {
+                    // Kilobytes
+                    hmi.writeString("size.txt=\"" + String(wavfile.size() / 1024) + " KB\"");
+                  }
+
               }
 
             }
@@ -2907,19 +2903,6 @@ void RECready()
     prepareRecording();
 }
 
-// void recordingFile()
-// {
-//     // Iniciamos la grabación (esto es un bucle "taprec.recording()")
-//     // si devuelve true --> acaba
-//     if (taprec.recording())
-//     {
-//       // Ha acabado con errores
-//       LAST_MESSAGE = "Stop recording";
-//       REC = false;
-//       STOP = true;
-//     }
-// }
-
 void getAudioSettingFromHMI()
 {
     if(myNex.readNumber("menuAdio.enTerm.val")==1)
@@ -4527,7 +4510,8 @@ void setup()
           hmi.writeString("menu.wifiEn.val=1");      
           delay(125);
 
-
+          // Webserver 
+          // ---------------------------------------------------
           // configureWebServer();
           // server.begin(); 
       }

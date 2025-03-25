@@ -602,7 +602,7 @@ class TAPrecorder
           bool pulseOkZero = false;
 
           // Pulso anterior minimo ancho
-          uint8_t delta = 0;//wSyncMin;
+          uint8_t delta = wSyncMin;
           bool animationPause = false;
 
           // Arrancamos el ADC y DAC
@@ -728,6 +728,7 @@ class TAPrecorder
               else
               {
                 // Por defecto
+                SCHMITT_AMP = 50;
                 AmpHi = defaultAMP; // 50% de amplitud
                 AmpZe = 0;
                 // Histeresis disparador de Schmitt
@@ -765,8 +766,20 @@ class TAPrecorder
                       // Rectificamos la onda
                       // Eliminamos la parte negativa
                       audioInValue = (audioInValue <= 0) ? AmpZe:audioInValue;
-                      // Ahora aplicamos histeresis de 0 a threshold_high
-                      audioInValue = (audioInValue >= 0 && audioInValue <= threshold_high) ? AmpZe:AmpHi;
+                      
+                      // Amplificamos x5 maxi. La barra de amplificacion al maximo es x5
+                      //
+                      double famp = 0.05;
+                      if (!EN_SCHMITT_CHANGE)
+                      {
+                        famp = (1/SCHMITT_AMP);
+                      }
+                      int16_t ampAdaped = (audioInValue * (SCHMITT_AMP * famp)) > 32767 ? 32767:(audioInValue * (SCHMITT_AMP * famp));
+                      //LAST_MESSAGE = String(ampAdaped);
+
+                      // Ahora aplicamos histeresis de 0 a un valor amplificado
+                      audioInValue = (audioInValue >= 0 && audioInValue <= threshold_high) ? AmpZe:ampAdaped;
+                      //audioInValue = (audioInValue >= 0 && audioInValue <= threshold_high) ? AmpZe:AmpHi;
                       
                       // ++++++++++++++++++++++++++++++++++++++++++
                       // Control de cambios de flanco
@@ -786,11 +799,11 @@ class TAPrecorder
                           {
                             case 0:
                               // Estado inicial
-                              if (audioInValue == AmpHi)
+                              if (audioInValue > threshold_high)
                               {
                                 // Contabilizo esa muestra
                                 countSamplesHigh++;
-                                audioOutValue = AmpHi;
+                                audioOutValue = audioInValue;
 
                                 if (countSamplesHigh > delta)
                                 {
@@ -818,10 +831,10 @@ class TAPrecorder
                           
                             case 1:
                               // Estasdo en AmpHi
-                              if (audioInValue == AmpHi)
+                              if (audioInValue > threshold_high)
                               {
                                 countSamplesHigh++;
-                                audioOutValue = AmpHi;
+                                audioOutValue = audioInValue;
 
                                 countSamplesZero = 0;
 
@@ -885,7 +898,7 @@ class TAPrecorder
                                   statusPulse = 0;
                                 }
                               }
-                              else if (audioInValue == AmpHi && countSamplesZero > delta)
+                              else if (audioInValue > threshold_high && countSamplesZero > delta)
                               {
                                 // Cambio de estado
                                 statusPulse = 0;
@@ -900,7 +913,7 @@ class TAPrecorder
                                 pulseOkZero = true;
                                 pulseOkHigh = false;
 
-                                audioOutValue = AmpHi;
+                                audioOutValue = audioInValue;
                               }
                               break;
 
