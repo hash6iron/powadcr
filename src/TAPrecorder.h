@@ -85,6 +85,7 @@ class TAPrecorder
       int errorDetected = 0;
       //
       bool headerNameCaptured = false;
+      bool blockSizeCaptured = false;
       // uint8_t nextSizeLSB;
       // uint8_t nextSizeMSB;
 
@@ -253,7 +254,7 @@ class TAPrecorder
                 return newChk;
             }
 
-      void proccesByteData(int byteCount, uint8_t byteRead)
+      void proccesByteCaptured(int byteCount, uint8_t byteRead)
       {
 
           // Flag para indicar DATA o HEAD
@@ -270,7 +271,9 @@ class TAPrecorder
                       // entonvces el size del bloque lo tengo que añadir despues
                       blockWithoutPrgHead = true;
                       isPrgHead = false;
-                      BYTES_TOBE_LOAD = 1;
+                      //BYTES_TOBE_LOAD = 1;
+                      header.blockSize = 1;
+                      blockSizeCaptured = false;
                       return;
                   }
                   else
@@ -280,7 +283,8 @@ class TAPrecorder
                       header.blockSize = 19;
                       blockWithoutPrgHead = false;              
                       isPrgHead = true;
-                      BYTES_TOBE_LOAD = 19;
+                      blockSizeCaptured = true;
+                      //BYTES_TOBE_LOAD = 19;
                   }
               }
           }       
@@ -322,7 +326,15 @@ class TAPrecorder
                 
                     header.sizeNextBlMSB = byteRead;
                     int size = header.sizeNextBlLSB + (header.sizeNextBlMSB * 256);
-                    BYTES_TOBE_LOAD = size;
+                    //BYTES_TOBE_LOAD = size;
+                    blockSizeCaptured = true;
+                    header.blockSize = size;
+
+                    logln("");
+                    logln("");
+                    logln("Next block size: " + String(size) + " bytes");
+                    logln("");
+                    logln("");
 
                     // Guardamos el nombre del cassette que solo se coge una vez por grabacion
                     if (!headerNameCaptured)
@@ -484,7 +496,9 @@ class TAPrecorder
       void newBlock(File32 &mFile)
       {
         checksum = 0; 
-        BYTES_TOBE_LOAD = 19;
+        //BYTES_TOBE_LOAD = 19;
+        blockSizeCaptured = true;
+
         bitString = "";
       
         logln("New block");
@@ -521,7 +535,7 @@ class TAPrecorder
         uint8_t BYTEZERO = 0;
 
         // Guardamos el valor del tamaño
-        header.blockSize = size + 2;
+        //header.blockSize = size + 2;
 
         // Hay que añadir este valor sumando 2, en la cabecera
         // antes del siguiente bloque
@@ -705,10 +719,11 @@ class TAPrecorder
           stopRecordingProccess = false;
           errorDetected = 0;
 
-          BYTES_TOBE_LOAD = 19;
+          //BYTES_TOBE_LOAD = 19;
 
           //strcpy(header.name,"noname");
-
+          unsigned long progress_millis = 0;
+          progress_millis = millis();
           // Esto lo hacemos para mejorar la eficacia del recording
           while(REC && !STOP && !EJECT && !errorInDataRecording && !stopRecordingProccess)
           {
@@ -769,17 +784,17 @@ class TAPrecorder
                       
                       // Amplificamos x5 maxi. La barra de amplificacion al maximo es x5
                       //
-                      double famp = 0.05;
-                      if (!EN_SCHMITT_CHANGE)
-                      {
-                        famp = (1/SCHMITT_AMP);
-                      }
-                      int16_t ampAdaped = (audioInValue * (SCHMITT_AMP * famp)) > 32767 ? 32767:(audioInValue * (SCHMITT_AMP * famp));
+                      // double famp = 0.05;
+                      // if (!EN_SCHMITT_CHANGE)
+                      // {
+                      //   famp = (1/SCHMITT_AMP);
+                      // }
+                      //int16_t ampAdaped = (audioInValue * (SCHMITT_AMP * famp)) > 32767 ? 32767:(audioInValue * (SCHMITT_AMP * famp));
                       //LAST_MESSAGE = String(ampAdaped);
 
                       // Ahora aplicamos histeresis de 0 a un valor amplificado
-                      audioInValue = (audioInValue >= 0 && audioInValue <= threshold_high) ? AmpZe:ampAdaped;
-                      //audioInValue = (audioInValue >= 0 && audioInValue <= threshold_high) ? AmpZe:AmpHi;
+                      //audioInValue = (audioInValue >= 0 && audioInValue <= threshold_high) ? AmpZe:ampAdaped;
+                      audioInValue = (audioInValue >= 0 && audioInValue <= threshold_high) ? AmpZe:AmpHi;
                       
                       // ++++++++++++++++++++++++++++++++++++++++++
                       // Control de cambios de flanco
@@ -1039,7 +1054,7 @@ class TAPrecorder
                                     byteRead = bitByte;
                                     // Procesamos el byte leido para saber si lleva cabecera, si no,
                                     // tipo de bloque, etc.
-                                    proccesByteData(byteCount, byteRead);
+                                    proccesByteCaptured(byteCount, byteRead);
                                     bitByte = 0;
                                     // Calculamos el CRC
                                     checksum = checksum ^ byteRead;
@@ -1048,13 +1063,25 @@ class TAPrecorder
                                     // Escribimos en fichero el dato
                                     tapf.write(valueToBeWritten);
 
-                                    LAST_MESSAGE = "Bytes loaded: " + String(byteCount) + " bytes";
+                                    if (blockSizeCaptured)
+                                    {
+                                      LAST_MESSAGE = "Bytes captured: " + String(byteCount) + " / " + String(header.blockSize ) + " bytes";
+                                    }
+                                    else
+                                    {
+                                      LAST_MESSAGE = "Bytes captured: " + String(byteCount) + " bytes";
+                                    }
                                     
                                     byteCount++;
                                     // Actualizo el fin de bloque
                                     lastBlockEndOffset++;   
                                     //
-                                    PROGRESS_BAR_BLOCK_VALUE = (byteCount * 100 ) / BYTES_TOBE_LOAD ; 
+                                    if (millis() - progress_millis > 125) 
+                                    {
+                                        PROGRESS_BAR_BLOCK_VALUE = (byteCount * 100 ) / header.blockSize; 
+                                        _hmi.writeString("progressBlock.val=" + String(PROGRESS_BAR_BLOCK_VALUE));  
+                                        progress_millis = millis();
+                                    }
                                   }
                                   
                                 }
