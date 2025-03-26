@@ -301,8 +301,10 @@ bool FILE_IS_OPEN = false;
 // Schmitt trigger
 int SCHMITT_THR = 10; //Porcentage
 int SCHMITT_AMP = 50; //Porcentage
+int PULSE_OFFSET = 0;
 int LAST_SCHMITT_THR = 0;
 bool EN_SCHMITT_CHANGE = false;
+bool EN_MIC_INVERSION = false;
 
 int MIN_SYNC = 10;   //6
 int MAX_SYNC = 18;  //19  -- S1: 190.6us + S2: 210us 

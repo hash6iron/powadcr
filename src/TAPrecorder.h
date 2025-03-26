@@ -775,6 +775,12 @@ class TAPrecorder
                       // Por defecto el canal que se coge es el izquierdo.
                       // en el caso de swapping se coge el derecho
                       audioInValue = (SWAP_MIC_CHANNEL) ? oneValueR:oneValueL;
+
+                      // Invertimos la señal
+                      audioInValue = (EN_MIC_INVERSION) ? audioInValue * (-1) : audioInValue;
+                      
+                      // Aplicamos un offset
+                      audioInValue += PULSE_OFFSET;
                       
                       // ESPectrum solo va de 0 a 255;
 

@@ -2567,7 +2567,16 @@ class HMI
           int valAmp = (int)buff[4];
           SCHMITT_AMP = valAmp;
           logln("Amplification value=" + String(SCHMITT_AMP));
-        }                
+        } 
+        else if (strCmd.indexOf("OFS=") != -1) 
+        {
+          //Cogemos el valor
+          uint8_t buff[8];
+          strCmd.getBytes(buff, 7);
+          int offs = (int)buff[4];
+          PULSE_OFFSET = offs;
+          logln("Offset value=" + String(PULSE_OFFSET));
+        }                        
         // Habilitar terminadores para forzar siguiente pulso a HIGH
         else if (strCmd.indexOf("TER=") != -1) 
         {
@@ -2664,6 +2673,27 @@ class HMI
           //logln("Threshold enable=" + String(EN_SCHMITT_CHANGE));
 
         }
+        // Enable MIC inversion
+        else if (strCmd.indexOf("EIN=") != -1) 
+        {
+          //Cogemos el valor
+          uint8_t buff[8];
+          strCmd.getBytes(buff, 7);
+          int valEn = (int)buff[4];
+          //
+          if (valEn==1)
+          {
+              EN_MIC_INVERSION = true;
+          }
+          else
+          {
+            EN_MIC_INVERSION = false;
+          }
+
+          //logln("");
+          //logln("Threshold enable=" + String(EN_SCHMITT_CHANGE));
+
+        }        
         // Mutea la salida amplificada
         else if (strCmd.indexOf("MAM=") != -1) 
         {
