@@ -2571,10 +2571,7 @@ class HMI
         else if (strCmd.indexOf("OFS=") != -1) 
         {
           //Cogemos el valor
-          uint8_t buff[8];
-          strCmd.getBytes(buff, 7);
-          int offs = (int)buff[4];
-          PULSE_OFFSET = offs;
+          PULSE_OFFSET = myNex.readNumber("menuAudio3.offset.val");;
           logln("Offset value=" + String(PULSE_OFFSET));
         }                        
         // Habilitar terminadores para forzar siguiente pulso a HIGH

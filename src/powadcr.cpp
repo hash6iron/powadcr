@@ -198,8 +198,8 @@ bool pageScreenIsShown = false;
 
 // WEBFILE SERVER
 // -----------------------------------------------------------------------
-//  #include "webpage.h"
-//  #include "webserver.h"
+ #include "webpage.h"
+ #include "webserver.h"
 
 // WAV Recorder
 // -----------------------------------------------------------------------
@@ -4512,8 +4512,8 @@ void setup()
 
           // Webserver 
           // ---------------------------------------------------
-          // configureWebServer();
-          // server.begin(); 
+          configureWebServer();
+          server.begin(); 
       }
     }
 

@@ -96,18 +96,20 @@ class TAPrecorder
       // Guide tone
       const int16_t wToneMin = 23;  //min 23 Leader tone min pulse width
       const int16_t wToneMax = 40;  //max 40 Leader tone max pulse width  
+      
       // Silencio
       const int16_t wSilence = 50;
-      // SYNC == BIT_0
-      const int16_t wSyncMin = 2;     //min 2 
-      const int16_t wSyncMax = 15;    //max 15
+
       // Bit 0
       const int16_t wBit0_min = 2;    //min 2
       const int16_t wBit0_max = 15;   //max 15
       // Bit 1
       const int16_t wBit1_min = 16;   //min 16  02/11/2024
       const int16_t wBit1_max = 40;   //max 40  02/11/2024
-       
+      // SYNC == BIT_0
+      const int16_t wSyncMin = wBit0_min;     //min 2 
+      const int16_t wSyncMax = wBit0_max;    //max 15
+
       // Controlamos el estado del TAP
       int statusSchmitt = 0;
       // Contamos los pulsos del tono piloto
@@ -776,30 +778,17 @@ class TAPrecorder
                       // en el caso de swapping se coge el derecho
                       audioInValue = (SWAP_MIC_CHANNEL) ? oneValueR:oneValueL;
 
-                      // Invertimos la señal
+                      // Invertimos la señal (si se quiere)
                       audioInValue = (EN_MIC_INVERSION) ? audioInValue * (-1) : audioInValue;
-                      
-                      // Aplicamos un offset
-                      audioInValue += PULSE_OFFSET;
-                      
-                      // ESPectrum solo va de 0 a 255;
 
+                      // Aplicamos un offset (si se quiere)
+                      audioInValue = audioInValue + PULSE_OFFSET;
+                      audioInValue = (audioInValue > 32767) ? 32767:audioInValue;
+                      
                       // Rectificamos la onda
                       // Eliminamos la parte negativa
                       audioInValue = (audioInValue <= 0) ? AmpZe:audioInValue;
-                      
-                      // Amplificamos x5 maxi. La barra de amplificacion al maximo es x5
-                      //
-                      // double famp = 0.05;
-                      // if (!EN_SCHMITT_CHANGE)
-                      // {
-                      //   famp = (1/SCHMITT_AMP);
-                      // }
-                      //int16_t ampAdaped = (audioInValue * (SCHMITT_AMP * famp)) > 32767 ? 32767:(audioInValue * (SCHMITT_AMP * famp));
-                      //LAST_MESSAGE = String(ampAdaped);
-
-                      // Ahora aplicamos histeresis de 0 a un valor amplificado
-                      //audioInValue = (audioInValue >= 0 && audioInValue <= threshold_high) ? AmpZe:ampAdaped;
+                      // Aplicamos Schmitt Trigger (noise filtering)
                       audioInValue = (audioInValue >= 0 && audioInValue <= threshold_high) ? AmpZe:AmpHi;
                       
                       // ++++++++++++++++++++++++++++++++++++++++++
