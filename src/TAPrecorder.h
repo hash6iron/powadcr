@@ -1139,9 +1139,6 @@ class TAPrecorder
                                       //Procesamos informacion del bloque                      
                                       proccesInfoBlockType();
                                       //                                  
-                                      char hex_string[20];
-                                      sprintf(hex_string, "%X", checksum);
-                                      LAST_MESSAGE = "Error in checksum. [ 0x" + String(hex_string) + " ]";
                                       errorInDataRecording = true;
                                       stopRecordingProccess = true;
                                       
@@ -1151,11 +1148,8 @@ class TAPrecorder
                                       // Paramos la grabacion
                                       REC=false;
                                       //
-                                      delay(3000); 
+                                      //delay(3000); 
                                     }
-
-                                    // Reseteamos el checksum
-                                    checksum = 0;
                                   }                              
                               }                          
                               break;
@@ -1260,11 +1254,11 @@ class TAPrecorder
               // String(statusPulse) + ", [" + 
               // String(wPulseHigh) + "," + 
               // String(wPulseZero) + "]";   
-              if ((millis() - startTime) > 500)
-              {
-                _hmi.updateInformationMainPage(true);
-                startTime = millis();
-              }                          
+              // if ((millis() - startTime) > 500)
+              // {
+              //   _hmi.updateInformationMainPage(true);
+              //   startTime = millis();
+              // }                          
           }
 
           // +++++++++++++++++++++++++++++++++++++++++++++
@@ -1300,8 +1294,15 @@ class TAPrecorder
 
           if (errorDetected !=0)
           {
+            // El checksum no era correcto
+            char hex_string[20];
+            sprintf(hex_string, "%X", checksum);
+            LAST_MESSAGE = "Error in checksum. [ 0x" + String(hex_string) + " ]";
+            // Reseteamos el checksum
+            checksum = 0;
+            delay(3000);            
             // Eliminamos desde blockStartOffset hasta el final
-            LAST_MESSAGE = "Removing bad block";
+            //LAST_MESSAGE = "Removing bad block";
             tapf.rewind();
             tapf.seek(blockStartOffset);
 
@@ -1316,7 +1317,7 @@ class TAPrecorder
             {
               tapf.write((uint8_t)0);
             }
-            delay(1250);
+            //delay(1250);
 
             errorInDataRecording = true;
             // Indicamos que la grabaci'on tenia errores en el ultimo bloque
