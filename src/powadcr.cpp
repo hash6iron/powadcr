@@ -538,7 +538,7 @@ void sendStatus(int action, int value=0) {
       //hmi.writeString("statusLCD.txt=\"READY. PRESS SCREEN\"");
 
       // Enviamos la version del firmware del powaDCR
-      hmi.writeString("mainmenu.verFirmware.txt=\" PowaDCR " + String(VERSION) + "\"");
+      hmi.writeString("mainmenu.verFirmware.txt=\" powadcr " + String(VERSION) + "\"");
       hmi.writeString("page tape");
       break;
     
