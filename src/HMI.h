@@ -3263,7 +3263,12 @@ class HMI
               logAlert("PAGE MENU");
             #endif
             CURRENT_PAGE = 2;
-        }       
+        }  
+        else if (strCmd.indexOf("PMENU0") != -1)
+        {
+            // Estamos en la pantalla MENU
+            writeString("mainmenu.verFirmware.txt=\" powadcr " + String(VERSION) + "\"");     
+        }  
         else if (strCmd.indexOf("PTAPE") != -1)
         {
             // Estamos en la pantalla TAPE
