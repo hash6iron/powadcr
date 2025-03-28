@@ -441,6 +441,7 @@ int FILE_LAST_DIR_LEVEL = 0;  // Nivel de profundida de directorio
 String FILE_LAST_DIR = "/";
 String FILE_PREVIOUS_DIR = "/";
 String FILE_LAST_DIR_LAST = "../";
+String REC_FILENAME = "";
 String SOURCE_FILE_TO_MANAGE = "_files.lst";
 String SOURCE_FILE_INF_TO_MANAGE = "_files.inf";
 String ROTATE_FILENAME = "";

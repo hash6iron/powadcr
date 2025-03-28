@@ -434,9 +434,9 @@ void proccesingTAP(char *file_ch)
       // El fichero está preparado para PLAY
       FILE_PREPARED = true;
 
-#ifdef DEBUGMODE
-      logAlert("TAP prepared");
-#endif
+      #ifdef DEBUGMODE
+            logAlert("TAP prepared");
+      #endif
     }
     else
     {
@@ -519,13 +519,13 @@ void sendStatus(int action, int value = 0)
     break;
 
   case ACK_LCD:
-    //hmi.writeString("");
-    hmi.writeString("tape.LCDACK.val=" + String(value));
-    //hmi.writeString("");
-    //hmi.writeString("statusLCD.txt=\"READY. PRESS SCREEN\"");
+      //hmi.writeString("");
+      hmi.writeString("tape.LCDACK.val=" + String(value));
+      //hmi.writeString("");
+      //hmi.writeString("statusLCD.txt=\"READY. PRESS SCREEN\"");
 
       // Enviamos la version del firmware del powaDCR
-      hmi.writeString("mainmenu.verFirmware.txt=\" powadcr " + String(VERSION) + "\"");
+      // hmi.writeString("mainmenu.verFirmware.txt=\" powadcr " + String(VERSION) + "\"");
       hmi.writeString("page tape");
       break;
     
@@ -2676,6 +2676,10 @@ void loadingFile(char *file_ch)
     // Convierto a mayusculas
     PATH_FILE_TO_LOAD.toUpperCase();
 
+    logln("");
+    logln("Path file to load: " + PATH_FILE_TO_LOAD);
+    logln("");
+
     // Eliminamos la memoria ocupado por el actual insertado
     // y lo ejectamos
     if (FILE_PREPARED)
@@ -2688,6 +2692,10 @@ void loadingFile(char *file_ch)
     // Cargamos el seleccionado.
     if (PATH_FILE_TO_LOAD.indexOf(".TAP") != -1)
     {
+      logln("");
+      logln("TAP file");
+      logln("");
+
       // Verificamos si hay fichero de configuracion para este archivo seleccionado
       verifyConfigFileForSelection();
       // changeLogo(41);
@@ -2842,14 +2850,6 @@ void prepareRecording()
   taprec.set_kit(ESP32kit);
   taprec.initialize();
 
-  // if (!taprec.createTempTAPfile())
-  // {
-  //   LAST_MESSAGE = "Recorder not prepared.";
-  //   delay(2000);
-  //   //
-  // }
-  // else
-  // {
   //writeString("");
   hmi.writeString("currentBlock.val=1");
   //writeString("");
@@ -2860,9 +2860,7 @@ void prepareRecording()
 
   //Activamos la animación
   tapeAnimationON();
-  // }
 
-  //hmi.getMemFree();
 }
 
 void RECready()
@@ -3396,15 +3394,15 @@ void tapeControl()
     //
     LOADING_STATE = 0;
 
-#ifdef DEBUGMODE
-    logAlert("Tape state 0");
-#endif
+    #ifdef DEBUGMODE
+        logAlert("Tape state 0");
+    #endif
 
     if (EJECT)
     {
-#ifdef DEBUGMODE
-      logAlert("EJECT state in TAPESTATE = " + String(TAPESTATE));
-#endif
+      #ifdef DEBUGMODE
+            logAlert("EJECT state in TAPESTATE = " + String(TAPESTATE));
+      #endif
 
       // Inicializamos la polarizacion
       EDGE_EAR_IS = POLARIZATION;
@@ -3874,19 +3872,19 @@ void tapeControl()
     break;
 
   case 99:
-//
-// Eject
-//
-#ifdef DEBUGMODE
-    logAlert("Tape state 99");
-#endif
+    //
+    // Eject
+    //
+    #ifdef DEBUGMODE
+        logAlert("Tape state 99");
+    #endif
 
     if (FILE_BROWSER_OPEN)
     {
-// Abrimos el filebrowser
-#ifdef DEBUGMODE
-      logAlert("State: File browser keep open.");
-#endif
+      // Abrimos el filebrowser
+      #ifdef DEBUGMODE
+            logAlert("State: File browser keep open.");
+      #endif
 
       TAPESTATE = 100;
       LOADING_STATE = 0;
@@ -3901,19 +3899,19 @@ void tapeControl()
     break;
 
   case 100:
-//
-// Filebrowser open
-//
-#ifdef DEBUGMODE
-    logAlert("Tape state 100");
-#endif
+    //
+    // Filebrowser open
+    //
+    #ifdef DEBUGMODE
+        logAlert("Tape state 100");
+    #endif
 
     if (!FILE_BROWSER_OPEN)
     {
-#ifdef DEBUGMODE
-      logln("State: File browser was closed.");
-      logln("Vble. FILE_SELECTED = " + String(FILE_SELECTED));
-#endif
+      #ifdef DEBUGMODE
+            logln("State: File browser was closed.");
+            logln("Vble. FILE_SELECTED = " + String(FILE_SELECTED));
+      #endif
       //
       // Cerramos el filebrowser.
       // y entramos en el estado FILE_PREPARED (inside the tape)
@@ -3935,9 +3933,9 @@ void tapeControl()
         // Ahora miro si está preparado
         if (FILE_PREPARED)
         {
-#ifdef DEBUGMODE
-          logAlert("File inside the tape.");
-#endif
+          #ifdef DEBUGMODE
+                    logAlert("File inside the tape.");
+          #endif
 
           // Avanzamos ahora hasta el primer bloque playeable
           if (!ABORT)
@@ -3983,9 +3981,9 @@ void tapeControl()
         else
         {
 
-#ifdef DEBUGMODE
-          logAlert("No file selected or empty file.");
-#endif
+          #ifdef DEBUGMODE
+                    logAlert("No file selected or empty file.");
+          #endif
 
           LAST_MESSAGE = "No file inside the tape";
         }
@@ -4066,27 +4064,7 @@ void tapeControl()
       // Saltamos a otro estado
       TAPESTATE = 200;
     }
-    else if (STOP)
-    {
-      TAPESTATE = 0;
-      LOADING_STATE = 0;
-      RECORDING_ERROR = 0;
-      REC = false;
-      recAnimationOFF();
-      recAnimationFIXED_OFF();
-    }
-    else
-    {
-      LOADING_STATE = 0;
-      TAPESTATE = 220;
-    }
-    break;
-
-  case 200:
-    //
-    // REC
-    //
-    if (STOP || taprec.actuateAutoRECStop || !REC || EJECT || RECORDING_ERROR != 0 || PAUSE)
+    else if (EJECT)
     {
       //
       stopRecording();
@@ -4098,9 +4076,70 @@ void tapeControl()
       //Volvemos al estado de reposo
       TAPESTATE = 0;
       LOADING_STATE = 0;
+      RECORDING_ERROR = 0;        
+    }    
+    else if (STOP)
+    {
+      TAPESTATE = 0;
+      LOADING_STATE = 0;
       RECORDING_ERROR = 0;
+      REC = false;
+      recAnimationOFF();
+      recAnimationFIXED_OFF();
     }
+    else if (PLAY)
+    {
+      if (REC_FILENAME !="")
+      {
+        char fileRecPath[100];
+        strcpy(fileRecPath,REC_FILENAME.c_str());
+        PATH_FILE_TO_LOAD = REC_FILENAME;
+
+        logln("");
+        logln("REC File on tape: " + REC_FILENAME);
+        logln("");
+
+        FILE_SELECTED = true;
+        FILE_PREPARED = false;
+        PLAY = false;
+        loadingFile(fileRecPath);
+        putLogo();
+        getTheFirstPlayeableBlock();
+        TYPE_FILE_LOAD = "TAP";
+        FILE_SELECTED = false;
+        PLAY = true;
+        TAPESTATE = 10;    
+        LOADING_STATE = 0;
+      }
+    }    
     else
+    {
+      LOADING_STATE = 0;
+      TAPESTATE = 220;
+    }
+    break;
+
+  case 200:
+    //
+    // REC
+    //
+    // if (STOP || taprec.actuateAutoRECStop || RECORDING_ERROR != 0)
+    // {
+    //   //
+    //   stopRecording();
+    //   recAnimationFIXED_OFF();
+    //   //
+    //   taprec.stopRecordingProccess = false;
+    //   taprec.actuateAutoRECStop = false;
+    //   REC = false;
+    //   //Volvemos al estado de reposo
+    //   TAPESTATE = 200;
+    //   LOADING_STATE = 0;
+    //   RECORDING_ERROR = 0;      
+    // }
+    // else 
+
+    if (REC)
     {
       esp_task_wdt_reset();
 
@@ -4112,12 +4151,18 @@ void tapeControl()
 
       // Ha acabado con errores
       LAST_MESSAGE = "Stop recording";
+      stopRecording();
+      recAnimationFIXED_OFF();
+      //
+      taprec.stopRecordingProccess = false;
+      taprec.actuateAutoRECStop = false;      
       REC = false;
-      STOP = true;
-
-      logln("Acaba el recorder");
+      STOP = false;
+      EJECT = false;
+      PLAY = false;
+      PAUSE = false;
       LOADING_STATE = 4;
-      TAPESTATE = 200;
+      TAPESTATE = 220;
     }
     break;
 
