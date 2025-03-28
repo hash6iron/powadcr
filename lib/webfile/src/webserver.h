@@ -10,6 +10,9 @@
 #include <algorithm> 
 #include <vector>
 #include <AsyncTCP.h>
+
+#define WEBSERVER_H
+#define HTTP_ANY    0b01111111
 #include <ESPAsyncWebServer.h>
 #include "sd_fat32_fs_wrapper.h"
 
