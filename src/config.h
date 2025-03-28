@@ -35,8 +35,23 @@
 //
 // 0 for ZX Spectrum
 
-#define VERSION "v0.3.19"
+// Para Rolling releases - rDDMMYY.HHMM
+// Para versión estable - vX.Y
+#define VERSION "v1.0r2-20250328"
 #define MACHINE_ZX
+
+// Define sampling rate a 44.1KHz. En otro caso será a 32KHz
+//#define SAMPLING44
+//#define SAMPLING48
+//#define SAMPLING32
+//#define SAMPLING22
+
+// Activa el test de sampling para calibrado de la salida ES83883
+//#define SAMPLINGTESTACTIVE
+
+// Para activar el modo debug
+// #define DEBUGMODE
+
 //#define MACHINE_AMSTRAD
 
 // Descomentar para test de reproducción en memoria
@@ -62,17 +77,19 @@
 // Browser
 // --------------------------------------------------------------
 // Numero máximo de ficheros que se listan por directorio.
-#define MAX_FILES_TO_LOAD 1000
-#define MAX_FILES_FOUND_BUFF 100
+// Numero total de lineas de una pagina del file browser
+#define TOTAL_FILES_IN_BROWSER_PAGE 13  // No se cuenta la primera fila que es para el path
+#define MAX_FILES_TO_LOAD 14            // Esto siempre es TOTAL_FILES_IN_BROWSER_PAGE + 1
+#define MAX_BLOCKS_IN_BROWSER 13
+#define MAX_FILES_FOUND_BUFF 255
 // Cada n ficheros refresca el marcador. Por defecto 5
 #define EACH_FILES_REFRESH 5
-// Numero total de lineas de una pagina del file browser
-#define TOTAL_FILES_IN_BROWSER_PAGE 13
+
 
 // Player / SD
 // -------------------------------------------------------------------
 // Frecuencia inicial de la SD
-#define SD_FRQ_MHZ_INITIAL 40
+#define SD_FRQ_MHZ_INITIAL 20
 
 
 // TAP config.
@@ -83,13 +100,52 @@
 // si superan el tamaño (en bytes) definido por SIZE_TO_ACTIVATE_SPLIT
 #define SPLIT_ENABLED 0
 #define SIZE_TO_ACTIVATE_SPLIT 20000
+#define SIZE_FOR_SPLIT 10000
 
 // Maximo número de bloques para el descriptor.
-#define MAX_BLOCKS_IN_TAP 2000
-#define MAX_BLOCKS_IN_TZX 2000
+#define MAX_BLOCKS_IN_TAP 4000
+#define MAX_BLOCKS_IN_TZX 4000
 
 // Configuracion del test in/out
 bool TEST_LINE_IN_OUT = false;
 
+// -------------------------------
+//
+// OTA setting
+//
+// -------------------------------
+// Dejar todo esto tal como está. La configuración se hace en el fichero wifi.cfg
+//
+// Los parámetros a incluir serán estos a continuación y en ese orden:
+//
+// Ejemplo:
+//
+// <hostname>powaDCR</hostname>
+// <ssid>miAPWiFi</ssid>
+// <password>miPasswordDelAp</password>
+// <IP>192.168.2.28</IP>
+// <SN>255.255.255.0</SN>
+// <GW>192.168.2.1</GW>
+// <DNS1>192.168.2.1</DNS1>
+// <DNS2>192.168.2.1</DNS2>
+
+char HOSTNAME[32] =  {};
+String ssid = "";
+char password[64] = {};
+
+// Static IP - 2.4GHz WiFi AP
+IPAddress local_IP(0, 0, 0, 0); // Your Desired Static IP Address
+IPAddress subnet(0, 0, 0, 0);
+IPAddress gateway(0, 0, 0, 0);
+IPAddress primaryDNS(0, 0, 0, 0); // Not Mandatory
+IPAddress secondaryDNS(0, 0, 0, 0);     // Not Mandatory
+
+// HMI
+#define windowNameLength 32
+#define windowNameLengthFB 50
+#define tRotateNameRfsh 230
+
+// Limitador de volumen
+#define MAX_VOL_FOR_HEADPHONE_LIMIT 40
 
 
