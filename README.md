@@ -114,10 +114,20 @@ So, it shall be removed both integrated microphones.
 
 How PowaDCR parts are connected?
 -----
-(in progress)
+<b>LCD Screen connection</b>
+- Is very easy. See image below to connect LCD 4-pin connector to Audiokit
+  <p align="center">
+  <img src="/doc/GPIO_audiokit.png" />
+  </p>
+
+  <p align="center">
+  <img src="/doc/GPIO.png" />
+  </p>
 
 How .bin firmware is uploaded in ESP32-A1S Audiokit? 
 -----
+<b>At the first time</b>
+
 You can flash the binaries directly to the board if you do not want to mess with code and compilers. 
 
 1. Download ESP32 Flash Downloading Tool - https://www.espressif.com/en/support/download/other-tools?keys=&field_type_tid%5B%5D=13
@@ -150,6 +160,8 @@ You can flash the binaries directly to the board if you do not want to mess with
    
    ![image](https://github.com/user-attachments/assets/b5c189c6-8945-4a65-9e22-e17a56d3eea6)
 
+<b>Upcoming updates</b>
+- Put .bin in the AudioKit SD and run again. Wait until process finishs.
 
 How custom firmware is uploaded in ESP32-A1S Audiokit? 
 -----
@@ -163,7 +175,11 @@ How custom firmware is uploaded in ESP32-A1S Audiokit?
 
 How firmware is loaded in TJC LCD?
 -----
-Upload the file "HMI/../build/powadcr_iface.tft" to the root of the SD and insert this into powaDCR. Power on the powaDCR and Wait until firmware is uploaded.
+<b>At the first time</b>
+- Put "HMI/build/powadcr_iface.tft" in the root of a SD card and insert in TFT slot.
+  
+<b>Upcoming updates</b>
+- Upload the file "HMI/build/powadcr_iface.tft" to the root of the SD and insert this into powaDCR. Power on the powaDCR and Wait until firmware is uploaded.
 
 
 If you enjoy with this device and you want to colaborate, please.
