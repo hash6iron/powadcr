@@ -103,7 +103,7 @@ TaskHandle_t Task1;
 #define SerialHWDataBits 921600
 #define hmiTxD 23
 #define hmiRxD 18
-#define powerLed 15
+#define powerLed 5
 
 #include <esp_task_wdt.h>
 #define WDT_TIMEOUT 360000
