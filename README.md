@@ -104,14 +104,6 @@ In this section we are going to describe parts to be needed to assemble the Powa
 + HMI Chinesse editor version https://unofficialnextion.com/t/tjc-usart-hmi-editor-1-64-1/1511
 + Arduino IDE 2.0
 
-Hacking the Audiokit board.
------
-This board is build from the same design from AC101 audio chip version, but with ES8388 chip. In this case both mic and line-in are mixed. Not possible to select by independ way mic or line-in then the environment noise come in when the ZX Spectrum signal is capturing.
-So, it shall be removed both integrated microphones.
-
-![image](https://github.com/hash6iron/powadcr/assets/118267564/f47c2810-d573-4a8b-9608-7015e7462f15)
-
-
 How PowaDCR parts are connected?
 -----
 <b>LCD Screen connection</b>
