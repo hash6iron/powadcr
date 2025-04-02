@@ -578,6 +578,7 @@ void logln(String txt)
 {
     Serial.println("");
     Serial.print(txt);
+    Serial.println("");
 }
 
 String lastAlertTxt = "";

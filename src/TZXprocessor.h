@@ -74,6 +74,10 @@ class TZXprocessor
     int _sizeTZX;
     int _rlen;
 
+    // Audio HW
+    AudioInfo new_sr;
+    //AudioInfo new_sr2;   
+
     int CURRENT_LOADING_BLOCK = 0;
 
     bool stopOrPauseRequest()
@@ -2847,76 +2851,45 @@ class TZXprocessor
         
         DIRECT_RECORDING = false;
 
+        uint32_t sr=0;
+        double divd=0.0;
+        
+
         switch (_myTZX.descriptor[i].ID)
         {
             case 21:
               DIRECT_RECORDING = true;
               // 
               // PROGRAM_NAME = "Audio block (WAV)";
-              LAST_SIZE = _myTZX.descriptor[i].size;          
-              // 
-              if (_myTZX.descriptor[i].samplingRate >= 77 && _myTZX.descriptor[i].samplingRate <= 80)
-              {
-                  SAMPLING_RATE = 44100;
-                  BIT_DR_0 = DBIT_DR44_0;
-                  BIT_DR_1 = DBIT_DR44_1;
+              LAST_SIZE = _myTZX.descriptor[i].size;  
+              //
+              // Congemos la configuracion por defecto ya establecida
+              // para despues cambiar los parametros que necesitemos
+              // y el resto se conserven.
+              new_sr = kitStream.defaultConfig();
+              // new_sr2 = kitStream.defaultConfig();              
+              // Calculamos el sampling rate desde el bloque ID 0x15
+              divd = double(_myTZX.descriptor[i].samplingRate) * (1.0/3500000.0);
+              sr = divd > 0 ? round(1.0 / (divd)) : 44100;
+              //
+              logln("Value in TZX srate: " + String(_myTZX.descriptor[i].samplingRate));
+              logln("Custom sampling rate: " + String(sr));
 
-                  ESP32kit.setSampleRate(AUDIO_HAL_44K_SAMPLES);
-                  LAST_MESSAGE = "Direct recording at 44.1KHz";
-              }
-              else if (_myTZX.descriptor[i].samplingRate == 158 || _myTZX.descriptor[i].samplingRate == 159)
-              {
-                  SAMPLING_RATE = 22050;
-                  BIT_DR_0 = DBIT_DR22_0;
-                  BIT_DR_1 = DBIT_DR22_1;
-                  ESP32kit.setSampleRate(AUDIO_HAL_22K_SAMPLES);
-                  LAST_MESSAGE = "Direct recording at 22.05KHz";
-              }
-              else if (_myTZX.descriptor[i].samplingRate == 238 || _myTZX.descriptor[i].samplingRate == 239)
-              {
-                  SAMPLING_RATE = 16000;
-                  BIT_DR_0 = 238;
-                  BIT_DR_1 = 238;
-                  ESP32kit.setSampleRate(AUDIO_HAL_16K_SAMPLES);
-                  LAST_MESSAGE = "Direct recording at 16KHz";
-              } 
-              else if (_myTZX.descriptor[i].samplingRate == 315 || _myTZX.descriptor[i].samplingRate == 316)
-              {
-                  SAMPLING_RATE = 11025;
-                  BIT_DR_0 = DBIT_DR11_0;
-                  BIT_DR_1 = DBIT_DR11_1;
-                  ESP32kit.setSampleRate(AUDIO_HAL_11K_SAMPLES);
-                  LAST_MESSAGE = "Direct recording at 11KHz";
-              }              
-              else if (_myTZX.descriptor[i].samplingRate == 319)
-              {
-                  SAMPLING_RATE = 8000;
-                  BIT_DR_0 = DBIT_DR08_0;
-                  BIT_DR_1 = DBIT_DR08_1;
-                  ESP32kit.setSampleRate(AUDIO_HAL_08K_SAMPLES);
-                  LAST_MESSAGE = "Direct recording at 8KHz";
-              }              
-              else
-              {
-                LAST_MESSAGE = "Direct recording sampling rate unknow";
-                delay(1500);
-                //Paramos la reproducción.
+              // Cambiamos el sampling rate en el HW
+              new_sr.sample_rate = sr;
+              kitStream.setAudioInfo(new_sr);      
+              // Cambiamos el sampling rate en el HW
+              // new_sr2.sample_rate = sr;
+              // kitStream.setAudioInfo(new_sr2);        
+              // Indicamos el sampling rate
+              LAST_MESSAGE = "Direct recording at " + String(sr) + "Hz";
+              //
+              _hmi.writeString("tape.lblFreq.txt=\"" + String(int(sr/1000)) + "KHz\"" );
 
-                PAUSE = false;
-                STOP = true;
-                PLAY = false;
+              SAMPLING_RATE = sr;
+              BIT_DR_0 =_myTZX.descriptor[i].samplingRate;
+              BIT_DR_1 = _myTZX.descriptor[i].samplingRate;
 
-                i = _myTZX.numBlocks+1;
-
-                LOOP_PLAYED = 0;
-                //EDGE_EAR_IS = down;
-                LOOP_START = 0;
-                LOOP_END = 0;
-                BL_LOOP_START = 0;
-                BL_LOOP_END = 0;    
-                return -1;            
-              }
-              // Ahora reproducimos
               playBlock(_myTZX.descriptor[i]);
               break;
             
@@ -3647,15 +3620,13 @@ class TZXprocessor
 
     }
 
-    TZXprocessor(AudioKit kit)
+    TZXprocessor()
     {
         // Constructor de la clase
         strncpy(_myTZX.name,"          ",10);
         _myTZX.numBlocks = 0;
         _myTZX.size = 0;
         _myTZX.descriptor = nullptr;
-
-        _zxp.set_ESP32kit(kit);      
     } 
 };
 

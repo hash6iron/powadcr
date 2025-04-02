@@ -89,8 +89,12 @@
 // Player / SD
 // -------------------------------------------------------------------
 // Frecuencia inicial de la SD
-#define SD_FRQ_MHZ_INITIAL 20
-
+#define SD_FRQ_MHZ_INITIAL 40
+#define DEFAULT_MP3_SAMPLING_RATE 44100
+// No se puede subir mas. Da problemas
+#define DEFAULT_WAV_SAMPLING_RATE 22050
+// Sampling rate adecuado para ZX Spectrum - Ajuste AZIMUT (Hz)
+#define STANDARD_SR_ZX_SPECTRUM 22200
 
 // TAP config.
 // ********************************************************************

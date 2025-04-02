@@ -1,0 +1,12 @@
+WiFi
+https://github.com/Seithan/EasyNextionLibrary@1.0.6
+https://github.com/pschatzmann/adpcm.git@0.1.2
+esphome/ESPAsyncWebServer-esphome@2.1.0
+https://github.com/pschatzmann/ESP32-A2DP.git@1.8.4
+https://github.com/greiman/SdFat#2.2.0
+https://github.com/pschatzmann/arduino-audiokit.git@0.7.0
+https://github.com/pschatzmann/arduino-audio-driver.git@0.1.0
+https://github.com/pschatzmann/arduino-audio-tools.git@1.0.1
+https://github.com/pschatzmann/arduino-libhelix.git@0.8.6
+WiFiClientSecure
+kubafilinger/AsyncTCP@1.1.1

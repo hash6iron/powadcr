@@ -2719,7 +2719,11 @@ class HMI
           }
 
           // Habilitamos/Deshabilitamos el amplificador
-          ESP32kit.setSpeakerActive(ACTIVE_AMP);
+          //kitStream.setPAPower(ACTIVE_AMP);
+;
+
+          kitStream.setPAPower(ACTIVE_AMP);
+
           //logln("Active amp=" + String(ACTIVE_AMP));
         }        
         // Habilita los dos canales
@@ -2775,8 +2779,8 @@ class HMI
           ACTIVE_AMP = false;
           writeString("menuAudio.mutAmp.val=1");
           // Habilitamos/Deshabilitamos el amplificador
-          ESP32kit.setSpeakerActive(ACTIVE_AMP);
-
+          kitStream.setPAPower(ACTIVE_AMP);
+;
           //logln("EAR LEFT enable=" + String(SWAP_EAR_CHANNEL));
         }
         // Save polarization in ID 0x2B
@@ -2834,24 +2838,36 @@ class HMI
           if (valEn==0)
           {
               SAMPLING_RATE = 48000;
-              writeString("tape.lblFreq.txt=\"48KHz\"" );
+              //writeString("tape.lblFreq.txt=\"48KHz\"" );
           }
           else if(valEn==1)
           {
               SAMPLING_RATE = 44100;
-              writeString("tape.lblFreq.txt=\"44KHz\"" );
+              //writeString("tape.lblFreq.txt=\"44KHz\"" );
           }
           else if(valEn==2)
           {
               SAMPLING_RATE = 32000;
-              writeString("tape.lblFreq.txt=\"32KHz\"" );
+              //writeString("tape.lblFreq.txt=\"32KHz\"" );
           }
           else if(valEn==3)
           {
               SAMPLING_RATE = 22050;
-              writeString("tape.lblFreq.txt=\"22KHz\"" );
+              //writeString("tape.lblFreq.txt=\"22KHz\"" );
           }
+          //
+          writeString("tape.lblFreq.txt=\"" + String(int(SAMPLING_RATE/1000)) + "KHz\"" );
          
+          // Cambiamos el sampling rate
+          // CAmbiamos el sampling rate del hardware de salida
+          // auto cfg = akit.defaultConfig();
+          // cfg.sample_rate = SAMPLING_RATE;
+          // akit.setAudioInfo(cfg);
+
+          auto cfg2 = kitStream.defaultConfig();
+          cfg2.sample_rate = SAMPLING_RATE;
+          kitStream.setAudioInfo(cfg2);
+
           #ifdef DEBUGMODE
             log("Sampling rate =" + String(SAMPLING_RATE));
           #endif
