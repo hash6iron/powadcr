@@ -259,6 +259,8 @@ bool NOT_CAPTURE_ID = false;
 bool MODEWAV = false;
 bool OUT_TO_WAV = false;
 bool disable_auto_wav_stop = false;
+bool POWERLED_ON = true;
+uint8_t POWERLED_DUTY = 30;
 
 uint8_t TAPESTATE = 0;
 uint8_t LAST_TAPESTATE = 0;
