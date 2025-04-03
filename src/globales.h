@@ -261,6 +261,7 @@ bool OUT_TO_WAV = false;
 bool disable_auto_wav_stop = false;
 
 uint8_t TAPESTATE = 0;
+uint8_t LAST_TAPESTATE = 0;
 
 // --------------------------------------------------------------------------
 //

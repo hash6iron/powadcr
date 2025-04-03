@@ -180,6 +180,7 @@ class ZXProcessor
             if (!forzeExit)
             {
                 kitStream.write(buffer, result);
+                //btstream.write(buffer, result);
 
                 if (OUT_TO_WAV)
                 {                
