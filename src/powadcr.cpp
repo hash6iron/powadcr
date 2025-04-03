@@ -227,6 +227,8 @@ bool rotate_enable = false;
 int plLastSize = 0;
 int plLastpos = 0;
 int plLastFsize = 0;
+uint8_t plduty = 0;
+uint8_t chduty = 1;
 String plLastName = "";
 
 // -----------------------------------------------------------------------
@@ -244,9 +246,12 @@ void rewindAnimation(int direction);
 bool statusPoweLed = false;
 bool powerLedFixed = false;
 //
-void actuatePowerLed(bool enable)
+void actuatePowerLed(bool enable, uint8_t duty)
 {
-  digitalWrite(powerLed, enable ? HIGH : LOW);
+  uint8_t dutyEnd = 0;
+
+  dutyEnd = enable ? duty : 0;
+  analogWrite(powerLed, dutyEnd);
 }
 
 void freeMemoryFromDescriptorTZX(tTZXBlockDescriptor *descriptor)
@@ -687,6 +692,7 @@ void waitForHMI(bool waitAndNotForze)
 
 void tapeAnimationON()
 {
+  // Activamos animacion cinta
   hmi.writeString("tape2.tmAnimation.en=1");
   hmi.writeString("tape.tmAnimation.en=1");
   delay(250);
@@ -696,6 +702,7 @@ void tapeAnimationON()
 
 void tapeAnimationOFF()
 {
+  // Desactivamos animacion cinta
   hmi.writeString("tape2.tmAnimation.en=0");
   hmi.writeString("tape.tmAnimation.en=0");
   delay(250);
@@ -705,6 +712,7 @@ void tapeAnimationOFF()
 
 void recAnimationON()
 {
+  // Indicador REC parpadea
   hmi.writeString("tape.RECst.val=1");
   delay(250);
   hmi.writeString("tape.RECst.val=1");
@@ -713,6 +721,7 @@ void recAnimationON()
 
 void recAnimationOFF()
 {
+  // Indicador REC deja de parpadear
   hmi.writeString("tape.RECst.val=0");
   delay(250);
   hmi.writeString("tape.RECst.val=0");
@@ -721,6 +730,7 @@ void recAnimationOFF()
 
 void recAnimationFIXED_ON()
 {
+  // Indicador LED fijo ON
   hmi.writeString("tape.recIndicator.bco=63848");
   delay(250);
   hmi.writeString("tape.recIndicator.bco=63848");
@@ -729,6 +739,7 @@ void recAnimationFIXED_ON()
 
 void recAnimationFIXED_OFF()
 {
+  // Indicador LED fijo OFF
   hmi.writeString("tape.recIndicator.bco=32768");
   delay(250);
   hmi.writeString("tape.recIndicator.bco=32768");
@@ -4304,6 +4315,8 @@ void Task0code(void *pvParameters)
   int startTime = millis();
   int startTime2 = millis();
   int startTime3 = millis();
+  int startTime4 = millis();
+
   int tClock = millis();
   int ho = 0;
   int mi = 0;
@@ -4333,25 +4346,58 @@ void Task0code(void *pvParameters)
           tScrRfsh = 125;
         }
 
+        if ((millis() - startTime4) > 35)
+        {
+          // Timer para el PWM del powerled
+          startTime4 = millis();
+
+          if (!REC)
+          {          
+            if (plduty > POWERLED_DUTY)
+            {
+              chduty=-1;
+            }
+            else if (plduty < 1)
+            {
+              chduty=1;
+            }
+  
+            //
+            plduty += chduty;
+            actuatePowerLed(powerLed,plduty);  
+          }
+        }
+
         if ((millis() - startTime3) > 500)
         {
+          // Timer para el powerLed / recording led indicator
           startTime3 = millis();
 
           if (REC)
           {
+            // Modo grabacion
             if (!powerLedFixed)
             {
               statusPoweLed = !statusPoweLed;
-              actuatePowerLed(statusPoweLed);  
+              actuatePowerLed(statusPoweLed,255);  
             }
             else
             {
-              actuatePowerLed(true);
+              actuatePowerLed(true,255);
             }
           }
           else
           {
-            actuatePowerLed(true);
+            // No estamos grabando.
+            // si tengo configurado un powerled entonces se queda encendido
+            // if (POWERLED_ON)
+            // {
+            //   actuatePowerLed(true,POWERLED_DUTY);
+            // }
+            // else
+            // {
+            //   actuatePowerLed(false,255);
+            // }
           }
         }
 
@@ -4505,8 +4551,7 @@ void setup()
   // btstream.setVolume(0.3);
 
   // Arrancamos el indicador de power
-  actuatePowerLed(true);
-
+  actuatePowerLed(true,POWERLED_DUTY);
   //
   // ----------------------------------------------------------------------
 
