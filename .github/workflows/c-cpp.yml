@@ -99,7 +99,7 @@ jobs:
       uses: actions/upload-release-asset@v1
       with:
         upload_url: ${{ env.upload_url }}
-        asset_path: ./firmwares/default/firmware.bin
+        asset_path: ./firmwares/esp32devCOM/firmware.bin
         asset_name: firmware.upg
         asset_content_type: application/octet-stream
       env:
