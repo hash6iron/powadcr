@@ -77,6 +77,19 @@ jobs:
           0x10000 ./firmwares/esp32devCOM/firmware.bin \
           0x3d0000 ./firmwares/esp32devCOM/spiffs.bin
 
+    - name: Generate a token
+      id: generate_token
+      uses: actions/create-github-app-token@v1
+      with:
+        app-id: ${{ secrets.APP_ID }}
+        private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
+    - name: Use the token
+      env:
+        GH_TOKEN: ${{ steps.generate_token.outputs.token }}
+      run: |
+        gh api octocat
+
     - name: Get Release Upload URL
       id: get_release
       run: |
