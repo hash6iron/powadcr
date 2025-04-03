@@ -1543,14 +1543,13 @@ class TAPprocessor
         }
 
         // Constructor de la clase
-        TAPprocessor(AudioKit kit)
+        TAPprocessor()
         {
             // Constructor de la clase
             strncpy(_myTAP.name,"          ",10);
             _myTAP.numBlocks = 0;
             _myTAP.size = 0;
             _myTAP.descriptor = nullptr;
-            _zxp.set_ESP32kit(kit);
         }      
 
 };

@@ -103,7 +103,7 @@ class ZXProcessor
 
         uint8_t _mask_last_byte = 8;
 
-        AudioKit m_kit;
+        //AudioKitStream m_kit;
 
         bool stopOrPauseRequest()
         {
@@ -179,7 +179,8 @@ class ZXProcessor
 
             if (!forzeExit)
             {
-                m_kit.write(buffer, result);
+                kitStream.write(buffer, result);
+                //btstream.write(buffer, result);
 
                 if (OUT_TO_WAV)
                 {                
@@ -328,7 +329,7 @@ class ZXProcessor
                 }            
 
                 // Volcamos en el buffer
-                m_kit.write(buffer, result); 
+                kitStream.write(buffer, result); 
                 if (OUT_TO_WAV)
                 {                
                     encoderOutWAV.write(buffer, result);
@@ -839,7 +840,12 @@ class ZXProcessor
 
             // Put now code block
             // syncronize with short leader tone
+            // long t1=millis();
             pilotTone(pulse_len, num_pulses);
+            // long t2=millis();
+            
+            // logln("Pilot tone time: " + String(t2-t1));
+
             //log("Pilot tone");
             if (LOADING_STATE == 2)
             {return;}
@@ -1029,10 +1035,10 @@ class ZXProcessor
             silence(3000);
         }
 
-        void set_ESP32kit(AudioKit kit)
-        { 
-          m_kit = kit;
-        }
+        // void set_kit(AudioKitStream kit)
+        // { 
+        //   kitStream = kit;
+        // }
 
         void set_HMI(HMI hmi)
         {
@@ -1063,36 +1069,36 @@ class ZXProcessor
             return result;            
         }
 
-        void samplingtest(float samplingrate)
-        {
-            // Se genera un pulso cuadrado de T = 1.00015s
-            AudioInfo info(44100, 2, 16);
-            AudioKitStream kit;
-            int ss = 44100;
-            uint8_t buffer[ss*2*channels];
-            int16_t *samples = (int16_t*) buffer;
+        // void samplingtest(float samplingrate)
+        // {
+        //     // Se genera un pulso cuadrado de T = 1.00015s
+        //     AudioInfo info(44100, 2, 16);
+        //     AudioKitStream kit;
+        //     int ss = 44100;
+        //     uint8_t buffer[ss*2*channels];
+        //     int16_t *samples = (int16_t*) buffer;
 
-            // Custom fill array 8 bits buffer
-            size_t ssignal = createTestSignal(buffer,ss,30000);
+        //     // Custom fill array 8 bits buffer
+        //     size_t ssignal = createTestSignal(buffer,ss,30000);
             
-            // Output
-            kit.config().copyFrom(info);
-            kit.config().output_device = AUDIO_HAL_DAC_OUTPUT_ALL;
-            kit.begin();
+        //     // Output
+        //     kit.config().copyFrom(info);
+        //     kit.config().output_device = AUDIO_HAL_DAC_OUTPUT_ALL;
+        //     kit.begin();
 
-            ResampleStream out(kit);
-            out.setTargetSampleRate(samplingrate);
-            out.begin();
+        //     ResampleStream out(kit);
+        //     out.setTargetSampleRate(samplingrate);
+        //     out.begin();
 
-            out.write((uint8_t*)&buffer, sizeof(int16_t));
-            out.write((uint8_t*)&buffer, sizeof(int16_t));      
+        //     out.write((uint8_t*)&buffer, sizeof(int16_t));
+        //     out.write((uint8_t*)&buffer, sizeof(int16_t));      
 
-            if (OUT_TO_WAV)
-            {    
-                encoderOutWAV.write(buffer, sizeof(int16_t));
-                encoderOutWAV.write(buffer, sizeof(int16_t));
-            }
-        }
+        //     if (OUT_TO_WAV)
+        //     {    
+        //         encoderOutWAV.write(buffer, sizeof(int16_t));
+        //         encoderOutWAV.write(buffer, sizeof(int16_t));
+        //     }
+        // }
 
         // Constructor
         ZXProcessor()

@@ -61,7 +61,7 @@ class TAPrecorder
       
     private:
 
-      AudioKit _kit;
+      // AudioKit _kit;
 
       hw_timer_t *timer = NULL;
 
@@ -496,10 +496,10 @@ class TAPrecorder
           _hmi = hmi;
       }
 
-      void set_kit(AudioKit kit)
-      {
-        _kit = kit;
-      }
+      // void set_kit(AudioKit kit)
+      // {
+      //   _kit = kit;
+      // }
 
       void newBlock(File32 &mFile)
       {
@@ -580,22 +580,6 @@ class TAPrecorder
       
       bool recording()
       {         
-          //AudioInfo info(44100, 2, 16);
-          AnalogAudioStream in;
-          AnalogAudioStream out;
-          // AnalogConfig anCfgIn;
-          // AnalogConfig anCfgOut;
-          auto anCfgIn = in.defaultConfig(RX_MODE);
-          auto anCfgOut = out.defaultConfig(TX_MODE);
-          // Frecuencia de muestreo es 4*frec de la Sync1 (667 T-states)
-          //cfg.sample_rate = 20244;
-
-          // Por defecto esta es la configuracion
-          // -------------------------------------
-          // anCfg.sample_rate = 44100;
-          // anCfg.bits_per_sample = 16;
-          // anCfg.channels = 2;
-          // -------------------------------------
           long startTime = millis();
           int AmpHi = high;
           int low = low;
@@ -624,16 +608,12 @@ class TAPrecorder
           uint8_t delta = wSyncMin;
           bool animationPause = false;
 
-          // Arrancamos el ADC y DAC
-          in.begin(anCfgIn);
-          out.begin(anCfgOut);
-          
-          //delay(2000);
+          // kitStream.config().buffer_size = 262144;
+          // kitStream.config().rx_tx_mode = RXTX_MODE;         
 
           // ======================================================================================================
 
           // Creamos el buffer de grabacion
-          // uint8_t *bufferRec = (uint8_t*)ps_calloc(BUFFER_SIZE_REC,sizeof(uint8_t));
           uint8_t   bufferRec[BUFFER_SIZE_REC];                          
           uint8_t   bufferOut[BUFFER_SIZE_REC]; 
 
@@ -664,13 +644,7 @@ class TAPrecorder
           //SerialHW.println("Dir for REC: " + String(recDir));
           File32 tapf = sdf.open(recDir, O_WRITE | O_CREAT);
           tapf.rewind();
-          
-
-          // Inicializo bit string
-          // bitChStr = (char*)ps_calloc(8, sizeof(char));
-          // datablock = (uint8_t*)ps_calloc(1, sizeof(uint8_t));
-
-          
+                    
           // Inicializamos el array de nombre del header
           for (int i=0;i<10;i++)
           {
@@ -698,7 +672,7 @@ class TAPrecorder
           LAST_MESSAGE = "Recorder ready. Play source data.";
           
           // Hacemos una lectura residual
-          lenSamplesCaptured = in.readBytes(bufferRec, BUFFER_SIZE_REC);
+          lenSamplesCaptured = kitStream.readBytes(bufferRec, BUFFER_SIZE_REC);
           lenSamplesCaptured = 0;
 
           // Inicializamos el buffer
@@ -725,7 +699,16 @@ class TAPrecorder
           stopRecordingProccess = false;
           errorDetected = 0;
 
-          //BYTES_TOBE_LOAD = 19;
+          // Cambiamos el sampling rate en el HW
+          // AudioInfo new_sr = akit.defaultConfig();
+          // new_sr.sample_rate = 44100;
+          // akit.setAudioInfo(new_sr);      
+          // Cambiamos el sampling rate en el HW
+          AudioInfo new_sr = kitStream.defaultConfig();
+          new_sr.sample_rate = 44100;
+          kitStream.setAudioInfo(new_sr);   
+          // Indicamos
+          _hmi.writeString("tape.lblFreq.txt=\"" + String(44) + "KHz\"" );
 
           //strcpy(header.name,"noname");
           unsigned long progress_millis = 0;
@@ -758,7 +741,7 @@ class TAPrecorder
               }
 
               // Capturamos muestras
-              lenSamplesCaptured = in.readBytes(bufferRec, BUFFER_SIZE_REC);
+              lenSamplesCaptured = kitStream.readBytes(bufferRec, BUFFER_SIZE_REC);
 
               // Esperamos a que el buffer este lleno
               if (lenSamplesCaptured >= BUFFER_SIZE_REC) 
@@ -1100,9 +1083,6 @@ class TAPrecorder
                                   // ++++++++++++++++++++++++++++++++++++++++
                                   // Tambien acabo el bloque si encuentro un pulso por encima de un wBit1_max
 
-                                  // if ((wPulseHigh > wBit1_max) ||
-                                  //     (wPulseZero > wBit1_max)) 
-                                  //   {
                                   if ((wPulseHigh >= wSilence) ||
                                       (wPulseZero >= wSilence)) 
                                     {
@@ -1191,11 +1171,6 @@ class TAPrecorder
                                       //que es justo al final del ultimo bloque + 1 (inicio del siguiente)
                                       //
                                       ptrOffset = tapf.position();
-
-                                      // // Insertamos la posicion de la WORD del size. 0x00 0x00
-                                      // uint8_t bytezero = 0;
-                                      // tapf.write(bytezero);
-                                      // tapf.write(bytezero);
                                       //
                                       newBlock(tapf);                                  
                                     }
@@ -1244,7 +1219,7 @@ class TAPrecorder
                   }
 
                   // Volcamos el output en el buffer de salida
-                  out.write(bufferOut, lenSamplesCaptured);                 
+                  kitStream.write(bufferOut, lenSamplesCaptured);                 
               }
               else
               {
@@ -1253,16 +1228,7 @@ class TAPrecorder
                 REC = false;
                 delay(3000);
               }   
-
-              // LAST_MESSAGE = "Bytes: " + String(byteCount) + "bytes ," + 
-              // String(statusPulse) + ", [" + 
-              // String(wPulseHigh) + "," + 
-              // String(wPulseZero) + "]";   
-              // if ((millis() - startTime) > 500)
-              // {
-              //   _hmi.updateInformationMainPage(true);
-              //   startTime = millis();
-              // }                          
+                         
           }
 
           // +++++++++++++++++++++++++++++++++++++++++++++
@@ -1281,14 +1247,7 @@ class TAPrecorder
           
 
           logln("File name: " + String(newFileName));
-          logln("");
-
-          // Esto lo hacemos por si no hay nombre
-          // que no de fallos.
-          // newFileName[10] = '_';
-          // newFileName[11] = 'r';
-          // newFileName[12] = 'e';
-          // newFileName[13] = 'c';    
+          logln(""); 
           //      
           if (!renameFile(newFileName, tapf))
           {
@@ -1340,9 +1299,13 @@ class TAPrecorder
           REC_FILENAME = frpath;
           //
           tapf.close();
-          in.end();
-          out.end();
 
+          // new_sr.sample_rate = SAMPLING_RATE;
+          // akit.setAudioInfo(new_sr);      
+          // Cambiamos el sampling rate en el HW
+          new_sr.sample_rate = SAMPLING_RATE;
+          kitStream.setAudioInfo(new_sr);  
+          _hmi.writeString("tape.lblFreq.txt=\"" + String(int(SAMPLING_RATE/1000)) + "KHz\"" );
           // Volvemos
           return true;
       }
