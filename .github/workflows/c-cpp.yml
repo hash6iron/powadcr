@@ -57,6 +57,19 @@ jobs:
     - name: Install GitHub CLI
       run: sudo apt-get install -y gh
 
+    - name: Generate a token
+      id: generate_token
+      uses: actions/create-github-app-token@v1
+      with:
+        app-id: ${{ secrets.APP_ID }}
+        private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
+    - name: Use the token
+      env:
+        GH_TOKEN: ${{ steps.generate_token.outputs.token }}
+      run: |
+        gh api octocat
+
     - name: Update Release
       run: |
         gh release edit "${{ github.ref_name }}" --title "Release ${{ github.ref_name }}"
@@ -76,19 +89,6 @@ jobs:
           0x8000 ./firmwares/esp32devCOM/partitions.bin \
           0x10000 ./firmwares/esp32devCOM/firmware.bin \
           0x3d0000 ./firmwares/esp32devCOM/spiffs.bin
-
-    - name: Generate a token
-      id: generate_token
-      uses: actions/create-github-app-token@v1
-      with:
-        app-id: ${{ secrets.APP_ID }}
-        private-key: ${{ secrets.APP_PRIVATE_KEY }}
-
-    - name: Use the token
-      env:
-        GH_TOKEN: ${{ steps.generate_token.outputs.token }}
-      run: |
-        gh api octocat
 
     - name: Get Release Upload URL
       id: get_release
