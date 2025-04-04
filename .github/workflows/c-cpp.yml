@@ -67,7 +67,7 @@ jobs:
       run: |
         gh release edit "${{ github.ref_name }}" --title "Release ${{ github.ref_name }}"
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GITHUB_TOKEN: ${{ github.token }}
 
     - name: Install esptool
       run: python -m pip install esptool
@@ -89,7 +89,7 @@ jobs:
         url=$(gh release view "${{ github.ref_name }}" --json uploadUrl -q .uploadUrl)
         echo "upload_url=$url" >> $GITHUB_ENV
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GITHUB_TOKEN: ${{ github.token }}
 
     - name: Upload Complete Firmware (esp32devCOM) to Release
       uses: actions/upload-release-asset@v1
@@ -99,7 +99,7 @@ jobs:
         asset_name: complete_firmware.bin
         asset_content_type: application/octet-stream
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GITHUB_TOKEN: ${{ github.token }}
 
     - name: Upload Firmware Upgrade (esp32devCOM) to Release
       uses: actions/upload-release-asset@v1
@@ -109,4 +109,4 @@ jobs:
         asset_name: firmware.bin
         asset_content_type: application/octet-stream
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GITHUB_TOKEN: ${{ github.token }}
