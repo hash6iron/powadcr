@@ -78,8 +78,7 @@ jobs:
           --flash_size 4MB \
           0x1000 ./firmwares/esp32devCOM/bootloader.bin \
           0x8000 ./firmwares/esp32devCOM/partitions.bin \
-          0x10000 ./firmwares/esp32devCOM/firmware.bin \
-          0x3d0000 ./firmwares/esp32devCOM/spiffs.bin
+          0x40000 ./firmwares/esp32devCOM/firmware.bin \
 
     - name: Get Release Upload URL
       id: get_release
