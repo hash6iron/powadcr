@@ -3033,7 +3033,7 @@ class HMI
           strCmd.getBytes(buff, 7);
           int valEn = (int)buff[4];
           //
-          disable_auto_wav_stop != disable_auto_wav_stop;
+          disable_auto_media_stop != disable_auto_media_stop;
 
           #ifdef DEBUGMODE
             logln("Modo Auto STOP player =" + String(OUT_TO_WAV));
