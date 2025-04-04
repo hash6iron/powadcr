@@ -258,8 +258,11 @@ bool NOT_CAPTURE_ID = false;
 // WAV record
 bool MODEWAV = false;
 bool OUT_TO_WAV = false;
-bool disable_auto_wav_stop = false;
+bool disable_auto_media_stop = false;
+
+// Power led
 bool POWERLED_ON = true;
+bool PWM_POWER_LED = true;
 uint8_t POWERLED_DUTY = 30;
 
 uint8_t TAPESTATE = 0;
@@ -280,6 +283,7 @@ uint8_t LAST_TAPESTATE = 0;
 //edge SCOPE = down;
 bool APPLY_END = false;
 int SAMPLING_RATE = 44100;
+int LAST_SAMPLING_RATE = 44100;
 int WAV_SAMPLING_RATE = 44100;
 int WAV_BITS_PER_SAMPLE = 16;
 int WAV_CHAN = 2;
