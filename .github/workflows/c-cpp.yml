@@ -79,7 +79,6 @@ jobs:
           0x1000 ./firmwares/esp32devCOM/bootloader.bin \
           0x8000 ./firmwares/esp32devCOM/partitions.bin \
           0x40000 ./firmwares/esp32devCOM/firmware.bin \
-
     - name: Get Release Upload URL
       id: get_release
       run: |
