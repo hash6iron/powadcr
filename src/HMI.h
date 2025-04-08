@@ -2121,9 +2121,18 @@ class HMI
             long val = (long)((int)buff[4] + (256*(int)buff[5]) + (65536*(int)buff[6]));
             String num = String(val);
       
-            int idx = num.toInt();         
-            ROTATE_FILENAME = FILES_BUFF[idx+1].path;
-            ENABLE_ROTATE_FILEBROWSER = true;
+            int idx = num.toInt();  
+            if (idx >=0 && idx < 14)
+            {
+              ROTATE_FILENAME = FILES_BUFF[idx+1].path;
+              ENABLE_ROTATE_FILEBROWSER = true;  
+            }
+            else
+            {
+              ROTATE_FILENAME = "";
+              ENABLE_ROTATE_FILEBROWSER = false;
+            }
+           
         }
         else if (strCmd.indexOf("TRS=") != -1) 
         {
@@ -2207,18 +2216,25 @@ class HMI
             FILE_SELECTED = false;
       
             // Path completo del fichero
-            PATH_FILE_TO_LOAD = FILE_LAST_DIR + FILES_BUFF[FILE_IDX_SELECTED+1].path;  
-            // Fichero sin path
-            FILE_LOAD = FILES_BUFF[FILE_IDX_SELECTED+1].path;                
-      
-            // Cambiamos el estado de fichero seleccionado
-            if (PATH_FILE_TO_LOAD != "")
+            if (FILE_IDX_SELECTED >=0 && FILE_IDX_SELECTED < 14)
             {
-                #ifdef DEBUGMODE
-                  logAlert("File was selected");
-                #endif
-
-                FILE_SELECTED = true;
+              PATH_FILE_TO_LOAD = FILE_LAST_DIR + FILES_BUFF[FILE_IDX_SELECTED+1].path;  
+              // Fichero sin path
+              FILE_LOAD = FILES_BUFF[FILE_IDX_SELECTED+1].path;                
+        
+              // Cambiamos el estado de fichero seleccionado
+              if (PATH_FILE_TO_LOAD != "")
+              {
+                  #ifdef DEBUGMODE
+                    logAlert("File was selected");
+                  #endif
+  
+                  FILE_SELECTED = true;
+              }
+            }
+            else
+            {
+              PATH_FILE_TO_LOAD = "";
             }
 
       
@@ -2449,6 +2465,11 @@ class HMI
               MAIN_VOL_R = myNex.readNumber("menuAudio.volR.val");
               MAIN_VOL_L = myNex.readNumber("menuAudio.volL.val");
           }
+          
+          // Almacenamos en NVS
+          saveHMIcfg("VLIopt");
+          saveVolSliders();
+
         }
         // Ajuste del volumen
         else if (strCmd.indexOf("VOL=") != -1) 
@@ -2473,6 +2494,7 @@ class HMI
           // Control del Master volume
           // MAIN_VOL_L = MAIN_VOL;
           // MAIN_VOL_R = MAIN_VOL;
+          saveVolSliders();
         }
         // Ajuste el vol canal R
         else if (strCmd.indexOf("VRR=") != -1) 
@@ -2490,6 +2512,9 @@ class HMI
               MAIN_VOL_R = MAX_VOL_FOR_HEADPHONE_LIMIT;
             }
           }          
+
+          saveVolSliders();
+
         }
         // Ajuste el vol canal L
         else if (strCmd.indexOf("VLL=") != -1) 
@@ -2515,6 +2540,9 @@ class HMI
             logln("L-Channel volume value=" + String(MAIN_VOL_L));
             logln("");
           #endif
+
+          saveVolSliders();
+
         }
         else if (strCmd.indexOf("EQH=") != -1) 
         {
@@ -2526,6 +2554,7 @@ class HMI
           EQ_HIGH = valVol/100.0;      
           EQ_CHANGE = true;    
           //logln("EQ HIGH: " + String(EQ_HIGH)); 
+          saveHMIcfg("EQHopt");
         } 
         else if (strCmd.indexOf("EQM=") != -1) 
         {
@@ -2537,6 +2566,7 @@ class HMI
           EQ_MID = valVol/100.0;          
           EQ_CHANGE = true;    
           //logln("EQ MID: " + String(EQ_MID)); 
+          saveHMIcfg("EQMopt");
         }   
         else if (strCmd.indexOf("EQL=") != -1) 
         {
@@ -2548,6 +2578,7 @@ class HMI
           EQ_LOW = valVol/100.0;          
           EQ_CHANGE = true;   
           //logln("EQ LOW: " + String(EQ_LOW)); 
+          saveHMIcfg("EQLopt");
         }                      
         // Devuelve el % de filtrado aplicado en pantalla. Filtro del recording
         else if (strCmd.indexOf("THR=") != -1) 
@@ -2701,27 +2732,27 @@ class HMI
           //
           ACTIVE_AMP = !valEn;
 
+          // Almacenamos en NVS
+          saveHMIcfg("MAMopt");
+
           if (ACTIVE_AMP)
           {
-            // Bajamos el volumen del speaker que esta en el canal amplificado DERECHO
+            // Bajamos el volumen del speaker que esta en el canal amplificado IZQ
             MAIN_VOL_L = 5;
             // Actualizamos el HMI
             writeString("menuAudio.volL.val=" + String(MAIN_VOL_L));
             writeString("menuAudio.volLevel.val=" + String(MAIN_VOL_L));
           }
-          else
-          {
-            // Bajamos el volumen del speaker que esta en el canal amplificado DERECHO
-            MAIN_VOL_L = MAIN_VOL_R;
-            // Actualizamos el HMI
-            writeString("menuAudio.volL.val=" + String(MAIN_VOL_L));
-            writeString("menuAudio.volLevel.val=" + String(MAIN_VOL_L));
-          }
+          // else
+          // {
+          //   // Bajamos el volumen del speaker que esta en el canal amplificado IZQ
+          //   MAIN_VOL_L = MAIN_VOL_R;
+          //   // Actualizamos el HMI
+          //   writeString("menuAudio.volL.val=" + String(MAIN_VOL_L));
+          //   writeString("menuAudio.volLevel.val=" + String(MAIN_VOL_L));
+          // }
 
-          // Habilitamos/Deshabilitamos el amplificador
-          //kitStream.setPAPower(ACTIVE_AMP);
-;
-
+          // Habilitamos el amplificador de salida
           kitStream.setPAPower(ACTIVE_AMP);
 
           //logln("Active amp=" + String(ACTIVE_AMP));
@@ -2735,6 +2766,12 @@ class HMI
           int valEn = (int)buff[4];
           //
           EN_STEREO = valEn;
+
+          // Almacenamos en NVS
+          saveHMIcfg("STEopt");
+          // Almacenamos en NVS tambien el mute
+          saveHMIcfg("MAMopt");
+
 
           //logln("Mute enable=" + String(EN_STEREO));
         }
@@ -3746,6 +3783,7 @@ class HMI
               #endif
 
               // Verificamos el comando
+              logln("Verify comando: " + str);
               verifyCommand(str);
               // Adelantamos el puntero
               cStart = cPos+1;
@@ -3770,6 +3808,7 @@ class HMI
             //   logln("Echo: " + strCmd);
             //   logln("");
             // #endif
+            logln("Comando " + strCmd);
             getSeveralCommands(strCmd);
           }
           //SerialHW.flush();

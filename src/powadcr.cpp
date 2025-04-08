@@ -3505,8 +3505,10 @@ void tapeControl()
     if (BB_OPEN || BB_UPDATE)
     {
       // Ojo! no meter delay! que esta en una reproduccion
+      logln("Solicito abrir el BLOCKBROWSER");
+
       openBlocksBrowser();
-      openBlocksBrowser();
+      //openBlocksBrowser();
 
       BB_UPDATE = false;
       BB_OPEN = false;
@@ -3995,6 +3997,7 @@ void tapeControl()
               LOADING_STATE = 0;
 
               // Esto lo hacemos para llevar el control desde el WAV player
+              logln("Playing file CASE 100:");
               playingFile();
             }
           }
@@ -4517,6 +4520,15 @@ void Task0code(void *pvParameters)
 #endif
 }
 
+void showOption(String id, String value)
+{
+  //
+  hmi.writeString(id + "=" + value);
+  delay(10);
+  hmi.writeString(id + "=" + value);
+  delay(10);
+}
+
 void setup()
 {
   // Inicializar puerto USB Serial a 115200 para depurar / subida de firm
@@ -4913,6 +4925,64 @@ void setup()
 
   sendStatus(REC_ST);
 
+  // Ponemos a cero las barras de progreso
+  showOption("tape.progressBlock.val","0");
+  showOption("tape.progressTotal.val","0");
+
+  // Cargamos la configuracion del HMI desde la particion NVS
+  // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  LAST_MESSAGE = "Loading HMI settings.";
+
+  loadHMICfg();
+
+  // Actualizamos la configuracion
+  logln("EN_STERO = " + String(EN_STEREO));
+  logln("MUTE AMP = " + String(!ACTIVE_AMP));
+  logln("VOL_LIMIT_HEADPHONE = " + String(VOL_LIMIT_HEADPHONE));
+  logln("MAIN_VOL" + String(MAIN_VOL));
+  logln("MAIN_VOL_L" + String(MAIN_VOL_L));
+  logln("MAIN_VOL_R" + String(MAIN_VOL_R));
+  //
+  // EN_STEREO
+  showOption("menuAudio.stereoOut.val",String(EN_STEREO));
+  // MUTE_AMPLIFIER
+  showOption("menuAudio.mutAmp.val",String(!ACTIVE_AMP));
+  
+  if (!ACTIVE_AMP)
+  {
+    MAIN_VOL_L = 5;
+    // Actualizamos el HMI
+    hmi.writeString("menuAudio.volL.val=" + String(MAIN_VOL_L));
+    hmi.writeString("menuAudio.volLevel.val=" + String(MAIN_VOL_L));    
+  }
+  // VOL_LIMIT
+  showOption("menuAudio.volLimit.val",String(VOL_LIMIT_HEADPHONE));
+  // Volumen sliders
+  showOption("menuAudio.volM.val",String(MAIN_VOL));
+  showOption("menuAudio.volLevelM.val",String(MAIN_VOL));
+  //
+  showOption("menuAudio.volR.val",String(MAIN_VOL_R));
+  showOption("menuAudio.volLevel.val",String(MAIN_VOL_R));
+  //
+  showOption("menuAudio.volL.val",String(MAIN_VOL_L));
+  showOption("menuAudio.volLevelL.val",String(MAIN_VOL_L));
+
+  // Equalizer
+  showOption("menuEq.eqHigh.val",String(EQ_HIGH));
+  showOption("menuEq.eqHighL.val",String(EQ_HIGH));
+  //
+  showOption("menuEq.eqMid.val",String(EQ_MID));
+  showOption("menuEq.eqMidL.val",String(EQ_MID));
+  //
+  showOption("menuEq.eqLow.val",String(EQ_LOW));
+  showOption("menuEq.eqLowL.val",String(EQ_LOW));
+  EQ_CHANGE = true;
+  //
+  delay(500);
+
+  //
+
+  //
   LAST_MESSAGE = "Press EJECT to select a file or REC.";
 
   // ---------------------------------------------------------------------------
@@ -4941,6 +5011,7 @@ void setup()
   #ifdef DEBUGMODE
     hmi.writeString("tape.name.txt=\"DEBUG MODE ACTIVE\"");
   #endif
+
 
 
   // fin del setup()

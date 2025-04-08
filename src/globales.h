@@ -30,7 +30,12 @@
     
     To Contact the dev team you can write to hash6iron@gmail.com
  +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
- 
+ #include "nvs.h"
+ #include "nvs_flash.h"
+ #include <stdio.h>
+ #include <inttypes.h>
+ #include <string>
+
  #define  up   1
  #define  down 0
  
@@ -54,6 +59,23 @@ uint8_t EDGE_EAR_IS = POLARIZATION;
 // Estructura de datos
 //
 // ************************************************************
+
+enum ConfigType {
+  CONFIG_TYPE_STRING,
+  CONFIG_TYPE_BOOL,
+  CONFIG_TYPE_UINT8,
+  CONFIG_TYPE_UINT16,
+  CONFIG_TYPE_INT8,
+  CONFIG_TYPE_UINT32,
+  CONFIG_TYPE_DOUBLE,
+  CONFIG_TYPE_FLOAT
+};
+
+struct ConfigEntry {
+  const char* key;
+  ConfigType type;
+  void* value;  // Pointer to the configuration value
+};
 
 // Estructura de un bloque
 struct tTimming
@@ -262,7 +284,7 @@ bool disable_auto_media_stop = false;
 
 // Power led
 bool POWERLED_ON = true;
-bool PWM_POWER_LED = true;
+bool PWM_POWER_LED = false;
 uint8_t POWERLED_DUTY = 30;
 
 uint8_t TAPESTATE = 0;
@@ -569,6 +591,307 @@ int nMENU = 0;
 
 // Indica cuando el WEBFILE esta ocupado
 bool WF_UPLOAD_TO_SD = 0;
+
+// Declaraciones de metodos
+// ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+// void save();
+// void saveHMIcfg(string value);
+void logln(String txt);
+
+// ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+// Define the array of configuration entries
+ConfigEntry configEntries[] = 
+{
+  {"STEopt", CONFIG_TYPE_BOOL, &EN_STEREO},
+  {"MAMopt", CONFIG_TYPE_BOOL, &ACTIVE_AMP},
+  {"VLIopt", CONFIG_TYPE_BOOL, &VOL_LIMIT_HEADPHONE},
+  {"VOLMopt", CONFIG_TYPE_DOUBLE, &MAIN_VOL},
+  {"VOLLopt", CONFIG_TYPE_DOUBLE, &MAIN_VOL_L},
+  {"VOLRopt", CONFIG_TYPE_DOUBLE, &MAIN_VOL_R},
+  {"EQHopt", CONFIG_TYPE_FLOAT, &EQ_HIGH},
+  {"EQMopt", CONFIG_TYPE_FLOAT, &EQ_MID},
+  {"EQLopt", CONFIG_TYPE_FLOAT, &EQ_LOW},
+};
+
+static inline void erase_cntrl(std::string &s) 
+{
+  s.erase(std::remove_if(s.begin(), s.end(),
+          [&](char ch)
+          { return std::iscntrl(static_cast<unsigned char>(ch));}),
+          s.end());
+}
+
+// Function to load the configuration
+bool loadHMICfg() 
+{
+  // Initialize NVS
+  esp_err_t err = nvs_flash_init();
+  if (err == ESP_ERR_NVS_NO_FREE_PAGES || err == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+      ESP_ERROR_CHECK(nvs_flash_erase());
+      err = nvs_flash_init();
+  }
+  ESP_ERROR_CHECK(err);
+
+  // Open NVS
+  nvs_handle_t handle;
+  err = nvs_open("storage", NVS_READONLY, &handle);
+  if (err != ESP_OK) {
+      printf("Error (%s) opening NVS handle for read!\n", esp_err_to_name(err));
+      logln("Error - abriendo NVS");
+      return true;
+  }
+
+  // Iterate over the configuration entries and load them
+  for (auto& entry : configEntries) {
+      switch (entry.type) {
+          case CONFIG_TYPE_STRING: {
+              size_t required_size = 0;
+              err = nvs_get_str(handle, entry.key, NULL, &required_size); // Get required size first
+              if (err == ESP_OK && required_size > 0) {
+                  std::string* str_value = static_cast<std::string*>(entry.value);
+                  char* buffer = new char[required_size];
+                  err = nvs_get_str(handle, entry.key, buffer, &required_size);
+                  if (err == ESP_OK) {
+                      // Asignar el contenido del buffer al string
+                      *str_value = std::string(buffer, required_size - 1);  // Se resta 1 para no incluir el carácter nulo
+                  }
+                  delete[] buffer;  // Free memory
+              } else if (err == ESP_ERR_NVS_NOT_FOUND) {
+                  printf("Key '%s' not found, skipping...\n", entry.key);
+              }
+              break;
+          }
+          case CONFIG_TYPE_BOOL: {
+              std::string bool_str;
+              size_t required_size = 0;
+              err = nvs_get_str(handle, entry.key, NULL, &required_size); // Get size of boolean string
+              if (err == ESP_OK && required_size > 0) {
+                  char* buffer = new char[required_size];
+                  err = nvs_get_str(handle, entry.key, buffer, &required_size);
+                  if (err == ESP_OK) {
+                      bool_str = buffer;
+                      *static_cast<bool*>(entry.value) = (bool_str == "true");
+                  }
+                  delete[] buffer;
+              } else if (err == ESP_ERR_NVS_NOT_FOUND) {
+                  printf("Key '%s' not found, skipping...\n", entry.key);
+              }
+              break;
+          }
+          case CONFIG_TYPE_UINT8: {
+              err = nvs_get_u8(handle, entry.key, static_cast<uint8_t*>(entry.value));
+              if (err == ESP_ERR_NVS_NOT_FOUND) {
+                  printf("Key '%s' not found, skipping...\n", entry.key);
+              }
+              break;
+          }
+          case CONFIG_TYPE_UINT16: {
+              err = nvs_get_u16(handle, entry.key, static_cast<uint16_t*>(entry.value));
+              if (err == ESP_ERR_NVS_NOT_FOUND) {
+                  printf("Key '%s' not found, skipping...\n", entry.key);
+              }
+              break;
+          }
+          case CONFIG_TYPE_FLOAT: {
+            err = nvs_get_i32(handle, entry.key, static_cast<int32_t*>(entry.value));
+            if (err == ESP_ERR_NVS_NOT_FOUND) {
+                printf("Key '%s' not found, skipping...\n", entry.key);
+            }
+            break;
+          }        
+          case CONFIG_TYPE_DOUBLE: {
+            err = nvs_get_i64(handle, entry.key, static_cast<int64_t*>(entry.value));
+            if (err == ESP_ERR_NVS_NOT_FOUND) {
+                printf("Key '%s' not found, skipping...\n", entry.key);
+            }
+            break;
+          }             
+          case CONFIG_TYPE_INT8: {
+              err = nvs_get_i8(handle, entry.key, static_cast<int8_t*>(entry.value));
+              if (err == ESP_ERR_NVS_NOT_FOUND) {
+                  printf("Key '%s' not found, skipping...\n", entry.key);
+              }
+              break;
+          }
+      }
+
+      // Print error if there's a problem reading any entry
+      if (err != ESP_OK && err != ESP_ERR_NVS_NOT_FOUND) {
+          printf("Error (%s) reading key '%s'!\n", esp_err_to_name(err), entry.key);
+      }
+  }
+
+  // Close NVS
+  nvs_close(handle);
+
+  return false;
+}
+
+
+// Function to save the configuration
+void saveHMIcfg(std::string value) 
+{
+
+  // Initialize NVS
+  esp_err_t err = nvs_flash_init();
+  if (err == ESP_ERR_NVS_NO_FREE_PAGES || err == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+      ESP_ERROR_CHECK(nvs_flash_erase());
+      err = nvs_flash_init();
+  }
+  ESP_ERROR_CHECK(err);
+
+  // Open NVS
+  nvs_handle_t handle;
+  err = nvs_open("storage", NVS_READWRITE, &handle);
+  if (err != ESP_OK) {
+      printf("Error (%s) opening NVS handle!\n", esp_err_to_name(err));
+      logln("Error opening NVS handle");
+      return;
+  }
+
+  // Iterate over the configuration entries and save them
+  for (const auto& entry : configEntries) {
+      if (value == "all" || value == entry.key) {
+          switch (entry.type) {
+              case CONFIG_TYPE_STRING:
+                  nvs_set_str(handle, entry.key, static_cast<std::string*>(entry.value)->c_str());
+                  break;
+              case CONFIG_TYPE_BOOL:
+                  nvs_set_str(handle, entry.key, *static_cast<bool*>(entry.value) ? "true" : "false");
+                  break;
+              case CONFIG_TYPE_UINT8:
+                  nvs_set_u8(handle, entry.key, *static_cast<uint8_t*>(entry.value));
+                  break;
+              case CONFIG_TYPE_UINT16:
+                  nvs_set_u16(handle, entry.key, *static_cast<uint16_t*>(entry.value));
+                  break;
+              case CONFIG_TYPE_UINT32:
+              nvs_set_u32(handle, entry.key, *static_cast<uint32_t*>(entry.value));
+                  break;
+              case CONFIG_TYPE_INT8:
+              nvs_set_i8(handle, entry.key, *static_cast<int8_t*>(entry.value));
+                  break;
+          }
+      }
+  }
+
+  // Commit the updates to NVS
+  err = nvs_commit(handle);
+  if (err != ESP_OK) 
+  {
+      printf("Error (%s) committing updates to NVS!\n", esp_err_to_name(err));
+  }
+
+  // Close NVS
+  nvs_close(handle);
+
+}
+
+void save() 
+{
+  saveHMIcfg("all");
+}
+
+void saveVolSliders()
+{
+  saveHMIcfg("VOLMopt");
+  saveHMIcfg("VOLLopt");
+  saveHMIcfg("VOLRopt");  
+}
+// Function to check if a file exists in SD using stat
+bool backupExistsOnSD() 
+{
+  struct stat buffer;
+  return (stat("/sd/.powadcr.cfg", &buffer) == 0); // 0 means the file exists
+}
+
+// Function to save configuration to SD using fopen
+bool saveToSD() {
+  FILE *file = fopen("/sd/.powadcr.cfg", "w");
+  if (!file) {
+      printf("Failed to open .powadcr.cfg for writing\n");
+      return true;
+  }
+
+  for (const auto& entry : configEntries) {
+      switch (entry.type) {
+          case CONFIG_TYPE_STRING:
+              fprintf(file, "%s=%s\n", entry.key, static_cast<std::string*>(entry.value)->c_str());
+              break;
+          case CONFIG_TYPE_BOOL:
+              fprintf(file, "%s=%s\n", entry.key, *static_cast<bool*>(entry.value) ? "true" : "false");
+              break;
+          case CONFIG_TYPE_UINT8:
+              fprintf(file, "%s=%u\n", entry.key, *static_cast<uint8_t*>(entry.value));
+              break;
+          case CONFIG_TYPE_UINT16:
+              fprintf(file, "%s=%u\n", entry.key, *static_cast<uint16_t*>(entry.value));
+              break;
+          case CONFIG_TYPE_UINT32:
+          fprintf(file, "%s=%u\n", entry.key, *static_cast<uint32_t*>(entry.value));
+              break;
+          case CONFIG_TYPE_INT8:
+              fprintf(file, "%s=%d\n", entry.key, *static_cast<int8_t*>(entry.value));
+              break;
+      }
+  }
+
+  fclose(file);
+  return false;
+}
+
+// Function to load configuration from SD using fopen
+bool loadFromSD() {
+  FILE *file = fopen("/sd/.powadcr.cfg", "r");
+  if (!file) {
+      printf("Failed to open .powadcr.cfg for reading\n");
+      return true;
+  }
+
+  char line[128]; // Buffer para leer cada línea
+  while (fgets(line, sizeof(line), file)) {
+      char *delimiterPos = strchr(line, '=');
+      if (!delimiterPos) continue; // Saltar líneas sin '='
+
+      *delimiterPos = '\0'; // Dividir en campo y valor
+      std::string key = line;
+      std::string valueStr = delimiterPos + 1;
+
+      // Remover salto de línea final si existe
+      valueStr.erase(std::remove(valueStr.begin(), valueStr.end(), '\n'), valueStr.end());
+
+      // Buscamos el campo y actualizamos su valor
+      for (auto& entry : configEntries) {
+          if (entry.key == key) {
+              switch (entry.type) {
+                  case CONFIG_TYPE_STRING:
+                      *static_cast<std::string*>(entry.value) = valueStr;
+                      break;
+                  case CONFIG_TYPE_BOOL:
+                      *static_cast<bool*>(entry.value) = (valueStr == "true");
+                      break;
+                  case CONFIG_TYPE_UINT8:
+                      *static_cast<uint8_t*>(entry.value) = static_cast<uint8_t>(std::stoi(valueStr));
+                      break;
+                  case CONFIG_TYPE_UINT16:
+                      *static_cast<uint16_t*>(entry.value) = static_cast<uint16_t>(std::stoi(valueStr));
+                      break;
+                  case CONFIG_TYPE_UINT32:
+                      *static_cast<uint32_t*>(entry.value) = static_cast<uint32_t>(std::stoi(valueStr));
+                      break;
+                  case CONFIG_TYPE_INT8:
+                      *static_cast<int8_t*>(entry.value) = static_cast<int8_t>(std::stoi(valueStr));
+                      break;
+              }
+              break;
+          }
+      }
+  }
+
+  fclose(file);
+  return false;
+}
 
 void logHEX(int n)
 {
