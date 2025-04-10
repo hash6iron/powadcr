@@ -1433,6 +1433,7 @@ class HMI
               //LAST_MESSAGE = "Wifi enabled";
               //
               writeString("tape.wifiInd.pic=38");
+              writeString("tape0.wifiInd.pic=38");
             }
           }
           else
@@ -1445,6 +1446,7 @@ class HMI
             //LAST_MESSAGE = "Wifi disabled";
             //
             writeString("tape.wifiInd.pic=37");
+            writeString("tape0.wifiInd.pic=37");
           }
       }
 
@@ -1505,6 +1507,25 @@ class HMI
         {
             DISABLE_SD = true;
         }
+        // Enable Powerled oscilation
+        else if (strCmd.indexOf("PLE=") != -1) 
+        {
+          //Cogemos el valor
+          uint8_t buff[8];
+          strCmd.getBytes(buff, 7);
+          int valEn = (int)buff[4];
+          //
+          if (valEn==1)
+          {
+            PWM_POWER_LED = true;
+          }
+          else
+          {
+            PWM_POWER_LED = false;
+          }
+
+          saveHMIcfg("PLEopt");
+        }        
         else if (strCmd.indexOf("BKX=") != -1) 
         {
             // Con este procedimiento capturamos el bloque seleccionado
@@ -1516,9 +1537,29 @@ class HMI
               strCmd.getBytes(buff, 7);
               long val = (long)((int)buff[4] + (256*(int)buff[5]) + (65536*(int)buff[6]));
               String num = String(val);
-              BLOCK_SELECTED = num.toInt() + 1;
+
+              logln("Block selected: " + num);
+              logln("Block total: " + String(TOTAL_BLOCKS));
+
+              BLOCK_SELECTED = num.toInt();
+
               // updateInformationMainPage(true);
               // Esto lo hacemos para poder actualizar la info del bloque
+
+              if (BLOCK_SELECTED > (TOTAL_BLOCKS-2))
+              {
+                BLOCK_SELECTED = TOTAL_BLOCKS - 1;
+              }
+              else if (BLOCK_SELECTED < 1)
+              {
+                BLOCK_SELECTED = 1;
+              }  
+
+              if (TYPE_FILE_LOAD == "TAP")
+              {
+                BLOCK_SELECTED -= 1;
+              }
+  
               UPDATE = true;
             }
 
@@ -2889,11 +2930,12 @@ class HMI
           }
           else if(valEn==3)
           {
-              SAMPLING_RATE = 22050;
+              SAMPLING_RATE = STANDARD_SR_ZX_SPECTRUM;
               //writeString("tape.lblFreq.txt=\"22KHz\"" );
           }
           //
           writeString("tape.lblFreq.txt=\"" + String(int(SAMPLING_RATE/1000)) + "KHz\"" );
+          writeString("tape0.lblFreq.txt=\"" + String(int(SAMPLING_RATE/1000)) + "KHz\"" );
          
           // Cambiamos el sampling rate
           // CAmbiamos el sampling rate del hardware de salida
@@ -2922,7 +2964,7 @@ class HMI
               //logln("Custom sampling rate: " + String(WAV_SAMPLING_RATE));
           }
 
-          WAV_UPDATE = true;                         
+          WAV_UPDATE_SR = true;                         
           
           #ifdef DEBUGMODE
             log("Customo WAV Sampling rate =" + String(WAV_SAMPLING_RATE));
@@ -2961,7 +3003,7 @@ class HMI
               // writeString("tape.lblFreq.txt=\"22KHz\"" );
           }           
           
-          WAV_UPDATE = true;
+          WAV_UPDATE_SR = true;
           
           #ifdef DEBUGMODE
             log("WAV Sampling rate =" + String(WAV_SAMPLING_RATE));
@@ -2985,7 +3027,7 @@ class HMI
               WAV_CHAN = 2;
           }
           
-          WAV_UPDATE = true;
+          WAV_UPDATE_CH = true;
 
           #ifdef DEBUGMODE
             logln("WAV chanels =" + String(WAV_CHAN));
@@ -3010,7 +3052,7 @@ class HMI
               WAV_BITS_PER_SAMPLE = 16;
           }
 
-          WAV_UPDATE = true;
+          WAV_UPDATE_BS = true;
 
           #ifdef DEBUGMODE
             logln("WAV bits =" + String(WAV_BITS_PER_SAMPLE));
@@ -3916,10 +3958,12 @@ class HMI
               if (lvlLowZeroValue == 1)
               {          
                 writeString("tape.pulseInd.pic=36");
+                writeString("tape0.pulseInd.pic=36");
               }
               else
               {
                 writeString("tape.pulseInd.pic=33");
+                writeString("tape0.pulseInd.pic=33");
               }
           }
           else
@@ -3927,13 +3971,101 @@ class HMI
               if (lvlLowZeroValue == 1)
               {          
                 writeString("tape.pulseInd.pic=35");
+                writeString("tape0.pulseInd.pic=35");
               }
               else
               {
                 writeString("tape.pulseInd.pic=34");
+                writeString("tape0.pulseInd.pic=34");
               }          
           }
       }
+
+      void openBlocksBrowser(tTZX myTZX = tTZX(), tTAP myTAP = tTAP())
+      {
+        // Rellenamos el browser con todos los bloques
+
+        int max = MAX_BLOCKS_IN_BROWSER;
+        int totalPages = 0;
+
+        if (TOTAL_BLOCKS > max)
+        {
+          max = MAX_BLOCKS_IN_BROWSER;
+        }
+        else
+        {
+          max = TOTAL_BLOCKS - 1;
+        }
+
+        BB_PAGE_SELECTED = (BB_PTR_ITEM / MAX_BLOCKS_IN_BROWSER) + 1;
+
+        writeString("blocks.path.txt=\"" + HMI_FNAME + "\"");
+        writeString("blocks.totalBl.txt=\"" + String(TOTAL_BLOCKS - 1) + "\"");
+        writeString("blocks.bbpag.txt=\"" + String(BB_PAGE_SELECTED) + "\"");
+
+        totalPages = ((TOTAL_BLOCKS) / MAX_BLOCKS_IN_BROWSER);
+        if ((FILE_TOTAL_FILES) % MAX_BLOCKS_IN_BROWSER != 0)
+        {
+          totalPages += 1;
+        }
+        writeString("blocks.totalPag.txt=\"" + String(totalPages) + "\"");
+
+        for (int i = 1; i <= max; i++)
+        {
+          if (i + BB_PTR_ITEM > TOTAL_BLOCKS - 1)
+          {
+            // Los dejamos limpios pero sin informacion
+            writeString("blocks.id" + String(i) + ".txt=\"\"");
+            writeString("blocks.data" + String(i) + ".txt=\"\"");
+            writeString("blocks.size" + String(i) + ".txt=\"\"");
+            writeString("blocks.name" + String(i) + ".txt=\"\"");
+          }
+          else
+          {
+            // En otro caso metemos informacion
+            writeString("blocks.id" + String(i) + ".txt=\"" + String(i + BB_PTR_ITEM) + "\"");
+
+            if (TYPE_FILE_LOAD != "TAP")
+            {
+
+              if (String(myTZX.descriptor[i + BB_PTR_ITEM].typeName).indexOf("ID 21") != -1)
+              {
+                writeString("blocks.id" + String(i) + ".pco=2016");
+                writeString("blocks.data" + String(i) + ".pco=2016");
+                writeString("blocks.size" + String(i) + ".pco=2016");
+                writeString("blocks.name" + String(i) + ".pco=2016");
+              }
+              else if (String(myTZX.descriptor[i + BB_PTR_ITEM].typeName).indexOf("ID 20") != -1)
+              {
+                writeString("blocks.id" + String(i) + ".pco=64512");
+                writeString("blocks.data" + String(i) + ".pco=64512");
+                writeString("blocks.size" + String(i) + ".pco=64512");
+                writeString("blocks.name" + String(i) + ".pco=64512");
+              }
+              else
+              {
+                writeString("blocks.id" + String(i) + ".pco=57051");
+                writeString("blocks.data" + String(i) + ".pco=57051");
+                writeString("blocks.size" + String(i) + ".pco=57051");
+                writeString("blocks.name" + String(i) + ".pco=57051");
+              }
+
+              int tzxSize = myTZX.descriptor[i + BB_PTR_ITEM].size;
+              writeString("blocks.data" + String(i) + ".txt=\"" + myTZX.descriptor[i + BB_PTR_ITEM].typeName + "\"");
+              writeString("blocks.name" + String(i) + ".txt=\"" + myTZX.descriptor[i + BB_PTR_ITEM].name + "\"");
+              writeString("blocks.size" + String(i) + ".txt=\"" + String(tzxSize) + "\"");
+            }
+            else
+            {
+              int tapSize = myTAP.descriptor[i + BB_PTR_ITEM - 1].size;
+              writeString("blocks.data" + String(i) + ".txt=\"" + myTAP.descriptor[i + BB_PTR_ITEM - 1].typeName + "\"");
+              writeString("blocks.name" + String(i) + ".txt=\"" + myTAP.descriptor[i + BB_PTR_ITEM - 1].name + "\"");
+              writeString("blocks.size" + String(i) + ".txt=\"" + String(tapSize) + "\"");
+            }
+          }
+        }
+      }
+
 
       // Constructor
       HMI()

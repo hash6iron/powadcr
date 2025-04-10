@@ -18,8 +18,6 @@
       - Pedro Pelaez
       - Carlos Palmero [shaeon]
       
-    
-    
     Descripción:
     Programa principal del firmware del powadcr - Powa Digital Cassette Recording
 
@@ -53,28 +51,6 @@
 
  +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
 
-// Setup for audiokitHAL
-
-// typedef enum {
-//     MIC_GAIN_MIN = -1,
-//     MIC_GAIN_0DB = 0,
-//     MIC_GAIN_3DB = 3,
-//     MIC_GAIN_6DB = 6,
-//     MIC_GAIN_9DB = 9,
-//     MIC_GAIN_12DB = 12,
-//     MIC_GAIN_15DB = 15,
-//     MIC_GAIN_18DB = 18,
-//     MIC_GAIN_21DB = 21,
-//     MIC_GAIN_24DB = 24,
-//     MIC_GAIN_MAX,
-// } es_mic_gain_t;
-
-// Seleccionamos la placa. Puede ser 5 o 7.
-//#define AUDIOKIT_BOARD 5
-
-// Ganancia de entrada por defecto. Al máximo
-//#define ES8388_DEFAULT_INPUT_GAIN MIC_GAIN_MAX
-
 // Definimos la ganancia de la entrada de linea (para RECORDING)
 #define WORKAROUND_ES8388_LINE1_GAIN MIC_GAIN_MAX
 #define WORKAROUND_ES8388_LINE2_GAIN MIC_GAIN_MAX
@@ -89,7 +65,7 @@
 // For SDFat >2.3.0 version
 #define FILE_COPY_CONSTRUCTOR_SELECT FILE_COPY_CONSTRUCTOR_PUBLIC
 
-// Disable Audiokit logging
+// Enable / Disable Audiokit logging
 #define USE_AUDIO_LOGGING false
 
 // Includes
@@ -189,10 +165,7 @@ TAPprocessor pTAP;
 #include "TAPrecorder.h"
 TAPrecorder taprec;
 
-// Procesador de TAP
-tTAP myTAP;
-// Procesador de TZX/TSX/CDT
-tTZX myTZX;
+
 
 bool last_headPhoneDetection = false;
 
@@ -552,7 +525,7 @@ void sendStatus(int action, int value = 0)
 
       // Enviamos la version del firmware del powaDCR
       // hmi.writeString("mainmenu.verFirmware.txt=\" powadcr " + String(VERSION) + "\"");
-      hmi.writeString("page tape");
+      hmi.writeString("page tape0");
       break;
     
     case RESET:
@@ -1471,6 +1444,8 @@ void MediaPlayer(bool isWav = false)
   int pressedCountFFWD = 0;
   int pressedCountRWD = 0;
 
+  int currentSamplingRate = 0;
+
   String txtR = "";
   
   // Configuracion de la fuente desde SD y audio
@@ -1501,6 +1476,8 @@ void MediaPlayer(bool isWav = false)
   
   // Configuramos el player
   AudioPlayer player;
+  AudioInfo newCfgWav;
+
 
   if (isWav)
   {
@@ -1612,6 +1589,20 @@ void MediaPlayer(bool isWav = false)
         cfg_eq.gain_high = EQ_HIGH;
 
         eq.begin(cfg_eq);
+      }
+
+      // Cambiamos las caracteristicas de la onda
+      if ((WAV_UPDATE_SR || WAV_UPDATE_BS || WAV_UPDATE_CH) && isWav)
+      {
+        newCfgWav.sample_rate = WAV_SAMPLING_RATE;
+        newCfgWav.bits_per_sample = WAV_BITS_PER_SAMPLE;
+        newCfgWav.channels = WAV_CHAN;
+        
+        WAV_UPDATE_SR = false;
+        WAV_UPDATE_BS = false;
+        WAV_UPDATE_CH = false;
+
+        player.setAudioInfo(newCfgWav);
       }
 
       switch (stateStreamplayer)
@@ -3265,92 +3256,6 @@ void setRWIND()
 
   rewindAnimation(-1);
 }
-
-void openBlocksBrowser()
-{
-  // Rellenamos el browser con todos los bloques
-
-  int max = MAX_BLOCKS_IN_BROWSER;
-  int totalPages = 0;
-
-  if (TOTAL_BLOCKS > max)
-  {
-    max = MAX_BLOCKS_IN_BROWSER;
-  }
-  else
-  {
-    max = TOTAL_BLOCKS - 1;
-  }
-
-  BB_PAGE_SELECTED = (BB_PTR_ITEM / MAX_BLOCKS_IN_BROWSER) + 1;
-
-  hmi.writeString("blocks.path.txt=\"" + HMI_FNAME + "\"");
-  hmi.writeString("blocks.totalBl.txt=\"" + String(TOTAL_BLOCKS - 1) + "\"");
-  hmi.writeString("blocks.bbpag.txt=\"" + String(BB_PAGE_SELECTED) + "\"");
-
-  totalPages = ((TOTAL_BLOCKS) / MAX_BLOCKS_IN_BROWSER);
-  if ((FILE_TOTAL_FILES) % MAX_BLOCKS_IN_BROWSER != 0)
-  {
-    totalPages += 1;
-  }
-  hmi.writeString("blocks.totalPag.txt=\"" + String(totalPages) + "\"");
-
-  for (int i = 1; i <= max; i++)
-  {
-    if (i + BB_PTR_ITEM > TOTAL_BLOCKS - 1)
-    {
-      // Los dejamos limpios pero sin informacion
-      hmi.writeString("blocks.id" + String(i) + ".txt=\"\"");
-      hmi.writeString("blocks.data" + String(i) + ".txt=\"\"");
-      hmi.writeString("blocks.size" + String(i) + ".txt=\"\"");
-      hmi.writeString("blocks.name" + String(i) + ".txt=\"\"");
-    }
-    else
-    {
-      // En otro caso metemos informacion
-      hmi.writeString("blocks.id" + String(i) + ".txt=\"" + String(i + BB_PTR_ITEM) + "\"");
-
-      if (TYPE_FILE_LOAD != "TAP")
-      {
-
-        if (String(myTZX.descriptor[i + BB_PTR_ITEM].typeName).indexOf("ID 21") != -1)
-        {
-          hmi.writeString("blocks.id" + String(i) + ".pco=2016");
-          hmi.writeString("blocks.data" + String(i) + ".pco=2016");
-          hmi.writeString("blocks.size" + String(i) + ".pco=2016");
-          hmi.writeString("blocks.name" + String(i) + ".pco=2016");
-        }
-        else if (String(myTZX.descriptor[i + BB_PTR_ITEM].typeName).indexOf("ID 20") != -1)
-        {
-          hmi.writeString("blocks.id" + String(i) + ".pco=64512");
-          hmi.writeString("blocks.data" + String(i) + ".pco=64512");
-          hmi.writeString("blocks.size" + String(i) + ".pco=64512");
-          hmi.writeString("blocks.name" + String(i) + ".pco=64512");
-        }
-        else
-        {
-          hmi.writeString("blocks.id" + String(i) + ".pco=57051");
-          hmi.writeString("blocks.data" + String(i) + ".pco=57051");
-          hmi.writeString("blocks.size" + String(i) + ".pco=57051");
-          hmi.writeString("blocks.name" + String(i) + ".pco=57051");
-        }
-
-        int tzxSize = myTZX.descriptor[i + BB_PTR_ITEM].size;
-        hmi.writeString("blocks.data" + String(i) + ".txt=\"" + myTZX.descriptor[i + BB_PTR_ITEM].typeName + "\"");
-        hmi.writeString("blocks.name" + String(i) + ".txt=\"" + myTZX.descriptor[i + BB_PTR_ITEM].name + "\"");
-        hmi.writeString("blocks.size" + String(i) + ".txt=\"" + String(tzxSize) + "\"");
-      }
-      else
-      {
-        int tapSize = myTAP.descriptor[i + BB_PTR_ITEM - 1].size;
-        hmi.writeString("blocks.data" + String(i) + ".txt=\"" + myTAP.descriptor[i + BB_PTR_ITEM - 1].typeName + "\"");
-        hmi.writeString("blocks.name" + String(i) + ".txt=\"" + myTAP.descriptor[i + BB_PTR_ITEM - 1].name + "\"");
-        hmi.writeString("blocks.size" + String(i) + ".txt=\"" + String(tapSize) + "\"");
-      }
-    }
-  }
-}
-
 void recoverEdgeBeginOfBlock()
 {
   if (TYPE_FILE_LOAD == "TZX")
@@ -3459,7 +3364,7 @@ void tapeControl()
     else if (SAMPLINGTEST)
     {
       logln("Testing is output");
-      // zxp.samplingtest(14000);
+      zxp.samplingtest(14000);
 
       SAMPLINGTEST = false;
     }
@@ -3507,7 +3412,7 @@ void tapeControl()
       // Ojo! no meter delay! que esta en una reproduccion
       logln("Solicito abrir el BLOCKBROWSER");
 
-      openBlocksBrowser();
+      hmi.openBlocksBrowser(myTZX,myTAP);
       //openBlocksBrowser();
 
       BB_UPDATE = false;
@@ -3756,7 +3661,7 @@ void tapeControl()
     }
     else if (BB_OPEN || BB_UPDATE)
     {
-      openBlocksBrowser();
+      hmi.openBlocksBrowser(myTZX,myTAP);
       BB_UPDATE = false;
       BB_OPEN = false;
     }
@@ -3866,7 +3771,7 @@ void tapeControl()
     }
     else if (BB_OPEN || BB_UPDATE)
     {
-      openBlocksBrowser();
+      hmi.openBlocksBrowser(myTZX,myTAP);
       BB_UPDATE = false;
       BB_OPEN = false;
     }
@@ -4433,19 +4338,6 @@ void Task0code(void *pvParameters)
               actuatePowerLed(true,255);
             }
           }
-          else
-          {
-            // No estamos grabando.
-            // si tengo configurado un powerled entonces se queda encendido
-            // if (POWERLED_ON)
-            // {
-            //   actuatePowerLed(true,POWERLED_DUTY);
-            // }
-            // else
-            // {
-            //   actuatePowerLed(false,255);
-            // }
-          }
         }
 
         if ((millis() - startTime) > tScrRfsh)
@@ -4947,6 +4839,8 @@ void setup()
   showOption("menuAudio.stereoOut.val",String(EN_STEREO));
   // MUTE_AMPLIFIER
   showOption("menuAudio.mutAmp.val",String(!ACTIVE_AMP));
+  // POWERLED_DUTY
+  showOption("menu.ppled.val",String(PWM_POWER_LED));
   
   if (!ACTIVE_AMP)
   {

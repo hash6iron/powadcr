@@ -1269,10 +1269,6 @@ class TAPprocessor
                     {
                         BLOCK_PLAYED = false;
         
-
-                        // BYTES_LOADED =_myTAP.descriptor[i - 1].offset;
-                        // PROGRESS_BAR_TOTAL_VALUE = (int)((BYTES_LOADED*100)/(BYTES_TOBE_LOAD));
-
                         // Obtenemos el nombre del bloque
                         strncpy(LAST_NAME,_myTAP.descriptor[i].name,sizeof(_myTAP.descriptor[i].name));
                         LAST_SIZE = _myTAP.descriptor[i].size;
@@ -1281,24 +1277,7 @@ class TAPprocessor
                         PRG_BAR_OFFSET_INI = _myTAP.descriptor[i].offset;
                         PRG_BAR_OFFSET_END = _myTAP.descriptor[i].offset + _myTAP.descriptor[i].size;
 
-                        // LOADING_STATE se usa también para detener el procesador de audio (ZXProcessor.h).
-                        //
-                        // El estado LOADING_STATE=0 es un estado INICIAL.
-                        // El estado LOADING_STATE=1 es un estado de PLAYING.
-                        // El estado LOADING_STATE=2 es una MANUAL STOP.
-
-
-                        // if (i == 0) 
-                        // {
-                        //     PRG_BAR_OFFSET_INI = 0;
-
-                        // }
-                        // else
-                        // {
-                        //     PRG_BAR_OFFSET_INI = _myTAP.descriptor[i].offset;
-                        // }
-
-                        #ifdef DEBUGMODE
+                         #ifdef DEBUGMODE
                             logln("");
                             log("Block num: " + String(i));
                             logln("");
@@ -1306,7 +1285,6 @@ class TAPprocessor
                             logln("");
                             log("Block size: " + String(_myTAP.descriptor[i].size + 2));
                         #endif
-                                              
                         
                         if (LOADING_STATE == 2)
                         {
