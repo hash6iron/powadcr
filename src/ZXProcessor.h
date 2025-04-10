@@ -1070,36 +1070,36 @@ class ZXProcessor
             return result;            
         }
 
-        // void samplingtest(float samplingrate)
-        // {
-        //     // Se genera un pulso cuadrado de T = 1.00015s
-        //     AudioInfo info(44100, 2, 16);
-        //     AudioKitStream kit;
-        //     int ss = 44100;
-        //     uint8_t buffer[ss*2*channels];
-        //     int16_t *samples = (int16_t*) buffer;
+        void samplingtest(float samplingrate)
+        {
+            // Se genera un pulso cuadrado de T = 1.00015s
+            // estereo, 16 bits a 44.1KHz
+            //AudioInfo info(44100, 2, 16);
+            int ss = kitStream.audioInfo().sample_rate;
+            int ch = kitStream.audioInfo().channels;
+            uint8_t buffer[ss*2*ch];
+            int16_t *samples = (int16_t*) buffer;
 
-        //     // Custom fill array 8 bits buffer
-        //     size_t ssignal = createTestSignal(buffer,ss,30000);
+            // Custom fill array 8 bits buffer
+            size_t ssignal = createTestSignal(buffer,ss,30000);
             
-        //     // Output
-        //     kit.config().copyFrom(info);
-        //     kit.config().output_device = AUDIO_HAL_DAC_OUTPUT_ALL;
-        //     kit.begin();
+            // Output
+            // ResampleStream out(kitStream);
+            // out.setTargetSampleRate(samplingrate);
+            // out.begin();
 
-        //     ResampleStream out(kit);
-        //     out.setTargetSampleRate(samplingrate);
-        //     out.begin();
+            while (!STOP)
+            {
+                kitStream.write(buffer, ssignal);
+                delay(500);
+            }
 
-        //     out.write((uint8_t*)&buffer, sizeof(int16_t));
-        //     out.write((uint8_t*)&buffer, sizeof(int16_t));      
-
-        //     if (OUT_TO_WAV)
-        //     {    
-        //         encoderOutWAV.write(buffer, sizeof(int16_t));
-        //         encoderOutWAV.write(buffer, sizeof(int16_t));
-        //     }
-        // }
+            // if (OUT_TO_WAV)
+            // {    
+            //     encoderOutWAV.write(buffer, sizeof(int16_t));
+            //     encoderOutWAV.write(buffer, sizeof(int16_t));
+            // }
+        }
 
         // Constructor
         ZXProcessor()

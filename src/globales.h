@@ -172,6 +172,11 @@ struct tTAP
     tTAPBlockDescriptor* descriptor;            // Descriptor
 };
 
+// Procesador de TAP
+tTAP myTAP;
+// Procesador de TZX/TSX/CDT
+tTZX myTZX;
+
 // struct tBlock 
 // {
 //   int index = 0;            // Numero del bloque
@@ -309,7 +314,9 @@ int LAST_SAMPLING_RATE = 44100;
 int WAV_SAMPLING_RATE = 44100;
 int WAV_BITS_PER_SAMPLE = 16;
 int WAV_CHAN = 2;
-bool WAV_UPDATE = false;
+bool WAV_UPDATE_SR = false;
+bool WAV_UPDATE_BS = false;
+bool WAV_UPDATE_CH = false;
 
 bool INVERSETRAIN = false;
 bool ZEROLEVEL = false;
@@ -612,6 +619,7 @@ ConfigEntry configEntries[] =
   {"EQHopt", CONFIG_TYPE_FLOAT, &EQ_HIGH},
   {"EQMopt", CONFIG_TYPE_FLOAT, &EQ_MID},
   {"EQLopt", CONFIG_TYPE_FLOAT, &EQ_LOW},
+  {"PLEopt", CONFIG_TYPE_BOOL, &PWM_POWER_LED},
 };
 
 static inline void erase_cntrl(std::string &s) 
