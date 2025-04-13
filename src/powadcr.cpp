@@ -1591,19 +1591,19 @@ void MediaPlayer(bool isWav = false)
         eq.begin(cfg_eq);
       }
 
-      // Cambiamos las caracteristicas de la onda
-      if ((WAV_UPDATE_SR || WAV_UPDATE_BS || WAV_UPDATE_CH) && isWav)
-      {
-        newCfgWav.sample_rate = WAV_SAMPLING_RATE;
-        newCfgWav.bits_per_sample = WAV_BITS_PER_SAMPLE;
-        newCfgWav.channels = WAV_CHAN;
+      // // Cambiamos las caracteristicas de la onda
+      // if ((WAV_UPDATE_SR || WAV_UPDATE_BS || WAV_UPDATE_CH) && isWav)
+      // {
+      //   newCfgWav.sample_rate = WAV_SAMPLING_RATE;
+      //   newCfgWav.bits_per_sample = WAV_BITS_PER_SAMPLE;
+      //   newCfgWav.channels = WAV_CHAN;
         
-        WAV_UPDATE_SR = false;
-        WAV_UPDATE_BS = false;
-        WAV_UPDATE_CH = false;
+      //   WAV_UPDATE_SR = false;
+      //   WAV_UPDATE_BS = false;
+      //   WAV_UPDATE_CH = false;
 
-        player.setAudioInfo(newCfgWav);
-      }
+      //   player.setAudioInfo(newCfgWav);
+      // }
 
       switch (stateStreamplayer)
       {
