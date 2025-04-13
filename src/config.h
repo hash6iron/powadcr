@@ -37,7 +37,7 @@
 
 // Para Rolling releases - rDDMMYY.HHMM
 // Para versión estable - vX.Y
-#define VERSION "v1.0r4"
+#define VERSION "v1.0r5"
 #define MACHINE_ZX
 
 // Define sampling rate a 44.1KHz. En otro caso será a 32KHz
@@ -82,8 +82,8 @@
 #define MAX_FILES_TO_LOAD 14            // Esto siempre es TOTAL_FILES_IN_BROWSER_PAGE + 1
 #define MAX_BLOCKS_IN_BROWSER 13
 #define MAX_FILES_FOUND_BUFF 255
-// Cada n ficheros refresca el marcador. Por defecto 5
-#define EACH_FILES_REFRESH 5
+// Cada n ficheros refresca el marcador. Por defecto 50
+#define EACH_FILES_REFRESH 50
 
 
 // Player / SD
