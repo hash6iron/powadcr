@@ -155,6 +155,15 @@ struct tPZXBlockDescriptor
   
 };
 
+// struct tMediaDescriptor
+// {
+//   int ID = 0;
+//   String path;
+//   String name;
+//   int size;
+//   String type;
+// };
+
 // En little endian. Formato PZX
 struct tPZX
 {
@@ -176,6 +185,8 @@ struct tTAP
 tTAP myTAP;
 // Procesador de TZX/TSX/CDT
 tTZX myTZX;
+
+// tMediaDescriptor myMediaDescriptor[256]; // Descriptor de ficheros multimedia
 
 // struct tBlock 
 // {

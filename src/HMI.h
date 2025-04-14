@@ -3425,7 +3425,24 @@ class HMI
           strCmd.getBytes(buff, 7);
           int valEn = (int)buff[4];
           //
-          disable_auto_media_stop != disable_auto_media_stop;
+          disable_auto_media_stop = !disable_auto_media_stop;
+          
+          logln("DPS: " + String(disable_auto_media_stop));
+
+          if (!disable_auto_media_stop)
+          {
+            // Play auto-stop
+            writeString("tape.playType.txt=\"*\"");
+            writeString("tape.playType.y=3");
+            writeString("doevents");
+          }
+          else
+          {
+            // Play continuo
+            writeString("tape.playType.txt=\"C\"");
+            writeString("tape.playType.y=6");
+            writeString("doevents");
+          }          
 
           #ifdef DEBUGMODE
             logln("Modo Auto STOP player =" + String(OUT_TO_WAV));
@@ -4293,6 +4310,104 @@ class HMI
               }          
           }
       }
+      
+      int getStreamfileSize(String path)
+      {
+        char pfile[255] = {};
+        strcpy(pfile, path.c_str());
+        File32 f = sdm.openFile32(pfile);
+        int fsize = f.size();
+        f.close();
+      
+        // if (fsize < 1000000)
+        // {
+        //   hmi.writeString("size.txt=\"" + String(fsize / 1024) + " KB\"");
+        // }
+        // else
+        // {
+        //   hmi.writeString("size.txt=\"" + String(fsize / 1024 / 1024) + " MB\"");
+        // }
+      
+        return fsize;
+      }      
+
+      String getFileExtension(const String &fileName) {
+        int dotIndex = fileName.lastIndexOf('.');
+        if (dotIndex != -1) {
+            // Si hay un punto, extraemos la extensión
+            fileName.substring(dotIndex + 1).toUpperCase();
+            return fileName.substring(dotIndex + 1); // Devuelve la extensión sin el punto
+        }
+        return ""; // Devuelve una cadena vacía si no hay extensión
+      }
+
+      String getFileNameFromPath(const String &filePath) {
+          int lastSlash = filePath.lastIndexOf('/');
+          if (lastSlash == -1) {
+              lastSlash = filePath.lastIndexOf('\\'); // Por si se usa '\' como separador
+          }
+          if (lastSlash != -1) {
+              return filePath.substring(lastSlash + 1); // Devuelve el nombre del archivo
+          }
+          return filePath; // Si no hay separador, devuelve la cadena completa
+      }
+
+      void openBlockMediaBrowser(AudioSourceSDFAT source)
+      {
+        // Rellenamos el browser con todos los bloques
+
+        int max = MAX_BLOCKS_IN_BROWSER;
+        int totalPages = 0;
+
+        if (TOTAL_BLOCKS > max)
+        {
+          max = MAX_BLOCKS_IN_BROWSER;
+        }
+        else
+        {
+          max = TOTAL_BLOCKS - 1;
+        }
+
+        BB_PAGE_SELECTED = (BB_PTR_ITEM / MAX_BLOCKS_IN_BROWSER) + 1;
+
+        writeString("blocks.path.txt=\"" + HMI_FNAME + "\"");
+        writeString("blocks.totalBl.txt=\"" + String(TOTAL_BLOCKS - 1) + "\"");
+        writeString("blocks.bbpag.txt=\"" + String(BB_PAGE_SELECTED) + "\"");
+        writeString("blocks.size0.txt=\"SIZE[MB]\"");
+
+        double ctpage = (double)TOTAL_BLOCKS / (double)MAX_BLOCKS_IN_BROWSER;
+        totalPages = trunc(ctpage);
+        if ((TOTAL_BLOCKS % MAX_BLOCKS_IN_BROWSER != 0) && ctpage > 1)
+        {
+          totalPages += 1;
+        }
+        writeString("blocks.totalPag.txt=\"" + String(totalPages) + "\"");    
+        
+        for (int i = 1; i <= max; i++)
+        {
+          if (i + BB_PTR_ITEM > TOTAL_BLOCKS - 1)
+          {
+            // Los dejamos limpios pero sin informacion
+            writeString("blocks.id" + String(i) + ".txt=\"\"");
+            writeString("blocks.data" + String(i) + ".txt=\"\"");
+            writeString("blocks.size" + String(i) + ".txt=\"\"");
+            writeString("blocks.name" + String(i) + ".txt=\"\"");
+          }
+          else
+          {
+            // Apuntamos al item
+            source.setIndex(i + BB_PTR_ITEM - 1);
+            // En otro caso metemos informacion
+            writeString("blocks.id" + String(i) + ".txt=\"" + String(i + BB_PTR_ITEM) + "\"");
+
+            //int mediaSize = (myMediaDescriptor[i + BB_PTR_ITEM - 1].size)/1024/1024;
+            writeString("blocks.data" + String(i) + ".txt=\"" + getFileExtension(String(source.toStr())) + "\"");
+            writeString("blocks.name" + String(i) + ".txt=\"" + getFileNameFromPath(source.toStr()) + "\"");
+            writeString("blocks.size" + String(i) + ".txt=\"" + String(getStreamfileSize(source.toStr()) / 1024 / 1024) + "\"");
+          }
+        }
+         
+      }
 
       void openBlocksBrowser(tTZX myTZX = tTZX(), tTAP myTAP = tTAP())
       {
@@ -4315,6 +4430,7 @@ class HMI
         writeString("blocks.path.txt=\"" + HMI_FNAME + "\"");
         writeString("blocks.totalBl.txt=\"" + String(TOTAL_BLOCKS - 1) + "\"");
         writeString("blocks.bbpag.txt=\"" + String(BB_PAGE_SELECTED) + "\"");
+        writeString("blocks.size0.txt=\"SIZE[B]\"");
 
         totalPages = ((TOTAL_BLOCKS) / MAX_BLOCKS_IN_BROWSER);
         if ((FILE_TOTAL_FILES) % MAX_BLOCKS_IN_BROWSER != 0)
