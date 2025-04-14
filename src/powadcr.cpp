@@ -1284,25 +1284,50 @@ void setSTOP()
   // sendStatus(READY_ST, 1);
 }
 
-int getStreamfileSize(String path)
+int getStreamfileSize(const String &path) 
 {
-  char pfile[255] = {};
-  strcpy(pfile, path.c_str());
-  File32 f = sdm.openFile32(pfile);
-  int fsize = f.size();
-  f.close();
+    
+    char pfile[255] = {};
+    strcpy(pfile, path.c_str());
+    File32 file = sdm.openFile32(pfile);
+    if (!file) {
+        #ifdef DEBUGMODE
+            logln("Failed to open file: " + path);
+        #endif
+        return -1; // Retornamos -1 si no se puede abrir el archivo
+    }
 
-  if (fsize < 1000000)
-  {
-    hmi.writeString("size.txt=\"" + String(fsize / 1024) + " KB\"");
-  }
-  else
-  {
-    hmi.writeString("size.txt=\"" + String(fsize / 1024 / 1024) + " MB\"");
-  }
+    int fileSize = file.size();
+    file.close();
 
-  return fsize;
+    // Actualizamos el tamaño en el HMI
+    String sizeStr = (fileSize < 1000000) 
+        ? String(fileSize / 1024) + " KB" 
+        : String(fileSize / 1024 / 1024) + " MB";
+    hmi.writeString("size.txt=\"" + sizeStr + "\"");
+
+    return fileSize;
 }
+
+// int getStreamfileSize(String path)
+// {
+//   char pfile[255] = {};
+//   strcpy(pfile, path.c_str());
+//   File32 f = sdm.openFile32(pfile);
+//   int fsize = f.size();
+//   f.close();
+
+//   if (fsize < 1000000)
+//   {
+//     hmi.writeString("size.txt=\"" + String(fsize / 1024) + " KB\"");
+//   }
+//   else
+//   {
+//     hmi.writeString("size.txt=\"" + String(fsize / 1024 / 1024) + " MB\"");
+//   }
+
+//   return fsize;
+// }
 
 void updateIndicators(int size, int pos, int fsize, int bitrate, String fname)
 {
@@ -1592,7 +1617,9 @@ void MediaPlayer(bool isWav = false) {
     int last_blockSelected = 0;
     TOTAL_BLOCKS = totalFilesIdx + 1;
     BLOCK_SELECTED = currentIdx + 1; // Para mostrar el bloque seleccionado en la pantalla
-
+    // Esto lo hacemos para coger el sampling rate
+    sample_rate_t srd = player.audioInfo().sample_rate;
+    hmi.writeString("tape.lblFreq.txt=\"" + String(int(srd/1000)) + "KHz\"" );   
     // Actualización inicial de indicadores
     updateIndicators(totalFilesIdx, source.index() + 1, fileSize, bitRateRead, source.toStr());
 
@@ -1617,79 +1644,6 @@ void MediaPlayer(bool isWav = false) {
                     stateStreamplayer = 1;
                     tapeAnimationON();
                 }
-                
-                // Seleccion de pista
-                if (UPDATE)
-                {
-                  // Si el bloque seleccionado es válido y no es el último
-                  if (BLOCK_SELECTED > 0 && (BLOCK_SELECTED <= (totalFilesIdx+1))) {
-                      // Reproducir el bloque seleccionado
-                      //source.selectStream((FILE_LAST_DIR + findLastFieldByID(file,BLOCK_SELECTED)).c_str());
-                      source.setIndex(BLOCK_SELECTED - 1); // Buscamos el índice del archivo actual
-                      currentIdx = source.index() - 1; // Buscamos el índice del archivo actual
-                  } else {
-                      // Reproducir desde el principio
-                      currentIdx = 0;
-                      source.selectStream(0);
-                  }  
-                  // Actualizamos de manera inmediata
-                  //
-                  fileSize = getStreamfileSize(source.toStr());
-
-                  player.begin(currentIdx); // Iniciamos el reproductor                  
-
-                  bitRateRead = isWav ? decoderWAV.audioInfoEx().byte_rate : decoderMP3.audioInfoEx().bitrate;
-                  updateIndicators(totalFilesIdx, source.index() + 1, fileSize, bitRateRead, source.toStr());                  
-                  UPDATE = false;                
-                }
-
-                if (BB_OPEN || BB_UPDATE)
-                {
-                  last_blockSelected = BLOCK_SELECTED;
-                  //
-                  hmi.openBlockMediaBrowser(source);
-                  delay(25);
-                  hmi.openBlockMediaBrowser(source);
-                  BB_OPEN = false;
-                  BB_UPDATE = false; 
-                }
-
-                if (UPDATE_HMI)
-                {
-                  if (BLOCK_SELECTED > 0 && BLOCK_SELECTED <= TOTAL_BLOCKS)
-                  {
-                      // Actualizamos la pantalla HMI con el nombre del archivo actual
-                      //source.selectStream((FILE_LAST_DIR + myMediaDescriptor[BLOCK_SELECTED-1].name).c_str());
-                      // Cogemos el indice que empieza desde 0 ..
-                      source.setIndex(BLOCK_SELECTED - 1); // Buscamos el índice del archivo actual
-                      currentIdx = source.index();
-                      // Inicializamos el player con ese indice
-                      player.begin(currentIdx); // Iniciamos el reproductor
-
-                      // Cogemos informacion del fichero
-                      fileSize = getStreamfileSize(source.toStr());
-                      // Actualizamos HMI
-                      updateIndicators(totalFilesIdx, source.index()+1, fileSize, bitRateRead, source.toStr());  
-
-                      #ifdef DEBUGMODE
-                          logln("Update HMI: " + String(BLOCK_SELECTED) + " - " + String(totalFilesIdx));
-                          logln("Current IDX: " + String(currentIdx));
-                          logln("Current file: " + String(source.toStr()));
-                          logln("Current file size: " + String(fileSize) + " bytes");
-                          logln("Current file bitrate: " + String(bitRateRead) + " bps");
-                          logln("Current file index: " + String(source.index()));
-                          logln("Current file name: " + String(myMediaDescriptor[BLOCK_SELECTED-1].name));
-                          logln("Current file path: " + String(myMediaDescriptor[BLOCK_SELECTED-1].path));
-                          logln("Current file ID: " + String(myMediaDescriptor[BLOCK_SELECTED-1].ID));
-                      #endif                    
-                  }
-                  else
-                  {
-                    BLOCK_SELECTED = last_blockSelected;
-                  }
-
-                  UPDATE_HMI = false;
-                }
                 break;
 
             case 1: // Reproduciendo
@@ -1699,7 +1653,8 @@ void MediaPlayer(bool isWav = false) {
                 }
  
                 // Actualizamos indicadores cada 4 segundos
-                if (millis() - lastUpdate > 2000) {
+                if (millis() - lastUpdate > 2000) 
+                {
                     updateIndicators(totalFilesIdx, source.index()+1, fileSize, bitRateRead, source.toStr());
                     lastUpdate = millis();
                 }
@@ -1713,36 +1668,69 @@ void MediaPlayer(bool isWav = false) {
                 //     }
                 // }
 
-                if (STOP || PAUSE) 
+                if (STOP) 
                 {
-                  //stateStreamplayer = 2; // Pausa
-                  tapeAnimationOFF();
                   stateStreamplayer = 0;
+                  fileread = 0;
                   tapeAnimationOFF();
-                }           
+                }    
+                
+                if (PAUSE) 
+                {
+                  stateStreamplayer = 2; // Pausa
+                  tapeAnimationOFF();
+                  PLAY=false;
+                  PAUSE=false;
+                }  
                 break;
 
-            // case 4: // Auto-stop
-            //     tapeAnimationOFF();
-            //     stateStreamplayer = 0;
-            //     PLAY = false;
-            //     break;
-
+            case 2: // PAUSE
+                if (PAUSE || PLAY)
+                {
+                  stateStreamplayer = 1; // Reproduciendo
+                  tapeAnimationON();
+                }
+                else if (STOP)
+                {
+                  stateStreamplayer = 0;
+                  fileread = 0;
+                  tapeAnimationOFF();
+                }
+                break;
+            
+            case 4: // Auto-stop
+                tapeAnimationOFF();
+                stateStreamplayer = 0;
+                PLAY = false;
+                STOP = true;
+                break;                
+            
             default:
                 break;
         }
 
         // Control de avance/retroceso
-        if (FFWIND || RWIND) {
+        if (FFWIND || RWIND) 
+        {
             rewindAnimation(FFWIND ? 1 : -1);
-            if (FFWIND) {
-                player.next();
-            } else {
-                player.previous();
+            if (FFWIND) 
+            {
+              player.next();
+            } 
+            else 
+            {
+              player.previous();
             }
 
+            // delay(250);
+            currentIdx = source.index();
+            player.begin(currentIdx);
+            delay(250);
             fileSize = getStreamfileSize(source.toStr());
-            //logln("Current IDX: " + String(source.index()) + " / " + String(source.size()));
+
+            // Esto lo hacemos para coger el sampling rate
+            sample_rate_t srd = player.audioInfo().sample_rate;
+            hmi.writeString("tape.lblFreq.txt=\"" + String(int(srd/1000)) + "KHz\"" );            
 
             if ((source.index() > (source.size()-1)))
             {
@@ -1770,7 +1758,98 @@ void MediaPlayer(bool isWav = false) {
             //
             updateIndicators(totalFilesIdx, source.index() + 1, fileSize, bitRateRead, source.toStr());
         }
-    }
+   
+        // Seleccion de pista
+        if (UPDATE)
+        {
+          // Si el bloque seleccionado es válido y no es el último
+          if (BLOCK_SELECTED > 0 && (BLOCK_SELECTED <= (totalFilesIdx+1))) {
+              // Reproducir el bloque seleccionado
+              //source.selectStream((FILE_LAST_DIR + findLastFieldByID(file,BLOCK_SELECTED)).c_str());
+              source.setIndex(BLOCK_SELECTED); // Buscamos el índice del archivo actual
+              currentIdx = source.index() - 1; // Buscamos el índice del archivo actual
+          } else {
+              // Reproducir desde el principio
+              currentIdx = 0;
+              source.selectStream(0);
+          }  
+          // Actualizamos de manera inmediata
+          //
+
+          player.begin(currentIdx); // Iniciamos el reproductor      
+          delay(250);
+            
+          fileSize = getStreamfileSize(source.toStr());
+
+          // Esto lo hacemos para coger el sampling rate
+          sample_rate_t srd = player.audioInfo().sample_rate;
+          hmi.writeString("tape.lblFreq.txt=\"" + String(int(srd/1000)) + "KHz\"" );    
+          bitRateRead = isWav ? decoderWAV.audioInfoEx().byte_rate : decoderMP3.audioInfoEx().bitrate;
+          updateIndicators(totalFilesIdx, source.index() + 1, fileSize, bitRateRead, source.toStr());  
+          //                
+          UPDATE = false;                
+        }
+
+        if (BB_OPEN || BB_UPDATE)
+        {
+          last_blockSelected = BLOCK_SELECTED;
+          //
+          hmi.openBlockMediaBrowser(source);
+          //delay(25);
+          hmi.openBlockMediaBrowser(source);
+          BB_OPEN = false;
+          BB_UPDATE = false; 
+        }
+
+        if (UPDATE_HMI)
+        {
+          if (BLOCK_SELECTED > 0 && BLOCK_SELECTED <= TOTAL_BLOCKS)
+          {
+              // Actualizamos la pantalla HMI con el nombre del archivo actual
+              //source.selectStream((FILE_LAST_DIR + myMediaDescriptor[BLOCK_SELECTED-1].name).c_str());
+              // Cogemos el indice que empieza desde 0 ..
+              source.setIndex(BLOCK_SELECTED - 1); // Buscamos el índice del archivo actual
+              currentIdx = source.index();
+
+              // logln("Update HMI");
+              // logln("------------------------------");
+              // logln("Block selected: " + String(BLOCK_SELECTED));
+              // logln("source index: " + String(source.index()));
+
+              // Inicializamos el player con ese indice
+              player.begin(currentIdx); // Iniciamos el reproductor
+
+              // Cogemos informacion del fichero
+              delay(250);
+              fileSize = getStreamfileSize(source.toStr());
+              
+              // Esto lo hacemos para coger el sampling rate
+              sample_rate_t srd = player.audioInfo().sample_rate;
+              hmi.writeString("tape.lblFreq.txt=\"" + String(int(srd/1000)) + "KHz\"" );                         
+              // Actualizamos HMI
+              updateIndicators(totalFilesIdx, source.index()+1, fileSize, bitRateRead, source.toStr());  
+
+              #ifdef DEBUGMODE
+                  logln("Update HMI: " + String(BLOCK_SELECTED) + " - " + String(totalFilesIdx));
+                  logln("Current IDX: " + String(currentIdx));
+                  logln("Current file: " + String(source.toStr()));
+                  logln("Current file size: " + String(fileSize) + " bytes");
+                  logln("Current file bitrate: " + String(bitRateRead) + " bps");
+                  logln("Current file index: " + String(source.index()));
+                  logln("Current file name: " + String(myMediaDescriptor[BLOCK_SELECTED-1].name));
+                  logln("Current file path: " + String(myMediaDescriptor[BLOCK_SELECTED-1].path));
+                  logln("Current file ID: " + String(myMediaDescriptor[BLOCK_SELECTED-1].ID));
+              #endif                    
+          }
+          else
+          {
+            BLOCK_SELECTED = last_blockSelected;
+          }
+
+          UPDATE_HMI = false;
+        }        
+   
+   }
 
     // Finalización
     tapeAnimationOFF();
