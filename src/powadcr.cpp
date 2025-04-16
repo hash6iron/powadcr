@@ -1614,6 +1614,7 @@ void MediaPlayer(bool isWav = false) {
     int currentIdx = source.index(); // El índice actual del archivo
     int stateStreamplayer = 0;
     unsigned long lastUpdate = millis();
+    unsigned long twiceRWDTime = millis();
     int last_blockSelected = 0;
     TOTAL_BLOCKS = totalFilesIdx + 1;
     BLOCK_SELECTED = currentIdx + 1; // Para mostrar el bloque seleccionado en la pantalla
@@ -1720,7 +1721,17 @@ void MediaPlayer(bool isWav = false) {
             } 
             else 
             {
-              player.previous();
+              if (millis() - twiceRWDTime > 6500)
+              {
+                // Empiezo desde el principio
+                player.begin(source.index());
+                twiceRWDTime = millis();
+              }
+              else
+              {
+                // Si pulso rapido en los proximos segundos               
+                player.previous();
+              }
             }
 
             // delay(250);
