@@ -1689,6 +1689,7 @@ void MediaPlayer(bool isWav = false) {
                 {
                   stateStreamplayer = 1; // Reproduciendo
                   tapeAnimationON();
+                  PAUSE = false;
                 }
                 else if (STOP)
                 {
