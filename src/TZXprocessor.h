@@ -2875,17 +2875,23 @@ class TZXprocessor
               logln("Value in TZX srate: " + String(_myTZX.descriptor[i].samplingRate));
               logln("Custom sampling rate: " + String(sr));
 
+              // Si el sampling rate es menor de 8kHz, lo cambiamos a 22KHz
+              if (sr < 8000)
+              {
+                sr = STANDARD_SR_ZX_SPECTRUM;
+                logln("Error. Changing sampling rate: " + String(sr));
+              }
+
               // Cambiamos el sampling rate en el HW
               new_sr.sample_rate = sr;
               kitStream.setAudioInfo(new_sr);      
-              // Cambiamos el sampling rate en el HW
-              // new_sr2.sample_rate = sr;
-              // kitStream.setAudioInfo(new_sr2);        
+   
               // Indicamos el sampling rate
               LAST_MESSAGE = "Direct recording at " + String(sr) + "Hz";
-              //
               _hmi.writeString("tape.lblFreq.txt=\"" + String(int(sr/1000)) + "KHz\"" );
 
+
+              //
               SAMPLING_RATE = sr;
               BIT_DR_0 =_myTZX.descriptor[i].samplingRate;
               BIT_DR_1 = _myTZX.descriptor[i].samplingRate;

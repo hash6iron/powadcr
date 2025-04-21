@@ -2363,7 +2363,7 @@ class HMI
 
             String recDirTmp = FILE_LAST_DIR;
             recDirTmp.toUpperCase();
-            if (recDirTmp == "/WAV/" || recDirTmp == "/FAV/" || recDirTmp == "/REC/")
+            if (recDirTmp == "/FAV/" || recDirTmp == "/REC/")
             {
               getFilesFromSD(true,SOURCE_FILE_TO_MANAGE,SOURCE_FILE_INF_TO_MANAGE);
 
@@ -2743,14 +2743,12 @@ class HMI
         }     
         else if (strCmd.indexOf("EJECT") != -1) 
         {
-          
-          
           #ifdef DEBUGMODE
             logAlert("EJECT pressed.");
           #endif
 
           // Si no se esta subiendo nada a la SD desde WiFi podemos abrir
-          if (!WF_UPLOAD_TO_SD)
+          if (!WF_UPLOAD_TO_SD && !STOP_OR_PAUSE_REQUEST)
           {
               PLAY = false;
               PAUSE = false;
@@ -2774,6 +2772,13 @@ class HMI
 
               FILE_BROWSER_OPEN = true;
               //
+              if (myNex.readNumber("screen.source.val") == 1)
+              {
+                // Si estamos en el tape pasamos a tape0
+                delay(300);
+                writeString("page tape0");
+              }
+              delay(500);          
               // Entramos en el file browser
               writeString("page file");          
               delay(125);
@@ -2781,7 +2786,14 @@ class HMI
           }
           else
           {
-            LAST_MESSAGE = "Wait to finish the uploading process.";
+            if (WF_UPLOAD_TO_SD)
+            {
+              LAST_MESSAGE = "Wait to finish the uploading process.";
+            }
+            else if (STOP_OR_PAUSE_REQUEST)
+            {
+              LAST_MESSAGE = "Wait for tape stop or pause before ejecting.";
+            }
           }
         }    
         else if (strCmd.indexOf("VLI=") != -1) 
@@ -3415,6 +3427,29 @@ class HMI
 
           #ifdef DEBUGMODE
             logln("Modo Out to WAV =" + String(OUT_TO_WAV));
+          #endif
+        }
+        // Habilitar play to WAV file file
+        else if (strCmd.indexOf("WA8=") != -1) 
+        {
+          //Cogemos el valor
+          uint8_t buff[8];
+          strCmd.getBytes(buff, 7);
+          int valEn = (int)buff[4];
+          //
+          if (valEn==1)
+          {
+              // Habilita
+              WAV_8BIT_MONO = true;
+          }
+          else
+          {
+              // Deshabilita
+              WAV_8BIT_MONO = false;
+          }
+
+          #ifdef DEBUGMODE
+            logln("Modo WAV mono 8-bits =" + String(WAV_8BIT_MONO));
           #endif
         }
         // Deshabilitar Auto Stop en WAV and MP3 player.

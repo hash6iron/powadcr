@@ -296,6 +296,7 @@ bool NOT_CAPTURE_ID = false;
 // WAV record
 bool MODEWAV = false;
 bool OUT_TO_WAV = false;
+bool WAV_8BIT_MONO = false;
 bool disable_auto_media_stop = false;
 
 // Power led
@@ -420,6 +421,7 @@ String POWAIP = "";
 
 // OTRAS
 bool TEST_RUNNING = false;
+bool STOP_OR_PAUSE_REQUEST = false;
 int LOADING_STATE = 0;              // 0 - Standby, 1 - Play, 2 - Stop, 3 - Pause, 4 - Recording
 int CURRENT_BLOCK_IN_PROGRESS = 0;
 int PROGRESS_BAR_REFRESH = 256;
