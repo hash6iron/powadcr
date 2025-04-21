@@ -107,20 +107,20 @@ class ZXProcessor
 
         bool stopOrPauseRequest()
         {
-            
-
-            if (STOP==true)
+            if (STOP)
             {
-                //LAST_MESSAGE = "Stop requested. Wait.";
+                LAST_MESSAGE = "Stop requested. Wait.";
                 LOADING_STATE = 2; // Parada del bloque actual
                 ACU_ERROR = 0;
+                STOP_OR_PAUSE_REQUEST = true;
                 return true;
             }
-            else if (PAUSE==true)
+            else if (PAUSE)
             {
-                //LAST_MESSAGE = "Pause requested. Wait.";
+                LAST_MESSAGE = "Pause requested. Wait.";
                 LOADING_STATE = 3; // Pausa del bloque actual
                 ACU_ERROR = 0;
+                STOP_OR_PAUSE_REQUEST = true;
                 return true;
             }
             else
