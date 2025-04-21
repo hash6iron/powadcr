@@ -1590,6 +1590,7 @@ void MediaPlayer(bool isWav = false) {
     player.setAudioSource(source);
     player.setOutput(eq);
     
+    // Esto es necesario para que el player sepa donde rediregir el audio
     if (isWav)
     {
       player.setDecoder(decoder); // Usamos el puntero al decodificador WAV
