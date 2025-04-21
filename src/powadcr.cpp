@@ -1572,17 +1572,7 @@ void MediaPlayer(bool isWav = false) {
     decoder.addNotifyAudioChange(kitStream);
 
 
-    MetaDataFilterDecoder metadatafilter(decoder);
-
-    
-    // Actualizamos el sampling rate del kitStream
-    // NumberFormatConverterStreamT<int16_t,int8_t> nfc8(kitStream);
-    // NumberFormatConverterStreamT<int16_t,int24_t> nfc24(kitStream);
-    // NumberFormatConverterStreamT<int16_t,int32_t> nfc32(kitStream);
-    // NumberFormatConverterStreamT<int16_t,int16_t> nfc16(kitStream);
-    // nfc16.begin();
-    // outStream.setOutput(nfc16);
-    // outStream.begin();
+    MetaDataFilterDecoder metadatafilter(decoderMP3);
 
     // Configuración del ecualizador
     audio_tools::Equalizer3Bands eq(kitStream);
@@ -1599,7 +1589,17 @@ void MediaPlayer(bool isWav = false) {
     // Inicializamos el player
     player.setAudioSource(source);
     player.setOutput(eq);
-    player.setDecoder(metadatafilter); // Usamos el puntero al decodificador MP3
+    
+    if (isWav)
+    {
+      player.setDecoder(decoder); // Usamos el puntero al decodificador WAV
+    }
+    else
+    {
+      player.setDecoder(metadatafilter); // Usamos el puntero al decodificador MP3
+    }
+
+    //player.setDecoder(metadatafilter); // Usamos el puntero al decodificador MP3
     player.setVolume(1);
     player.setBufferSize(512 * 1024); // Buffer de 512 KB
     player.setAutoNext(false);
@@ -1659,34 +1659,6 @@ void MediaPlayer(bool isWav = false) {
                     // Esto es necesario para que el player sepa el sampling rate
                     fileread += player.copy();
                     //
-                    // nfc8.end(); // Reiniciamos el convertidor de bits
-                    // nfc16.end(); // Reiniciamos el convertidor de bits
-                    // nfc24.end(); // Reiniciamos el convertidor de bits
-                    // nfc32.end(); // Reiniciamos el convertidor de bits
-                    // //
-                    // switch (decoder.audioInfo().bits_per_sample) 
-                    // {
-                    //     case 8:
-                    //         nfc8.begin(); // Reiniciamos el convertidor de bits
-                    //         outStream.setOutput(nfc8);
-                    //         break;
-                    //     case 16:
-                    //         nfc16.begin(); // Reiniciamos el convertidor de bits
-                    //         outStream.setOutput(nfc16);
-                    //         break;
-                    //     case 24:
-                    //         nfc24.begin(); // Reiniciamos el convertidor de bits
-                    //         outStream.setOutput(nfc24);
-                    //         break;
-                    //     case 32:
-                    //         nfc32.begin(); // Reiniciamos el convertidor de bits
-                    //         outStream.setOutput(nfc32);
-                    //         break;
-                    //     default:
-                    //         nfc16.begin();
-                    //         outStream.setOutput(nfc16);
-                    //         break;
-                    // }
                     //
                     AudioInfo info = kitStream.defaultConfig();
                     info.sample_rate = decoder.audioInfo().sample_rate;
