@@ -185,108 +185,6 @@ class HMI
           #endif
       }
 
-      // void fillWithFilesFromFile(File32 &fout, File32 &fstatus, String search_pattern, String path)
-      // {
-      //     // NOTA:
-      //     // ***************************************************
-      //     // Esta función toma la ruta establecida por sdm.dir
-      //     // del manejador de ficheros.
-      //     // ***************************************************
-
-      //     // Un fichero SOURCE_FILE_TO_MANAGE es del tipo
-      //     //
-      //     // 
-      //     // PATH=/TAP/F/
-      //     // ...
-      //     // --------------------------------------------------------------------------------------------------
-      //     //  ID    | Type [D / F] | Seek   | Filename
-      //     // ---------------------------------------------------------------------------------------------------
-      //     //  0     , F            , 288    , F-16 Combat Pilot (1991)(Digital Integration)[cr Matasoft][128K].tap;
-      //     //
-      //     // F --> File
-      //     // D --> Directory
-
-
-      //     // Declaramos el nombre del fichero
-      //     char szName[512];
-      //     const String separator="|";
-      //     File32 lstFile;
-      //     tFileLST fl;
-
-      //     String path_file_lst = path + "_files.lst";
-          
-      //     char* path_file_lst_chr = (char*)malloc(256 * sizeof(char));
-      //     path_file_lst.toCharArray(path_file_lst_chr, 256);          
-
-      //     // logln("Path to _file.lst: " + String(path_file_lst_chr));
-
-      //     // Buscamos si hay un fichero _files.lst
-      //     if (sdm.dir.exists(path_file_lst_chr))
-      //     {
-            
-      //       // 
-      //       // logln("Existe _file.lst: ");
-
-      //       // Existe y lo hemos encontrado. Lo abrimos
-      //       lstFile.open(path_file_lst_chr, O_RDONLY);
-      //       lstFile.rewind();
-
-      //       // Ahora trabajamos con el
-      //       char line[256];
-      //       int n=0;
-      //       int itemsCount = 0;
-            
-      //       FILE_TOTAL_FILES = 0;
-
-      //       // logln("Search pattern: " + search_pattern);
-      //       String filenameUC = "";
-
-      //       // Convertimos a mayusculas para poder comparar
-      //       search_pattern.toUpperCase();
-
-      //       // Recorremos el fichero .lst
-      //       while (n = lstFile.fgets(line,sizeof(line)) > 0)
-      //       {
-      //           // Extraigo de la linea el nombre del fichero
-      //           fl = getParametersFromLine(line);
-      //           // Convertimos a mayusculas para poder comparar
-      //           filenameUC = fl.fileName;
-      //           filenameUC.toUpperCase();
-
-      //           // logln(String(itemsCount) + " - Filename: " + fl.fileName);
-      //           // Si cumple el patron
-      //           // lo metemos en el fichero _search.lst
-      //           if (filenameUC.indexOf(search_pattern) != -1)                
-      //           {
-      //               // numero del fichero
-      //               fout.print(String(fl.ID));
-      //               fout.print(separator);
-      //               // tipo
-      //               fout.print(fl.fileType);
-      //               fout.print(separator);
-      //               // seek
-      //               fout.print(String(fl.seek));
-      //               fout.print(separator);
-      //               // nombre del fichero
-      //               fout.print(fl.fileName);
-      //               fout.println(separator);
-
-      //               // Contador de ficheros encontrados
-      //               FILE_TOTAL_FILES++;                  
-      //           }
-      //           // Total de items recorridos
-      //           itemsCount++;
-      //           // Informamos en HMI
-      //           writeString("statusFILE.txt=\"FOUND " + String(FILE_TOTAL_FILES) + " / " + String(itemsCount) + "\"");
-      //       }
-      //     }
-      //     // logln("Total files found: " + String(FILE_TOTAL_FILES));
-
-      //     // Finalizamos pero aqui no cerramos el fout
-      //     free(path_file_lst_chr);
-      //     lstFile.close();
-      // }
-
       void fillWithFiles(File32 &fout, File32 &fstatus, String search_pattern)
       {
           // NOTA:
@@ -478,138 +376,63 @@ class HMI
           }
      }
 
-    void registerFiles(const String &path, const String &filename, const String &filename_inf, const String &search_pattern, bool rescan) 
-    {
-        // Construimos las rutas completas
-        String regFile = path + filename;
-        String statusFile = path + filename_inf;
-    
-        // Buffers para las rutas
-        char file_ch[256];
-        char filest_ch[256];
-        char path_ch[256];
-    
-        regFile.toCharArray(file_ch, sizeof(file_ch));
-        statusFile.toCharArray(filest_ch, sizeof(filest_ch));
-        path.toCharArray(path_ch, sizeof(path_ch));
-    
-        // Manejadores de archivos
-        File32 f, fstatus;
-    
-        // Creamos los archivos _files.lst y _files.inf
-        if (sdm.createEmptyFile32(file_ch) && sdm.createEmptyFile32(filest_ch)) {
-            #ifdef DEBUGMODE
-                logln("File created: " + regFile);
-                logln("File status created: " + statusFile);
-            #endif
-    
-            // Abrimos los archivos
-            f.open(file_ch, O_RDWR);
-            fstatus.open(filest_ch, O_RDWR);
-    
-            // Escribimos la ruta en el archivo de estado
-            fstatus.println("PATH=" + path);
-    
-            // Si es una búsqueda y no es un rescan, usamos el archivo existente
-            if (!search_pattern.isEmpty() && !rescan) {
-                fillWithFilesFromFile(f, fstatus, search_pattern, path);
-            } else {
-                // Registro normal
-                fillWithFiles(f, fstatus, search_pattern);
-    
-                // Ordenamos el archivo _files.lst
-                #ifdef DEBUGMODE
-                    logln("Sorting file...");
-                #endif
-                writeString("statusFILE.txt=\"SORTING\"");
-                sortFile(f);
-            }
-    
-            // Cerramos los archivos
-            f.close();
-            fstatus.close();
-        } else {
-            #ifdef DEBUGMODE
-                logln("Error creating " + regFile);
-            #endif
-        }
-    }
+      void registerFiles(const String &path, const String &filename, const String &filename_inf, const String &search_pattern, bool rescan) 
+      {
+          // Construimos las rutas completas
+          String regFile = path + filename;
+          String statusFile = path + filename_inf;
+      
+          // Buffers para las rutas
+          char file_ch[256];
+          char filest_ch[256];
+          char path_ch[256];
+      
+          regFile.toCharArray(file_ch, sizeof(file_ch));
+          statusFile.toCharArray(filest_ch, sizeof(filest_ch));
+          path.toCharArray(path_ch, sizeof(path_ch));
+      
+          // Manejadores de archivos
+          File32 f, fstatus;
+      
+          // Creamos los archivos _files.lst y _files.inf
+          if (sdm.createEmptyFile32(file_ch) && sdm.createEmptyFile32(filest_ch)) {
+              #ifdef DEBUGMODE
+                  logln("File created: " + regFile);
+                  logln("File status created: " + statusFile);
+              #endif
+      
+              // Abrimos los archivos
+              f.open(file_ch, O_RDWR);
+              fstatus.open(filest_ch, O_RDWR);
+      
+              // Escribimos la ruta en el archivo de estado
+              fstatus.println("PATH=" + path);
+      
+              // Si es una búsqueda y no es un rescan, usamos el archivo existente
+              if (!search_pattern.isEmpty() && !rescan) {
+                  fillWithFilesFromFile(f, fstatus, search_pattern, path);
+              } else {
+                  // Registro normal
+                  fillWithFiles(f, fstatus, search_pattern);
+      
+                  // Ordenamos el archivo _files.lst
+                  #ifdef DEBUGMODE
+                      logln("Sorting file...");
+                  #endif
+                  writeString("statusFILE.txt=\"SORTING\"");
+                  sortFile(f);
+              }
+      
+              // Cerramos los archivos
+              f.close();
+              fstatus.close();
+          } else {
+              #ifdef DEBUGMODE
+                  logln("Error creating " + regFile);
+              #endif
+          }
+      }
 
-      // void registerFiles(String path, String filename, String filename_inf,String search_pattern,bool rescan)
-      // {
-      //     // Registramos todos los ficheros encontrados y sus indices en un fichero "SOURCE_FILE_TO_MANAGE"
-      //     String regFile = path + filename;
-      //     String statusFile = path + filename_inf;
-
-      //     char* file_ch = (char*)malloc(256 * sizeof(char));
-      //     regFile.toCharArray(file_ch, 256);
-
-      //     char* filest_ch = (char*)malloc(256 * sizeof(char));
-      //     statusFile.toCharArray(filest_ch, 256);
-
-      //     // Convertimos el path a char*
-      //     char* path_ch = (char*)malloc(256 * sizeof(char));
-      //     path.toCharArray(path_ch, 256);
-
-      //     // Manejador del fichero _files.lst
-      //     File32 f;
-      //     // Manejador del fichero _files.inf
-      //     File32 fstatus;
-
-
-      //     if (sdm.createEmptyFile32(file_ch) && sdm.createEmptyFile32(filest_ch))
-      //     {
-      //         #ifdef DEBUGMODE
-      //           logln("");
-      //           logln("File created: " + String(file_ch));
-
-      //           logln("");
-      //           logln("File status created: " + String(filest_ch));            
-      //         #endif
-
-      //         // Abrimos el fichero
-      //         f.open(file_ch, O_RDWR);
-      //         fstatus.open(filest_ch, O_RDWR);
-
-      //         // Ahora lo rellenamos con los ficheros incluidos en el path (que hemos convertido a char*)
-      //         #ifdef DEBUGMODE
-      //           logln("");
-      //           logln("Path to search: " + String(path_ch));
-      //         #endif
-              
-      //         // Registramos la ruta y los ficheros que lo contienen en el _files.lst
-      //         fstatus.println("PATH=" + String(path_ch));
-      //         if (search_pattern != "" && !rescan)
-      //         {
-      //             // Es una busqueda y nos basamos en el .lst del directorio
-      //             fillWithFilesFromFile(f,fstatus,search_pattern,path);
-      //         }
-      //         else
-      //         {
-      //             // Es un registro normal
-      //             fillWithFiles(f,fstatus,search_pattern);
-      //             // Ordenamos el fichero .lst
-      //             logln("Sorting file: ");
-      //             sortFile(f);
-      //         }
-      //     }
-      //     else
-      //     {
-      //       #ifdef DEBUGMODE
-      //         logln("");
-      //         logln("Error creating " + SOURCE_FILE_TO_MANAGE);
-      //       #endif
-      //     }
-
-      //     // cerramos
-      //     f.close();
-      //     fstatus.close();
-
-      //     // liberamos memoria
-      //     free(path_ch);
-      //     free(file_ch);
-      //     free(filest_ch);
-      // }
 
       tFileLST getParametersFromLine(char* line)
       {   
@@ -746,37 +569,6 @@ class HMI
           #endif
       }
 
-      // void putFilePtrInPosition(File32& f, int pos)
-      // {
-      //     int n = 0;
-      //     int l = 0;
-      //     char line[256];
-
-      //     tFileLST ld;
-      //     ld.fileName= "";
-      //     ld.ID = -1;
-      //     ld.seek = -1;
-      //     ld.type = 'F';
-
-      //     // Comenzamos desde el principio del fichero
-      //     f.rewind();
-      //     #ifdef DEBUGMODE
-      //       logln("ptr to put in position: " + String(pos));
-      //     #endif
-
-      //     // Ahora buscamos y movemos el puntero
-      //     while(l < pos)
-      //     {
-      //         // Vamos saltando lineas hasta la posición esperada
-      //         n = f.fgets(line,sizeof(line));
-      //         l++;
-      //     }
-
-      //     #ifdef DEBUGMODE
-      //       logln("Position is " + String(l));
-      //     #endif
-      // }
-
       void showFileLST(File32 &f)
       {
           int n = 0;
@@ -863,67 +655,6 @@ class HMI
           fFileINF.close();
       }
 
-      // void countTotalLinesInLST(String path, String sourceFile)
-      // {
-      //   File32 fFileINF;
-      //   String fFile = path + sourceFile;
-
-      //   // Abrimos el fichero _files.inf
-      //   fFileINF.open(fFile.c_str(), O_RDONLY);
-      //   fFileINF.rewind();
-
-      //   #ifdef DEBUGMODE
-      //     logln("Opening again - rewind");
-      //   #endif
-
-      //   IN_THE_SAME_DIR = true;
-      //   // Mostramos el contenido y obtenemos el total de ficheros
-      //   //
-      //   FILE_TOTAL_FILES = 1;
-      //   char line[256];
-      //   String strLine = "";
-      //   int n=0;
-      //   int cdir = 0;
-      //   int cfil = 0;
-
-      //   // writeString("statusFILE.txt=\"COUNT FILES\"");
-
-      //   while (n = fFileINF.fgets(line,sizeof(line)) > 0)
-      //   {
-      //       // Obtenemos la informacion de la primera linea
-      //       strLine = String(line);
-      //       strLine.toUpperCase();
-      //       if (strLine.indexOf("CDIR=") != -1)
-      //       {
-      //         // Extraemos el total de directorios
-      //         #ifdef DEBUGMODE
-      //           logln("CDIR str: " + strLine);
-      //           logln("Substr CDIR: " + strLine.substring(5));
-      //         #endif
-      //         cdir = (strLine.substring(5)).toInt();
-      //       }
-      //       else if (strLine.indexOf("CFIL=") != -1)
-      //       {
-      //         // Extraemos el total de ficheros
-      //         #ifdef DEBUGMODE
-      //           logln("CFIL str: " + strLine);
-      //           logln("Substr CFIL: " + strLine.substring(5));
-      //         #endif
-      //         cfil = (strLine.substring(5)).toInt();
-      //       }
-      //   }
-
-      //   FILE_TOTAL_FILES = (cdir + cfil);
-
-      //   #ifdef DEBUGMODE
-      //     logln("Files count: " + String(FILE_TOTAL_FILES));
-      //   #endif
-        
-      //   fFileINF.close();
-      //   // 
-         
-      // }
-
       void putFilesInList() 
       {
           tFileLST fl;
@@ -967,55 +698,6 @@ class HMI
               idptr++;
           }
       }
-
-      // void putFilesInList()
-      // {
-      //     tFileLST fl;
-      //     // Ahora añadimos los ficheros al buffer de presentación (14 lineas)
-      //     int idptr = 1;
-      //     while(idptr < MAX_FILES_TO_LOAD)
-      //     {
-      //         fl = getNextLineInFileLST(fFileLST);
-
-      //         #ifdef DEBUGMODE
-      //           logln("");
-      //           log(fl.fileName + " - ");
-      //           log(fl.fileType + " - ");
-      //           log(String(fl.ID) + " - ");
-      //           log(String(fl.seek) + " - ");
-      //           log(String(fl.type));
-      //         #endif
-
-      //         // Si es un dato de fichero
-      //         if (fl.ID != -1)
-      //         {
-      //             // Es correcto. Lo mostramos
-      //             FILES_BUFF[idptr].fileposition = fl.seek;
-      //             FILES_BUFF[idptr].path = fl.fileName;
-
-      //             if (fl.type=='D')
-      //             {
-      //               FILES_BUFF[idptr].type = "DIR";
-      //               FILES_BUFF[idptr].isDir = true;
-      //             }
-      //             else
-      //             {
-      //               FILES_BUFF[idptr].isDir = false;
-      //               FILES_BUFF[idptr].type = (fl.fileType);
-      //               FILES_BUFF[idptr].type.toUpperCase();
-      //             }                   
-      //         }
-      //         else
-      //         {
-      //             // Salimos
-      //             logln("EOF");
-      //             return;
-      //         }
-
-      //         idptr++;
-      //     }        
-      // }
-
 
       void getFilesFromSD(bool force_rescan, const String &output_file, const String &output_file_inf, const String &search_pattern = "") 
       {
@@ -1082,124 +764,6 @@ class HMI
           sdm.dir.close();
           FB_READING_FILES = false;
       }
-
-      // void getFilesFromSD(bool forze_rescan, String output_file, String output_file_inf, String search_pattern="")
-      // {
-          
-      //     // Abrimos ahora el _files.lst, para manejarlo
-      //     String fFileList = FILE_LAST_DIR + SOURCE_FILE_TO_MANAGE;
-
-      //     FB_READING_FILES = true;
-
-      //     #ifdef DEBUGMOCE
-      //       logAlert("Getting files from SD");
-      //     #endif
-
-      //     // Cadena para un filePath
-      //     char szName[255];
-      //     int j = 0;          
-
-      //     clearFileBuffer();
-
-      //     //logln("Paso 3");
-
-      //     #ifdef DEBUGMODE
-      //       logln("");
-      //       logln("");
-      //       log("--------------------------------------");
-      //       logln("");
-      //       log("Searching files in - " + FILE_LAST_DIR);
-      //     #endif
-
-      //     if (sdm.dir.isOpen())
-      //     {
-      //         sdm.dir.close();
-      //     }
-
-      //     //logln("Paso 4");
-
-      //     if (!sdm.dir.open(FILE_LAST_DIR.c_str())) 
-      //     {
-      //         FILE_DIR_OPEN_FAILED = true;
-      //         // manageFile();
-      //     }
-      //     else
-      //     {
-              
-      //         //logln("Paso 5");
-
-
-      //         // El directorio se ha abierto sin problemas
-      //         FILE_DIR_OPEN_FAILED = false;
-
-      //         // Si el fichero manejador esta abierto no se hacen mas comprobaciones.
-      //         if (!LST_FILE_IS_OPEN)
-      //         {
-      //             // Si no existe el historico de los ficheros se genera un _file.lst
-      //             String pathTmp = FILE_LAST_DIR + output_file;
-      //             if (forze_rescan || !_sdf.exists(pathTmp.c_str()))
-      //             {
-      //                 logln("Registrando ficheros en buffer");
-      //                 registerFiles(FILE_LAST_DIR, output_file, output_file_inf,search_pattern,forze_rescan);
-      //             }
-
-      //             fFileLST.open(fFileList.c_str(), O_RDONLY);
-      //             fFileLST.rewind();
-      //             LST_FILE_IS_OPEN = true;
-      //         }
-      //         else
-      //         {
-      //           logln("Manejando los ficheros en buffer");
-      //         }
-
-      //         // Usamos el fichero que contiene el mapa del directorio actual, _files.inf
-      //         // para obtener el numero de items pero solo si no estoy buscando nada.
-      //         if (search_pattern == "")
-      //         {
-      //             //logln("Paso 6");
-
-      //             countTotalLinesInLST(FILE_LAST_DIR, SOURCE_FILE_INF_TO_MANAGE);
-
-      //             //logln("Paso 7");
-
-      //         }
-    
-      //         // AÑADIMOS AL INICIO EL PARENT DIR
-      //         FILES_BUFF[0].isDir = true;
-      //         FILES_BUFF[0].type = "PAR";
-      //         FILES_BUFF[0].path = String(FILE_PREVIOUS_DIR);
-      //         FILES_BUFF[0].fileposition = sdm.file.position();
-
-      //         #ifdef DEBUGMODE
-      //           logln("Showing files from: " + String(FILE_PTR_POS));
-      //         #endif
-
-      //         // Posicionamos el puntero
-      //         if (FILE_PTR_POS!=0)
-      //         {
-      //             putFilePtrInPosition(fFileLST,FILE_PTR_POS-1);
-      //                         //logln("Paso 8");
-
-      //         }
-      //         else
-      //         {
-      //             putFilePtrInPosition(fFileLST,0);
-      //                         //logln("Paso 9");
-
-      //         }
-
-      //         putFilesInList();
-      //                     // logln("Paso 10");
-
-
-      //         // writeString("statusFILE.txt=\"ITEMS " + String(FILE_TOTAL_FILES) +"\"");
-      //     }
-
-      //     // Cerramos todos los ficheros (añadido el 25/07/2023)
-      //     sdm.dir.close();
-      //     // fFileLST.close();
-      //     FB_READING_FILES = false;
-      // }
 
       void printFileRows(int row, int color, String szName)
       {
@@ -1635,8 +1199,10 @@ class HMI
         } 
         else 
         {
-          // Lo descarto
-          //SerialHW.flush();
+          // Si no hay espacio, lo guardamos en el buffer
+          // y lo enviamos cuando haya espacio
+          delay(250);
+          SerialHW.println(data);
         }
       }            
 
@@ -2316,74 +1882,90 @@ class HMI
             // Con este comando capturamos el directorio a cambiar
             uint8_t buff[8];
             strCmd.getBytes(buff, 7);
+
+            for (int i=0;i<8;i++)
+            {
+              logln("Byte " + String(i) + ": " + String(buff[i]));
+            }
             
             long val = (long)((int)buff[4] + (256*(int)buff[5]) + (65536*(int)buff[6]));
 
             //String num = String(val);
-            FILE_IDX_SELECTED = static_cast<int> (val);
+            int indexFileSelected = static_cast<int> (val);
       
             //Cogemos el directorio
-
-            if (FILE_IDX_SELECTED > sizeof(FILES_BUFF))
+            if (indexFileSelected > sizeof(FILES_BUFF))
             {
               // Regeneramos el directorio de manera automática.
-              writeString("currentDir.txt=\">> Error in file system. Reloading <<\"");
-              reloadDir();
-              return;
-            }
-            
-            FILE_DIR_TO_CHANGE = FILE_LAST_DIR + FILES_BUFF[FILE_IDX_SELECTED+1].path + "/";
-            
-            #ifdef DEBUGMODE
-              logln("Dir to change " + FILE_DIR_TO_CHANGE);
-            #endif
-            
-            IN_THE_SAME_DIR = false;
-      
-            // Reserva dinamica de memoria
-            String dir_ch = FILE_DIR_TO_CHANGE;
-
-            //
-            FILE_PREVIOUS_DIR = FILE_LAST_DIR;
-            FILE_LAST_DIR = dir_ch;
-            FILE_LAST_DIR_LAST = FILE_LAST_DIR;
-     
-            FILE_PTR_POS = 1;
-            // clearFilesInScreen(); // 02/12/2024
-            writeString("statusFILE.txt=\"READING\"");  
-
-            //logln("Paso 1");
-            if (fFileLST.isOpen())
-            {
-              fFileLST.close();
-              LST_FILE_IS_OPEN = false;
-            }
-
-            //logln("Paso 2");
-
-            String recDirTmp = FILE_LAST_DIR;
-            recDirTmp.toUpperCase();
-            if (recDirTmp == "/FAV/" || recDirTmp == "/REC/")
-            {
-              getFilesFromSD(true,SOURCE_FILE_TO_MANAGE,SOURCE_FILE_INF_TO_MANAGE);
-
+              logln("File index out of range: " + String(indexFileSelected));
+              //
+              writeString("currentDir.txt=\">> HMI error. Idx out of range <<\"");
+              //FILE_IDX_SELECTED = 13;
+              //reloadDir();
             }
             else
             {
-              getFilesFromSD(false,SOURCE_FILE_TO_MANAGE,SOURCE_FILE_INF_TO_MANAGE);
-            }
-
-            if (!FILE_DIR_OPEN_FAILED)
-            {
-                //putFilesInScreen();
-                putFilesInScreen();
-            }
-            else
-            {
+              // Actuamos sobre la seleccion en HMI
+              FILE_IDX_SELECTED = indexFileSelected;   
+              //
+              FILE_DIR_TO_CHANGE = FILE_LAST_DIR + FILES_BUFF[FILE_IDX_SELECTED+1].path + "/";
+            
               #ifdef DEBUGMODE
-                logln("Error to open directory");
+                logln("Dir to change " + FILE_DIR_TO_CHANGE);
               #endif
+              
+              IN_THE_SAME_DIR = false;
+        
+              // Reserva dinamica de memoria
+              String dir_ch = FILE_DIR_TO_CHANGE;
+
+              //
+              FILE_PREVIOUS_DIR = FILE_LAST_DIR;
+              FILE_LAST_DIR = dir_ch;
+              FILE_LAST_DIR_LAST = FILE_LAST_DIR;
+        
+              FILE_PTR_POS = 1;
+              // clearFilesInScreen(); // 02/12/2024
+              writeString("statusFILE.txt=\"READING\"");  
+
+              //logln("Paso 1");
+              if (fFileLST.isOpen())
+              {
+                fFileLST.close();
+                LST_FILE_IS_OPEN = false;
+              }
+
+              //logln("Paso 2");
+
+              String recDirTmp = FILE_LAST_DIR;
+              recDirTmp.toUpperCase();
+              if (recDirTmp == "/FAV/" || recDirTmp == "/REC/")
+              {
+                getFilesFromSD(true,SOURCE_FILE_TO_MANAGE,SOURCE_FILE_INF_TO_MANAGE);
+
+              }
+              else
+              {
+                getFilesFromSD(false,SOURCE_FILE_TO_MANAGE,SOURCE_FILE_INF_TO_MANAGE);
+              }
+
+              if (!FILE_DIR_OPEN_FAILED)
+              {
+                  //putFilesInScreen();
+                  putFilesInScreen();
+              }
+              else
+              {
+                #ifdef DEBUGMODE
+                  logln("Error to open directory");
+                #endif
+              }          
             }
+
+    
+          
+            
+
             
             //clearRotate();
 
@@ -2472,10 +2054,16 @@ class HMI
             logln("Rotating filename: " + ROTATE_FILENAME);
             logln("Rotating enable: " + String(ENABLE_ROTATE_FILEBROWSER));
 
+            
             // Esto lo hacemos para que no se quede pillado en el ultimo cuando ha hecho un rotate
             //writeString("file.lastPressed.val=15");
            
         }
+        else if (strCmd.indexOf("ROC=") != -1)
+        {
+          ROTATE_FILENAME = "";
+          ENABLE_ROTATE_FILEBROWSER = false;          
+        } 
         else if (strCmd.indexOf("TRS=") != -1) 
         {
             // Con este comando
@@ -3747,7 +3335,9 @@ class HMI
       void writeString(String stringData) 
       {
       
+          // Esperamos a que todos los datos salientes se hayan enviado
           SerialHW.flush();
+
       
           SerialHW.write(0xff);
           SerialHW.write(0xff);
@@ -3770,6 +3360,7 @@ class HMI
       void writeStringBlock(String stringData) 
       {
           
+          // Esperamos a que todos los datos salientes se hayan enviado
           SerialHW.flush();
 
           for (int i = 0; i < stringData.length(); i++) 
@@ -4202,29 +3793,32 @@ class HMI
 
       void readUART() 
       {
-        if (SerialHW.available() >= 1) 
-        {
-          // get the new uint8_t:
-          while (SerialHW.available())
-          {
-            String strCmd = SerialHW.readString();
+        // Esperamos a que todos los datos salientes se hayan enviado
+        SerialHW.flush();
 
-            //ECHO
-            // #ifdef DEBUGMODE
-            //   logln("");
-            //   logln("Echo: " + strCmd);
-            //   logln("");
-            // #endif
-            //logln("Comando " + strCmd);
-            getSeveralCommands(strCmd);
-          }
-          //SerialHW.flush();
+        // if (SerialHW.available() >= 1) 
+        // {
+          // get the new uint8_t:
+        while (SerialHW.available() > 0)
+        {
+          String strCmd = SerialHW.readString();
+          getSeveralCommands(strCmd);
         }
+
+        // Limpiamos el buffer de entrada
+        while (SerialHW.available() > 0) 
+        {
+          SerialHW.read(); // Lee y descarta los datos
+        }
+        // }
       }
 
       String readStr() 
       {
         String strCmd = "";
+
+        // Esperamos a que todos los datos salientes se hayan enviado
+        SerialHW.flush();
 
         if (SerialHW.available() >= 1) 
         {
@@ -4244,6 +3838,9 @@ class HMI
       u_int8_t* readByte() 
       {
         uint8_t *b;
+
+        // Esperamos a que todos los datos salientes se hayan enviado
+        SerialHW.flush();
 
         if (SerialHW.available() >= 1) 
         {
