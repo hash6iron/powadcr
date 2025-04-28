@@ -37,7 +37,7 @@
 
 // Para Rolling releases - rDDMMYY.HHMM
 // Para versión estable - vX.Y
-#define VERSION "v1.0r5.3"
+#define VERSION "v1.0r5.4"
 #define MACHINE_ZX
 
 // Define sampling rate a 44.1KHz. En otro caso será a 32KHz
@@ -89,7 +89,7 @@
 // Player / SD
 // -------------------------------------------------------------------
 // Frecuencia inicial de la SD
-#define SD_FRQ_MHZ_INITIAL 40
+#define SD_FRQ_MHZ_INITIAL 19
 #define DEFAULT_MP3_SAMPLING_RATE 44100
 // No se puede subir mas. Da problemas
 #define DEFAULT_WAV_SAMPLING_RATE 22050
