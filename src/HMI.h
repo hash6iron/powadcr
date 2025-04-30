@@ -4039,63 +4039,6 @@ class HMI
           writeStringBlock(blockData);
       }
 
-      // void openBlockMediaBrowser(AudioSourceSDFAT source)
-      // {
-      //   // Rellenamos el browser con todos los bloques
-
-      //   int max = MAX_BLOCKS_IN_BROWSER;
-      //   int totalPages = 0;
-
-      //   if (TOTAL_BLOCKS > max)
-      //   {
-      //     max = MAX_BLOCKS_IN_BROWSER;
-      //   }
-      //   else
-      //   {
-      //     max = TOTAL_BLOCKS - 1;
-      //   }
-
-      //   BB_PAGE_SELECTED = (BB_PTR_ITEM / MAX_BLOCKS_IN_BROWSER) + 1;
-
-      //   writeString("blocks.path.txt=\"" + HMI_FNAME + "\"");
-      //   writeString("blocks.totalBl.txt=\"" + String(TOTAL_BLOCKS - 1) + "\"");
-      //   writeString("blocks.bbpag.txt=\"" + String(BB_PAGE_SELECTED) + "\"");
-      //   writeString("blocks.size0.txt=\"SIZE[MB]\"");
-
-      //   double ctpage = (double)TOTAL_BLOCKS / (double)MAX_BLOCKS_IN_BROWSER;
-      //   totalPages = trunc(ctpage);
-      //   if ((TOTAL_BLOCKS % MAX_BLOCKS_IN_BROWSER != 0) && ctpage > 1)
-      //   {
-      //     totalPages += 1;
-      //   }
-      //   writeString("blocks.totalPag.txt=\"" + String(totalPages) + "\"");    
-        
-      //   for (int i = 1; i <= max; i++)
-      //   {
-      //     if (i + BB_PTR_ITEM > TOTAL_BLOCKS - 1)
-      //     {
-      //       // Los dejamos limpios pero sin informacion
-      //       writeString("blocks.id" + String(i) + ".txt=\"\"");
-      //       writeString("blocks.data" + String(i) + ".txt=\"\"");
-      //       writeString("blocks.size" + String(i) + ".txt=\"\"");
-      //       writeString("blocks.name" + String(i) + ".txt=\"\"");
-      //     }
-      //     else
-      //     {
-      //       // Apuntamos al item
-      //       source.setIndex(i + BB_PTR_ITEM - 1);
-      //       String name = source.toStr();
-      //       // En otro caso metemos informacion
-      //       writeString("blocks.id" + String(i) + ".txt=\"" + String(i + BB_PTR_ITEM) + "\"");
-
-      //       //int mediaSize = (myMediaDescriptor[i + BB_PTR_ITEM - 1].size)/1024/1024;
-      //       writeString("blocks.data" + String(i) + ".txt=\"" + getFileExtension(name) + "\"");
-      //       writeString("blocks.name" + String(i) + ".txt=\"" + getFileNameFromPath(name) + "\"");
-      //       writeString("blocks.size" + String(i) + ".txt=\"" + String(getStreamfileSize(name) / 1024 / 1024) + "\"");
-      //     }
-      //   }         
-      // }
-
       void openBlocksBrowser(tTZX myTZX = tTZX(), tTAP myTAP = tTAP())
       {
         // Rellenamos el browser con todos los bloques
