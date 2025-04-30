@@ -95,6 +95,9 @@
 #define DEFAULT_WAV_SAMPLING_RATE 22050
 // Sampling rate adecuado para ZX Spectrum - Ajuste AZIMUT (Hz)
 #define STANDARD_SR_ZX_SPECTRUM 22200
+#define FAST_FORWARD_PER 0.02
+#define TIME_TO_FAST_FORWRD 2000 // 2 segs
+#define DELAY_ON_EACH_STEP_FAST_FORWARD 125 // 125ms
 
 // TAP config.
 // ********************************************************************
