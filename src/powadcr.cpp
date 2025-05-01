@@ -1573,11 +1573,12 @@ void MediaPlayer(bool isWav = false) {
     MultiDecoder decoder;
     MP3DecoderHelix decoderMP3;
     WAVDecoder decoderWAV;    
+    
     decoder.addDecoder(decoderMP3, "audio/mpeg");
     decoder.addDecoder(decoderWAV, "audio/vnd.wave");
     decoder.addNotifyAudioChange(kitStream);
 
-    MetaDataFilterDecoder metadatafilter(decoderMP3);
+    MetaDataFilterDecoder metadatafilter(decoderMP3);  
 
     // Configuración del ecualizador
     audio_tools::Equalizer3Bands eq(kitStream);
@@ -1608,10 +1609,17 @@ void MediaPlayer(bool isWav = false) {
       player.setDecoder(metadatafilter); // Usamos el puntero al decodificador MP3
     }
 
+    // -----------------------------------------------------------------------------------
+    //
+
     player.setVolume(1);
-    //player.setBufferSize(128 * 1024); // Buffer de 512 KB
+    // Dimensionado del buffer de mp3
+    player.setBufferSize(64 * 1024); 
     player.setAutoNext(false);
     
+    //
+    // -----------------------------------------------------------------------------------
+
     if (!player.begin()) 
     {
       logln("Error player initialization");
@@ -2060,12 +2068,29 @@ void MediaPlayer(bool isWav = false) {
     tapeAnimationOFF();
     player.end();
     eq.end();
-    //decoder->end();
     decoderMP3.end();
     decoderWAV.end(); 
-    //source.end();
-    file.close();
-    p_file_seek->close();
+    
+    // Cerramos el puntero al file.list
+    if (file.isOpen())
+    {
+      file.close();
+    }
+
+    // Cerramos el puntero de avance rapido y lo eliminamos.
+    if (p_file_seek != nullptr && p_file_seek->isOpen())
+    {
+      p_file_seek->close();
+
+      // if (p_file_seek != nullptr)
+      // {
+      //   delete p_file_seek;
+      //   p_file_seek = nullptr;
+      // }      
+    }
+
+
+    //p_file_seek->close();
 }
 
 void playingFile()
