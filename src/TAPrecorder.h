@@ -448,16 +448,69 @@ class TAPrecorder
           }
       }
 
+      void removeSpaces(char* str) {
+          int i = 0, j = 0;
+          while (str[i]) {
+              if (str[i] != ' ') {
+                  str[j++] = str[i]; // Copia solo los caracteres que no son espacios
+              }
+              i++;
+          }
+          str[j] = '\0'; // Termina la cadena con un carácter nulo
+      }
+
+      int findFileWithNumber(const char *directory, const char *baseName, SdFat32 &sd) {
+          File32 dir = sd.open(directory);
+          if (!dir || !dir.isDir()) {
+              #ifdef DEBUGMODE
+                  Serial.println("Error: Directory not found or invalid.");
+              #endif
+              return -1; // El directorio no existe o no es válido
+          }
+
+          File32 file;
+          char fileName[64];
+          while (file.openNext(&dir, O_RDONLY)) {
+              file.getName(fileName, sizeof(fileName));
+              file.close();
+
+              // Verificamos si el archivo tiene el formato <nombre>-<numero>.tap
+              String fileStr = String(fileName);
+              if (fileStr.startsWith(baseName) && fileStr.endsWith(".tap")) {
+                  int dashIndex = fileStr.indexOf('-');
+                  int dotIndex = fileStr.lastIndexOf('.');
+                  if (dashIndex != -1 && dotIndex != -1 && dashIndex < dotIndex) {
+                      String numberStr = fileStr.substring(dashIndex + 1, dotIndex);
+                      return numberStr.toInt(); // Devolvemos el número
+                  }
+              }
+          }
+
+          return -1; // No se encontró ningún archivo con el formato especificado
+      }
+
       bool renameFile(char newFileName[], File32 &mFile)
       {
           // Reservamos memoria             
           char cPath[57] = {""};
+          char nfile[25] = {""};
+
+          // Guardamos una copia de newFileName
+          removeSpaces(newFileName);
+
+          strcpy(nfile, newFileName);
+          //
+          
           String dirR = RECORDING_DIR + "/\0";
           strcpy(cPath, dirR.c_str());
           //Generamos un numero aleatorio para el final del nombre
           srand(time(0));
           delay(125);
-          int rn = rand()%999999;
+
+          int copynum = findFileWithNumber(cPath, newFileName, sdf);
+          int rn = (copynum == -1) ? 0 : copynum++;
+          logln("Copy number of filename: " + String(rn));
+          // Generamos el nuevo nombre del fichero
           //Le unimos la extensión .TAP
           String txtRn = "-" + String(rn) + ".tap";
           char const *extPath = txtRn.c_str();
@@ -465,12 +518,31 @@ class TAPrecorder
           //y unimos el fichero al path
           strcat(cPath,newFileName);
 
-          #ifdef DEBUGMODE
-            logln("");
-            logln("Filename for rename: ");
-            log(cPath);
-            logln("");  
-          #endif
+          // Comprobamos si existe el nuevo fichero
+          while(sdf.exists(cPath))
+          {              
+              // Limpiamos el buffer
+              memset(cPath, 0, sizeof(cPath)); 
+              memset(newFileName, 0, sizeof(newFileName));
+              // Cogemos la copia original
+              strcpy(cPath, dirR.c_str());
+              strcpy(newFileName,nfile);
+              // Incrementamos el número
+              rn++;
+              // Regeneramos el nuevo nombre del fichero
+              txtRn = "-" + String(rn) + ".tap";
+              char const *extPath = txtRn.c_str();
+              strcat(newFileName,extPath);
+              //y unimos el fichero al path
+              strcat(cPath,newFileName);
+
+              #ifdef DEBUGMODE
+                logln("");
+                logln("Filename for rename: ");
+                log(cPath);
+                logln("");  
+              #endif
+          }         
 
           if (mFile.rename(cPath))
           {         
@@ -1202,17 +1274,18 @@ class TAPrecorder
                       if (REC_AUDIO_LOOP)
                       {
                           //R-OUT
+                          *ptrOut++ = (audioOutValue*k) * (MAIN_VOL_R / 100);
+                          //
                           if (ACTIVE_AMP)
                           {
-                              *ptrOut++ = (audioOutValue*k) * (MAIN_VOL_R / 100);
+                            //L-OUT
+                            *ptrOut++ = (audioOutValue*k) * (MAIN_VOL_L / 100);
                           }
                           else
                           {
                               *ptrOut++ = 0;
                           }
                           
-                          //L-OUT
-                          *ptrOut++ = (audioOutValue*k) * (MAIN_VOL_L / 100);
                             
                       }            
 
