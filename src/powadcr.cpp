@@ -4536,7 +4536,7 @@ void setup()
   // POWERLED_DUTY
   showOption("menu.ppled.val",String(PWM_POWER_LED));
   
-  if (!ACTIVE_AMP)
+  if (ACTIVE_AMP)
   {
     MAIN_VOL_L = 5;
     // Actualizamos el HMI
