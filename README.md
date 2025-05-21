@@ -101,7 +101,7 @@ In this section we are going to describe parts to be needed to assemble the Powa
 + Micro SD card or FT232RL FTDI serial interface to program the TJC LCD (both methods are available)
 + Cable with jacks Stereo-stereo male-male 3.5mm to connect PowaDCR to Spectrum Next or N-Go or clone versions.
 + Cable with XH2.5 and mono jack 3.5mm to connect from amplifier out of PowaDCR to EAR connector on ZX Spectrum classic versions (Rubber keyboard 16K, 48K, Spectrum+ and Spectrum 128K Toastrack)
-+ HMI Chinesse editor version https://unofficialnextion.com/t/tjc-usart-hmi-editor-1-64-1/1511
++ UART HMI Chinesse editor version [download here](http://filedown.tjc1688.com/USARTHMI/oldapp/USARTHMIsetup_1.67.2.zip). Check the last version [here](http://wiki.tjc1688.com/download/old_usart_hmi/history_download.html)
 + Arduino IDE 2.0
 
 How PowaDCR parts are connected?
