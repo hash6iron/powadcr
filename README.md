@@ -127,7 +127,7 @@ You can flash the binaries directly to the board if you do not want to mess with
 
    See the example image below.
 
-   ![image](https://github.com/hash6iron/powadcr_IO/assets/118267564/e7158518-4af8-4e6e-b4ab-eff6b9693307)
+   ![image](https://raw.githubusercontent.com/hash6iron/powadcr/refs/heads/main/doc/flash_download_tool.png)
 
    
 4. Select ESP32 model.
