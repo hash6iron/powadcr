@@ -1,5 +1,5 @@
 # POWADCR
-TAP/TZX/TSX/CDT Digital cassette recorder for 8-bit machines
+TAP/TZX/TSX/CDT Digital cassette recorder for 8-bit machines, and WAV/MP3 player recorder.
 <p align="center">
   <img width="400" height="400" src="/doc/powadcr.png" />
 </p>
