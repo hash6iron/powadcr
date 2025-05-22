@@ -116,9 +116,14 @@ How PowaDCR parts are connected?
   <img src="/doc/GPIO.png" />
   </p>
 
-How .bin firmware is uploaded in ESP32-A1S Audiokit? 
+How to install compiled .bin firmware in powadcr? 
 -----
 <b>At the first time</b>
+
+- You need to install first of all this release: https://github.com/hash6iron/powadcr/releases/tag/Release
+- Then install later, the latest relase: https://github.com/hash6iron/powadcr/releases/latest
+
+<b>How to?</b>
 
 You can flash the binaries directly to the board if you do not want to mess with code and compilers. 
 
