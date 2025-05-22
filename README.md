@@ -122,7 +122,7 @@ How .bin firmware is uploaded in ESP32-A1S Audiokit?
 
 You can flash the binaries directly to the board if you do not want to mess with code and compilers. 
 
-1. Download ESP32 Flash Downloading Tool - https://www.espressif.com/en/support/download/other-tools?keys=&field_type_tid%5B%5D=13
+1. Download ESP32 Flash Downloading Tool - from [here](https://docs.espressif.com/projects/esp-test-tools/en/latest/esp32/production_stage/tools/flash_download_tool.html)
 2. Unzip file and execute - flash_download_tool_x.x.x.exe file
 
    See the example image below.
