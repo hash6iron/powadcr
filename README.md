@@ -37,18 +37,6 @@ So, it's a beautiful develop board with a big possibilities.
 
 To begin with is necessary use the Phil Schatzmann's libraries for ESP32 Audio Kit v.0.65 (https://github.com/pschatzmann/arduino-audiokit) where we could take advantage of all resources of this kit, to create a digital player and recorder for ZX Spectrum easilly, or this is the first idea.
 
-## Audiokit DIP switch configuration
-This project need set the PCB DIP switch to
-
-|Switch|Value|
-|---|---|
-|1|On|
-|2|On|
-|3|On|
-|4|Off|
-|5|Off|
-
-
 ## LCD Screen Display
 
 The LCD touch screen display chosen for this project is a TFT HMI LCD Display Module Screen Touch connected with 2 serial pins (TX and RX) to the board. 
@@ -86,6 +74,18 @@ How PowaDCR parts are connected?
   <p align="center">
   <img src="/doc/GPIO.png" />
   </p>
+
+Audiokit DIP switch configuration
+-----
+This project need set the PCB DIP switch to
+
+|Switch|Value|
+|---|---|
+|1|On|
+|2|On|
+|3|On|
+|4|Off|
+|5|Off|
 
 How to install compiled .bin firmware in powadcr? 
 -----
