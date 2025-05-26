@@ -37,7 +37,8 @@ So, it's a beautiful develop board with a big possibilities.
 
 To begin with is necessary use the Phil Schatzmann's libraries for ESP32 Audio Kit v.0.65 (https://github.com/pschatzmann/arduino-audiokit) where we could take advantage of all resources of this kit, to create a digital player and recorder for ZX Spectrum easilly, or this is the first idea.
 
-This project need set PCB switches to
+## Audiokit DIP switch configuration
+This project need set the PCB DIP switch to
 
 |Switch|Value|
 |---|---|
