@@ -59,38 +59,6 @@ The LCD touch screen display chosen for this project is a TFT HMI LCD Display Mo
 
 NOTE: Several version of this LCD are availables. The project uses T0 versions but is possible to upgrade easily to T1 version.
 
-## About Sinclair ZX Spectrum TAP structure.
-
------
-
-About loading proccess in Sinclair ZX Spectrum
------
-I recomend the Alessandro Grussu's website with an interesting information about the loading process and processor timming for this goal. https://www.alessandrogrussu.it/tapir/tzxform120.html#MACHINFO
-
-Now, I'd like to show you how the signal generated from TAP file that Sinclair ZX Spectrum is able to understand. The mechanism to read the audio signal is based on squarewave peaks counting, using the Z80 clock timming, then:
-
-The sequence for ZS Spectrum, is always for standard loading: 
-+ LEADER TONE + SYNC1 + SYNC2 + DATA SEQUENCE + SILENCE
-
-<br>Where: LEADER TONE (2168 T-States) is two kind of length. 
-+ Large (x 8063 T-States) for typical "PROGRAM" block (BASIC)
-+ Short (x 3223 T-States) for typical "BYTE" block, Z80 machine code.</br>
-
-**What means T-State?**
-
-Well, this concept could be difficult to understand, but it's not far of reallity, as summarized full pulse (two peaks one to high and one to low) has a period equal to "2 x n T-State" time, where T-State = 1/3.5MHz = 0.28571 us, then for example: LARGE LEADER TONE.
-+ LEADER TONE = 2168 x 8063 T-States = 17480584 T-States
-+ 1 T-State = 1 / 3.5MHz = 0.28571 us = 0.00000028571 s
-+ LEADER TONE duration = 17480584 x 0.00000028571 s = 4.98s
-
-**How many peaks has the LARGE LEADER TONE pulse train?**
-+ The pulse train has 2168 peaks in both cases but short leader tone has a different duration (3223 T-States) versus large leader tone (8063 T-States)
-
-**What's the signal frequency?**
-+ We know that LARGE LEADER TONE pulse train is 4.98s 
-+ We know that SHORT LEADER TONE pulse train is 1.99s
-+ The frecuency for both leader tones (2168 x 0.00000028571) / 2 = 809.2Hz
-
 About POWADCR Device.
 -----
 In this section we are going to describe parts to be needed to assemble the PowaDCR device.
