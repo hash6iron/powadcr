@@ -64,7 +64,7 @@ In this section we are going to describe parts to be needed to assemble the Powa
 **Software and drivers (Windows version)**
 + LCD HMI editor:
   UART HMI Chinesse editor. Check the last version [here](http://wiki.tjc1688.com/download/old_usart_hmi/history_download.html)
-+ CPO210x driver: [https://www.silabs.com/developer-tools/usb-to-uart-bridge-vcp-drivers?tab=downloads](https://www.silabs.com/documents/public/software/CP210x_Universal_Windows_Driver.zip)
++ CP2102 driver: [https://www.silabs.com/developer-tools/usb-to-uart-bridge-vcp-drivers?tab=downloads](https://www.silabs.com/documents/public/software/CP210x_Universal_Windows_Driver.zip)
   
 How PowaDCR parts are connected?
 -----
