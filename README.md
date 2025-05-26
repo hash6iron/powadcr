@@ -57,6 +57,8 @@ The LCD touch screen display chosen for this project is a TFT HMI LCD Display Mo
 + Size: 3.5".
 + Resolution:  480x320.
 
+NOTE: Several version of this LCD are availables. The project uses T0 versions but is possible to upgrade easily to T1 version.
+
 ## About Sinclair ZX Spectrum TAP structure.
 
 -----
