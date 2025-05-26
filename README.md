@@ -179,7 +179,8 @@ How firmware is loaded in TJC LCD?
 <b>Upcoming updates</b>
 - Upload the file "HMI/build/powadcr_iface.tft" to the root of the SD and insert this into powaDCR. Power on the powaDCR and Wait until firmware is uploaded.
 
-
+Are you enjoying?
+-----
 If you enjoy with this device and you want to colaborate, please.
 
 <a href="https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=BAWGJFZGXE5GE&source=url"><img src="/doc/paypal_boton.png" /></a>
