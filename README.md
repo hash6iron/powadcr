@@ -14,9 +14,6 @@ This project pretend to implement a Digital Cassette Recorder (for TAP/TZX files
 
 ![20250530_020348](https://github.com/user-attachments/assets/07e084b3-bae2-4221-b484-52a52ccb1733)
 
-![image](https://github.com/user-attachments/assets/551![Uploading 20250530_020348.jpg…]()
-3dc37-750b-46e9-9a02-55b858d5e33a)
-
 ![20241114_094902](https://github.com/user-attachments/assets/112a1133-2ad4-4a44-b31e-9115065462c2)
 The launcher was this board, ESP32 Audio Kit equipped with ESP32 v3 microcontroller and ES8388 Audio proccesor 
 made by AI-Thinker Technology.
