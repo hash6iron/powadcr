@@ -67,7 +67,9 @@
 
 // Enable / Disable Audiokit logging
 #define USE_AUDIO_LOGGING false
-#define LOG_LEVEL AudioLogger::Info
+
+// States of LOG_LEVEL: Debug, Info, Warning, Error
+#define LOG_LEVEL AudioLogger::Error
 
 // Includes
 // ===============================================================
@@ -217,6 +219,7 @@ void isGroupStart();
 void isGroupEnd();
 void getRandomFilenameWAV(char *&currentPath, String currentFileBaseName);
 void rewindAnimation(int direction);
+void showOption(String id, String value);
 
 // -----------------------------------------------------------------------
 
@@ -745,6 +748,11 @@ void WavRecording()
   MultiOutput cmulti;   
   StreamCopy copier(cmulti, kitStream); // copies data to both file and line_out      
  
+  // MUTE_AMPLIFIER
+  showOption("menuAudio.mutAmp.val",String(!ACTIVE_AMP));
+  // Deshabilitamos el amplificador de salida
+  kitStream.setPAPower(false);
+
   LAST_MESSAGE = "Recording to WAV - Press STOP to finish.";
 
   recAnimationOFF();
@@ -769,6 +777,9 @@ void WavRecording()
   while (!STOP)
   {
     // Grabamos a WAV file
+    
+    // Deshabilitamos el amplificador de salida
+    kitStream.setPAPower(false);    
     copier.copy();
     // Sacamos audio por la salida
 
@@ -842,6 +853,9 @@ void WavRecording()
   // kitStream.setAudioInfo(new_sr2);   
   // Indicamos
   hmi.writeString("tape.lblFreq.txt=\"" + String(int(SAMPLING_RATE/1000)) + "KHz\"" );  
+  //
+  kitStream.setPAPower(ACTIVE_AMP);
+
 
 }
 
@@ -1463,6 +1477,17 @@ void estimatePlayingTime(int fileread, int filesize, int samprate)
   }
 }
 
+String getFileNameFromPath(const String &filePath) {
+  int lastSlash = filePath.lastIndexOf('/');
+  if (lastSlash == -1) {
+      lastSlash = filePath.lastIndexOf('\\'); // Por si se usa '\' como separador
+  }
+  if (lastSlash != -1) {
+      return filePath.substring(lastSlash + 1); // Devuelve el nombre del archivo con su extensión
+  }
+  return filePath; // Si no hay separador, devuelve la cadena completa
+}
+
 int findIDByFilename(File32 &file, const String &searchValue) {
     if (!file.isOpen()) {
         #ifdef DEBUGMODE
@@ -1548,6 +1573,11 @@ void MediaPlayer(bool isWav = false) {
     String mediapath = "";
     File32 file;
     mediapath = FILE_LAST_DIR + "_files.lst";
+    if (file.isOpen())
+    {
+      file.close();
+    }
+    //
     if(!file.open(mediapath.c_str(), O_RDONLY))
     {
       LAST_MESSAGE = "Error opening file list";
@@ -1632,6 +1662,7 @@ void MediaPlayer(bool isWav = false) {
     //
     source.selectStream(PATH_FILE_TO_LOAD.c_str()); // Seleccionamos el archivo actual
     //
+    // Buscamos el índice del archivo actual en la lista de reproducción
     int idxFileFound = findIDByFilename(file, FILE_LOAD) - 1; // Buscamos el índice del archivo actual
     logln("File to load: " + FILE_LOAD + " - ID: " + String(idxFileFound));
     if (idxFileFound < 0)
@@ -3673,6 +3704,7 @@ void tapeControl()
       REC = false;
       recAnimationOFF();
       recAnimationFIXED_OFF();
+      LAST_MESSAGE = "Recording canceled.";
     }     
     else
     {
@@ -3708,9 +3740,17 @@ void tapeControl()
         // Mostramos el logo del fichero
         putLogo();
         // Pasamos la ruta del fichero al mediaPlayer
-        FILE_LAST_DIR = "/WAV";
+        FILE_LAST_DIR = "/WAV/";
         // y el fichero seleccionado
         PATH_FILE_TO_LOAD = FILE_LOAD;
+        // Escaneamos por los nuevos ficheros
+        // LAST_MESSAGE = "Rescaning files";
+
+        hmi.reloadDir();
+        //
+        LAST_MESSAGE = "File preparing to play.";
+        // Eliminamos la ruta del fichero y nos quedamos con el nombre y la extensión
+        FILE_LOAD = getFileNameFromPath(FILE_LOAD);
         // Esto lo hacemos para llevar el control desde el WAV player
         playingFile();          
       }
@@ -3786,6 +3826,7 @@ void tapeControl()
       STOP = false;
       recAnimationOFF();
       recAnimationFIXED_OFF();
+      LAST_MESSAGE = "Recording canceled.";
     } 
     else
     {
@@ -3861,6 +3902,10 @@ void tapeControl()
         FILE_SELECTED = true;
         FILE_PREPARED = false;
         PLAY = false;
+        // Escaneamos por los nuevos ficheros
+        //LAST_MESSAGE = "Rescaning files";
+        hmi.reloadDir();
+        LAST_MESSAGE = "File preparing to play.";
         loadingFile(fileRecPath);
         TYPE_FILE_LOAD = "TAP";
         putLogo();
@@ -4012,7 +4057,15 @@ void Task0code(void *pvParameters)
               actuatePowerLed(powerLed,plduty);    
             }
           }
-        } 
+        }
+        else
+        {
+          // Lo dejamos fijo a low power
+          if (!REC)
+          {
+            actuatePowerLed(true,POWERLED_DUTY);
+          }
+        }
 
         if ((millis() - startTime3) > 500)
         {
@@ -4178,7 +4231,6 @@ void setup()
   cfg.input_device =  ADC_INPUT_LINE2;
   cfg.output_device = DAC_OUTPUT_ALL;
   cfg.sd_active = true;
-  
   //
   kitStream.begin(cfg);
 

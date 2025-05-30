@@ -706,7 +706,8 @@ class HMI
 
           // Abrimos ahora el _files.lst, para manejarlo
           String fFileList = FILE_LAST_DIR + SOURCE_FILE_TO_MANAGE;
-      
+          logln("Opening file: " + fFileList);
+
           FB_READING_FILES = true;
       
           clearFileBuffer();
@@ -1311,7 +1312,7 @@ class HMI
           {
             fFileLST.close();
           }
-          LAST_MESSAGE = "Scanning";
+          LAST_MESSAGE = "Scanning files ...";
           getFilesFromSD(true,SOURCE_FILE_TO_MANAGE,SOURCE_FILE_INF_TO_MANAGE);      
           refreshFiles();        
       }
@@ -2697,18 +2698,10 @@ class HMI
             writeString("menuAudio.volL.val=" + String(MAIN_VOL_L));
             writeString("menuAudio.volLevel.val=" + String(MAIN_VOL_L));
           }
-          // else
-          // {
-          //   // Bajamos el volumen del speaker que esta en el canal amplificado IZQ
-          //   MAIN_VOL_L = MAIN_VOL_R;
-          //   // Actualizamos el HMI
-          //   writeString("menuAudio.volL.val=" + String(MAIN_VOL_L));
-          //   writeString("menuAudio.volLevel.val=" + String(MAIN_VOL_L));
-          // }
 
           // Habilitamos el amplificador de salida
           kitStream.setPAPower(ACTIVE_AMP);
-
+          logln("Active amp=" + String(ACTIVE_AMP));
           //logln("Active amp=" + String(ACTIVE_AMP));
         }        
         // Habilita los dos canales
@@ -2725,8 +2718,6 @@ class HMI
           saveHMIcfg("STEopt");
           // Almacenamos en NVS tambien el mute
           saveHMIcfg("MAMopt");
-
-
           //logln("Mute enable=" + String(EN_STEREO));
         }
         // Enable MIC left channel - Option
@@ -3317,6 +3308,12 @@ class HMI
             // Estamos en la pantalla MENU
             writeString("mainmenu.verFirmware.txt=\" powadcr " + String(VERSION) + "\"");     
         }  
+        else if (strCmd.indexOf("PMENU3") != -1)
+        {
+        }  
+        else if (strCmd.indexOf("PMENU4") != -1)
+        {
+        }         
         else if (strCmd.indexOf("PTAPE") != -1)
         {
             // Estamos en la pantalla TAPE
