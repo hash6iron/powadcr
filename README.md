@@ -12,6 +12,10 @@ This project pretend to implement a Digital Cassette Recorder (for TAP/TZX files
 
 ![image](https://github.com/user-attachments/assets/6d7ac494-c201-4113-875b-0324e44a8308)
 
+
+
+The board
+-----
 ![20250530_020348](https://github.com/user-attachments/assets/07e084b3-bae2-4221-b484-52a52ccb1733)
 
 ![20241114_094902](https://github.com/user-attachments/assets/112a1133-2ad4-4a44-b31e-9115065462c2)
@@ -158,6 +162,9 @@ How firmware is loaded in TJC LCD?
 
 Are you enjoying?
 -----
+
+<img src="https://github.com/user-attachments/assets/f08a42ab-0c6a-4262-b6ec-63c41263b76b" width="480" height="914">
+
 If you enjoy with this device and you want to colaborate, please.
 
 <a href="https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=BAWGJFZGXE5GE&source=url"><img src="/doc/paypal_boton.png" /></a>
