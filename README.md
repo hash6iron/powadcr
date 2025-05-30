@@ -65,6 +65,10 @@ In this section we are going to describe parts to be needed to assemble the Powa
 + LCD HMI editor:
   UART HMI Chinesse editor. Check the last version [here](http://wiki.tjc1688.com/download/old_usart_hmi/history_download.html)
 + CP2102 driver: [https://www.silabs.com/developer-tools/usb-to-uart-bridge-vcp-drivers?tab=downloads](https://www.silabs.com/documents/public/software/CP210x_Universal_Windows_Driver.zip)
+
+Ports of powadcr
+-----
+![20250530_014338](https://github.com/user-attachments/assets/3b99fdb7-2cc3-438a-9fb3-e441f770584a)
   
 How PowaDCR parts are connected?
 -----
