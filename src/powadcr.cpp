@@ -1488,6 +1488,28 @@ String getFileNameFromPath(const String &filePath) {
   return filePath; // Si no hay separador, devuelve la cadena completa
 }
 
+int findIndexByFile(AudioSourceSDFAT &source, String &searchValue) 
+{
+    int i=0;
+    String name = "";
+    searchValue.toUpperCase(); // Convertimos el valor de búsqueda a mayúsculas para la comparación
+
+    while(i <= source.size()-1)
+    {
+      source.setIndex(i);
+      name = source.toStr();
+      //logln("File name listed: " + name + " - " + String(i) + " - " + searchValue);
+      
+      name.toUpperCase();
+      if (name == searchValue)
+      {
+        return i;
+      }
+      i++;
+    }
+    return 0; // Si no se encuentra el archivo, devolvemos -1
+}
+
 int findIDByFilename(File32 &file, const String &searchValue) {
     if (!file.isOpen()) {
         #ifdef DEBUGMODE
@@ -1660,16 +1682,15 @@ void MediaPlayer(bool isWav = false) {
     
     // Variables del bucle
     //
+    
     source.selectStream(PATH_FILE_TO_LOAD.c_str()); // Seleccionamos el archivo actual
-    //
-    // Buscamos el índice del archivo actual en la lista de reproducción
-    int idxFileFound = findIDByFilename(file, FILE_LOAD) - 1; // Buscamos el índice del archivo actual
-    logln("File to load: " + FILE_LOAD + " - ID: " + String(idxFileFound));
+    int idxFileFound = findIndexByFile(source, PATH_FILE_TO_LOAD); // Buscamos el índice del archivo actual en la fuente de audio,
+    //logln("File to load: " + FILE_LOAD + " - ID: " + String(idxFileFound));
     if (idxFileFound < 0)
     {
       LAST_MESSAGE = "Error opening file to play";
       return;
-    }    
+    }      
     source.setIndex(idxFileFound); // Buscamos el índice del archivo actual
 
     // Variables
@@ -4231,8 +4252,12 @@ void setup()
   cfg.input_device =  ADC_INPUT_LINE2;
   cfg.output_device = DAC_OUTPUT_ALL;
   cfg.sd_active = true;
+  
   //
   kitStream.begin(cfg);
+
+  // Ajustamos el volumen de entrada
+  kitStream.setInputVolume(IN_REC_VOL);
 
   // Para que esta linea haga efecto debe estar el define 
   // #define USE_AUDIO_LOGGING true

@@ -148,7 +148,7 @@ class ZXProcessor
             uint16_t sample_R = 0;
             uint16_t sample_L = 0;
 
-            if (SWAP_EAR_CHANNEL)
+            if (SWAP_MIC_CHANNEL)
             {
                 sample_L = getChannelAmplitude(changeNextEARedge,true) * (MAIN_VOL_R / 100) * (MAIN_VOL / 100);
                 sample_R = getChannelAmplitude(changeNextEARedge,true) * (MAIN_VOL_L / 100) * (MAIN_VOL / 100); 
@@ -375,7 +375,7 @@ class ZXProcessor
             // Ajustamos el volumen
 
 
-            if (SWAP_EAR_CHANNEL)
+            if (SWAP_MIC_CHANNEL)
             {
                 sample_L = amp * (MAIN_VOL_R / 100) * (MAIN_VOL / 100);
                 sample_R = amp * (MAIN_VOL_L / 100) * (MAIN_VOL / 100);
@@ -437,7 +437,7 @@ class ZXProcessor
             // nivel low, etc.
             amplitude = getChannelAmplitude(changeNextEARedge);
             
-            if (SWAP_EAR_CHANNEL)
+            if (SWAP_MIC_CHANNEL)
             {
                 sample_L = amplitude * (MAIN_VOL_R / 100) * (MAIN_VOL / 100);
                 sample_R = amplitude * (MAIN_VOL_L / 100) * (MAIN_VOL / 100);

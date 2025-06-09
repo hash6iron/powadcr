@@ -37,7 +37,7 @@
 
 // Para Rolling releases - rDDMMYY.HHMM
 // Para versión estable - vX.Y
-#define VERSION "1.0r5.5"
+#define VERSION "1.0r5.6"
 #define MACHINE_ZX
 
 // Define sampling rate a 44.1KHz. En otro caso será a 32KHz
@@ -98,6 +98,8 @@
 #define FAST_FORWARD_PER 0.02
 #define TIME_TO_FAST_FORWRD 2000 // 2 segs
 #define DELAY_ON_EACH_STEP_FAST_FORWARD 125 // 125ms
+
+#define USE_ZX_SPECTRUM_SR 1 // Si se usa el sampling rate de ZX Spectrum (22.2KHz) para la grabación y reproducción de TAPs
 
 // TAP config.
 // ********************************************************************

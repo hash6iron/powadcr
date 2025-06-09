@@ -94,21 +94,42 @@ class TAPrecorder
       // Para 44.1KHz / 8 bits / mono
       //
       // Guide tone
-      const int16_t wToneMin = 23;  //min 23 Leader tone min pulse width
-      const int16_t wToneMax = 40;  //max 40 Leader tone max pulse width  
-      
-      // Silencio
-      const int16_t wSilence = 50;
+      #ifdef USE_ZX_SPECTRUM_SR
+        // Para 22.2KHz / 8 bits / mono - ZX Spectrum
+        //
+        // Guide tone
+        const int16_t wToneMin = 11;            //min 23 Leader tone min pulse width
+        const int16_t wToneMax = 20;            //max 40 Leader tone max pulse width  
+        
+        // Silencio
+        const int16_t wSilence = 25;
 
-      // Bit 0
-      const int16_t wBit0_min = 2;    //min 2
-      const int16_t wBit0_max = 15;   //max 15
-      // Bit 1
-      const int16_t wBit1_min = 16;   //min 16  02/11/2024
-      const int16_t wBit1_max = 40;   //max 40  02/11/2024
-      // SYNC == BIT_0
-      const int16_t wSyncMin = wBit0_min;     //min 2 
-      const int16_t wSyncMax = wBit0_max;    //max 15
+        // Bit 0
+        const int16_t wBit0_min = 1;            //min 2
+        const int16_t wBit0_max = 7;            //max 15
+        // Bit 1
+        const int16_t wBit1_min = 8;            //min 16  02/11/2024
+        const int16_t wBit1_max = 20;           //max 40  02/11/2024
+        // SYNC == BIT_0
+        const int16_t wSyncMin = wBit0_min;     //min 2 
+        const int16_t wSyncMax = wBit0_max;     //max 15
+      #else
+        const int16_t wToneMin = 23;            //min 23 Leader tone min pulse width
+        const int16_t wToneMax = 40;            //max 40 Leader tone max pulse width  
+        
+        // Silencio
+        const int16_t wSilence = 50;
+
+        // Bit 0
+        const int16_t wBit0_min = 2;            //min 2
+        const int16_t wBit0_max = 15;           //max 15
+        // Bit 1
+        const int16_t wBit1_min = 16;           //min 16  02/11/2024
+        const int16_t wBit1_max = 40;           //max 40  02/11/2024
+        // SYNC == BIT_0
+        const int16_t wSyncMin = wBit0_min;     //min 2 
+        const int16_t wSyncMax = wBit0_max;     //max 15
+      #endif
 
       // Con EdgeWindow
       // const int ewLeaderTone = 45;
@@ -134,8 +155,8 @@ class TAPrecorder
       int pulseSilence = 0;
 
       //
-      int high = 16384;
-      int low = -16384;
+      int high = 32767;
+      int low = -32768;
       int zero = 0;
 
       char bitChStr[9] = {'\0'};
@@ -654,7 +675,7 @@ class TAPrecorder
       {         
           long startTime = millis();
           int AmpHi = high;
-          int low = low;
+          int AmpLo = low;
           int AmpZe = zero;
 
           int16_t oneValueR = 0;
@@ -679,9 +700,10 @@ class TAPrecorder
           // Pulso anterior minimo ancho
           uint8_t delta = wSyncMin;
           bool animationPause = false;
+          bool targetReady = false;
 
           // kitStream.config().buffer_size = 262144;
-          // kitStream.config().rx_tx_mode = RXTX_MODE;         
+          // kitStream.config().rx_tx_mode = RXTX_MODE;     
 
           // ======================================================================================================
 
@@ -733,15 +755,46 @@ class TAPrecorder
           lastBlockEndOffset = 0;      
           PROGRAM_NAME_ESTABLISHED = false;    
           byteCount = 0;
-          
-          // ===========================================================================================
-
-          isPrgHead = true; //*
+          cResidualToneGuide = 0;
+          cToneGuide = 0;
+          wPulseHigh = 0;
+          wPulseZero = 0;
+          pulseSilence = 0;   
           countSamplesHigh = 0;
           BLOCK_REC_COMPLETED = false; //*
 
+          stateRecording = 0;
+          isPrgHead = true;
+          statusPulse = 0;
+          countSamplesHigh = 0;
+          countSamplesZero = 0;
+          bitCount = 0;
+          blockCount = 0;
+          byteCount = 0;
+          
+          // Inicializamos el header
+          header.blockSize = 19; // Por defecto es una cabecera de programa
+          header.sizeLSB = 17; // Por defecto es una cabecera de programa
+          header.sizeMSB = 0; // Por defecto es una cabecera de programa
+          header.sizeNextBlLSB = 0; // Por defecto es una cabecera de programa  
+          header.sizeNextBlMSB = 0; // Por defecto es una cabecera de programa  
+          header.type = 0; // Por defecto es una cabecera de programa
+                   
+          headerNameCaptured = false;
+          blockWithoutPrgHead = false;
+          errorInDataRecording = false;
+          stopRecordingProccess = false;
+          errorDetected = 0;
+          pulseOkHigh = false;
+          pulseOkZero = false;  
+          // importante para inicializar el recording
+          checksum = 0;
           //
-          LAST_MESSAGE = "Recorder ready. Play source data.";
+          LAST_MESSAGE = "One moment please ...";                 
+          
+          // ===========================================================================================
+
+
           
           // Hacemos una lectura residual
           lenSamplesCaptured = kitStream.readBytes(bufferRec, BUFFER_SIZE_REC);
@@ -777,17 +830,28 @@ class TAPrecorder
           // akit.setAudioInfo(new_sr);      
           // Cambiamos el sampling rate en el HW
           AudioInfo new_sr = kitStream.defaultConfig();
-          new_sr.sample_rate = 44100;
+          new_sr.sample_rate = STANDARD_SR_ZX_SPECTRUM;
           kitStream.setAudioInfo(new_sr);   
           // Indicamos
           _hmi.writeString("tape.lblFreq.txt=\"" + String(44) + "KHz\"" );
 
           //strcpy(header.name,"noname");
           unsigned long progress_millis = 0;
+          unsigned long targetReadyTime = millis();
           progress_millis = millis();
+
+          
+          // statusPulse = 9999; // Estado inicial
+
           // Esto lo hacemos para mejorar la eficacia del recording
           while(REC && !STOP && !EJECT && !errorInDataRecording && !stopRecordingProccess)
           {
+              if ((millis() - targetReady > 5000) && !targetReady)
+              {
+                  targetReady = true;
+                  LAST_MESSAGE = "Recorder ready. Play source data.";                 
+              }
+
               // Capturamos la configuracion del threshold para el disparador de Schmitt
               if (EN_SCHMITT_CHANGE)
               {
@@ -796,20 +860,18 @@ class TAPrecorder
                 
                 // Amplitud
                 AmpHi = (SCHMITT_AMP * 32767)/100;
+                AmpLo = (-SCHMITT_AMP * 32768)/100; // -50% de amplitud
                 AmpZe = 0;
                 // Histeresis disparador de Schmitt
                 threshold_high = (SCHMITT_THR * AmpHi)/100;
-                threshold_low = (SCHMITT_THR * AmpZe)/100; 
+                threshold_low = (SCHMITT_THR * AmpLo)/100; 
               }
               else
               {
                 // Por defecto
-                SCHMITT_AMP = 50;
-                AmpHi = defaultAMP; // 50% de amplitud
+                AmpHi = 32767; 
+                AmpLo = -32768; 
                 AmpZe = 0;
-                // Histeresis disparador de Schmitt
-                threshold_high = defaultThH;
-                threshold_low = defaultThL;
               }
 
               // Capturamos muestras
@@ -835,25 +897,31 @@ class TAPrecorder
                       
                       // Por defecto el canal que se coge es el izquierdo.
                       // en el caso de swapping se coge el derecho
-                      audioInValue = (SWAP_MIC_CHANNEL) ? oneValueR:oneValueL;
-
-                      // Invertimos la señal (si se quiere)
-                      audioInValue = (EN_MIC_INVERSION) ? audioInValue * (-1) : audioInValue;
-
-                      // Aplicamos un offset (si se quiere)
-                      audioInValue = audioInValue + PULSE_OFFSET;
-                      audioInValue = (audioInValue > 32767) ? 32767:audioInValue;
+                      audioInValue = (SWAP_EAR_CHANNEL) ? oneValueR:oneValueL;
+                      
+                      // Aplicamos Schmitt Trigger (noise filtering)
+                      if (EN_SCHMITT_CHANGE)
+                      {
+                          // Aplicamos el filtro Schmitt
+                          audioInValue = (audioInValue >= 0 && audioInValue <= threshold_high) ? AmpZe:AmpHi;                      
+                          audioInValue = (audioInValue >= threshold_low && audioInValue < 0) ? AmpZe:AmpLo;  
+                      }
                       
                       // Rectificamos la onda
-                      // Eliminamos la parte negativa
-                      audioInValue = (audioInValue <= 0) ? AmpZe:audioInValue;
-                      // Aplicamos Schmitt Trigger (noise filtering)
-                      audioInValue = (audioInValue >= 0 && audioInValue <= threshold_high) ? AmpZe:AmpHi;
-                      
+                      // Invertimos la onda (si se quiere)
+                      audioInValue = (EN_EAR_INVERSION) ? audioInValue * (-1) : audioInValue;
+
+                      // Eliminamos la parte negativa (subimos la señal al cero)
+                      //audioInValue = (audioInValue <= 0) ? AmpZe:audioInValue;
+                      audioInValue = (audioInValue <= 0) ? (audioInValue + ((-1)*audioInValue)):(2*audioInValue);
+                      // Cortamos amplitud - Saturacion
+                      audioInValue = (audioInValue > 32767) ? 32767:audioInValue;   
+
+
                       // ++++++++++++++++++++++++++++++++++++++++++
                       // Control de cambios de flanco
                       // ++++++++++++++++++++++++++++++++++++++++++
-                      if (!PAUSE)
+                      if (!PAUSE && targetReady)
                       {
                           if (animationPause)
                           {
@@ -866,6 +934,7 @@ class TAPrecorder
 
                           switch (statusPulse)
                           {
+
                             case 0:
                               // Estado inicial
                               if (audioInValue > threshold_high)
@@ -1047,6 +1116,16 @@ class TAPrecorder
                                     wPulseHigh=0;
                                     stateRecording = 2;
                                   }
+                                
+                                  // // Detectamos si el pulso está invertido
+                                  // if (wPulseHigh <= 9)
+                                  // {
+                                  //   EN_MIC_INVERSION = true; // Activamos la inversion de la señal
+                                  // }
+                                  // else
+                                  // {
+                                  //   EN_MIC_INVERSION = false; // Desactivamos la inversion de la señal
+                                  // }
                               }
                               break;
 
@@ -1095,7 +1174,6 @@ class TAPrecorder
                                       REC=false;
                                       delay(5000);
                                     }
-
                                   }
         
                                   // ++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -1193,7 +1271,7 @@ class TAPrecorder
                                     {
                                       // Error en los datos. Error de checksum
                                       //Procesamos informacion del bloque                      
-                                      proccesInfoBlockType();
+                                      //proccesInfoBlockType();
                                       //                                  
                                       errorInDataRecording = true;
                                       stopRecordingProccess = true;
@@ -1266,32 +1344,32 @@ class TAPrecorder
                         delay(125);
                         recAnimationFIXED_OFF();
                         tapeAnimationOFF();
-                          animationPause = true;
+                        animationPause = true;
                       }
 
                       uint8_t k = 1;
 
-                      if (REC_AUDIO_LOOP)
+                      // if (REC_AUDIO_LOOP)
+                      // {
+                      //R-OUT
+                      *ptrOut++ = (audioOutValue*k) * (MAIN_VOL_R / 100);
+                      //
+                      if (ACTIVE_AMP)
                       {
-                          //R-OUT
-                          *ptrOut++ = (audioOutValue*k) * (MAIN_VOL_R / 100);
-                          //
-                          if (ACTIVE_AMP)
-                          {
-                            //L-OUT
-                            *ptrOut++ = (audioOutValue*k) * (MAIN_VOL_L / 100);
-                          }
-                          else
-                          {
-                              *ptrOut++ = 0;
-                          }
-                          
-                            
-                      }            
-
+                        //L-OUT (Speaker channel)
+                        *ptrOut++ = (audioOutValue*k) * (MAIN_VOL_L / 100);
+                      }
+                      else
+                      {
+                        *ptrOut++ = 0;
+                      }
+                      // }            
                   }
 
                   // Volcamos el output en el buffer de salida
+                  // esto es necesario que esté aqui porque si no la captura no se lleva a cabo.
+                  // a priori no tiene sentido alguno ya que no es necesario para la interpretacion de los datos
+                  // pero algo debe ocurrir indirectamente con el buffer de audio, que mejora la captura de datos
                   kitStream.write(bufferOut, lenSamplesCaptured);                 
               }
               else
