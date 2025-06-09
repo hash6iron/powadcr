@@ -2554,12 +2554,24 @@ class HMI
           SCHMITT_AMP = valAmp;
           logln("Amplification value=" + String(SCHMITT_AMP));
         } 
-        else if (strCmd.indexOf("OFS=") != -1) 
+        else if (strCmd.indexOf("IVO=") != -1) 
         {
           //Cogemos el valor
-          PULSE_OFFSET = myNex.readNumber("menuAudio3.offset.val");;
-          logln("Offset value=" + String(PULSE_OFFSET));
-        }                        
+          uint8_t buff[8];
+          strCmd.getBytes(buff, 7);
+          int valInVol = (int)buff[4];
+          IN_REC_VOL = valInVol/100.0; // Valor en %
+          logln("Input rec gain=" + String(IN_REC_VOL));
+          // Ajustamos el input gain
+          kitStream.setInputVolume(IN_REC_VOL); // Ajustamos el volumen de entrada al 50%          
+        } 
+        //IN_REC_VOL
+        // else if (strCmd.indexOf("OFS=") != -1) 
+        // {
+        //   //Cogemos el valor
+        //   PULSE_OFFSET = myNex.readNumber("menuAudio3.offset.val");;
+        //   logln("Offset value=" + String(PULSE_OFFSET));
+        // }                        
         // Habilitar terminadores para forzar siguiente pulso a HIGH
         else if (strCmd.indexOf("TER=") != -1) 
         {
@@ -2652,8 +2664,8 @@ class HMI
               EN_SCHMITT_CHANGE = false;
           }
 
-          //logln("");
-          //logln("Threshold enable=" + String(EN_SCHMITT_CHANGE));
+          logln("");
+          logln("Threshold enable=" + String(EN_SCHMITT_CHANGE));
 
         }
         // Enable MIC inversion
@@ -2666,15 +2678,15 @@ class HMI
           //
           if (valEn==1)
           {
-              EN_MIC_INVERSION = true;
+              EN_EAR_INVERSION = true;
           }
           else
           {
-            EN_MIC_INVERSION = false;
+            EN_EAR_INVERSION = false;
           }
 
-          //logln("");
-          //logln("Threshold enable=" + String(EN_SCHMITT_CHANGE));
+          logln("");
+          logln("Enable EAR inversion=" + String(EN_SCHMITT_CHANGE));
 
         }        
         // Mutea la salida amplificada
