@@ -162,13 +162,13 @@ How firmware is loaded in TJC LCD?
 
 Using powadcr recorder with modern and classic 8-bit machines
 -----
-**Classic machines. ZX Spectrum.
+## Classic machines. ZX Spectrum.
 For this machine series, ZX Spectrum 16K, 48K, +, +2, +3 take into account that powadcr recorder uses a range between 0 to 3.3v then is needed to atenuate the audio output from ZX Spectrum classic version.
 Then:
 - You can use a tipical R circuit or audio amplifier (that permit adjust volumen signal from zero)
 - The goal is test several volumen settings in the input signal until powadcr begins to recognize wave, but from zero.
 
-**Modern machines. ESPectrum (lilygo) , N-Go, etc.
+## Modern machines. ESPectrum (lilygo) , N-Go, etc.
 Is possible to connect directly anyway check before the output power in order to know wave characteristic.
 - ESPectrum can connecto directly without adaptation circuit.
 - N-Go needs a special cable to get the output channel (+3 output) to stereo jack for powadcr (you can repeat the output channel in both left/right channels of the stereo jack or only get left channel and right to ground)
