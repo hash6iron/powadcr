@@ -1104,6 +1104,10 @@ class ZXProcessor
                 delay(5000);
             }
             _hmi.writeString("g0.txt=\"Press EJECT to select a file or REC\"");
+            STOP = true;
+            PLAY = false;
+            PAUSE = false;
+            STOP_OR_PAUSE_REQUEST = false;            
         }
 
         // Constructor
