@@ -73,7 +73,20 @@ In this section we are going to describe parts to be needed to assemble the Powa
 Ports of powadcr
 -----
 ![20250530_014338](https://github.com/user-attachments/assets/3b99fdb7-2cc3-438a-9fb3-e441f770584a)
-  
+
+Before assembly powadcr. Audiokit hacking.
+-----
+<b>Disassemble mics from audiokit ESP32 board</b>
+You need to remove both microphones from the Audiokit board. How do I do this?
+
+- An easier way: with pliers and pull up (recomended)
+- Other way, unsoldering both, and conect pinout towards ES8388 to ground.
+
+See image below.
+  <p align="center">
+  <img src="/doc/mics.png" />
+  </p>
+
 How PowaDCR parts are connected?
 -----
 <b>LCD Screen connection</b>
