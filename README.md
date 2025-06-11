@@ -80,9 +80,8 @@ Before assembly powadcr. Audiokit hacking.
 You need to remove both microphones from the Audiokit board. How do I do this?
 
 - An easier way: with pliers and pull up (recomended)
-- Other way, unsoldering both, and conect pinout towards ES8388 to ground.
+- Other way, unsoldering both, and conect pinout towards ES8388 to ground (See image below)
 
-See image below.
   <p align="center">
   <img src="/doc/mics.png" />
   </p>
