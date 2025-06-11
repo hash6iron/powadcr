@@ -1711,6 +1711,8 @@ void MediaPlayer(bool isWav = false) {
     sample_rate_t osr = 44100;
     //
     TOTAL_BLOCKS = totalFilesIdx + 1;
+    logln("Total blocks: " + String(TOTAL_BLOCKS));
+
     BLOCK_SELECTED = source.index() + 1; // Para mostrar el bloque seleccionado en la pantalla
 
     // Esto lo hacemos para poder abrir el block browser sin haber pulsado PLAY.
@@ -1892,7 +1894,7 @@ void MediaPlayer(bool isWav = false) {
             if (FFWIND) 
             {
               //currentIdx = source.index() + 1;
-              if ((source.index() + 1) >= source.size())
+              if ((source.index() + 1) >= (TOTAL_BLOCKS-1))
               {
                 source.selectStream(0);
               }
@@ -1919,23 +1921,6 @@ void MediaPlayer(bool isWav = false) {
               }
             }
 
-            // delay(250);
-            // if (PLAY)
-            // {
-            //   currentIdx = source.index();
-            //   player.begin(currentIdx);
-            //   delay(250);
-            //   fileSize = getStreamfileSize(source.toStr());
-                
-            //   //            
-            //   AudioInfo info = kitStream.defaultConfig();
-            //   info.sample_rate = decoder.audioInfo().sample_rate;
-            //   kitStream.setAudioInfo(info);
-  
-            //   // Esto lo hacemos para indicar el sampling rate del reproductor
-            //   updateSamplingRateIndicator(decoder.audioInfo().sample_rate, decoder.audioInfo().bits_per_sample, isWav);               
-            // }
-
             // Control de fin de lista
             if (fileread >= fileSize) 
             {
@@ -1955,7 +1940,7 @@ void MediaPlayer(bool isWav = false) {
             }
             else
             {
-              if ((source.index() + 1) >= (TOTAL_BLOCKS))
+              if ((source.index() + 1) > (TOTAL_BLOCKS))
               {
                     BLOCK_SELECTED = 0;
                     source.selectStream(0);  
@@ -1980,6 +1965,7 @@ void MediaPlayer(bool isWav = false) {
         }
         else if ((FFWIND || RWIND) && was_pressed_wd)
         {
+          // Tras despulsar Avance rapido o Retroceso rapido
           was_pressed_wd = false;
           //
           KEEP_FFWIND = false;
@@ -1997,6 +1983,7 @@ void MediaPlayer(bool isWav = false) {
           fast_wind_status = 0;  
         }
    
+        // Avance rapido y retroceso rapido
         if (KEEP_FFWIND) 
         {
             if (KEEP_FFWIND && ((source.index() + 1) <= TOTAL_BLOCKS))
@@ -2909,11 +2896,25 @@ void setFWIND()
     BLOCK_SELECTED++;
   }
 
-  if (BLOCK_SELECTED > (TOTAL_BLOCKS - 1))
+
+  if(TYPE_FILE_LOAD != "TAP")
+  { 
+    // Para las estructuras TZX, CDT y TSX
+    if (BLOCK_SELECTED > (TOTAL_BLOCKS - 1))
+    {
+        BLOCK_SELECTED = 1;
+        isGroupStart();    
+    }
+  }    
+  else
   {
-    BLOCK_SELECTED = 1;
-    isGroupStart();
+    // Para el fichero TAP
+    if (BLOCK_SELECTED > (TOTAL_BLOCKS - 2))
+    {
+        BLOCK_SELECTED = 0;
+    }
   }
+  
 
   if (TYPE_FILE_LOAD != "TAP")
   {
@@ -2963,10 +2964,22 @@ void setRWIND()
     BLOCK_SELECTED--;
   }
 
-  if (BLOCK_SELECTED < 1)
+  // Para las estructuras TZX, CDT y TSX
+  if(TYPE_FILE_LOAD != "TAP")
+  {   
+    if (BLOCK_SELECTED < 1)
+    {
+      BLOCK_SELECTED = (TOTAL_BLOCKS - 1);
+      isGroupEnd();    
+    }
+  }
+  else
   {
-    BLOCK_SELECTED = (TOTAL_BLOCKS - 1);
-    isGroupEnd();
+    // Para el fichero TAP
+    if (BLOCK_SELECTED < 0)
+    {
+      BLOCK_SELECTED = (TOTAL_BLOCKS - 2);
+    }
   }
 
   if (TYPE_FILE_LOAD != "TAP")
@@ -3403,32 +3416,32 @@ void tapeControl()
       BB_UPDATE = false;
       BB_OPEN = false;
     }
-    else if (UPDATE)
-    {
-      // Esto se hace para solicitar una actualizacion con los parametros del TAP / TZX
-      // desde el HMI.
-      if (TYPE_FILE_LOAD != "TAP")
-      {
-        // Forzamos un refresco de los indicadores
-        hmi.setBasicFileInformation(myTZX.descriptor[BLOCK_SELECTED].ID,
-                                    myTZX.descriptor[BLOCK_SELECTED].group,
-                                    myTZX.descriptor[BLOCK_SELECTED].name,
-                                    myTZX.descriptor[BLOCK_SELECTED].typeName,
-                                    myTZX.descriptor[BLOCK_SELECTED].size,
-                                    myTZX.descriptor[BLOCK_SELECTED].playeable);
-      }
-      else
-      {
-        // Forzamos un refresco de los indicadores
-        hmi.setBasicFileInformation(0, 0, myTAP.descriptor[BLOCK_SELECTED].name,
-                                    myTAP.descriptor[BLOCK_SELECTED].typeName,
-                                    myTAP.descriptor[BLOCK_SELECTED].size,
-                                    myTAP.descriptor[BLOCK_SELECTED].playeable);
-      }
+    // else if (UPDATE)
+    // {
+    //   // Esto se hace para solicitar una actualizacion con los parametros del TAP / TZX
+    //   // desde el HMI.
+    //   if (TYPE_FILE_LOAD != "TAP")
+    //   {
+    //     // Forzamos un refresco de los indicadores
+    //     hmi.setBasicFileInformation(myTZX.descriptor[BLOCK_SELECTED].ID,
+    //                                 myTZX.descriptor[BLOCK_SELECTED].group,
+    //                                 myTZX.descriptor[BLOCK_SELECTED].name,
+    //                                 myTZX.descriptor[BLOCK_SELECTED].typeName,
+    //                                 myTZX.descriptor[BLOCK_SELECTED].size,
+    //                                 myTZX.descriptor[BLOCK_SELECTED].playeable);
+    //   }
+    //   else
+    //   {
+    //     // Forzamos un refresco de los indicadores
+    //     hmi.setBasicFileInformation(0, 0, myTAP.descriptor[BLOCK_SELECTED].name,
+    //                                 myTAP.descriptor[BLOCK_SELECTED].typeName,
+    //                                 myTAP.descriptor[BLOCK_SELECTED].size,
+    //                                 myTAP.descriptor[BLOCK_SELECTED].playeable);
+    //   }
 
-      hmi.updateInformationMainPage(true);
-      UPDATE = false;
-    }
+    //   hmi.updateInformationMainPage(true);
+    //   UPDATE = false;
+    // }
     else if (EJECT && !STOP_OR_PAUSE_REQUEST)
     {
       TAPESTATE = 0;
@@ -3513,32 +3526,32 @@ void tapeControl()
       BB_UPDATE = false;
       BB_OPEN = false;
     }
-    else if (UPDATE)
-    {
-      // Esto se hace para solicitar una actualizacion con los parametros del TAP / TZX
-      // desde el HMI.
-      if (TYPE_FILE_LOAD != "TAP")
-      {
-        // Forzamos un refresco de los indicadores
-        hmi.setBasicFileInformation(myTZX.descriptor[BLOCK_SELECTED].ID,
-                                    myTZX.descriptor[BLOCK_SELECTED].group,
-                                    myTZX.descriptor[BLOCK_SELECTED].name,
-                                    myTZX.descriptor[BLOCK_SELECTED].typeName,
-                                    myTZX.descriptor[BLOCK_SELECTED].size,
-                                    myTZX.descriptor[BLOCK_SELECTED].playeable);
-      }
-      else
-      {
-        // Forzamos un refresco de los indicadores
-        hmi.setBasicFileInformation(0, 0, myTAP.descriptor[BLOCK_SELECTED].name,
-                                    myTAP.descriptor[BLOCK_SELECTED].typeName,
-                                    myTAP.descriptor[BLOCK_SELECTED].size,
-                                    myTAP.descriptor[BLOCK_SELECTED].playeable);
-      }
+    // else if (UPDATE)
+    // {
+    //   // Esto se hace para solicitar una actualizacion con los parametros del TAP / TZX
+    //   // desde el HMI.
+    //   if (TYPE_FILE_LOAD != "TAP")
+    //   {
+    //     // Forzamos un refresco de los indicadores
+    //     hmi.setBasicFileInformation(myTZX.descriptor[BLOCK_SELECTED].ID,
+    //                                 myTZX.descriptor[BLOCK_SELECTED].group,
+    //                                 myTZX.descriptor[BLOCK_SELECTED].name,
+    //                                 myTZX.descriptor[BLOCK_SELECTED].typeName,
+    //                                 myTZX.descriptor[BLOCK_SELECTED].size,
+    //                                 myTZX.descriptor[BLOCK_SELECTED].playeable);
+    //   }
+    //   else
+    //   {
+    //     // Forzamos un refresco de los indicadores
+    //     hmi.setBasicFileInformation(0, 0, myTAP.descriptor[BLOCK_SELECTED].name,
+    //                                 myTAP.descriptor[BLOCK_SELECTED].typeName,
+    //                                 myTAP.descriptor[BLOCK_SELECTED].size,
+    //                                 myTAP.descriptor[BLOCK_SELECTED].playeable);
+    //   }
 
-      hmi.updateInformationMainPage(true);
-      UPDATE = false;
-    }
+    //   hmi.updateInformationMainPage(true);
+    //   UPDATE = false;
+    // }
     else
     {
       TAPESTATE = 10;
@@ -3945,10 +3958,43 @@ void tapeControl()
     break;
 
   default:
-#ifdef DEBUGMODE
-    logAlert("Tape state unknow.");
-#endif
+    #ifdef DEBUGMODE
+        logAlert("Tape state unknow.");
+    #endif
+
     break;
+  }
+
+  // Actualizamos el HMI - indicadores
+  if (UPDATE)
+  {
+    if (TYPE_FILE_LOAD != "TAP")
+    {
+      // Forzamos un refresco de los indicadores para TZX, CDT y TSX
+      hmi.setBasicFileInformation(myTZX.descriptor[BLOCK_SELECTED].ID,
+                                  myTZX.descriptor[BLOCK_SELECTED].group,
+                                  myTZX.descriptor[BLOCK_SELECTED].name,
+                                  myTZX.descriptor[BLOCK_SELECTED].typeName,
+                                  myTZX.descriptor[BLOCK_SELECTED].size,
+                                  myTZX.descriptor[BLOCK_SELECTED].playeable);
+    }
+    else
+    {
+      // Forzamos un refresco de los indicadores para TAP
+      hmi.setBasicFileInformation(0, 0, myTAP.descriptor[BLOCK_SELECTED].name,
+                                  myTAP.descriptor[BLOCK_SELECTED].typeName,
+                                  myTAP.descriptor[BLOCK_SELECTED].size,
+                                  true);
+    }
+  
+    hmi.updateInformationMainPage(true);  
+    UPDATE = false;    
+  }  
+
+  if (START_FFWD_ANIMATION)
+  {
+    rewindAnimation(1);  
+    START_FFWD_ANIMATION = false;  
   }
 }
 
@@ -4592,8 +4638,11 @@ void setup()
   showOption("tape.progressBlock.val","0");
   showOption("tape.progressTotal.val","0");
 
+  // --------------------------------------------------------------------------
+  //
   // Cargamos la configuracion del HMI desde la particion NVS
-  // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  //
+  // --------------------------------------------------------------------------
   LAST_MESSAGE = "Loading HMI settings.";
 
   loadHMICfg();
@@ -4620,6 +4669,13 @@ void setup()
     hmi.writeString("menuAudio.volL.val=" + String(MAIN_VOL_L));
     hmi.writeString("menuAudio.volLevel.val=" + String(MAIN_VOL_L));    
   }
+
+  if (EN_SPEAKER)
+  {
+    // Actualizamos el HMI
+    showOption("menuAudio.enSpeak.val",String(EN_SPEAKER));
+  }
+
   // VOL_LIMIT
   showOption("menuAudio.volLimit.val",String(VOL_LIMIT_HEADPHONE));
   // Volumen sliders

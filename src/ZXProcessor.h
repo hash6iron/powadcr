@@ -1067,38 +1067,43 @@ class ZXProcessor
                 result+=2*chn;
             }
 
+
+
             return result;            
         }
 
         void samplingtest(float samplingrate)
         {
-            // Se genera un pulso cuadrado de T = 1.00015s
-            // estereo, 16 bits a 44.1KHz
-            //AudioInfo info(44100, 2, 16);
-            int ss = kitStream.audioInfo().sample_rate;
-            int ch = kitStream.audioInfo().channels;
-            uint8_t buffer[ss*2*ch];
-            int16_t *samples = (int16_t*) buffer;
+            // Se genera un pulso de tono guia
+            kitStream.setPAPower(ACTIVE_AMP);
+            kitStream.setVolume(MAIN_VOL / 100);
 
-            // Custom fill array 8 bits buffer
-            size_t ssignal = createTestSignal(buffer,ss,30000);
+            logln("Waiting for test");
             
-            // Output
-            // ResampleStream out(kitStream);
-            // out.setTargetSampleRate(samplingrate);
-            // out.begin();
+            // volvemos a la pagina de menu
+            _hmi.writeString("page tape0");
 
+            STOP = false;
+            _hmi.writeString("g0.txt=\"Wait ...\"");
+            delay(5000);
+            logln("Starting test");
+            _hmi.writeString("g0.txt=\"Test signal playing. Press STOP for end\"");
+            // Generamos un tono de prueba
             while (!STOP)
             {
-                kitStream.write(buffer, ssignal);
-                delay(500);
-            }
+                logln("Playing test 1.");
+                pilotTone(DPILOT_LEN,DPULSES_DATA);
+                logln("End test signal");
 
-            // if (OUT_TO_WAV)
-            // {    
-            //     encoderOutWAV.write(buffer, sizeof(int16_t));
-            //     encoderOutWAV.write(buffer, sizeof(int16_t));
-            // }
+                delay(2500);
+
+                logln("Playing test 2.");
+                pilotTone(DPILOT_LEN/4,DPULSES_DATA*4);
+                logln("End test signal");
+
+                delay(5000);
+            }
+            _hmi.writeString("g0.txt=\"Press EJECT to select a file or REC\"");
         }
 
         // Constructor
