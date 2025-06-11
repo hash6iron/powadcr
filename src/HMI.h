@@ -1416,6 +1416,7 @@ class HMI
               }
   
               UPDATE = true;
+              START_FFWD_ANIMATION = true;
             }
 
         }
@@ -2732,6 +2733,28 @@ class HMI
           saveHMIcfg("MAMopt");
           //logln("Mute enable=" + String(EN_STEREO));
         }
+        // Habilita el Speaker
+        else if (strCmd.indexOf("SPK=") != -1) 
+        {
+          //Cogemos el valor
+          uint8_t buff[8];
+          strCmd.getBytes(buff, 7);
+          int valEn = (int)buff[4];
+          //
+          if (valEn==1)
+          {
+              EN_SPEAKER = true;
+          }
+          else
+          {
+              EN_SPEAKER = false;
+          }
+
+          // Almacenamos en NVS
+          saveHMIcfg("SPKopt");
+          //logln("Speaker enable=" + String(EN_SPEAKER));
+        }
+        
         // Enable MIC left channel - Option
         else if (strCmd.indexOf("EMI=") != -1) 
         {
@@ -3059,14 +3082,18 @@ class HMI
           {
             // Play auto-stop
             writeString("tape.playType.txt=\"*\"");
+            writeString("tape0.playType.txt=\"*\"");
             writeString("tape.playType.y=3");
+            writeString("tape0.playType.y=3");
             writeString("doevents");
           }
           else
           {
             // Play continuo
             writeString("tape.playType.txt=\"C\"");
+            writeString("tape0.playType.txt=\"C\"");
             writeString("tape.playType.y=6");
+            writeString("tape0.playType.y=6");
             writeString("doevents");
           }          
 

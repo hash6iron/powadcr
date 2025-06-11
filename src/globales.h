@@ -524,6 +524,7 @@ String FILE_PATH_SELECTED = "";
 bool FILE_DIR_OPEN_FAILED = false;
 bool FILE_BROWSER_OPEN = false;
 bool UPDATE = false;
+bool START_FFWD_ANIMATION = false;
 //bool FILE_BROWSER_SEARCHING = false;
 bool FB_READING_FILES = false;
 bool FB_CANCEL_READING_FILES = false;
@@ -598,6 +599,7 @@ double MAX_MAIN_VOL_R = 1 * MAIN_VOL_FACTOR;
 double MAX_MAIN_VOL_L = 1 * MAIN_VOL_FACTOR;
 int EN_STEREO = 0;
 bool ACTIVE_AMP = false;
+bool EN_SPEAKER = false;
 bool wasHeadphoneDetected = false;
 bool wasHeadphoneAmpDetected = false;
 bool preparingTestInOut = false;
@@ -634,6 +636,7 @@ ConfigEntry configEntries[] =
   {"EQMopt", CONFIG_TYPE_FLOAT, &EQ_MID},
   {"EQLopt", CONFIG_TYPE_FLOAT, &EQ_LOW},
   {"PLEopt", CONFIG_TYPE_BOOL, &PWM_POWER_LED},
+  {"SPKopt", CONFIG_TYPE_BOOL, &EN_SPEAKER},
 };
 
 static inline void erase_cntrl(std::string &s) 
