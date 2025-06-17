@@ -306,10 +306,19 @@ class ZXProcessor
 
         void createPulse(int width, int bytes, uint16_t sample_R, uint16_t sample_L)
         {
-                size_t result = 0;                
-                uint8_t buffer[bytes+4];            
+                size_t result = 0;     
+                // int toneAdj = (int)(TONE_ADJUSTMENT_ZX_SPECTRUM + 1.0);           
+                // uint8_t buffer[bytes+4+toneAdj];            
+                uint8_t buffer[bytes+4]; 
                 int16_t *ptr = (int16_t*)buffer;
                 int chn = channels;        
+
+                // width += TONE_ADJUST; // Ajustamos el ancho del pulso para que sea correcto
+
+                // if(width < 1)
+                // {
+                //     width=1;
+                // }
 
                 for (int j=0;j<width;j++)
                 {
@@ -386,7 +395,7 @@ class ZXProcessor
                 sample_L = amp * (MAIN_VOL_L / 100) * (MAIN_VOL / 100);
             }
 
-            bytes = samples * 2 * channels;
+            bytes = (int)samples * 2 * channels;
             // Generamos la onda
             createPulse(samples,bytes,sample_R,sample_L);
 
@@ -453,7 +462,7 @@ class ZXProcessor
             DEBUG_AMP_L = sample_L;
           
             // Definiciones el número samples para el splitter
-            int minFrame = 256;
+            int minFrame = MIN_FRAME_FOR_SILENCE_PULSE_GENERATION;
  
             // Si el semi-pulso tiene un numero 
             // menor de muestras que el minFrame, entonces
@@ -470,7 +479,7 @@ class ZXProcessor
                     // log(" --> T1:  " + String(T1));
                 #endif 
                 // Definimos el tamaño del buffer
-                bytes = samples * 2 * channels;
+                bytes = (int)samples * 2 * channels;
                 // Generamos la onda
                 createPulse(samples,bytes,sample_R,sample_L);
             }
@@ -797,7 +806,7 @@ class ZXProcessor
                 #endif
 
                 //insertamos el error de silencio calculado 
-                insertSamplesError(ACU_ERROR,true);
+                insertSamplesError(ACU_ERROR,true);   
 
             }       
         }
@@ -1046,31 +1055,29 @@ class ZXProcessor
           _hmi = hmi;
         }
 
-        size_t createTestSignal(uint8_t *buffer, int samples, int amplitude)
-        {
+        // size_t createTestSignal(uint8_t *buffer, int samples, int amplitude)
+        // {
 
-            // Procedimiento para genera un pulso 
-            int chn = channels;
-            size_t result = 0;
+        //     // Procedimiento para genera un pulso 
+        //     int chn = channels;
+        //     size_t result = 0;
             
-            int16_t *ptr = (int16_t*)buffer;
+        //     int16_t *ptr = (int16_t*)buffer;
             
-            int16_t sample_L = amplitude;
-            int16_t sample_R = amplitude;
+        //     int16_t sample_L = amplitude;
+        //     int16_t sample_R = amplitude;
 
-            for (int j=0;j<samples;j++)
-            {
-                //R-OUT
-                *ptr++ = sample_R;
-                //L-OUT
-                *ptr++ = sample_L;
-                result+=2*chn;
-            }
+        //     for (int j=0;j<samples;j++)
+        //     {
+        //         //R-OUT
+        //         *ptr++ = sample_R;
+        //         //L-OUT
+        //         *ptr++ = sample_L;
+        //         result+=2*chn;
+        //     }
 
-
-
-            return result;            
-        }
+        //     return result;            
+        // }
 
         void samplingtest(float samplingrate)
         {
