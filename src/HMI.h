@@ -2535,7 +2535,20 @@ class HMI
           EQ_CHANGE = true;   
           //logln("EQ LOW: " + String(EQ_LOW)); 
           saveHMIcfg("EQLopt");
-        }                      
+        }      
+        else if (strCmd.indexOf("TON=") != -1) 
+        {
+          //Cogemos el valor
+          uint8_t buff[8];
+          strCmd.getBytes(buff, 7);
+          int valVol = (int)buff[4];
+
+          // Le cambiamos el signo para que cuando seleccionemos -1 sea bajar tono en vez de quitar una muestra que es todo lo contrario (aumentar frecuencia)
+          // y lo mismo con el +1
+          TONE_ADJUST = (-210)*(TONE_ADJUSTMENT_ZX_SPECTRUM + (valVol-TONE_ADJUSTMENT_ZX_SPECTRUM_LIMIT));         
+          logln("TONE: " + String(TONE_ADJUST) + " Hz"); 
+          //saveHMIcfg("EQLopt");
+        }                          
         // Devuelve el % de filtrado aplicado en pantalla. Filtro del recording
         else if (strCmd.indexOf("THR=") != -1) 
         {
@@ -3548,9 +3561,64 @@ class HMI
 
       void updateInformationMainPage(bool FORZE_REFRESH = false) 
       {            
+          int blType = 0;
+          String blName = "";
           // Para el caso de los players, no se usa esto.
           if (TYPE_FILE_LOAD != "MP3" && TYPE_FILE_LOAD != "WAV")
           {
+                if ((STOP || PAUSE) && !REC)
+                {
+                  PROGRAM_NAME = FILE_LOAD;
+                }
+                else
+                {
+                    if (PLAY)
+                    {
+                        if (TYPE_FILE_LOAD == "TAP")
+                        {
+                          blName = myTAP.descriptor[BLOCK_SELECTED].name;
+                          blType = myTAP.descriptor[BLOCK_SELECTED].type;
+                        }
+                        else
+                        {
+
+                          logln("REC mode" + String(REC));
+                          blName = myTZX.descriptor[BLOCK_SELECTED].name;
+                          blType = myTZX.descriptor[BLOCK_SELECTED].type;
+                        }
+
+                        // Si no hay nombre, ponemos "..."
+                        blName.trim();
+                        
+                        if (blName != "")
+                        {
+                            PROGRAM_NAME = blName;
+
+                            if (blType == 1)
+                            {
+                              PROGRAM_NAME = "BYTE: " + PROGRAM_NAME;
+                              LAST_PROGRAM_NAME = PROGRAM_NAME;
+                            }
+                            else if (blType == 7)
+                            {
+                              // Screen
+                              PROGRAM_NAME = "BYTE: " + PROGRAM_NAME;
+                              LAST_PROGRAM_NAME = PROGRAM_NAME;
+                            }
+                            else if (blType == 0)
+                            {
+                              PROGRAM_NAME = "PROGRAM: " + PROGRAM_NAME;
+                              LAST_PROGRAM_NAME = PROGRAM_NAME;
+                            }                       
+                        }
+                        else
+                        {
+                            // Si no hay nombre, ponemos "..."
+                            PROGRAM_NAME = LAST_PROGRAM_NAME + " [code]";
+                        }       
+                      }                                
+                }                  
+
                 if (PLAY)
                 {
                   if (CURRENT_PAGE == 3)

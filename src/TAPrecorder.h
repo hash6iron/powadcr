@@ -830,10 +830,10 @@ class TAPrecorder
           // akit.setAudioInfo(new_sr);      
           // Cambiamos el sampling rate en el HW
           AudioInfo new_sr = kitStream.defaultConfig();
-          new_sr.sample_rate = STANDARD_SR_ZX_SPECTRUM;
+          new_sr.sample_rate = STANDARD_SR_REC_ZX_SPECTRUM;
           kitStream.setAudioInfo(new_sr);   
           // Indicamos
-          _hmi.writeString("tape.lblFreq.txt=\"" + String(44) + "KHz\"" );
+          _hmi.writeString("tape.lblFreq.txt=\"" + String(int(STANDARD_SR_REC_ZX_SPECTRUM / 1000)) + "KHz\"" );
 
           //strcpy(header.name,"noname");
           unsigned long progress_millis = 0;
@@ -1436,12 +1436,14 @@ class TAPrecorder
               errorInDataRecording = true;
               // Indicamos que la grabaci'on tenia errores en el ultimo bloque
               // y no es completa
-              PROGRAM_NAME = String(newFileName) + " [+ERR]";
+              FILE_LOAD = String(newFileName);
+              //PROGRAM_NAME = String(newFileName);
           }
           else
           {
               // Pasamos el nombre para mostrarlo arriba en el indicador.
-              PROGRAM_NAME = String(newFileName);            
+              FILE_LOAD = String(newFileName);
+              //PROGRAM_NAME = String(newFileName);            
           }
 
           // Ahora lo cargamos en el tape por si quiero reproducir directamente

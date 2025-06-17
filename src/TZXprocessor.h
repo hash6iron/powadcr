@@ -137,18 +137,35 @@ class TZXprocessor
         // Extraemos el nombre del programa desde un ID10 - Standard block
         for (int n=2;n<12;n++)
         {   
-            if (header[n] < 32)
+            if (header[n] <= 32)
             {
               // Los caracteres por debajo del espacio 0x20 se sustituyen
               // por " " ó podemos poner ? como hacía el Spectrum.
               prgName[n-2] = ' ';
             }
+            if (header[n] == 96)
+            {
+              prgName[n-2] = '£'; // El caracter 96 es la libra esterlina
+            }
+            if (header[n] == 126)
+            {
+              prgName[n-2] = '~'; // El caracter 126 es la virgulilla
+            }     
+            if (header[n] == 127)
+            {
+              prgName[n-2] = '©'; //  El caracter 127 es el copyright
+            }   
+            if (header[n] > 127)
+            {
+              prgName[n-2] = ' '; // Los caracteres por encima del espacio 0x7F se sustituyen
+            }                               
             else
             {
               prgName[n-2] = (char)header[n];
             }
         }
 
+        logln("Program name: " + String(prgName));
 
         // Pasamos la cadena de caracteres
         return prgName;
@@ -411,45 +428,50 @@ class TZXprocessor
             _myTZX.descriptor[currentBlock].timming.pilot_num_pulses = DPULSES_HEADER;
             
             // Es una cabecera
+            // 0 - program
+            // 1 - Number array
+            // 2 - Char array
+            // 3 - Code file                     
             if (typeBlock == 0)
             {
                 // Es una cabecera PROGRAM: BASIC
               _myTZX.descriptor[currentBlock].header = true;
               _myTZX.descriptor[currentBlock].type = 0;
 
-              if (!PROGRAM_NAME_DETECTED)
-              {
-                  uint8_t* block = (uint8_t*)ps_calloc(19+1,sizeof(uint8_t));
-                  getBlock(mFile,block,_myTZX.descriptor[currentBlock].offsetData,19);
-                  gName = getNameFromStandardBlock(block);
-                  PROGRAM_NAME = String(gName);
-                  PROGRAM_NAME_DETECTED = true;
-                  free(block);
-                  strncpy(_myTZX.descriptor[currentBlock].name,gName,14);
-              }
-              else
-              {
-                strncpy(_myTZX.descriptor[currentBlock].name,_myTZX.name,14);
-              }
+              // if (!PROGRAM_NAME_DETECTED)
+              // {
+              uint8_t* block = (uint8_t*)ps_calloc(19+1,sizeof(uint8_t));
+              getBlock(mFile,block,_myTZX.descriptor[currentBlock].offsetData,19);
+              gName = getNameFromStandardBlock(block);
+              PROGRAM_NAME = String(gName);
+              LAST_PROGRAM_NAME = PROGRAM_NAME;
+              PROGRAM_NAME_DETECTED = true;
+              free(block);
+              strncpy(_myTZX.descriptor[currentBlock].name,gName,14);
+              // }
+              // else
+              // {
+              //   strncpy(_myTZX.descriptor[currentBlock].name,_myTZX.name,14);
+              // }
 
               // Almacenamos el nombre del bloque
               // 
-              
-
             }
             else if (typeBlock == 1)
             {
+                // Number ARRAY
                 _myTZX.descriptor[currentBlock].header = true;
-                _myTZX.descriptor[currentBlock].type = 0;
+                _myTZX.descriptor[currentBlock].type = 2;
             }
             else if (typeBlock == 2)
             {
+                // Char ARRAY
                 _myTZX.descriptor[currentBlock].header = true;
-                _myTZX.descriptor[currentBlock].type = 0;
+                _myTZX.descriptor[currentBlock].type = 4;
             }
             else if (typeBlock == 3)
             {
-
+              // BYTE o SCREEN (CODE)
               if (_myTZX.descriptor[currentBlock].lengthOfData == 6914)
               {
 
@@ -483,22 +505,22 @@ class TZXprocessor
 
             if (typeBlock == 3)
             {
-
+              // SCREEN
               if (_myTZX.descriptor[currentBlock].lengthOfData == 6914)
               {
                   _myTZX.descriptor[currentBlock].screen = true;
-                  _myTZX.descriptor[currentBlock].type = 3;
+                  _myTZX.descriptor[currentBlock].type = 7;
               }
               else
               {
                   // Es un bloque BYTE
-                  _myTZX.descriptor[currentBlock].type = 4;                
+                  _myTZX.descriptor[currentBlock].type = 1;                
               }
             }
             else
             {
                 // Es un bloque BYTE
-                _myTZX.descriptor[currentBlock].type = 4;
+                _myTZX.descriptor[currentBlock].type = 1;
             }            
         } 
 
@@ -2488,6 +2510,7 @@ class TZXprocessor
         BLOCK_SELECTED = 1;
         PROGRESS_BAR_BLOCK_VALUE = 0;
         PROGRESS_BAR_TOTAL_VALUE = 0;
+        PROGRAM_NAME_DETECTED = false;
     }
 
     void terminate()

@@ -37,7 +37,7 @@
 
 // Para Rolling releases - rDDMMYY.HHMM
 // Para versión estable - vX.Y
-#define VERSION "1.0r5.7.1"
+#define VERSION "1.0r5.8"
 #define MACHINE_ZX
 
 // Define sampling rate a 44.1KHz. En otro caso será a 32KHz
@@ -93,13 +93,28 @@
 #define DEFAULT_MP3_SAMPLING_RATE 44100
 // No se puede subir mas. Da problemas
 #define DEFAULT_WAV_SAMPLING_RATE 22050
-// Sampling rate adecuado para ZX Spectrum - Ajuste AZIMUT (Hz)
-#define STANDARD_SR_ZX_SPECTRUM 22200
-#define FAST_FORWARD_PER 0.02
-#define TIME_TO_FAST_FORWRD 2000 // 2 segs
-#define DELAY_ON_EACH_STEP_FAST_FORWARD 125 // 125ms
+// Sampling rate adecuado para ZX Spectrum - Ajuste AZIMUT (Hz) - 22200 Hz
+#define STANDARD_SR_ZX_SPECTRUM 21000 //22200   
+// Sampling rate adecuado para ZX Spectrum (recorder) - Ajuste AZIMUT (Hz) - 22200 Hz
+#define STANDARD_SR_REC_ZX_SPECTRUM 22200   
+// Porcentaje de avance rapido
+#define FAST_FORWARD_PER 0.02     
+// Demora en ms para saltar a avance super-rapido
+#define TIME_TO_FAST_FORWRD 2000
+// Pausa entre saltos de avance rápido en ms
+#define DELAY_ON_EACH_STEP_FAST_FORWARD 125
+// Tone adjustment for ZX Spectrum - Samples
+#define TONE_ADJUSTMENT_ZX_SPECTRUM 0.0
+#define TONE_ADJUSTMENT_ZX_SPECTRUM_LIMIT 5
 
-#define USE_ZX_SPECTRUM_SR 1 // Si se usa el sampling rate de ZX Spectrum (22.2KHz) para la grabación y reproducción de TAPs
+// ---------------------------------------------------------------------------------------------
+// NO COMENTAR SI SE ESTÁ USANDO 22200 Hz en otro caso hay que usar 44100 para recording
+// Si se usa el sampling rate de ZX Spectrum (22.2KHz) para la grabación y reproducción de TAPs
+#define USE_ZX_SPECTRUM_SR 1 
+//
+// ----------------------------------------------------------------------------------------------
+// Particion mas pequeña de un silencio
+#define MIN_FRAME_FOR_SILENCE_PULSE_GENERATION 32
 
 // TAP config.
 // ********************************************************************

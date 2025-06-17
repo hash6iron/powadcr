@@ -859,15 +859,15 @@ void WavRecording()
 
 }
 
-void pauseRecording()
-{
-  // Desconectamos la entrada para evitar interferencias
-  //setAudioOutput();
-  //waitingRecMessageShown = false;
-  REC = false;
-  LAST_MESSAGE = "Recording paused.";
-  //
-}
+// void pauseRecording()
+// {
+//   // Desconectamos la entrada para evitar interferencias
+//   //setAudioOutput();
+//   //waitingRecMessageShown = false;
+//   REC = false;
+//   LAST_MESSAGE = "Recording paused.";
+//   //
+// }
 
 void stopRecording()
 {
@@ -2139,9 +2139,11 @@ void playingFile()
   
   AudioInfo new_sr = kitStream.defaultConfig();
   // Por defecto
-  LAST_SAMPLING_RATE = SAMPLING_RATE;
-  SAMPLING_RATE = STANDARD_SR_ZX_SPECTRUM;
-  new_sr.sample_rate = STANDARD_SR_ZX_SPECTRUM;
+
+  LAST_SAMPLING_RATE = SAMPLING_RATE + TONE_ADJUST;
+  SAMPLING_RATE = STANDARD_SR_ZX_SPECTRUM + TONE_ADJUST;
+  new_sr.sample_rate = STANDARD_SR_ZX_SPECTRUM + TONE_ADJUST;
+
   kitStream.setAudioInfo(new_sr);      
   // Indicamos el sampling rate
   hmi.writeString("tape.lblFreq.txt=\"" + String(int(STANDARD_SR_ZX_SPECTRUM/1000)) + "KHz\"" );
@@ -2499,13 +2501,13 @@ void stopFile()
   tapeAnimationOFF();
 }
 
-void pauseFile()
-{
-  STOP = false;
-  PLAY = false;
-  PAUSE = true;
-  REC = false;
-}
+// void pauseFile()
+// {
+//   STOP = false;
+//   PLAY = false;
+//   PAUSE = true;
+//   REC = false;
+// }
 
 void ejectingFile()
 {
@@ -3649,7 +3651,7 @@ void tapeControl()
             }
             else
             {
-              PROGRAM_NAME = FILE_LOAD;
+              //PROGRAM_NAME = FILE_LOAD;
               hmi.writeString("name.txt=\"" + FILE_LOAD + "\"");
 
               LAST_MESSAGE = "File inside the TAPE.";
@@ -3875,13 +3877,16 @@ void tapeControl()
     if (REC)
     {
       //esp_task_wdt_reset();
-
+      // RECORDING_IN_PROGRESS = true;
+      // logln("REC mode - Recording in progress " + String(RECORDING_IN_PROGRESS));
       //recordingFile();
       while (!taprec.recording())
       {
         delay(1);
       }
 
+      // RECORDING_IN_PROGRESS = false;
+      // logln("REC mode - Recording in progress " + String(RECORDING_IN_PROGRESS));
       // Ha acabado con errores
       LAST_MESSAGE = "Stop recording";
       stopRecording();
@@ -4175,7 +4180,7 @@ void Task0code(void *pvParameters)
             {
               if (!ENABLE_ROTATE_FILEBROWSER)
               {
-                PROGRAM_NAME = FILE_LOAD.substring(posRotateName, posRotateName + windowNameLength);
+                  PROGRAM_NAME = FILE_LOAD.substring(posRotateName, posRotateName + windowNameLength);
               }
               else
               {
@@ -4217,7 +4222,22 @@ void Task0code(void *pvParameters)
           }
           else if (FILE_LOAD.length() <= windowNameLength && (TYPE_FILE_LOAD == "WAV" || TYPE_FILE_LOAD == "MP3"))
           {
-            hmi.writeString("name.txt=\"" + FILE_LOAD + "\"");
+            if (STOP)
+            {
+              hmi.writeString("name.txt=\"" + FILE_LOAD + "\"");
+            }
+            else
+            {
+                if (TYPE_FILE_LOAD == "TAP")
+                {
+                  PROGRAM_NAME = myTAP.descriptor[BLOCK_SELECTED].name;
+                }
+                else
+                {
+                  PROGRAM_NAME = myTZX.descriptor[BLOCK_SELECTED].name;
+                }
+                hmi.writeString("name.txt=\"" + PROGRAM_NAME + "\"");
+            }
           }
         }
 
@@ -4590,7 +4610,7 @@ void setup()
   // 22KHz
   hmi.writeString("menuAudio2.r3.val=1");
   //
-  SAMPLING_RATE = 22050;
+  SAMPLING_RATE = 22050;  // Por defecto 22050
 
   AudioInfo new_sr = kitStream.defaultConfig();
   new_sr.sample_rate = SAMPLING_RATE;
