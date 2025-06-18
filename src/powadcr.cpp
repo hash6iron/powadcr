@@ -4232,10 +4232,16 @@ void Task0code(void *pvParameters)
                 {
                   PROGRAM_NAME = myTAP.descriptor[BLOCK_SELECTED].name;
                 }
-                else
+                else if (TYPE_FILE_LOAD == "TZX" || TYPE_FILE_LOAD == "CDT" || TYPE_FILE_LOAD == "TSX")
                 {
                   PROGRAM_NAME = myTZX.descriptor[BLOCK_SELECTED].name;
                 }
+                else
+                {
+                  // Para MP3 y WAV
+                  PROGRAM_NAME = FILE_LOAD;
+                }
+                //
                 hmi.writeString("name.txt=\"" + PROGRAM_NAME + "\"");
             }
           }
