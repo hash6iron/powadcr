@@ -735,14 +735,14 @@ void WavRecording()
 
   AudioInfo new_sr = kitStream.defaultConfig();
   //
-  new_sr.sample_rate = DEFAULT_WAV_SAMPLING_RATE;
+  new_sr.sample_rate = DEFAULT_WAV_SAMPLING_RATE_REC;
   kitStream.setAudioInfo(new_sr);       
   // Indicamos
-  hmi.writeString("tape.lblFreq.txt=\"" + String(int(DEFAULT_WAV_SAMPLING_RATE/1000)) + "KHz\"" );
+  hmi.writeString("tape.lblFreq.txt=\"" + String(int(DEFAULT_WAV_SAMPLING_RATE_REC/1000)) + "KHz\"" );
 
   AudioInfo enc_sr = encoderOutWAV.defaultConfig();
   //
-  enc_sr.sample_rate = DEFAULT_WAV_SAMPLING_RATE;
+  enc_sr.sample_rate = DEFAULT_WAV_SAMPLING_RATE_REC;
   encoderOutWAV.setAudioInfo(enc_sr);
 
   MultiOutput cmulti;   
@@ -766,7 +766,7 @@ void WavRecording()
 
   AudioInfo ecfg = encoderOutWAV.defaultConfig();
   //
-  ecfg.sample_rate = DEFAULT_WAV_SAMPLING_RATE;
+  ecfg.sample_rate = DEFAULT_WAV_SAMPLING_RATE_REC;
   ecfg.channels = 2;
   ecfg.bits_per_sample = 16;
   encoderOutWAV.setAudioInfo(ecfg);   
@@ -1222,8 +1222,9 @@ void prepareOutputToWav()
 
     // Si es una copia de un TAPE llevara un FILE_LOAD pero,
     // si no, hay que generarlo
-    if (FILE_LOAD.length() < 1)
-    {
+    if (!PLAY_TO_WAV_FILE)
+    {   
+      // Generamos el nombre del fichero WAV SIEMPRE, cuando es grabación a WAV y no PLAY a WAV.
       char *cPath = (char *)ps_calloc(55, sizeof(char));
       getRandomFilenameWAV(cPath, wavfileBaseName);
       wavnamepath = String(cPath);
@@ -1231,13 +1232,22 @@ void prepareOutputToWav()
     }
     else
     {
-      wavnamepath = "/WAV/" + FILE_LOAD.substring(0, FILE_LOAD.length() - 4) + ".wav";
+      if (FILE_LOAD.length() > 0 && PLAY_TO_WAV_FILE)
+      {
+          // Cogemos el nombre del TAP/TZX
+          wavnamepath = "/WAV/" + FILE_LOAD.substring(0, FILE_LOAD.length() - 4) + ".wav";
+      }
+      else if (FILE_LOAD.length() < 1 && PLAY_TO_WAV_FILE)
+      {
+          // Cogemos un nombre nuevo porque no existe
+          FILE_LOAD = "rec_tape";
+          wavnamepath = "/WAV/" + FILE_LOAD.substring(0, FILE_LOAD.length() - 4) + ".wav";
+      }
     }
 
     // Pasamos la ruta del fichero
     REC_FILENAME = wavnamepath;
     
-
     strcpy(file_name, wavnamepath.c_str());  
     logln("Output to WAV: " + wavnamepath);
 
@@ -1268,11 +1278,13 @@ void prepareOutputToWav()
     {
       wavencodercfg.bits_per_sample = 8;
       wavencodercfg.channels = 1;
+      logln("WAv 8 bits - Mono");
     }
     else
     {
       wavencodercfg.bits_per_sample = 16;
       wavencodercfg.channels = 2;
+      logln("WAv 16 bits - Stereo");
     }
     // Inicializamos el encoder
     encoderOutWAV.begin(wavencodercfg);

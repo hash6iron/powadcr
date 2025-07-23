@@ -179,9 +179,8 @@ class ZXProcessor
 
             if (!forzeExit)
             {
-                kitStream.write(buffer, result);
                 //btstream.write(buffer, result);
-
+                kitStream.write(buffer, result);
                 if (OUT_TO_WAV)
                 {                
                     encoderOutWAV.write(buffer, result);
@@ -306,61 +305,34 @@ class ZXProcessor
 
         void createPulse(int width, int bytes, uint16_t sample_R, uint16_t sample_L)
         {
-                size_t result = 0;     
-                // int toneAdj = (int)(TONE_ADJUSTMENT_ZX_SPECTRUM + 1.0);           
-                // uint8_t buffer[bytes+4+toneAdj];            
-                uint8_t buffer[bytes+4]; 
-                int16_t *ptr = (int16_t*)buffer;
-                int chn = channels;        
+            size_t result = 0;          
+            uint8_t buffer[bytes+4]; 
+            int16_t *ptr = (int16_t*)buffer;
+            int chn = channels;        
 
-                // width += TONE_ADJUST; // Ajustamos el ancho del pulso para que sea correcto
-
-                // if(width < 1)
-                // {
-                //     width=1;
-                // }
-
-                for (int j=0;j<width;j++)
+            for (int j=0;j<width;j++)
+            {
+                if (stopOrPauseRequest())
                 {
-                    if (stopOrPauseRequest())
-                    {
-                        // Salimos
-                        return;
-                    }
-                                    
-                    //R-OUT
-                    *ptr++ = sample_R;
-                    //L-OUT
-                    *ptr++ = sample_L * EN_STEREO;
-                    //                        
-
-                    result+=2*chn;                    
-                }            
-
-                // Volcamos en el buffer
-                kitStream.write(buffer, result); 
-                if (OUT_TO_WAV)
-                {                
-                    encoderOutWAV.write(buffer, result);
+                    // Salimos
+                    return;
                 }
+                                
+                //R-OUT
+                *ptr++ = sample_R;
+                //L-OUT
+                *ptr++ = sample_L * EN_STEREO;
+                //                        
 
-                // Cambiamos el flanco con una XOR
-                // 0 ^ 1 = 1
-                // 1 ^ 1 = 0
-                // if (EDGE_EAR_IS == 1)
-                // {
-                //     EDGE_EAR_IS = 0;
-                // }
-                // else
-                // {
-                //     EDGE_EAR_IS = 1;
-                // }
+                result+=2*chn;                    
+            }            
 
-                //EDGE_EAR_IS ^= 1;
-                //EDGE_EAR_IS ^= 1;
-                
-                // if (INVERSETRAIN)
-                // {EDGE_EAR_IS = EDGE_EAR_IS ^ 1;}                           
+            // Volcamos en el buffer
+            kitStream.write(buffer, result);                    
+            if (OUT_TO_WAV)
+            {                
+                encoderOutWAV.write(buffer, result);
+            }
         }
 
         void sampleDR(int width, int amp)
