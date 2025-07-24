@@ -3045,11 +3045,13 @@ class HMI
           {
               // Habilita
               OUT_TO_WAV = true;
+              PLAY_TO_WAV_FILE = true;
           }
           else
           {
               // Deshabilita
               OUT_TO_WAV = false;
+              PLAY_TO_WAV_FILE = false;
           }
 
           #ifdef DEBUGMODE

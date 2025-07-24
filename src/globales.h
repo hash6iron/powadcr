@@ -296,6 +296,7 @@ bool NOT_CAPTURE_ID = false;
 // WAV record
 bool MODEWAV = false;
 bool OUT_TO_WAV = false;
+bool PLAY_TO_WAV_FILE = false;
 bool WAV_8BIT_MONO = false;
 bool disable_auto_media_stop = false;
 

@@ -37,7 +37,7 @@
 
 // Para Rolling releases - rDDMMYY.HHMM
 // Para versión estable - vX.Y
-#define VERSION "1.0r5.8.1"
+#define VERSION "1.0r5.8.2"
 #define MACHINE_ZX
 
 // Define sampling rate a 44.1KHz. En otro caso será a 32KHz
@@ -91,12 +91,15 @@
 // Frecuencia inicial de la SD
 #define SD_FRQ_MHZ_INITIAL 19
 #define DEFAULT_MP3_SAMPLING_RATE 44100
-// No se puede subir mas. Da problemas
-#define DEFAULT_WAV_SAMPLING_RATE 22050
 // Sampling rate adecuado para ZX Spectrum - Ajuste AZIMUT (Hz) - 22200 Hz
 #define STANDARD_SR_ZX_SPECTRUM 21000 //22200   
 // Sampling rate adecuado para ZX Spectrum (recorder) - Ajuste AZIMUT (Hz) - 22200 Hz
 #define STANDARD_SR_REC_ZX_SPECTRUM 22200   
+
+// No se puede subir mas. Da problemas
+#define DEFAULT_WAV_SAMPLING_RATE 22050
+#define DEFAULT_WAV_SAMPLING_RATE_REC 22050
+
 // Porcentaje de avance rapido
 #define FAST_FORWARD_PER 0.02     
 // Demora en ms para saltar a avance super-rapido
@@ -114,7 +117,7 @@
 //
 // ----------------------------------------------------------------------------------------------
 // Particion mas pequeña de un silencio
-#define MIN_FRAME_FOR_SILENCE_PULSE_GENERATION 32
+#define MIN_FRAME_FOR_SILENCE_PULSE_GENERATION 256
 
 // TAP config.
 // ********************************************************************
