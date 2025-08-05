@@ -1854,16 +1854,18 @@ class HMI
         else if (strCmd.indexOf("BPDOWN") != -1)
         {
           // Pagina arriba block browser
-          BB_PTR_ITEM += (MAX_BLOCKS_IN_BROWSER * 10);
-
-          if (BB_PTR_ITEM > TOTAL_BLOCKS - 1)
+          if (TOTAL_BLOCKS > MAX_BLOCKS_IN_BROWSER)
           {
-            BB_PTR_ITEM -= (MAX_BLOCKS_IN_BROWSER * 10);
-          }
-          
-          BB_PAGE_SELECTED = (BB_PTR_ITEM / MAX_BLOCKS_IN_BROWSER) + 1;
-          BB_UPDATE = true;
+            BB_PTR_ITEM += (MAX_BLOCKS_IN_BROWSER * 10);
 
+            if (BB_PTR_ITEM > TOTAL_BLOCKS - 1)
+            {
+              BB_PTR_ITEM = TOTAL_BLOCKS - MAX_BLOCKS_IN_BROWSER;
+            }
+            
+            BB_PAGE_SELECTED = (BB_PTR_ITEM / MAX_BLOCKS_IN_BROWSER) + 1;
+            BB_UPDATE = true;            
+          }
         }
         else if (strCmd.indexOf("BPUP") != -1)
         {
@@ -2283,6 +2285,15 @@ class HMI
           {
             LAST_MESSAGE = "Wait to finish the uploading process.";
           }
+
+          // *********************************************************************
+          //
+          // Solo esta de prueba. ELIMINAR!!!!
+          //
+          writeString("BBOK.val=1");
+          //
+          // *********************************************************************
+
 
         }   
         else if (strCmd.indexOf("REC") != -1) 
@@ -3022,6 +3033,8 @@ class HMI
           {
               // Habilita
               MODEWAV = true;
+              // Ambas no pueden estar habilitadas
+              PLAY_TO_WAV_FILE = false;
           }
           else
           {
@@ -3388,8 +3401,7 @@ class HMI
       
           // Esperamos a que todos los datos salientes se hayan enviado
           SerialHW.flush();
-
-      
+          // Enviamos el comando de inicio de datos
           SerialHW.write(0xff);
           SerialHW.write(0xff);
           SerialHW.write(0xff);
@@ -3405,7 +3417,9 @@ class HMI
           SerialHW.write(0xff);
           SerialHW.write(0xff);
           SerialHW.write(0xff);
-      
+          //
+          SerialHW.flush();
+
       }
       
       void writeStringBlock(String stringData) 
@@ -3413,31 +3427,38 @@ class HMI
           
           // Esperamos a que todos los datos salientes se hayan enviado
           SerialHW.flush();
-
+          //
           for (int i = 0; i < stringData.length(); i++) 
           {
             // Enviamos los datos
             SerialHW.write(stringData[i]);
           }
-    
+          //
+          SerialHW.flush();
       }      
 
       void write(String stringData)
       {
+          SerialHW.flush();
+          //
           for (int i = 0; i < stringData.length(); i++) 
           {
             // Enviamos los datos
             SerialHW.write(stringData[i]);
           }
+          //
+          SerialHW.flush();
       }
 
       void sendbin(char *data)
       {
+          SerialHW.flush();
           for (int i = 0; i < sizeof(data); i++) 
           {
             // Enviamos los datos
             SerialHW.write(data[i]);
           }
+          SerialHW.flush();
       }
 
       void setBasicFileInformation(int id, int group, char* name,char* typeName,int size, bool playeable)
@@ -4090,7 +4111,63 @@ class HMI
           return filePath; // Si no hay separador, devuelve la cadena completa
       }
 
-      void openBlockMediaBrowser(AudioSourceSDFAT source) 
+      // void openBlockMediaBrowserOld(AudioSourceSDFAT source) 
+      // {
+      //     // Rellenamos el browser con todos los bloques
+      //     int max = MAX_BLOCKS_IN_BROWSER;
+      //     int totalPages = 0;
+      
+      //     if (TOTAL_BLOCKS > max) {
+      //         max = MAX_BLOCKS_IN_BROWSER;
+      //     } else {
+      //         max = TOTAL_BLOCKS - 1;
+      //     }
+      
+      //     BB_PAGE_SELECTED = (BB_PTR_ITEM / MAX_BLOCKS_IN_BROWSER) + 1;
+      
+      //     // Construimos un bloque de datos para enviar con menos llamadas a writeString
+      //     String blockData = "";
+      
+      //     // Información general
+      //     blockData += "blocks.path.txt=\"" + HMI_FNAME + "\"\xff\xff\xff";
+      //     blockData += "blocks.totalBl.txt=\"" + String(TOTAL_BLOCKS - 1) + "\"\xff\xff\xff";
+      //     blockData += "blocks.bbpag.txt=\"" + String(BB_PAGE_SELECTED) + "\"\xff\xff\xff";
+      //     blockData += "blocks.size0.txt=\"SIZE[MB]\"\xff\xff\xff";
+      
+      //     double ctpage = (double)TOTAL_BLOCKS / (double)MAX_BLOCKS_IN_BROWSER;
+      //     totalPages = trunc(ctpage);
+      //     if ((TOTAL_BLOCKS % MAX_BLOCKS_IN_BROWSER != 0) && ctpage > 1) {
+      //         totalPages += 1;
+      //     }
+      //     blockData += "blocks.totalPag.txt=\"" + String(totalPages) + "\"\xff\xff\xff";
+      
+      //     // Información de cada bloque
+      //     for (int i = 1; i <= max; i++) {
+      //         if (i + BB_PTR_ITEM > TOTAL_BLOCKS - 1) {
+      //             // Los dejamos limpios pero sin información
+      //             blockData += "blocks.id" + String(i) + ".txt=\"\"\xff\xff\xff";
+      //             blockData += "blocks.data" + String(i) + ".txt=\"\"\xff\xff\xff";
+      //             blockData += "blocks.size" + String(i) + ".txt=\"\"\xff\xff\xff";
+      //             blockData += "blocks.name" + String(i) + ".txt=\"\"\xff\xff\xff";
+      //         } else {
+      //             // Apuntamos al item
+      //             source.setIndex(i + BB_PTR_ITEM - 1);
+      //             String name = source.toStr();
+      
+      //             // En otro caso metemos información
+      //             blockData += "blocks.id" + String(i) + ".txt=\"" + String(i + BB_PTR_ITEM) + "\"\xff\xff\xff";
+      //             blockData += "blocks.data" + String(i) + ".txt=\"" + getFileExtension(name) + "\"\xff\xff\xff";
+      //             blockData += "blocks.name" + String(i) + ".txt=\"" + name + "\"\xff\xff\xff";
+      //             blockData += "blocks.size" + String(i) + ".txt=\"" + String(source[i + BB_PTR_ITEM - 1].size / 1024 / 1024) + "\"\xff\xff\xff";
+      //         }
+      //     }
+      
+      //     // Enviamos todo el bloque de datos en una sola llamada
+      //     writeStringBlock(blockData);
+      // }
+
+
+      void openBlockMediaBrowser(tAudioList* source) 
       {
           // Rellenamos el browser con todos los bloques
           int max = MAX_BLOCKS_IN_BROWSER;
@@ -4108,36 +4185,36 @@ class HMI
           String blockData = "";
       
           // Información general
-          blockData += "blocks.path.txt=\"" + HMI_FNAME + "\"\xff\xff\xff";
-          blockData += "blocks.totalBl.txt=\"" + String(TOTAL_BLOCKS - 1) + "\"\xff\xff\xff";
-          blockData += "blocks.bbpag.txt=\"" + String(BB_PAGE_SELECTED) + "\"\xff\xff\xff";
-          blockData += "blocks.size0.txt=\"SIZE[MB]\"\xff\xff\xff";
+          blockData += "mp3browser.path.txt=\"" + HMI_FNAME + "\"\xff\xff\xff";
+          blockData += "mp3browser.totalBl.txt=\"" + String(TOTAL_BLOCKS - 1) + "\"\xff\xff\xff";
+          blockData += "mp3browser.bbpag.txt=\"" + String(BB_PAGE_SELECTED) + "\"\xff\xff\xff";
+          blockData += "mp3browser.size0.txt=\"SIZE[MB]\"\xff\xff\xff";
       
           double ctpage = (double)TOTAL_BLOCKS / (double)MAX_BLOCKS_IN_BROWSER;
           totalPages = trunc(ctpage);
           if ((TOTAL_BLOCKS % MAX_BLOCKS_IN_BROWSER != 0) && ctpage > 1) {
               totalPages += 1;
           }
-          blockData += "blocks.totalPag.txt=\"" + String(totalPages) + "\"\xff\xff\xff";
-      
+          blockData += "mp3browser.totalPag.txt=\"" + String(totalPages) + "\"\xff\xff\xff";
+
           // Información de cada bloque
           for (int i = 1; i <= max; i++) {
               if (i + BB_PTR_ITEM > TOTAL_BLOCKS - 1) {
                   // Los dejamos limpios pero sin información
-                  blockData += "blocks.id" + String(i) + ".txt=\"\"\xff\xff\xff";
-                  blockData += "blocks.data" + String(i) + ".txt=\"\"\xff\xff\xff";
-                  blockData += "blocks.size" + String(i) + ".txt=\"\"\xff\xff\xff";
-                  blockData += "blocks.name" + String(i) + ".txt=\"\"\xff\xff\xff";
+                  blockData += "mp3browser.id" + String(i) + ".txt=\"\"\xff\xff\xff";
+                  //blockData += "blocks.data" + String(i) + ".txt=\"\"\xff\xff\xff";
+                  //blockData += "mp3browser.size" + String(i) + ".txt=\"\"\xff\xff\xff";
+                  blockData += "mp3browser.name" + String(i) + ".txt=\"\"\xff\xff\xff";
               } else {
                   // Apuntamos al item
-                  source.setIndex(i + BB_PTR_ITEM - 1);
-                  String name = source.toStr();
+                  //source.setIndex(i + BB_PTR_ITEM - 1);
+                  String name = source[i + BB_PTR_ITEM - 1].filename;
       
                   // En otro caso metemos información
-                  blockData += "blocks.id" + String(i) + ".txt=\"" + String(i + BB_PTR_ITEM) + "\"\xff\xff\xff";
-                  blockData += "blocks.data" + String(i) + ".txt=\"" + getFileExtension(name) + "\"\xff\xff\xff";
-                  blockData += "blocks.name" + String(i) + ".txt=\"" + getFileNameFromPath(name) + "\"\xff\xff\xff";
-                  blockData += "blocks.size" + String(i) + ".txt=\"" + String(getStreamfileSize(name) / 1024 / 1024) + "\"\xff\xff\xff";
+                  blockData += "mp3browser.id" + String(i) + ".txt=\"" + String(i + BB_PTR_ITEM) + "\"\xff\xff\xff";
+                  //blockData += "blocks.data" + String(i) + ".txt=\"" + getFileExtension(name) + "\"\xff\xff\xff";
+                  blockData += "mp3browser.name" + String(i) + ".txt=\"" + getFileNameFromPath(name) + "\"\xff\xff\xff";
+                  //blockData += "mp3browser.size" + String(i) + ".txt=\"" + String(source[i + BB_PTR_ITEM - 1].size / 1024 / 1024) + "\"\xff\xff\xff";
               }
           }
       

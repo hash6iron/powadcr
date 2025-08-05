@@ -666,7 +666,7 @@ class TAPprocessor
                     // Vemos si el bloque es una cabecera o un bloque de datos (bien BASIC o CM)
                     blockNameDetected = getInformationOfHead(_myTAP.descriptor[numBlocks],flagByte,typeBlock,startBlock,sizeB,nameTAP);
 
-                    strncpy(_myTAP.descriptor[numBlocks].typeName,getTypeTAPBlock(_myTAP.descriptor[numBlocks].type),10)                       ;                      
+                    strncpy(_myTAP.descriptor[numBlocks].typeName,getTypeTAPBlock(_myTAP.descriptor[numBlocks].type),12)                       ;                      
 
                     // Si el bloque contenia nombre, se indica
                     if (blockNameDetected)
