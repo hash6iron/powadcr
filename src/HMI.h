@@ -292,7 +292,7 @@ class HMI
                               {
                                   // Ok. Entonces es un fichero y cogemos su extensión                               
                                   // Si tiene una de las extensiones esperadas, se almacena
-                                  if (strstr(substr, ".tap") || strstr(substr, ".tzx") || strstr(substr, ".tsx") || strstr(substr, ".cdt") || strstr(substr, ".wav") || strstr(substr, ".mp3") || strstr(substr, ".flac")) 
+                                  if (strstr(substr, ".tap") || strstr(substr, ".tzx") || strstr(substr, ".tsx") || strstr(substr, ".cdt") || strstr(substr, ".wav") || strstr(substr, ".mp3") || strstr(substr, ".flac") || strstr(substr, ".lst")) 
                                   {
                                       // ********************************
                                       // Escribimos la info en el fichero
@@ -1887,10 +1887,12 @@ class HMI
             uint8_t buff[8];
             strCmd.getBytes(buff, 7);
 
-            for (int i=0;i<8;i++)
-            {
-              logln("Byte " + String(i) + ": " + String(buff[i]));
-            }
+            #ifdef DEBUGMODE
+              for (int i=0;i<8;i++)
+              {
+                logln("Byte " + String(i) + ": " + String(buff[i]));
+              }
+            #endif
             
             long val = (long)((int)buff[4] + (256*(int)buff[5]) + (65536*(int)buff[6]));
 
@@ -4178,6 +4180,9 @@ class HMI
           } else {
               max = TOTAL_BLOCKS - 1;
           }
+
+          //
+          logln("Total blocks: " + String(TOTAL_BLOCKS) + " - Max: " + String(max));
       
           BB_PAGE_SELECTED = (BB_PTR_ITEM / MAX_BLOCKS_IN_BROWSER) + 1;
       
@@ -4202,19 +4207,14 @@ class HMI
               if (i + BB_PTR_ITEM > TOTAL_BLOCKS - 1) {
                   // Los dejamos limpios pero sin información
                   blockData += "mp3browser.id" + String(i) + ".txt=\"\"\xff\xff\xff";
-                  //blockData += "blocks.data" + String(i) + ".txt=\"\"\xff\xff\xff";
-                  //blockData += "mp3browser.size" + String(i) + ".txt=\"\"\xff\xff\xff";
                   blockData += "mp3browser.name" + String(i) + ".txt=\"\"\xff\xff\xff";
               } else {
                   // Apuntamos al item
-                  //source.setIndex(i + BB_PTR_ITEM - 1);
                   String name = source[i + BB_PTR_ITEM - 1].filename;
       
                   // En otro caso metemos información
                   blockData += "mp3browser.id" + String(i) + ".txt=\"" + String(i + BB_PTR_ITEM) + "\"\xff\xff\xff";
-                  //blockData += "blocks.data" + String(i) + ".txt=\"" + getFileExtension(name) + "\"\xff\xff\xff";
                   blockData += "mp3browser.name" + String(i) + ".txt=\"" + getFileNameFromPath(name) + "\"\xff\xff\xff";
-                  //blockData += "mp3browser.size" + String(i) + ".txt=\"" + String(source[i + BB_PTR_ITEM - 1].size / 1024 / 1024) + "\"\xff\xff\xff";
               }
           }
       
