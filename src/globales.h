@@ -515,6 +515,7 @@ String PATH_FILE_TO_LOAD = "";
 String FILE_LOAD = "";
 String FILE_TO_DELETE = "";
 String LASTFNAME = "";
+bool WAVFILE_PRELOAD = false;
 
 bool FILE_SELECTED_DELETE = false;
 String FILE_DIR_TO_CHANGE = "";

@@ -185,7 +185,7 @@ class HMI
           #endif
       }
 
-      void fillWithFiles(File32 &fout, File32 &fstatus, String search_pattern)
+      void fillWithFiles_OLD(File32 &fout, File32 &fstatus, String search_pattern)
       {
           // NOTA:
           // ***************************************************
@@ -375,6 +375,76 @@ class HMI
               fstatus.println("CDIR=" + String(cdir));              
           }
      }
+
+    void fillWithFiles(File32 &fout, File32 &fstatus, String search_pattern)
+    {
+        char szName[256];
+        const String separator="|";
+        if (!sdm.dir.isDir()) return;
+        sdm.dir.rewindDirectory();
+    
+        int lpos = 1, cdir = 0, cfiles = 0;
+        int itemsCount = 0, itemsToShow = 0;
+        FILE_TOTAL_FILES = 0;
+    
+        // Convierte el patrón de búsqueda a minúsculas una sola vez
+        search_pattern.toLowerCase();
+    
+        while (sdm.file.openNext(&sdm.dir, O_RDONLY))
+        {
+            esp_task_wdt_reset();
+            size_t len = sdm.file.getName(szName, 254);
+    
+            if (len != 0)
+            {
+                // Compara extensión directamente
+                char *ext = szName + (len > 4 ? len - 4 : 0);
+                String szNameStr = szName;
+                szNameStr.toLowerCase();
+    
+                if (szNameStr.indexOf(search_pattern) != -1 || search_pattern == "")
+                {
+                    bool isDir = sdm.file.isDir();
+                    bool isHidden = sdm.file.isHidden();
+    
+                    if (!isDir && !isHidden)
+                    {
+                        // Compara extensión directamente (más rápido que strstr)
+                        if (strcmp(ext, ".tap") == 0 || strcmp(ext, ".tzx") == 0 ||
+                            strcmp(ext, ".tsx") == 0 || strcmp(ext, ".cdt") == 0 ||
+                            strcmp(ext, ".wav") == 0 || strcmp(ext, ".mp3") == 0 ||
+                            strcmp(ext, ".flac") == 0 || strcmp(ext, ".lst") == 0)
+                        {
+                            fout.print(String(lpos)); fout.print(separator);
+                            fout.print("F"); fout.print(separator);
+                            fout.print(String(sdm.dir.position())); fout.print(separator);
+                            fout.print(szName); fout.println(separator);
+                            cfiles++; lpos++;
+                        }
+                    }
+                    else if (isDir && !isHidden)
+                    {
+                        fout.print(String(lpos)); fout.print(separator);
+                        fout.print("D"); fout.print(separator);
+                        fout.print(String(sdm.dir.position())); fout.print(separator);
+                        fout.print(szName); fout.println(separator);
+                        cdir++; lpos++;
+                    }
+                    FILE_TOTAL_FILES = cdir + cfiles;
+                    if (itemsToShow >= EACH_FILES_REFRESH)
+                    {
+                        writeString("statusFILE.txt=\"ITEMS " + String(itemsCount) + " / " + String(FILE_TOTAL_FILES) + "\"");
+                        itemsToShow = 0;
+                    }
+                }
+            }
+            sdm.file.close();
+            itemsCount++;
+            itemsToShow++;
+        }
+        fstatus.println("CFIL=" + String(cfiles));
+        fstatus.println("CDIR=" + String(cdir));
+    }     
 
       void registerFiles(const String &path, const String &filename, const String &filename_inf, const String &search_pattern, bool rescan) 
       {

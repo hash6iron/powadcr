@@ -68,6 +68,8 @@
 // Inserta codigo de trazabilidad para desarrollo
 #define TESTDEV 
 
+#define SD_CHIP_SELECT 13 // Pin CS de la SD
+
 // Interfaz
 // --------------------------------------------------------------
 // CFG_FORZE_SINC_HMI = false --> No espera sincronizar con HMI
@@ -113,7 +115,7 @@
 #define TONE_ADJUSTMENT_ZX_SPECTRUM_LIMIT 5
 
 #define MAX_FILES_AUDIO_LIST 2000
-#define MAX_SUBDIRS_AUDIO_LIST 256
+#define MAX_SUBDIRS_AUDIO_LIST 512
 // ---------------------------------------------------------------------------------------------
 // NO COMENTAR SI SE ESTÁ USANDO 22200 Hz en otro caso hay que usar 44100 para recording
 // Si se usa el sampling rate de ZX Spectrum (22.2KHz) para la grabación y reproducción de TAPs
