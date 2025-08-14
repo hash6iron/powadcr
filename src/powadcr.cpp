@@ -69,7 +69,7 @@
 #define USE_AUDIO_LOGGING false
 
 // States of LOG_LEVEL: Debug, Info, Warning, Error
-#define LOG_LEVEL AudioLogger::E
+#define LOG_LEVEL AudioLogger::Error
 
 // Includes
 // ===============================================================
