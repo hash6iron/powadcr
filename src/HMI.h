@@ -185,7 +185,7 @@ class HMI
           #endif
       }
 
-      void fillWithFiles(File32 &fout, File32 &fstatus, String search_pattern)
+      void fillWithFiles_OLD(File32 &fout, File32 &fstatus, String search_pattern)
       {
           // NOTA:
           // ***************************************************
@@ -292,7 +292,7 @@ class HMI
                               {
                                   // Ok. Entonces es un fichero y cogemos su extensión                               
                                   // Si tiene una de las extensiones esperadas, se almacena
-                                  if (strstr(substr, ".tap") || strstr(substr, ".tzx") || strstr(substr, ".tsx") || strstr(substr, ".cdt") || strstr(substr, ".wav") || strstr(substr, ".mp3") || strstr(substr, ".flac")) 
+                                  if (strstr(substr, ".tap") || strstr(substr, ".tzx") || strstr(substr, ".tsx") || strstr(substr, ".cdt") || strstr(substr, ".wav") || strstr(substr, ".mp3") || strstr(substr, ".flac") || strstr(substr, ".lst")) 
                                   {
                                       // ********************************
                                       // Escribimos la info en el fichero
@@ -375,6 +375,76 @@ class HMI
               fstatus.println("CDIR=" + String(cdir));              
           }
      }
+
+    void fillWithFiles(File32 &fout, File32 &fstatus, String search_pattern)
+    {
+        char szName[256];
+        const String separator="|";
+        if (!sdm.dir.isDir()) return;
+        sdm.dir.rewindDirectory();
+    
+        int lpos = 1, cdir = 0, cfiles = 0;
+        int itemsCount = 0, itemsToShow = 0;
+        FILE_TOTAL_FILES = 0;
+    
+        // Convierte el patrón de búsqueda a minúsculas una sola vez
+        search_pattern.toLowerCase();
+    
+        while (sdm.file.openNext(&sdm.dir, O_RDONLY))
+        {
+            esp_task_wdt_reset();
+            size_t len = sdm.file.getName(szName, 254);
+    
+            if (len != 0)
+            {
+                // Compara extensión directamente
+                char *ext = szName + (len > 4 ? len - 4 : 0);
+                String szNameStr = szName;
+                szNameStr.toLowerCase();
+    
+                if (szNameStr.indexOf(search_pattern) != -1 || search_pattern == "")
+                {
+                    bool isDir = sdm.file.isDir();
+                    bool isHidden = sdm.file.isHidden();
+    
+                    if (!isDir && !isHidden)
+                    {
+                        // Compara extensión directamente (más rápido que strstr)
+                        if (strcmp(ext, ".tap") == 0 || strcmp(ext, ".tzx") == 0 ||
+                            strcmp(ext, ".tsx") == 0 || strcmp(ext, ".cdt") == 0 ||
+                            strcmp(ext, ".wav") == 0 || strcmp(ext, ".mp3") == 0 ||
+                            strcmp(ext, ".flac") == 0 || strcmp(ext, ".lst") == 0)
+                        {
+                            fout.print(String(lpos)); fout.print(separator);
+                            fout.print("F"); fout.print(separator);
+                            fout.print(String(sdm.dir.position())); fout.print(separator);
+                            fout.print(szName); fout.println(separator);
+                            cfiles++; lpos++;
+                        }
+                    }
+                    else if (isDir && !isHidden)
+                    {
+                        fout.print(String(lpos)); fout.print(separator);
+                        fout.print("D"); fout.print(separator);
+                        fout.print(String(sdm.dir.position())); fout.print(separator);
+                        fout.print(szName); fout.println(separator);
+                        cdir++; lpos++;
+                    }
+                    FILE_TOTAL_FILES = cdir + cfiles;
+                    if (itemsToShow >= EACH_FILES_REFRESH)
+                    {
+                        writeString("statusFILE.txt=\"ITEMS " + String(itemsCount) + " / " + String(FILE_TOTAL_FILES) + "\"");
+                        itemsToShow = 0;
+                    }
+                }
+            }
+            sdm.file.close();
+            itemsCount++;
+            itemsToShow++;
+        }
+        fstatus.println("CFIL=" + String(cfiles));
+        fstatus.println("CDIR=" + String(cdir));
+    }     
 
       void registerFiles(const String &path, const String &filename, const String &filename_inf, const String &search_pattern, bool rescan) 
       {
@@ -1854,16 +1924,18 @@ class HMI
         else if (strCmd.indexOf("BPDOWN") != -1)
         {
           // Pagina arriba block browser
-          BB_PTR_ITEM += (MAX_BLOCKS_IN_BROWSER * 10);
-
-          if (BB_PTR_ITEM > TOTAL_BLOCKS - 1)
+          if (TOTAL_BLOCKS > MAX_BLOCKS_IN_BROWSER)
           {
-            BB_PTR_ITEM -= (MAX_BLOCKS_IN_BROWSER * 10);
-          }
-          
-          BB_PAGE_SELECTED = (BB_PTR_ITEM / MAX_BLOCKS_IN_BROWSER) + 1;
-          BB_UPDATE = true;
+            BB_PTR_ITEM += (MAX_BLOCKS_IN_BROWSER * 10);
 
+            if (BB_PTR_ITEM > TOTAL_BLOCKS - 1)
+            {
+              BB_PTR_ITEM = TOTAL_BLOCKS - MAX_BLOCKS_IN_BROWSER;
+            }
+            
+            BB_PAGE_SELECTED = (BB_PTR_ITEM / MAX_BLOCKS_IN_BROWSER) + 1;
+            BB_UPDATE = true;            
+          }
         }
         else if (strCmd.indexOf("BPUP") != -1)
         {
@@ -1885,10 +1957,12 @@ class HMI
             uint8_t buff[8];
             strCmd.getBytes(buff, 7);
 
-            for (int i=0;i<8;i++)
-            {
-              logln("Byte " + String(i) + ": " + String(buff[i]));
-            }
+            #ifdef DEBUGMODE
+              for (int i=0;i<8;i++)
+              {
+                logln("Byte " + String(i) + ": " + String(buff[i]));
+              }
+            #endif
             
             long val = (long)((int)buff[4] + (256*(int)buff[5]) + (65536*(int)buff[6]));
 
@@ -2283,6 +2357,15 @@ class HMI
           {
             LAST_MESSAGE = "Wait to finish the uploading process.";
           }
+
+          // *********************************************************************
+          //
+          // Solo esta de prueba. ELIMINAR!!!!
+          //
+          writeString("BBOK.val=1");
+          //
+          // *********************************************************************
+
 
         }   
         else if (strCmd.indexOf("REC") != -1) 
@@ -3022,6 +3105,8 @@ class HMI
           {
               // Habilita
               MODEWAV = true;
+              // Ambas no pueden estar habilitadas
+              PLAY_TO_WAV_FILE = false;
           }
           else
           {
@@ -3388,8 +3473,7 @@ class HMI
       
           // Esperamos a que todos los datos salientes se hayan enviado
           SerialHW.flush();
-
-      
+          // Enviamos el comando de inicio de datos
           SerialHW.write(0xff);
           SerialHW.write(0xff);
           SerialHW.write(0xff);
@@ -3405,7 +3489,9 @@ class HMI
           SerialHW.write(0xff);
           SerialHW.write(0xff);
           SerialHW.write(0xff);
-      
+          //
+          SerialHW.flush();
+
       }
       
       void writeStringBlock(String stringData) 
@@ -3413,31 +3499,38 @@ class HMI
           
           // Esperamos a que todos los datos salientes se hayan enviado
           SerialHW.flush();
-
+          //
           for (int i = 0; i < stringData.length(); i++) 
           {
             // Enviamos los datos
             SerialHW.write(stringData[i]);
           }
-    
+          //
+          SerialHW.flush();
       }      
 
       void write(String stringData)
       {
+          SerialHW.flush();
+          //
           for (int i = 0; i < stringData.length(); i++) 
           {
             // Enviamos los datos
             SerialHW.write(stringData[i]);
           }
+          //
+          SerialHW.flush();
       }
 
       void sendbin(char *data)
       {
+          SerialHW.flush();
           for (int i = 0; i < sizeof(data); i++) 
           {
             // Enviamos los datos
             SerialHW.write(data[i]);
           }
+          SerialHW.flush();
       }
 
       void setBasicFileInformation(int id, int group, char* name,char* typeName,int size, bool playeable)
@@ -4090,7 +4183,63 @@ class HMI
           return filePath; // Si no hay separador, devuelve la cadena completa
       }
 
-      void openBlockMediaBrowser(AudioSourceSDFAT source) 
+      // void openBlockMediaBrowserOld(AudioSourceSDFAT source) 
+      // {
+      //     // Rellenamos el browser con todos los bloques
+      //     int max = MAX_BLOCKS_IN_BROWSER;
+      //     int totalPages = 0;
+      
+      //     if (TOTAL_BLOCKS > max) {
+      //         max = MAX_BLOCKS_IN_BROWSER;
+      //     } else {
+      //         max = TOTAL_BLOCKS - 1;
+      //     }
+      
+      //     BB_PAGE_SELECTED = (BB_PTR_ITEM / MAX_BLOCKS_IN_BROWSER) + 1;
+      
+      //     // Construimos un bloque de datos para enviar con menos llamadas a writeString
+      //     String blockData = "";
+      
+      //     // Información general
+      //     blockData += "blocks.path.txt=\"" + HMI_FNAME + "\"\xff\xff\xff";
+      //     blockData += "blocks.totalBl.txt=\"" + String(TOTAL_BLOCKS - 1) + "\"\xff\xff\xff";
+      //     blockData += "blocks.bbpag.txt=\"" + String(BB_PAGE_SELECTED) + "\"\xff\xff\xff";
+      //     blockData += "blocks.size0.txt=\"SIZE[MB]\"\xff\xff\xff";
+      
+      //     double ctpage = (double)TOTAL_BLOCKS / (double)MAX_BLOCKS_IN_BROWSER;
+      //     totalPages = trunc(ctpage);
+      //     if ((TOTAL_BLOCKS % MAX_BLOCKS_IN_BROWSER != 0) && ctpage > 1) {
+      //         totalPages += 1;
+      //     }
+      //     blockData += "blocks.totalPag.txt=\"" + String(totalPages) + "\"\xff\xff\xff";
+      
+      //     // Información de cada bloque
+      //     for (int i = 1; i <= max; i++) {
+      //         if (i + BB_PTR_ITEM > TOTAL_BLOCKS - 1) {
+      //             // Los dejamos limpios pero sin información
+      //             blockData += "blocks.id" + String(i) + ".txt=\"\"\xff\xff\xff";
+      //             blockData += "blocks.data" + String(i) + ".txt=\"\"\xff\xff\xff";
+      //             blockData += "blocks.size" + String(i) + ".txt=\"\"\xff\xff\xff";
+      //             blockData += "blocks.name" + String(i) + ".txt=\"\"\xff\xff\xff";
+      //         } else {
+      //             // Apuntamos al item
+      //             source.setIndex(i + BB_PTR_ITEM - 1);
+      //             String name = source.toStr();
+      
+      //             // En otro caso metemos información
+      //             blockData += "blocks.id" + String(i) + ".txt=\"" + String(i + BB_PTR_ITEM) + "\"\xff\xff\xff";
+      //             blockData += "blocks.data" + String(i) + ".txt=\"" + getFileExtension(name) + "\"\xff\xff\xff";
+      //             blockData += "blocks.name" + String(i) + ".txt=\"" + name + "\"\xff\xff\xff";
+      //             blockData += "blocks.size" + String(i) + ".txt=\"" + String(source[i + BB_PTR_ITEM - 1].size / 1024 / 1024) + "\"\xff\xff\xff";
+      //         }
+      //     }
+      
+      //     // Enviamos todo el bloque de datos en una sola llamada
+      //     writeStringBlock(blockData);
+      // }
+
+
+      void openBlockMediaBrowser(tAudioList* source) 
       {
           // Rellenamos el browser con todos los bloques
           int max = MAX_BLOCKS_IN_BROWSER;
@@ -4101,6 +4250,9 @@ class HMI
           } else {
               max = TOTAL_BLOCKS - 1;
           }
+
+          //
+          logln("Total blocks: " + String(TOTAL_BLOCKS) + " - Max: " + String(max));
       
           BB_PAGE_SELECTED = (BB_PTR_ITEM / MAX_BLOCKS_IN_BROWSER) + 1;
       
@@ -4108,36 +4260,31 @@ class HMI
           String blockData = "";
       
           // Información general
-          blockData += "blocks.path.txt=\"" + HMI_FNAME + "\"\xff\xff\xff";
-          blockData += "blocks.totalBl.txt=\"" + String(TOTAL_BLOCKS - 1) + "\"\xff\xff\xff";
-          blockData += "blocks.bbpag.txt=\"" + String(BB_PAGE_SELECTED) + "\"\xff\xff\xff";
-          blockData += "blocks.size0.txt=\"SIZE[MB]\"\xff\xff\xff";
+          blockData += "mp3browser.path.txt=\"" + HMI_FNAME + "\"\xff\xff\xff";
+          blockData += "mp3browser.totalBl.txt=\"" + String(TOTAL_BLOCKS - 1) + "\"\xff\xff\xff";
+          blockData += "mp3browser.bbpag.txt=\"" + String(BB_PAGE_SELECTED) + "\"\xff\xff\xff";
+          blockData += "mp3browser.size0.txt=\"SIZE[MB]\"\xff\xff\xff";
       
           double ctpage = (double)TOTAL_BLOCKS / (double)MAX_BLOCKS_IN_BROWSER;
           totalPages = trunc(ctpage);
           if ((TOTAL_BLOCKS % MAX_BLOCKS_IN_BROWSER != 0) && ctpage > 1) {
               totalPages += 1;
           }
-          blockData += "blocks.totalPag.txt=\"" + String(totalPages) + "\"\xff\xff\xff";
-      
+          blockData += "mp3browser.totalPag.txt=\"" + String(totalPages) + "\"\xff\xff\xff";
+
           // Información de cada bloque
           for (int i = 1; i <= max; i++) {
               if (i + BB_PTR_ITEM > TOTAL_BLOCKS - 1) {
                   // Los dejamos limpios pero sin información
-                  blockData += "blocks.id" + String(i) + ".txt=\"\"\xff\xff\xff";
-                  blockData += "blocks.data" + String(i) + ".txt=\"\"\xff\xff\xff";
-                  blockData += "blocks.size" + String(i) + ".txt=\"\"\xff\xff\xff";
-                  blockData += "blocks.name" + String(i) + ".txt=\"\"\xff\xff\xff";
+                  blockData += "mp3browser.id" + String(i) + ".txt=\"\"\xff\xff\xff";
+                  blockData += "mp3browser.name" + String(i) + ".txt=\"\"\xff\xff\xff";
               } else {
                   // Apuntamos al item
-                  source.setIndex(i + BB_PTR_ITEM - 1);
-                  String name = source.toStr();
+                  String name = source[i + BB_PTR_ITEM - 1].filename;
       
                   // En otro caso metemos información
-                  blockData += "blocks.id" + String(i) + ".txt=\"" + String(i + BB_PTR_ITEM) + "\"\xff\xff\xff";
-                  blockData += "blocks.data" + String(i) + ".txt=\"" + getFileExtension(name) + "\"\xff\xff\xff";
-                  blockData += "blocks.name" + String(i) + ".txt=\"" + getFileNameFromPath(name) + "\"\xff\xff\xff";
-                  blockData += "blocks.size" + String(i) + ".txt=\"" + String(getStreamfileSize(name) / 1024 / 1024) + "\"\xff\xff\xff";
+                  blockData += "mp3browser.id" + String(i) + ".txt=\"" + String(i + BB_PTR_ITEM) + "\"\xff\xff\xff";
+                  blockData += "mp3browser.name" + String(i) + ".txt=\"" + getFileNameFromPath(name) + "\"\xff\xff\xff";
               }
           }
       

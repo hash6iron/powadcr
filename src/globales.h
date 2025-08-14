@@ -106,7 +106,7 @@ struct tTAPBlockDescriptor
     bool header = false;
     bool screen = false;
     int type = 0;
-    char typeName[11];
+    char typeName[15];
     bool playeable = true;
 }; 
 
@@ -155,14 +155,13 @@ struct tPZXBlockDescriptor
   
 };
 
-// struct tMediaDescriptor
-// {
-//   int ID = 0;
-//   String path;
-//   String name;
-//   int size;
-//   String type;
-// };
+struct tAudioList
+{
+    String path = "";
+    String filename = "";
+    int index = 0;
+    int size = 0;
+};
 
 // En little endian. Formato PZX
 struct tPZX
@@ -515,6 +514,9 @@ int DIRPREVPOS = 0;
 String PATH_FILE_TO_LOAD = "";
 String FILE_LOAD = "";
 String FILE_TO_DELETE = "";
+String LASTFNAME = "";
+bool WAVFILE_PRELOAD = false;
+
 bool FILE_SELECTED_DELETE = false;
 String FILE_DIR_TO_CHANGE = "";
 int FILE_PTR_POS = 1;
