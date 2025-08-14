@@ -4183,62 +4183,7 @@ class HMI
           return filePath; // Si no hay separador, devuelve la cadena completa
       }
 
-      // void openBlockMediaBrowserOld(AudioSourceSDFAT source) 
-      // {
-      //     // Rellenamos el browser con todos los bloques
-      //     int max = MAX_BLOCKS_IN_BROWSER;
-      //     int totalPages = 0;
       
-      //     if (TOTAL_BLOCKS > max) {
-      //         max = MAX_BLOCKS_IN_BROWSER;
-      //     } else {
-      //         max = TOTAL_BLOCKS - 1;
-      //     }
-      
-      //     BB_PAGE_SELECTED = (BB_PTR_ITEM / MAX_BLOCKS_IN_BROWSER) + 1;
-      
-      //     // Construimos un bloque de datos para enviar con menos llamadas a writeString
-      //     String blockData = "";
-      
-      //     // Información general
-      //     blockData += "blocks.path.txt=\"" + HMI_FNAME + "\"\xff\xff\xff";
-      //     blockData += "blocks.totalBl.txt=\"" + String(TOTAL_BLOCKS - 1) + "\"\xff\xff\xff";
-      //     blockData += "blocks.bbpag.txt=\"" + String(BB_PAGE_SELECTED) + "\"\xff\xff\xff";
-      //     blockData += "blocks.size0.txt=\"SIZE[MB]\"\xff\xff\xff";
-      
-      //     double ctpage = (double)TOTAL_BLOCKS / (double)MAX_BLOCKS_IN_BROWSER;
-      //     totalPages = trunc(ctpage);
-      //     if ((TOTAL_BLOCKS % MAX_BLOCKS_IN_BROWSER != 0) && ctpage > 1) {
-      //         totalPages += 1;
-      //     }
-      //     blockData += "blocks.totalPag.txt=\"" + String(totalPages) + "\"\xff\xff\xff";
-      
-      //     // Información de cada bloque
-      //     for (int i = 1; i <= max; i++) {
-      //         if (i + BB_PTR_ITEM > TOTAL_BLOCKS - 1) {
-      //             // Los dejamos limpios pero sin información
-      //             blockData += "blocks.id" + String(i) + ".txt=\"\"\xff\xff\xff";
-      //             blockData += "blocks.data" + String(i) + ".txt=\"\"\xff\xff\xff";
-      //             blockData += "blocks.size" + String(i) + ".txt=\"\"\xff\xff\xff";
-      //             blockData += "blocks.name" + String(i) + ".txt=\"\"\xff\xff\xff";
-      //         } else {
-      //             // Apuntamos al item
-      //             source.setIndex(i + BB_PTR_ITEM - 1);
-      //             String name = source.toStr();
-      
-      //             // En otro caso metemos información
-      //             blockData += "blocks.id" + String(i) + ".txt=\"" + String(i + BB_PTR_ITEM) + "\"\xff\xff\xff";
-      //             blockData += "blocks.data" + String(i) + ".txt=\"" + getFileExtension(name) + "\"\xff\xff\xff";
-      //             blockData += "blocks.name" + String(i) + ".txt=\"" + name + "\"\xff\xff\xff";
-      //             blockData += "blocks.size" + String(i) + ".txt=\"" + String(source[i + BB_PTR_ITEM - 1].size / 1024 / 1024) + "\"\xff\xff\xff";
-      //         }
-      //     }
-      
-      //     // Enviamos todo el bloque de datos en una sola llamada
-      //     writeStringBlock(blockData);
-      // }
-
-
       void openBlockMediaBrowser(tAudioList* source) 
       {
           // Rellenamos el browser con todos los bloques
