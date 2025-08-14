@@ -167,8 +167,6 @@ ZXProcessor zxp;
 #include "TZXprocessor.h"
 #include "TAPprocessor.h"
 
-//#include "test.h"
-
 SdFat32 sdf;
 
 SdFile sdFile;
