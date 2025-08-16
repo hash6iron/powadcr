@@ -596,6 +596,9 @@ float EQ_LOW = 0.7;
 bool EQ_CHANGE = false;
 bool VOL_LIMIT_HEADPHONE = false;
 double TONE_ADJUST = 0.0;
+bool AUTO_FADE = false;
+bool AUTO_NEXT = false;
+int MEDIA_CURRENT_POINTER = 0;
 
 // double LAST_MAIN_VOL = 0.9 * MAIN_VOL_FACTOR;
 // double LAST_MAIN_VOL_R = 0.9 * MAIN_VOL_FACTOR;
