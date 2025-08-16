@@ -2328,7 +2328,7 @@ class HMI
             RWIND = false;
             KEEP_FFWIND = true;
         }
-        else if (strCmd.indexOf("SRWD") != -1) 
+        else if (strCmd.indexOf("TTWD") != -1) 
         {
             logln("S_RWD pressed");
             FFWIND = false;

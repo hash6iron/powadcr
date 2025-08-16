@@ -2210,19 +2210,34 @@ void MediaPlayer(bool isWav = false)
                 // Mientras PLAY activo
                 if (fast_wind_status < 2)
                 {
-                  player.copy();
+                  if (CHANGE_TRACK_FILTER)
+                  {
+                    // Cambio de pista
+                    kitStream.setVolume(0);
+                    delay(250);
+                    player.copy();
+                    player.copy();
+                    kitStream.setVolume(MAIN_VOL / 100);
+                    CHANGE_TRACK_FILTER = false;
+                  }
+                  else
+                  {
+                    // Reproducción normal
+                    player.copy();
+                  }
+                    
                   fileread = pFile->position(); // Actualizamos el número de bytes leídos
                 }
 
                 // Cuando haya datos que mostrar, visualizamos la barra de progreso
                 if (fileSize > 0) 
                 {
-                    // Esto lo hacemos asi para evitar hacer out of range de la variable.
+                    // Esto lo hacemos asi para evitar hacer out of range del tipo de variable.
                     PROGRESS_BAR_TOTAL_VALUE = (fileread / (fileSize / 100));
                 }
                 
                 // Verificamos si se terminó el archivo en curso
-                if (fileread >= fileSize) 
+                if (fileread == fileSize) 
                 {
 
                   // Se ha alcanzado el ultimo fichero de la lista y no hay mas
@@ -2258,13 +2273,15 @@ void MediaPlayer(bool isWav = false)
                   }
                   else
                   {
-                    // Reiniciamos el progreso para el siguiente fichero
-                    // Esto es un nuevo fichero en el player
-                    fileread = 0;
+                    // El player continua solo a la siguiente pista no hace falta forzarlo
+                    // actualizamos el puntero.
                     currentPointer++;
-
+                    // Esto es un nuevo fichero en el player
+                    //player.stop();
+                    
+                    fileread = 0;
+                    //
                     currentIdx = source.indexOf(audiolist[currentPointer].filename.c_str());
-                    player.stop();
                     player.begin(currentIdx); // Iniciamos el reproductor
 
                   }
@@ -2298,16 +2315,19 @@ void MediaPlayer(bool isWav = false)
                       updateSamplingRateIndicator(decoderMP3.audioInfo().sample_rate, decoderMP3.audioInfo().bits_per_sample, isWav);
 
                     // Elapsed timer
-                    if (!isWav)
-                    {
-                        // Actualizamos el tiempo de reproducción
-                        // sMP3_begin = measureMP3.estimatedTotalTimeFor(pFile->size());
-                        // uint32_t tiempo = sMP3_begin / 1000; // Convertimos a segundos
+                    // if (!isWav)
+                    // {
+                    // Actualizamos el tiempo de reproducción
+                    if (isWav)
+                        sMP3_begin = measureWAV.estimatedTotalTimeFor(pFile->size());
+                    else
+                        sMP3_begin = measureMP3.estimatedTotalTimeFor(pFile->size());
 
-                        // String tiempoStr = (tiempo / 60 < 10 ? "0" : "") + String(tiempo / 60) + ":" + (tiempo % 60 < 10 ? "0" : "") + String(tiempo % 60);
-                        // LAST_MESSAGE = "Time: " + tiempoStr;
+                    uint32_t tiempo = sMP3_begin / 1000; // Convertimos a segundos
 
-                    }                      
+                    String tiempoStr = (tiempo / 60 < 10 ? "0" : "") + String(tiempo / 60) + ":" + (tiempo % 60 < 10 ? "0" : "") + String(tiempo % 60);
+                    LAST_MESSAGE = "Time: " + tiempoStr;
+                    // }                      
 
                     lastUpdate = millis();
                 }                
@@ -2368,9 +2388,12 @@ void MediaPlayer(bool isWav = false)
               else
               {
                 //source.selectStream(currentPointer + 1);
-                nextAudio(currentPointer, audioListSize);
+                //nextAudio(currentPointer, audioListSize);
+                player.next();
+                currentPointer = source.index();
                 currentIdx = source.indexOf((audiolist[currentPointer].filename).c_str());
-                source.selectStream(currentIdx);
+                CHANGE_TRACK_FILTER = true;
+                //source.selectStream(currentIdx);
               }
                // Avanzamos al siguiente bloque
               logln("Next file: " + String(currentPointer + " - " + audiolist[currentPointer + 1].filename));
@@ -2382,11 +2405,16 @@ void MediaPlayer(bool isWav = false)
               if ((millis() - twiceRWDTime > TIME_MAX_TO_PREVIOUS_TRACK) && PLAY)
               {
                 // Empiezo desde el principio
+                // player.previous();
+                // currentPointer = source.index();
+                // currentIdx = source.indexOf((audiolist[currentPointer].filename).c_str());
                 currentIdx = source.indexOf((audiolist[currentPointer].filename).c_str());
                 player.stop();
                 player.begin(currentIdx); // Reiniciar el reproductor
                 //
                 twiceRWDTime = millis();
+                CHANGE_TRACK_FILTER = true;
+
               }
               else
               {
@@ -2474,54 +2502,101 @@ void MediaPlayer(bool isWav = false)
         }
    
         // Avance rapido y retroceso rapido
-        if (KEEP_FFWIND) 
+        if (KEEP_FFWIND || KEEP_RWIND) 
         {
-            if (KEEP_FFWIND && ((currentPointer + 1) <= TOTAL_BLOCKS))
+          if (KEEP_FFWIND && ((currentPointer + 1) <= TOTAL_BLOCKS))
+          {
+            // Avance rapido 20%
+            if (fast_wind_status==0)
             {
-              // Avance rapido 20%
-              if (fast_wind_status==0)
+              osr = kitStream.audioInfo().sample_rate;
+              // Ajustamos al SR mas alto para avance rapido
+              AudioInfo info = kitStream.audioInfo();
+              info.sample_rate = 352800;
+              kitStream.setAudioInfo(info);
+              hmi.writeString("tape.stepTape.val=4");
+              //
+              p_file_seek = (File32*)player.getStream();
+              p_file_seek_pos = p_file_seek->position();
+              
+              t_button_pressed = millis();
+              //
+              fast_wind_status = 1;
+            }
+            else
+            {
+              if (millis() - t_button_pressed > TIME_TO_FAST_FORWRD) 
               {
-                osr = kitStream.audioInfo().sample_rate;
-                // Ajustamos al SR mas alto para avance rapido
-                AudioInfo info = kitStream.audioInfo();
-                info.sample_rate = 352800;
-                kitStream.setAudioInfo(info);
-                hmi.writeString("tape.stepTape.val=4");
-                //
-                p_file_seek = (File32*)player.getStream();
-                p_file_seek_pos = p_file_seek->position();
-                
-                t_button_pressed = millis();
-                //
-                fast_wind_status = 1;
-              }
-              else
-              {
-                if (millis() - t_button_pressed > TIME_TO_FAST_FORWRD) 
+                if (fast_wind_status==1)
                 {
-                  if (fast_wind_status==1)
+                  fileSize = getStreamfileSize(pFile);
+                  fast_wind_status = 2;              
+                }
+                // Avance rapido 5%
+                if (p_file_seek != nullptr)
+                {
+                  if (p_file_seek_pos < (p_file_seek->size() - (p_file_seek->size() * FAST_FORWARD_PER))) 
                   {
-                    fileSize = getStreamfileSize(pFile);
-                    fast_wind_status = 2;              
-                  }
-                  // Avance rapido 5%
-                  if (p_file_seek != nullptr)
-                  {
-                    if (p_file_seek_pos < (p_file_seek->size() - (p_file_seek->size() * FAST_FORWARD_PER))) 
-                    {
-                      p_file_seek_pos += (p_file_seek->size() * FAST_FORWARD_PER);
-                      p_file_seek->seek(p_file_seek_pos);
-                      fileread = p_file_seek->position();
-                      fileSize = p_file_seek->size();
-                      delay(DELAY_ON_EACH_STEP_FAST_FORWARD);
-                    }
+                    p_file_seek_pos += (p_file_seek->size() * FAST_FORWARD_PER);
+                    p_file_seek->seek(p_file_seek_pos);
+                    fileread = p_file_seek->position();
+                    fileSize = p_file_seek->size();
+                    delay(DELAY_ON_EACH_STEP_FAST_FORWARD);
                   }
                 }
               }
             }
+          }
+         
+          if (KEEP_RWIND && ((currentPointer + 1) <= TOTAL_BLOCKS))
+          {
+            // Retroceso rapido 20%
+            if (fast_wind_status==0)
+            {
+              // osr = kitStream.audioInfo().sample_rate;
+              // // Ajustamos al SR mas alto para retroceso rapido
+              // AudioInfo info = kitStream.audioInfo();
+              // info.sample_rate = 352800;
+              // kitStream.setAudioInfo(info);
+              // hmi.writeString("tape.stepTape.val=4");
+              // //
+              // p_file_seek = (File32*)player.getStream();
+              // p_file_seek_pos = p_file_seek->position();
+              
+              t_button_pressed = millis();
+              //
+              fast_wind_status = 1;
+            }
+            else
+            {
+              if (millis() - t_button_pressed > TIME_TO_FAST_FORWRD) 
+              {
+                if (fast_wind_status==1)
+                {
+                  fileSize = getStreamfileSize(pFile);
+                  fast_wind_status = 2;              
+                }
+                // Retroceso rapido 5%
+                if (p_file_seek != nullptr)
+                {
+                  if (p_file_seek_pos < (p_file_seek->size() - (p_file_seek->size() * FAST_FORWARD_PER))) 
+                  {
+                    p_file_seek_pos -= (p_file_seek->size() * FAST_FORWARD_PER);
+                    if (p_file_seek_pos < 0) p_file_seek_pos = 0; // Evitamos que se vaya a negativo
 
-            was_pressed_wd = true;
-         }
+                    p_file_seek->seek(p_file_seek_pos);
+                    fileread = p_file_seek->position();
+                    fileSize = p_file_seek->size();
+                    delay(DELAY_ON_EACH_STEP_FAST_FORWARD);
+                  }
+                }
+              }
+            }
+          }
+
+          was_pressed_wd = true;
+        }
+      
         
         // Seleccion de pista con Block Browser
         if (BB_OPEN || BB_UPDATE)
