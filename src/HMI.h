@@ -69,51 +69,78 @@ class HMI
         }
       }
 
-      void sortFile(File32 &file) 
+      void sortFile(File32 &file, bool firstDir = true) 
       {
-        file.rewind();
-        // Leemos todas las líneas del fichero en un vector
-        std::vector<std::pair<String, String>> linesWithKeys;
-        char line[256];
-        int n = 0;
-    
-        while ((n = file.fgets(line, sizeof(line))) > 0)
-        {
-          line[n - 1] = 0; // Eliminamos el terminador '\n'
-          String lineStr = String(line);
-          // Extraemos el último dato contenido entre dos caracteres '|'
-          int lastPipe = lineStr.lastIndexOf('|');
-          int secondLastPipe = lineStr.lastIndexOf('|', lastPipe - 1);
-          String key = "";
-  
-          if (secondLastPipe != -1 && lastPipe != -1 && secondLastPipe < lastPipe) 
+          file.rewind();
+          std::vector<std::tuple<String, String, String, String>> linesWithKeys;
+          char line[256];
+          int n = 0;
+
+          while ((n = file.fgets(line, sizeof(line))) > 0)
           {
-              key = lineStr.substring(secondLastPipe + 1, lastPipe);
+              line[n - 1] = 0; // Eliminamos el terminador '\n'
+              String lineStr = String(line);
+
+              // Extraemos los campos
+              int idx1 = lineStr.indexOf('|');
+              int idx2 = lineStr.indexOf('|', idx1 + 1);
+              int idx3 = lineStr.indexOf('|', idx2 + 1);
+              int idx4 = lineStr.indexOf('|', idx3 + 1);
+
+              String tipo = "";
+              String nombre = "";
+              String indice = "";
+              String tamano = "";
+
+              if (idx1 != -1 && idx2 != -1 && idx3 != -1 && idx4 != -1) {
+                  indice = lineStr.substring(0, idx1);
+                  tipo = lineStr.substring(idx1 + 1, idx2);
+                  tamano = lineStr.substring(idx2 + 1, idx3);
+                  nombre = lineStr.substring(idx3 + 1, idx4);
+              }
+              tipo.trim();
+              nombre.trim();
+              linesWithKeys.emplace_back(tipo, nombre, indice, lineStr);
           }
-          
-          key.toUpperCase();
-          key.trim();
 
-          linesWithKeys.emplace_back(key, lineStr);
-        }
-    
-        // Ordenamos las líneas en orden alfabético basándonos en el dato extraído
-        std::sort(linesWithKeys.begin(), linesWithKeys.end(), [](const std::pair<String, String> &a, const std::pair<String, String> &b) {
-            return a.first.compareTo(b.first) < 0; // Comparación lexicográfica estricta
-        });     
+          std::sort(linesWithKeys.begin(), linesWithKeys.end(),
+              [firstDir](const std::tuple<String, String, String, String> &a, const std::tuple<String, String, String, String> &b) {
+                  const String &tipoA = std::get<0>(a);
+                  const String &nombreA = std::get<1>(a);
+                  const String &tipoB = std::get<0>(b);
+                  const String &nombreB = std::get<1>(b);
 
-        // Reescribimos el fichero con las líneas ordenadas
-        file.rewind();
-        file.truncate(0); // Limpiamos el contenido del fichero
-    
-        for (const auto& [key, sortedLine] : linesWithKeys) {
-            file.println(sortedLine);
-        }
-        file.flush(); // Aseguramos que los datos se escriben en el disco
-    
-        #ifdef DEBUGMODE
-            logln("File sorted successfully.");
-        #endif
+                  bool aIsDir = (tipoA == "D");
+                  bool bIsDir = (tipoB == "D");
+
+                  // 1. Agrupación por tipo
+                  if (aIsDir != bIsDir) {
+                      return firstDir ? aIsDir : !aIsDir;
+                  }
+
+                  // 2. Los que empiezan por '_' van al final de su grupo
+                  bool aIsUnderscore = nombreA.startsWith("_");
+                  bool bIsUnderscore = nombreB.startsWith("_");
+                  if (aIsUnderscore != bIsUnderscore) {
+                      return !aIsUnderscore;
+                  }
+
+                  // 3. Orden alfabético por nombre (ignorando mayúsculas/minúsculas)
+                  return nombreA.compareTo(nombreB) < 0;
+              }
+          );
+
+          file.rewind();
+          file.truncate(0);
+
+          for (const auto& tup : linesWithKeys) {
+              file.println(std::get<3>(tup));
+          }
+          file.flush();
+
+          #ifdef DEBUGMODE
+              logln("File sorted successfully.");
+          #endif
       }
 
       void fillWithFilesFromFile(File32 &fout, File32 &fstatus, const String &search_pattern, const String &path) 
@@ -490,7 +517,7 @@ class HMI
                       logln("Sorting file...");
                   #endif
                   writeString("statusFILE.txt=\"SORTING\"");
-                  sortFile(f);
+                  sortFile(f,SORT_FILES_FIRST_DIR);
               }
       
               // Cerramos los archivos
@@ -1450,7 +1477,25 @@ class HMI
           }
 
           saveHMIcfg("PLEopt");
-        }        
+        }    
+        else if (strCmd.indexOf("SFF=") != -1) 
+        {
+          //Cogemos el valor
+          uint8_t buff[8];
+          strCmd.getBytes(buff, 7);
+          int valEn = (int)buff[4];
+          //
+          if (valEn==1)
+          {
+            SORT_FILES_FIRST_DIR = false;
+          }
+          else
+          {
+            SORT_FILES_FIRST_DIR = true;
+          }
+
+          saveHMIcfg("SFFopt");
+        }             
         else if (strCmd.indexOf("BKX=") != -1) 
         {
             // Con este procedimiento capturamos el bloque seleccionado
@@ -2840,10 +2885,15 @@ class HMI
           if (valEn==1)
           {
               EN_SPEAKER = true;
+              // Activamos el amplificador
+              kitStream.setPAPower(true);
+              writeString("menuAudio.muteAmp.val=0");
+              writeString("menuAudio.muteAmp.val=0");
           }
           else
           {
               EN_SPEAKER = false;
+              //kitStream.setSpeakerActive(false);
           }
 
           // Almacenamos en NVS
