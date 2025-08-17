@@ -150,11 +150,14 @@ class ZXProcessor
 
             if (SWAP_MIC_CHANNEL)
             {
+                // Speaker channel
                 sample_L = getChannelAmplitude(changeNextEARedge,true) * (MAIN_VOL_R / 100) * (MAIN_VOL / 100);
+                // Amplified output
                 sample_R = getChannelAmplitude(changeNextEARedge,true) * (MAIN_VOL_L / 100) * (MAIN_VOL / 100); 
             }
             else
             {
+                
                 sample_R = getChannelAmplitude(changeNextEARedge,true) * (MAIN_VOL_R / 100) * (MAIN_VOL / 100);
                 sample_L = getChannelAmplitude(changeNextEARedge,true) * (MAIN_VOL_L / 100) * (MAIN_VOL / 100); 
             }
@@ -163,10 +166,11 @@ class ZXProcessor
             // Generamos la señal en el buffer del chip de audio.
             for (int j=0;j<samples;j++)
             {
-                //R-OUT
+                //R-OUT - Right channel output (Amplified output)
                 *ptr++ = sample_R;
-                //L-OUT
-                *ptr++ = sample_L * EN_STEREO;
+                //L-OUT - Left channel output (Speaker)
+                *ptr++ = sample_L * EN_STEREO * EN_SPEAKER;
+
                 result+=2*channels;
 
                 if (stopOrPauseRequest())
@@ -318,10 +322,10 @@ class ZXProcessor
                     return;
                 }
                                 
-                //R-OUT
+                //R-OUT - Right channel output (Amplified output) and current output.
                 *ptr++ = sample_R;
-                //L-OUT
-                *ptr++ = sample_L * EN_STEREO;
+                //L-OUT - Left channel output (Speaker)
+                *ptr++ = sample_L * EN_STEREO * EN_SPEAKER;
                 //                        
 
                 result+=2*chn;                    

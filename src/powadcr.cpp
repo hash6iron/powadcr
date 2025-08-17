@@ -5328,14 +5328,20 @@ void setup()
   showOption("menuAudio.mutAmp.val",String(!ACTIVE_AMP));
   // POWERLED_DUTY
   showOption("menu.ppled.val",String(PWM_POWER_LED));
-  
+  // First view files on sorting
+  showOption("menu.sortFil.val",String(!SORT_FILES_FIRST_DIR));
+
+
   if (ACTIVE_AMP)
   {
     MAIN_VOL_L = 5;
     // Actualizamos el HMI
     hmi.writeString("menuAudio.volL.val=" + String(MAIN_VOL_L));
-    hmi.writeString("menuAudio.volLevel.val=" + String(MAIN_VOL_L));    
+    hmi.writeString("menuAudio.volLevel.val=" + String(MAIN_VOL_L)); 
   }
+  else
+  {}
+
 
   if (EN_SPEAKER)
   {
@@ -5365,6 +5371,9 @@ void setup()
   showOption("menuEq.eqLow.val",String(EQ_LOW));
   showOption("menuEq.eqLowL.val",String(EQ_LOW));
   EQ_CHANGE = true;
+  
+  // Esto lo hacemos porque depende de la configuración cargada.
+  kitStream.setPAPower(ACTIVE_AMP);   
   //
   delay(500);
 

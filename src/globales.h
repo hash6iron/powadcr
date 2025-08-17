@@ -589,7 +589,7 @@ double MAIN_VOL_FACTOR = 100;
 
 double MAIN_VOL = 0.9 * MAIN_VOL_FACTOR;
 double MAIN_VOL_R = 0.9 * MAIN_VOL_FACTOR;
-double MAIN_VOL_L = 0.9 * MAIN_VOL_FACTOR;
+double MAIN_VOL_L = 0.05 * MAIN_VOL_FACTOR;
 float EQ_HIGH = 0.9;
 float EQ_MID = 0.5;
 float EQ_LOW = 0.7;
@@ -625,6 +625,8 @@ int nMENU = 0;
 // Indica cuando el WEBFILE esta ocupado
 bool WF_UPLOAD_TO_SD = 0;
 
+bool SORT_FILES_FIRST_DIR = true;
+
 // Declaraciones de metodos
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 // void save();
@@ -646,6 +648,7 @@ ConfigEntry configEntries[] =
   {"EQMopt", CONFIG_TYPE_FLOAT, &EQ_MID},
   {"EQLopt", CONFIG_TYPE_FLOAT, &EQ_LOW},
   {"PLEopt", CONFIG_TYPE_BOOL, &PWM_POWER_LED},
+  {"SFFopt", CONFIG_TYPE_BOOL, &SORT_FILES_FIRST_DIR},
   {"SPKopt", CONFIG_TYPE_BOOL, &EN_SPEAKER},
 };
 
