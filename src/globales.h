@@ -548,6 +548,8 @@ int BB_PTR_ITEM = 0;
 bool UPDATE_HMI = false;
 bool BLOCK_BROWSER_OPEN = false;
 int BB_PAGE_SELECTED = 1;
+int BB_BROWSER_STEP = 0; // 0 = info general, 1..MAX_BLOCKS_IN_BROWSER = items
+int BB_BROWSER_MAX = 0;
 
 // Variables de control de la reproducción
 bool PLAY = false;

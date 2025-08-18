@@ -212,196 +212,196 @@ class HMI
           #endif
       }
 
-      void fillWithFiles_OLD(File32 &fout, File32 &fstatus, String search_pattern)
-      {
-          // NOTA:
-          // ***************************************************
-          // Esta función toma la ruta establecida por sdm.dir
-          // del manejador de ficheros.
-          // ***************************************************
+    //   void fillWithFiles_OLD(File32 &fout, File32 &fstatus, String search_pattern)
+    //   {
+    //       // NOTA:
+    //       // ***************************************************
+    //       // Esta función toma la ruta establecida por sdm.dir
+    //       // del manejador de ficheros.
+    //       // ***************************************************
 
-          // Un fichero SOURCE_FILE_TO_MANAGE es del tipo
-          //
-          // 
-          // PATH=/TAP/F/
-          // ...
-          // --------------------------------------------------------------------------------------------------
-          //  ID    | Type [D / F] | Seek   | Filename
-          // ---------------------------------------------------------------------------------------------------
-          //  0     , F            , 288    , F-16 Combat Pilot (1991)(Digital Integration)[cr Matasoft][128K].tap;
-          //
-          // F --> File
-          // D --> Directory
+    //       // Un fichero SOURCE_FILE_TO_MANAGE es del tipo
+    //       //
+    //       // 
+    //       // PATH=/TAP/F/
+    //       // ...
+    //       // --------------------------------------------------------------------------------------------------
+    //       //  ID    | Type [D / F] | Seek   | Filename
+    //       // ---------------------------------------------------------------------------------------------------
+    //       //  0     , F            , 288    , F-16 Combat Pilot (1991)(Digital Integration)[cr Matasoft][128K].tap;
+    //       //
+    //       // F --> File
+    //       // D --> Directory
 
-          // Declaramos el nombre del fichero
-          char szName[512];
-          const String separator="|";
+    //       // Declaramos el nombre del fichero
+    //       char szName[512];
+    //       const String separator="|";
           
-          // Comprobamos que la ruta actual es un DIRECTORIO
-          if (!sdm.dir.isDir()) 
-          {
-              // Devolvemos que hay error              
-              return;
-          }
-          else
-          {
-              // Nos ponemos al inicio del directorio
-              sdm.dir.rewindDirectory();
+    //       // Comprobamos que la ruta actual es un DIRECTORIO
+    //       if (!sdm.dir.isDir()) 
+    //       {
+    //           // Devolvemos que hay error              
+    //           return;
+    //       }
+    //       else
+    //       {
+    //           // Nos ponemos al inicio del directorio
+    //           sdm.dir.rewindDirectory();
               
-              // Posición del fichero encontrado en _files.lst
-              int lpos = 1;
-              // Contadores de ficheros y directorios
-              int cdir = 0;
-              int cfiles = 0;
+    //           // Posición del fichero encontrado en _files.lst
+    //           int lpos = 1;
+    //           // Contadores de ficheros y directorios
+    //           int cdir = 0;
+    //           int cfiles = 0;
 
-              #ifdef DEBUGMODE
-                logln("");
-                log("Search pattern: " + search_pattern);
-                logln("");
-              #endif
+    //           #ifdef DEBUGMODE
+    //             logln("");
+    //             log("Search pattern: " + search_pattern);
+    //             logln("");
+    //           #endif
 
-              // Por si se queda abierto, lo cerramos primero
-              // para poder abrirlo después en el WHILE
-              if (sdm.file.isOpen())
-              {sdm.file.close();}
+    //           // Por si se queda abierto, lo cerramos primero
+    //           // para poder abrirlo después en el WHILE
+    //           if (sdm.file.isOpen())
+    //           {sdm.file.close();}
 
-              // Ahora lo recorremos
-              int itemsCount = 0;
-              int itemsToShow = 0;
+    //           // Ahora lo recorremos
+    //           int itemsCount = 0;
+    //           int itemsToShow = 0;
 
-              while (sdm.file.openNext(&sdm.dir, O_RDONLY))
-              {
-                  esp_task_wdt_reset();
+    //           while (sdm.file.openNext(&sdm.dir, O_RDONLY))
+    //           {
+    //               esp_task_wdt_reset();
 
-                  // Ok. Entonces es un fichero y cogemos su extensión
-                  #ifdef DEBUGMODE
-                    logln("");
-                    log("ID: " + String(lpos));
-                  #endif
+    //               // Ok. Entonces es un fichero y cogemos su extensión
+    //               #ifdef DEBUGMODE
+    //                 logln("");
+    //                 log("ID: " + String(lpos));
+    //               #endif
 
-                  size_t len = sdm.file.getName(szName,254);   
+    //               size_t len = sdm.file.getName(szName,254);   
 
-                  #ifdef DEBUGMODE
-                    log(" - " + String(szName) + " len: " + String(len));                  
-                  #endif
+    //               #ifdef DEBUGMODE
+    //                 log(" - " + String(szName) + " len: " + String(len));                  
+    //               #endif
 
-                  // Cuando la longitud es cero el nombre del fichero es erroneo
-                  if (len != 0)
-                  {
-                      char* substr = strlwr(szName + (len - 4));    
-                      uint32_t posf = sdm.dir.position();
+    //               // Cuando la longitud es cero el nombre del fichero es erroneo
+    //               if (len != 0)
+    //               {
+    //                   char* substr = strlwr(szName + (len - 4));    
+    //                   uint32_t posf = sdm.dir.position();
 
-                      String szNameStr = szName;
+    //                   String szNameStr = szName;
 
-                      #ifdef DEBUGMODE
-                        logln("");
-                        logln("File found: " + szNameStr);
-                        log(szNameStr);
-                        logln("");
-                      #endif
+    //                   #ifdef DEBUGMODE
+    //                     logln("");
+    //                     logln("File found: " + szNameStr);
+    //                     log(szNameStr);
+    //                     logln("");
+    //                   #endif
 
-                      szNameStr.toLowerCase();
-                      search_pattern.toLowerCase();
+    //                   szNameStr.toLowerCase();
+    //                   search_pattern.toLowerCase();
 
-                      if (szNameStr.indexOf(search_pattern) != -1 || search_pattern=="")
-                      {
-                          #ifdef DEBUGMODE
-                            logln("");
-                            log( "[" + szNameStr + "] matched with: " + search_pattern);
-                            logln("");
-                          #endif
+    //                   if (szNameStr.indexOf(search_pattern) != -1 || search_pattern=="")
+    //                   {
+    //                       #ifdef DEBUGMODE
+    //                         logln("");
+    //                         log( "[" + szNameStr + "] matched with: " + search_pattern);
+    //                         logln("");
+    //                       #endif
                           
-                          // ¿No es un directorio?
-                          if (!sdm.file.isDir())
-                          {
-                              // ¿No está oculto?
-                              if (!sdm.file.isHidden())
-                              {
-                                  // Ok. Entonces es un fichero y cogemos su extensión                               
-                                  // Si tiene una de las extensiones esperadas, se almacena
-                                  if (strstr(substr, ".tap") || strstr(substr, ".tzx") || strstr(substr, ".tsx") || strstr(substr, ".cdt") || strstr(substr, ".wav") || strstr(substr, ".mp3") || strstr(substr, ".flac") || strstr(substr, ".lst")) 
-                                  {
-                                      // ********************************
-                                      // Escribimos la info en el fichero
-                                      // ********************************
+    //                       // ¿No es un directorio?
+    //                       if (!sdm.file.isDir())
+    //                       {
+    //                           // ¿No está oculto?
+    //                           if (!sdm.file.isHidden())
+    //                           {
+    //                               // Ok. Entonces es un fichero y cogemos su extensión                               
+    //                               // Si tiene una de las extensiones esperadas, se almacena
+    //                               if (strstr(substr, ".tap") || strstr(substr, ".tzx") || strstr(substr, ".tsx") || strstr(substr, ".cdt") || strstr(substr, ".wav") || strstr(substr, ".mp3") || strstr(substr, ".flac") || strstr(substr, ".lst")) 
+    //                               {
+    //                                   // ********************************
+    //                                   // Escribimos la info en el fichero
+    //                                   // ********************************
 
-                                      // numero del fichero
-                                      fout.print(String(lpos));
-                                      fout.print(separator);
-                                      // tipo
-                                      fout.print("F");
-                                      fout.print(separator);
-                                      // seek
-                                      fout.print(String(posf));
-                                      fout.print(separator);
-                                      // nombre del fichero
-                                      fout.print(szName);
-                                      fout.println(separator);
-                                      // Incrementamos el indice
-                                      cfiles++;
-                                      lpos++;
-                                  }
-                                  else
-                                  {
-                                    //No es fichero reconocido
-                                  }
-                              }
-                          }
-                          else
-                          {
-                              // Es un directorio
-                              // Lo registramos si no está oculto
-                              if(!sdm.file.isHidden())
-                              {
-                                  // ***************************
-                                  // Cogemos la info del directorio
-                                  // ***************************
-                                  //
+    //                                   // numero del fichero
+    //                                   fout.print(String(lpos));
+    //                                   fout.print(separator);
+    //                                   // tipo
+    //                                   fout.print("F");
+    //                                   fout.print(separator);
+    //                                   // seek
+    //                                   fout.print(String(posf));
+    //                                   fout.print(separator);
+    //                                   // nombre del fichero
+    //                                   fout.print(szName);
+    //                                   fout.println(separator);
+    //                                   // Incrementamos el indice
+    //                                   cfiles++;
+    //                                   lpos++;
+    //                               }
+    //                               else
+    //                               {
+    //                                 //No es fichero reconocido
+    //                               }
+    //                           }
+    //                       }
+    //                       else
+    //                       {
+    //                           // Es un directorio
+    //                           // Lo registramos si no está oculto
+    //                           if(!sdm.file.isHidden())
+    //                           {
+    //                               // ***************************
+    //                               // Cogemos la info del directorio
+    //                               // ***************************
+    //                               //
 
-                                  // numero del fichero
-                                  fout.print(String(lpos));
-                                  fout.print(separator);
-                                  // tipo
-                                  fout.print("D");
-                                  fout.print(separator);
-                                  // seek
-                                  fout.print(String(posf));
-                                  fout.print(separator);
-                                  // nombre del directorio a MAYUSCULAS
-                                  // String szDirNameTmp = szName;
-                                  // szDirNameTmp.toUpperCase();
-                                  fout.print(szName);                      
-                                  fout.println(separator);
-                                  // Incrementamos el indice
-                                  cdir++;
-                                  lpos++;
-                              }                   
-                          }
+    //                               // numero del fichero
+    //                               fout.print(String(lpos));
+    //                               fout.print(separator);
+    //                               // tipo
+    //                               fout.print("D");
+    //                               fout.print(separator);
+    //                               // seek
+    //                               fout.print(String(posf));
+    //                               fout.print(separator);
+    //                               // nombre del directorio a MAYUSCULAS
+    //                               // String szDirNameTmp = szName;
+    //                               // szDirNameTmp.toUpperCase();
+    //                               fout.print(szName);                      
+    //                               fout.println(separator);
+    //                               // Incrementamos el indice
+    //                               cdir++;
+    //                               lpos++;
+    //                           }                   
+    //                       }
 
-                          //
-                          FILE_TOTAL_FILES = cdir + cfiles;
+    //                       //
+    //                       FILE_TOTAL_FILES = cdir + cfiles;
 
-                          // Devolvemos el total de ITEMS cargados 
-                          // Informamos en HMI
-                          if (itemsToShow >= EACH_FILES_REFRESH)
-                          {
-                              writeString("statusFILE.txt=\"ITEMS " + String(itemsCount) + " / " + String(FILE_TOTAL_FILES) + "\"");
-                              itemsToShow = 0; // Reiniciamos el contador
-                          }
+    //                       // Devolvemos el total de ITEMS cargados 
+    //                       // Informamos en HMI
+    //                       if (itemsToShow >= EACH_FILES_REFRESH)
+    //                       {
+    //                           writeString("statusFILE.txt=\"ITEMS " + String(itemsCount) + " / " + String(FILE_TOTAL_FILES) + "\"");
+    //                           itemsToShow = 0; // Reiniciamos el contador
+    //                       }
                      
-                      }
-                  }
+    //                   }
+    //               }
 
-                  sdm.file.close();
-                  itemsCount++;
-                  itemsToShow++;
-                }
+    //               sdm.file.close();
+    //               itemsCount++;
+    //               itemsToShow++;
+    //             }
 
-              // Registramos la ruta y el total de ficheros y directorios en _files.inf
-              fstatus.println("CFIL=" + String(cfiles));
-              fstatus.println("CDIR=" + String(cdir));              
-          }
-     }
+    //           // Registramos la ruta y el total de ficheros y directorios en _files.inf
+    //           fstatus.println("CFIL=" + String(cfiles));
+    //           fstatus.println("CDIR=" + String(cdir));              
+    //       }
+    //  }
 
     void fillWithFiles(File32 &fout, File32 &fstatus, String search_pattern)
     {
@@ -1969,15 +1969,31 @@ class HMI
         else if (strCmd.indexOf("BPDOWN") != -1)
         {
           // Pagina arriba block browser
+
+          // // Pagina arriba block browser
+          // BB_PTR_ITEM += MAX_BLOCKS_IN_BROWSER;
+
+          // if (BB_PTR_ITEM > TOTAL_BLOCKS - 1)
+          // {
+          //   BB_PTR_ITEM -= MAX_BLOCKS_IN_BROWSER;
+          // }
+
+          // BB_PAGE_SELECTED = (BB_PTR_ITEM / MAX_BLOCKS_IN_BROWSER) + 1;
+          // BB_UPDATE = true;
+          
           if (TOTAL_BLOCKS > MAX_BLOCKS_IN_BROWSER)
           {
+            // Podemos bajar paginas
             BB_PTR_ITEM += (MAX_BLOCKS_IN_BROWSER * 10);
-
+            // Si sobrepasamos el final, mostramos la ultima pagina
             if (BB_PTR_ITEM > TOTAL_BLOCKS - 1)
             {
-              BB_PTR_ITEM = TOTAL_BLOCKS - MAX_BLOCKS_IN_BROWSER;
+              // Ultima pagina.
+              int n = TOTAL_BLOCKS / MAX_BLOCKS_IN_BROWSER;
+              BB_PTR_ITEM = (TOTAL_BLOCKS - (TOTAL_BLOCKS - (MAX_BLOCKS_IN_BROWSER * n)));
             }
             
+            // Info de la pagina vista
             BB_PAGE_SELECTED = (BB_PTR_ITEM / MAX_BLOCKS_IN_BROWSER) + 1;
             BB_UPDATE = true;            
           }
@@ -4233,59 +4249,111 @@ class HMI
           return filePath; // Si no hay separador, devuelve la cadena completa
       }
 
-      
+// Variables globales de control
+
       void openBlockMediaBrowser(tAudioList* source) 
       {
-          // Rellenamos el browser con todos los bloques
           int max = MAX_BLOCKS_IN_BROWSER;
-          int totalPages = 0;
-      
           if (TOTAL_BLOCKS > max) {
               max = MAX_BLOCKS_IN_BROWSER;
           } else {
               max = TOTAL_BLOCKS - 1;
           }
+          BB_BROWSER_MAX = max;
 
-          //
-          logln("Total blocks: " + String(TOTAL_BLOCKS) + " - Max: " + String(max));
-      
-          BB_PAGE_SELECTED = (BB_PTR_ITEM / MAX_BLOCKS_IN_BROWSER) + 1;
-      
-          // Construimos un bloque de datos para enviar con menos llamadas a writeString
-          String blockData = "";
-      
-          // Información general
-          blockData += "mp3browser.path.txt=\"" + HMI_FNAME + "\"\xff\xff\xff";
-          blockData += "mp3browser.totalBl.txt=\"" + String(TOTAL_BLOCKS - 1) + "\"\xff\xff\xff";
-          blockData += "mp3browser.bbpag.txt=\"" + String(BB_PAGE_SELECTED) + "\"\xff\xff\xff";
-          blockData += "mp3browser.size0.txt=\"SIZE[MB]\"\xff\xff\xff";
-      
-          double ctpage = (double)TOTAL_BLOCKS / (double)MAX_BLOCKS_IN_BROWSER;
-          totalPages = trunc(ctpage);
-          if ((TOTAL_BLOCKS % MAX_BLOCKS_IN_BROWSER != 0) && ctpage > 1) {
-              totalPages += 1;
+          // Paso 0: Información general
+          if (BB_BROWSER_STEP == 0) {
+              BB_PAGE_SELECTED = (BB_PTR_ITEM / MAX_BLOCKS_IN_BROWSER) + 1;
+
+              writeString("mp3browser.path.txt=\"" + HMI_FNAME + "\"");
+              writeString("mp3browser.totalBl.txt=\"" + String(TOTAL_BLOCKS - 1) + "\"");
+              writeString("mp3browser.bbpag.txt=\"" + String(BB_PAGE_SELECTED) + "\"");
+              writeString("mp3browser.size0.txt=\"SIZE[MB]\"");
+
+              double ctpage = (double)TOTAL_BLOCKS / (double)MAX_BLOCKS_IN_BROWSER;
+              int totalPages = trunc(ctpage);
+              if ((TOTAL_BLOCKS % MAX_BLOCKS_IN_BROWSER != 0) && ctpage > 1) {
+                  totalPages += 1;
+              }
+              writeString("mp3browser.totalPag.txt=\"" + String(totalPages) + "\"");
+
+              BB_BROWSER_STEP = 1; // Siguiente paso: primer item
+              return;
           }
-          blockData += "mp3browser.totalPag.txt=\"" + String(totalPages) + "\"\xff\xff\xff";
 
-          // Información de cada bloque
-          for (int i = 1; i <= max; i++) {
+          // Paso 1..max: Mostrar cada item
+          int i = BB_BROWSER_STEP;
+          if (i <= BB_BROWSER_MAX) {
               if (i + BB_PTR_ITEM > TOTAL_BLOCKS - 1) {
-                  // Los dejamos limpios pero sin información
-                  blockData += "mp3browser.id" + String(i) + ".txt=\"\"\xff\xff\xff";
-                  blockData += "mp3browser.name" + String(i) + ".txt=\"\"\xff\xff\xff";
+                  writeString("mp3browser.id" + String(i) + ".txt=\"\"");
+                  writeString("mp3browser.name" + String(i) + ".txt=\"\"");
               } else {
-                  // Apuntamos al item
                   String name = source[i + BB_PTR_ITEM - 1].filename;
-      
-                  // En otro caso metemos información
-                  blockData += "mp3browser.id" + String(i) + ".txt=\"" + String(i + BB_PTR_ITEM) + "\"\xff\xff\xff";
-                  blockData += "mp3browser.name" + String(i) + ".txt=\"" + getFileNameFromPath(name) + "\"\xff\xff\xff";
+                  writeString("mp3browser.id" + String(i) + ".txt=\"" + String(i + BB_PTR_ITEM) + "\"");
+                  writeString("mp3browser.name" + String(i) + ".txt=\"" + getFileNameFromPath(name) + "\"");
+              }
+              BB_BROWSER_STEP++;
+              // Si hemos terminado, reseteamos flags
+              if (BB_BROWSER_STEP > BB_BROWSER_MAX) {
+                  BB_OPEN = false;
+                  BB_UPDATE = false;
+                  BB_BROWSER_STEP = 0;
               }
           }
-      
-          // Enviamos todo el bloque de datos en una sola llamada
-          writeStringBlock(blockData);
       }
+            
+      // void openBlockMediaBrowser_old(tAudioList* source) 
+      // {
+      //     // Rellenamos el browser con todos los bloques
+      //     int max = MAX_BLOCKS_IN_BROWSER;
+      //     int totalPages = 0;
+      
+      //     if (TOTAL_BLOCKS > max) {
+      //         max = MAX_BLOCKS_IN_BROWSER;
+      //     } else {
+      //         max = TOTAL_BLOCKS - 1;
+      //     }
+
+      //     //
+      //     logln("Total blocks: " + String(TOTAL_BLOCKS) + " - Max: " + String(max));
+      
+      //     BB_PAGE_SELECTED = (BB_PTR_ITEM / MAX_BLOCKS_IN_BROWSER) + 1;
+      
+      //     // Construimos un bloque de datos para enviar con menos llamadas a writeString
+      //     String blockData = "";
+      
+      //     // Información general
+      //     blockData += "mp3browser.path.txt=\"" + HMI_FNAME + "\"\xff\xff\xff";
+      //     blockData += "mp3browser.totalBl.txt=\"" + String(TOTAL_BLOCKS - 1) + "\"\xff\xff\xff";
+      //     blockData += "mp3browser.bbpag.txt=\"" + String(BB_PAGE_SELECTED) + "\"\xff\xff\xff";
+      //     blockData += "mp3browser.size0.txt=\"SIZE[MB]\"\xff\xff\xff";
+      
+      //     double ctpage = (double)TOTAL_BLOCKS / (double)MAX_BLOCKS_IN_BROWSER;
+      //     totalPages = trunc(ctpage);
+      //     if ((TOTAL_BLOCKS % MAX_BLOCKS_IN_BROWSER != 0) && ctpage > 1) {
+      //         totalPages += 1;
+      //     }
+      //     blockData += "mp3browser.totalPag.txt=\"" + String(totalPages) + "\"\xff\xff\xff";
+
+      //     // Información de cada bloque
+      //     for (int i = 1; i <= max; i++) {
+      //         if (i + BB_PTR_ITEM > TOTAL_BLOCKS - 1) {
+      //             // Los dejamos limpios pero sin información
+      //             blockData += "mp3browser.id" + String(i) + ".txt=\"\"\xff\xff\xff";
+      //             blockData += "mp3browser.name" + String(i) + ".txt=\"\"\xff\xff\xff";
+      //         } else {
+      //             // Apuntamos al item
+      //             String name = source[i + BB_PTR_ITEM - 1].filename;
+      
+      //             // En otro caso metemos información
+      //             blockData += "mp3browser.id" + String(i) + ".txt=\"" + String(i + BB_PTR_ITEM) + "\"\xff\xff\xff";
+      //             blockData += "mp3browser.name" + String(i) + ".txt=\"" + getFileNameFromPath(name) + "\"\xff\xff\xff";
+      //         }
+      //     }
+      
+      //     // Enviamos todo el bloque de datos en una sola llamada
+      //     writeStringBlock(blockData);
+      // }
 
       void openBlocksBrowser(tTZX myTZX = tTZX(), tTAP myTAP = tTAP())
       {
@@ -4359,14 +4427,35 @@ class HMI
 
               int tzxSize = myTZX.descriptor[i + BB_PTR_ITEM].size;
               writeString("blocks.data" + String(i) + ".txt=\"" + myTZX.descriptor[i + BB_PTR_ITEM].typeName + "\"");
-              writeString("blocks.name" + String(i) + ".txt=\"" + myTZX.descriptor[i + BB_PTR_ITEM].name + "\"");
+              String tmpname = myTZX.descriptor[i + BB_PTR_ITEM].name;
+              tmpname.trim();
+              bool soloEspacios = (tmpname.length() == 0);
+              if (!soloEspacios)
+              {
+                writeString("blocks.name" + String(i) + ".txt=\"" + myTZX.descriptor[i + BB_PTR_ITEM].name + "\"");
+              }
+              else
+              {
+                writeString("blocks.name" + String(i) + ".txt=\"..[BL-" + String(i) + "]\"");
+              }
               writeString("blocks.size" + String(i) + ".txt=\"" + String(tzxSize) + "\"");
             }
             else
             {
               int tapSize = myTAP.descriptor[i + BB_PTR_ITEM - 1].size;
               writeString("blocks.data" + String(i) + ".txt=\"" + myTAP.descriptor[i + BB_PTR_ITEM - 1].typeName + "\"");
-              writeString("blocks.name" + String(i) + ".txt=\"" + myTAP.descriptor[i + BB_PTR_ITEM - 1].name + "\"");
+
+              String tmpname = myTAP.descriptor[i + BB_PTR_ITEM - 1].name;
+              tmpname.trim();
+              bool soloEspacios = (tmpname.length() == 0);
+              if (!soloEspacios)
+              {
+                writeString("blocks.name" + String(i) + ".txt=\"" + myTAP.descriptor[i + BB_PTR_ITEM - 1].name + "\"");
+              }
+              else
+              {
+                writeString("blocks.name" + String(i) + ".txt=\"..[BL-" + String(i) + "]\"");
+              }
               writeString("blocks.size" + String(i) + ".txt=\"" + String(tapSize) + "\"");
             }
           }
