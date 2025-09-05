@@ -116,16 +116,20 @@ This project need set the PCB DIP switch to
 |4|Off|
 |5|Off|
 
-How to install compiled .bin firmware in powadcr? 
+How to install firmwares in powadcr? 
 -----
 <b>At the first time</b>
 
-- You need to install first of all this release: https://github.com/hash6iron/powadcr/releases/tag/Release
-- Then install later, the latest relase: https://github.com/hash6iron/powadcr/releases/latest
+- First you need to flash the screen firmware with this file : https://github.com/hash6iron/powadcr/releases/download/Release/powadcr_iface.tft 
+- The second step is to flash the following file in AudioKit board : https://github.com/hash6iron/powadcr/releases/download/Release/Powadcr_v1.0r2.bin
+- Then install later, the Screen and AudioKit firmwares from the latest relase: https://github.com/hash6iron/powadcr/releases/latest
 
 <b>How to?</b>
 
-You can flash the binaries directly to the board if you do not want to mess with code and compilers. 
+To flash the firmware of the screen the file powadcr shown below must be copied inside an empty SD Card, insert it inside the SD Reader of the screen and connect the screen to the GPIO connector of the Audiokit board as shown below. Take care with polarity of the power, because if the polarity is inverted the screen could damage it. When the power is connected the screen will start with blank background and the file copy will be in process. This only takes less than 2 minutes. Be sure that the power couldn't be disconected during this process.
+
+
+After this you can flash the binaries directly to the AudioKit board if you do not want to mess with code and compilers. 
 
 1. Download ESP32 Flash Downloading Tool - from [here](https://docs.espressif.com/projects/esp-test-tools/en/latest/esp32/production_stage/tools/flash_download_tool.html)
 2. Unzip file and execute - flash_download_tool_x.x.x.exe file
@@ -146,7 +150,6 @@ You can flash the binaries directly to the board if you do not want to mess with
    - Connect ESP32-A1S Audiokit board from UART microUSB port (not power microUSB PORT) at PC USB port.
    - Select the available COM for this connection in COM: field on ESP32 Flash Downloading Tool.
    - Select BAUD: speed at 921600
-   - Disconnect the Touch Screen cable in order to release serial port (Audiokit sharing USB and UART communications)
    - Press START button in ESP32 Flash Downloading Tool. Then downloading proccess begin, and wait for FINISH message. Enjoy!
   
      NOTES: If the proccess fail.
@@ -158,7 +161,7 @@ You can flash the binaries directly to the board if you do not want to mess with
    ![image](https://github.com/user-attachments/assets/b5c189c6-8945-4a65-9e22-e17a56d3eea6)
 
 <b>Upcoming updates</b>
-- Put .bin in the AudioKit SD and run again. Wait until process finishs.
+- Put the firmware.bin and powadcr_iface.tft of the latest release inside the root folder in the AudioKit SD and run again. Wait until process finishs.
 
 How custom firmware is uploaded in ESP32-A1S Audiokit? 
 -----
@@ -170,13 +173,6 @@ How custom firmware is uploaded in ESP32-A1S Audiokit?
 6. Connect the ESP32 Audiokit USART USB port to any USB PC port
 7. Press BUILD (arrow icon) from PlatformIO toolbar.
 
-How firmware is loaded in TJC LCD?
------
-<b>At the first time</b>
-- Put "HMI/build/powadcr_iface.tft" in the root of a SD card and insert in TFT slot.
-  
-<b>Upcoming updates</b>
-- Upload the file "HMI/build/powadcr_iface.tft" to the root of the SD and insert this into powaDCR. Power on the powaDCR and Wait until firmware is uploaded.
 
 Using powadcr recorder with modern and classic 8-bit machines
 -----
