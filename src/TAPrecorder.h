@@ -66,7 +66,7 @@ class TAPrecorder
       hw_timer_t *timer = NULL;
 
       HMI _hmi;
-      SdFat32 _sdf32;
+      //SdFat32 _sdf32;
 
       static const size_t BUFFER_SIZE_REC = 256; //256 (09/07/2024)
 
@@ -480,21 +480,26 @@ class TAPrecorder
           str[j] = '\0'; // Termina la cadena con un carácter nulo
       }
 
-      int findFileWithNumber(const char *directory, const char *baseName, SdFat32 &sd) {
-          File32 dir = sd.open(directory);
-          if (!dir || !dir.isDir()) {
+      int findFileWithNumber(const char *directory, const char *baseName) {
+          
+          String entry = "";
+          File dir = SD_MMC.open(directory, FILE_READ);
+          if (!dir || !dir.isDirectory()) {
               #ifdef DEBUGMODE
                   Serial.println("Error: Directory not found or invalid.");
               #endif
               return -1; // El directorio no existe o no es válido
           }
 
-          File32 file;
+          File file;
           char fileName[64];
-          while (file.openNext(&dir, O_RDONLY)) {
-              file.getName(fileName, sizeof(fileName));
-              file.close();
-
+          while (entry = file.getNextFileName()) {
+              
+              if (entry == "") break;
+      
+              strcpy(fileName, entry.c_str());
+              //file.close();
+              
               // Verificamos si el archivo tiene el formato <nombre>-<numero>.tap
               String fileStr = String(fileName);
               if (fileStr.startsWith(baseName) && fileStr.endsWith(".tap")) {
@@ -510,7 +515,7 @@ class TAPrecorder
           return -1; // No se encontró ningún archivo con el formato especificado
       }
 
-      bool renameFile(char newFileName[], File32 &mFile)
+      bool renameFile(char newFileName[], File &mFile)
       {
           // Reservamos memoria             
           char cPath[57] = {""};
@@ -528,7 +533,7 @@ class TAPrecorder
           srand(time(0));
           delay(125);
 
-          int copynum = findFileWithNumber(cPath, newFileName, sdf);
+          int copynum = findFileWithNumber(cPath, newFileName);
           int rn = (copynum == -1) ? 0 : copynum++;
           logln("Copy number of filename: " + String(rn));
           // Generamos el nuevo nombre del fichero
@@ -540,11 +545,11 @@ class TAPrecorder
           strcat(cPath,newFileName);
 
           // Comprobamos si existe el nuevo fichero
-          while(sdf.exists(cPath))
+          while(SD_MMC.exists(cPath))
           {              
               // Limpiamos el buffer
               memset(cPath, 0, sizeof(cPath)); 
-              memset(newFileName, 0, sizeof(newFileName));
+              memset(newFileName, 0, strlen(newFileName));
               // Cogemos la copia original
               strcpy(cPath, dirR.c_str());
               strcpy(newFileName,nfile);
@@ -565,7 +570,7 @@ class TAPrecorder
               #endif
           }         
 
-          if (mFile.rename(cPath))
+          if (SD_MMC.rename(mFile.name(), cPath))
           {         
             return true;
           }
@@ -579,10 +584,10 @@ class TAPrecorder
     public:
 
      
-      void set_SdFat32(SdFat32 sdf32)
-      {
-          _sdf32 = sdf32;
-      }
+      // void set_SdFat32(SdFat32 sdf32)
+      // {
+      //     _sdf32 = sdf32;
+      // }
 
       void set_HMI(HMI hmi)
       {
@@ -594,7 +599,7 @@ class TAPrecorder
       //   _kit = kit;
       // }
 
-      void newBlock(File32 &mFile)
+      void newBlock(File &mFile)
       {
         checksum = 0; 
         //BYTES_TOBE_LOAD = 19;
@@ -646,7 +651,7 @@ class TAPrecorder
         mFile.write(MSB);             
       }
 
-      void addBlockSize(File32 &mFile, int byteCount)
+      void addBlockSize(File &mFile, int byteCount)
       {
         int ptrTmpPos = 0;
         ptrTmpPos = mFile.position();
@@ -721,7 +726,7 @@ class TAPrecorder
           String dirR = RECORDING_DIR + "/\0";
           strcpy(recDir, dirR.c_str());
           
-          if (!_sdf32.mkdir(RECORDING_DIR))
+          if (!SD_MMC.mkdir(RECORDING_DIR))
           {
             #ifdef DEBUGMODE
               log("Error! Directory exists or wasn't created");
@@ -736,8 +741,8 @@ class TAPrecorder
           // Se crea un nuevo fichero temporal con la ruta del REC
           strcat(recDir, fileName);
           //SerialHW.println("Dir for REC: " + String(recDir));
-          File32 tapf = sdf.open(recDir, O_WRITE | O_CREAT);
-          tapf.rewind();
+          File tapf = SD_MMC.open(recDir, FILE_WRITE);
+          tapf.seek(0);
                     
           // Inicializamos el array de nombre del header
           for (int i=0;i<10;i++)
@@ -1417,7 +1422,7 @@ class TAPrecorder
               delay(3000);            
               // Eliminamos desde blockStartOffset hasta el final
               //LAST_MESSAGE = "Removing bad block";
-              tapf.rewind();
+              tapf.seek(0);
               tapf.seek(blockStartOffset);
 
               logln("");

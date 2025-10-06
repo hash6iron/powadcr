@@ -73,38 +73,60 @@ class BlockProcessor
 
 
     public:
-        
-        bool existBlockDescriptorFile(File32 mFile, char* path)
-        {
-            logln("Existe? " + String(path));
+    
+    // Verifica que el fichero DSC tiene cabecera y al menos una línea de datos
+    bool isValidDSCFile(const char* path) 
+    {
+        File dscFile = SD_MMC.open(path, FILE_READ);
+        if (!dscFile) return false;
 
-            if(mFile.open(path,O_READ))
-            {
-              mFile.close();
-              logln("SI");
-              return true;
-            }
-            else
-            {
-              logln("NO");
-              return false;
-            }
+        // Lee la cabecera (primera línea)
+        String header = dscFile.readStringUntil('\n');
+        header.trim();
+        if (header.length() == 0) {
+            dscFile.close();
+            return false; // No hay cabecera
         }
 
-        void createBlockDescriptorFileTZX(File32 &mFile, char* path)
+        // Lee la siguiente línea (primer dato)
+        String firstData = dscFile.readStringUntil('\n');
+        firstData.trim();
+        dscFile.close();
+
+        // Si hay al menos una línea de datos, es válido
+        return firstData.length() > 0;
+    }
+
+        bool existBlockDescriptorFile(File mFile, char* path)
+        {
+            logln("Valid DSC file? " + String(path));
+
+            if(isValidDSCFile(path))
+            {
+                logln("DSC file found");
+                mFile.close();
+                return true;
+            }
+
+            logln("DSC file not found");
+            return false;
+        }
+
+        void createBlockDescriptorFileTZX(File &mFile, char* path)
         {
           // Creamos un fichero con el descriptor de bloques para TZX
           _blTZX.path = path;
 
           // Lo creamos otra vez
-          if(mFile.open(_blTZX.path, O_RDWR | O_CREAT))
+          mFile = SD_MMC.open(_blTZX.path, FILE_WRITE);
+          if(mFile)
           {
             logln("DSC file created or overwrite");
             mFile.println(dscVersion + ",pos,ID,chk,delay,group,hasMaskLastByte,header,jump_this_ID,lenOfData,loopCount,offset,offsetData,name,nameDetected,pauseATB,playeable,samplingrate,screen,silent,size,t.Bit0,t.Bit1,t.PilotLen,t.PilotNPulses,t.PulseSeq,t.PureTone,t.PureToneNP,t.Sync1,t.Sync2,typeName,type,t.bitcfg,t.bytecfg,maskLastByte,hasGroupBlocks,SizeTZX,signalLvl");
           }
         }
 
-        void putBlocksDescriptorTZX(File32 &mFile,int pos, tTZXBlockDescriptor &descriptor, uint32_t sizeTZX, bool hasGroupBlocks)
+        void putBlocksDescriptorTZX(File &mFile,int pos, tTZXBlockDescriptor &descriptor, uint32_t sizeTZX, bool hasGroupBlocks)
         {
             // Creamos un fichero con el descriptor de bloques para TZX
             char name[20];
@@ -117,44 +139,47 @@ class BlockProcessor
               logln("Writing in: " + String(_blTZX.path));
             #endif
 
-            // Ahora vamos a pasarle todo el descriptor TZX completo
-            mFile.println(String(pos) + "," + 
-                          String(descriptor.ID) + "," + 
-                          String(descriptor.chk) + "," +
-                          String(descriptor.delay)+ "," +
-                          String(descriptor.group) + "," +
-                          String(descriptor.hasMaskLastByte) + "," +
-                          String(descriptor.header) + "," +
-                          String(descriptor.jump_this_ID) + "," +
-                          String(descriptor.lengthOfData) + "," +
-                          String(descriptor.loop_count) + "," +
-                          String(descriptor.offset) + "," +
-                          String(descriptor.offsetData) + "," +     
-                          name + " ," +
-                          String(descriptor.nameDetected) + "," +
-                          String(descriptor.pauseAfterThisBlock) + "," +
-                          String(descriptor.playeable) + "," +
-                          String(descriptor.samplingRate) + "," +
-                          String(descriptor.screen) + "," +
-                          String(descriptor.silent) + "," +
-                          String(descriptor.size) + "," +
-                          String(descriptor.timming.bit_0) + "," +
-                          String(descriptor.timming.bit_1) + "," +
-                          String(descriptor.timming.pilot_len) + "," +
-                          String(descriptor.timming.pilot_num_pulses) + "," +
-                          String(descriptor.timming.pulse_seq_num_pulses) + "," +
-                          String(descriptor.timming.pure_tone_len) + "," +
-                          String(descriptor.timming.pure_tone_num_pulses) + "," +
-                          String(descriptor.timming.sync_1) + "," +
-                          String(descriptor.timming.sync_2) + "," +
-                          typeName + " ," +
-                          String(descriptor.type) + "," +
-                          String(descriptor.timming.bitcfg) + "," +
-                          String(descriptor.timming.bytecfg) + "," +
-                          String(descriptor.maskLastByte) + "," +
-                          String(hasGroupBlocks) + "," +
-                          String(sizeTZX) + "," +
-                          String(descriptor.signalLvl));              
+            if (mFile)
+            {
+              // Ahora vamos a pasarle todo el descriptor TZX completo
+              mFile.println(String(pos) + "," + 
+                            String(descriptor.ID) + "," + 
+                            String(descriptor.chk) + "," +
+                            String(descriptor.delay)+ "," +
+                            String(descriptor.group) + "," +
+                            String(descriptor.hasMaskLastByte) + "," +
+                            String(descriptor.header) + "," +
+                            String(descriptor.jump_this_ID) + "," +
+                            String(descriptor.lengthOfData) + "," +
+                            String(descriptor.loop_count) + "," +
+                            String(descriptor.offset) + "," +
+                            String(descriptor.offsetData) + "," +     
+                            name + " ," +
+                            String(descriptor.nameDetected) + "," +
+                            String(descriptor.pauseAfterThisBlock) + "," +
+                            String(descriptor.playeable) + "," +
+                            String(descriptor.samplingRate) + "," +
+                            String(descriptor.screen) + "," +
+                            String(descriptor.silent) + "," +
+                            String(descriptor.size) + "," +
+                            String(descriptor.timming.bit_0) + "," +
+                            String(descriptor.timming.bit_1) + "," +
+                            String(descriptor.timming.pilot_len) + "," +
+                            String(descriptor.timming.pilot_num_pulses) + "," +
+                            String(descriptor.timming.pulse_seq_num_pulses) + "," +
+                            String(descriptor.timming.pure_tone_len) + "," +
+                            String(descriptor.timming.pure_tone_num_pulses) + "," +
+                            String(descriptor.timming.sync_1) + "," +
+                            String(descriptor.timming.sync_2) + "," +
+                            typeName + " ," +
+                            String(descriptor.type) + "," +
+                            String(descriptor.timming.bitcfg) + "," +
+                            String(descriptor.timming.bytecfg) + "," +
+                            String(descriptor.maskLastByte) + "," +
+                            String(hasGroupBlocks) + "," +
+                            String(sizeTZX) + "," +
+                            String(descriptor.signalLvl));       
+            }       
 
         }
 

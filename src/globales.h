@@ -39,6 +39,9 @@
  #define  up   1
  #define  down 0
  
+File global_dir;
+//File global_file; 
+
 int stackFreeCore0 = 0;
 int stackFreeCore1 = 0;
 int lst_stackFreeCore0 = 0;
@@ -564,6 +567,7 @@ bool FFWIND = false;
 bool RWIND = false;
 bool KEEP_FFWIND = false;
 bool KEEP_RWIND = false;
+bool AUDIO_FORMART_IS_VALID = false;
 // bool RECORDING_IN_PROGRESS = false;
 
 bool EJECT = false;
@@ -587,7 +591,7 @@ const int ACK_LCD = 5;
 const int RESET = 6;
 bool SAMPLINGTEST = false;
 //
-double MAIN_VOL_FACTOR = 100;
+
 
 double MAIN_VOL = 0.9 * MAIN_VOL_FACTOR;
 double MAIN_VOL_R = 0.9 * MAIN_VOL_FACTOR;
@@ -599,7 +603,7 @@ bool EQ_CHANGE = false;
 bool VOL_LIMIT_HEADPHONE = false;
 double TONE_ADJUST = 0.0;
 bool AUTO_FADE = false;
-bool AUTO_NEXT = true;
+bool AUTO_NEXT = false;
 int MEDIA_CURRENT_POINTER = 0;
 bool CHANGE_TRACK_FILTER = false;
 
@@ -628,6 +632,7 @@ int nMENU = 0;
 bool WF_UPLOAD_TO_SD = 0;
 
 bool SORT_FILES_FIRST_DIR = true;
+bool REGENERATE_IDX = false;
 
 // Declaraciones de metodos
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -654,13 +659,13 @@ ConfigEntry configEntries[] =
   {"SPKopt", CONFIG_TYPE_BOOL, &EN_SPEAKER},
 };
 
-static inline void erase_cntrl(std::string &s) 
-{
-  s.erase(std::remove_if(s.begin(), s.end(),
-          [&](char ch)
-          { return std::iscntrl(static_cast<unsigned char>(ch));}),
-          s.end());
-}
+// static inline void erase_cntrl(std::string &s) 
+// {
+//   s.erase(std::remove_if(s.begin(), s.end(),
+//           [&](char ch)
+//           { return std::iscntrl(static_cast<unsigned char>(ch));}),
+//           s.end());
+// }
 
 // Function to load the configuration
 bool loadHMICfg() 
@@ -828,10 +833,10 @@ void saveHMIcfg(std::string value)
 
 }
 
-void save() 
-{
-  saveHMIcfg("all");
-}
+// void save() 
+// {
+//   saveHMIcfg("all");
+// }
 
 void saveVolSliders()
 {
@@ -840,46 +845,46 @@ void saveVolSliders()
   saveHMIcfg("VOLRopt");  
 }
 // Function to check if a file exists in SD using stat
-bool backupExistsOnSD() 
-{
-  struct stat buffer;
-  return (stat("/sd/.powadcr.cfg", &buffer) == 0); // 0 means the file exists
-}
+// bool backupExistsOnSD() 
+// {
+//   struct stat buffer;
+//   return (stat("/sd/.powadcr.cfg", &buffer) == 0); // 0 means the file exists
+// }
 
 // Function to save configuration to SD using fopen
-bool saveToSD() {
-  FILE *file = fopen("/sd/.powadcr.cfg", "w");
-  if (!file) {
-      printf("Failed to open .powadcr.cfg for writing\n");
-      return true;
-  }
+// bool saveToSD() {
+//   FILE *file = fopen("/sd/.powadcr.cfg", "w");
+//   if (!file) {
+//       printf("Failed to open .powadcr.cfg for writing\n");
+//       return true;
+//   }
 
-  for (const auto& entry : configEntries) {
-      switch (entry.type) {
-          case CONFIG_TYPE_STRING:
-              fprintf(file, "%s=%s\n", entry.key, static_cast<std::string*>(entry.value)->c_str());
-              break;
-          case CONFIG_TYPE_BOOL:
-              fprintf(file, "%s=%s\n", entry.key, *static_cast<bool*>(entry.value) ? "true" : "false");
-              break;
-          case CONFIG_TYPE_UINT8:
-              fprintf(file, "%s=%u\n", entry.key, *static_cast<uint8_t*>(entry.value));
-              break;
-          case CONFIG_TYPE_UINT16:
-              fprintf(file, "%s=%u\n", entry.key, *static_cast<uint16_t*>(entry.value));
-              break;
-          case CONFIG_TYPE_UINT32:
-          fprintf(file, "%s=%u\n", entry.key, *static_cast<uint32_t*>(entry.value));
-              break;
-          case CONFIG_TYPE_INT8:
-              fprintf(file, "%s=%d\n", entry.key, *static_cast<int8_t*>(entry.value));
-              break;
-      }
-  }
+//   for (const auto& entry : configEntries) {
+//       switch (entry.type) {
+//           case CONFIG_TYPE_STRING:
+//               fprintf(file, "%s=%s\n", entry.key, static_cast<std::string*>(entry.value)->c_str());
+//               break;
+//           case CONFIG_TYPE_BOOL:
+//               fprintf(file, "%s=%s\n", entry.key, *static_cast<bool*>(entry.value) ? "true" : "false");
+//               break;
+//           case CONFIG_TYPE_UINT8:
+//               fprintf(file, "%s=%u\n", entry.key, *static_cast<uint8_t*>(entry.value));
+//               break;
+//           case CONFIG_TYPE_UINT16:
+//               fprintf(file, "%s=%u\n", entry.key, *static_cast<uint16_t*>(entry.value));
+//               break;
+//           case CONFIG_TYPE_UINT32:
+//           fprintf(file, "%s=%u\n", entry.key, *static_cast<uint32_t*>(entry.value));
+//               break;
+//           case CONFIG_TYPE_INT8:
+//               fprintf(file, "%s=%d\n", entry.key, *static_cast<int8_t*>(entry.value));
+//               break;
+//       }
+//   }
 
-  fclose(file);
-  return false;
-}
+//   fclose(file);
+//   return false;
+// }
 
 // Function to load configuration from SD using fopen
 bool loadFromSD() {
@@ -966,3 +971,136 @@ void logAlert(String txt)
 
     lastAlertTxt = txt;
 }
+
+// Lee un rango de bytes de un archivo FS (SD, SD_MMC, etc.)
+// void readFileRange2(File &file, uint8_t* buffer, int offset, int size, bool keepPosition = false) {
+//     // Guarda la posición actual si se va a restaurar después
+//     uint32_t oldPos = 0;
+//     if (keepPosition) {
+//         oldPos = file.position();
+//     }
+
+//     // Mueve el puntero al offset deseado
+//     file.seek(offset);
+
+//     // Lee los bytes al buffer
+//     file.read(buffer, size);
+
+//     // Restaura la posición si es necesario
+//     if (keepPosition) {
+//         file.seek(oldPos);
+//     }
+// }
+
+// Puedes ponerla en cualquier archivo de tu proyecto
+
+// size_t readFileRangeFS(File &file, uint8_t* buffer, size_t offset, size_t size, bool keepPosition = false) {
+//     size_t oldPos = 0;
+//     if (keepPosition) {
+//         oldPos = file.position();
+//     }
+
+//     size_t fileSize = file.size();
+//     if (offset >= fileSize) {
+//         if (keepPosition) file.seek(oldPos);
+//         return 0;
+//     }
+
+//     if (offset + size > fileSize) {
+//         size = fileSize - offset;
+//     }
+
+//     file.seek(offset);
+//     size_t bytesRead = file.read(buffer, size);
+
+//     if (keepPosition) {
+//         file.seek(oldPos);
+//     }
+//     return bytesRead;
+// }
+
+
+void readFileRange(File mFile, uint8_t* &bufferFile, uint32_t offset, int size, bool logOn=false)
+{         
+    if (mFile) 
+    {
+        // Ponemos a cero el puntero de lectura del fichero
+        mFile.seek(0);          
+
+        // Obtenemos el tamano del fichero
+        int rlen = mFile.available();
+        FILE_LENGTH = rlen;
+
+        // Posicionamos el puntero en la posicion indicada por offset
+        mFile.seek(offset); 
+
+        // Si el fichero tiene aun datos entonces capturo
+        if (rlen != 0)
+        {
+            // Leo el bloque y lo meto en bufferFile.
+            mFile.read(bufferFile, size);
+            
+            #ifdef DEBUGMODE
+                logln("buffer read: ");
+                for (int i=0; i<size; i++)
+                {
+                    logHEX(bufferFile[i]);
+                    log(" ");
+                }
+            #endif
+        }
+    } 
+    else 
+    {
+        #ifdef DEBUGMODE
+            logln("SD Card: error opening file.");
+            logln(mFile.name());
+        #endif
+    }
+}
+
+bool isDirectoryPath(const char* path) 
+{
+    String spath = String(path);
+
+    int lastSlash = spath.lastIndexOf('/');
+    int lastDot = spath.lastIndexOf('.');
+
+    // ¿Hay un punto después del último slash y al menos un carácter después del punto?
+    if (lastDot > lastSlash && lastDot < spath.length() - 1) {
+        // Asumimos que es un fichero
+        return false;
+    }
+
+    // Si no, comprobamos si es directorio
+    File dir = SD_MMC.open(path, FILE_READ);
+    bool isDir = dir && dir.isDirectory();
+    dir.close();
+    return isDir;
+}
+
+int getFreeFileDescriptors() {
+    int count = 0;
+    // El ESP32 típicamente tiene un máximo de 16 descriptores
+    const int MAX_FD = 16;
+    
+    // Intentamos abrir archivos hasta que falle
+    File* temp[MAX_FD];
+    
+    for(int i = 0; i < MAX_FD; i++) {
+        temp[i] = new File(SD_MMC.open("/tmp.txt", FILE_READ));
+        if(!temp[i]->available()) {
+            count = i;
+            break;
+        }
+    }
+    
+    // Cerramos todos los archivos temporales
+    for(int i = 0; i < count; i++) {
+        temp[i]->close();
+        delete temp[i];
+    }
+    
+    return MAX_FD - count;
+}
+

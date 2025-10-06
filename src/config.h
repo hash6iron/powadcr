@@ -31,13 +31,12 @@
     To Contact the dev team you can write to hash6iron@gmail.com
  +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
 
+
+
 // Machine
 //
 // 0 for ZX Spectrum
-
-// Para Rolling releases - rDDMMYY.HHMM
-// Para versión estable - vX.Y
-#define VERSION "1.0r5.8.5"
+#define VERSION "1.0r6"
 #define MACHINE_ZX
 
 // Define sampling rate a 44.1KHz. En otro caso será a 32KHz
@@ -50,23 +49,10 @@
 //#define SAMPLINGTESTACTIVE
 
 // Para activar el modo debug
-// #define DEBUGMODE
-
-//#define MACHINE_AMSTRAD
+//#define DEBUGMODE
 
 // Descomentar para test de reproducción en memoria
 //#define TEST
-
-// Define nivel de log
-// 0 - Apagado
-// 1 - Essential
-// 2 - Error
-// 3 - Warning
-// 4 - Info     / Full trace info
-#define LOGPW 0
-
-// Inserta codigo de trazabilidad para desarrollo
-#define TESTDEV 
 
 #define SD_CHIP_SELECT 13 // Pin CS de la SD
 
@@ -85,22 +71,23 @@
 #define MAX_BLOCKS_IN_BROWSER 13
 #define MAX_FILES_FOUND_BUFF 255
 // Cada n ficheros refresca el marcador. Por defecto 50
-#define EACH_FILES_REFRESH 50
+#define EACH_FILES_REFRESH 5
 
 
 // Player / SD
 // -------------------------------------------------------------------
 // Frecuencia inicial de la SD
-#define SD_FRQ_MHZ_INITIAL 19
+#define SD_FRQ_MHZ_INITIAL 40000  // 40 MHz (velocidad de acceso a la SD)
 #define DEFAULT_MP3_SAMPLING_RATE 44100
-// Sampling rate adecuado para ZX Spectrum - Ajuste AZIMUT (Hz) - 22200 Hz
-#define STANDARD_SR_ZX_SPECTRUM 21000 //22200   
+// Sampling rate adecuado para maquinas de 8 bitsAjuste AZIMUT (Hz) - 22200 Hz
+#define STANDARD_SR_8_BIT_MACHINE 21000 //22200   
 // Sampling rate adecuado para ZX Spectrum (recorder) - Ajuste AZIMUT (Hz) - 22200 Hz
 #define STANDARD_SR_REC_ZX_SPECTRUM 22200   
 
-// No se puede subir mas. Da problemas
+// Sampling rate para WAV y REC WAV (pero ojo, no para PLAY TO WAV)
 #define DEFAULT_WAV_SAMPLING_RATE 44100
-#define DEFAULT_WAV_SAMPLING_RATE_REC 22050
+#define DEFAULT_WAV_SAMPLING_RATE_REC 44100 
+#define DEFAULT_WAV_SAMPLING_RATE_PLAY_TO_WAV 21000
 
 // Porcentaje de avance rapido
 #define FAST_FORWARD_PER 0.02     
@@ -186,4 +173,14 @@ IPAddress secondaryDNS(0, 0, 0, 0);     // Not Mandatory
 // Limitador de volumen
 #define MAX_VOL_FOR_HEADPHONE_LIMIT 40
 
+// Libreria SDIndex de Schatzmann. Funcion listDir(..)
+// si se quiere listar solo el directorio padre y los hijos. Por defecto solo el parent dir.
+//#define NOT_PARENT_DIR_ONLY
+
+// Recursos opcionales
+//#define BLUETOOTH_ENABLE
+#define FTP_SERVER_ENABLE
+
+// Parametros internos
+#define MAIN_VOL_FACTOR 100
 

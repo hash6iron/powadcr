@@ -68,9 +68,9 @@ class TZXprocessor
     HMI _hmi;
 
     // Definicion de un TZX
-    SdFat32 _sdf32;
+    //SdFat32 _sdf32;
     tTZX _myTZX;
-    File32 _mFile;
+    File _mFile;
     int _sizeTZX;
     int _rlen;
 
@@ -145,15 +145,15 @@ class TZXprocessor
             }
             if (header[n] == 96)
             {
-              prgName[n-2] = '£'; // El caracter 96 es la libra esterlina
+              prgName[n-2] = (char)0xA3; //'£'; // El caracter 96 es la libra esterlina
             }
             if (header[n] == 126)
             {
-              prgName[n-2] = '~'; // El caracter 126 es la virgulilla
+              prgName[n-2] = (char)0x7E; //'~'; // El caracter 126 es la virgulilla
             }     
             if (header[n] == 127)
             {
-              prgName[n-2] = '©'; //  El caracter 127 es el copyright
+              prgName[n-2] = (char)0xA9; //'©'; //  El caracter 127 es el copyright
             }   
             if (header[n] > 127)
             {
@@ -172,14 +172,14 @@ class TZXprocessor
 
       }
 
-    bool isHeaderTZX(File32 tzxFile)
+    bool isHeaderTZX(File tzxFile)
     {
       if (tzxFile != 0)
       {
 
           // Capturamos la cabecera
           uint8_t* bBlock = (uint8_t*)ps_calloc(10+1,sizeof(uint8_t));
-          sdm.readFileRange32(tzxFile,bBlock,0,10,false); 
+          readFileRange(tzxFile,bBlock,0,10,false); 
 
           // Obtenemos la firma del TZX
           char signTZXHeader[9];
@@ -213,13 +213,12 @@ class TZXprocessor
       }
     }
 
-    bool isFileTZX(File32 tzxFile)
+    bool isFileTZX(File mfile)
     {
-        if (tzxFile != 0)
+        if (mfile)
         {
           // Capturamos el nombre del fichero en szName
-          char szName[254];
-          tzxFile.getName(szName,254);
+          String szName = mfile.name();
           String fileName = String(szName);
 
           if (fileName != "")
@@ -230,16 +229,16 @@ class TZXprocessor
                 if (fileName.indexOf(".TZX") != -1 || fileName.indexOf(".TSX") != -1 || fileName.indexOf(".CDT") != -1 )
                 {
                     //La extensión es TZX o CDT pero ahora vamos a comprobar si internamente también lo es
-                    if (isHeaderTZX(tzxFile))
-                    { 
+                    if (isHeaderTZX(mfile))
+                    {
                       //Cerramos el fichero porque no se usará mas.
-                      tzxFile.close();
+                      //mfile.close();
                       return true;
                     }
                     else
                     {
                       //Cerramos el fichero porque no se usará mas.
-                      tzxFile.close();
+                      //mfile.close();
                       return false;
                     }
                 }
@@ -261,13 +260,13 @@ class TZXprocessor
 
     }
 
-    int getWORD(File32 mFile, int offset)
+    int getWORD(File mFile, int offset)
     {
         int sizeDW = 0;
         uint8_t* ptr1 = (uint8_t*)ps_calloc(1+1,sizeof(uint8_t));
         uint8_t* ptr2 = (uint8_t*)ps_calloc(1+1,sizeof(uint8_t));
-        sdm.readFileRange32(mFile,ptr1,offset+1,1,false);
-        sdm.readFileRange32(mFile,ptr2,offset,1,false);
+        readFileRange(mFile,ptr1,offset+1,1,false);
+        readFileRange(mFile,ptr2,offset,1,false);
         sizeDW = (256*ptr1[0]) + ptr2[0];
         free(ptr1);
         free(ptr2);
@@ -275,25 +274,25 @@ class TZXprocessor
         return sizeDW;    
     }
 
-    int getBYTE(File32 mFile, int offset)
+    int getBYTE(File mFile, int offset)
     {
         int sizeB = 0;
         uint8_t* ptr = (uint8_t*)ps_calloc(1+1,sizeof(uint8_t));
-        sdm.readFileRange32(mFile,ptr,offset,1,false);
+        readFileRange(mFile,ptr,offset,1,false);
         sizeB = ptr[0];
         free(ptr);
 
         return sizeB;      
     }
 
-    int getNBYTE(File32 mFile, int offset, int n)
+    int getNBYTE(File mFile, int offset, int n)
     {
         int sizeNB = 0;
         uint8_t* ptr = (uint8_t*)ps_calloc(1+1,sizeof(uint8_t));
         
         for (int i = 0; i<n;i++)
         {
-            sdm.readFileRange32(mFile,ptr,offset+i,1,false);
+            readFileRange(mFile,ptr,offset+i,1,false);
             sizeNB += pow(2,(8*i)) * (ptr[0]);  
         }
 
@@ -301,7 +300,7 @@ class TZXprocessor
         return sizeNB;             
     }
 
-    int getID(File32 mFile, int offset)
+    int getID(File mFile, int offset)
     {
         // Obtenemos el ID
         int ID = 0;
@@ -310,14 +309,14 @@ class TZXprocessor
         return ID;      
     }
 
-    void getBlock(File32 mFile, uint8_t* &block, int offset, int size)
+    void getBlock(File mFile, uint8_t* &block, int offset, int size)
     {
         //Entonces recorremos el TZX. 
         // La primera cabecera SIEMPRE debe darse.
-        sdm.readFileRange32(mFile,block,offset,size,false);
+        readFileRange(mFile,block,offset,size,false);
     }
 
-    bool verifyChecksum(File32 mFile, int offset, int size)
+    bool verifyChecksum(File mFile, int offset, int size)
     {
         // Vamos a verificar que el bloque cumple con el checksum
         // Cogemos el checksum del bloque
@@ -338,7 +337,7 @@ class TZXprocessor
         }
     }
 
-    void analyzeID16(File32 mFile, int currentOffset, int currentBlock)
+    void analyzeID16(File mFile, int currentOffset, int currentBlock)
     {
       //Normal speed block
 
@@ -538,7 +537,7 @@ class TZXprocessor
         _myTZX.descriptor[currentBlock].hasMaskLastByte = false;
     }
         
-    void analyzeID17(File32 mFile, int currentOffset, int currentBlock)
+    void analyzeID17(File mFile, int currentOffset, int currentBlock)
     {   
         char* gName;
 
@@ -702,7 +701,7 @@ class TZXprocessor
         _myTZX.descriptor[currentBlock].size = _myTZX.descriptor[currentBlock].lengthOfData; 
     }
 
-    void analyzeID18(File32 mFile, int currentOffset, int currentBlock)
+    void analyzeID18(File mFile, int currentOffset, int currentBlock)
     {
         // ID-12 - Pure tone
 
@@ -731,7 +730,7 @@ class TZXprocessor
         //     
     }
 
-    void analyzeID19(File32 mFile, int currentOffset, int currentBlock)
+    void analyzeID19(File mFile, int currentOffset, int currentBlock)
     {
         // ID-13 - Pulse sequence
 
@@ -778,7 +777,7 @@ class TZXprocessor
         //
     }
 
-    void analyzeID20(File32 mFile, int currentOffset, int currentBlock)
+    void analyzeID20(File mFile, int currentOffset, int currentBlock)
     {
         // ID-14 - Pure Data Block
 
@@ -874,7 +873,7 @@ class TZXprocessor
         _myTZX.descriptor[currentBlock].size = _myTZX.descriptor[currentBlock].lengthOfData;        
     }
 
-    void analyzeID21(File32 mFile, int currentOffset, int currentBlock)
+    void analyzeID21(File mFile, int currentOffset, int currentBlock)
     {
       // ID-15 - Direct recording
 
@@ -933,7 +932,7 @@ class TZXprocessor
         _myTZX.descriptor[currentBlock].size = _myTZX.descriptor[currentBlock].lengthOfData;         
     }
 
-    void analyzeID32(File32 mFile, int currentOffset, int currentBlock)
+    void analyzeID32(File mFile, int currentOffset, int currentBlock)
     {
         // Pause or STOP the TAPE
         
@@ -945,7 +944,7 @@ class TZXprocessor
         _myTZX.descriptor[currentBlock].pauseAfterThisBlock = getWORD(mFile,currentOffset+1);          
     }
 
-    void analyzeID40(File32 mFile, int currentOffset, int currentBlock)
+    void analyzeID40(File mFile, int currentOffset, int currentBlock)
     {
         // Size block
         int sizeBlock = 0;
@@ -963,7 +962,7 @@ class TZXprocessor
         
     }
 
-    void analyzeID48(File32 mFile, int currentOffset, int currentBlock)
+    void analyzeID48(File mFile, int currentOffset, int currentBlock)
     {
         // 0x30 - Text Description
         int sizeTextInformation = 0;
@@ -983,7 +982,7 @@ class TZXprocessor
         _myTZX.descriptor[currentBlock].size = sizeTextInformation + 1;
     }
 
-    void analyzeID49(File32 mFile, int currentOffset, int currentBlock)
+    void analyzeID49(File mFile, int currentOffset, int currentBlock)
         {
             // 0x31 - Message block
             int sizeTextInformation = 0;
@@ -1003,7 +1002,7 @@ class TZXprocessor
             _myTZX.descriptor[currentBlock].size = sizeTextInformation + 1;
         }
 
-    void analyzeID50(File32 mFile, int currentOffset, int currentBlock)
+    void analyzeID50(File mFile, int currentOffset, int currentBlock)
     {
         // ID 0x32 - Archive Info
         int sizeBlock = 0;
@@ -1025,7 +1024,7 @@ class TZXprocessor
         _myTZX.descriptor[currentBlock].size = sizeBlock;         
     }    
 
-    void analyzeID51(File32 mFile, int currentOffset, int currentBlock)
+    void analyzeID51(File mFile, int currentOffset, int currentBlock)
     {
         // 0x33 - Hardware Information block
         int sizeBlock = 0;
@@ -1049,7 +1048,7 @@ class TZXprocessor
         _myTZX.descriptor[currentBlock].size = sizeBlock-1;         
     }
 
-    void analyzeID33(File32 mFile, int currentOffset, int currentBlock)
+    void analyzeID33(File mFile, int currentOffset, int currentBlock)
     {
         // Group start
         int sizeTextInformation = 0;
@@ -1065,19 +1064,23 @@ class TZXprocessor
         _myTZX.descriptor[currentBlock].size = sizeTextInformation;
 
         // Ahora cogemos el texto en el siguiente byte
-        uint8_t* grpN = (uint8_t*)ps_calloc(sizeTextInformation+1,sizeof(uint8_t));
-        sdm.readFileRange32(mFile,grpN,currentOffset+2,sizeTextInformation,false);
-        char groupName[sizeTextInformation+1];
+        //#ifdef DEBUGMODE
+          logln("ID33 - sizeTextInformation = " + String(sizeTextInformation) + " bytes");
+        //#endif
+
+        uint8_t* grpN = (uint8_t*)ps_calloc(sizeTextInformation+5,sizeof(uint8_t));
+        readFileRange(mFile,grpN,currentOffset+2,sizeTextInformation,false);
+        char groupName[32];
         // Limpiamos de basura todo el buffer
         strcpy(groupName,"                             ");
+        strncpy(groupName,(char*)grpN,30);
 
-        for(int i=0;i<sizeTextInformation-1;i++)
-        {
-            groupName[i] = (char)grpN[i];
-        }
+        // for(int i=0;i<sizeTextInformation-1;i++)
+        // {
+        //     groupName[i] = (char)grpN[i];
+        // }
 
-        logln("Group name: " + String(groupName));
-        free(grpN);
+        // logln("Group name: " + String(groupName));
 
         // Cogemos solo 29 letras
         if (sizeTextInformation < 30)
@@ -1089,11 +1092,12 @@ class TZXprocessor
           strncpy(_myTZX.descriptor[currentBlock].name,groupName,29);
         }
 
-        logln("ID33 - Gruop start: " + String(groupName));
+        logln("ID33 - Group start: " + String(groupName));
+        free(grpN);
 
     }
 
-    void analyzeID53(File32 mFile, int currentOffset, int currentBlock)
+    void analyzeID53(File mFile, int currentOffset, int currentBlock)
     {
         _myTZX.descriptor[currentBlock].ID = 53;
         _myTZX.descriptor[currentBlock].playeable = false;
@@ -1106,7 +1110,7 @@ class TZXprocessor
         SerialHW.println(sizeBlock,HEX);
     }
 
-    void analyzeID75(File32 mFile, int currentOffset, int currentBlock)
+    void analyzeID75(File mFile, int currentOffset, int currentBlock)
     {
         // ID 0x4B
 
@@ -1177,7 +1181,7 @@ class TZXprocessor
         _myTZX.descriptor[currentBlock].offset = currentOffset;   
     }
 
-    bool getTZXBlock(File32 mFile, int currentBlock, int currentID, int currentOffset, int &nextIDoffset)
+    bool getTZXBlock(File mFile, int currentBlock, int currentID, int currentOffset, int &nextIDoffset)
     {
         bool res = true;
         
@@ -1522,33 +1526,6 @@ class TZXprocessor
               INVERSETRAIN = signalLevel;
               hmi.writeString("menuAudio2.polValue.val=" + String(INVERSETRAIN));  
               _myTZX.descriptor[currentBlock].signalLvl = INVERSETRAIN;      
-              // if(signalLevel==0)
-              // {
-              //     // Para que empiece en DOWN tiene que ser POLARIZATION = UP
-              //     // esto seria una señal invertida
-              //     POLARIZATION = up;
-              //     EDGE_EAR_IS = up;
-              //     //INVERSETRAIN = false;
-              //     _myTZX.descriptor[currentBlock].signalLvl = true;
-                              
-
-              //     hmi.writeString("menuAudio2.polValue.val=1");
-
-              //     // logln("");
-              //     // log("Polarization INV: " + String(APPLY_END));
-              // }
-              // else
-              // {
-              //     POLARIZATION = down;
-              //     EDGE_EAR_IS = down;
-              //     //INVERSETRAIN = true;                
-              //     _myTZX.descriptor[currentBlock].signalLvl = false;
-
-              //     hmi.writeString("menuAudio2.polValue.val=0");
-
-              //     // logln("");
-              //     // log("Polarization DIR: " + String(APPLY_END));
-              // }
 
               _hmi.refreshPulseIcons(INVERSETRAIN,ZEROLEVEL);               
 
@@ -1686,6 +1663,11 @@ class TZXprocessor
           default:
             ////SerialHW.println("");
             ////SerialHW.println("ID unknow " + currentID);
+            #ifdef DEBUGMODE
+              Serial.print("ID unknow 0x");
+              Serial.println(currentID,HEX);
+            #endif
+            // Si no está implementado, salimos
             ID_NOT_IMPLEMENTED = true;
             res = false;
             break;
@@ -1694,7 +1676,7 @@ class TZXprocessor
       return res;
     }
 
-    void getBlockDescriptor(File32 mFile, File32 &dscFile, int sizeTZX, bool hasGroupBlocks)
+    void getBlockDescriptor(File mFile, File &dscFile, int sizeTZX, bool hasGroupBlocks)
     {
           // Para ello tenemos que ir leyendo el TZX poco a poco
           // Detectaremos los IDs a partir del byte 9 (empezando por offset = 0)
@@ -1721,7 +1703,12 @@ class TZXprocessor
           // Le pasamos el path del fichero, la extension se le asigna despues en 
           // la funcion createBlockDescriptorFile
           // _blDscTZX.createBlockDescriptorFileTZX();
-
+          #ifdef DEBUGMODE
+            logln("Creating DSC file"); 
+            logln("Status of endTZX: " + String(endTZX));
+            logln("Status of forzeEnd: " + String(forzeEnd));
+            logln("Status of ID_NOT_IMPLEMENTED: " + String(ID_NOT_IMPLEMENTED));
+          #endif
 
           while (!endTZX && !forzeEnd && !ID_NOT_IMPLEMENTED)
           {
@@ -1731,24 +1718,15 @@ class TZXprocessor
                   forzeEnd = true;
                   endWithErrors = true;
                   LAST_MESSAGE = "Aborting. No proccess complete.";
+
+                  #ifdef DEBUGMODE
+                    Serial.println("Aborting TZX reading");
+                  #endif
               }
 
               // El objetivo es ENCONTRAR IDs y ultimo byte, y analizar el bloque completo para el descriptor.
               currentID = getID(mFile, currentOffset);
               
-              #ifdef DEBUGMODE
-                SerialHW.println("");
-                SerialHW.println("-----------------------------------------------");
-                SerialHW.print("TZX ID: 0x");
-                SerialHW.print(currentID, HEX);
-                SerialHW.println("");
-                SerialHW.println("block: " + String(currentBlock));
-                SerialHW.println("");
-                SerialHW.print("offset: 0x");
-                SerialHW.print(currentOffset, HEX);
-                SerialHW.println("");
-              #endif
-
               // Por defecto el bloque no es reproducible
               _myTZX.descriptor[currentBlock].playeable	= false;
 
@@ -1761,11 +1739,7 @@ class TZXprocessor
                   tTZXBlockDescriptor t = _myTZX.descriptor[currentBlock];
                   // Agregamos la informacion del bloque al fichero del descriptor .dsc
                   _blDscTZX.putBlocksDescriptorTZX(dscFile, currentBlock,t,sizeTZX,hasGroupBlocks);
-                  // Incrementamos un bloque
-                  // logln("ID: " + String(_myTZX.descriptor[currentBlock].ID));
-                  // log(" / offset: " + String(_myTZX.descriptor[currentBlock].offset));
-                  // log(" / size: " + String(_myTZX.descriptor[currentBlock].size));
-
+                  // Incrementamos el bloque
                   currentBlock++;               
               }
               else
@@ -1813,17 +1787,25 @@ class TZXprocessor
           _myTZX.size = sizeTZX;
           
     }
-   
-    void proccess_tzx(File32 tzxFileName, File32 &dscFile)
-    {
-          // Procesamos el fichero
 
-        if (isFileTZX(tzxFileName))
+    void process_tzx(File mfile, File &dscFile)
+    {
+        // Procesamos el fichero
+        #ifdef DEBUGMODE
+          logln("Processing TZX file");
+        #endif
+
+        if (isFileTZX(mfile))
         {
+            logln("TZX file detected");
             // Esto lo hacemos para poder abortar
             ABORT=false;
-            getBlockDescriptor(_mFile,dscFile,_sizeTZX,_myTZX.hasGroupBlocks);
-        }      
+            getBlockDescriptor(mfile,dscFile,_sizeTZX,_myTZX.hasGroupBlocks);
+        }
+        else
+        {
+            logln("Error: Not a TZX file");
+        }
     }
 
     void showBufferPlay(uint8_t* buffer, int size, int offset)
@@ -1992,91 +1974,83 @@ class TZXprocessor
         // }
     }
 
-    void set_SDM(SDmanager sdmTmp)
-    {
-        //_sdm = sdmTmp;
-        //ptrSdm = &sdmTmp;
-    }
+    // void set_SDM(SDmanager sdmTmp)
+    // {
+    //     //_sdm = sdmTmp;
+    //     //ptrSdm = &sdmTmp;
+    // }
 
-    void set_SdFat32(SdFat32 sdf32)
-    {
-        _sdf32 = sdf32;
-    }
+    // void set_SdFat32(SdFat32 sdf32)
+    // {
+    //     _sdf32 = sdf32;
+    // }
 
     void set_HMI(HMI hmi)
     {
         _hmi = hmi;
     }
 
-    void set_file(File32 mFile, int sizeTZX)
+    void set_file(File mFile, int sizeTZX)
     {
       // Pasamos los parametros a la clase
       _mFile = mFile;
       _sizeTZX = sizeTZX;
     }  
 
-    bool getBlocksFromDescriptorFile(File32 mFileTZX, char* path, tTZX &myTZX)
+    bool getBlocksFromDescriptorFile(File mFileTZX, char* pathDSC, tTZX &myTZX)
     {
-        File32 mFileDsc;
+        File mFileDsc;
         uint32_t sizeTZX = 0;
-        char strLine[300];
+        String strLine;
         String str;
-        int nlines = 0;
+
+        // #ifdef DEBUGMODE
+        //   String strTmp;
+        // #endif
+
+        char sline[300];
+        //int nlines = 0;
         int nparam = 0;
         // Estamos indicando con nblock = -1 que es la cabecera del .dsc
         // y no la queremos.
-        int nblock = -1;
+        int nblock = 0;
         // Agregamos la extension del fichero al path del .TZX
 
-        logln("Trying open DSC file: " + String(path));
-        // if (mFileDsc.isBusy())
-        // {
-        //   logln("DSC file is busy");
-        // }
-        
-        if (mFileDsc.isLFN())
-        {
-          logln("DSC file is LFN");
-        }
-
-        if (mFileDsc.isReadOnly())
-        {
-          logln("DSC file is READONLY");
-        }        
-        
-        if (!mFileDsc.isReadable())
-        {
-          logln("DSC file is not readeable.");
-        }
-
-        if (mFileDsc.isOpen())
-        {
-          mFileDsc.close();
-          logln("DSC file was opened.");
-        }
+        logln("Trying open DSC file: " + String(pathDSC));
 
         // Ahora abrimos el fichero .dsc
-        if (mFileDsc.open(path,O_READ))
+        mFileDsc = SD_MMC.open(pathDSC,FILE_READ);
+
+        //
+        if (mFileDsc)
         {
             // Ahora vamos a ir leyendo linea a linea y metiendo la informacion de los bloques en el descriptor.
 
             // ------------------------------------------------------------------------------
             // OJO! Si strLine supera el numero de caracteres declarado no entra en el WHILE 
             // ------------------------------------------------------------------------------
-            logln("DSC File open: " + String(path));
-            
-            mFileDsc.rewind();
+            logln("DSC File open: " + String(pathDSC));
 
-            while ((nlines = mFileDsc.fgets(strLine, sizeof(strLine))) > 0)
+            mFileDsc.seek(0);
+
+            while (mFileDsc.available())
             {
+              // Capturamos la linea completa
+              strLine = mFileDsc.readStringUntil('\n');
+              // Eliminamos el retorno de carro
+              strLine.replace("\r", "");
+              // Convertimos la linea en un array de char
+              strLine.toCharArray(sline, sizeof(sline));
               
-              #ifdef DEBUGMODE
+              //#ifdef DEBUGMODE
                 logln("Getting line: " + String(strLine));
-              #endif
+              //#endif
 
-              str = strtok(strLine, ",");
-              
-              if (nblock == -1 && nparam == 0 && str != _blDscTZX.dscVersion)
+              // Descomponemos la linea en tokens
+              // Cogemos el primer token
+              str = strtok(sline, ",");
+
+              if (nblock == 0 && nparam == 0 && str != _blDscTZX.dscVersion)
               {
                   LAST_MESSAGE = "DSC file old version.";
                   mFileDsc.close();
@@ -2089,8 +2063,10 @@ class TZXprocessor
               nparam = 0;
               // Estamos indicando con nblock = -1 que es la cabecera del .dsc
               // y no la queremos.
-              if (nblock > -1)
+              if (nblock > 0)
               {
+                  // Ahora recorremos todos los parametros de la linea. El primero id = 0
+                  // ya lo hemos leido, nos lo saltamos. Por eso el case 0: no contiene nada.
                   while (str != NULL)
                   {
 
@@ -2109,6 +2085,11 @@ class TZXprocessor
 
                     int numPulses = 0;
                     int coff = 0;
+
+                    #ifdef DEBUGMODE
+                      logln("Parameter: " + String(nblock) + " - " + String(nparam) + " - " + str);
+                    #endif
+
                     // Vemos en cada momento que posicion de parametro estamos leyendo y lo procesamos
                     switch (nparam)
                     {
@@ -2322,36 +2303,10 @@ class TZXprocessor
                 
                               // Inversion de señal      
                               INVERSETRAIN = myTZX.descriptor[nblock].signalLvl;
-                              // if(!INVERSETRAIN)
-                              // {
-                              //   // Para que empiece en DOWN tiene que ser POLARIZATION = UP
-                              //   // esto seria una señal invertida
-                              //   POLARIZATION = up;
-                              //   EDGE_EAR_IS = up;
-                              //   //INVERSETRAIN = true;
-                              //   //myTZX.descriptor[nblock].signalLvl = true;                
-                                
-                              //   // logln("");
-                              //   // log("Polarization INV: " + String(INVERSETRAIN));
-
-                              // }
-                              // else
-                              // {
-                              //   POLARIZATION = down;
-                              //   EDGE_EAR_IS = down;
-                              //   //INVERSETRAIN = false;                
-                              //   //myTZX.descriptor[nblock].signalLvl = false;                
-                                
-                              //   // logln("");
-                              //   // log("Polarization DIR: " + String(INVERSETRAIN));
-                
-                              // }       
-                              
+                                  
                               _hmi.refreshPulseIcons(INVERSETRAIN,ZEROLEVEL);                          
                               
                           }
-
-
                           break;
 
                         default:
@@ -2389,6 +2344,18 @@ class TZXprocessor
             _hmi.writeString("currentBlock.val=" + String(BLOCK_SELECTED));
             myTZX.numBlocks = TOTAL_BLOCKS;  
 
+            // Listamos el contenido de myTZX
+            #ifdef DEBUGMODE
+              logln("Listing all blocks captured from DSC");
+              for (int i=0;i<TOTAL_BLOCKS;i++)
+              {
+                  String strTmp = "Block " + String(i) + " - ID: " + String(myTZX.descriptor[i].ID) + " - Name: " + String(myTZX.descriptor[i].name) + " - Size: " + String(myTZX.descriptor[i].size) + " - Offset: " + String(myTZX.descriptor[i].offset) + " - DataOffset: " + String(myTZX.descriptor[i].offsetData);
+                  logln(strTmp);
+              }   
+              logln("End listing all blocks captured from DSC");
+            #endif
+
+
             mFileDsc.close();
             // Decimos que ha ido bien
             return true;
@@ -2403,21 +2370,22 @@ class TZXprocessor
         }
     }
     
-    void proccessingDescriptor(File32 &dscFile, File32 &tzxFile, char* pathDSC)
+    void proccessingDescriptor(File &dscFile, File &tzxFile, char* pathDSC)
     {
 
         LAST_MESSAGE = "Analyzing file. Capturing blocks";
         
-        if (dscFile.exists(pathDSC))
+        if (SD_MMC.exists(pathDSC))
         {
-          dscFile.remove();
+          SD_MMC.remove(pathDSC);
         }
         
        _blDscTZX.createBlockDescriptorFileTZX(dscFile,pathDSC); 
         // creamos un objeto TZXproccesor
         set_file(tzxFile, _rlen);
-        proccess_tzx(tzxFile, dscFile);
-        
+        // Lo procesamos y creamos DSC
+        process_tzx(tzxFile, dscFile);
+        // Cerramos para guardar los cambios
         dscFile.close();
 
         if (_myTZX.descriptor != nullptr && !ID_NOT_IMPLEMENTED)
@@ -2431,11 +2399,11 @@ class TZXprocessor
         }      
     }
 
-    void getInfoFileTZX(char* path) 
+    void process(char* path) 
     {
       
-      File32 tzxFile;
-      File32 dscFile;
+      File tzxFile;
+      File dscFile;
 
       
       PROGRAM_NAME_DETECTED = false;
@@ -2445,11 +2413,12 @@ class TZXprocessor
       MULTIGROUP_COUNT = 1;
 
       // Abrimos el fichero
-      tzxFile = sdm.openFile32(tzxFile, path);
+      tzxFile = SD_MMC.open(path, FILE_READ);
       char* pathDSC = path;
 
-      // Obtenemos su tamaño total
+      // Pasamos el fichero abierto a la clase. Elemento global
       _mFile = tzxFile;
+      // Obtenemos su tamaño total
       _rlen = tzxFile.available();
       _myTZX.size = tzxFile.size();
 
@@ -2589,7 +2558,7 @@ class TZXprocessor
 
               // Accedemos a la SD y capturamos el bloque del fichero
               bufferPlay = (uint8_t*)ps_calloc(blockSizeSplit,sizeof(uint8_t));
-              sdm.readFileRange32(_mFile,bufferPlay,newOffset,blockSizeSplit, true);
+              readFileRange(_mFile,bufferPlay,newOffset,blockSizeSplit, true);
 
               // Mostramos en la consola los primeros y últimos bytes
               showBufferPlay(bufferPlay,blockSizeSplit,newOffset);     
@@ -2641,7 +2610,7 @@ class TZXprocessor
             blockSizeSplit = lastBlockSize;
             // Accedemos a la SD y capturamos el bloque del fichero
             bufferPlay = (uint8_t*)ps_calloc(blockSizeSplit,sizeof(uint8_t));
-            sdm.readFileRange32(_mFile,bufferPlay, newOffset,blockSizeSplit, true);
+            readFileRange(_mFile,bufferPlay, newOffset,blockSizeSplit, true);
 
             // Mostramos en la consola los primeros y últimos bytes
             showBufferPlay(bufferPlay,blockSizeSplit,newOffset);         
@@ -2669,7 +2638,7 @@ class TZXprocessor
 
             // Si es mas pequeño que el SPLIT, se reproduce completo.
             bufferPlay = (uint8_t*)ps_calloc(descriptor.size,sizeof(uint8_t));
-            sdm.readFileRange32(_mFile,bufferPlay, descriptor.offsetData, descriptor.size, true);
+            readFileRange(_mFile,bufferPlay, descriptor.offsetData, descriptor.size, true);
 
             showBufferPlay(bufferPlay,descriptor.size,descriptor.offsetData);
             verifyChecksum(_mFile,descriptor.offsetData,descriptor.size);    
@@ -2713,7 +2682,7 @@ class TZXprocessor
       return res;
     }
 
-    void prepareID4B(int currentBlock, File32 mFile, int nlb, int vlb, int ntb, int vtb, int pzero, int pone, int offset, int ldatos, bool begin)
+    void prepareID4B(int currentBlock, File mFile, int nlb, int vlb, int ntb, int vtb, int pzero, int pone, int offset, int ldatos, bool begin)
     {
         // Generamos la señal de salida
         int pulsosmaximos;
@@ -2901,7 +2870,7 @@ class TZXprocessor
               // Si el sampling rate es menor de 8kHz, lo cambiamos a 22KHz
               if (sr < 8000)
               {
-                sr = STANDARD_SR_ZX_SPECTRUM;
+                sr = STANDARD_SR_8_BIT_MACHINE;
                 logln("Error. Changing sampling rate: " + String(sr));
               }
 
@@ -3392,7 +3361,7 @@ class TZXprocessor
                                     newOffset = offsetBase + (blockSizeSplit*n);
                                     // Accedemos a la SD y capturamos el bloque del fichero
                                     bufferPlay = (uint8_t*)ps_calloc(blockSizeSplit,sizeof(uint8_t));
-                                    sdm.readFileRange32(_mFile,bufferPlay, newOffset, blockSizeSplit, true);
+                                    readFileRange(_mFile,bufferPlay, newOffset, blockSizeSplit, true);
                                     // Mostramos en la consola los primeros y últimos bytes
                                     showBufferPlay(bufferPlay,blockSizeSplit,newOffset);     
 
@@ -3438,7 +3407,7 @@ class TZXprocessor
 
                                   // Accedemos a la SD y capturamos el bloque del fichero
                                   bufferPlay = (uint8_t*)ps_calloc(blockSizeSplit,sizeof(uint8_t));
-                                  sdm.readFileRange32(_mFile,bufferPlay, newOffset,blockSizeSplit, true);
+                                  readFileRange(_mFile,bufferPlay, newOffset,blockSizeSplit, true);
                                   // Mostramos en la consola los primeros y últimos bytes
                                   showBufferPlay(bufferPlay,blockSizeSplit,newOffset);         
 
@@ -3463,7 +3432,7 @@ class TZXprocessor
                               else
                               {
                                   bufferPlay = (uint8_t*)ps_calloc(_myTZX.descriptor[i].size,sizeof(uint8_t));
-                                  sdm.readFileRange32(_mFile,bufferPlay, _myTZX.descriptor[i].offsetData, _myTZX.descriptor[i].size, true);
+                                  readFileRange(_mFile,bufferPlay, _myTZX.descriptor[i].offsetData, _myTZX.descriptor[i].size, true);
 
                                   showBufferPlay(bufferPlay,_myTZX.descriptor[i].size,_myTZX.descriptor[i].offsetData);
                                   verifyChecksum(_mFile,_myTZX.descriptor[i].offsetData,_myTZX.descriptor[i].size);    

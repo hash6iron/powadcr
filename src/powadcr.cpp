@@ -67,19 +67,19 @@
 
 // Enable / Disable Audiokit logging
 #define USE_AUDIO_LOGGING false
-
 // States of LOG_LEVEL: Debug, Info, Warning, Error
 #define LOG_LEVEL AudioLogger::Error
 
+// FTP Server
+// #define W5x00_RESET -1
+// #define CS_SDCARD 13
 // Includes
 // ===============================================================
-
 #include <Arduino.h>
+#include <FS.h>
+#include <SD_MMC.h>
 #include <WiFi.h>
 #include <vector>
-
-// #include <SD.h>
-// #include <SPI.h>
 
 #include "config.h"
 
@@ -113,39 +113,46 @@ EasyNex myNex(SerialHW);
 #include "AudioTools/AudioLibs/AudioBoardStream.h"
 
 // Definimos la placa de audio
-#include "AudioTools/Disk/AudioSourceSDFAT.h"
-#include "AudioTools/Disk/AudioSourceIdxSDFAT.h"
+//#include "AudioTools/Disk/AudioSource.h"
+// #include "AudioTools/Disk/AudioSourceSDFAT.h"
+// #include "AudioTools/Disk/AudioSourceIdxSDFAT.h"
+#include "AudioTools/Disk/AudioSourceIdxSDMMC.h"
 #include "AudioTools/AudioCodecs/CodecWAV.h"
 #include "AudioTools/AudioCodecs/CodecMP3Helix.h"
-#include "AudioTools/AudioCodecs/CodecADPCM.h"
-//#include "AudioTools/AudioCodecs/CodecMP3LAME.h"
+//#include "AudioTools/AudioCodecs/CodecFLAC.h"
+#include "AudioTools/AudioCodecs/CodecFLACFoxen.h"
 #include "AudioTools/CoreAudio/AudioFilter/Equalizer.h"
 
-#include "AudioTools/CoreAudio/AudioIO.h"
-#include "AudioTools/CoreAudio/AudioLogger.h"
 
+#ifdef BLUETOOTH_ENABLE
+  #include "AudioTools/AudioLibs/A2DPStream.h"
+#endif
 
-//#include "AudioTools/AudioLibs/A2DPStream.h"
 // Definimos el stream para Audiokit
 DriverPins powadcr_pins;
 AudioBoard powadcr_board(audio_driver::AudioDriverES8388,powadcr_pins);
 AudioBoardStream kitStream(powadcr_board);
 
-//BluetoothA2DPSource a2dp_source;
+#ifdef BLUETOOTH_ENABLE
+  BluetoothA2DPSource a2dp_source;
+#endif
 //A2DPStream btstream;
 //I2SCodecStream  kitStream(powadcr_board);
 
 // Estos includes deben ir en este orden por dependencias
-#include "SDmanager.h"
+//#include "SDmanager.h"
+
 
 // Creamos el gestor de ficheros para usarlo en todo el firmware
-SDmanager sdm;
+//SDmanager sdm;
 
 #include "HMI.h"
 HMI hmi;
 
 // #include "interface.h"
-File32 wavfile;
+File wavfile;
+File audioFile;
+
 // ADPCM
 #ifdef USE_ADPCM_ENCODER
   ADPCMEncoder adpcm_encoder(AV_CODEC_ID_ADPCM_MS, ADAPCM_DEFAULT_BLOCK_SIZE);  
@@ -167,10 +174,8 @@ ZXProcessor zxp;
 #include "TZXprocessor.h"
 #include "TAPprocessor.h"
 
-SdFat32 sdf;
-
-SdFile sdFile;
-File32 sdFile32;
+//File sdFile;
+//File sdFile32;
 
 // Creamos los distintos objetos
 TZXprocessor pTZX;
@@ -197,14 +202,22 @@ uint16_t USER_CONFIG_ARDUINO_LOOP_STACK_SIZE = 16384;
 
 // SPIFFS
 // -----------------------------------------------------------------------
-#include "esp_err.h"
-#include "esp_spiffs.h"
+// #include "esp_err.h"
+// #include "esp_spiffs.h"
 
 // WEBFILE SERVER
 // -----------------------------------------------------------------------
-#include "webpage.h"
-#include "webserver.h"
+// #include "webpage.h"
+// #include "webserver.h"
 
+// FTP Server
+// -----------------------------------------------------------------------
+// #include <SimpleFtpServer.h>
+// FtpServer ftpSrv; 
+#ifdef FTP_SERVER_ENABLE
+  #include "ESP32FtpServer.h"
+  FtpServer ftpSrv;
+#endif
 
 
 using namespace audio_tools;
@@ -317,12 +330,85 @@ int *strToIPAddress(String strIPAddr)
   return 0;
 }
 
+String getValueOfParam(String line, String param)
+{
+    #ifdef DEBUGMODE
+        logln("Cfg. line: " + line);
+        log(" - Param: " + param);
+    #endif
+
+    int firstClosingBracket = line.indexOf('>');
+
+    if( firstClosingBracket != -1)
+    {
+        // int paramLen = param.length();
+        int firstOpeningEndLine = line.indexOf("</",firstClosingBracket + 1);  
+        
+        if (firstOpeningEndLine != -1)
+        {
+            String res = line.substring(firstClosingBracket+1, firstOpeningEndLine);
+            #ifdef DEBUGMODE
+                log(" / Value = " + res);
+            #endif
+            return res;
+        }
+    }
+    
+    return "null";
+}
+
+tConfig* readAllParamCfg(File mFile, int maxParameters)
+{
+    tConfig* cfgData = new tConfig[maxParameters+1];
+
+    // Vamos a ir linea a linea obteniendo la información de cada parámetro.
+    char line[256];
+    String tLine;
+    //
+    int n;
+    int i=0;
+
+    // Vemos si el fichero ya está abierto
+    if (mFile)
+    {
+        // read lines from the file
+        while (mFile.available()) 
+        {
+            tLine = mFile.readStringUntil('\n');
+            tLine.toCharArray(line, sizeof(line));
+            // remove '\n'
+            line[n-1] = 0;
+            String strRes = "";
+
+            strRes = line;
+            #ifdef DEBUGMODE
+                logln("[" + String(i) + "]" + strRes);
+            #endif
+
+            if (i<=maxParameters)
+            {
+                cfgData[i].cfgLine = strRes;
+                cfgData[i].enable = true;
+            }
+            else
+            {
+                log("Out of space for cfg parameters. Max. " + String(maxParameters));
+            }
+
+            i++;
+
+        }
+    }
+
+    return cfgData;
+}
+
 bool loadWifiCfgFile()
 {
 
   bool cfgloaded = false;
 
-  if (sdf.exists("/wifi.cfg"))
+  if (SD_MMC.exists("/wifi.cfg"))
   {
 #ifdef DEBUGMODE
     logln("File wifi.cfg exists");
@@ -331,10 +417,10 @@ bool loadWifiCfgFile()
     char pathCfgFile[10] = {};
     strcpy(pathCfgFile, "/wifi.cfg");
 
-    File32 fWifi = sdm.openFile32(pathCfgFile);
+    File fWifi = SD_MMC.open(pathCfgFile,FILE_READ);
     int *IP;
 
-    if (fWifi.isOpen())
+    if (fWifi)
     {
       // HOSTNAME = new char[32];
       // ssid = new char[64];
@@ -342,7 +428,7 @@ bool loadWifiCfgFile()
 
       char *ip1 = new char[17];
 
-      CFGWIFI = sdm.readAllParamCfg(fWifi, 9);
+      CFGWIFI = readAllParamCfg(fWifi, 9);
 
       // WiFi settings
       logln("");
@@ -355,42 +441,42 @@ bool loadWifiCfgFile()
       logln("");
 
       // Hostname
-      strcpy(HOSTNAME, (sdm.getValueOfParam(CFGWIFI[0].cfgLine, "hostname")).c_str());
+      strcpy(HOSTNAME, (getValueOfParam(CFGWIFI[0].cfgLine, "hostname")).c_str());
       logln(HOSTNAME);
       // SSID - Wifi
-      ssid = (sdm.getValueOfParam(CFGWIFI[1].cfgLine, "ssid")).c_str();
+      ssid = (getValueOfParam(CFGWIFI[1].cfgLine, "ssid")).c_str();
       logln(ssid);
       // Password - WiFi
-      strcpy(password, (sdm.getValueOfParam(CFGWIFI[2].cfgLine, "password")).c_str());
+      strcpy(password, (getValueOfParam(CFGWIFI[2].cfgLine, "password")).c_str());
       logln(password);
 
       //Local IP
-      strcpy(ip1, (sdm.getValueOfParam(CFGWIFI[3].cfgLine, "IP")).c_str());
+      strcpy(ip1, (getValueOfParam(CFGWIFI[3].cfgLine, "IP")).c_str());
       logln("IP: " + String(ip1));
       POWAIP = ip1;
       IP = strToIPAddress(String(ip1));
       local_IP = IPAddress(IP[0], IP[1], IP[2], IP[3]);
 
       // Subnet
-      strcpy(ip1, (sdm.getValueOfParam(CFGWIFI[4].cfgLine, "SN")).c_str());
+      strcpy(ip1, (getValueOfParam(CFGWIFI[4].cfgLine, "SN")).c_str());
       logln("SN: " + String(ip1));
       IP = strToIPAddress(String(ip1));
       subnet = IPAddress(IP[0], IP[1], IP[2], IP[3]);
 
       // gateway
-      strcpy(ip1, (sdm.getValueOfParam(CFGWIFI[5].cfgLine, "GW")).c_str());
+      strcpy(ip1, (getValueOfParam(CFGWIFI[5].cfgLine, "GW")).c_str());
       logln("GW: " + String(ip1));
       IP = strToIPAddress(String(ip1));
       gateway = IPAddress(IP[0], IP[1], IP[2], IP[3]);
 
       // DNS1
-      strcpy(ip1, (sdm.getValueOfParam(CFGWIFI[6].cfgLine, "DNS1")).c_str());
+      strcpy(ip1, (getValueOfParam(CFGWIFI[6].cfgLine, "DNS1")).c_str());
       logln("DNS1: " + String(ip1));
       IP = strToIPAddress(String(ip1));
       primaryDNS = IPAddress(IP[0], IP[1], IP[2], IP[3]);
 
       // DNS2
-      strcpy(ip1, (sdm.getValueOfParam(CFGWIFI[7].cfgLine, "DNS2")).c_str());
+      strcpy(ip1, (getValueOfParam(CFGWIFI[7].cfgLine, "DNS2")).c_str());
       logln("DNS2: " + String(ip1));
       IP = strToIPAddress(String(ip1));
       secondaryDNS = IPAddress(IP[0], IP[1], IP[2], IP[3]);
@@ -408,12 +494,13 @@ bool loadWifiCfgFile()
   else
   {
     // Si no existe creo uno de referencia
-    File32 fWifi;
-    if (!sdf.exists("/wifi_ori.cfg"))
+    File fWifi;
+    if (!SD_MMC.exists("/wifi_ori.cfg"))
     {
-      fWifi.open("/wifi_ori.cfg", O_WRITE | O_CREAT);
+      //fWifi.open("/wifi_ori.cfg", O_WRITE | O_CREAT);
+      fWifi = SD_MMC.open("/wifi_ori.cfg", FILE_WRITE);
 
-      if (fWifi.isOpen())
+      if (fWifi)
       {
         fWifi.println("<hostname>powaDCR</hostname>");
         fWifi.println("<ssid></ssid>");
@@ -477,7 +564,7 @@ void proccesingTZX(char *file_ch)
   // Procesamos ficheros CDT, TSX y TZX
   pTZX.initialize();
 
-  pTZX.getInfoFileTZX(file_ch);
+  pTZX.process(file_ch);
 
   if (ABORT)
   {
@@ -564,8 +651,11 @@ int setSDFrequency(int SD_Speed)
   while (!SD_ok)
   {
     // Comenzamos con una frecuencia dada
-    SdSpiConfig sdcfg(PIN_AUDIO_KIT_SD_CARD_CS, SHARED_SPI, SD_SCK_MHZ(SD_SPEED_MHZ), &SPI);
-    if (!sdf.begin(sdcfg) || lastStatus)
+    //SdSpiConfig sdcfg(PIN_AUDIO_KIT_SD_CARD_CS, SHARED_SPI, SD_SCK_MHZ(SD_SPEED_MHZ), &SPI);
+    // if () {
+    
+  //}
+    if (!SD_MMC.begin() || lastStatus)
     {
 
       // La frecuencia anterior no fue compatible
@@ -594,7 +684,7 @@ int setSDFrequency(int SD_Speed)
       delay(750);
 
       // Probamos a listar un directorio
-      if (!sdm.dir.open("/"))
+      if (!SD_MMC.open("/"))
       {
         SD_ok = false;
         lastStatus = false;
@@ -611,9 +701,10 @@ int setSDFrequency(int SD_Speed)
       else
       {
         // Probamos a crear un fichero.
-        if (!sdFile32.exists("_test"))
+        
+        if (!SD_MMC.exists("/_test"))
         {
-          if (!sdFile32.open("_test", O_WRITE | O_CREAT | O_TRUNC))
+          if (!SD_MMC.open("_test", FILE_WRITE))
           {
             SD_ok = false;
             lastStatus = false;
@@ -629,8 +720,8 @@ int setSDFrequency(int SD_Speed)
           }
           else
           {
-            sdFile32.remove();
-            sdFile32.close();
+            SD_MMC.remove("/_test");
+            //sdFile32.close();
             SD_ok = true;
             lastStatus = true;
           }
@@ -646,15 +737,15 @@ int setSDFrequency(int SD_Speed)
       }
 
       // Cerramos
-      if (sdFile32.isOpen())
-      {
-        sdFile32.close();
-      }
+      // if (sdFile32.isOpen())
+      // {
+      //   sdFile32.close();
+      // }
 
-      if (sdm.dir.isOpen())
-      {
-        sdm.dir.close();
-      }
+      // if (SD_MMC.isOpen())
+      // {
+      //   sdm.dir.close();
+      // }
     }
   }
 
@@ -743,6 +834,11 @@ void recAnimationFIXED_OFF()
 
 void WavRecording()
 {
+  //-----------------------------------------------------------
+  //
+  // Esta rutina graba en WAV el audio que entra por LINE IN
+  //
+  //-----------------------------------------------------------
   unsigned long progress_millis = 0;
   unsigned long progress_millis2 = 0;
   int rectime_s = 0;
@@ -1121,13 +1217,13 @@ void writeStatusLCD(String txt)
 void uploadFirmDisplay(char *filetft)
 {
   writeStatusLCD("New display firmware");
-  File32 file;
+  File file;
   String ans = "";
 
   char strpath[20] = {};
   strcpy(strpath, "/powadcr_iface.tft");
 
-  file = sdm.openFile32(strpath);
+  file = SD_MMC.open(strpath,FILE_READ);
   uint32_t filesize = file.size();
 
   //Enviamos comando de conexión
@@ -1211,11 +1307,11 @@ void uploadFirmDisplay(char *filetft)
   ans = hmi.readStr();
 
   //
-  file.rewind();
+  file.seek(0);
 
   // Enviamos los datos
 
-  char buf[4096];
+  uint8_t buf[4096];
   size_t avail;
   size_t readcount;
   int bl = 0;
@@ -1248,7 +1344,7 @@ void uploadFirmDisplay(char *filetft)
 
           if (offset != 0)
           {
-            file.rewind();
+            file.seek(0);
             delay(50);
             file.seek(offset);
             delay(50);
@@ -1327,14 +1423,14 @@ void prepareOutputToWav()
     logln("Output to WAV (filename): " + String(file_name));
 
     // AudioLogger::instance().begin(Serial, AudioLogger::Error);
-    if (wavfile.isOpen())
+    if (wavfile)
     {
       wavfile.close();
       logln("WAV file already open. Closing it.");
     }
  
     // open file for recording WAV
-    wavfile = sdf.open(file_name, O_WRITE | O_CREAT);
+    wavfile = SD_MMC.open(file_name, FILE_WRITE);
     FILE_LOAD = getFileNameFromPath(wavnamepath);    
 
     // Muestro solo el nombre. Le elimino la primera parte que es el directorio.
@@ -1356,12 +1452,7 @@ void prepareOutputToWav()
       logln("Out to WAV file. Ready!");
     }
 
-    // Configuramos el encoder para salida a DEFAULT_WAV_SAMPLING_RATE_REC, 16-bits, STEREO
-    AudioInfo wavencodercfg(DEFAULT_WAV_SAMPLING_RATE_REC, 2, 16);
-    encoderOutWAV.begin(wavencodercfg);
-    // Le decimos al kitStream que actue el amplificador segun configuracion
-    // ademas asi coge la configuracion del encoder.
-    kitStream.setPAPower(ACTIVE_AMP);
+
     //
 }
 
@@ -1396,12 +1487,13 @@ void setSTOP()
   // sendStatus(END_ST, 1);
   // sendStatus(READY_ST, 1);
 }
+
 int getStreamfileSizeWithFilename(const String &path, bool showInHMI = true) 
 {
     
     char pfile[255] = {};
     strcpy(pfile, path.c_str());
-    File32 file = sdm.openFile32(pfile);
+    File file = SD_MMC.open(pfile, FILE_READ);
     if (!file) {
         #ifdef DEBUGMODE
             logln("Failed to open file: " + path);
@@ -1423,7 +1515,7 @@ int getStreamfileSizeWithFilename(const String &path, bool showInHMI = true)
     return fileSize;
 }
 
-int getStreamfileSize(File32* pFile, bool showInHMI = false) 
+int getStreamfileSize(File* pFile, bool showInHMI = false) 
 {
     size_t fileSize = 0;
     if(pFile!=nullptr)  
@@ -1442,27 +1534,7 @@ int getStreamfileSize(File32* pFile, bool showInHMI = false)
     return fileSize;
 }
 
-// int getStreamfileSize(String path)
-// {
-//   char pfile[255] = {};
-//   strcpy(pfile, path.c_str());
-//   File32 f = sdm.openFile32(pfile);
-//   int fsize = f.size();
-//   f.close();
-
-//   if (fsize < 1000000)
-//   {
-//     hmi.writeString("size.txt=\"" + String(fsize / 1024) + " KB\"");
-//   }
-//   else
-//   {
-//     hmi.writeString("size.txt=\"" + String(fsize / 1024 / 1024) + " MB\"");
-//   }
-
-//   return fsize;
-// }
-
-void updateSamplingRateIndicator(int rate, int bps, bool isWav)
+void updateSamplingRateIndicator(int rate, int bps, String ext)
 {
   // Cambiamos el sampling rate a 22KHz para el kitStream
   //                
@@ -1472,7 +1544,7 @@ void updateSamplingRateIndicator(int rate, int bps, bool isWav)
     hmi.writeString("tape.lblFreq.txt=\"-- KHz\"");
   
 
-  if (isWav)
+  if (ext == "wav")
   {
       if (bps == 8)
       {
@@ -1497,7 +1569,6 @@ void updateSamplingRateIndicator(int rate, int bps, bool isWav)
       hmi.writeString("tape.wavind.txt=\"\"");
   }
 }
-
 
 void updateIndicators(int size, int pos, uint32_t fsize, int bitrate, String fname)
 {
@@ -1614,253 +1685,150 @@ String getFileNameFromPath(const String &filePath) {
   return filePath; // Si no hay separador, devuelve la cadena completa
 }
 
-int generateAudioList(tAudioList* &audioList, String extension = ".mp3") {
-    audioList = (tAudioList*)ps_calloc(MAX_FILES_AUDIO_LIST, sizeof(tAudioList));
-    int size = 0;
-
-    // Ruta del directorio padre (sin el fichero)
-    String parentDir = FILE_LAST_DIR;
-    if (!parentDir.endsWith("/")) parentDir += "/";
-    String filesListPath = parentDir + "_files.lst";
-    String fileSelected = getFileNameFromPath(PATH_FILE_TO_LOAD);
-
-    File32 filesListFile = sdf.open(filesListPath.c_str(), O_RDONLY);
-    if (!filesListFile) {
-        logln("Error: Cannot open " + filesListPath);
-        return 0;
-    }
-
-    LAST_MESSAGE = "Reading file list...";
-
-    char *line = (char*)ps_calloc(512, sizeof(char)); // PSRAM para buffer de línea
-    while (filesListFile.fgets(line, 512) > 0 && size < MAX_FILES_AUDIO_LIST) {
-        String ln = String(line);
-        ln.trim();
-        if (ln.length() == 0) continue;
-
-        // Parseamos los 4 campos: indice|tipo|tamaño|nombre|
-        int idx1 = ln.indexOf('|');
-        int idx2 = ln.indexOf('|', idx1 + 1);
-        int idx3 = ln.indexOf('|', idx2 + 1);
-        int idx4 = ln.indexOf('|', idx3 + 1);
-
-        if (idx1 == -1 || idx2 == -1 || idx3 == -1 || idx4 == -1) continue;
-
-        String tipo = ln.substring(idx1 + 1, idx2);
-        String nombre = ln.substring(idx3 + 1, idx4);
-        String tamano = ln.substring(idx2 + 1, idx3);
-        String indice = ln.substring(0, idx1);
-
-        tipo.trim();
-        nombre.trim();
-
-        // Solo ficheros y extensión coincidente
-        String nombreLower = nombre;
-        nombreLower.toLowerCase();
-        String extensionLower = extension;
-        extensionLower.toLowerCase();
-        if (tipo == "F" && nombreLower.endsWith(extensionLower)) {
-            audioList[size].index = indice.toInt();
-            audioList[size].filename = nombre;
-            audioList[size].path = parentDir;
-            audioList[size].size = tamano.toInt();
-
-            // capturamos el indice del fichero seleccionado en el browser
-            if (audioList[size].filename.equalsIgnoreCase(fileSelected)) {
-                MEDIA_CURRENT_POINTER = size;
-            }
-            size++;
-        }
-    }
-    free(line);
-    filesListFile.close();
-
-    TOTAL_BLOCKS = size;
-    logln("Generating audio list with " + String(size) + " files.");
-    return size;
-}
 
 // int generateAudioList(tAudioList* &audioList, String extension = ".mp3") {
 //     audioList = (tAudioList*)ps_calloc(MAX_FILES_AUDIO_LIST, sizeof(tAudioList));
 //     int size = 0;
 
-//     // Directorio padre donde buscar y crear _audio.lst
+//     // Ruta del directorio padre (sin el fichero)
 //     String parentDir = FILE_LAST_DIR;
 //     if (!parentDir.endsWith("/")) parentDir += "/";
-//     String audioListPath = parentDir + "_audio.lst";
+//     String filesListPath = parentDir + "_files.lst";
 //     String fileSelected = getFileNameFromPath(PATH_FILE_TO_LOAD);
 
-//     // Verificamos si existe _audio.lst y que no esté vacío
-//     bool useAudioListFile = false;
-//     if (sdf.exists(audioListPath.c_str())) {
-//         File32 testFile = sdf.open(audioListPath.c_str(), O_RDONLY);
-//         if (testFile && testFile.size() > 0) {
-//             useAudioListFile = true;
-//         }
-//         testFile.close();
+//     File filesListFile = SD_MMC.open(filesListPath.c_str(), FILE_READ);
+//     if (!filesListFile) {
+//         logln("Error: Cannot open " + filesListPath);
+//         return 0;
 //     }
 
-//     if (useAudioListFile && !WAVFILE_PRELOAD) {
-//         //
-//         LAST_MESSAGE = "Reading audio list...";
-//         //
-//         hmi.writeString("statusLCD.txt=\"" + LAST_MESSAGE + "\"");
-//         delay(125);
+//     char *line = (char*)ps_calloc(512, sizeof(char)); // PSRAM para buffer de línea
+//     String strline;
 
-//         File32 audioListFile = sdf.open(audioListPath.c_str(), O_RDONLY);
-//         if (audioListFile) {
-//             char *line = (char*)ps_calloc(512, sizeof(char));
-//             while (audioListFile.fgets(line, 512) > 0 && size < MAX_FILES_AUDIO_LIST) {
-//                 String ln = String(line);
-//                 ln.trim();
-//                 if (ln.length() == 0) continue;
-//                 int idx1 = ln.indexOf(',');
-//                 int idx2 = ln.indexOf(',', idx1 + 1);
-//                 int idx3 = ln.indexOf(',', idx2 + 1);
-//                 if (idx1 == -1 || idx2 == -1 || idx3 == -1) continue;
-//                 audioList[size].index = ln.substring(0, idx1).toInt();
-//                 audioList[size].filename = ln.substring(idx1 + 1, idx2);
-//                 audioList[size].path = ln.substring(idx2 + 1, idx3);
-//                 audioList[size].size = ln.substring(idx3 + 1).toInt();
+//     while (filesListFile.available() && size < MAX_FILES_AUDIO_LIST) {
 
-//                 //logln("Archivo buscado: " + (audioList[size].filename) + "vs" + fileSelected);
-//                 // capturamos el indice del fichero seleccionado en el browser
-//                 if (audioList[size].filename.equalsIgnoreCase(fileSelected)) 
-//                 {
-//                     // Retorna el índice del archivo encontrado  
-//                     MEDIA_CURRENT_POINTER = size; 
-//                 }   
-//                 size++;
+//         filesListFile.readBytesUntil('\n', line, 511);
+//         strline = String(line);
+//         strline.trim();
+//         if (strline.length() == 0) continue;
+
+//         // Parseamos los 4 campos: indice|tipo|tamaño|nombre|
+//         int idx1 = strline.indexOf('|');
+//         int idx2 = strline.indexOf('|', idx1 + 1);
+//         int idx3 = strline.indexOf('|', idx2 + 1);
+//         int idx4 = strline.indexOf('|', idx3 + 1);
+
+//         if (idx1 == -1 || idx2 == -1 || idx3 == -1 || idx4 == -1) continue;
+
+//         String tipo = strline.substring(idx1 + 1, idx2);
+//         String nombre = strline.substring(idx3 + 1, idx4);
+//         String tamano = strline.substring(idx2 + 1, idx3);
+//         String indice = strline.substring(0, idx1);
+
+//         tipo.trim();
+//         nombre.trim();
+
+//         // Solo ficheros y extensión coincidente
+//         String nombreLower = nombre;
+//         nombreLower.toLowerCase();
+//         String extensionLower = extension;
+//         extensionLower.toLowerCase();
+//         if (tipo == "F" && nombreLower.endsWith(extensionLower)) {
+//             audioList[size].index = indice.toInt();
+//             audioList[size].filename = nombre;
+//             audioList[size].path = parentDir;
+//             audioList[size].size = tamano.toInt();
+
+//             // capturamos el indice del fichero seleccionado en el browser
+//             if (audioList[size].filename.equalsIgnoreCase(fileSelected)) {
+//                 MEDIA_CURRENT_POINTER = size;
 //             }
-//             free(line);
-//             audioListFile.close();
+//             size++;
 //         }
-//     } else {
-//         // Mostramos mensaje de creación de la lista de audio
-//         LAST_MESSAGE = "Creating audio list...";
-//         hmi.writeString("statusLCD.txt=\"" + LAST_MESSAGE + "\"");
-//         delay(125);
-
-//         File32 audioListFile = sdf.open(audioListPath.c_str(), O_WRITE | O_CREAT | O_TRUNC);
-//         if (!audioListFile) {
-//             logln("Error: Cannot create " + audioListPath);
-//         }
-
-//         // --- 1. Primero archivos de la raíz ---
-//         File32 dir = sdf.open(parentDir.c_str());
-//         if (dir && dir.isDir()) {
-//             File32 file;
-//             char *fileName = (char*)ps_calloc(256, sizeof(char));
-//             while (file.openNext(&dir, O_RDONLY) && size < MAX_FILES_AUDIO_LIST) {
-//                 file.getName(fileName, 255);
-//                 String fname = String(fileName);
-//                 String fullPath = fname;
-//                 if (!file.isDir()) {
-//                     fname.toLowerCase();
-//                     if (fname.endsWith(extension)) {
-//                         size_t fileSize = file.size();
-//                         if (fileSize > 0) {
-//                             audioList[size].filename = fullPath;
-//                             audioList[size].path = parentDir;
-//                             audioList[size].index = size;
-//                             audioList[size].size = fileSize;
-//                             if (audioListFile) {
-//                                 String line = String(size) + "," + fullPath + "," + parentDir + "," + String(fileSize) + "\n";
-//                                 audioListFile.print(line);
-//                             }
-//                             //logln("Archivo buscado: " + (audioList[size].filename) + "vs" + fileSelected);
-//                             // capturamos el indice del fichero seleccionado en el browser
-//                             if (audioList[size].filename.equalsIgnoreCase(fileSelected)) 
-//                             {
-//                                 // Retorna el índice del archivo encontrado  
-//                                 MEDIA_CURRENT_POINTER = size; 
-//                             }                            
-//                             size++;
-//                         }
-//                     }
-//                 }
-//                 file.close();
-//             }
-//             free(fileName);
-//             dir.close();
-//         }
-
-//         // // --- 2. Ahora los subdirectorios (BFS, pero saltando la raíz) ---
-//         // const int MAX_DIRS = MAX_SUBDIRS_AUDIO_LIST; // Ajusta según memoria disponible
-//         // char **dirsToScan = (char**)ps_calloc(MAX_DIRS, sizeof(char*));
-//         // int dirCount = 0;
-
-//         // // Añadimos subdirectorios de la raíz
-//         // File32 dir2 = sdf.open(parentDir.c_str());
-//         // if (dir2 && dir2.isDir()) {
-//         //     File32 file;
-//         //     char *fileName = (char*)ps_calloc(256, sizeof(char));
-//         //     while (file.openNext(&dir2, O_RDONLY) && dirCount < MAX_DIRS) {
-//         //         file.getName(fileName, 255);
-//         //         String fname = String(fileName);
-//         //         String fullPath = fname;
-//         //         if (file.isDir() && fname != "." && fname != "..") {
-//         //             if (!fullPath.endsWith("/")) fullPath += "/";
-//         //             dirsToScan[dirCount++] = strdup(fullPath.c_str());
-//         //         }
-//         //         file.close();
-//         //     }
-//         //     free(fileName);
-//         //     dir2.close();
-//         // }
-
-//         // // Ahora procesamos todos los subdirectorios encontrados
-//         // for (int dirIdx = 0; dirIdx < dirCount && size < MAX_FILES_AUDIO_LIST; dirIdx++) {
-//         //     String currentDir = String(dirsToScan[dirIdx]);
-//         //     File32 dir = sdf.open(currentDir.c_str());
-//         //     if (!dir || !dir.isDir()) {
-//         //         dir.close();
-//         //         free(dirsToScan[dirIdx]);
-//         //         continue;
-//         //     }
-
-//         //     File32 file;
-//         //     char *fileName = (char*)ps_calloc(256, sizeof(char));
-//         //     while (file.openNext(&dir, O_RDONLY) && size < MAX_FILES_AUDIO_LIST) {
-//         //         file.getName(fileName, 255);
-//         //         String fname = String(fileName);
-//         //         String fullPath = fname;
-//         //         if (file.isDir()) {
-//         //             if (fname != "." && fname != ".." && dirCount < MAX_DIRS) {
-//         //                 if (!fullPath.endsWith("/")) fullPath += "/";
-//         //                 dirsToScan[dirCount++] = strdup(fullPath.c_str());
-//         //             }
-//         //         } else {
-//         //             fname.toLowerCase();
-//         //             if (fname.endsWith(extension)) {
-//         //                 size_t fileSize = file.size();
-//         //                 if (fileSize > 0) {
-//         //                     audioList[size].filename = fullPath;
-//         //                     audioList[size].path = currentDir;
-//         //                     audioList[size].index = size;
-//         //                     audioList[size].size = fileSize;
-//         //                     if (audioListFile) {
-//         //                         String line = String(size) + "," + fullPath + "," + currentDir + "," + String(fileSize) + "\n";
-//         //                         audioListFile.print(line);
-//         //                     }
-//         //                     size++;
-//         //                 }
-//         //             }
-//         //         }
-//         //         file.close();
-//         //     }
-//         //     free(fileName);
-//         //     dir.close();
-//         //     free(dirsToScan[dirIdx]);
-//         // }
-//         //free(dirsToScan);
-//         if (audioListFile) audioListFile.close();
 //     }
+//     free(line);
+//     filesListFile.close();
 
 //     TOTAL_BLOCKS = size;
 //     logln("Generating audio list with " + String(size) + " files.");
 //     return size;
 // }
+
+int generateAudioList(tAudioList* &audioList, String extension = ".mp3") {
+    audioList = (tAudioList*)ps_calloc(MAX_FILES_AUDIO_LIST, sizeof(tAudioList));
+    int size = 0;
+
+    String parentDir = FILE_LAST_DIR;
+    if (!parentDir.endsWith("/")) parentDir += "/";
+    String filesListPath = parentDir + "_files.lst";
+    String fileSelected = getFileNameFromPath(PATH_FILE_TO_LOAD);
+
+    File filesListFile = SD_MMC.open(filesListPath.c_str(), FILE_READ);
+    if (!filesListFile) {
+        logln("Error: Cannot open " + filesListPath);
+        return 0;
+    }
+
+    char *line = (char*)ps_calloc(512, sizeof(char));
+    String strline;
+
+    try {
+      while (filesListFile.available() && size < MAX_FILES_AUDIO_LIST) 
+      {
+
+          filesListFile.readBytesUntil('\n', line, 511);
+          strline = String(line);
+          strline.trim();
+          if (strline.length() == 0) continue;
+
+          // Parseamos los 4 campos: indice|tipo|tamaño|nombre|
+          int idx1 = strline.indexOf('|');
+          int idx2 = strline.indexOf('|', idx1 + 1);
+          int idx3 = strline.indexOf('|', idx2 + 1);
+          int idx4 = strline.indexOf('|', idx3 + 1);
+
+          if (idx1 == -1 || idx2 == -1 || idx3 == -1 || idx4 == -1) continue;
+
+          String tipo = strline.substring(idx1 + 1, idx2);
+          String nombre = strline.substring(idx3 + 1, idx4);
+          String tamano = strline.substring(idx2 + 1, idx3);
+          String indice = strline.substring(0, idx1);
+
+          tipo.trim();
+          nombre.trim();
+
+          // Solo ficheros y extensión coincidente
+          String nombreLower = nombre;
+          nombreLower.toLowerCase();
+          String extensionLower = extension;
+          extensionLower.toLowerCase();
+          if (tipo == "F" && nombreLower.endsWith(extensionLower)) {
+              audioList[size].index = indice.toInt();
+              audioList[size].filename = nombre;
+              audioList[size].path = parentDir;
+              audioList[size].size = tamano.toInt();
+
+              // capturamos el indice del fichero seleccionado en el browser
+              if (audioList[size].filename.equalsIgnoreCase(fileSelected)) {
+                  MEDIA_CURRENT_POINTER = size;
+              }
+              size++;
+          }
+      }
+    }
+    catch (...) {
+        // Aseguramos que el archivo se cierre incluso si hay errores
+        free(line);
+        filesListFile.close();
+        throw;
+    }
+
+    free(line);
+    filesListFile.close(); // Aseguramos que el archivo se cierre
+    TOTAL_BLOCKS = size;
+    logln("Generating audio list with " + String(size) + " files.");    
+    return size;
+}
 
 int getIndexFromAudioList(tAudioList* audioList, int size, const String &searchValue) 
 {
@@ -1896,87 +1864,8 @@ void prevAudio(int &currentPointer, int audioListSize)
     }
 }
 
-int findIDByFilename(File32 &file, const String &searchValue) {
-    if (!file.isOpen()) {
-        #ifdef DEBUGMODE
-            logln("File is not open.");
-        #endif
-        return -1; // Archivo no abierto
-    }
-
-    file.rewind(); // Comenzamos desde el principio del archivo
-    char line[256];
-    int n = 0;
-
-    while ((n = file.fgets(line, sizeof(line))) > 0) {
-        line[n - 1] = 0; // Eliminamos el terminador '\n'
-        String lineStr = String(line);
-
-        // Extraemos el último dato contenido entre '|'
-        int lastPipe = lineStr.lastIndexOf('|');
-        int secondLastPipe = lineStr.lastIndexOf('|', lastPipe - 1);
-        String lastField = "";
-
-        if (secondLastPipe != -1 && lastPipe != -1 && secondLastPipe < lastPipe) {
-            lastField = lineStr.substring(secondLastPipe + 1, lastPipe);
-            lastField.trim(); // Eliminamos espacios en blanco
-        }
-
-        // Comparamos el último campo con el valor buscado
-        if (lastField.equalsIgnoreCase(searchValue)) {
-            // Extraemos el número al principio de la línea
-            int firstPipe = lineStr.indexOf('|');
-            if (firstPipe != -1) {
-                String idStr = lineStr.substring(0, firstPipe);
-                return idStr.toInt(); // Devolvemos el ID como entero
-            }
-        }
-    }
-
-    return -1; // No se encontró coincidencia
-}
-
-String findLastFieldByID(File32 &file, int searchID) {
-    if (!file.isOpen()) {
-        #ifdef DEBUGMODE
-            logln("File is not open.");
-        #endif
-        return ""; // Archivo no abierto
-    }
-
-    file.rewind(); // Comenzamos desde el principio del archivo
-    char line[256];
-    int n = 0;
-
-    while ((n = file.fgets(line, sizeof(line))) > 0) {
-        line[n - 1] = 0; // Eliminamos el terminador '\n'
-        String lineStr = String(line);
-
-        // Extraemos el ID al principio de la línea
-        int firstPipe = lineStr.indexOf('|');
-        if (firstPipe != -1) {
-            String idStr = lineStr.substring(0, firstPipe);
-            int id = idStr.toInt();
-
-            // Comparamos el ID con el valor buscado
-            if (id == searchID) {
-                // Extraemos el último dato contenido entre '|'
-                int lastPipe = lineStr.lastIndexOf('|');
-                int secondLastPipe = lineStr.lastIndexOf('|', lastPipe - 1);
-                if (secondLastPipe != -1 && lastPipe != -1 && secondLastPipe < lastPipe) {
-                    String lastField = lineStr.substring(secondLastPipe + 1, lastPipe);
-                    lastField.trim(); // Eliminamos espacios en blanco
-                    return lastField; // Devolvemos el último campo
-                }
-            }
-        }
-    }
-
-    return ""; // No se encontró coincidencia
-}
-
-void MediaPlayer(bool isWav = false) 
-{
+void MediaPlayer() 
+{   
     
     // ---------------------------------------------------------
     //
@@ -1992,8 +1881,11 @@ void MediaPlayer(bool isWav = false)
     // Lista de audio
     int audioListSize = 0;
     tAudioList* audiolist; 
-    String ext = isWav ? ".wav" : ".mp3";
-    File32* pFile = nullptr;
+
+    String ext = TYPE_FILE_LOAD;
+    ext.toLowerCase();
+
+    File* pFile = nullptr;
 
     // Indices de ficheros
     int currentIdx = 0;
@@ -2011,12 +1903,14 @@ void MediaPlayer(bool isWav = false)
     int fast_wind_status = 0;
 
     // Busqueda rapida
-    File32 *p_file_seek = nullptr;
+    File *p_file_seek = nullptr;
     size_t p_file_seek_pos = 0;
     long t_button_pressed = 0;
 
     // Sampling rate
-    audio_tools::sample_rate_t osr = 44100;
+    audio_tools::sample_rate_t osr = kitStream.audioInfo().sample_rate;
+    bool isFLAC = false;
+    uint8_t waitflag = 0;
    
 
     //-----------------------------------------------------------
@@ -2027,22 +1921,27 @@ void MediaPlayer(bool isWav = false)
 
     // Aplicamos configuración a la board
     auto cfg = kitStream.audioInfo();
-
     kitStream.setPAPower(ACTIVE_AMP);
     kitStream.setVolume(MAIN_VOL / 100);
 
-    // Configuración de la fuente de audio
-    AudioSourceIdxSDFAT<SdFat32> source(sdf);
-    source.setPath(FILE_LAST_DIR.c_str());
-    source.setFileFilter(isWav ? "*.wav" : "*.mp3");
-
-
+    // Configuración de la fuente de audio - old version
+    // ----------------------------------------------------------
+    AudioSourceIdxSDMMC source(FILE_LAST_DIR.c_str(), ext.c_str(), true);
+    REGENERATE_IDX = false;
+    // source.setPath(FILE_LAST_DIR.c_str());
+    // String filter = "*" + ext;
+    // source.setFileFilter(filter.c_str());
 
     // Configuración de los decodificadores
     // ---------------------------------------------------------
-    //MultiDecoder decoder;
+    // Decodificador MP3
     MP3DecoderHelix decoderMP3;
+    
+    // Decodificador WAV tipo PCM
     WAVDecoder decoderWAV;
+
+    // Decodificador FLAC
+    FLACDecoderFoxen decoderFLAC;
 
     // Configuración del filtrado de metadatos para el codec MP3
     // ---------------------------------------------------------
@@ -2052,12 +1951,15 @@ void MediaPlayer(bool isWav = false)
     // ---------------------------------------------------------
     MeasuringStream measureWAV(decoderWAV);
     MeasuringStream measureMP3(decoderMP3);
+    //MeasuringStream measureFLAC(static_cast<AudioDecoder&>(decoderFLAC));
 
     // Variables para medida de tiempo
     uint32_t sMP3_total = 0; // Seconds for MP3
     uint32_t sMP3_begin = 0; // Seconds for MP3
     uint32_t sWAV_total = 0; // Seconds for WAV
     uint32_t sWAV_begin = 0; // Seconds for WAV
+    uint32_t sFLAC_total = 0; // Seconds for FLAC
+    uint32_t sFLAC_begin = 0; // Seconds for FLAC
 
     // Configuración del ecualizador
     // ---------------------------------------------------------
@@ -2072,10 +1974,15 @@ void MediaPlayer(bool isWav = false)
     eq.begin(cfg_eq);
 
     // Esto nos permite propagación del setting del fichero, sampling, bits, canales.
+    //WAV
     decoderWAV.addNotifyAudioChange(kitStream);
     decoderWAV.addNotifyAudioChange(eq);
+    //MP3
     decoderMP3.addNotifyAudioChange(kitStream);
     decoderMP3.addNotifyAudioChange(eq);
+    //FLAC
+    decoderFLAC.addNotifyAudioChange(kitStream);
+    decoderFLAC.addNotifyAudioChange(eq);
 
     // Configuración del reproductor
     // ---------------------------------------------------------
@@ -2085,46 +1992,108 @@ void MediaPlayer(bool isWav = false)
     player.setOutput(eq);
     player.setVolume(1);
     
+    auto tempConfig = kitStream.audioInfo();
+
     // Esto es necesario para que el player sepa donde rediregir el audio
-    if (isWav)
-      player.setDecoder(decoderWAV);
-    else
-      player.setDecoder(metadatafilter);
-  
-    
-    // Dimensionado del buffer de mp3
-    player.setBufferSize(64 * 8092); // 512 KB para MP3, 64 * 8092 = 518528 bytes
-    // Otras configuraciones del player
-    player.setAutoNext(AUTO_NEXT);
-    player.setAutoFade(AUTO_FADE);
-
-    // ----------------------------------------------------------
-    //
-    // Inicializamos objetos
-    //
-    // ----------------------------------------------------------
-    
-    // Decodificadores
-    decoderWAV.begin();
-    decoderMP3.begin();
-    measureMP3.begin();
-    measureWAV.begin();
-
-    // Inicializamos medidas de tiempo
-    measureMP3.begin();
-    measureWAV.begin();
-
-    // Arranque del player
-    if (!player.begin()) 
+    switch(ext[0])
     {
-      logln("Error player initialization");
-      STOP = true;
-      PLAY = false;
-      return;
+      case 'w':
+        // WAV
+        // Iniciamos medidor
+        measureWAV.begin();
+        
+        // Iniciamos el decoder
+        decoderWAV.begin();
+        
+        // Configuramos el player con el decoder
+        player.setDecoder(decoderWAV);
+        
+        // Configuramos temporalmente el audio a 22050Hz hasta que leamos el archivo real
+        tempConfig = kitStream.defaultConfig();
+        tempConfig.sample_rate = 44100;
+        tempConfig.bits_per_sample = 16;
+        tempConfig.channels = 2;
+        kitStream.setAudioInfo(tempConfig);
+        eq.setAudioInfo(tempConfig);
+        
+        // Otras configuraciones del player
+        player.setAutoNext(AUTO_NEXT);
+        player.setAutoFade(AUTO_FADE);
+        logln("WAV decoder set in player");
+        break;
+      case 'm':
+        // MP3
+        measureMP3.begin();
+        decoderMP3.begin();
+        player.setDecoder(metadatafilter);
+        // Dimensionado del buffer de mp3
+        player.setBufferSize(512 * 1024); // 4096 KB para MP3     
+        
+        // Configuramos temporalmente el audio a 44100Hz hasta que leamos el archivo real
+        tempConfig = kitStream.defaultConfig();
+        tempConfig.sample_rate = 44100;
+        tempConfig.bits_per_sample = 16;
+        tempConfig.channels = 2;
+        kitStream.setAudioInfo(tempConfig);
+        eq.setAudioInfo(tempConfig);
+        
+        // Otras configuraciones del player
+        player.setAutoNext(AUTO_NEXT);
+        player.setAutoFade(AUTO_FADE);           
+        logln("MP3 decoder set in player");
+        break;        
+      case 'f':
+        // FLAC
+        isFLAC = true;
+        // decoderFLAC.setInBufferSize(256 * 1024);
+        // decoderFLAC.setOutBufferSize(256 * 1024);    
+        if (decoderFLAC.begin())
+        {
+          logln("FLAC decoder initialized");
+          
+          // Configuramos temporalmente el audio a 44100Hz hasta que leamos el archivo real
+          tempConfig = kitStream.defaultConfig();
+          tempConfig.sample_rate = 44100;
+          tempConfig.bits_per_sample = 16;
+          tempConfig.channels = 2;
+          kitStream.setAudioInfo(tempConfig);
+          eq.setAudioInfo(tempConfig);
+        }
+        else
+        {
+          logln("Error initializing FLAC decoder");
+          LAST_MESSAGE = "Error initializing FLAC decoder";
+          STOP = true;
+          PLAY = false;
+          return;
+        }           
+        player.setDecoder(decoderFLAC);
+        logln("FLAC decoder set in player");
+        break;        
+      default:
+        LAST_MESSAGE = "Unsupported format";
+        delay(1500);
+        return;
+        break;        
     }
+    
+
+    LAST_MESSAGE = "Scanning files ...";
+
+
 
     // Apuntamos al fichero seleccionado en el browser
-    pFile = (File32*)source.selectStream(PATH_FILE_TO_LOAD.c_str()); 
+    logln("Selecting file: " + PATH_FILE_TO_LOAD);
+    pFile = (File*)source.selectStream(PATH_FILE_TO_LOAD.c_str()); 
+    if (pFile == nullptr) 
+    {
+        logln("Error: Cannot open selected file: " + PATH_FILE_TO_LOAD);
+        LAST_MESSAGE = "Error opening file. Eject again.";
+        REGENERATE_IDX = true;
+        STOP = true;
+        PLAY = false;
+        return;
+    }
     // Obtenemos el tamaño del archivo actual
     fileSize = pFile->size(); 
     // Inicializamos el número de bytes leídos
@@ -2132,7 +2101,43 @@ void MediaPlayer(bool isWav = false)
 
     // Generamos la lista de audio del directorio raiz del fichero seleccionado.
     MEDIA_CURRENT_POINTER = 0;
+
+    // Nos aseguramos que FILE_LAST_DIR comience con /
+    if (!FILE_LAST_DIR.startsWith("/")) {
+        FILE_LAST_DIR = "/" + FILE_LAST_DIR;
+    }
+
+    LAST_MESSAGE = "Buffering file list...";
+    hmi.writeString("statusLCD.txt=\"" + LAST_MESSAGE + "\"");
+    //yield();
+    delay(125);
+
+    // Primero validamos que el path comience con /
+    if (!FILE_LAST_DIR.startsWith("/")) {
+        logln("Invalid path format (must start with /) -> " + FILE_LAST_DIR);
+        LAST_MESSAGE = "Invalid path format.";
+        hmi.writeString("statusLCD.txt=\"" + LAST_MESSAGE + "\"");
+        delay(125);
+        return;
+    }
+
+    //
+    // Generamos la lista de audio
+    //
     audioListSize = generateAudioList(audiolist, ext);
+    //
+    logln("Checking path: " + FILE_LAST_DIR);
+    if (!SD_MMC.exists((FILE_LAST_DIR).c_str()))
+    {
+        logln("Path not found -> " + FILE_LAST_DIR);
+        LAST_MESSAGE = "Path not found.";
+        hmi.writeString("statusLCD.txt=\"" + LAST_MESSAGE + "\"");
+        delay(125);
+        return;
+    }
+
+    // Reindexamos la fuente de audio.
+    source.reindex((FILE_LAST_DIR).c_str(), ext.c_str());
     delay(125);
     
     // Obtenemos indice del fichero seleccionado
@@ -2161,12 +2166,36 @@ void MediaPlayer(bool isWav = false)
     lastUpdate = millis();
     twiceRWDTime = millis();
     t_button_pressed = millis();
-
+    // Reset del EQ
     EQ_CHANGE = false;
 
     // Mostramos informacion del fichero seleccionado en el browser.
     updateIndicators(totalFilesIdx, currentPointer + 1, fileSize, bitRateRead, audiolist[currentPointer].filename);
     
+    // -------------------------------------------------------------------
+    // -
+    // - Arranque del player
+    // -
+    // -------------------------------------------------------------------
+    LAST_MESSAGE = "Initializing player...";
+    hmi.writeString("statusLCD.txt=\"" + LAST_MESSAGE + "\"");
+
+    waitflag = 0;
+    while(!player.begin() && !EJECT) 
+    {
+      if(waitflag++>255)
+      {
+        LAST_MESSAGE = "Error indexing files. Open again.";
+        delay(2000);
+        EJECT = true;
+        break;
+      }
+      delay(125);     
+    }
+
+    LAST_MESSAGE = "Player ready. Press Play.";
+    hmi.writeString("statusLCD.txt=\"" + LAST_MESSAGE + "\"");
+
     // ---------------------------------------------------------------
     //
     // Bucle principal
@@ -2177,9 +2206,11 @@ void MediaPlayer(bool isWav = false)
     {
         // Actualizamos el volumen y el ecualizador si es necesario
         kitStream.setVolume(MAIN_VOL / 100);
+        kitStream.setPAPower(ACTIVE_AMP & EN_SPEAKER);
         
         // Control del ecualizador
-        if (EQ_CHANGE) {
+        if (EQ_CHANGE) 
+        {
             EQ_CHANGE = false;
             cfg = kitStream.audioInfo();
             cfg_eq.setAudioInfo(cfg);
@@ -2197,63 +2228,147 @@ void MediaPlayer(bool isWav = false)
         }
 
         // Estados del reproductor
-        switch (stateStreamplayer) {
+        switch (stateStreamplayer) 
+        {
             case 0: // Esperando reproducción
                 if (PLAY) 
                 {
                     // Iniciamos el reproductor
+                    
                     if (WAVFILE_PRELOAD)
                     {
                       WAVFILE_PRELOAD = false;
                       LAST_MESSAGE = "Searching...";
-                      currentIdx = source.indexOf(PATH_FILE_TO_LOAD.c_str());
+                      logln("Searching WAV file: " + PATH_FILE_TO_LOAD);
+                      if ((currentIdx = source.indexOf(PATH_FILE_TO_LOAD.c_str())) != -1) {
+                          logln("Found file at index: " + String(currentIdx));
+                          LAST_MESSAGE = "...";
+                      } else {
+                          logln("File not found in source.");
+                          LAST_MESSAGE = "File not found in playlist.";
+                          STOP = true;
+                          PLAY = false;
+                      }
                     }
                     else
                     {
                       LAST_MESSAGE = "Searching...";
+                      logln("Searching WAV file: " + audiolist[currentPointer].filename);
                       currentIdx = source.indexOf((audiolist[currentPointer].filename).c_str());
+                      if (currentIdx == -1) {
+                          logln("File not found in source: " + audiolist[currentPointer].filename);
+                          LAST_MESSAGE = "File not found in playlist.";
+                          STOP = true;
+                          PLAY = false;
+                          break;
+                      }
+                      else
+                      {
+                          LAST_MESSAGE = "...";
+                      }
                     }
 
                     // Primer ms
-                    if (player.begin(currentIdx))
-                    { 
-                      // Esto es necesario para que el player sepa el sampling rate
-                      player.copy();           
+                    waitflag = 0;
+                    while(!player.begin(currentIdx))
+                    {
+                        if(waitflag++>255){player.stop();}
+                    }
+                    
+                    player.setAutoNext(false);
+                    player.copy();
+                    delay(250); // Esperamos 5s a que abra el archivo
 
-                      LAST_MESSAGE = "...";
+                    AUDIO_FORMART_IS_VALID = true;
+                    // Ahora que el archivo está abierto, obtenemos su configuración real
+                    // Leemos la primera parte para que el decoder detecte el header
+                    AudioFormat format;
 
-                      pFile = (File32*)player.getStream();
-
-                      if (pFile != nullptr) 
-                      {
-                          // Obtenemos el tamaño del archivo
-                          fileSize = pFile->size();
-                          logln("File size: " + String(fileSize) + " bytes");
-                          // Inicializamos el número de bytes leídos
-                          fileread = pFile->position(); 
-                      } 
-
-                      // Actualización inicial de indicadores
-                      updateIndicators(totalFilesIdx, currentPointer+1, fileSize, bitRateRead, source.toStr());
-
-                      // Cambiamos de estado
-                      stateStreamplayer = 1;
-                      tapeAnimationON();
+                    if (ext == "wav") {
+                        // Mostramos información del fichero
+                        format = decoderWAV.audioInfoEx().format;
+                        int sr = decoderWAV.audioInfo().sample_rate;
+                        logln("WAV sample rate: " + String(sr) + " Hz");
+                        logln("WAV format: " + String((int)format));
                     }
                     else
                     {
-                      LAST_MESSAGE = "Error starting player";
-                      STOP = true;
-                      PLAY = false;
-                      stateStreamplayer = 0;
-                      tapeAnimationOFF();
-                      break;
+                      format = AudioFormat::PCM;
                     }
+
+                    if (format != AudioFormat::PCM)
+                    {
+                        logln("WAV format not supported.");
+                        LAST_MESSAGE = "WAV format not supported.";
+                        STOP = true;
+                        PLAY = false;
+                        AUDIO_FORMART_IS_VALID = false;
+                        tapeAnimationOFF();
+                        player.stop();
+                        break;
+                    }
+                    else
+                    {
+                        player.setAutoNext(AUTO_NEXT);
+
+                        AudioInfo realInfo;
+                        if (ext == "wav") {
+                            realInfo = decoderWAV.audioInfo();
+                        } else if (ext == "mp3") {
+                            realInfo = decoderMP3.audioInfo();
+                        } else if (ext == "flac") {
+                            realInfo = decoderFLAC.audioInfo();
+                        }
+                        
+                        logln("Real Audio Info - Sample Rate: " + String(realInfo.sample_rate) + 
+                              "Hz, Bits: " + String(realInfo.bits_per_sample) + 
+                              ", Channels: " + String(realInfo.channels));
+                        
+                        if (realInfo.sample_rate > 0) {
+                            // Actualizamos la configuración con los valores reales
+                            kitStream.setAudioInfo(realInfo);
+                            eq.setAudioInfo(realInfo);
+                            player.setAudioInfo(realInfo);
+                        } else {
+                            logln("Warning: Invalid sample rate detected in audio file");
+                        }
+
+                        LAST_MESSAGE = "...";
+
+                        pFile = (File*)player.getStream();
+
+                        if (pFile != nullptr) 
+                        {
+                            // Obtenemos el tamaño del archivo
+                            fileSize = pFile->size();
+                            logln("File size: " + String(fileSize) + " bytes");
+                            // Inicializamos el número de bytes leídos
+                            fileread = pFile->position(); 
+                        } 
+
+                        // Actualización inicial de indicadores
+                        updateIndicators(totalFilesIdx, currentPointer+1, fileSize, bitRateRead, source.toStr());
+
+                        // Cambiamos de estado
+                        stateStreamplayer = 1;
+                        tapeAnimationON();                      
+                    }
+
                 }
                 break;
 
             case 1: // Reproduciendo PLAY
-                
+              
+                if (!AUDIO_FORMART_IS_VALID)
+                {
+                  LAST_MESSAGE = "Audio format error.";
+                  STOP = true;
+                  PLAY = false;
+                  stateStreamplayer = 0;
+                  tapeAnimationOFF();
+                  break;
+                }
+
                 // Mientras PLAY activo
                 if (fast_wind_status < 2)
                 {
@@ -2314,8 +2429,25 @@ void MediaPlayer(bool isWav = false)
                         hmi.writeString("tape.currentBlock.val=1");  
                         delay(125);
                         LAST_MESSAGE = "Searching...";
+                        //currentIdx = source.indexOf((audiolist[currentPointer].filename).c_str());
                         currentIdx = source.indexOf((audiolist[currentPointer].filename).c_str());
-                        player.begin(currentIdx); // Reiniciar el reproductor
+                        if (currentIdx == -1) {
+                            logln("File not found in source: " + audiolist[currentPointer].filename);
+                            LAST_MESSAGE = "File not found in playlist.";
+                            STOP = true;
+                            PLAY = false;
+                            break;
+                        }
+                        else
+                        {
+                            LAST_MESSAGE = "...";
+                        }
+                        waitflag = 0;
+                        while(!player.begin(currentIdx))
+                        {
+                            if(waitflag++>255){player.stop();}
+                        }
+                        // Reiniciar el reproductor
                         fileSize = getStreamfileSize(pFile);
                       }
                   }
@@ -2330,8 +2462,25 @@ void MediaPlayer(bool isWav = false)
                     fileread = 0;
                     //
                     LAST_MESSAGE = "Searching...";
-                    currentIdx = source.indexOf(audiolist[currentPointer].filename.c_str());
-                    player.begin(currentIdx); // Iniciamos el reproductor
+                    //currentIdx = source.indexOf(audiolist[currentPointer].filename.c_str());
+                    currentIdx = source.indexOf((audiolist[currentPointer].filename).c_str());
+                    if (currentIdx == -1) {
+                        logln("File not found in source: " + audiolist[currentPointer].filename);
+                        LAST_MESSAGE = "File not found in playlist.";
+                        STOP = true;
+                        PLAY = false;
+                        break;
+                    }
+                    else
+                    {
+                        LAST_MESSAGE = "...";
+                    }                    
+                    waitflag = 0;
+                    while(!player.begin(currentIdx))
+                    {
+                        if(waitflag++>255){player.stop();}
+                    }
+                    // Iniciamos el reproductor
 
                   }
                 }
@@ -2352,28 +2501,39 @@ void MediaPlayer(bool isWav = false)
                 }
 
                 // Actualizamos indicadores cada 2 segundos
+
                 if (millis() - lastUpdate > 1000) 
                 {
                     // Mostramos informacion del fichero.
                     updateIndicators(totalFilesIdx, currentPointer+1, fileSize, bitRateRead, audiolist[currentPointer].filename);
 
                     // Indicador del sampling y resolucion.
-                    if (isWav)
-                      updateSamplingRateIndicator(decoderWAV.audioInfo().sample_rate, decoderWAV.audioInfo().bits_per_sample, isWav);
-                    else
-                      updateSamplingRateIndicator(decoderMP3.audioInfo().sample_rate, decoderMP3.audioInfo().bits_per_sample, isWav);
-
+                    if (ext == "wav")
+                    {
+                      updateSamplingRateIndicator(decoderWAV.audioInfo().sample_rate, decoderWAV.audioInfo().bits_per_sample, ext);
+                    }
+                    else if (ext == "mp3")
+                    {  
+                      updateSamplingRateIndicator(decoderMP3.audioInfo().sample_rate, decoderMP3.audioInfo().bits_per_sample, ext);
+                    }
+                    else if (ext == "flac")
+                    {  
+                      updateSamplingRateIndicator(decoderFLAC.audioInfo().sample_rate, decoderFLAC.audioInfo().bits_per_sample, ext);
+                    }
                     // Elapsed timer
                     // if (!isWav)
                     // {
                     // Actualizamos el tiempo de reproducción
-                    if (isWav)
+                    if (ext == "wav")
+                    {
                         sMP3_begin = measureWAV.estimatedTotalTimeFor(pFile->size());
+                    }
                     else
-                        sMP3_begin = measureMP3.estimatedTotalTimeFor(pFile->size());
+                    {
+                      sMP3_begin = measureMP3.estimatedTotalTimeFor(pFile->size());
+                    }
 
                     uint32_t tiempo = sMP3_begin / 1000; // Convertimos a segundos
-
                     String tiempoStr = (tiempo / 60 < 10 ? "0" : "") + String(tiempo / 60) + ":" + (tiempo % 60 < 10 ? "0" : "") + String(tiempo % 60);
                     LAST_MESSAGE = "Time: " + tiempoStr;
                     // }                      
@@ -2407,7 +2567,19 @@ void MediaPlayer(bool isWav = false)
                 currentPointer = 0;   
                 // Preparamos el fichero a reproducir
                 LAST_MESSAGE = "Searching...";
+                //currentIdx = source.indexOf((audiolist[currentPointer].filename).c_str());
                 currentIdx = source.indexOf((audiolist[currentPointer].filename).c_str());
+                if (currentIdx == -1) {
+                    logln("File not found in source: " + audiolist[currentPointer].filename);
+                    LAST_MESSAGE = "File not found in playlist.";
+                    STOP = true;
+                    PLAY = false;
+                    break;
+                }
+                else
+                {
+                    LAST_MESSAGE = "...";
+                }                
                 fileSize = pFile->size();
                 // Actualizamos estados del player
                 stateStreamplayer = 0;
@@ -2415,9 +2587,13 @@ void MediaPlayer(bool isWav = false)
                 STOP = true;
                 // Reiniciar el reproductor
                 fileread = 0;          
-                player.begin(currentIdx); 
-                break;                
-            
+                waitflag = 0;
+                while(!player.begin(currentIdx))
+                {
+                    if(waitflag++>255){player.stop();}
+                }
+                break;
+
             default:
                 break;
         }
@@ -2427,27 +2603,39 @@ void MediaPlayer(bool isWav = false)
         {
             LAST_MESSAGE = "Searching...";
             rewindAnimation(FFWIND ? 1 : -1);
+
             if (FFWIND) 
             {
-              //currentIdx = source.index() + 1;
               if ((currentPointer + 1) >= (TOTAL_BLOCKS-1))
               {
                 currentPointer = 0; // Reiniciamos el índice
                 LAST_MESSAGE = "Searching...";
                 currentIdx = source.indexOf((audiolist[currentPointer].filename).c_str());
+                if (currentIdx == -1) {
+                    logln("File not found in source: " + audiolist[currentPointer].filename);
+                    LAST_MESSAGE = "File not found in playlist.";
+                    STOP = true;
+                    PLAY = false;
+                    break;
+                }
+                else
+                {
+                    LAST_MESSAGE = "...";
+                }                
                 source.selectStream(currentIdx);
+
               }
               else
               {
-                //source.selectStream(currentPointer + 1);
-                //nextAudio(currentPointer, audioListSize);
-                //player.next();
                 currentPointer++;// = source.index();
                 currentIdx = source.indexOf((audiolist[currentPointer].filename).c_str());
                 CHANGE_TRACK_FILTER = true;
                 player.stop(); // Detener el reproductor
-                player.begin(currentIdx);
-                //source.selectStream(currentIdx);
+                waitflag = 0;
+                while(!player.begin(currentIdx))
+                {
+                    if(waitflag++>255){player.stop();}
+                }
               }
                // Avanzamos al siguiente bloque
               logln("Next file: " + String(currentPointer + " - " + audiolist[currentPointer + 1].filename));
@@ -2460,9 +2648,27 @@ void MediaPlayer(bool isWav = false)
               {
                 // Empiezo desde el principio
                 LAST_MESSAGE = "Searching...";
+                //currentIdx = source.indexOf((audiolist[currentPointer].filename).c_str());
                 currentIdx = source.indexOf((audiolist[currentPointer].filename).c_str());
+                if (currentIdx == -1) {
+                    logln("File not found in source: " + audiolist[currentPointer].filename);
+                    LAST_MESSAGE = "File not found in playlist.";
+                    STOP = true;
+                    PLAY = false;
+                    break;
+                }
+                else
+                {
+                    LAST_MESSAGE = "...";
+                }                
                 player.stop();
-                player.begin(currentIdx); // Reiniciar el reproductor
+                waitflag = 0;
+                while(!player.begin(currentIdx))
+                {
+                    if(waitflag++>255){player.stop();}
+                }
+                //
+                //
                 //
                 twiceRWDTime = millis();
                 CHANGE_TRACK_FILTER = true;
@@ -2473,7 +2679,19 @@ void MediaPlayer(bool isWav = false)
                 // Si pulso rapido en los proximos segundos               
                 prevAudio(currentPointer, audioListSize);
                 LAST_MESSAGE = "Searching...";
+                //currentIdx = source.indexOf((audiolist[currentPointer].filename).c_str());
                 currentIdx = source.indexOf((audiolist[currentPointer].filename).c_str());
+                if (currentIdx == -1) {
+                    logln("File not found in source: " + audiolist[currentPointer].filename);
+                    LAST_MESSAGE = "File not found in playlist.";
+                    STOP = true;
+                    PLAY = false;
+                    break;
+                }
+                else
+                {
+                    LAST_MESSAGE = "...";
+                }                
                 source.selectStream(currentIdx);
               }
             }
@@ -2491,8 +2709,25 @@ void MediaPlayer(bool isWav = false)
                       hmi.writeString("tape.currentBlock.val=" + String(currentPointer+1));
                       fileread = 0;
                       LAST_MESSAGE = "Searching...";
+                      //currentIdx = source.indexOf((audiolist[currentPointer].filename).c_str());
                       currentIdx = source.indexOf((audiolist[currentPointer].filename).c_str());
-                      player.begin(currentIdx); // Reiniciar el reproductor
+                      if (currentIdx == -1) {
+                          logln("File not found in source: " + audiolist[currentPointer].filename);
+                          LAST_MESSAGE = "File not found in playlist.";
+                          STOP = true;
+                          PLAY = false;
+                          break;
+                      }
+                      else
+                      {
+                          LAST_MESSAGE = "...";
+                      }                      
+                      waitflag = 0;
+                      while(!player.begin(currentIdx))
+                      {
+                          if(waitflag++>255){player.stop();}
+                      }
+                      // Reiniciar el reproductor
                       player.stop(); // Detener el reproductor
                       fileSize = getStreamfileSize(pFile);
                       STOP=true;
@@ -2512,8 +2747,25 @@ void MediaPlayer(bool isWav = false)
                       source.selectStream(currentPointer);
                       fileread = 0;
                       LAST_MESSAGE = "Searching...";
+                      //currentIdx = source.indexOf((audiolist[currentPointer].filename).c_str());
                       currentIdx = source.indexOf((audiolist[currentPointer].filename).c_str());
-                      player.begin(currentIdx); // Reiniciar el reproductor
+                      if (currentIdx == -1) {
+                          logln("File not found in source: " + audiolist[currentPointer].filename);
+                          LAST_MESSAGE = "File not found in playlist.";
+                          STOP = true;
+                          PLAY = false;
+                          break;
+                      }
+                      else
+                      {
+                          LAST_MESSAGE = "...";
+                      }                      
+                      waitflag = 0;
+                      while(!player.begin(currentIdx))
+                      {
+                          if(waitflag++>255){player.stop();}
+                      }
+                      // Reiniciar el reproductor
                       player.stop(); // Detener el reproductor
                       fileSize = getStreamfileSize(pFile);
                       STOP=true;
@@ -2528,6 +2780,39 @@ void MediaPlayer(bool isWav = false)
 
             // Para evitar errores de lectura en el buffer
             delay(250);
+
+            // Cargamos la cabecera del nuevo fichero
+            player.setAutoNext(false);
+            if (player.copy() != 0)
+            {
+              LAST_MESSAGE = "...";
+            } 
+
+            AudioFormat format;
+            AUDIO_FORMART_IS_VALID = true;
+            if (ext == "wav") {
+                format = decoderWAV.audioInfoEx().format;
+                logln("WAV format: " + String((int)format));
+            }
+            else
+            {
+              format = AudioFormat::PCM;
+            }
+
+            if (format != AudioFormat::PCM)
+            {
+              logln("WAV format not supported.");
+              LAST_MESSAGE = "WAV format not supported.";
+              AUDIO_FORMART_IS_VALID = false;
+              STOP = true;
+              PLAY = false;
+              tapeAnimationOFF();
+              stateStreamplayer = 0;
+              player.stop();
+            } 
+
+            player.setAutoNext(AUTO_NEXT);
+
         }
         else if ((FFWIND || RWIND) && was_pressed_wd)
         {
@@ -2544,8 +2829,11 @@ void MediaPlayer(bool isWav = false)
           info.sample_rate = osr;
           kitStream.setAudioInfo(info);    
           hmi.writeString("tape.stepTape.val=1");
-          fileread = p_file_seek->position();
-          fileSize = p_file_seek->size();
+          if (p_file_seek != nullptr) 
+          {
+            fileread = p_file_seek->position();
+            fileSize = p_file_seek->size();
+          }  
           fast_wind_status = 0;  
         }
    
@@ -2564,8 +2852,11 @@ void MediaPlayer(bool isWav = false)
               kitStream.setAudioInfo(info);
               hmi.writeString("tape.stepTape.val=4");
               //
-              p_file_seek = (File32*)player.getStream();
-              p_file_seek_pos = p_file_seek->position();
+              p_file_seek = (File*)player.getStream();
+              if (p_file_seek != nullptr) 
+              {
+                p_file_seek_pos = p_file_seek->position();
+              }
               
               t_button_pressed = millis();
               //
@@ -2587,8 +2878,11 @@ void MediaPlayer(bool isWav = false)
                   {
                     p_file_seek_pos += (p_file_seek->size() * FAST_FORWARD_PER);
                     p_file_seek->seek(p_file_seek_pos);
-                    fileread = p_file_seek->position();
-                    fileSize = p_file_seek->size();
+                    if (p_file_seek != nullptr) 
+                    {
+                      fileread = p_file_seek->position();
+                      fileSize = p_file_seek->size();
+                    }                    
                     delay(DELAY_ON_EACH_STEP_FAST_FORWARD);
                   }
                 }
@@ -2615,16 +2909,18 @@ void MediaPlayer(bool isWav = false)
                   if (p_file_seek_pos < 0) p_file_seek_pos = 0; 
 
                   p_file_seek->seek(p_file_seek_pos);
-                  fileread = p_file_seek->position();
-                  fileSize = p_file_seek->size();
+                  if (p_file_seek != nullptr) 
+                  {
+                    fileread = p_file_seek->position();
+                    fileSize = p_file_seek->size();
+                  }  
                   delay(DELAY_ON_EACH_STEP_FAST_FORWARD);
                 }
               }
           }
           was_pressed_wd = true;
         }
-      
-        
+            
         // Seleccion de pista con Block Browser
         if (BB_OPEN || BB_UPDATE)
         {
@@ -2639,6 +2935,8 @@ void MediaPlayer(bool isWav = false)
         // Salida del Block Browser
         else if (UPDATE_HMI)
         {
+          logln("UPDATE HMI");
+
           // *******************************************************
           // Hemos seleccionado una pista en la lista de audio
           // *******************************************************
@@ -2649,10 +2947,27 @@ void MediaPlayer(bool isWav = false)
               currentPointer = BLOCK_SELECTED - 1;
               
               LAST_MESSAGE = "Searching...";
+              //currentIdx = source.indexOf((audiolist[currentPointer].filename).c_str());
               currentIdx = source.indexOf((audiolist[currentPointer].filename).c_str());
+              if (currentIdx == -1) {
+                  logln("File not found in source: " + audiolist[currentPointer].filename);
+                  LAST_MESSAGE = "File not found in playlist.";
+                  STOP = true;
+                  PLAY = false;
+                  break;
+              }
+              else
+              {
+                  LAST_MESSAGE = "...";
+              }              
               logln("Selected file: " + (audiolist[currentPointer].filename) + " - Index: " + String(currentIdx));
               player.stop(); // Detener el reproductor
-              player.begin(currentIdx); // Iniciamos el reproductor
+              waitflag = 0;
+              while(!player.begin(currentIdx))
+              {
+                  if(waitflag++>255){player.stop();}
+              }
+              // Iniciamos el reproductor
               fileSize = getStreamfileSize(pFile);
               
               // Esto lo hacemos para coger el sampling rate
@@ -2668,27 +2983,62 @@ void MediaPlayer(bool isWav = false)
         // Seleccion de pista mediante el BLOCK_SELECTED
         else if (UPDATE)
         {
+          logln("UPDATE");
+
           // Si el bloque seleccionado es válido y no es el último
           if (BLOCK_SELECTED > 0 && (BLOCK_SELECTED <= (totalFilesIdx+1))) {
               // Reproducir el bloque seleccionado
               currentPointer = BLOCK_SELECTED - 1;
               //source.setIndex(currentPointer); // Buscamos el índice del archivo actual
               LAST_MESSAGE = "Searching...";
+              //currentIdx = source.indexOf((audiolist[currentPointer].filename).c_str());
               currentIdx = source.indexOf((audiolist[currentPointer].filename).c_str());
+              if (currentIdx == -1) {
+                  logln("File not found in source: " + audiolist[currentPointer].filename);
+                  LAST_MESSAGE = "File not found in playlist.";
+                  STOP = true;
+                  PLAY = false;
+                  break;
+              }
+              else
+              {
+                  LAST_MESSAGE = "...";
+              }              
               player.stop(); // Detener el reproductor
               //player.end();
-              player.begin(currentIdx); // Reiniciar el reproductor
-          } else 
+              waitflag = 0;
+              while(!player.begin(currentIdx))
+              {
+                  if(waitflag++>255){player.stop();}
+              }
+              
+          } else
           {
               // Reproducir desde el principio
               currentPointer = 0; // Reiniciamos el índice
               //source.selectStream(0);
               LAST_MESSAGE = "Searching...";
+              //currentIdx = source.indexOf((audiolist[currentPointer].filename).c_str());
               currentIdx = source.indexOf((audiolist[currentPointer].filename).c_str());
+              if (currentIdx == -1) {
+                  logln("File not found in source: " + audiolist[currentPointer].filename);
+                  LAST_MESSAGE = "File not found in playlist.";
+                  STOP = true;
+                  PLAY = false;
+                  break;
+              }
+              else
+              {
+                  LAST_MESSAGE = "...";
+              }              
               player.stop(); // Detener el reproductor
               //player.end();
-              player.begin(currentIdx); // Reiniciar el reproductor              
-          }  
+              waitflag = 0;
+              while(!player.begin(currentIdx))
+              {
+                  if(waitflag++>255){player.stop();}
+              }
+          }
           // Actualizamos de manera inmediata
           //
           delay(250);
@@ -2696,7 +3046,14 @@ void MediaPlayer(bool isWav = false)
           fileSize = getStreamfileSize(pFile);
 
           // Esto lo hacemos para indicar el sampling rate del reproductor 
-          bitRateRead = isWav ? decoderWAV.audioInfoEx().byte_rate : decoderMP3.audioInfoEx().bitrate;
+          if (ext == "mp3")
+            bitRateRead = 0;
+          else if (ext == "wav")
+            bitRateRead = decoderWAV.audioInfoEx().byte_rate;
+          else
+            bitRateRead = 0;
+
+          //bitRateRead = isWav ? decoderWAV.audioInfoEx().byte_rate : 0;
           updateIndicators(totalFilesIdx, currentPointer + 1, fileSize, bitRateRead, audiolist[currentPointer].filename);
           //
           UPDATE = false;
@@ -2710,21 +3067,25 @@ void MediaPlayer(bool isWav = false)
    //
    //
   
-  // Esto lo hacemos para indicar el sampling rate del reproductor
-  updateSamplingRateIndicator(player.audioInfo().sample_rate, player.audioInfo().bits_per_sample, isWav);
-
-   // Paramos animación
+    // Actualizamos la configuración de audio según el archivo actual
+    auto finalAudioInfo = player.audioInfo();
+    logln("Final Audio Settings - Sample Rate: " + String(finalAudioInfo.sample_rate) + 
+          "Hz, Bits: " + String(finalAudioInfo.bits_per_sample) + 
+          ", Channels: " + String(finalAudioInfo.channels));
+    updateSamplingRateIndicator(finalAudioInfo.sample_rate, finalAudioInfo.bits_per_sample, ext);   // Paramos animación
    tapeAnimationOFF();
    
    // Descargamos objetos
    player.end();
    eq.end();
+   //
    decoderMP3.end();
    decoderWAV.end(); 
+   decoderFLAC.end();
    //decoder.end();
    
    // Cerramos el puntero de avance rapido y lo eliminamos.
-   if (p_file_seek != nullptr && p_file_seek->isOpen())
+   if (p_file_seek != nullptr && p_file_seek)
    {
      p_file_seek->close();
    }
@@ -2748,116 +3109,156 @@ void MediaPlayer(bool isWav = false)
   
 }
 
-// void MediaPlayerTest(bool isWav = false)
-// {
-//     // Configuración de la fuente de audio
-//     AudioSourceIdxSDFAT source(sdf);
-//     source.setPath(FILE_LAST_DIR.c_str());
-//     source.setFileFilter(isWav ? "*.wav" : "*.mp3");
-    
-//     WAVDecoder decoderWAV;
-//     AudioPlayer player;
-
-//     decoderWAV.addNotifyAudioChange(kitStream);
-
-//     player.setAudioSource(source);
-//     player.setOutput(kitStream);
-//     player.setVolume(1);
-
-//     player.setDecoder(decoderWAV);
-    
-
-
-//     // Apuntamos al fichero seleccionado en el browser
-//     File32* pFile = (File32*)source.selectStream(PATH_FILE_TO_LOAD.c_str()); 
-//     // Obtenemos el tamaño del archivo actual
-//     size_t fileSize = pFile->size(); 
-//     // Inicializamos el número de bytes leídos
-//     size_t fileread = pFile->position(); 
-
-//     decoderWAV.begin();
-//     player.begin(source.index());
-
-//     while (!STOP)
-//     {
-//       player.copy();
-
-//       if (fileread < fileSize)
-//       {
-//         // Si no hemos llegado al final del archivo, seguimos copiando
-//         fileread = pFile->position();
-//       }
-//       else
-//       {
-//         player.begin(0);
-//       }
-//     }
-
-//     decoderWAV.end();
-//     player.end();
-// }
 
 void playingFile()
 {
   rotate_enable = true;
   kitStream.setVolume(MAX_MAIN_VOL);
+  kitStream.setPAPower(ACTIVE_AMP & EN_SPEAKER);
+
+  WAVEncoder* wavEncoder = new WAVEncoder();
   
-  AudioInfo new_sr = kitStream.defaultConfig();
   // Por defecto
-
-  LAST_SAMPLING_RATE = SAMPLING_RATE + TONE_ADJUST;
-  SAMPLING_RATE = STANDARD_SR_ZX_SPECTRUM + TONE_ADJUST;
-  new_sr.sample_rate = STANDARD_SR_ZX_SPECTRUM + TONE_ADJUST;
-
-  kitStream.setAudioInfo(new_sr);      
-  // Indicamos el sampling rate
-  hmi.writeString("tape.lblFreq.txt=\"" + String(int(STANDARD_SR_ZX_SPECTRUM/1000)) + "KHz\"" );
-
 
   if (TYPE_FILE_LOAD == "TAP")
   {
+    // Ajustamos la salida de audio al valor estandar de las maquinas de 8 bits
+    AudioInfo new_sr = kitStream.defaultConfig();
+    LAST_SAMPLING_RATE = SAMPLING_RATE + TONE_ADJUST;
+    SAMPLING_RATE = STANDARD_SR_8_BIT_MACHINE + TONE_ADJUST;
+    new_sr.sample_rate = STANDARD_SR_8_BIT_MACHINE + TONE_ADJUST;
+
+    kitStream.setAudioInfo(new_sr);    
+    
+    //
+    if (OUT_TO_WAV)
+    {
+        // Configuramos el encoder WAV directamente
+        // Iniciamos el encoder por defecto
+        wavEncoder->begin();
+        // Definimos la configuracion
+        AudioInfo wavencodercfg;
+        wavencodercfg.sample_rate = SAMPLING_RATE;
+        wavencodercfg.channels = 2;
+        wavencodercfg.bits_per_sample = 16;
+        // Forzamos la configuración antes de crear el stream
+        wavEncoder->setAudioInfo(wavencodercfg);
+
+        // Creamos el stream codificado con el encoder ya configurado
+        encoderOutWAV = EncodedAudioStream(&wavfile, wavEncoder);
+
+        // Iniciamos el stream
+        encoderOutWAV.begin();
+        encoderOutWAV.setAudioInfo(wavencodercfg);
+        
+        // Verificamos la configuración final
+        logln("Sampling rate changed for TAP file: " + String(SAMPLING_RATE)  + "Hz");
+        logln("WAV encoder - Out to WAV: " + String(encoderOutWAV.audioInfo().sample_rate) + 
+              "Hz, Bits: " + String(encoderOutWAV.audioInfo().bits_per_sample) + 
+              ", Channels: " + String(encoderOutWAV.audioInfo().channels));  
+    }
+
+    // Indicamos el sampling rate
+    hmi.writeString("tape.lblFreq.txt=\"" + String(int(STANDARD_SR_8_BIT_MACHINE/1000)) + "KHz\"" );
     //
     sendStatus(REC_ST, 0);
     pTAP.play();
     //Paramos la animación
     tapeAnimationOFF();
+
+    if (OUT_TO_WAV)
+    {
+      wavEncoder->end();
+      encoderOutWAV.end();
+    }
   }
   else if (TYPE_FILE_LOAD == "TZX" || TYPE_FILE_LOAD == "CDT" || TYPE_FILE_LOAD == "TSX")
   {
+    // Ajustamos la salida de audio al valor estandar de las maquinas de 8 bits
+    AudioInfo new_sr = kitStream.defaultConfig();
+    LAST_SAMPLING_RATE = SAMPLING_RATE + TONE_ADJUST;
+    SAMPLING_RATE = STANDARD_SR_8_BIT_MACHINE + TONE_ADJUST;
+    new_sr.sample_rate = STANDARD_SR_8_BIT_MACHINE + TONE_ADJUST;
+
+    kitStream.setAudioInfo(new_sr);  
+    
+    //
+    if (OUT_TO_WAV)
+    {
+        // Configuramos el encoder para salida a DEFAULT_WAV_SAMPLING_RATE_REC, 16-bits, STEREO
+        // Configuramos el encoder WAV directamente
+        AudioInfo wavencodercfg(SAMPLING_RATE, 2, 16);
+        wavEncoder->setAudioInfo(wavencodercfg);
+        
+        // Creamos el stream codificado con el encoder ya configurado
+        encoderOutWAV = EncodedAudioStream(&wavfile, wavEncoder);
+        encoderOutWAV.begin();
+
+        #ifdef DEBUG
+        logln("Sampling rate changed for TAP file: " + String(SAMPLING_RATE)  + "Hz");
+        logln("WAV encoder - Out to WAV: " + String(encoderOutWAV.audioInfo().sample_rate) + 
+              "Hz, Bits: " + String(encoderOutWAV.audioInfo().bits_per_sample) + 
+              ", Channels: " + String(encoderOutWAV.audioInfo().channels));        
+        #endif
+    }
+
+    // Indicamos el sampling rate
+    hmi.writeString("tape.lblFreq.txt=\"" + String(int(STANDARD_SR_8_BIT_MACHINE/1000)) + "KHz\"" );
+
     //
     sendStatus(REC_ST, 0);
     pTZX.play();
     //Paramos la animación
     tapeAnimationOFF();
+    //
+    if (OUT_TO_WAV)
+    {
+      encoderOutWAV.end();
+    }
   }
   else if (TYPE_FILE_LOAD == "WAV")
-  {
+  { 
+    // Indicamos el sampling rate
+    hmi.writeString("tape.lblFreq.txt=\"" + String(int(DEFAULT_WAV_SAMPLING_RATE/1000)) + "KHz\"" );
+
     logln("Type file load: " + TYPE_FILE_LOAD + " and MODEWAV: " + String(MODEWAV));
     // Reproducimos el WAV file
     LAST_MESSAGE = "Wait for scanning end.";
-    MediaPlayer(true);
+
+    MediaPlayer();
     logln("Finish WAV playing file");
   }
   else if (TYPE_FILE_LOAD == "MP3")
   {
     logln("Type file load: " + TYPE_FILE_LOAD + " and MODEWAV: " + String(MODEWAV));
-    // Reproducimos el WAV file
+    // Reproducimos el MP3 file
     LAST_MESSAGE = "Wait for scanning end.";
     MediaPlayer();
     logln("Finish MP3 playing file");
+  }
+  else if (TYPE_FILE_LOAD == "FLAC")
+  {
+    logln("Type file load: " + TYPE_FILE_LOAD);
+    // Reproducimos el FLAC file
+    LAST_MESSAGE = "Wait for scanning end.";
+    MediaPlayer();
+    //FLACplayer();
+    logln("Finish FLAC playing file");
   }
   else
   {
     logAlert("Unknown type_file_load");
   }
 
+
+
   // Por defecto
   // Cambiamos el sampling rate en el HW
-  SAMPLING_RATE = LAST_SAMPLING_RATE;
-  new_sr.sample_rate = SAMPLING_RATE;
-  kitStream.setAudioInfo(new_sr);      
-  // Indicamos el sampling rate
-  hmi.writeString("tape.lblFreq.txt=\"" + String(int(SAMPLING_RATE/1000)) + "KHz\"" );
+  // SAMPLING_RATE = LAST_SAMPLING_RATE;
+  // new_sr.sample_rate = SAMPLING_RATE;
+  // kitStream.setAudioInfo(new_sr);      
+  // // Indicamos el sampling rate
+  // hmi.writeString("tape.lblFreq.txt=\"" + String(int(SAMPLING_RATE/1000)) + "KHz\"" );
 }
 
 void verifyConfigFileForSelection()
@@ -2872,26 +3273,27 @@ void verifyConfigFileForSelection()
   strcat(strpath, ".cfg");
 
   // Abrimos el fichero de configuracion.
-  File32 cfg;
+  File cfg;
 
   logln("");
   log("path: " + String(strpath));
 
-  if (cfg.isOpen())
+  if (cfg)
   {
     cfg.close();
   }
 
-  if (sdf.exists(strpath))
+  if (SD_MMC.exists(strpath))
   {
     logln("");
     log("cfg path: " + String(strpath));
 
-    if (cfg.open(strpath, O_READ))
+    cfg = SD_MMC.open(strpath, FILE_READ);
+    if (cfg)
     {
       // Leemos todos los parametros
       //cfg.rewind();
-      fileCfg = sdm.readAllParamCfg(cfg, max_params);
+      fileCfg = readAllParamCfg(cfg, max_params);
 
       logln("");
       log("cfg open");
@@ -2903,7 +3305,7 @@ void verifyConfigFileForSelection()
 
         if ((fileCfg[i].cfgLine).indexOf("freq") != -1)
         {
-          SAMPLING_RATE = (sdm.getValueOfParam(fileCfg[i].cfgLine, "freq")).toInt();
+          SAMPLING_RATE = (getValueOfParam(fileCfg[i].cfgLine, "freq")).toInt();
           
           // CAmbiamos el sampling rate del hardware de salida
           auto cfg = kitStream.defaultConfig();
@@ -2959,7 +3361,7 @@ void verifyConfigFileForSelection()
         }
         else if ((fileCfg[i].cfgLine).indexOf("zerolevel") != -1)
         {
-          ZEROLEVEL = sdm.getValueOfParam(fileCfg[i].cfgLine, "zerolevel").toInt();
+          ZEROLEVEL = getValueOfParam(fileCfg[i].cfgLine, "zerolevel").toInt();
 
           logln("");
           log("Zero level: " + String(ZEROLEVEL));
@@ -2975,7 +3377,7 @@ void verifyConfigFileForSelection()
         }
         else if ((fileCfg[i].cfgLine).indexOf("blockend") != -1)
         {
-          APPLY_END = sdm.getValueOfParam(fileCfg[i].cfgLine, "blockend").toInt();
+          APPLY_END = getValueOfParam(fileCfg[i].cfgLine, "blockend").toInt();
 
           logln("");
           log("Terminator forzed: " + String(APPLY_END));
@@ -2991,7 +3393,7 @@ void verifyConfigFileForSelection()
         }
         else if ((fileCfg[i].cfgLine).indexOf("polarized") != -1)
         {
-          if ((sdm.getValueOfParam(fileCfg[i].cfgLine, "polarized")) == "1")
+          if ((getValueOfParam(fileCfg[i].cfgLine, "polarized")) == "1")
           {
             // Para que empiece en DOWN tenemos que poner POLARIZATION en UP
             // Una señal con INVERSION de pulso es POLARIZACION = UP (empieza en DOWN)
@@ -3142,6 +3544,12 @@ void loadingFile(char *file_ch)
       logln("MP3 file to load: " + PATH_FILE_TO_LOAD);
       FILE_PREPARED = true;
       TYPE_FILE_LOAD = "MP3";
+    }
+    else if (PATH_FILE_TO_LOAD.indexOf(".FLAC", PATH_FILE_TO_LOAD.length() - 5) != -1)
+    {
+      logln("FLAC file to load: " + PATH_FILE_TO_LOAD);
+      FILE_PREPARED = true;
+      TYPE_FILE_LOAD = "FLAC";
     }
   }
   else
@@ -3316,7 +3724,7 @@ void nextGroupBlock()
 {
   logln("Seacrh Next Group Block");
 
-  if (TYPE_FILE_LOAD != "TAP" && TYPE_FILE_LOAD != "WAV" && TYPE_FILE_LOAD != "MP3")
+  if (TYPE_FILE_LOAD != "TAP" && TYPE_FILE_LOAD != "WAV" && TYPE_FILE_LOAD != "MP3" && TYPE_FILE_LOAD != "FLAC")
   {
     while (myTZX.descriptor[BLOCK_SELECTED].ID != 34 && BLOCK_SELECTED <= TOTAL_BLOCKS)
     {
@@ -3344,7 +3752,7 @@ void prevGroupBlock()
 {
   logln("Seacrh Previous Group Block");
 
-  if (TYPE_FILE_LOAD != "TAP" && TYPE_FILE_LOAD != "WAV" && TYPE_FILE_LOAD != "MP3")
+  if (TYPE_FILE_LOAD != "TAP" && TYPE_FILE_LOAD != "WAV" && TYPE_FILE_LOAD != "MP3" && TYPE_FILE_LOAD != "FLAC")
   {
     while (myTZX.descriptor[BLOCK_SELECTED].ID != 33 && BLOCK_SELECTED > 1)
     {
@@ -3372,7 +3780,7 @@ void isGroupStart()
   // Verificamos si se entra en un grupo
   logln("ID: " + String(myTZX.descriptor[BLOCK_SELECTED].ID));
 
-  if (TYPE_FILE_LOAD != "TAP" && TYPE_FILE_LOAD != "WAV" && TYPE_FILE_LOAD != "MP3")
+  if (TYPE_FILE_LOAD != "TAP" && TYPE_FILE_LOAD != "WAV" && TYPE_FILE_LOAD != "MP3" && TYPE_FILE_LOAD != "FLAC")
   {
     if (myTZX.descriptor[BLOCK_SELECTED].ID == 33)
     {
@@ -3395,7 +3803,7 @@ void isGroupEnd()
   // Verificamos si se entra en un grupo
   logln("ID: " + String(myTZX.descriptor[BLOCK_SELECTED].ID));
 
-  if (TYPE_FILE_LOAD != "TAP" && TYPE_FILE_LOAD != "WAV" && TYPE_FILE_LOAD != "MP3")
+  if (TYPE_FILE_LOAD != "TAP" && TYPE_FILE_LOAD != "WAV" && TYPE_FILE_LOAD != "MP3" && TYPE_FILE_LOAD != "FLAC")
   {
     if (myTZX.descriptor[BLOCK_SELECTED].ID == 34)
     {
@@ -3519,7 +3927,8 @@ void getTheFirstPlayeableBlock()
 
   if (TYPE_FILE_LOAD != "TAP")
   {
-    int i = 1;
+    int i = 0;
+
     while (!myTZX.descriptor[i].playeable)
     {
       BLOCK_SELECTED = i;
@@ -3528,7 +3937,7 @@ void getTheFirstPlayeableBlock()
 
     if (i > MAX_BLOCKS_IN_TZX)
     {
-      i = 1;
+      i = 0;
     }
 
     BLOCK_SELECTED = i;
@@ -3794,23 +4203,23 @@ void tapeControl()
     }
     else if (DISABLE_SD)
     {
-      DISABLE_SD = false;
-      // Deshabilitamos temporalmente la SD para poder subir un firmware
-      sdf.end();
-      int tout = 59;
-      while (tout != 0)
-      {
-        delay(1000);
-        hmi.writeString("debug.blockLoading.txt=\"" + String(tout) + "\"");
-        tout--;
-      }
+      // DISABLE_SD = false;
+      // // Deshabilitamos temporalmente la SD para poder subir un firmware
+      // SD_MMC.end();
+      // int tout = 59;
+      // while (tout != 0)
+      // {
+      //   delay(1000);
+      //   hmi.writeString("debug.blockLoading.txt=\"" + String(tout) + "\"");
+      //   tout--;
+      // }
 
-      hmi.writeString("debug.blockLoading.txt=\"..\"");
+      // hmi.writeString("debug.blockLoading.txt=\"..\"");
       
-      if (!sdf.begin(SD_CHIP_SELECT, SD_SCK_MHZ(SD_SPEED_MHZ)))
-      {
-        logln("Error recoverind SD access");
-      };
+      // if (!SD_MMC.begin(SD_CHIP_SELECT, SD_SCK_MHZ(SD_SPEED_MHZ)))
+      // {
+      //   logln("Error recoverind SD access");
+      // };
     }
     else
     {
@@ -3849,7 +4258,7 @@ void tapeControl()
       //Activamos la animación
       tapeAnimationON();
       // Reproducimos el fichero
-      if (TYPE_FILE_LOAD != "WAV" && TYPE_FILE_LOAD != "MP3")
+      if (TYPE_FILE_LOAD != "WAV" && TYPE_FILE_LOAD != "MP3" && TYPE_FILE_LOAD != "FLAC")
       {
         LAST_MESSAGE = "Loading in progress. Please wait.";
       }
@@ -3948,7 +4357,7 @@ void tapeControl()
       setPolarization();
       STOP = false; //28/11
 
-      if (TYPE_FILE_LOAD != "WAV" && TYPE_FILE_LOAD != "MP3")
+      if (TYPE_FILE_LOAD != "WAV" && TYPE_FILE_LOAD != "MP3" && TYPE_FILE_LOAD != "FLAC")
       {
         getTheFirstPlayeableBlock();
       }
@@ -4053,7 +4462,7 @@ void tapeControl()
 
       HMI_FNAME = FILE_LOAD;
 
-      if (TYPE_FILE_LOAD != "WAV" && TYPE_FILE_LOAD != "MP3")
+      if (TYPE_FILE_LOAD != "WAV" && TYPE_FILE_LOAD != "MP3" && TYPE_FILE_LOAD != "FLAC")
       {
         getTheFirstPlayeableBlock();
       }
@@ -4063,7 +4472,7 @@ void tapeControl()
     else if (FFWIND || RWIND)
     {
 
-      if (TYPE_FILE_LOAD != "WAV" && TYPE_FILE_LOAD != "MP3")
+      if (TYPE_FILE_LOAD != "WAV" && TYPE_FILE_LOAD != "MP3" && TYPE_FILE_LOAD != "FLAC")
       {
         logln("Cambio de bloque");
         // Actuamos sobre el cassette
@@ -4088,32 +4497,7 @@ void tapeControl()
       BB_UPDATE = false;
       BB_OPEN = false;
     }
-    // else if (UPDATE)
-    // {
-    //   // Esto se hace para solicitar una actualizacion con los parametros del TAP / TZX
-    //   // desde el HMI.
-    //   if (TYPE_FILE_LOAD != "TAP")
-    //   {
-    //     // Forzamos un refresco de los indicadores
-    //     hmi.setBasicFileInformation(myTZX.descriptor[BLOCK_SELECTED].ID,
-    //                                 myTZX.descriptor[BLOCK_SELECTED].group,
-    //                                 myTZX.descriptor[BLOCK_SELECTED].name,
-    //                                 myTZX.descriptor[BLOCK_SELECTED].typeName,
-    //                                 myTZX.descriptor[BLOCK_SELECTED].size,
-    //                                 myTZX.descriptor[BLOCK_SELECTED].playeable);
-    //   }
-    //   else
-    //   {
-    //     // Forzamos un refresco de los indicadores
-    //     hmi.setBasicFileInformation(0, 0, myTAP.descriptor[BLOCK_SELECTED].name,
-    //                                 myTAP.descriptor[BLOCK_SELECTED].typeName,
-    //                                 myTAP.descriptor[BLOCK_SELECTED].size,
-    //                                 myTAP.descriptor[BLOCK_SELECTED].playeable);
-    //   }
 
-    //   hmi.updateInformationMainPage(true);
-    //   UPDATE = false;
-    // }
     else if (EJECT && !STOP_OR_PAUSE_REQUEST)
     {
       TAPESTATE = 0;
@@ -4177,7 +4561,7 @@ void tapeControl()
     else if (FFWIND || RWIND)
     {
       // Actuamos sobre el cassette
-      if (TYPE_FILE_LOAD != "WAV" && TYPE_FILE_LOAD != "MP3")
+      if (TYPE_FILE_LOAD != "WAV" && TYPE_FILE_LOAD != "MP3" && TYPE_FILE_LOAD != "FLAC")
       {
         logln("Cambio de bloque - CASE 10");
         // Actuamos sobre el cassette
@@ -4202,32 +4586,6 @@ void tapeControl()
       BB_UPDATE = false;
       BB_OPEN = false;
     }
-    // else if (UPDATE)
-    // {
-    //   // Esto se hace para solicitar una actualizacion con los parametros del TAP / TZX
-    //   // desde el HMI.
-    //   if (TYPE_FILE_LOAD != "TAP")
-    //   {
-    //     // Forzamos un refresco de los indicadores
-    //     hmi.setBasicFileInformation(myTZX.descriptor[BLOCK_SELECTED].ID,
-    //                                 myTZX.descriptor[BLOCK_SELECTED].group,
-    //                                 myTZX.descriptor[BLOCK_SELECTED].name,
-    //                                 myTZX.descriptor[BLOCK_SELECTED].typeName,
-    //                                 myTZX.descriptor[BLOCK_SELECTED].size,
-    //                                 myTZX.descriptor[BLOCK_SELECTED].playeable);
-    //   }
-    //   else
-    //   {
-    //     // Forzamos un refresco de los indicadores
-    //     hmi.setBasicFileInformation(0, 0, myTAP.descriptor[BLOCK_SELECTED].name,
-    //                                 myTAP.descriptor[BLOCK_SELECTED].typeName,
-    //                                 myTAP.descriptor[BLOCK_SELECTED].size,
-    //                                 myTAP.descriptor[BLOCK_SELECTED].playeable);
-    //   }
-
-    //   hmi.updateInformationMainPage(true);
-    //   UPDATE = false;
-    // }
     else
     {
       TAPESTATE = 10;
@@ -4312,7 +4670,7 @@ void tapeControl()
 
             putLogo();
 
-            if (TYPE_FILE_LOAD != "WAV" && TYPE_FILE_LOAD != "MP3")
+            if (TYPE_FILE_LOAD != "WAV" && TYPE_FILE_LOAD != "MP3" && TYPE_FILE_LOAD != "FLAC")
             {
               getTheFirstPlayeableBlock();
 
@@ -4449,7 +4807,7 @@ void tapeControl()
         // Mostramos el logo del fichero
         putLogo();
         // Pasamos la ruta del fichero al mediaPlayer
-        FILE_LAST_DIR = "/WAV/";
+        FILE_LAST_DIR = "/WAV";
         // y el fichero seleccionado
         PATH_FILE_TO_LOAD = FILE_LOAD;
         // Escaneamos por los nuevos ficheros
@@ -4549,10 +4907,6 @@ void tapeControl()
     // recording
     if (REC)
     {
-      //esp_task_wdt_reset();
-      // RECORDING_IN_PROGRESS = true;
-      // logln("REC mode - Recording in progress " + String(RECORDING_IN_PROGRESS));
-      //recordingFile();
       while (!taprec.recording())
       {
         delay(1);
@@ -4646,7 +5000,7 @@ void tapeControl()
   // Actualizamos el HMI - indicadores
   if (UPDATE)
   {
-    if (TYPE_FILE_LOAD != "TAP")
+    if (TYPE_FILE_LOAD != "TAP" && TYPE_FILE_LOAD != "WAV" && TYPE_FILE_LOAD != "MP3" && TYPE_FILE_LOAD != "FLAC")
     {
       // Forzamos un refresco de los indicadores para TZX, CDT y TSX
       hmi.setBasicFileInformation(myTZX.descriptor[BLOCK_SELECTED].ID,
@@ -4674,48 +5028,6 @@ void tapeControl()
     rewindAnimation(1);  
     START_FFWD_ANIMATION = false;  
   }
-}
-
-// bool headPhoneDetection()
-// {
-//   return !gpio_get_level((gpio_num_t)HEADPHONE_DETECT);
-// }
-
-/**
- * @brief SPIFFS Init
- *
- */
-esp_err_t initSPIFFS()
-{
-  log_i("Initializing SPIFFS");
-
-  esp_vfs_spiffs_conf_t conf = {
-      .base_path = "/spiffs",
-      .partition_label = NULL,
-      .max_files = 5,
-      .format_if_mount_failed = false};
-
-  esp_err_t ret = esp_vfs_spiffs_register(&conf);
-
-  if (ret != ESP_OK)
-  {
-    if (ret == ESP_FAIL)
-      log_e("Failed to mount or format filesystem");
-    else if (ret == ESP_ERR_NOT_FOUND)
-      log_e("Failed to find SPIFFS partition");
-    else
-      log_e("Failed to initialize SPIFFS (%s)", esp_err_to_name(ret));
-    return ESP_FAIL;
-  }
-
-  size_t total = 0, used = 0;
-  ret = esp_spiffs_info(NULL, &total, &used);
-  if (ret != ESP_OK)
-    log_e("Failed to get SPIFFS partition information (%s)", esp_err_to_name(ret));
-  else
-    log_i("Partition size: total: %d used: %d", total, used);
-
-  return ESP_OK;
 }
 
 // ******************************************************************
@@ -4760,6 +5072,11 @@ void Task0code(void *pvParameters)
   {
 
     hmi.readUART();
+    
+    // Control del FTP
+    #ifdef FTP_SERVER_ENABLE
+      ftpSrv.handleFTP();
+    #endif
 
     // Control por botones
     //buttonsControl();
@@ -4845,7 +5162,7 @@ void Task0code(void *pvParameters)
           if ((millis() - startTime2) > tRotateNameRfsh && (FILE_LOAD.length() > windowNameLength || ((ROTATE_FILENAME.length() > windowNameLengthFB)) * ENABLE_ROTATE_FILEBROWSER))
           {
             // Capturamos el texto con tamaño de la ventana
-            if ((TYPE_FILE_LOAD == "WAV" || TYPE_FILE_LOAD == "MP3"))
+            if ((TYPE_FILE_LOAD == "WAV" || TYPE_FILE_LOAD == "MP3" || TYPE_FILE_LOAD == "FLAC"))
             {
               hmi.writeString("name.txt=\"" + FILE_LOAD.substring(posRotateName, posRotateName + windowNameLength) + "\"");
             }
@@ -4893,7 +5210,7 @@ void Task0code(void *pvParameters)
             // Movemos el display de NAME
             startTime2 = millis();
           }
-          else if (FILE_LOAD.length() <= windowNameLength && (TYPE_FILE_LOAD == "WAV" || TYPE_FILE_LOAD == "MP3"))
+          else if (FILE_LOAD.length() <= windowNameLength && (TYPE_FILE_LOAD == "WAV" || TYPE_FILE_LOAD == "MP3" || TYPE_FILE_LOAD == "FLAC"))
           {
             if (STOP)
             {
@@ -4925,6 +5242,13 @@ void Task0code(void *pvParameters)
 #endif
 }
 
+#ifdef BLUETOOTH_ENABLE
+  // callback used by A2DP to provide the sound data - usually len is 128 2 channel int16 frames
+  int32_t get_sound_data(Frame* data, int32_t frameCount) {
+    return kitStream.readBytes((uint8_t*)data, frameCount*4)/4;
+  }
+#endif
+
 void showOption(String id, String value)
 {
   //
@@ -4932,6 +5256,34 @@ void showOption(String id, String value)
   delay(10);
   hmi.writeString(id + "=" + value);
   delay(10);
+}
+
+bool createSpecialDirectory(String fDir)
+{
+  //Esto lo hacemos para ver si el directorio existe
+  if (!SD_MMC.open(fDir))
+  {
+    if (!SD_MMC.mkdir(fDir))
+    {
+        #ifdef DEBUGMODE
+          logln("");
+          log("Error! Directory exists or wasn't created");
+        #endif
+        return false;
+    }
+    else
+    {
+      return true;
+    }
+  }
+  else
+  {
+    #ifdef DEBUGMODE
+      logln("");
+      log("Directory exists.");
+    #endif
+    return false;
+  }  
 }
 
 void setup()
@@ -4996,7 +5348,8 @@ void setup()
   //cfg.buffer_size = 262144;
   cfg.input_device =  ADC_INPUT_LINE2;
   cfg.output_device = DAC_OUTPUT_ALL;
-  cfg.sd_active = true;
+  // Esto es importante para el uso de SD_MMC
+  cfg.sd_active = false;
   
   //
   kitStream.begin(cfg);
@@ -5008,19 +5361,32 @@ void setup()
   // #define USE_AUDIO_LOGGING true
   //
   #if USE_AUDIO_LOGGING
-    AudioToolsLogger.begin(Serial, AudioToolsLogLevel::Debug);
+    //AudioToolsLogger.begin(Serial, AudioToolsLogLevel::Debug);
   #endif
   
   // hmi.writeString("statusLCD.txt=\"Setting audio board - BT\"");
   // delay(1250);
 
-  // // Bluetooh output
-  // auto cfgA2DP = btstream.defaultConfig(TX_MODE);
-  // cfgA2DP.name = "POWADCR";
-  // btstream.begin(cfgA2DP);
+  // Bluetooh output
+  #ifdef BLUETOOTH_ENABLE
+    a2dp_source.set_data_callback_in_frames(get_sound_data);
+    hmi.writeString("statusLCD.txt=\"STARTING BLUETOOTH\"");
+    delay(125);
+    a2dp_source.start("POWADCR BLT"); 
 
-  // // set intial volume
-  // btstream.setVolume(0.3);
+    if (a2dp_source.is_connected()) {
+      logln("Bluetooth connected");
+      hmi.writeString("statusLCD.txt=\"BLUETOOTH CONNECTED\"");
+      delay(1250);
+    } else {
+      logln("Bluetooth not connected");
+      hmi.writeString("statusLCD.txt=\"BLUETOOTH NOT CONNECTED\"");
+      delay(1250);
+    }
+  #endif
+
+  // set intial volume
+  //btstream.setVolume(0.3);
 
   // Arrancamos el indicador de power
   actuatePowerLed(true,POWERLED_DUTY);
@@ -5037,16 +5403,46 @@ void setup()
   hmi.writeString("statusLCD.txt=\"WAITING FOR SD CARD\"");
   delay(125);
 
-  int SD_Speed = SD_FRQ_MHZ_INITIAL; // Velocidad en MHz (config.h)
-  SD_SPEED_MHZ = setSDFrequency(SD_Speed);
+  int SD_Speed = SD_FRQ_MHZ_INITIAL; // Velocidad en Hz (config.h)
 
-  logln("SD Card - Speed " + String(SD_SPEED_MHZ));
+  // ****************************************************************
+  //
+  //
+  //      Recordar poner todos los SWITCHES del Audiokit a ON
+  //
+  //
+  // ****************************************************************
+  if (!SD_MMC.begin("/sdcard",false,false,SD_Speed))
+  {
+
+    // SD no inicializada
+    while(1)
+    {
+      hmi.writeString("statusLCD.txt=\"SD_MMC not mounted\"");
+      delay(2000);
+      hmi.writeString("statusLCD.txt=\"1. Verify audiokit switches.\"");
+      delay(2000);
+      hmi.writeString("statusLCD.txt=\"2. Verify SD card type.\"");
+      delay(2000);
+    }
+  }
+  else
+  {
+    logln("SD Card mounted");
+    hmi.writeString("statusLCD.txt=\"SD_MMC available\"");
+    delay(125);
+  }
+
+
+  //SD_SPEED_MHZ = setSDFrequency(SD_Speed);
+
+  //logln("SD Card - Speed " + String(SD_SPEED_MHZ));
 
   // Para forzar a un valor, descomentar esta linea
   // y comentar las dos de arriba
   // Le pasamos al HMI el gestor de SD
 
-  hmi.set_sdf(sdf);
+  //hmi.set_sdf(sdf);
 
   if (psramInit())
   {
@@ -5063,17 +5459,17 @@ void setup()
   // -------------------------------------------------------------------------
   // Inicializar SPIFFS mínimo
   // -------------------------------------------------------------------------
-  hmi.writeString("statusLCD.txt=\"Initializing SPIFFS\"");
-  initSPIFFS();
-  if (esp_spiffs_mounted)
-  {
-    hmi.writeString("statusLCD.txt=\"SPIFFS mounted\"");
-  }
-  else
-  {
-    hmi.writeString("statusLCD.txt=\"SPIFFS error\"");
-  }
-  delay(500);
+  // hmi.writeString("statusLCD.txt=\"Initializing SPIFFS\"");
+  // initSPIFFS();
+  // if (esp_spiffs_mounted)
+  // {
+  //   hmi.writeString("statusLCD.txt=\"SPIFFS mounted\"");
+  // }
+  // else
+  // {
+  //   hmi.writeString("statusLCD.txt=\"SPIFFS error\"");
+  // }
+  // delay(500);
 
   // -------------------------------------------------------------------------
   // Actualización OTA por SD
@@ -5083,7 +5479,7 @@ void setup()
   log_v("Search for firmware..");
   char strpath[20] = {};
   strcpy(strpath, "/firmware.bin");
-  File32 firmware = sdm.openFile32(strpath);
+  File firmware = SD_MMC.open(strpath, FILE_READ);
   if (firmware)
   {
     hmi.writeString("statusLCD.txt=\"New powadcr firmware found\"");
@@ -5110,7 +5506,7 @@ void setup()
 
     firmware.close();
 
-    if (sdf.remove(strpath))
+    if (SD_MMC.remove(strpath))
     {
       log_v("Firmware deleted succesfully!");
     }
@@ -5130,7 +5526,7 @@ void setup()
   // -------------------------------------------------------------------------
   // Actualizacion del HMI
   // -------------------------------------------------------------------------
-  if (sdf.exists("/powadcr_iface.tft"))
+  if (SD_MMC.exists("/powadcr_iface.tft"))
   {
     // NOTA: Este metodo necesita que la pantalla esté alimentada con 5V
     //writeStatusLCD("Uploading display firmware");
@@ -5140,7 +5536,7 @@ void setup()
     strcpy(strpath, "/powadcr_iface.tft");
 
     uploadFirmDisplay(strpath);
-    sdf.remove(strpath);
+    SD_MMC.remove(strpath);
     // Esperamos al reinicio de la pantalla
     delay(5000);
   }
@@ -5170,9 +5566,15 @@ void setup()
 
       // Webserver
       // ---------------------------------------------------
-      configureWebServer();
-      server.begin();
-      logln("Webserver configured");
+      // configureWebServer();
+      // server.begin();
+      // logln("Webserver configured");
+
+      // FTP Server
+      #ifdef FTP_SERVER_ENABLE
+        ftpSrv.begin(&SD_MMC,"powa","powa");
+      #endif
+
     }
   }
 
@@ -5187,64 +5589,59 @@ void setup()
   String fDir = "/FAV";
 
   //Esto lo hacemos para ver si el directorio existe
-  if (!sdf.chdir(fDir))
+  if(createSpecialDirectory(fDir))
   {
-    if (!sdf.mkdir(fDir))
-    {
-#ifdef DEBUGMODE
-      logln("");
-      log("Error! Directory exists or wasn't created");
-#endif
-    }
-    else
-    {
-      hmi.writeString("statusLCD.txt=\"Creating FAV directory\"");
-      hmi.reloadCustomDir("/");
-      delay(750);
-    }
+    hmi.writeString("statusLCD.txt=\"Creating FAV directory\"");
+    hmi.reloadCustomDir("/");
+    delay(750);    
   }
+
 
   // Creamos el directorio /rec
   fDir = "/REC";
 
   //Esto lo hacemos para ver si el directorio existe
-  if (!sdf.chdir(fDir))
+  if(createSpecialDirectory(fDir))
   {
-    if (!sdf.mkdir(fDir))
-    {
-        #ifdef DEBUGMODE
-              logln("");
-              log("Error! Directory exists or wasn't created");
-        #endif
-    }
-    else
-    {
-      hmi.writeString("statusLCD.txt=\"Creating REC directory\"");
-      hmi.reloadCustomDir("/");
-      delay(750);
-    }
+    hmi.writeString("statusLCD.txt=\"Creating REC directory\"");
+    hmi.reloadCustomDir("/");
+    delay(750);    
   }
 
-  // Creamos el directorio /rec
+
+  // Creamos el directorio /wav
   fDir = "/WAV";
 
   //Esto lo hacemos para ver si el directorio existe
-  if (!sdf.chdir(fDir))
+  if(createSpecialDirectory(fDir))
   {
-    if (!sdf.mkdir(fDir))
-    {
-        #ifdef DEBUGMODE
-              logln("");
-              log("Error! Directory exists or wasn't created");
-        #endif
-    }
-    else
-    {
-      hmi.writeString("statusLCD.txt=\"Creating WAV directory\"");
-      hmi.reloadCustomDir("/");
-      delay(750);
-    }
+    hmi.writeString("statusLCD.txt=\"Creating WAV directory\"");
+    hmi.reloadCustomDir("/");
+    delay(750);    
   }
+
+
+  // Creamos el directorio /mp3
+  fDir = "/MP3";
+
+  if(createSpecialDirectory(fDir))
+  {
+    hmi.writeString("statusLCD.txt=\"Creating MP3 directory\"");
+    hmi.reloadCustomDir("/");
+    delay(750);    
+  }
+
+  // Creamos el directorio /flac
+  fDir = "/FLAC";
+
+  if(createSpecialDirectory(fDir))
+  {
+    hmi.writeString("statusLCD.txt=\"Creating FLAC directory\"");
+    hmi.reloadCustomDir("/");
+    delay(750);    
+  }
+
+
 
 
   // -------------------------------------------------------------------------
@@ -5258,7 +5655,7 @@ void setup()
   // changeLogo(0);
   logln("Waiting for HMI");
 
-  hmi.writeString("statusLCD.txt=\"WAITING FOR HMI\"");
+  hmi.writeString("statusLCD.txt=\"STARTING HMI\"");
   waitForHMI(CFG_FORZE_SINC_HMI);
 
   logln("HMI detected!");
@@ -5307,8 +5704,8 @@ void setup()
   pTAP.set_HMI(hmi);
   pTZX.set_HMI(hmi);
   //y el gestor de ficheros
-  pTAP.set_SDM(sdm);
-  pTZX.set_SDM(sdm);
+  // pTAP.set_SDM(sdm);
+  // pTZX.set_SDM(sdm);
 
   // Si es test está activo. Lo lanzamos
   #ifdef TEST
@@ -5433,7 +5830,7 @@ void setup()
 
   // Inicializamos el modulo de recording
   taprec.set_HMI(hmi);
-  taprec.set_SdFat32(sdf);
+  //taprec.set_SdFat32(sdf);
 
   taskStop = false;
 
