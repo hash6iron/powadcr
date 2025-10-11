@@ -2042,9 +2042,9 @@ class TZXprocessor
               // Convertimos la linea en un array de char
               strLine.toCharArray(sline, sizeof(sline));
               
-              //#ifdef DEBUGMODE
+              #ifdef DEBUGMODE
                 logln("Getting line: " + String(strLine));
-              //#endif
+              #endif
 
               // Descomponemos la linea en tokens
               // Cogemos el primer token
@@ -2858,7 +2858,7 @@ class TZXprocessor
               // Congemos la configuracion por defecto ya establecida
               // para despues cambiar los parametros que necesitemos
               // y el resto se conserven.
-              new_sr = kitStream.defaultConfig();
+              new_sr = kitStream.audioInfo();
               // new_sr2 = kitStream.defaultConfig();              
               // Calculamos el sampling rate desde el bloque ID 0x15
               divd = double(_myTZX.descriptor[i].samplingRate) * (1.0/3500000.0);

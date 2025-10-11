@@ -67,39 +67,51 @@
 // Numero máximo de ficheros que se listan por directorio.
 // Numero total de lineas de una pagina del file browser
 #define TOTAL_FILES_IN_BROWSER_PAGE 13  // No se cuenta la primera fila que es para el path
-#define MAX_FILES_TO_LOAD 14            // Esto siempre es TOTAL_FILES_IN_BROWSER_PAGE + 1
-#define MAX_BLOCKS_IN_BROWSER 13
-#define MAX_FILES_FOUND_BUFF 255
-// Cada n ficheros refresca el marcador. Por defecto 50
-#define EACH_FILES_REFRESH 5
+#define MAX_FILES_TO_LOAD           14  // Esto siempre es TOTAL_FILES_IN_BROWSER_PAGE + 1
+#define MAX_BLOCKS_IN_BROWSER       13
+#define MAX_FILES_FOUND_BUFF        255
+#define EACH_FILES_REFRESH          5   // Cada n ficheros refresca el marcador. Por defecto 50
 
+// Colores del browser
+#define DEFAULT_COLOR       65535
+#define DIR_COLOR           60868
+#define DSC_FILE_COLOR      0
+#define FAVORITE_FILE_COLOR 34815
+#define SPECIAL_FILE_COLOR  44405
+#define OTHER_FILES_COLOR   44405
 
 // Player / SD
 // -------------------------------------------------------------------
 // Frecuencia inicial de la SD
-#define SD_FRQ_MHZ_INITIAL 40000  // 40 MHz (velocidad de acceso a la SD)
-#define DEFAULT_MP3_SAMPLING_RATE 44100
-// Sampling rate adecuado para maquinas de 8 bitsAjuste AZIMUT (Hz) - 22200 Hz
-#define STANDARD_SR_8_BIT_MACHINE 21000 //22200   
-// Sampling rate adecuado para ZX Spectrum (recorder) - Ajuste AZIMUT (Hz) - 22200 Hz
-#define STANDARD_SR_REC_ZX_SPECTRUM 22200   
+#define SD_FRQ_MHZ_INITIAL                    40000   // 40 MHz (velocidad de acceso a la SD)
+
+// Sampling rate TAP/TZX/..
+#define DEFAULT_MP3_SAMPLING_RATE             44100
+#define STANDARD_SR_8_BIT_MACHINE             21000   // Sampling rate adecuado para maquinas de 8 bitsAjuste AZIMUT (Hz) - 22200 Hz
+#define STANDARD_SR_REC_ZX_SPECTRUM           22200   // Sampling rate adecuado para ZX Spectrum (recorder) - Ajuste AZIMUT (Hz) - 22200 Hz
 
 // Sampling rate para WAV y REC WAV (pero ojo, no para PLAY TO WAV)
-#define DEFAULT_WAV_SAMPLING_RATE 44100
-#define DEFAULT_WAV_SAMPLING_RATE_REC 44100 
+#define DEFAULT_WAV_SAMPLING_RATE             44100
+#define DEFAULT_WAV_SAMPLING_RATE_REC         44100 
 #define DEFAULT_WAV_SAMPLING_RATE_PLAY_TO_WAV 21000
 
+//
 // Porcentaje de avance rapido
 #define FAST_FORWARD_PER 0.02     
+#define FAST_REWIND_PER 0.02     
 // Demora en ms para saltar a avance super-rapido
-#define TIME_TO_FAST_FORWRD 2000
+#define TIME_TO_FAST_FORWRD 1500
 // Tiempo para volver al principio o pista anterior
 #define TIME_MAX_TO_PREVIOUS_TRACK 5000
 // Pausa entre saltos de avance rápido en ms
 #define DELAY_ON_EACH_STEP_FAST_FORWARD 125
+#define DELAY_ON_EACH_STEP_FAST_REWIND 125
 // Tone adjustment for ZX Spectrum - Samples
 #define TONE_ADJUSTMENT_ZX_SPECTRUM 0.0
 #define TONE_ADJUSTMENT_ZX_SPECTRUM_LIMIT 5
+//
+#define TIME_TO_SHOW_ESTIMATED_TIME 40
+#define PER_TO_SHOW_ESTIMATED_TIME 3
 
 #define MAX_FILES_AUDIO_LIST 2000
 #define MAX_SUBDIRS_AUDIO_LIST 512
@@ -121,6 +133,7 @@
 // ********************************************************************
 // Acorta el tono guia del bloque data despues de header
 #define LEVEL_REDUCTION_HEADER_TONE_IN_TAP 1
+
 // Activa el modo de split de los bloques. 
 // si superan el tamaño (en bytes) definido por SIZE_TO_ACTIVATE_SPLIT
 #define SPLIT_ENABLED 0
@@ -166,16 +179,12 @@ IPAddress primaryDNS(0, 0, 0, 0); // Not Mandatory
 IPAddress secondaryDNS(0, 0, 0, 0);     // Not Mandatory
 
 // HMI
-#define windowNameLength 32
-#define windowNameLengthFB 50
-#define tRotateNameRfsh 230
+#define windowNameLength    32
+#define windowNameLengthFB  50
+#define tRotateNameRfsh     230
 
 // Limitador de volumen
 #define MAX_VOL_FOR_HEADPHONE_LIMIT 40
-
-// Libreria SDIndex de Schatzmann. Funcion listDir(..)
-// si se quiere listar solo el directorio padre y los hijos. Por defecto solo el parent dir.
-//#define NOT_PARENT_DIR_ONLY
 
 // Recursos opcionales
 //#define BLUETOOTH_ENABLE
@@ -184,3 +193,24 @@ IPAddress secondaryDNS(0, 0, 0, 0);     // Not Mandatory
 // Parametros internos
 #define MAIN_VOL_FACTOR 100
 
+
+//
+// Dependency Graph works fine with v1.0r6 (06/10/2025)
+//
+// |-- WiFi @ 2.0.0
+// |-- WiFiClientSecure @ 2.0.0
+// |-- Easy Nextion Library @ 1.0.6+sha.4bd06b2
+// |-- ESP32-A2DP @ 1.8.8+sha.e86ab93
+// |-- audio-driver @ 0.1.4+sha.c8e422b
+// |-- audio-tools @ 1.2.0+sha.0ad0a61
+// |-- libhelix @ 0.8.9+sha.0d77734
+// |-- libflac @ 1.3.4+sha.2618e4d
+// |-- libopus @ 1.3.2+sha.bae0f85
+// |-- ESP32_FTPSERVER_SD @ 0.0.0+20251006181015.sha.0f6d214
+// |-- libfoxenflac @ 1.0.0+sha.e491d2e
+// |-- SPI @ 2.0.0
+// |-- SD @ 2.0.0
+// |-- FS @ 2.0.0
+// |-- SD_MMC @ 2.0.0
+// |-- Wire @ 2.0.0
+// |-- Update @ 2.0.0

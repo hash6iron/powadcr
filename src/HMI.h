@@ -116,51 +116,247 @@ class HMI
         return false; // Error al abrir el archivo
       }
 
-
+      // Añade esta función helper para reintentos de lectura SD
+      bool safeSDRead(File &file, char* buffer, size_t length, int maxRetries = 3) {
+          for(int retry = 0; retry < maxRetries; retry++) {
+              if(file.read((uint8_t*)buffer, length) == length) {
+                  return true;
+              }
+              // Pequeña pausa entre reintentos
+              delay(10); 
+          }
+          return false;
+      }
 
       void sortFile(File &file, bool firstDir = true) 
       {
-          file.seek(0);
-          std::vector<std::tuple<String, String, String, String>> linesWithKeys;
-          //char line[256];
-          String lineStr;
-          int n = 0;
+          if (!file) return;
 
-          while (file.available()) 
-          {
-                      
-              lineStr = file.readStringUntil('\n');
-              n = lineStr.length();
-              lineStr.trim();
-
-              #ifdef DEBUGMODE
-                  logln("Read line: " + lineStr); 
-              #endif
-
-              // Extraemos los campos
-              int idx1 = lineStr.indexOf('|');
-              int idx2 = lineStr.indexOf('|', idx1 + 1);
-              int idx3 = lineStr.indexOf('|', idx2 + 1);
-              int idx4 = lineStr.indexOf('|', idx3 + 1);
-
-              String tipo = "";
-              String nombre = "";
-              String indice = "";
-              String tamano = "";
-
-              if (idx1 != -1 && idx2 != -1 && idx3 != -1 && idx4 != -1) {
-                  indice = lineStr.substring(0, idx1);
-                  tipo = lineStr.substring(idx1 + 1, idx2);
-                  tamano = lineStr.substring(idx2 + 1, idx3);
-                  nombre = lineStr.substring(idx3 + 1, idx4);
-              }
-              tipo.trim();
-              nombre.trim();
-              linesWithKeys.emplace_back(tipo, nombre, indice, lineStr);
+          // Pre-reservar memoria en el heap en lugar de la pila
+          const size_t BUFFER_SIZE = 1024;
+          char* buffer = (char*)malloc(BUFFER_SIZE);
+          if (!buffer) {
+              writeString("statusFILE.txt=\"MEM ERROR\"");
+              return;
           }
 
+          std::vector<std::tuple<String, String, String, String>> linesWithKeys;
+          linesWithKeys.reserve(1024);
+          
+          file.seek(0);
+          writeString("statusFILE.txt=\"READING 0%\"");
+          
+          int totalLines = 0;
+          int currentLine = 0;
+          int readErrors = 0;
+          int lastProgress = -1;
+
+          // Primer conteo de líneas
+          while (file.available()) {
+              yield();
+              if(!safeSDRead(file, buffer, 1)) {
+                  readErrors++;
+                  if(readErrors > 5) {
+                      free(buffer);
+                      writeString("statusFILE.txt=\"SD READ ERROR\"");
+                      delay(1000);
+                      return;
+                  }
+                  continue;
+              }
+              if(buffer[0] == '\n') totalLines++;
+          }
+
+          // Volver al inicio
+          file.seek(0);
+          readErrors = 0;
+
+          // Leer y procesar líneas
+          String accumulatedLine;
+          while (file.available()) {
+              yield();
+              
+              size_t bytesToRead = min((size_t)file.available(), (size_t)(BUFFER_SIZE-1));
+              
+              if(!safeSDRead(file, buffer, bytesToRead)) {
+                  readErrors++;
+                  if(readErrors > 5) {
+                      free(buffer);
+                      writeString("statusFILE.txt=\"SD READ ERROR\"");
+                      delay(1000);
+                      return;
+                  }
+                  continue;
+              }
+
+              buffer[bytesToRead] = '\0';
+              accumulatedLine += String(buffer);
+              
+              int lineEnd;
+              while ((lineEnd = accumulatedLine.indexOf('\n')) != -1) {
+                  yield();
+                  
+                  String line = accumulatedLine.substring(0, lineEnd);
+                  line.trim();
+                  
+                  // Procesar la línea
+                  int idx1 = line.indexOf('|');
+                  if (idx1 == -1) continue;
+
+                  int idx2 = line.indexOf('|', idx1 + 1);
+                  if (idx2 == -1) continue;
+
+                  int idx3 = line.indexOf('|', idx2 + 1);
+                  if (idx3 == -1) continue;
+
+                  int idx4 = line.indexOf('|', idx3 + 1);
+                  if (idx4 == -1) continue;
+
+                  String tipo = line.substring(idx1 + 1, idx2);
+                  String nombre = line.substring(idx3 + 1, idx4);
+                  String indice = line.substring(0, idx1);
+
+                  tipo.trim();
+                  nombre.trim();
+                  
+                  linesWithKeys.emplace_back(std::move(tipo), std::move(nombre), 
+                                          std::move(indice), std::move(line));
+
+                  currentLine++;
+                  int progress = (currentLine * 100) / totalLines;
+                  if (progress % 5 == 0 && progress != lastProgress) {
+                      writeString("statusFILE.txt=\"READING " + String(progress) + "%\"");
+                      lastProgress = progress;
+                      yield();
+                  }
+
+                  accumulatedLine = accumulatedLine.substring(lineEnd + 1);
+              }
+          }
+
+          free(buffer);
+
+          // Ordenar usando comparador que depende de firstDir
+          writeString("statusFILE.txt=\"SORTING\"");
+          yield();
+
           std::sort(linesWithKeys.begin(), linesWithKeys.end(),
-              [firstDir](const std::tuple<String, String, String, String> &a, const std::tuple<String, String, String, String> &b) {
+              [firstDir](const std::tuple<String,String,String,String> &a, 
+                        const std::tuple<String,String,String,String> &b) {
+                  const String &tipoA = std::get<0>(a);
+                  const String &nombreA = std::get<1>(a);
+                  const String &tipoB = std::get<0>(b);
+                  const String &nombreB = std::get<1>(b);
+
+                  bool aIsDir = (tipoA == "D");
+                  bool bIsDir = (tipoB == "D");
+                  
+                  // Detectar archivos especiales .lst y .inf
+                  bool aIsSpecial = nombreA.endsWith(".lst") || nombreA.endsWith(".inf") || nombreA.endsWith(".txt");
+                  bool bIsSpecial = nombreB.endsWith(".lst") || nombreB.endsWith(".inf") || nombreB.endsWith(".txt");
+
+                  // Los archivos especiales (.lst .inf) siempre van al final
+                  if (aIsSpecial != bIsSpecial) {
+                      return !aIsSpecial; // Los especiales van al final
+                  }
+
+                  // Si ambos son archivos especiales, ordenar por nombre
+                  if (aIsSpecial && bIsSpecial) {
+                      return nombreA.compareTo(nombreB) < 0;
+                  }
+
+                  // Lógica principal según firstDir
+                  if (firstDir) {
+                      // firstDir = true: Directorios primero, luego archivos
+                      if (aIsDir != bIsDir) {
+                          return aIsDir; // Directorios primero
+                      }
+                  } else {
+                      // firstDir = false: Archivos primero, luego directorios  
+                      if (aIsDir != bIsDir) {
+                          return !aIsDir; // Archivos primero
+                      }
+                  }
+
+                  // Si son del mismo tipo, ordenar por nombre
+                  return nombreA.compareTo(nombreB) < 0;
+              }
+          );
+
+          // Escribir archivo ordenado
+          writeString("statusFILE.txt=\"SAVING\"");
+          yield();
+
+          if (file) {
+              String filepath = file.path();
+              file.close();
+              file = SD_MMC.open(filepath.c_str(), FILE_WRITE);
+              
+              lastProgress = -1;
+              const size_t totalItems = linesWithKeys.size();
+              
+              for (size_t i = 0; i < totalItems; i++) {
+                  yield();
+                  file.println(std::get<3>(linesWithKeys[i]));
+                  
+                  int progress = (i * 100) / totalItems;
+                  if (progress % 5 == 0 && progress != lastProgress) {
+                      writeString("statusFILE.txt=\"SAVING " + String(progress) + "%\"");
+                      lastProgress = progress;
+                      yield();
+                  }
+              }
+              
+              file.flush();
+          }
+
+          writeString("statusFILE.txt=\"SORT COMPLETE\"");
+          linesWithKeys.clear();
+          linesWithKeys.shrink_to_fit();
+      }
+
+
+      void sortFile_old(File &file, bool firstDir = true) 
+      {
+          if (!file) return;
+          
+          file.seek(0);
+          std::vector<std::tuple<String, String, String, String>> linesWithKeys;
+          linesWithKeys.reserve(FILE_TOTAL_FILES);
+          String lineStr;
+
+          // 1. Leemos las líneas y las almacenamos
+          while (file.available()) {
+              lineStr = file.readStringUntil('\n');
+              if (lineStr.length() == 0) continue;
+              lineStr.trim();
+
+              int idx1 = lineStr.indexOf('|');
+              if (idx1 == -1) continue;
+
+              int idx2 = lineStr.indexOf('|', idx1 + 1);
+              if (idx2 == -1) continue;
+
+              int idx3 = lineStr.indexOf('|', idx2 + 1);
+              if (idx3 == -1) continue;
+
+              int idx4 = lineStr.indexOf('|', idx3 + 1);
+              if (idx4 == -1) continue;
+
+              String tipo = lineStr.substring(idx1 + 1, idx2);
+              String nombre = lineStr.substring(idx3 + 1, idx4);
+              String indice = lineStr.substring(0, idx1);
+
+              tipo.trim();
+              nombre.trim();
+
+              linesWithKeys.push_back(std::make_tuple(tipo, nombre, indice, lineStr));
+          }
+
+          // 2. Ordenamos usando un comparador compatible con C++11
+          std::sort(linesWithKeys.begin(), linesWithKeys.end(),
+              [firstDir](const std::tuple<String,String,String,String> &a, 
+                        const std::tuple<String,String,String,String> &b) {
                   const String &tipoA = std::get<0>(a);
                   const String &nombreA = std::get<1>(a);
                   const String &tipoB = std::get<0>(b);
@@ -169,45 +365,40 @@ class HMI
                   bool aIsDir = (tipoA == "D");
                   bool bIsDir = (tipoB == "D");
 
-                  // 1. Agrupación por tipo
                   if (aIsDir != bIsDir) {
                       return firstDir ? aIsDir : !aIsDir;
                   }
 
-                  // 2. Los que empiezan por '_' van al final de su grupo
                   bool aIsUnderscore = nombreA.startsWith("_");
                   bool bIsUnderscore = nombreB.startsWith("_");
                   if (aIsUnderscore != bIsUnderscore) {
                       return !aIsUnderscore;
                   }
 
-                  // 3. Orden alfabético por nombre (ignorando mayúsculas/minúsculas)
                   return nombreA.compareTo(nombreB) < 0;
               }
           );
 
-          if (file)
-          {
-              // Guardamos la ruta y cerramos
+          // 3. Escribimos el archivo ordenado
+          if (file) {
               String filepath = file.path();
               file.close();
-              // Abrimos ahora en modo escritura.
-              file = SD_MMC.open(filepath, FILE_WRITE);
-              // Hacemos rewind
+              file = SD_MMC.open(filepath.c_str(), FILE_WRITE);
               file.seek(0);
-              // Eliminamos el contenido
-              clearFile(file.path());
-              // Volcamos el vector ordenado
+              
+              // En lugar de truncate, usamos write y close
+              file.close();
+              file = SD_MMC.open(filepath.c_str(), FILE_WRITE);
+
               for (const auto& tup : linesWithKeys) {
                   file.println(std::get<3>(tup));
               }
               file.flush();
-
-              #ifdef DEBUGMODE
-                  logln("File sorted successfully.");
-              #endif              
           }
 
+          // 4. Liberamos memoria
+          linesWithKeys.clear();
+          linesWithKeys.shrink_to_fit();
       }
 
       void fillWithFilesFromFile(File &fout, File &fstatus, const String &search_pattern, const String &path) 
@@ -290,6 +481,140 @@ class HMI
 
       void fillWithFiles(File &fout, File &fstatus, String search_pattern)
       {
+          const String separator="|";
+          if (!global_dir.isDirectory()) return;
+          global_dir.seek(0);
+
+          int lpos = 1, cdir = 0, cfiles = 0;
+          int itemsCount = 0, itemsToShow = 0;
+          FILE_TOTAL_FILES = 0;
+
+          search_pattern.toLowerCase();
+
+          #ifdef DEBUGMODE
+              logln("Registering files with pattern: " + search_pattern);
+          #endif
+
+          String entry;
+          while (entry = global_dir.getNextFileName())
+          {
+              if (entry == "") break;
+
+              // ✅ NUEVA VALIDACIÓN: Verificar que la entrada no esté corrupta
+              if (entry.length() < 3 || entry.indexOf("...") == 0) {
+                  #ifdef DEBUGMODE
+                      logln("Skipping corrupted entry: " + entry);
+                  #endif
+                  continue;
+              }
+
+              // ✅ NUEVA VALIDACIÓN: Verificar caracteres válidos
+              bool hasInvalidChars = false;
+              for (int i = 0; i < entry.length(); i++) {
+                  char c = entry.charAt(i);
+                  if (c < 32 || c > 126) { // Solo caracteres ASCII imprimibles
+                      hasInvalidChars = true;
+                      break;
+                  }
+              }
+              
+              if (hasInvalidChars) {
+                  #ifdef DEBUGMODE
+                      logln("Skipping entry with invalid characters: " + entry);
+                  #endif
+                  continue;
+              }
+
+              #ifdef DEBUGMODE
+                  logln("Processing file: " + entry);
+              #endif
+
+              String fname = entry;
+              String fnameToLower = "";
+              size_t len = fname.length();
+
+              if (len != 0)
+              {
+                  fname = String(entry).substring(String(entry).lastIndexOf('/') + 1);
+                  fnameToLower = fname;
+                  fnameToLower.toLowerCase();
+
+                  // ✅ NUEVA VALIDACIÓN: Verificar que el nombre extraído sea válido
+                  if (fname.length() == 0 || fname == "." || fname == "..") {
+                      #ifdef DEBUGMODE
+                          logln("Skipping invalid filename: " + fname);
+                      #endif
+                      continue;
+                  }
+
+                  const char *ext = getFileExtension(fname.c_str());
+
+                  #ifdef DEBUGMODE
+                      logln("File: " + fname);
+                      if (ext) logln("Extension: " + String(ext));
+                      else logln("No extension found.");
+                  #endif
+
+                  if (fnameToLower.indexOf(search_pattern) != -1 || search_pattern == "")
+                  {
+                      bool isDir = isDirectoryPath(entry.c_str());
+                      bool isHidden = fname.charAt(0) == '.';
+
+                      if (!isDir && !isHidden)
+                      {
+                          if (strcmp(ext, "tap") == 0 || strcmp(ext, "tzx") == 0 ||
+                              strcmp(ext, "tsx") == 0 || strcmp(ext, "cdt") == 0 ||
+                              strcmp(ext, "wav") == 0 || strcmp(ext, "mp3") == 0 ||
+                              strcmp(ext, "flac") == 0 || strcmp(ext, "lst") == 0 ||
+                              strcmp(ext, "dsc") == 0 || strcmp(ext, "inf") == 0 ||
+                              strcmp(ext, "txt") == 0)
+                          {
+                              // ✅ VALIDACIÓN FINAL: Verificar que el archivo realmente existe
+                              String fullPath = FILE_LAST_DIR + "/" + fname;
+                              if (SD_MMC.exists(fullPath.c_str())) {
+                                  fout.print(String(lpos)); fout.print(separator);
+                                  fout.print("F"); fout.print(separator);
+                                  fout.print(String(global_dir.position())); fout.print(separator);
+                                  fout.print(fname); fout.println(separator);
+                                  cfiles++; lpos++;
+                                  
+                                  #ifdef DEBUGMODE
+                                      logln("Added file: " + fname);
+                                  #endif
+                              } else {
+                                  #ifdef DEBUGMODE
+                                      logln("File does not exist, skipping: " + fullPath);
+                                  #endif
+                              }
+                          }
+                      }
+                      else if (isDir && !isHidden)
+                      {
+                          fout.print(String(lpos)); fout.print(separator);
+                          fout.print("D"); fout.print(separator);
+                          fout.print(String(global_dir.position())); fout.print(separator);
+                          fout.print(fname); fout.println(separator);
+                          cdir++; lpos++;
+                      }
+                      
+                      FILE_TOTAL_FILES = cdir + cfiles;
+                      if (itemsToShow >= EACH_FILES_REFRESH)
+                      {
+                          writeString("statusFILE.txt=\"ITEMS " + String(itemsCount) + "\"");
+                          itemsToShow = 0;
+                      }
+                  }
+              }
+              itemsCount++;
+              itemsToShow++;
+          }
+          
+          fstatus.println("CFIL=" + String(cfiles));
+          fstatus.println("CDIR=" + String(cdir));
+      }
+
+      void fillWithFiles_old(File &fout, File &fstatus, String search_pattern)
+      {
           // *****************************************************************************
           //
           // Con este metodo, leemos el directorio actual y volcamos los ficheros en fout
@@ -356,7 +681,8 @@ class HMI
                               strcmp(ext, "tsx") == 0 || strcmp(ext, "cdt") == 0 ||
                               strcmp(ext, "wav") == 0 || strcmp(ext, "mp3") == 0 ||
                               strcmp(ext, "flac") == 0 || strcmp(ext, "lst") == 0 ||
-                              strcmp(ext, "dsc") == 0)
+                              strcmp(ext, "dsc") == 0 || strcmp(ext, "inf") == 0 ||
+                              strcmp(ext, "txt") == 0)
                           {
                               fout.print(String(lpos)); fout.print(separator);
                               fout.print("F"); fout.print(separator);
@@ -376,7 +702,7 @@ class HMI
                       FILE_TOTAL_FILES = cdir + cfiles;
                       if (itemsToShow >= EACH_FILES_REFRESH)
                       {
-                          writeString("statusFILE.txt=\"ITEMS " + String(itemsCount) + " / " + String(FILE_TOTAL_FILES) + "\"");
+                          writeString("statusFILE.txt=\"ITEMS " + String(itemsCount) + "\"");
                           itemsToShow = 0;
                       }
                   }
@@ -789,17 +1115,12 @@ class HMI
           writeString("statusFILE.txt=\"GET FILES\"");
 
           // Abrimos ahora el _files.lst, para manejarlo
-          String fFileList = FILE_LAST_DIR + "/" +SOURCE_FILE_TO_MANAGE;
+          String fFileList = FILE_LAST_DIR + "/" + SOURCE_FILE_TO_MANAGE;
 
           FB_READING_FILES = true;
       
           clearFileBuffer();
       
-          // if (FILE_LAST_DIR.endsWith("/") && FILE_LAST_DIR.length() > 1)
-          // {
-          //    FILE_LAST_DIR.remove(FILE_LAST_DIR.length() - 1);
-          // }
-
           #ifdef DEBUGMODE
               logln("Trying to use LST file: " + fFileList);
               logln("Searching files in dir: " + FILE_LAST_DIR);
@@ -841,10 +1162,15 @@ class HMI
           FILE_DIR_OPEN_FAILED = false;
       
           // Si el fichero manejador no está abierto, generamos el _files.lst si es necesario
-          if (!LST_FILE_IS_OPEN) {
-              String pathTmp = FILE_LAST_DIR + output_file;
-              if (force_rescan || !SD_MMC.exists(pathTmp.c_str())) {
-                  registerFiles(FILE_LAST_DIR, output_file, output_file_inf, search_pattern, force_rescan);
+          if (!LST_FILE_IS_OPEN) 
+          {
+
+              String pathTmp = "";
+              if (FILE_LAST_DIR != "/") {pathTmp = FILE_LAST_DIR + "/" + output_file;}
+              
+              if (force_rescan || !SD_MMC.exists(pathTmp.c_str())) 
+              {
+                registerFiles(FILE_LAST_DIR, output_file, output_file_inf, search_pattern, force_rescan);
               }
 
               if (fFileLST) 
@@ -855,7 +1181,6 @@ class HMI
               fFileLST = SD_MMC.open(fFileList.c_str(), FILE_READ);
               fFileLST.seek(0);
               LST_FILE_IS_OPEN = true;
-      
           }
       
           // Si no estamos buscando, contamos las líneas en el archivo _files.inf
@@ -1139,13 +1464,13 @@ class HMI
               if (type == "DIR")
               {
                   //Directorio
-                  color = 60868;  // Amarillo
+                  color = DIR_COLOR;  // Amarillo
                   szName = String("<DIR>  ") + szName;
                   szName.toUpperCase();
               }     
               else if (type == ".DSC")
               {
-                color = 0;  // Negro - Indica que es un fichero DSC
+                color = DSC_FILE_COLOR;  // Negro - Indica que es un fichero DSC
               }
               else if (type == ".TAP" || type == ".TZX" || type == ".TSX" || type == ".CDT" || type == ".WAV" || type == ".MP3" || type == ".FLAC")
               {
@@ -1153,19 +1478,19 @@ class HMI
                   if (SD_MMC.exists("/fav/" + szName))
                   {
                     // Si estan dentro de /FAV
-                    color = 34815;   // Cyan - Indica que esta en favoritos
+                    color = FAVORITE_FILE_COLOR;   // Cyan - Indica que esta en favoritos
                   }
                   else
                   {
                     // En general
-                    color = 65535;   // Blanco
+                    color = DEFAULT_COLOR;   // Blanco
                   }
                   
               }
               else
               {
                   // Resto de ficheros
-                  color = 44405;  // gris apagado
+                  color = OTHER_FILES_COLOR;  // gris apagado
               }
       
               printFileRowsBlock(mens,i-1, color, szName);
@@ -1589,6 +1914,7 @@ class HMI
             if (!FB_READING_FILES)
             {
               reloadDir();
+              REGENERATE_IDX = true;
             }
             else
             {
@@ -1882,18 +2208,46 @@ class HMI
         }        
         else if (strCmd.indexOf("CHD=") != -1) 
         {
+            uint32_t val=0;
             // Con este comando capturamos el directorio a cambiar
-            uint8_t buff[8];
-            strCmd.getBytes(buff, 7);
+            // uint8_t buff[8];
+            // strCmd.getBytes(buff, 7);
 
-            #ifdef DEBUGMODE
-              for (int i=0;i<8;i++)
-              {
-                logln("Byte " + String(i) + ": " + String(buff[i]));
-              }
-            #endif
+            // #ifdef DEBUGMODE
+            //   for (int i=0;i<8;i++)
+            //   {
+            //     logln("Byte " + String(i) + ": " + String(buff[i]));
+            //   }
+            // #endif
             
-            long val = (long)((int)buff[4] + (256*(int)buff[5]) + (65536*(int)buff[6]));
+            // long val = (long)((int)buff[4] + (256*(int)buff[5]) + (65536*(int)buff[6]));
+
+            // Con este comando capturamos el directorio a cambiar
+            uint8_t buff[8] = {0}; // Inicializamos el buffer a 0
+            strCmd.getBytes(buff, 7);  // getBytes no devuelve size_t
+            
+            // Verificación de seguridad - verificamos directamente los bytes del comando
+            if (buff[0] == 'C' && buff[1] == 'H' && buff[2] == 'D' && buff[3] == '=') {
+                // Construimos el valor usando máscaras y shifts para evitar desbordamientos
+                val = ((uint32_t)buff[4]) | 
+                              ((uint32_t)buff[5] << 8) | 
+                              ((uint32_t)buff[6] << 16);
+                
+                // Verificación adicional del rango
+                if (val < MAX_FILES_TO_LOAD) {
+                    int indexFileSelected = static_cast<int>(val);
+                    FILE_IDX_SELECTED = indexFileSelected;
+                    // ... resto del código existente ...
+                } else {
+                    logln("Error: Invalid file index value: " + String(val));
+                    writeString("currentDir.txt=\">> Error: Invalid index value <<\"");
+                    return;
+                }
+            } else {
+                logln("Error: Invalid CHD command format");
+                writeString("currentDir.txt=\">> Error: Invalid command format <<\"");
+                return;
+            }
 
             //String num = String(val);
             int indexFileSelected = static_cast<int> (val);
@@ -1956,7 +2310,7 @@ class HMI
 
               String recDirTmp = FILE_LAST_DIR;
               recDirTmp.toUpperCase();
-              if (recDirTmp == "/FAV/" || recDirTmp == "/REC/")
+              if (recDirTmp == "/FAV/" || recDirTmp == "/REC/" || recDirTmp == "/WAV")
               {
                 getFilesFromSD(true,SOURCE_FILE_TO_MANAGE,SOURCE_FILE_INF_TO_MANAGE);
 
@@ -2750,6 +3104,7 @@ class HMI
           // Habilitamos el amplificador de salida
           kitStream.setPAPower(ACTIVE_AMP);
           logln("Active amp=" + String(ACTIVE_AMP));
+          AMP_CHANGE = true;
           //logln("Active amp=" + String(ACTIVE_AMP));
         }        
         // Habilita los dos canales
@@ -2792,6 +3147,7 @@ class HMI
 
           // Almacenamos en NVS
           saveHMIcfg("SPKopt");
+          SPK_CHANGE = true;
           //logln("Speaker enable=" + String(EN_SPEAKER));
         }
         
@@ -2922,7 +3278,7 @@ class HMI
           // cfg.sample_rate = SAMPLING_RATE;
           // akit.setAudioInfo(cfg);
 
-          auto cfg2 = kitStream.defaultConfig();
+          auto cfg2 = kitStream.audioInfo();
           cfg2.sample_rate = SAMPLING_RATE;
           kitStream.setAudioInfo(cfg2);
 
