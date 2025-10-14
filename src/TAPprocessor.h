@@ -59,8 +59,8 @@ class TAPprocessor
         // Gestor de SD
         HMI _hmi;
 
-        SdFat32 _sdf32;
-        File32 _mFile;
+        //SdFat32 _sdf32;
+        File _mFile;
         int _sizeTAP;
         int _rlen;
 
@@ -72,7 +72,7 @@ class TAPprocessor
         int _startBlock = 0;
         int _lastStartBlock = 0;
 
-        bool isHeaderTAP(File32 tapFileName)
+        bool isHeaderTAP(File tapFileName)
         {
             bool rtn = false;
 
@@ -80,7 +80,7 @@ class TAPprocessor
             {
                 // La cabecera son 19 bytes
                 uint8_t* bBlock = (uint8_t*)ps_calloc(19+1,sizeof(uint8_t));
-                sdm.readFileRange32(tapFileName,bBlock,0,19,true);
+                readFileRange(tapFileName,bBlock,0,19,true);
 
                 // Obtenemos la firma del TAP
                 char signTAPHeader[4];
@@ -119,12 +119,13 @@ class TAPprocessor
             return rtn;
         }
 
-        bool isFileTAP(File32 tapFileName)
+        bool isFileTAP(File tapFileName)
         {
             bool rtn = false;
             // char* szName = new char[254 + 1];
             char* szName = (char*)ps_calloc(254+1,sizeof(char));
-            tapFileName.getName(szName,254);
+            //tapFileName.getName(szName,254);
+            strcpy(szName, tapFileName.name());
             String fileName = static_cast<String>(szName);
             // delete szName;
             free(szName);
@@ -457,7 +458,7 @@ class TAPprocessor
                     // Almacenamos el nombre
                     //getBlockName(tB.name,sdm.readFileRange32(_mFile,startBlock,19,false),0);
                     uint8_t* ptr = (uint8_t*)ps_calloc(19+1,sizeof(uint8_t));
-                    sdm.readFileRange32(_mFile,ptr,startBlock,19,false);
+                    readFileRange(_mFile,ptr,startBlock,19,false);
                     strncpy(tB.name,getBlockName(tB.name,ptr,0),10);
                     free(ptr);
 
@@ -476,7 +477,7 @@ class TAPprocessor
                     // Array num header
                     // Almacenamos el nombre
                     uint8_t* ptr = (uint8_t*)ps_calloc(19+1,sizeof(uint8_t));
-                    sdm.readFileRange32(_mFile,ptr,startBlock,19,false);
+                    readFileRange(_mFile,ptr,startBlock,19,false);
                     strncpy(tB.name,getBlockName(tB.name,ptr,0),10);
                     free(ptr);
                     tB.type = HARRAYNUM;    
@@ -487,7 +488,7 @@ class TAPprocessor
                     // Array char header
                     // Almacenamos el nombre
                     uint8_t* ptr = (uint8_t*)ps_calloc(19+1,sizeof(uint8_t));
-                    sdm.readFileRange32(_mFile,ptr,startBlock,19,false);
+                    readFileRange(_mFile,ptr,startBlock,19,false);
                     strncpy(tB.name,getBlockName(tB.name,ptr,0),10);
                     free(ptr);
                     tB.type = HARRAYCHR;    
@@ -504,15 +505,15 @@ class TAPprocessor
                     
                     // Almacenamos el nombre
                     uint8_t* ptr = (uint8_t*)ps_calloc(19+1,sizeof(uint8_t));
-                    sdm.readFileRange32(_mFile,ptr,startBlock,19,false);
+                    readFileRange(_mFile,ptr,startBlock,19,false);
                     strncpy(tB.name,getBlockName(tB.name,ptr,0),10);
                     free(ptr);
 
                     uint8_t* ptr1= (uint8_t*)ps_calloc(1+1,sizeof(uint8_t));
                     uint8_t* ptr2 = (uint8_t*)ps_calloc(1+1,sizeof(uint8_t));
 
-                    sdm.readFileRange32(_mFile,ptr1,startBlock+sizeB+1,1,false);
-                    sdm.readFileRange32(_mFile,ptr2,startBlock+sizeB,1,false);
+                    readFileRange(_mFile,ptr1,startBlock+sizeB+1,1,false);
+                    readFileRange(_mFile,ptr2,startBlock+sizeB,1,false);
                     int tmpSizeBlock = (256*ptr1[0]) + ptr2[0];
                     free(ptr1);
                     free(ptr2);
@@ -557,7 +558,7 @@ class TAPprocessor
             return blockNameDetected;     
         }
 
-        bool getBlockDescriptor(File32 mFile, int sizeTAP)
+        bool getBlockDescriptor(File mFile, int sizeTAP)
         {
             // Este procedimiento permite analizar un fichero .TAP
             // obteniendo de este información relevante y los distintos bloques que lo
@@ -604,8 +605,8 @@ class TAPprocessor
             // Los dos primeros bytes son el tamaño a contar
             ptr1 = (uint8_t*)ps_calloc(1+1,sizeof(uint8_t));
             ptr2 = (uint8_t*)ps_calloc(1+1,sizeof(uint8_t));
-            sdm.readFileRange32(_mFile,ptr1,startBlock+1,1,false);
-            sdm.readFileRange32(_mFile,ptr2,startBlock,1,false);
+            readFileRange(_mFile,ptr1,startBlock+1,1,false);
+            readFileRange(_mFile,ptr2,startBlock,1,false);
             sizeB = (256*ptr1[0]) + ptr2[0];
             free(ptr1);
             free(ptr2);            
@@ -620,7 +621,7 @@ class TAPprocessor
                 
                 // Cogemos el bloque completo, para poder calcular su checksum
                 ptr = (uint8_t*)ps_calloc(sizeB,sizeof(uint8_t));
-                sdm.readFileRange32(_mFile,ptr,startBlock,sizeB-1,false);
+                readFileRange(_mFile,ptr,startBlock,sizeB-1,false);
                 // Calculamos el checksum
                 chk = calculateChecksum(ptr,0,sizeB-1);
                 // Liberamos
@@ -628,7 +629,7 @@ class TAPprocessor
                 
                 // Obtenemos el valor de checksum de la cabecera del bloque
                 ptr = (uint8_t*)ps_calloc(1+1,sizeof(uint8_t));
-                sdm.readFileRange32(_mFile,ptr,startBlock+sizeB-1,1,false); 
+                readFileRange(_mFile,ptr,startBlock+sizeB-1,1,false); 
                 blockChk =ptr[0];         
                 free(ptr);
 
@@ -649,7 +650,7 @@ class TAPprocessor
                     // 0x00 - HEADER
                     // 0xFF - DATA BLOCK
                     ptr = (uint8_t*)ps_calloc(1+1,sizeof(uint8_t));
-                    sdm.readFileRange32(_mFile,ptr,startBlock,1,false);
+                    readFileRange(_mFile,ptr,startBlock,1,false);
                     int flagByte = ptr[0];
                     free(ptr);
 
@@ -659,7 +660,7 @@ class TAPprocessor
                     // 0x02 - ARRAY CHAR
                     // 0x03 - CODE FILE
                     ptr = (uint8_t*)ps_calloc(1+1,sizeof(uint8_t));
-                    sdm.readFileRange32(_mFile,ptr,startBlock+1,1,false);
+                    readFileRange(_mFile,ptr,startBlock+1,1,false);
                     int typeBlock = ptr[0];
                     free(ptr);
                     
@@ -684,8 +685,8 @@ class TAPprocessor
                     // Tamaño
                     ptr1 = (uint8_t*)ps_calloc(1+1,sizeof(uint8_t));
                     ptr2 = (uint8_t*)ps_calloc(1+1,sizeof(uint8_t));
-                    sdm.readFileRange32(_mFile,ptr1,startBlock+1,1,false);
-                    sdm.readFileRange32(_mFile,ptr2,startBlock,1,false);
+                    readFileRange(_mFile,ptr1,startBlock+1,1,false);
+                    readFileRange(_mFile,ptr2,startBlock,1,false);
                     newSizeB = (256*ptr1[0]) + ptr2[0];
                     free(ptr1);
                     free(ptr2);  
@@ -931,23 +932,23 @@ class TAPprocessor
         //     _hmi.updateMem();
         // }
         
-        void set_SdFat32(SdFat32 sdf32)
-        {
-            _sdf32 = sdf32;
-        }
+        // void set_SdFat32(SdFat32 sdf32)
+        // {
+        //     _sdf32 = sdf32;
+        // }
 
-        void set_file(File32 tapFileName, int sizeTAP)
+        void set_file(File tapFileName, int sizeTAP)
         {
             // Pasamos los parametros a la clase
             _mFile = tapFileName;
             _sizeTAP = sizeTAP;
         }
 
-        void set_SDM(SDmanager sdmTmp)
-        {
-            //_sdm = sdmTmp;
-            //ptrSdm = &sdmTmp;
-        }
+        // void set_SDM(SDmanager sdmTmp)
+        // {
+        //     //_sdm = sdmTmp;
+        //     //ptrSdm = &sdmTmp;
+        // }
 
         void set_HMI(HMI hmi)
         {
@@ -1011,7 +1012,7 @@ class TAPprocessor
             _myTAP.descriptor = nullptr;    
         }
 
-        bool proccess_tap(File32 tapFileName)
+        bool proccess_tap(File tapFileName)
         {
             // Procesamos el fichero .TAP
             // Verificamos que sea un TAP correcto.
@@ -1044,7 +1045,7 @@ class TAPprocessor
             
             // Comenzamos a trabajar con el fichero .TAP
 
-            File32 tapFile;
+            File tapFile;
             
             FILE_CORRUPTED = false;
             
@@ -1052,7 +1053,7 @@ class TAPprocessor
             delay(500);
             
             // Abrimos el fichero
-            tapFile = sdm.openFile32(tapFile, path);
+            tapFile = SD_MMC.open(path,FILE_READ);
             
             // Obtenemos su tamaño total
             _mFile = tapFile;
@@ -1349,7 +1350,7 @@ class TAPprocessor
 
                             // Reservamos memoria para el buffer de reproducción
                             bufferPlay = (uint8_t*)(ps_calloc(_myTAP.descriptor[i].size, sizeof(uint8_t)));
-                            sdm.readFileRange32(_mFile,bufferPlay, _myTAP.descriptor[i].offset, _myTAP.descriptor[i].size, false);
+                            readFileRange(_mFile,bufferPlay, _myTAP.descriptor[i].offset, _myTAP.descriptor[i].size, false);
 
                             // *** Cabecera PROGRAM
                             // Llamamos a la clase de reproducción
@@ -1362,7 +1363,7 @@ class TAPprocessor
                         {
                             
                             bufferPlay = (uint8_t*)(ps_calloc(_myTAP.descriptor[i].size, sizeof(uint8_t)));
-                            sdm.readFileRange32(_mFile,bufferPlay, _myTAP.descriptor[i].offset, _myTAP.descriptor[i].size, false);
+                            readFileRange(_mFile,bufferPlay, _myTAP.descriptor[i].offset, _myTAP.descriptor[i].size, false);
 
                             // *** Cabecera BYTE
                             // Llamamos a la clase de reproducción
@@ -1410,8 +1411,8 @@ class TAPprocessor
                                     // Accedemos a la SD y capturamos el bloque del fichero
                                     // Reservamos memoria
                                     bufferPlay = (uint8_t*)ps_calloc(blockSizeSplit, sizeof(uint8_t));
-                                    sdm.readFileRange32(_mFile,bufferPlay, newOffset, blockSizeSplit, true);  
-                                    
+                                    readFileRange(_mFile,bufferPlay, newOffset, blockSizeSplit, true);
+
                                     #ifdef DEBUGMODE
                                         showBufferPlay(bufferPlay,blockSizeSplit,newOffset);
                                     #endif
@@ -1441,8 +1442,8 @@ class TAPprocessor
 
                                 // Accedemos a la SD y capturamos el bloque del fichero
                                 bufferPlay = (uint8_t*)ps_calloc(blockSizeSplit, sizeof(uint8_t));
-                                sdm.readFileRange32(_mFile,bufferPlay, newOffset, blockSizeSplit, true);   
-                                
+                                readFileRange(_mFile,bufferPlay, newOffset, blockSizeSplit, true);
+
                                 #ifdef DEBUGMODE
                                     showBufferPlay(bufferPlay,blockSizeSplit,newOffset); 
                                 #endif
@@ -1460,8 +1461,8 @@ class TAPprocessor
                                 PRG_BAR_OFFSET_INI = _myTAP.descriptor[i].offset;
 
                                 bufferPlay = (uint8_t*)(ps_calloc((_myTAP.descriptor[i].size), sizeof(uint8_t)));
-                                sdm.readFileRange32(_mFile,bufferPlay,_myTAP.descriptor[i].offset, _myTAP.descriptor[i].size, false);
-                                
+                                readFileRange(_mFile,bufferPlay,_myTAP.descriptor[i].offset, _myTAP.descriptor[i].size, false);
+
                                 // if (_myTAP.descriptor[i].size==6914)
                                 // {
                                 //     // Es una pantalla de carga
