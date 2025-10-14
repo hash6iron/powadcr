@@ -645,6 +645,7 @@ void logln(String txt);
 
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
+
 // Define the array of configuration entries
 ConfigEntry configEntries[] = 
 {
@@ -836,58 +837,12 @@ void saveHMIcfg(std::string value)
 
 }
 
-// void save() 
-// {
-//   saveHMIcfg("all");
-// }
-
 void saveVolSliders()
 {
   saveHMIcfg("VOLMopt");
   saveHMIcfg("VOLLopt");
   saveHMIcfg("VOLRopt");  
 }
-// Function to check if a file exists in SD using stat
-// bool backupExistsOnSD() 
-// {
-//   struct stat buffer;
-//   return (stat("/sd/.powadcr.cfg", &buffer) == 0); // 0 means the file exists
-// }
-
-// Function to save configuration to SD using fopen
-// bool saveToSD() {
-//   FILE *file = fopen("/sd/.powadcr.cfg", "w");
-//   if (!file) {
-//       printf("Failed to open .powadcr.cfg for writing\n");
-//       return true;
-//   }
-
-//   for (const auto& entry : configEntries) {
-//       switch (entry.type) {
-//           case CONFIG_TYPE_STRING:
-//               fprintf(file, "%s=%s\n", entry.key, static_cast<std::string*>(entry.value)->c_str());
-//               break;
-//           case CONFIG_TYPE_BOOL:
-//               fprintf(file, "%s=%s\n", entry.key, *static_cast<bool*>(entry.value) ? "true" : "false");
-//               break;
-//           case CONFIG_TYPE_UINT8:
-//               fprintf(file, "%s=%u\n", entry.key, *static_cast<uint8_t*>(entry.value));
-//               break;
-//           case CONFIG_TYPE_UINT16:
-//               fprintf(file, "%s=%u\n", entry.key, *static_cast<uint16_t*>(entry.value));
-//               break;
-//           case CONFIG_TYPE_UINT32:
-//           fprintf(file, "%s=%u\n", entry.key, *static_cast<uint32_t*>(entry.value));
-//               break;
-//           case CONFIG_TYPE_INT8:
-//               fprintf(file, "%s=%d\n", entry.key, *static_cast<int8_t*>(entry.value));
-//               break;
-//       }
-//   }
-
-//   fclose(file);
-//   return false;
-// }
 
 // Function to load configuration from SD using fopen
 bool loadFromSD() {

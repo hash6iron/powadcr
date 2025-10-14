@@ -2092,6 +2092,14 @@ class HMI
         else if (strCmd.indexOf("BBOPEN") != -1)
         {
           // Block browser abierto
+          //
+          // *************************************************************************************************
+          //
+          // NOTA: El tipo de BLOCK BROWSER sea DATA o AUDIO depende del logo visualizado
+          //       esto se controla en el HMI. El HMI decide si visualizar el panel para AUDIO o para TAP/TZX
+          //
+          // *************************************************************************************************
+          //
           BB_OPEN = true;
           BLOCK_BROWSER_OPEN = true;
         }
