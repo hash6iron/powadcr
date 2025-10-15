@@ -70,19 +70,19 @@
 // States of LOG_LEVEL: Debug, Info, Warning, Error
 #define LOG_LEVEL AudioLogger::Error
 
-// Configuración de memoria optimizada
-#define CONFIG_SPIRAM_SUPPORT 1
-#define CONFIG_SPIRAM_USE_MALLOC 1
-#define CONFIG_SPIRAM_TYPE_AUTO 1
+// // Configuración de memoria optimizada
+// #define CONFIG_SPIRAM_SUPPORT 1
+// #define CONFIG_SPIRAM_USE_MALLOC 1
+// #define CONFIG_SPIRAM_TYPE_AUTO 1
 
-// Reducir uso de IRAM
-#define CONFIG_ESP32_WIFI_IRAM_OPT 0
-#define CONFIG_ESP32_WIFI_RX_IRAM_OPT 0
+// // Reducir uso de IRAM
+// #define CONFIG_ESP32_WIFI_IRAM_OPT 0
+// #define CONFIG_ESP32_WIFI_RX_IRAM_OPT 0
 
-// Optimizar stack sizes
-#ifndef CONFIG_ARDUINO_LOOP_STACK_SIZE
-#define CONFIG_ARDUINO_LOOP_STACK_SIZE 8192
-#endif
+// // Optimizar stack sizes
+// #ifndef CONFIG_ARDUINO_LOOP_STACK_SIZE
+// #define CONFIG_ARDUINO_LOOP_STACK_SIZE 8192
+// #endif
 
 // FTP Server
 // #define W5x00_RESET -1
