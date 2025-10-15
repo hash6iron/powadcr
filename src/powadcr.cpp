@@ -70,6 +70,7 @@
 // States of LOG_LEVEL: Debug, Info, Warning, Error
 #define LOG_LEVEL AudioLogger::Error
 
+
 // // Configuración de memoria optimizada
 // #define CONFIG_SPIRAM_SUPPORT 1
 // #define CONFIG_SPIRAM_USE_MALLOC 1
