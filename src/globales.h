@@ -610,9 +610,6 @@ bool AUTO_NEXT = false;
 int MEDIA_CURRENT_POINTER = 0;
 bool CHANGE_TRACK_FILTER = false;
 
-// double LAST_MAIN_VOL = 0.9 * MAIN_VOL_FACTOR;
-// double LAST_MAIN_VOL_R = 0.9 * MAIN_VOL_FACTOR;
-// double LAST_MAIN_VOL_L = 0.9 * MAIN_VOL_FACTOR;
 double MAX_MAIN_VOL = 1 * MAIN_VOL_FACTOR;
 double MAX_MAIN_VOL_R = 1 * MAIN_VOL_FACTOR;
 double MAX_MAIN_VOL_L = 1 * MAIN_VOL_FACTOR;
@@ -636,6 +633,11 @@ bool WF_UPLOAD_TO_SD = 0;
 
 bool SORT_FILES_FIRST_DIR = true;
 bool REGENERATE_IDX = false;
+
+#ifdef BLUETOOTH_ENABLE
+    bool BLUETOOTH_ACTIVE = true;
+    String BLUETOOTH_DEVICE_PAIRED = "JBL T450BT";
+#endif
 
 // Declaraciones de metodos
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++

@@ -66,9 +66,23 @@
 #define FILE_COPY_CONSTRUCTOR_SELECT FILE_COPY_CONSTRUCTOR_PUBLIC
 
 // Enable / Disable Audiokit logging
-#define USE_AUDIO_LOGGING true
+#define USE_AUDIO_LOGGING false
 // States of LOG_LEVEL: Debug, Info, Warning, Error
 #define LOG_LEVEL AudioLogger::Error
+
+// Configuración de memoria optimizada
+#define CONFIG_SPIRAM_SUPPORT 1
+#define CONFIG_SPIRAM_USE_MALLOC 1
+#define CONFIG_SPIRAM_TYPE_AUTO 1
+
+// Reducir uso de IRAM
+#define CONFIG_ESP32_WIFI_IRAM_OPT 0
+#define CONFIG_ESP32_WIFI_RX_IRAM_OPT 0
+
+// Optimizar stack sizes
+#ifndef CONFIG_ARDUINO_LOOP_STACK_SIZE
+#define CONFIG_ARDUINO_LOOP_STACK_SIZE 8192
+#endif
 
 // FTP Server
 // #define W5x00_RESET -1
@@ -109,20 +123,14 @@ EasyNex myNex(SerialHW);
 #include "globales.h"
 //
 #include "AudioTools.h"
-#include "AudioBoard.h"
 #include "AudioTools/AudioLibs/AudioBoardStream.h"
 
 // Definimos la placa de audio
-//#include "AudioTools/Disk/AudioSource.h"
-// #include "AudioTools/Disk/AudioSourceSDFAT.h"
-// #include "AudioTools/Disk/AudioSourceIdxSDFAT.h"
 #include "AudioTools/Disk/AudioSourceIdxSDMMC.h"
 #include "AudioTools/AudioCodecs/CodecWAV.h"
 #include "AudioTools/AudioCodecs/CodecMP3Helix.h"
-//#include "AudioTools/AudioCodecs/CodecFLAC.h"
 #include "AudioTools/AudioCodecs/CodecFLACFoxen.h"
 #include "AudioTools/CoreAudio/AudioFilter/Equalizer.h"
-
 
 #ifdef BLUETOOTH_ENABLE
   #include "AudioTools/AudioLibs/A2DPStream.h"
@@ -244,7 +252,18 @@ bool statusPoweLed = false;
 bool powerLedFixed = false;
 
 // Bluetooth
+#ifdef BLUETOOTH_ENABLE
+  BluetoothA2DPSource a2dp;
+  SynchronizedNBuffer buffer(1024,30, portMAX_DELAY, 10);
+  QueueStream<uint8_t> outbt(buffer); // convert Buffer to Stream
 
+  // Provide data to A2DP
+  int32_t get_data(uint8_t *data, int32_t bytes) {
+    size_t result_bytes = buffer.readArray(data, bytes);
+    //LOGI("get_data_channels %d -> %d of (%d)", bytes, result_bytes , buffer.available());
+    return result_bytes;
+  }
+#endif
 
 //
 void actuatePowerLed(bool enable, uint8_t duty)
@@ -2088,6 +2107,7 @@ void MediaPlayer()
 
     player.setAudioSource(source);
     player.setOutput(eq);
+    
     player.setVolume(1);
     
     auto tempConfig = kitStream.audioInfo();
@@ -2182,6 +2202,13 @@ void MediaPlayer()
         return;
         break;        
     }
+
+    #ifdef BLUETOOTH_ENABLE
+      if (BLUETOOTH_ACTIVE)
+      {
+        player.setOutput(outbt);
+      }
+    #endif
 
     LAST_MESSAGE = "Scanning files ...";
 
@@ -2306,6 +2333,11 @@ void MediaPlayer()
 
     LAST_MESSAGE = "Player ready. Press Play.";
     hmi.writeString("statusLCD.txt=\"" + LAST_MESSAGE + "\"");
+
+    // Si la salida de bluetooth está a tope, no demoramos
+    #ifdef BLUETOOTH_ENABLE
+      player.setDelayIfOutputFull(0);
+    #endif
 
     // ---------------------------------------------------------------
     //
@@ -5712,7 +5744,30 @@ void setup()
   //
   // -------------------------------------------------------------------------
   // Configurar Bluetooth si está habilitado en la configuración
+  #ifdef BLUETOOTH_ENABLE
+    // start QueueStream
+    outbt.begin(80);
+    // start a2dp source
+    hmi.writeString("statusLCD.txt=\"Starting Bluetooth\"");
+    delay(1250);
+  
+    a2dp.set_auto_reconnect(true); 
+    a2dp.set_ssp_enabled(true);
+    
+    a2dp.set_data_callback(get_data);
+    a2dp.start(BLUETOOTH_DEVICE_PAIRED.c_str());
 
+    while(!a2dp.is_connected())
+    {
+      if (a2dp.get_audio_state() == 0)
+      {
+          logln("MEDIA CONTROL ACK SUCCESS");
+      }
+    }
+
+    hmi.writeString("statusLCD.txt=\"Bluetooth connected\"");
+    delay(1250);
+  #endif
 
   // ----------------------------------------------------------
   // Estructura de la SD
