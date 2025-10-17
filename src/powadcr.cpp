@@ -5576,28 +5576,38 @@ void setup()
   char strpath[20] = {};
   strcpy(strpath, "/firmware.bin");
   File firmware = SD_MMC.open(strpath, FILE_READ);
+  logln("Firmware file opened " + String(strpath));
+  delay(2000);
+
   if (firmware)
   {
     hmi.writeString("statusLCD.txt=\"New powadcr firmware found\"");
+    logln("Firmware found on SD_MMC");
     onOTAStart();
+    logln("Updating firmware...");
     log_v("found!");
     log_v("Try to update!");
 
     Update.onProgress(onOTAProgress);
+    
+    size_t firmwareSize = firmware.available();
+    logln("Firmware size: " + String(firmwareSize) + " bytes");
 
-    Update.begin(firmware.size(), U_FLASH);
+    Update.begin(firmwareSize, U_FLASH);
     Update.writeStream(firmware);
     if (Update.end())
     {
       log_v("Update finished!");
       hmi.writeString("statusLCD.txt=\"Update finished\"");
       onOTAEnd(true);
+      delay(2000);
     }
     else
     {
       log_e("Update error!");
       hmi.writeString("statusLCD.txt=\"Update error\"");
       onOTAEnd(false);
+      delay(2000);
     }
 
     firmware.close();
