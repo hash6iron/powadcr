@@ -30,6 +30,28 @@
     
     To Contact the dev team you can write to hash6iron@gmail.com
  +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
+
+//
+// Dependency Graph works fine with v1.0r6 (06/10/2025)
+//
+// |-- WiFi @ 2.0.0
+// |-- WiFiClientSecure @ 2.0.0
+// |-- Easy Nextion Library @ 1.0.6+sha.4bd06b2
+// |-- ESP32-A2DP @ 1.8.8+sha.e86ab93
+// |-- audio-driver @ 0.1.4+sha.c8e422b
+// |-- audio-tools @ 1.2.0+sha.0ad0a61
+// |-- libhelix @ 0.8.9+sha.0d77734
+// |-- libflac @ 1.3.4+sha.2618e4d
+// |-- libopus @ 1.3.2+sha.bae0f85
+// |-- ESP32_FTPSERVER_SD @ 0.0.0+20251006181015.sha.0f6d214
+// |-- libfoxenflac @ 1.0.0+sha.e491d2e
+// |-- SPI @ 2.0.0
+// |-- SD @ 2.0.0
+// |-- FS @ 2.0.0
+// |-- SD_MMC @ 2.0.0
+// |-- Wire @ 2.0.0
+// |-- Update @ 2.0.0
+
 // --------------------------------------------------------------
 // Configuración de memoria optimizada
 // --------------------------------------------------------------
@@ -251,23 +273,3 @@ IPAddress secondaryDNS(0, 0, 0, 0);     // Not Mandatory
 
 
 
-//
-// Dependency Graph works fine with v1.0r6 (06/10/2025)
-//
-// |-- WiFi @ 2.0.0
-// |-- WiFiClientSecure @ 2.0.0
-// |-- Easy Nextion Library @ 1.0.6+sha.4bd06b2
-// |-- ESP32-A2DP @ 1.8.8+sha.e86ab93
-// |-- audio-driver @ 0.1.4+sha.c8e422b
-// |-- audio-tools @ 1.2.0+sha.0ad0a61
-// |-- libhelix @ 0.8.9+sha.0d77734
-// |-- libflac @ 1.3.4+sha.2618e4d
-// |-- libopus @ 1.3.2+sha.bae0f85
-// |-- ESP32_FTPSERVER_SD @ 0.0.0+20251006181015.sha.0f6d214
-// |-- libfoxenflac @ 1.0.0+sha.e491d2e
-// |-- SPI @ 2.0.0
-// |-- SD @ 2.0.0
-// |-- FS @ 2.0.0
-// |-- SD_MMC @ 2.0.0
-// |-- Wire @ 2.0.0
-// |-- Update @ 2.0.0

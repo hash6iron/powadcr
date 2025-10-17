@@ -32,9 +32,7 @@
     To Contact the dev team you can write to hash6iron@gmail.com
  +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
 
-//#include <SD_MMC.h>
 #include <vector>
-
 
 #pragma once
 
