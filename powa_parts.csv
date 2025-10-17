@@ -2,4 +2,4 @@
 nvs,        data,   nvs,        0x09000,    0x005000,	
 otadata,    data,   ota,        0x0e000,    0x002000,	
 ota_0,      app,    ota_0,      0x10000,    0x1F0000,	
-ota_1,      app,    ota_1,      0x20000,    0x1F0000,
+ota_1,      app,    ota_1,      0x200000,    0x1F0000,
