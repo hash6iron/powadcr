@@ -834,7 +834,7 @@ class TAPrecorder
           // new_sr.sample_rate = 44100;
           // akit.setAudioInfo(new_sr);      
           // Cambiamos el sampling rate en el HW
-          AudioInfo new_sr = kitStream.audioInfo();
+          AudioInfo new_sr = kitStream.defaultConfig();
           new_sr.sample_rate = STANDARD_SR_REC_ZX_SPECTRUM;
           kitStream.setAudioInfo(new_sr);   
           // Indicamos

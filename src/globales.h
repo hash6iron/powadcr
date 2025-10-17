@@ -444,6 +444,7 @@ bool LAST_BLOCK_WAS_GROUP_START = false;
 bool LAST_BLOCK_WAS_GROUP_END = false;
 String lastGrp = "";
 String LAST_MESSAGE = "";
+String LAST_LAST_MESSAGE = "";
 String HMI_FNAME = "";
 String lastMsn = "";
 String lastfname = "";
@@ -638,6 +639,9 @@ bool REGENERATE_IDX = false;
     bool BLUETOOTH_ACTIVE = true;
     String BLUETOOTH_DEVICE_PAIRED = "JBL T450BT";
 #endif
+
+// Control remoto de PAUSA
+bool REM_DETECTED = false;
 
 // Declaraciones de metodos
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++

@@ -104,9 +104,71 @@ class ZXProcessor
         uint8_t _mask_last_byte = 8;
 
         //AudioKitStream m_kit;
+        void tapeAnimationON()
+        {
+            // Activamos animacion cinta
+            _hmi.writeString("tape.tmAnimation.en=1");
+            delay(50);
+            _hmi.writeString("tape.tmAnimation.en=1");
+        }
+
+        void tapeAnimationOFF()
+        {
+            // Desactivamos animacion cinta
+            _hmi.writeString("tape.tmAnimation.en=0");
+            delay(50);
+            _hmi.writeString("tape.tmAnimation.en=0");
+        }
+
+        bool remDetection()
+        {
+            #ifdef MSX_REMOTE_PAUSE
+              if (digitalRead(GPIO_MSX_REMOTE_PAUSE) == LOW)
+              {
+                // Informamos del REM detectado
+                //LAST_MESSAGE = "REM detected.";
+                hmi.writeString("tape.wavind.txt=\"REM\"");
+                // Paramos la ani. de la cinta
+                tapeAnimationOFF();
+                // Flag del REM a true
+                REM_DETECTED = true;
+                // volvemos
+                return true;
+              }
+              else
+              {
+                if (REM_DETECTED)
+                {
+                    // Recuperamos el mensaje original
+                    //LAST_MESSAGE = "Loading in progress. Please wait...";
+                    hmi.writeString("tape.wavind.txt=\"\"");
+                    #ifdef DEBUGMODE
+                        logln("REM released");
+                        logln(LAST_LAST_MESSAGE);
+                    #endif
+                    // Activamos la animacion
+                    tapeAnimationON();
+                    // Reseteamos el flag
+                    REM_DETECTED = false;
+                }
+                //
+                return false;
+              }
+            #endif              
+        }
 
         bool stopOrPauseRequest()
         {
+            // Control de REM detection
+            while (remDetection())
+            {
+                if (STOP || EJECT)
+                {
+                    break;
+                }
+                // delay(1);
+            }
+
             if (STOP)
             {
                 LAST_MESSAGE = "Stop requested. Wait.";
@@ -122,7 +184,7 @@ class ZXProcessor
                 ACU_ERROR = 0;
                 STOP_OR_PAUSE_REQUEST = true;
                 return true;
-            }
+            }          
             else
             {
                 return false;   
@@ -179,6 +241,7 @@ class ZXProcessor
                     forzeExit = true;
                     return;
                 }
+
             }
 
             if (!forzeExit)
@@ -321,7 +384,7 @@ class ZXProcessor
                     // Salimos
                     return;
                 }
-                                
+
                 //R-OUT - Right channel output (Amplified output) and current output.
                 *ptr++ = sample_R;
                 //L-OUT - Left channel output (Speaker)
@@ -380,6 +443,8 @@ class ZXProcessor
                 // Salimos
                 return;
             }
+
+            
         }
 
         void semiPulse(int width, bool changeNextEARedge = true, long calibrationValue = 0)
