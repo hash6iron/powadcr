@@ -1,0 +1,112 @@
+name: Build and Release powadcr Firmware
+
+on:
+  release:
+    types: [created]
+  workflow_dispatch:
+  
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        env: [esp32devCOM]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.x'
+
+    - name: Install PlatformIO Core
+      run: |
+        python -m pip install --upgrade pip
+        pip install platformio setuptools
+
+    - name: Build powadcr firmware
+      run: platformio run -e esp32devCOM
+
+    - name: Upload powadcr firmware artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: powadcr-firmware-esp32devCOM
+        path: |
+          .pio/build/esp32devCOM/firmware.bin
+          .pio/build/esp32devCOM/bootloader.bin
+          .pio/build/esp32devCOM/partitions.bin
+
+  create-release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: success()
+
+    steps:
+    - uses: actions/labeler@v2
+      with:
+        repo-token: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0      
+
+    - name: Download Build Artifacts (esp32devCOM)
+      uses: actions/download-artifact@v4
+      with:
+        name: powadcr-firmware-esp32devCOM
+        path: ./firmwares/esp32devCOM
+
+    - name: Install GitHub CLI
+      run: sudo apt-get install -y gh
+
+    - name: Update Release
+      run: |
+        gh release edit "${{ github.ref_name }}" --title "Release ${{ github.ref_name }}"
+      env:
+        GITHUB_TOKEN: ${{ github.token }}
+
+    - name: Install esptool
+      run: python -m pip install esptool
+
+    - name: Merge firmware binaries into one image (esp32devCOM)
+      run: |
+        esptool.py --chip esp32 merge_bin -o ./firmwares/complete_firmware.bin \
+          --flash_mode dio \
+          --flash_freq 40m \
+          --flash_size 4MB \
+          0x1000 ./firmwares/esp32devCOM/bootloader.bin \
+          0x8000 ./firmwares/esp32devCOM/partitions.bin \
+          0x40000 ./firmwares/esp32devCOM/firmware.bin \
+    - name: Get Release Upload URL
+      id: get_release
+      run: |
+        url=$(gh release view "${{ github.ref_name }}" --json uploadUrl -q .uploadUrl)
+        echo "upload_url=$url" >> $GITHUB_ENV
+      env:
+        GITHUB_TOKEN: ${{ github.token }}
+
+    - name: Upload Complete Firmware (esp32devCOM) to Release
+      uses: actions/upload-release-asset@v1
+      with:
+        upload_url: ${{ env.upload_url }}
+        asset_path: ./firmwares/complete_firmware.bin
+        asset_name: complete_firmware.bin
+        asset_content_type: application/octet-stream
+      env:
+        GITHUB_TOKEN: ${{ github.token }}
+
+    - name: Upload Firmware Upgrade (esp32devCOM) to Release
+      uses: actions/upload-release-asset@v1
+      with:
+        upload_url: ${{ env.upload_url }}
+        asset_path: ./firmwares/esp32devCOM/firmware.bin
+        asset_name: firmware.bin
+        asset_content_type: application/octet-stream
+      env:
+        GITHUB_TOKEN: ${{ github.token }}
