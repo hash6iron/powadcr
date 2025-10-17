@@ -30,13 +30,57 @@
     
     To Contact the dev team you can write to hash6iron@gmail.com
  +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
+// --------------------------------------------------------------
+// Configuración de memoria optimizada
+// --------------------------------------------------------------
 
+// #define CONFIG_SPIRAM_SUPPORT 1
+// #define CONFIG_SPIRAM_USE_MALLOC 1
+// #define CONFIG_SPIRAM_TYPE_AUTO 1
 
+// // Reducir uso de IRAM
+// #define CONFIG_ESP32_WIFI_IRAM_OPT 0
+// #define CONFIG_ESP32_WIFI_RX_IRAM_OPT 0
 
-// Machine
-//
-// 0 for ZX Spectrum
-#define VERSION "1.0r6"
+// // Optimizar stack sizes
+// #ifndef CONFIG_ARDUINO_LOOP_STACK_SIZE
+// #define CONFIG_ARDUINO_LOOP_STACK_SIZE 8192
+// #endif
+
+// --------------------------------------------------------------
+// Configuración necesaria para powaDCR
+// --------------------------------------------------------------
+
+// Definimos la ganancia de la entrada de linea (para RECORDING)
+#define WORKAROUND_ES8388_LINE1_GAIN MIC_GAIN_MAX
+#define WORKAROUND_ES8388_LINE2_GAIN MIC_GAIN_MAX
+
+// Mezcla LINE 1 and LINE 2.
+#define WORKAROUND_MIC_LINEIN_MIXED false
+
+// Esencial para poder variar la ganancia de salida de HPLINE y ROUT, LOUT
+#define AI_THINKER_ES8388_VOLUME_HACK 1
+
+// For SDFat >2.3.0 version
+#define FILE_COPY_CONSTRUCTOR_SELECT FILE_COPY_CONSTRUCTOR_PUBLIC
+
+// Enable / Disable Audiokit logging
+#define USE_AUDIO_LOGGING false
+// States of LOG_LEVEL: Debug, Info, Warning, Error
+#define LOG_LEVEL AudioLogger::Error
+// Definicion del puerto serie para la pantalla
+#define SerialHWDataBits 921600
+#define hmiTxD 23
+#define hmiRxD 18
+#define powerLed 22
+#define GPIO_MSX_REMOTE_PAUSE 19
+#define WDT_TIMEOUT 360000
+
+// --------------------------------------------------------------
+// Configuración del sistema
+// --------------------------------------------------------------
+
+#define VERSION "1.0r6.1"
 #define MACHINE_ZX
 
 // Define sampling rate a 44.1KHz. En otro caso será a 32KHz
@@ -48,7 +92,7 @@
 // Activa el test de sampling para calibrado de la salida ES83883
 //#define SAMPLINGTESTACTIVE
 
-// Para activar el modo debug
+// Descomentar para activar el modo debug
 //#define DEBUGMODE
 
 // Descomentar para test de reproducción en memoria
@@ -56,16 +100,16 @@
 
 #define SD_CHIP_SELECT 13 // Pin CS de la SD
 
+// --------------------------------------------------------------
 // Interfaz
 // --------------------------------------------------------------
 // CFG_FORZE_SINC_HMI = false --> No espera sincronizar con HMI
 // CFG_FORZE_SINC_HMI = true  --> Espera sincronizar con HMI
 #define CFG_FORZE_SINC_HMI true
 
+// --------------------------------------------------------------
 // Browser
 // --------------------------------------------------------------
-// Numero máximo de ficheros que se listan por directorio.
-// Numero total de lineas de una pagina del file browser
 #define TOTAL_FILES_IN_BROWSER_PAGE 13  // No se cuenta la primera fila que es para el path
 #define MAX_FILES_TO_LOAD           14  // Esto siempre es TOTAL_FILES_IN_BROWSER_PAGE + 1
 #define MAX_BLOCKS_IN_BROWSER       13
@@ -80,6 +124,7 @@
 #define SPECIAL_FILE_COLOR  44405
 #define OTHER_FILES_COLOR   44405
 
+// --------------------------------------------------------------
 // Player / SD
 // -------------------------------------------------------------------
 // Frecuencia inicial de la SD
@@ -95,26 +140,31 @@
 #define DEFAULT_WAV_SAMPLING_RATE_REC         44100 
 #define DEFAULT_WAV_SAMPLING_RATE_PLAY_TO_WAV 21000
 
-//
 // Porcentaje de avance rapido
-#define FAST_FORWARD_PER 0.02     
-#define FAST_REWIND_PER 0.02     
-// Demora en ms para saltar a avance super-rapido
-#define TIME_TO_FAST_FORWRD 1500
-// Tiempo para volver al principio o pista anterior
-#define TIME_MAX_TO_PREVIOUS_TRACK 5000
-// Pausa entre saltos de avance rápido en ms
-#define DELAY_ON_EACH_STEP_FAST_FORWARD 125
-#define DELAY_ON_EACH_STEP_FAST_REWIND 125
-// Tone adjustment for ZX Spectrum - Samples
-#define TONE_ADJUSTMENT_ZX_SPECTRUM 0.0
-#define TONE_ADJUSTMENT_ZX_SPECTRUM_LIMIT 5
-//
-#define TIME_TO_SHOW_ESTIMATED_TIME 40
-#define PER_TO_SHOW_ESTIMATED_TIME 3
+#define FAST_FORWARD_PER                              0.02     
+#define FAST_REWIND_PER                               0.02     
 
-#define MAX_FILES_AUDIO_LIST 2000
-#define MAX_SUBDIRS_AUDIO_LIST 512
+// Demora en ms para saltar a avance super-rapido
+#define TIME_TO_FAST_FORWRD                           1500
+
+// Tiempo para volver al principio o pista anterior
+#define TIME_MAX_TO_PREVIOUS_TRACK                    5000
+
+// Pausa entre saltos de avance rápido en ms
+#define DELAY_ON_EACH_STEP_FAST_FORWARD               125
+#define DELAY_ON_EACH_STEP_FAST_REWIND                125
+
+// Tone adjustment for ZX Spectrum - Samples
+#define TONE_ADJUSTMENT_ZX_SPECTRUM                   0.0
+#define TONE_ADJUSTMENT_ZX_SPECTRUM_LIMIT             5
+
+// Tiempo para mostrar el tiempo estimado
+#define TIME_TO_SHOW_ESTIMATED_TIME                   40
+#define PER_TO_SHOW_ESTIMATED_TIME                    3
+
+// Maximo numero de ficheros capturados en la lista de audio por directorio
+#define MAX_FILES_AUDIO_LIST                          512
+
 // ---------------------------------------------------------------------------------------------
 // NO COMENTAR SI SE ESTÁ USANDO 22200 Hz en otro caso hay que usar 44100 para recording
 // Si se usa el sampling rate de ZX Spectrum (22.2KHz) para la grabación y reproducción de TAPs
@@ -124,13 +174,16 @@
 // Particion mas pequeña de un silencio
 #define MIN_FRAME_FOR_SILENCE_PULSE_GENERATION 256
 
+// --------------------------------------------------------------
 // Recording
 // -------------------------------------------------------------------
+
 // Comentar esta linea para hacer uso de PCM
 //#define USE_ADPCM_ENCODER
 
+// --------------------------------------------------------------
 // TAP config.
-// ********************************************************************
+// --------------------------------------------------------------
 // Acorta el tono guia del bloque data despues de header
 #define LEVEL_REDUCTION_HEADER_TONE_IN_TAP 1
 
@@ -190,8 +243,12 @@ IPAddress secondaryDNS(0, 0, 0, 0);     // Not Mandatory
 //#define BLUETOOTH_ENABLE
 #define FTP_SERVER_ENABLE
 
+// Control remoto de PAUSA
+#define MSX_REMOTE_PAUSE
+
 // Parametros internos
 #define MAIN_VOL_FACTOR 100
+
 
 
 //

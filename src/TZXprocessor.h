@@ -98,7 +98,7 @@ class TZXprocessor
                 LOADING_STATE = 3; // PAUSE del bloque actual
                 return true;
             }
-        }      
+          }      
 
         return false;   
     }
@@ -3557,6 +3557,38 @@ class TZXprocessor
                   {
                     break;
                   }
+
+                  // #ifdef MSX_REMOTE_PAUSE
+                  // if (digitalRead(GPIO_MSX_REMOTE_PAUSE) == LOW && !REM_DETECTED)
+                  // {
+                  //   LAST_MESSAGE = "Remote pause detected";
+                  //   LOADING_STATE = 3; // REM PAUSE del bloque actual
+                  //   REM_DETECTED = true;
+                  //   AUTO_PAUSE = true;
+                  //   PAUSE = true;
+                  //   STOP = false;
+                  //   PLAY = false;
+                  //   ABORT = false;
+                    
+                  //   // Dejamos preparado el sieguiente bloque
+                  //   CURRENT_BLOCK_IN_PROGRESS++;
+                  //   BLOCK_SELECTED++;
+                  //   //WAITING_FOR_USER_ACTION = true;
+
+                  //   if (BLOCK_SELECTED >= _myTZX.numBlocks)
+                  //   {
+                  //       // Reiniciamos
+                  //       CURRENT_BLOCK_IN_PROGRESS = 1;
+                  //       BLOCK_SELECTED = 1;
+                  //   }
+
+                  //   #ifdef DEBUGMODE
+                  //     logln("REM detected. Delay 5000");
+                  //   #endif
+
+                  //   break;
+                  // }
+                  // #endif
 
                   if (stopOrPauseRequest())
                   {

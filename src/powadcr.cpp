@@ -51,43 +51,7 @@
 
  +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
 
-// Definimos la ganancia de la entrada de linea (para RECORDING)
-#define WORKAROUND_ES8388_LINE1_GAIN MIC_GAIN_MAX
-#define WORKAROUND_ES8388_LINE2_GAIN MIC_GAIN_MAX
 
-// Mezcla LINE 1 and LINE 2.
-#define WORKAROUND_MIC_LINEIN_MIXED false
-
-// Esencial para poder variar la ganancia de salida de HPLINE y ROUT, LOUT
-#define AI_THINKER_ES8388_VOLUME_HACK 1
-// #define USE_A2DP
-
-// For SDFat >2.3.0 version
-#define FILE_COPY_CONSTRUCTOR_SELECT FILE_COPY_CONSTRUCTOR_PUBLIC
-
-// Enable / Disable Audiokit logging
-#define USE_AUDIO_LOGGING false
-// States of LOG_LEVEL: Debug, Info, Warning, Error
-#define LOG_LEVEL AudioLogger::Error
-
-
-// // Configuración de memoria optimizada
-// #define CONFIG_SPIRAM_SUPPORT 1
-// #define CONFIG_SPIRAM_USE_MALLOC 1
-// #define CONFIG_SPIRAM_TYPE_AUTO 1
-
-// // Reducir uso de IRAM
-// #define CONFIG_ESP32_WIFI_IRAM_OPT 0
-// #define CONFIG_ESP32_WIFI_RX_IRAM_OPT 0
-
-// // Optimizar stack sizes
-// #ifndef CONFIG_ARDUINO_LOOP_STACK_SIZE
-// #define CONFIG_ARDUINO_LOOP_STACK_SIZE 8192
-// #endif
-
-// FTP Server
-// #define W5x00_RESET -1
-// #define CS_SDCARD 13
 // Includes
 // ===============================================================
 #include <Arduino.h>
@@ -106,14 +70,10 @@
 TaskHandle_t Task0;
 TaskHandle_t Task1;
 
-// Definicion del puerto serie para la pantalla
-#define SerialHWDataBits 921600
-#define hmiTxD 23
-#define hmiRxD 18
-#define powerLed 22
+
 
 #include <esp_task_wdt.h>
-#define WDT_TIMEOUT 360000
+
 
 #include <HardwareSerial.h>
 HardwareSerial SerialHW(2);
@@ -134,7 +94,7 @@ EasyNex myNex(SerialHW);
 #include "AudioTools/CoreAudio/AudioFilter/Equalizer.h"
 
 #ifdef BLUETOOTH_ENABLE
-  #include "AudioTools/AudioLibs/A2DPStream.h"
+  #include "AudioTools/Communication/A2DPStream.h"
 #endif
 
 // Definimos el stream para Audiokit
@@ -203,15 +163,6 @@ uint16_t USER_CONFIG_ARDUINO_LOOP_STACK_SIZE = 16384;
 // #include "esp_err.h"
 // #include "esp_spiffs.h"
 
-// WEBFILE SERVER
-// -----------------------------------------------------------------------
-// #include "webpage.h"
-// #include "webserver.h"
-
-// FTP Server
-// -----------------------------------------------------------------------
-// #include <SimpleFtpServer.h>
-// FtpServer ftpSrv; 
 #ifdef FTP_SERVER_ENABLE
   #include "ESP32FtpServer.h"
   FtpServer ftpSrv;
@@ -845,9 +796,9 @@ void WavRecording()
   unsigned long progress_millis2 = 0;
   int rectime_s = 0;
   int rectime_m = 0;
+  size_t wavfilesize = 0;
 
-  AudioInfo new_sr = kitStream.audioInfo();
-  //
+  AudioInfo new_sr = kitStream.defaultConfig();
   // Guardamos la configuracion de sampling rate
   SAMPLING_RATE = new_sr.sample_rate;
 
@@ -902,7 +853,7 @@ void WavRecording()
   // Deshabilitamos el amplificador de salida
   // Con esto ajustamos la salida a la del recorder.
   showOption("menuAudio.mutAmp.val",String(false));
-  kitStream.setPAPower(false); 
+  kitStream.setPAPower(ACTIVE_AMP && EN_SPEAKER); 
   STOP = false;
 
   WAVFILE_PRELOAD = false;
@@ -922,16 +873,16 @@ void WavRecording()
   while (!STOP)
   {
     // Grabamos a WAV file
-    
-    if (WAV_8BIT_MONO)
-    {
-      //copier8bitPCM.copy();
-      copier8bWAV.copy();
-    }
-    else
-    {
-      copier.copy();
-    }
+    wavfilesize += WAV_8BIT_MONO ? copier8bWAV.copy() : copier.copy();    
+    // if (WAV_8BIT_MONO)
+    // {
+    //   //copier8bitPCM.copy();
+    //   wavfilesize += copier8bWAV.copy();
+    // }
+    // else
+    // {
+    //   wavfilesize += copier.copy();
+    // }
 
     // Sacamos audio por la salida
 
@@ -951,25 +902,15 @@ void WavRecording()
     if ((millis() - progress_millis2) > 2000)
     {
       LAST_MESSAGE = "Recording time: " + ((rectime_m < 10 ? "0" : "") + String(rectime_m)) + ":" + ((rectime_s < 10 ? "0" : "") + String(rectime_s));     
-
-      if (wavfile.size() > 1000000)
-      {
-        // Megabytes
-        hmi.writeString("size.txt=\"" + String(wavfile.size() / 1024 / 1024) + " MB\"");
-      }
-      else
-      {
-        // Kilobytes
-        hmi.writeString("size.txt=\"" + String(wavfile.size() / 1024) + " KB\"");
-      }
-
+      hmi.writeString("size.txt=\"" + String(wavfilesize > 1000000 ? wavfilesize / 1024 / 1024 : wavfilesize / 1024) + 
+                                            (wavfilesize > 1000000 ? " MB" : " KB") + "\"");
       progress_millis2 = millis();
     }
     
   }
 
   logln("File has ");
-  log(String(wavfile.size() / 1024));
+  log(String(wavfilesize / 1024));
   log(" Kbytes");
 
   // Paramos todo
@@ -984,19 +925,8 @@ void WavRecording()
   LAST_MESSAGE = "Recording finish";
   logln("Recording finish!");
 
-  // delay(1500);
-
-  if (wavfile.size() > 1000000)
-  {
-    // Megabytes
-    hmi.writeString("size.txt=\"" + String(wavfile.size() / 1024 / 1024) + " MB\"");
-  }
-  else
-  {
-    // Kilobytes
-    hmi.writeString("size.txt=\"" + String(wavfile.size() / 1024) + " KB\"");
-  }
-
+   hmi.writeString("size.txt=\"" + String(wavfilesize > 1000000 ? wavfilesize / 1024 / 1024 : wavfilesize / 1024) + 
+                                         (wavfilesize > 1000000 ? " MB" : " KB") + "\"");
   
   // Cerramos el stream
   copier8bWAV.end();
@@ -1021,7 +951,7 @@ void WavRecording()
   hmi.writeString("tape.lblFreq.txt=\"" + String(int(SAMPLING_RATE/1000)) + "KHz\"" );  
   //
   showOption("menuAudio.mutAmp.val",String(ACTIVE_AMP));
-  kitStream.setPAPower(ACTIVE_AMP);
+  kitStream.setPAPower(ACTIVE_AMP && EN_SPEAKER);
 
   WAVFILE_PRELOAD = true;
 }
@@ -2043,7 +1973,9 @@ void MediaPlayer()
 
     // Aplicamos configuración a la board
     auto cfg = kitStream.audioInfo();
-    kitStream.setPAPower(ACTIVE_AMP);
+
+    // Actuamos el amplificador
+    kitStream.setPAPower(ACTIVE_AMP && EN_SPEAKER);
     kitStream.setVolume(MAIN_VOL / 100);
 
     // Configuración de la fuente de audio - old version
@@ -2118,14 +2050,10 @@ void MediaPlayer()
     {
       case 'w':
         // WAV
-        // Iniciamos medidor
-        //measureWAV.begin();
         // Iniciamos el decoder
         decoderWAV.begin();
         
         // Configuramos el player con el decoder
-        //measureWAV.setOutput(eq);
-        //player.setOutput(measureWAV);
         player.setDecoder(decoderWAV);
         
         // Configuramos temporalmente el audio a 22050Hz hasta que leamos el archivo real
@@ -2149,7 +2077,6 @@ void MediaPlayer()
         measureMP3.setOutput(eq);
         player.setDecoder(metadatafilter);
         player.setOutput(measureMP3);
-        //player.setDecoder(decoderMP3);
         // Dimensionado del buffer de mp3
         player.setBufferSize(2048); // 4096 KB para MP3     
         
@@ -2192,15 +2119,14 @@ void MediaPlayer()
           PLAY = false;
           return;
         }           
-        //measureFLAC.setOutput(eq);
-        //player.setOutput(measureFLAC);        
         player.setDecoder(decoderFLAC);
         logln("FLAC decoder set in player");
         break;        
-      default:
-        LAST_MESSAGE = "Unsupported format";
-        delay(1500);
-        return;
+
+        default:
+          LAST_MESSAGE = "Unsupported format";
+          delay(1500);
+          return;
         break;        
     }
 
@@ -2373,7 +2299,7 @@ void MediaPlayer()
 
         if (AMP_CHANGE || SPK_CHANGE)
         {
-            kitStream.setPAPower(ACTIVE_AMP & EN_SPEAKER);
+            kitStream.setPAPower(ACTIVE_AMP && EN_SPEAKER);
             AMP_CHANGE = false;
             SPK_CHANGE = false;
         }
@@ -2455,6 +2381,7 @@ void MediaPlayer()
 
             case 1: // Reproduciendo PLAY
               
+                // Salida inesperada desde MediaPlayer.
                 if (!AUDIO_FORMART_IS_VALID)
                 {
                   LAST_MESSAGE = "Audio format error.";
@@ -3299,7 +3226,7 @@ void playingFile()
 {
   rotate_enable = true;
   kitStream.setVolume(MAX_MAIN_VOL);
-  kitStream.setPAPower(ACTIVE_AMP & EN_SPEAKER);
+  kitStream.setPAPower(ACTIVE_AMP && EN_SPEAKER);
 
   AudioInfo new_sr;
   
@@ -3432,15 +3359,15 @@ void playingFile()
     logAlert("Unknown type_file_load");
   }
 
+  // Modificado 17/10/2025
 
-
-  // Por defecto
-  // Cambiamos el sampling rate en el HW
-  // SAMPLING_RATE = LAST_SAMPLING_RATE;
-  // new_sr.sample_rate = SAMPLING_RATE;
-  // kitStream.setAudioInfo(new_sr);      
-  // // Indicamos el sampling rate
-  // hmi.writeString("tape.lblFreq.txt=\"" + String(int(SAMPLING_RATE/1000)) + "KHz\"" );
+      // Por defecto
+      // Cambiamos el sampling rate en el HW
+      SAMPLING_RATE = LAST_SAMPLING_RATE;
+      new_sr.sample_rate = SAMPLING_RATE;
+      kitStream.setAudioInfo(new_sr);      
+      // Indicamos el sampling rate
+      hmi.writeString("tape.lblFreq.txt=\"" + String(int(SAMPLING_RATE/1000)) + "KHz\"" );
 }
 
 void verifyConfigFileForSelection()
@@ -3490,11 +3417,13 @@ void verifyConfigFileForSelection()
           SAMPLING_RATE = (getValueOfParam(fileCfg[i].cfgLine, "freq")).toInt();
           
           // CAmbiamos el sampling rate del hardware de salida
-          auto cfg = kitStream.audioInfo();
+          //auto cfg = kitStream.audioInfo();
+          auto cfg = kitStream.defaultConfig();
           cfg.sample_rate = SAMPLING_RATE;
           kitStream.setAudioInfo(cfg);
 
-          auto cfg2 = kitStream.audioInfo();
+          //auto cfg2 = kitStream.audioInfo();
+          auto cfg2 = kitStream.defaultConfig();
           cfg2.sample_rate = SAMPLING_RATE;
           kitStream.setAudioInfo(cfg2);
 
@@ -4266,9 +4195,10 @@ void setRWIND()
   rewindAnimation(-1);
 }
 
+// Modificado 17/10/2025
 void recoverEdgeBeginOfBlock()
 {
-  if (TYPE_FILE_LOAD == "TZX")
+  if (TYPE_FILE_LOAD == "TZX" || TYPE_FILE_LOAD == "CDT" || TYPE_FILE_LOAD == "TSX")
   {
     // Recuperamos el flanco con el que empezo el bloque
     EDGE_EAR_IS = myTZX.descriptor[BLOCK_SELECTED].edge;
@@ -4449,6 +4379,7 @@ void tapeControl()
       }
       //
       playingFile();
+      logln("End of CASE 1 - PLAY from REC");
     }
     else if (EJECT && !STOP_OR_PAUSE_REQUEST)
     {
@@ -4468,28 +4399,30 @@ void tapeControl()
       TAPESTATE = 3;
       // Esto la hacemos para evitar una salida inesperada de seleccion de bloques.
       PAUSE = false;
-      if (TYPE_FILE_LOAD == "WAV")
+      //
+      // if (TYPE_FILE_LOAD == "WAV")
+      // {
+      //   LAST_MESSAGE = "Playing paused.";
+      // }
+      // else
+      // {
+      if (AUTO_PAUSE)
       {
-        LAST_MESSAGE = "Playing paused.";
+        logln("Auto-pause activated");
+        LAST_MESSAGE = "Tape auto-paused. Follow machine instructions.";
+        ABORT = false;
+        STOP = false;
       }
       else
       {
-
-        if (AUTO_PAUSE)
+        if (LAST_BLOCK_WAS_GROUP_START)
         {
-          LAST_MESSAGE = "Tape auto-paused. Follow machine instructions.";
-        }
-        else
-        {
-          LAST_MESSAGE = "Tape paused. Press play or select block.";
-
-          if (LAST_BLOCK_WAS_GROUP_START)
-          {
-            // Localizamos el GROUP START
-            prevGroupBlock();
-          }
+          // Localizamos el GROUP START
+          prevGroupBlock();
         }
       }
+    
+        // }
 
       if (OUT_TO_WAV)
       {
@@ -4615,8 +4548,10 @@ void tapeControl()
     LOADING_STATE = 3;
     //Activamos la animación
     tapeAnimationOFF();
+
     // Reproducimos el fichero
     LAST_MESSAGE = "Tape paused. Press play or select block.";
+    
     //
     if (PLAY)
     {
@@ -4678,7 +4613,6 @@ void tapeControl()
       BB_UPDATE = false;
       BB_OPEN = false;
     }
-
     else if (EJECT && !STOP_OR_PAUSE_REQUEST)
     {
       TAPESTATE = 0;
@@ -4876,6 +4810,8 @@ void tapeControl()
               // Esto lo hacemos para llevar el control desde el WAV player
               logln("Playing file CASE 100:");
               playingFile();
+              logln("End of CASE 100 - PLAY from REC");
+
             }
           }
           else
@@ -4991,9 +4927,7 @@ void tapeControl()
         // Pasamos la ruta del fichero al mediaPlayer
         FILE_LAST_DIR = "/WAV";
         // y el fichero seleccionado
-        PATH_FILE_TO_LOAD = FILE_LOAD;
-        // Escaneamos por los nuevos ficheros
-        // LAST_MESSAGE = "Rescaning files";
+        PATH_FILE_TO_LOAD = FILE_LAST_DIR + "/" + FILE_LOAD;
 
         hmi.reloadDir();
         //
@@ -5001,7 +4935,8 @@ void tapeControl()
         // Eliminamos la ruta del fichero y nos quedamos con el nombre y la extensión
         FILE_LOAD = getFileNameFromPath(FILE_LOAD);
         // Esto lo hacemos para llevar el control desde el WAV player
-        playingFile();          
+        playingFile();    
+        logln("End of CASE 130 - PLAY from REC");      
       }
     }  
     else if (REC)
@@ -5464,6 +5399,9 @@ bool createSpecialDirectory(String fDir)
 
 void setup()
 {
+
+
+
   // Inicializar puerto USB Serial a 115200 para depurar / subida de firm
   Serial.begin(115200);
 
@@ -5504,10 +5442,10 @@ void setup()
   powadcr_pins.addPin(PinFunction::PA, 21, PinLogic::Output);
 
   // Teclas
-  powadcr_pins.addPin(PinFunction::KEY, 36, PinLogic::InputActiveLow, 1);
-  powadcr_pins.addPin(PinFunction::KEY, 13, PinLogic::InputActiveLow, 2);
-  powadcr_pins.addPin(PinFunction::KEY, 19, PinLogic::InputActiveLow, 3);
-  powadcr_pins.addPin(PinFunction::KEY, 5, PinLogic::InputActiveLow, 6);
+  //powadcr_pins.addPin(PinFunction::KEY, 36, PinLogic::InputActiveLow, 1);
+  //powadcr_pins.addPin(PinFunction::KEY, 13, PinLogic::InputActiveLow, 2);
+  //powadcr_pins.addPin(PinFunction::KEY, 19, PinLogic::InputActiveLow, 3);
+  //powadcr_pins.addPin(PinFunction::KEY, 5, PinLogic::InputActiveLow, 6);
   // Deteccion de cable conectado al AMP
   powadcr_pins.addPin(PinFunction::AUXIN_DETECT, 12, PinLogic::InputActiveLow);
   // Deteccion de cable conectado al HEADPHONE
@@ -5516,6 +5454,7 @@ void setup()
   powadcr_pins.addPin(PinFunction::PA, 21, PinLogic::Output);
   // Power led indicador
   powadcr_pins.addPin(PinFunction::LED, 22, PinLogic::Output);
+
   //
   auto cfg = kitStream.defaultConfig(RXTX_MODE);
   cfg.bits_per_sample = 16;
@@ -5534,22 +5473,21 @@ void setup()
   kitStream.setInputVolume(IN_REC_VOL);
 
   // Para que esta linea haga efecto debe estar el define 
-  // #define USE_AUDIO_LOGGING true
   //
   #if USE_AUDIO_LOGGING
     //AudioToolsLogger.begin(Serial, AudioToolsLogLevel::Debug);
-  #endif
-  
-  // hmi.writeString("statusLCD.txt=\"Setting audio board - BT\"");
-  // delay(1250);
-
-  // set intial volume
-  //btstream.setVolume(0.3);
+  #endif  
 
   // Arrancamos el indicador de power
   actuatePowerLed(true,POWERLED_DUTY);
   //
   // ----------------------------------------------------------------------
+
+  #ifdef MSX_REMOTE_PAUSE
+    hmi.writeString("statusLCD.txt=\"Setting Remote Pause\"");
+    delay(1250);
+    pinMode(GPIO_MSX_REMOTE_PAUSE, INPUT_PULLUP);
+  #endif
 
   // Configuramos acceso a la SD
 
@@ -5958,9 +5896,6 @@ void setup()
     hmi.writeString("menuAudio.volL.val=" + String(MAIN_VOL_L));
     hmi.writeString("menuAudio.volLevel.val=" + String(MAIN_VOL_L)); 
   }
-  else
-  {}
-
 
   if (EN_SPEAKER)
   {
@@ -5992,7 +5927,7 @@ void setup()
   EQ_CHANGE = true;
   
   // Esto lo hacemos porque depende de la configuración cargada.
-  kitStream.setPAPower(ACTIVE_AMP);   
+  kitStream.setPAPower(ACTIVE_AMP && EN_SPEAKER);   
   //
   delay(500);
 

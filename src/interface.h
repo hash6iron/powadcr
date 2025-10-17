@@ -59,141 +59,141 @@ bool button6_down = false;
 
 void configureButtons()
 {
-    pinMode(button1_GPIO, INPUT);
-    pinMode(button2_GPIO, INPUT);
-    pinMode(button3_GPIO, INPUT);
-    pinMode(button4_GPIO, INPUT);
-    pinMode(button5_GPIO, INPUT);
-    pinMode(button6_GPIO, INPUT);
+    // pinMode(button1_GPIO, INPUT);
+    // pinMode(button2_GPIO, INPUT);
+    // pinMode(button3_GPIO, INPUT);
+    // pinMode(button4_GPIO, INPUT);
+    // pinMode(button5_GPIO, INPUT);
+    // pinMode(button6_GPIO, INPUT);
 }
 
 void showMenu(int nMenu)
 {}
 
-void button1Action()
-{
-    // PLAY
-    hmi.writeString("click btnPlay,1");
-}
+// void button1Action()
+// {
+//     // PLAY
+//     hmi.writeString("click btnPlay,1");
+// }
 
-void button2Action()
-{
+// void button2Action()
+// {
 
-    // PAUSE
-    hmi.writeString("click btnPause,1");    
-}
+//     // PAUSE
+//     hmi.writeString("click btnPause,1");    
+// }
 
-void button3Action()
-{
+// void button3Action()
+// {
 
-    // STOP
-    hmi.writeString("click btnStop,1");    
-}
+//     // STOP
+//     hmi.writeString("click btnStop,1");    
+// }
 
-void button4Action()
-{
-    // RWIND
-    hmi.writeString("click btnRWD,1");
-}
+// void button4Action()
+// {
+//     // RWIND
+//     hmi.writeString("click btnRWD,1");
+// }
 
-void button5Action()
-{
-    // FFWIND
-    hmi.writeString("click btnFFWD,1");
-}
+// void button5Action()
+// {
+//     // FFWIND
+//     hmi.writeString("click btnFFWD,1");
+// }
 
-void button6Action()
-{
-    // REC
-    hmi.writeString("click btnRec,1");
-}
+// void button6Action()
+// {
+//     // REC
+//     _hmi.writeString("click btnRec,1");
+// }
 
-void buttonsControl()
-{
-    button1 = digitalRead(button1_GPIO);
-    button2 = digitalRead(button2_GPIO);
-    button3 = digitalRead(button3_GPIO);
-    button4 = digitalRead(button4_GPIO);
-    button5 = digitalRead(button5_GPIO);
-    button6 = digitalRead(button6_GPIO);
+// void buttonsControl()
+// {
+//     button1 = digitalRead(button1_GPIO);
+//     button2 = digitalRead(button2_GPIO);
+//     button3 = digitalRead(button3_GPIO);
+//     button4 = digitalRead(button4_GPIO);
+//     button5 = digitalRead(button5_GPIO);
+//     button6 = digitalRead(button6_GPIO);
 
-    // PLAY
-    if (button1 == 0 && !button1_down)
-    {
-        //Presiono
-        button1_down = true;
-    }
-    else if (button1 == 1 && button1_down)
-    {     
-        // Suelto 
-        button1Action();
-        button1_down = false;
-    }
+//     // PLAY
+//     if (button1 == 0 && !button1_down)
+//     {
+//         //Presiono
+//         button1_down = true;
+//     }
+//     else if (button1 == 1 && button1_down)
+//     {     
+//         // Suelto 
+//         button1Action();
+//         button1_down = false;
+//     }
 
-    //RWD
-    if (button2 == 0 && !button2_down)
-    {
-        //Presiono
-        button2_down = true;
-    }
-    else if (button2 == 1 && button2_down)
-    {     
-        // Suelto 
-        button2Action();
-        button2_down = false;
-    }
+//     //RWD
+//     if (button2 == 0 && !button2_down)
+//     {
+//         //Presiono
+//         button2_down = true;
+//     }
+//     else if (button2 == 1 && button2_down)
+//     {     
+//         // Suelto 
+//         button2Action();
+//         button2_down = false;
+//     }
 
-    // FFWD
-    if (button3 == 0 && !button3_down)
-    {
-        //Presiono
-        button3_down = true;
-    }
-    else if (button3 == 1 && button3_down)
-    {     
-        // Suelto 
-        button3Action();
-        button3_down = false;
-    }    
+//     // FFWD
+//     if (button3 == 0 && !button3_down)
+//     {
+//         //Presiono
+//         button3_down = true;
+//     }
+//     else if (button3 == 1 && button3_down)
+//     {     
+//         // Suelto 
+//         button3Action();
+//         button3_down = false;
+//     }    
 
-    // PAUSE
-    if (button4 == 0 && !button4_down)
-    {
-        //Presiono
-        button4_down = true;
-    }
-    else if (button4 == 1 && button4_down)
-    {     
-        // Suelto 
-        button4Action();
-        button4_down = false;
-    }    
+//     // PAUSE
+//     if (button4 == 0 && !button4_down)
+//     {
+//         //Presiono
+//         button4_down = true;
+//     }
+//     else if (button4 == 1 && button4_down)
+//     {     
+//         // Suelto 
+//         button4Action();
+//         button4_down = false;
+//     }    
 
-    // STOP
-    if (button5 == 0 && !button5_down)
-    {
-        //Presiono
-        button5_down = true;
-    }
-    else if (button5 == 1 && button5_down)
-    {     
-        // Suelto 
-        button5Action();
-        button5_down = false;
-    } 
+//     // STOP
+//     if (button5 == 0 && !button5_down)
+//     {
+//         //Presiono
+//         button5_down = true;
+//     }
+//     else if (button5 == 1 && button5_down)
+//     {     
+//         // Suelto 
+//         button5Action();
+//         button5_down = false;
+//     } 
 
-    // REC
-    if (button6 == 0 && !button6_down)
-    {
-        //Presiono
-        button6_down = true;
-    }
-    else if (button6 == 1 && button6_down)
-    {     
-        // Suelto 
-        button6Action();
-        button6_down = false;
-    } 
+//     // REC
+//     if (button6 == 0 && !button6_down)
+//     {
+//         //Presiono
+//         button6_down = true;
+//     }
+//     else if (button6 == 1 && button6_down)
+//     {     
+//         // Suelto 
+//         button6Action();
+//         button6_down = false;
+//     } 
 
 
-}
+// }

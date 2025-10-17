@@ -3113,7 +3113,6 @@ class HMI
           kitStream.setPAPower(ACTIVE_AMP);
           logln("Active amp=" + String(ACTIVE_AMP));
           AMP_CHANGE = true;
-          //logln("Active amp=" + String(ACTIVE_AMP));
         }        
         // Habilita los dos canales
         else if (strCmd.indexOf("STE=") != -1) 
