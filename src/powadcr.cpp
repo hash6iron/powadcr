@@ -5577,7 +5577,7 @@ void setup()
   strcpy(strpath, "/firmware.bin");
   File firmware = SD_MMC.open(strpath, FILE_READ);
   logln("Firmware file opened " + String(strpath));
-  delay(2000);
+  delay(1500);
 
   if (firmware)
   {
@@ -5589,7 +5589,7 @@ void setup()
     log_v("Try to update!");
 
     Update.onProgress(onOTAProgress);
-    
+
     size_t firmwareSize = firmware.available();
     logln("Firmware size: " + String(firmwareSize) + " bytes");
 
