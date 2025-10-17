@@ -1,5 +1,5 @@
 # POWADCR
-TAP/TZX/TSX/CDT Digital cassette recorder for 8-bit machines
+TAP/TZX/TSX/CDT Digital cassette recorder for 8-bit machines, and WAV/MP3 player recorder.
 <p align="center">
   <img width="400" height="400" src="/doc/powadcr.png" />
 </p>
@@ -12,7 +12,11 @@ This project pretend to implement a Digital Cassette Recorder (for TAP/TZX files
 
 ![image](https://github.com/user-attachments/assets/6d7ac494-c201-4113-875b-0324e44a8308)
 
-![image](https://github.com/user-attachments/assets/5513dc37-750b-46e9-9a02-55b858d5e33a)
+
+
+The board
+-----
+![20250530_020348](https://github.com/user-attachments/assets/07e084b3-bae2-4221-b484-52a52ccb1733)
 
 ![20241114_094902](https://github.com/user-attachments/assets/112a1133-2ad4-4a44-b31e-9115065462c2)
 The launcher was this board, ESP32 Audio Kit equipped with ESP32 v3 microcontroller and ES8388 Audio proccesor 
@@ -37,17 +41,6 @@ So, it's a beautiful develop board with a big possibilities.
 
 To begin with is necessary use the Phil Schatzmann's libraries for ESP32 Audio Kit v.0.65 (https://github.com/pschatzmann/arduino-audiokit) where we could take advantage of all resources of this kit, to create a digital player and recorder for ZX Spectrum easilly, or this is the first idea.
 
-This project need set PCB switches to
-
-|Switch|Value|
-|---|---|
-|1|Off|
-|2|On|
-|3|On|
-|4|Off|
-|5|Off|
-
-
 ## LCD Screen Display
 
 The LCD touch screen display chosen for this project is a TFT HMI LCD Display Module Screen Touch connected with 2 serial pins (TX and RX) to the board. 
@@ -56,37 +49,7 @@ The LCD touch screen display chosen for this project is a TFT HMI LCD Display Mo
 + Size: 3.5".
 + Resolution:  480x320.
 
-## About Sinclair ZX Spectrum TAP structure.
-
------
-
-About loading proccess in Sinclair ZX Spectrum
------
-I recomend the Alessandro Grussu's website with an interesting information about the loading process and processor timming for this goal. https://www.alessandrogrussu.it/tapir/tzxform120.html#MACHINFO
-
-Now, I'd like to show you how the signal generated from TAP file that Sinclair ZX Spectrum is able to understand. The mechanism to read the audio signal is based on squarewave peaks counting, using the Z80 clock timming, then:
-
-The sequence for ZS Spectrum, is always for standard loading: 
-+ LEADER TONE + SYNC1 + SYNC2 + DATA SEQUENCE + SILENCE
-
-<br>Where: LEADER TONE (2168 T-States) is two kind of length. 
-+ Large (x 8063 T-States) for typical "PROGRAM" block (BASIC)
-+ Short (x 3223 T-States) for typical "BYTE" block, Z80 machine code.</br>
-
-**What means T-State?**
-
-Well, this concept could be difficult to understand, but it's not far of reallity, as summarized full pulse (two peaks one to high and one to low) has a period equal to "2 x n T-State" time, where T-State = 1/3.5MHz = 0.28571 us, then for example: LARGE LEADER TONE.
-+ LEADER TONE = 2168 x 8063 T-States = 17480584 T-States
-+ 1 T-State = 1 / 3.5MHz = 0.28571 us = 0.00000028571 s
-+ LEADER TONE duration = 17480584 x 0.00000028571 s = 4.98s
-
-**How many peaks has the LARGE LEADER TONE pulse train?**
-+ The pulse train has 2168 peaks in both cases but short leader tone has a different duration (3223 T-States) versus large leader tone (8063 T-States)
-
-**What's the signal frequency?**
-+ We know that LARGE LEADER TONE pulse train is 4.98s 
-+ We know that SHORT LEADER TONE pulse train is 1.99s
-+ The frecuency for both leader tones (2168 x 0.00000028571) / 2 = 809.2Hz
+NOTE: Several version of this LCD are availables. The project uses T0 versions but is possible to upgrade easily to T1 version.
 
 About POWADCR Device.
 -----
@@ -101,8 +64,27 @@ In this section we are going to describe parts to be needed to assemble the Powa
 + Micro SD card or FT232RL FTDI serial interface to program the TJC LCD (both methods are available)
 + Cable with jacks Stereo-stereo male-male 3.5mm to connect PowaDCR to Spectrum Next or N-Go or clone versions.
 + Cable with XH2.5 and mono jack 3.5mm to connect from amplifier out of PowaDCR to EAR connector on ZX Spectrum classic versions (Rubber keyboard 16K, 48K, Spectrum+ and Spectrum 128K Toastrack)
-+ HMI Chinesse editor version https://unofficialnextion.com/t/tjc-usart-hmi-editor-1-64-1/1511
-+ Arduino IDE 2.0
+
+**Software and drivers (Windows version)**
++ LCD HMI editor:
+  UART HMI Chinesse editor. Check the last version [here](http://wiki.tjc1688.com/download/old_usart_hmi/history_download.html)
++ CP2102 driver: [https://www.silabs.com/developer-tools/usb-to-uart-bridge-vcp-drivers?tab=downloads](https://www.silabs.com/documents/public/software/CP210x_Universal_Windows_Driver.zip)
+
+Ports of powadcr
+-----
+![20250530_014338](https://github.com/user-attachments/assets/3b99fdb7-2cc3-438a-9fb3-e441f770584a)
+
+Before assembly powadcr. Audiokit hacking.
+-----
+<b>Disassemble mics from audiokit ESP32 board</b>
+You need to remove both microphones from the Audiokit board. How do I do this?
+
+- An easier way: with pliers and pull up (recomended)
+- Other way, unsoldering both, and conect pinout towards ES8388 to ground (See image below)
+
+  <p align="center">
+  <img src="/doc/mics.png" />
+  </p>
 
 How PowaDCR parts are connected?
 -----
@@ -116,18 +98,45 @@ How PowaDCR parts are connected?
   <img src="/doc/GPIO.png" />
   </p>
 
-How .bin firmware is uploaded in ESP32-A1S Audiokit? 
+<b>LED indicator</b>
+- The led for power on and recording indications is connected to GPIO pin 22 and GND
+
+<b>REM connection</b>
+- The REM input for remote tape control is assigned to GPIO pin 5
+
+Audiokit DIP switch configuration
+-----
+This project need set the PCB DIP switch to
+
+|Switch|Value|
+|---|---|
+|1|Off|
+|2|On|
+|3|On|
+|4|Off|
+|5|Off|
+
+How to install firmwares in powadcr? 
 -----
 <b>At the first time</b>
 
-You can flash the binaries directly to the board if you do not want to mess with code and compilers. 
+- First you need to flash the screen firmware with this file : https://github.com/hash6iron/powadcr/releases/download/Release/powadcr_iface.tft 
+- The second step is to flash the following file in AudioKit board : https://github.com/hash6iron/powadcr/releases/download/Release/Powadcr_v1.0r2.bin
+- Then install later, the Screen and AudioKit firmwares from the latest relase: https://github.com/hash6iron/powadcr/releases/latest
 
-1. Download ESP32 Flash Downloading Tool - https://www.espressif.com/en/support/download/other-tools?keys=&field_type_tid%5B%5D=13
+<b>How to?</b>
+
+To flash the firmware of the screen the file powadcr shown below must be copied inside an empty SD Card, insert it inside the SD Reader of the screen and connect the screen to the GPIO connector of the Audiokit board as shown below. Take care with polarity of the power, because if the polarity is inverted the screen could damage it. When the power is connected the screen will start with blank background and the file copy will be in process. This only takes less than 2 minutes. Be sure that the power couldn't be disconected during this process.
+
+
+After this you can flash the binaries directly to the AudioKit board if you do not want to mess with code and compilers. 
+
+1. Download ESP32 Flash Downloading Tool - from [here](https://docs.espressif.com/projects/esp-test-tools/en/latest/esp32/production_stage/tools/flash_download_tool.html)
 2. Unzip file and execute - flash_download_tool_x.x.x.exe file
 
    See the example image below.
 
-   ![image](https://github.com/hash6iron/powadcr_IO/assets/118267564/e7158518-4af8-4e6e-b4ab-eff6b9693307)
+   ![image](https://raw.githubusercontent.com/hash6iron/powadcr/refs/heads/main/doc/flash_download_tool.png)
 
    
 4. Select ESP32 model.
@@ -141,7 +150,6 @@ You can flash the binaries directly to the board if you do not want to mess with
    - Connect ESP32-A1S Audiokit board from UART microUSB port (not power microUSB PORT) at PC USB port.
    - Select the available COM for this connection in COM: field on ESP32 Flash Downloading Tool.
    - Select BAUD: speed at 921600
-   - Disconnect the Touch Screen cable in order to release serial port (Audiokit sharing USB and UART communications)
    - Press START button in ESP32 Flash Downloading Tool. Then downloading proccess begin, and wait for FINISH message. Enjoy!
   
      NOTES: If the proccess fail.
@@ -153,7 +161,7 @@ You can flash the binaries directly to the board if you do not want to mess with
    ![image](https://github.com/user-attachments/assets/b5c189c6-8945-4a65-9e22-e17a56d3eea6)
 
 <b>Upcoming updates</b>
-- Put .bin in the AudioKit SD and run again. Wait until process finishs.
+- Put the firmware.bin and powadcr_iface.tft of the latest release inside the root folder in the AudioKit SD and run again. Wait until process finishs.
 
 How custom firmware is uploaded in ESP32-A1S Audiokit? 
 -----
@@ -165,16 +173,29 @@ How custom firmware is uploaded in ESP32-A1S Audiokit?
 6. Connect the ESP32 Audiokit USART USB port to any USB PC port
 7. Press BUILD (arrow icon) from PlatformIO toolbar.
 
-How firmware is loaded in TJC LCD?
+
+Using powadcr recorder with modern and classic 8-bit machines
 -----
-<b>At the first time</b>
-- Put "HMI/build/powadcr_iface.tft" in the root of a SD card and insert in TFT slot.
-  
-<b>Upcoming updates</b>
-- Upload the file "HMI/build/powadcr_iface.tft" to the root of the SD and insert this into powaDCR. Power on the powaDCR and Wait until firmware is uploaded.
+**Classic machines. ZX Spectrum.**
+
+For this machine series, ZX Spectrum 16K, 48K, +, +2, +3 take into account that powadcr recorder uses a range between 0 to 3.3v then is needed to atenuate the audio output from ZX Spectrum classic version.
+Then:
+- You can use a tipical R circuit or audio amplifier (that permit adjust volumen signal from zero)
+- The goal is test several volumen settings in the input signal until powadcr begins to recognize wave, but from zero.
 
 
-If you enjoy with this device and you want to colaborate, please.
+**Modern machines. ESPectrum (lilygo) , N-Go, etc.**
+
+Is possible to connect directly to the machine audio output line-out, anyway, if you can check before the output power in order to know wave characteristics, you ensure that input signal is ok for powadcr.
+- ESPectrum can connecto directly without adaptation circuit.
+- N-Go needs a special cable to get the output channel (+3 output) to stereo jack for powadcr (you can repeat the output channel in both left/right channels of the stereo jack or only get left channel and right to ground)
+
+Are you enjoying?
+-----
+
+<img src="https://github.com/user-attachments/assets/f08a42ab-0c6a-4262-b6ec-63c41263b76b" width="480" height="914">
+
+If you enjoy with this project and you want to colaborate, please.
 
 <a href="https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=BAWGJFZGXE5GE&source=url"><img src="/doc/paypal_boton.png" /></a>
 
