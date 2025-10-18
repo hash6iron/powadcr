@@ -829,16 +829,21 @@ void WavRecording()
   // Agregamos las salidas al multiple
   // cmulti.add(encoder);
   // cmulti.add(kitStream);
-
-  // Inicializamos los copiers
   AudioInfo ecfg = encoder.defaultConfig();
-  ecfg.sample_rate = DEFAULT_WAV_SAMPLING_RATE_REC;
 
   if (WAV_8BIT_MONO)
   {
-    // Configuramos el encoder para 8-bit mono
+    // Configuramos el encoder para 22KHz, 8-bit mono
+    ecfg.sample_rate = DEFAULT_8BIT_WAV_SAMPLING_RATE_REC;
     ecfg.bits_per_sample = 8; 
     ecfg.channels = 1; // Mono
+  }
+  else
+  {
+    // Configuramos el encoder para 44KHz, 16-bit stereo
+    ecfg.sample_rate = DEFAULT_WAV_SAMPLING_RATE_REC;
+    ecfg.bits_per_sample = 16; 
+    ecfg.channels = 2; // Stereo
   }
   
   encoder.begin(ecfg);
@@ -857,32 +862,15 @@ void WavRecording()
   copier.setSynchAudioInfo(true);
   copier8bWAV.setSynchAudioInfo(true);
 
-  if(WAV_8BIT_MONO)
-  {
-    copier8bWAV.begin();
-  }
-  else
-  {
-    copier.begin();
-  }
+  WAV_8BIT_MONO ? copier8bWAV.begin() : copier.begin();
 
   // loop de grabacion
   while (!STOP)
   {
     // Grabamos a WAV file
     wavfilesize += WAV_8BIT_MONO ? copier8bWAV.copy() : copier.copy();    
-    // if (WAV_8BIT_MONO)
-    // {
-    //   //copier8bitPCM.copy();
-    //   wavfilesize += copier8bWAV.copy();
-    // }
-    // else
-    // {
-    //   wavfilesize += copier.copy();
-    // }
 
     // Sacamos audio por la salida
-
     if ((millis() - progress_millis) > 1000)
     {
       rectime_s++;
@@ -896,7 +884,7 @@ void WavRecording()
       progress_millis = millis();
     }
 
-    if ((millis() - progress_millis2) > 2000)
+    if ((millis() - progress_millis2) > 1000)
     {
       LAST_MESSAGE = "Recording time: " + ((rectime_m < 10 ? "0" : "") + String(rectime_m)) + ":" + ((rectime_s < 10 ? "0" : "") + String(rectime_s));     
       hmi.writeString("size.txt=\"" + String(wavfilesize > 1000000 ? wavfilesize / 1024 / 1024 : wavfilesize / 1024) + 
@@ -4250,6 +4238,35 @@ void recCondition()
   AUTO_STOP = false;  
 }
 
+void remDetection()
+{
+  if (REM_ENABLE)
+  {
+    
+    logln("Check if REM is active");
+
+    if (digitalRead(GPIO_MSX_REMOTE_PAUSE) == LOW)
+    {
+      // Informamos del REM detectado
+      hmi.writeString("tape.wavind.txt=\"REM\"");
+      logln("REM detected");
+      // Flag del REM a true
+      REM_DETECTED = true;
+    }
+    else
+    {
+      if (REM_DETECTED)
+      {
+          // Recuperamos el mensaje original
+          hmi.writeString("tape.wavind.txt=\"\"");
+          logln("REM released");
+          // Reseteamos el flag
+          REM_DETECTED = false;
+      }
+    }
+  }
+}
+
 void tapeControl()
 {
   // Estados de funcionamiento del TAPE
@@ -4359,7 +4376,7 @@ void tapeControl()
     //
     // PLAY / STOP
     //
-
+    //remDetection();
     // Esto nos permite abrir el Block Browser en reproduccion
     if (BB_OPEN || BB_UPDATE)
     {
@@ -4374,10 +4391,16 @@ void tapeControl()
     }
 
     // Estados en reproduccion
-    if (PLAY)
+    if (PLAY || REM_DETECTED)
     {
+      
+      if (REM_DETECTED) 
+      {
+        PLAY = true;
+        STATUS_REM_ACTUATED = true;
+      }
+
       // Inicializamos la polarización de la señal al iniciar la reproducción.
-    
       //
       LOADING_STATE = 1;
       //Activamos la animación
@@ -4407,9 +4430,11 @@ void tapeControl()
         encoderOutWAV.end();
       }
     }
-    else if (PAUSE)
+    else if (PAUSE || (!REM_DETECTED && STATUS_REM_ACTUATED))
     {
       // Nos vamos al estado PAUSA para seleccion de bloques
+      if (STATUS_REM_ACTUATED) STATUS_REM_ACTUATED = false;
+
       TAPESTATE = 3;
       // Esto la hacemos para evitar una salida inesperada de seleccion de bloques.
       PAUSE = false;
@@ -4567,12 +4592,13 @@ void tapeControl()
     LAST_MESSAGE = "Tape paused. Press play or select block.";
     
     //
-    if (PLAY)
+    if (PLAY || REM_DETECTED)
     {
+      if (REM_DETECTED) PLAY = true;
       // Reanudamos la reproduccion
       TAPESTATE = 1;
       AUTO_PAUSE = false;
-
+      
       recoverEdgeBeginOfBlock();
     }
     else if (PAUSE)
@@ -4651,11 +4677,14 @@ void tapeControl()
     //
     //File prepared. Esperando a PLAY / FFWD o RWD
     //
-    if (PLAY)
+    remDetection();
+
+    if (PLAY || REM_DETECTED)
     {
+      if (REM_DETECTED) PLAY = true;
+
       if (FILE_PREPARED)
       {
-
         // Ponemos esto aqui porque prepareOutputToWav() puede cambiar el
         // flujo de TAPESTATE
         TAPESTATE = 1;
@@ -4665,8 +4694,6 @@ void tapeControl()
         {
           prepareOutputToWav();
         }
-
-
       }
     }
     else if (EJECT && !STOP_OR_PAUSE_REQUEST)
@@ -5035,11 +5062,13 @@ void tapeControl()
 
   case 200:
     //
+    //remDetection();
     // recording
-    if (REC)
+    if (REC)// || REM_DETECTED)
     {
-      while (!taprec.recording())
+      while (!taprec.recording())// || !REM_DETECTED)
       {
+        //remDetection();
         delay(1);
       }
 
@@ -5176,6 +5205,7 @@ void Task1code(void *pvParameters)
       serialEventRun();
 
     //esp_task_wdt_reset();
+    remDetection();
     tapeControl();
   }
 }

@@ -30,7 +30,7 @@
     
     To Contact the dev team you can write to hash6iron@gmail.com
  +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
- 
+
  #include "nvs.h"
  #include "nvs_flash.h"
  #include <stdio.h>
@@ -641,8 +641,10 @@ bool REGENERATE_IDX = false;
     String BLUETOOTH_DEVICE_PAIRED = "JBL T450BT";
 #endif
 
-// Control remoto de PAUSA
+// Control remoto de motor (REM)
+bool REM_ENABLE = true;
 bool REM_DETECTED = false;
+bool STATUS_REM_ACTUATED = false;
 
 // Declaraciones de metodos
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++

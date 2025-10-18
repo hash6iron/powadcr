@@ -122,16 +122,17 @@ class ZXProcessor
 
         bool remDetection()
         {
-            #ifdef MSX_REMOTE_PAUSE
-              if (digitalRead(GPIO_MSX_REMOTE_PAUSE) == LOW)
+            if (REM_ENABLE)
+            {
+              if (digitalRead(GPIO_MSX_REMOTE_PAUSE) != LOW)
               {
                 // Informamos del REM detectado
                 //LAST_MESSAGE = "REM detected.";
-                hmi.writeString("tape.wavind.txt=\"REM\"");
+                hmi.writeString("tape.wavind.txt=\"\"");
                 // Paramos la ani. de la cinta
                 tapeAnimationOFF();
                 // Flag del REM a true
-                REM_DETECTED = true;
+                REM_DETECTED = false;
                 // volvemos
                 return true;
               }
@@ -141,7 +142,7 @@ class ZXProcessor
                 {
                     // Recuperamos el mensaje original
                     //LAST_MESSAGE = "Loading in progress. Please wait...";
-                    hmi.writeString("tape.wavind.txt=\"\"");
+                    hmi.writeString("tape.wavind.txt=\"REM\"");
                     #ifdef DEBUGMODE
                         logln("REM released");
                         logln(LAST_LAST_MESSAGE);
@@ -149,24 +150,27 @@ class ZXProcessor
                     // Activamos la animacion
                     tapeAnimationON();
                     // Reseteamos el flag
-                    REM_DETECTED = false;
+                    REM_DETECTED = true;
                 }
                 //
                 return false;
               }
-            #endif              
+            }
         }
 
         bool stopOrPauseRequest()
         {
             // Control de REM detection
-            while (remDetection())
+            if (REM_ENABLE)
             {
-                if (STOP || EJECT)
+                while (remDetection())
                 {
-                    break;
+                    if (STOP || EJECT)
+                    {
+                        break;
+                    }
+                    // delay(1);
                 }
-                // delay(1);
             }
 
             if (STOP)
