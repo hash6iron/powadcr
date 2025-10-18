@@ -102,7 +102,7 @@
 // Configuración del sistema
 // --------------------------------------------------------------
 
-#define VERSION "1.0r6.1"
+#define VERSION "1.0r6.2"
 #define MACHINE_ZX
 
 // Define sampling rate a 44.1KHz. En otro caso será a 32KHz
@@ -150,17 +150,17 @@
 // Player / SD
 // -------------------------------------------------------------------
 // Frecuencia inicial de la SD
-#define SD_FRQ_MHZ_INITIAL                    40000   // 40 MHz (velocidad de acceso a la SD)
+#define SD_FRQ_MHZ_INITIAL                            40000   // 40 MHz (velocidad de acceso a la SD)
 
 // Sampling rate TAP/TZX/..
-#define DEFAULT_MP3_SAMPLING_RATE             44100
-#define STANDARD_SR_8_BIT_MACHINE             21000   // Sampling rate adecuado para maquinas de 8 bitsAjuste AZIMUT (Hz) - 22200 Hz
-#define STANDARD_SR_REC_ZX_SPECTRUM           22200   // Sampling rate adecuado para ZX Spectrum (recorder) - Ajuste AZIMUT (Hz) - 22200 Hz
+#define DEFAULT_MP3_SAMPLING_RATE                     44100
+#define STANDARD_SR_8_BIT_MACHINE                     21000   // Sampling rate adecuado para maquinas de 8 bitsAjuste AZIMUT (Hz) - 22200 Hz
+#define STANDARD_SR_REC_ZX_SPECTRUM                   22200   // Sampling rate adecuado para ZX Spectrum (recorder) - Ajuste AZIMUT (Hz) - 22200 Hz
 
 // Sampling rate para WAV y REC WAV (pero ojo, no para PLAY TO WAV)
-#define DEFAULT_WAV_SAMPLING_RATE             44100
-#define DEFAULT_WAV_SAMPLING_RATE_REC         44100 
-#define DEFAULT_WAV_SAMPLING_RATE_PLAY_TO_WAV 21000
+#define DEFAULT_WAV_SAMPLING_RATE                     44100
+#define DEFAULT_WAV_SAMPLING_RATE_REC                 44100
+#define DEFAULT_8BIT_WAV_SAMPLING_RATE_REC            22050
 
 // Porcentaje de avance rapido
 #define FAST_FORWARD_PER                              0.02     
