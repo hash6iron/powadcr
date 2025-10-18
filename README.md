@@ -145,7 +145,7 @@ After this you can flash the binaries directly to the AudioKit board if you do n
      And press "OK" button
    
 5. Setting and begin the flash proccess.
-   - Select .bin file or type the path of it (from /build)
+   - Select <b>complete_firmware.bin</b> file or type the path of it.
    - Select all parameters exactly at the image below.
    - Connect ESP32-A1S Audiokit board from UART microUSB port (not power microUSB PORT) at PC USB port.
    - Select the available COM for this connection in COM: field on ESP32 Flash Downloading Tool.
@@ -161,7 +161,7 @@ After this you can flash the binaries directly to the AudioKit board if you do n
    ![image](https://github.com/user-attachments/assets/b5c189c6-8945-4a65-9e22-e17a56d3eea6)
 
 <b>Upcoming updates</b>
-- Put the firmware.bin and powadcr_iface.tft of the latest release inside the root folder in the AudioKit SD and run again. Wait until process finishs.
+- Put the <b>firmware.bin</b> and <b>powadcr_iface.tft</b> of the latest release inside the root folder in the AudioKit SD and run again. Wait until process finishs.
 
 How custom firmware is uploaded in ESP32-A1S Audiokit? 
 -----
