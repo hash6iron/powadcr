@@ -71,15 +71,12 @@ TaskHandle_t Task0;
 TaskHandle_t Task1;
 
 
-
 #include <esp_task_wdt.h>
-
 
 #include <HardwareSerial.h>
 HardwareSerial SerialHW(2);
 
 EasyNex myNex(SerialHW);
-
 
 #include "globales.h"
 //
@@ -2051,18 +2048,35 @@ void MediaPlayer()
       case 'w':
         // WAV
         // Iniciamos el decoder
-        decoderWAV.begin();
-        
+        if (decoderWAV.begin())
+        {
+          // Configuramos temporalmente el audio a 44100Hz hasta que leamos el archivo real
+          tempConfig = kitStream.defaultConfig();
+          tempConfig.sample_rate = 44100;
+          tempConfig.bits_per_sample = 16;
+          tempConfig.channels = 2;
+          kitStream.setAudioInfo(tempConfig);
+          eq.setAudioInfo(tempConfig);
+        }
+        else
+        {
+          logln("Error initializing WAV decoder");
+          LAST_MESSAGE = "Error initializing WAV decoder";
+          STOP = true;
+          PLAY = false;
+          return;
+        } 
+        //decoderWAV.setOutput(eq);
         // Configuramos el player con el decoder
         player.setDecoder(decoderWAV);
         
         // Configuramos temporalmente el audio a 22050Hz hasta que leamos el archivo real
-        tempConfig = kitStream.defaultConfig();
-        tempConfig.sample_rate = 44100;
-        tempConfig.bits_per_sample = 16;
-        tempConfig.channels = 2;
-        kitStream.setAudioInfo(tempConfig);
-        eq.setAudioInfo(tempConfig);
+        // tempConfig = kitStream.defaultConfig();
+        // tempConfig.sample_rate = 44100;
+        // tempConfig.bits_per_sample = 16;
+        // tempConfig.channels = 2;
+        // kitStream.setAudioInfo(tempConfig);
+        // eq.setAudioInfo(tempConfig);
         
         // Otras configuraciones del player
         player.setAutoNext(AUTO_NEXT);
@@ -5581,20 +5595,54 @@ void setup()
 
   if (firmware)
   {
+    hmi.writeString("statusLCD.txt=\"Checking firmware...\"");
+    
+    // ✅ VERIFICAR magic byte antes del update
+    uint8_t magicByte = firmware.peek();
+    logln("First byte of firmware: 0x" + String(magicByte, HEX));
+    
+    if (magicByte != 0xE9) 
+    {
+        logln("ERROR: Invalid firmware file - Wrong magic byte");
+        hmi.writeString("statusLCD.txt=\"Invalid firmware file\"");
+        firmware.close();
+        
+        // Eliminar archivo inválido
+        if (SD_MMC.remove("/firmware.bin")) {
+            logln("Invalid firmware file deleted");
+        }
+        return;
+    }    
     hmi.writeString("statusLCD.txt=\"New powadcr firmware found\"");
     logln("Firmware found on SD_MMC");
     onOTAStart();
     logln("Updating firmware...");
-    log_v("found!");
-    log_v("Try to update!");
 
     Update.onProgress(onOTAProgress);
 
     size_t firmwareSize = firmware.available();
     logln("Firmware size: " + String(firmwareSize) + " bytes");
 
-    Update.begin(firmwareSize, U_FLASH);
-    Update.writeStream(firmware);
+    if(!Update.begin(firmwareSize))
+    {
+      logln("Error initializing updater obj.");
+      Update.getError();
+      Update.printError(Serial);
+    }
+    else
+    {
+        uint8_t buf[2048];
+        int bytesRead = 0;
+        size_t totalWritten = 0;
+
+        while ((bytesRead = firmware.read(buf, sizeof(buf))) > 0) 
+        {
+            Update.write(buf, bytesRead);
+            totalWritten += bytesRead;
+            Serial.printf("Escritos: %d/%d bytes\n", totalWritten, firmwareSize);
+        }        
+    }
+
     if (Update.end())
     {
       log_v("Update finished!");
@@ -5606,6 +5654,8 @@ void setup()
     {
       log_e("Update error!");
       hmi.writeString("statusLCD.txt=\"Update error\"");
+      Update.getError();
+      Update.printError(Serial);
       onOTAEnd(false);
       delay(2000);
     }
