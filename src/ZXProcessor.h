@@ -146,18 +146,7 @@ class ZXProcessor
 
         bool stopOrPauseRequest()
         {
-            // Control de REM detection
-            // if (REM_ENABLE)
-            // {
-            //     while (remDetection())
-            //     {
-            //         if (STOP || EJECT)
-            //         {
-            //             break;
-            //         }
-            //         // delay(1);
-            //     }
-            // }
+
             remDetection();
             
             if (STOP)

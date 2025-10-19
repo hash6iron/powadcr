@@ -4261,7 +4261,6 @@ void remDetection()
 {
   if (REM_ENABLE)
   {
-    
     //logln("Check if REM is active");
 
     if (digitalRead(GPIO_MSX_REMOTE_PAUSE) == LOW && !REM_DETECTED)
