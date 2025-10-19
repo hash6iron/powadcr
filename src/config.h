@@ -102,7 +102,7 @@
 // Configuración del sistema
 // --------------------------------------------------------------
 
-#define VERSION "1.0r6.4"
+#define VERSION "1.0r6.3"
 #define MACHINE_ZX
 #define POWER_LED_INTENSITY 125 // Valor entre 0 y 255
 
