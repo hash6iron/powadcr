@@ -54,13 +54,13 @@
 
 // Includes
 // ===============================================================
+#include "config.h"
+
 #include <Arduino.h>
 #include <FS.h>
 #include <SD_MMC.h>
 #include <WiFi.h>
 #include <vector>
-
-#include "config.h"
 
 #include "esp32-hal-psram.h"
 #include "EasyNextionLibrary.h"
@@ -181,6 +181,8 @@ int plLastFsize = 0;
 uint8_t plduty = 0;
 uint8_t chduty = 1;
 String plLastName = "";
+
+
 
 // -----------------------------------------------------------------------
 // Prototype function
@@ -5650,7 +5652,7 @@ void setup()
     logln("Firmware file opened " + String(strpath));
     hmi.writeString("statusLCD.txt=\"Checking firmware...\"");
     
-    // ✅ VERIFICAR magic byte antes del update
+    // Verificar magic byte antes del update
     uint8_t magicByte = firmware.peek();
     logln("First byte of firmware: 0x" + String(magicByte, HEX));
     
@@ -5690,9 +5692,9 @@ void setup()
 
         while ((bytesRead = firmware.read(buf, sizeof(buf))) > 0) 
         {
-            Update.write(buf, bytesRead);
-            totalWritten += bytesRead;
-            Serial.printf("Escritos: %d/%d bytes\n", totalWritten, firmwareSize);
+          Update.write(buf, bytesRead);
+          totalWritten += bytesRead;
+          Serial.printf("Escritos: %d/%d bytes\n", totalWritten, firmwareSize);
         }        
     }
 
