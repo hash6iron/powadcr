@@ -104,6 +104,8 @@
 
 #define VERSION "1.0r6.3"
 #define MACHINE_ZX
+#define POWER_LED_INTENSITY 125 // Valor entre 0 y 255
+
 // Define sampling rate a 44.1KHz. En otro caso será a 32KHz
 //#define SAMPLING44
 //#define SAMPLING48
@@ -240,17 +242,6 @@ bool TEST_LINE_IN_OUT = false;
 // <GW>192.168.2.1</GW>
 // <DNS1>192.168.2.1</DNS1>
 // <DNS2>192.168.2.1</DNS2>
-
-char HOSTNAME[32] =  {};
-String ssid = "";
-char password[64] = {};
-
-// Static IP - 2.4GHz WiFi AP
-IPAddress local_IP(0, 0, 0, 0); // Your Desired Static IP Address
-IPAddress subnet(0, 0, 0, 0);
-IPAddress gateway(0, 0, 0, 0);
-IPAddress primaryDNS(0, 0, 0, 0); // Not Mandatory
-IPAddress secondaryDNS(0, 0, 0, 0);     // Not Mandatory
 
 // HMI
 #define windowNameLength    32

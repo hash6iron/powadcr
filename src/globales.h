@@ -306,7 +306,7 @@ bool disable_auto_media_stop = false;
 // Power led
 bool POWERLED_ON = true;
 bool PWM_POWER_LED = false;
-uint8_t POWERLED_DUTY = 30;
+uint8_t POWERLED_DUTY = POWER_LED_INTENSITY;
 
 uint8_t TAPESTATE = 0;
 uint8_t LAST_TAPESTATE = 0;
@@ -646,6 +646,18 @@ bool REM_ENABLE = true;
 bool REM_DETECTED = false;
 bool STATUS_REM_ACTUATED = false;
 
+// WiFi
+char HOSTNAME[32] =  {};
+String ssid = "";
+char password[64] = {};
+
+// Static IP - 2.4GHz WiFi AP
+IPAddress local_IP(0, 0, 0, 0); // Your Desired Static IP Address
+IPAddress subnet(0, 0, 0, 0);
+IPAddress gateway(0, 0, 0, 0);
+IPAddress primaryDNS(0, 0, 0, 0); // Not Mandatory
+IPAddress secondaryDNS(0, 0, 0, 0);     // Not Mandatory
+
 // Declaraciones de metodos
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 // void save();
@@ -671,6 +683,7 @@ ConfigEntry configEntries[] =
   {"SFFopt", CONFIG_TYPE_BOOL, &SORT_FILES_FIRST_DIR},
   {"SPKopt", CONFIG_TYPE_BOOL, &EN_SPEAKER},
 };
+
 
 // static inline void erase_cntrl(std::string &s) 
 // {
