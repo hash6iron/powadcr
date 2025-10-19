@@ -120,59 +120,35 @@ class ZXProcessor
             _hmi.writeString("tape.tmAnimation.en=0");
         }
 
-        bool remDetection()
+        void remDetection()
         {
             if (REM_ENABLE)
             {
-              if (digitalRead(GPIO_MSX_REMOTE_PAUSE) != LOW)
-              {
-                // Informamos del REM detectado
-                //LAST_MESSAGE = "REM detected.";
-                hmi.writeString("tape.wavind.txt=\"\"");
-                // Paramos la ani. de la cinta
-                tapeAnimationOFF();
-                // Flag del REM a true
-                REM_DETECTED = false;
-                // volvemos
-                return true;
-              }
-              else
-              {
-                if (REM_DETECTED)
+                
+                if (digitalRead(GPIO_MSX_REMOTE_PAUSE) == LOW && !REM_DETECTED)
                 {
-                    // Recuperamos el mensaje original
-                    //LAST_MESSAGE = "Loading in progress. Please wait...";
+                    // Informamos del REM detectado
                     hmi.writeString("tape.wavind.txt=\"REM\"");
-                    #ifdef DEBUGMODE
-                        logln("REM released");
-                        logln(LAST_LAST_MESSAGE);
-                    #endif
-                    // Activamos la animacion
-                    tapeAnimationON();
-                    // Reseteamos el flag
+                    logln("REM detected");
+                    // Flag del REM a true
                     REM_DETECTED = true;
                 }
-                //
-                return false;
-              }
+                else if (digitalRead(GPIO_MSX_REMOTE_PAUSE) != LOW && REM_DETECTED)
+                {
+                    // Recuperamos el mensaje original
+                    hmi.writeString("tape.wavind.txt=\"\"");
+                    logln("REM released");
+                    // Reseteamos el flag
+                    REM_DETECTED = false;
+                }
             }
         }
 
         bool stopOrPauseRequest()
         {
-            // Control de REM detection
-            if (REM_ENABLE)
-            {
-                while (remDetection())
-                {
-                    if (STOP || EJECT)
-                    {
-                        break;
-                    }
-                    // delay(1);
-                }
-            }
 
+            remDetection();
+            
             if (STOP)
             {
                 LAST_MESSAGE = "Stop requested. Wait.";
@@ -181,12 +157,24 @@ class ZXProcessor
                 STOP_OR_PAUSE_REQUEST = true;
                 return true;
             }
-            else if (PAUSE)
+            else if (PAUSE || (!REM_DETECTED && STATUS_REM_ACTUATED))
             {
                 LAST_MESSAGE = "Pause requested. Wait.";
                 LOADING_STATE = 3; // Pausa del bloque actual
                 ACU_ERROR = 0;
                 STOP_OR_PAUSE_REQUEST = true;
+                
+                if(STATUS_REM_ACTUATED)
+                {
+                    STATUS_REM_ACTUATED = false;                    
+                    PLAY = false;
+                    PAUSE = true;
+                    STOP = false;
+                    REC = false;
+                    ABORT = true;
+                    EJECT = false;                    
+                }
+
                 return true;
             }          
             else

@@ -1123,166 +1123,185 @@ void writeStatusLCD(String txt)
 
 void uploadFirmDisplay(char *filetft)
 {
-  writeStatusLCD("New display firmware");
+  
   File file;
   String ans = "";
-
-  char strpath[20] = {};
-  strcpy(strpath, "/powadcr_iface.tft");
-
-  file = SD_MMC.open(strpath,FILE_READ);
-  uint32_t filesize = file.size();
-
-  //Enviamos comando de conexión
-  // Forzamos un reinicio de la pantalla
-  hmi.write("DRAKJHSUYDGBNCJHGJKSHBDN");
-  SerialHW.write(0xff);
-  SerialHW.write(0xff);
-  SerialHW.write(0xff);
-  delay(200);
-
-  SerialHW.write(0x00);
-  SerialHW.write(0xff);
-  SerialHW.write(0xff);
-  SerialHW.write(0xff);
-  delay(200);
-
-  hmi.write("connect");
-  SerialHW.write(0xff);
-  SerialHW.write(0xff);
-  SerialHW.write(0xff);
-  delay(500);
-
-  hmi.write("connect");
-  SerialHW.write(0xff);
-  SerialHW.write(0xff);
-  SerialHW.write(0xff);
-
-  ans = hmi.readStr();
-  delay(500);
-
-  hmi.write("runmod=2");
-  SerialHW.write(0xff);
-  SerialHW.write(0xff);
-  SerialHW.write(0xff);
-
-  hmi.write("print \"mystop_yesABC\"");
-  SerialHW.write(0xff);
-  SerialHW.write(0xff);
-  SerialHW.write(0xff);
-
-  ans = hmi.readStr();
-
-  hmi.write("get sleep");
-  SerialHW.write(0xff);
-  SerialHW.write(0xff);
-  SerialHW.write(0xff);
-  delay(200);
-
-  hmi.write("get dim");
-  SerialHW.write(0xff);
-  SerialHW.write(0xff);
-  SerialHW.write(0xff);
-  delay(200);
-
-  hmi.write("get baud");
-  SerialHW.write(0xff);
-  SerialHW.write(0xff);
-  SerialHW.write(0xff);
-  delay(200);
-
-  hmi.write("prints \"ABC\",0");
-  SerialHW.write(0xff);
-  SerialHW.write(0xff);
-  SerialHW.write(0xff);
-  delay(200);
-
-  ans = hmi.readStr();
-
-  SerialHW.write(0x00);
-  SerialHW.write(0xff);
-  SerialHW.write(0xff);
-  SerialHW.write(0xff);
-  delay(200);
-
-  hmi.write("whmi-wris " + String(filesize) + ",921600,1");
-  SerialHW.write(0xff);
-  SerialHW.write(0xff);
-  SerialHW.write(0xff);
-
-  delay(500);
-  ans = hmi.readStr();
-
-  //
-  file.seek(0);
-
-  // Enviamos los datos
-
-  uint8_t buf[4096];
-  size_t avail;
-  size_t readcount;
-  int bl = 0;
-
-  while (filesize > 0)
+  
+  logln("Uploading file " + String(filetft));
+  try
   {
-    // Leemos un bloque de 4096 bytes o el residual final < 4096
-    readcount = file.read(buf, filesize > 4096 ? 4096 : filesize);
+    file = SD_MMC.open(filetft,FILE_READ);
+  }
+  catch(String error)
+  {
+    return;
+  }
+  
+  logln("File opened");
 
-    // Lo enviamos
-    SerialHW.write(buf, readcount);
+  if (file)
+  {
+      uint32_t filesize = file.available();
+      logln("Starting uploading");
 
-    // Si es el primer bloque esperamos respuesta de 0x05 o 0x08
-    // en el caso de 0x08 saltaremos a la posición que indica la pantalla.
+      //Enviamos comando de conexión
+      // Forzamos un reinicio de la pantalla
+      hmi.write("DRAKJHSUYDGBNCJHGJKSHBDN");
+      SerialHW.write(0xff);
+      SerialHW.write(0xff);
+      SerialHW.write(0xff);
+      delay(200);
 
-    if (bl == 0)
-    {
-      String res = "";
+      SerialHW.write(0x00);
+      SerialHW.write(0xff);
+      SerialHW.write(0xff);
+      SerialHW.write(0xff);
+      delay(200);
 
-      // Una vez enviado el primer bloque esperamos 2s
-      delay(2000);
+      hmi.write("connect");
+      SerialHW.write(0xff);
+      SerialHW.write(0xff);
+      SerialHW.write(0xff);
+      delay(500);
 
-      while (1)
+      hmi.write("connect");
+      SerialHW.write(0xff);
+      SerialHW.write(0xff);
+      SerialHW.write(0xff);
+
+      ans = hmi.readStr();
+      delay(500);
+
+      hmi.write("runmod=2");
+      SerialHW.write(0xff);
+      SerialHW.write(0xff);
+      SerialHW.write(0xff);
+
+      hmi.write("print \"mystop_yesABC\"");
+      SerialHW.write(0xff);
+      SerialHW.write(0xff);
+      SerialHW.write(0xff);
+
+      ans = hmi.readStr();
+
+      hmi.write("get sleep");
+      SerialHW.write(0xff);
+      SerialHW.write(0xff);
+      SerialHW.write(0xff);
+      delay(200);
+
+      hmi.write("get dim");
+      SerialHW.write(0xff);
+      SerialHW.write(0xff);
+      SerialHW.write(0xff);
+      delay(200);
+
+      hmi.write("get baud");
+      SerialHW.write(0xff);
+      SerialHW.write(0xff);
+      SerialHW.write(0xff);
+      delay(200);
+
+      hmi.write("prints \"ABC\",0");
+      SerialHW.write(0xff);
+      SerialHW.write(0xff);
+      SerialHW.write(0xff);
+      delay(200);
+
+      ans = hmi.readStr();
+
+      SerialHW.write(0x00);
+      SerialHW.write(0xff);
+      SerialHW.write(0xff);
+      SerialHW.write(0xff);
+      delay(200);
+
+      hmi.write("whmi-wris " + String(filesize) + ",921600,1");
+      SerialHW.write(0xff);
+      SerialHW.write(0xff);
+      SerialHW.write(0xff);
+
+      delay(500);
+      ans = hmi.readStr();
+
+      //
+      file.seek(0);
+
+      // Enviamos los datos
+
+      uint8_t buf[4096];
+      size_t avail;
+      size_t readcount;
+      int bl = 0;
+
+      while (filesize > 0)
       {
-        res = hmi.readStr();
+        // Leemos un bloque de 4096 bytes o el residual final < 4096
+        readcount = file.read(buf, filesize > 4096 ? 4096 : filesize);
 
-        if (res.indexOf(0x08) != -1)
+        // Lo enviamos
+        SerialHW.write(buf, readcount);
+
+        // Si es el primer bloque esperamos respuesta de 0x05 o 0x08
+        // en el caso de 0x08 saltaremos a la posición que indica la pantalla.
+
+        if (bl == 0)
         {
-          int offset = (pow(16, 6) * int(res[4])) + (pow(16, 4) * int(res[3])) + (pow(16, 2) * int(res[2])) + int(res[1]);
+          String res = "";
 
-          if (offset != 0)
+          // Una vez enviado el primer bloque esperamos 2s
+          delay(2000);
+
+          while (1)
           {
-            file.seek(0);
-            delay(50);
-            file.seek(offset);
+            res = hmi.readStr();
+
+            if (res.indexOf(0x08) != -1)
+            {
+              int offset = (pow(16, 6) * int(res[4])) + (pow(16, 4) * int(res[3])) + (pow(16, 2) * int(res[2])) + int(res[1]);
+
+              if (offset != 0)
+              {
+                file.seek(0);
+                delay(50);
+                file.seek(offset);
+                delay(50);
+              }
+              break;
+            }
             delay(50);
           }
-          break;
         }
-        delay(50);
-      }
-    }
-    else
-    {
-      String res = "";
-      while (1)
-      {
-        // Esperams un ACK 0x05
-        res = hmi.readStr();
-        if (res.indexOf(0x05) != -1)
+        else
         {
-          break;
+          String res = "";
+          while (1)
+          {
+            // Esperams un ACK 0x05
+            res = hmi.readStr();
+            if (res.indexOf(0x05) != -1)
+            {
+              break;
+            }
+          }
         }
-      }
-    }
 
-    //
-    bl++;
-    // Vemos lo que queda una vez he movido el seek o he leido un bloque
-    // ".available" mide lo que queda desde el puntero a EOF.
-    filesize = file.available();
+        //
+        bl++;
+        // Vemos lo que queda una vez he movido el seek o he leido un bloque
+        // ".available" mide lo que queda desde el puntero a EOF.
+        filesize = file.available();
+      }
+
+      file.close();    
+  }
+  else
+  {
+    writeStatusLCD("file corrupt.");
+    SD_MMC.remove(filetft);
   }
 
-  file.close();
+  
 }
 // -------------------------------------------------------------------------------------------------------------------
 
@@ -4242,10 +4261,9 @@ void remDetection()
 {
   if (REM_ENABLE)
   {
-    
-    logln("Check if REM is active");
+    //logln("Check if REM is active");
 
-    if (digitalRead(GPIO_MSX_REMOTE_PAUSE) == LOW)
+    if (digitalRead(GPIO_MSX_REMOTE_PAUSE) == LOW && !REM_DETECTED)
     {
       // Informamos del REM detectado
       hmi.writeString("tape.wavind.txt=\"REM\"");
@@ -4253,16 +4271,13 @@ void remDetection()
       // Flag del REM a true
       REM_DETECTED = true;
     }
-    else
+    else if (digitalRead(GPIO_MSX_REMOTE_PAUSE) != LOW && REM_DETECTED)
     {
-      if (REM_DETECTED)
-      {
-          // Recuperamos el mensaje original
-          hmi.writeString("tape.wavind.txt=\"\"");
-          logln("REM released");
-          // Reseteamos el flag
-          REM_DETECTED = false;
-      }
+        // Recuperamos el mensaje original
+        hmi.writeString("tape.wavind.txt=\"\"");
+        logln("REM released");
+        // Reseteamos el flag
+        REM_DETECTED = false;
     }
   }
 }
@@ -4376,7 +4391,7 @@ void tapeControl()
     //
     // PLAY / STOP
     //
-    //remDetection();
+    remDetection();
     // Esto nos permite abrir el Block Browser en reproduccion
     if (BB_OPEN || BB_UPDATE)
     {
@@ -4397,6 +4412,12 @@ void tapeControl()
       if (REM_DETECTED) 
       {
         PLAY = true;
+        PAUSE = false;
+        STOP = false;
+        REC = false;
+        EJECT = false;
+        ABORT = false;
+        BTN_PLAY_PRESSED = true; 
         STATUS_REM_ACTUATED = true;
       }
 
@@ -4430,21 +4451,12 @@ void tapeControl()
         encoderOutWAV.end();
       }
     }
-    else if (PAUSE || (!REM_DETECTED && STATUS_REM_ACTUATED))
+    else if (PAUSE)
     {
-      // Nos vamos al estado PAUSA para seleccion de bloques
-      if (STATUS_REM_ACTUATED) STATUS_REM_ACTUATED = false;
-
       TAPESTATE = 3;
       // Esto la hacemos para evitar una salida inesperada de seleccion de bloques.
       PAUSE = false;
       //
-      // if (TYPE_FILE_LOAD == "WAV")
-      // {
-      //   LAST_MESSAGE = "Playing paused.";
-      // }
-      // else
-      // {
       if (AUTO_PAUSE)
       {
         logln("Auto-pause activated");
@@ -4591,10 +4603,21 @@ void tapeControl()
     // Reproducimos el fichero
     LAST_MESSAGE = "Tape paused. Press play or select block.";
     
+    remDetection();
     //
     if (PLAY || REM_DETECTED)
     {
-      if (REM_DETECTED) PLAY = true;
+      if (REM_DETECTED)
+      {
+        PLAY = true;
+        PAUSE = false;
+        STOP = false;
+        REC = false;
+        EJECT = false;
+        ABORT = false;
+
+        BTN_PLAY_PRESSED = true;          
+      }
       // Reanudamos la reproduccion
       TAPESTATE = 1;
       AUTO_PAUSE = false;
@@ -5205,7 +5228,7 @@ void Task1code(void *pvParameters)
       serialEventRun();
 
     //esp_task_wdt_reset();
-    remDetection();
+    //remDetection();
     tapeControl();
   }
 }
@@ -5619,12 +5642,12 @@ void setup()
   log_v("Search for firmware..");
   char strpath[20] = {};
   strcpy(strpath, "/firmware.bin");
+
   File firmware = SD_MMC.open(strpath, FILE_READ);
-  logln("Firmware file opened " + String(strpath));
-  delay(1500);
 
   if (firmware)
   {
+    logln("Firmware file opened " + String(strpath));
     hmi.writeString("statusLCD.txt=\"Checking firmware...\"");
     
     // ✅ VERIFICAR magic byte antes del update
@@ -5712,17 +5735,16 @@ void setup()
   // -------------------------------------------------------------------------
   // Actualizacion del HMI
   // -------------------------------------------------------------------------
-  if (SD_MMC.exists("/powadcr_iface.tft"))
+  char strpathtft[20] = {};
+  strcpy(strpathtft, "/powadcr_iface.tft");
+
+  File firmwaretft = SD_MMC.open(strpathtft, FILE_READ);
+  if (firmwaretft)
   {
+    writeStatusLCD("New display firmware");
     // NOTA: Este metodo necesita que la pantalla esté alimentada con 5V
-    //writeStatusLCD("Uploading display firmware");
-
-    // Alternativa 1
-    char strpath[20] = {};
-    strcpy(strpath, "/powadcr_iface.tft");
-
-    uploadFirmDisplay(strpath);
-    SD_MMC.remove(strpath);
+    uploadFirmDisplay(strpathtft);
+    SD_MMC.remove(strpathtft);
     // Esperamos al reinicio de la pantalla
     delay(5000);
   }
