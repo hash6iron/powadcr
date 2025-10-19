@@ -102,7 +102,7 @@
 // Configuración del sistema
 // --------------------------------------------------------------
 
-#define VERSION "1.0r6.2"
+#define VERSION "1.0r6.3"
 #define MACHINE_ZX
 
 // Define sampling rate a 44.1KHz. En otro caso será a 32KHz
