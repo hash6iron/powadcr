@@ -190,6 +190,25 @@ Is possible to connect directly to the machine audio output line-out, anyway, if
 - ESPectrum can connecto directly without adaptation circuit.
 - N-Go needs a special cable to get the output channel (+3 output) to stereo jack for powadcr (you can repeat the output channel in both left/right channels of the stereo jack or only get left channel and right to ground)
 
+**Supported machines by powadcr**
+
+|   Microcomputer  | File format supported |
+| ---------------- | --------------------- |
+| Spectrum         | TAP, TZX, WAV         |
+| CPC Amstrad      | CDT(TZX), WAV         |
+| MSX              | TSX, WAV              |
+| ORIC             | TZX (DR), WAV         |
+| Enterprise       | TZX (DR), WAV         |
+| Apple IIe        | TZX (DR), WAV         |
+| Mattel Aquarious | TZX (DR), WAV         |
+| Lynx             | TZX (DR), WAV         |
+| TRS-80 (COCO)    | TZX (DR), WAV         |
+| THOMPSON MO5     | TZX (DR), WAV         |
+| TI99             | TZX (DR), WAV         |
+| JUPITER          | TZX (DR), WAV         |
+
+
+
 Are you enjoying?
 -----
 
