@@ -797,29 +797,40 @@ void WavRecording()
   int rectime_m = 0;
   size_t wavfilesize = 0;
 
-  AudioInfo new_sr = kitStream.defaultConfig();
+  auto new_sr = kitStream.defaultConfig(RXTX_MODE);
   // Guardamos la configuracion de sampling rate
   SAMPLING_RATE = new_sr.sample_rate;
-
   new_sr.sample_rate = DEFAULT_WAV_SAMPLING_RATE_REC;
   kitStream.setAudioInfo(new_sr);       
-  // Indicamos
-  hmi.writeString("tape.lblFreq.txt=\"" + String(int(DEFAULT_WAV_SAMPLING_RATE_REC/1000)) + "KHz\"" );
-
+  
   const size_t BUFFER_SIZE = 4096;
   int16_t buffer[BUFFER_SIZE];
 
-  EncodedAudioStream encoder(&wavfile, new WAVEncoder());
-  NumberFormatConverterStreamT<int16_t, uint8_t> nfc(kitStream); // Convierte de 16-bits a 8-bits);
+  EncodedAudioStream encoder(&wavfile, new WAVEncoder());       // Encoder WAV PCM
+  NumberFormatConverterStreamT<int16_t, uint8_t> nfc(encoder);  // Convierte de 16-bits a 8-bits);
 
-  //
-  // Definimos el multi-output
-  //MultiOutput cmulti;   
+  MultiOutput multi(kitStream);
 
+  if (WAV_8BIT_MONO) 
+  {
+    hmi.writeString("tape.wavind.txt=\"WAV8\"");
+    multi.add(nfc);
+  }
+  else
+  {
+    multi.add(encoder);
+  }
+
+  //multi.add(kitStream);
+  multi.begin();
+  
   // Definición de los copiers
-  StreamCopy copier8bWAV(encoder, nfc);
-  StreamCopy copier(encoder, kitStream); // copies data to both file and line_out
-  StreamCopy copierOutput(kitStream, kitStream); // copies data to both file and line_out
+  // es copier(&to, &from)
+  //StreamCopy copier8bWAV(multi, kitStream); // copies data to both file and line_out
+  StreamCopy copier(multi, kitStream); // copies data to both file and line_out
+
+  copier.setSynchAudioInfo(true);
+  //copier8bWAV.setSynchAudioInfo(true);
 
   // Esperamos a que la pantalla esté lista
   LAST_MESSAGE = "Recording to WAV - Press STOP to finish.";
@@ -829,16 +840,19 @@ void WavRecording()
   tapeAnimationON();
 
   // Agregamos las salidas al multiple
-  // cmulti.add(encoder);
-  // cmulti.add(kitStream);
-  AudioInfo ecfg = encoder.defaultConfig();
+  auto ecfg = encoder.defaultConfig();
 
   if (WAV_8BIT_MONO)
   {
     // Configuramos el encoder para 22KHz, 8-bit mono
     ecfg.sample_rate = DEFAULT_8BIT_WAV_SAMPLING_RATE_REC;
+    // Esto es así porque ya el nfc se encarga de convertir a 8 bits
     ecfg.bits_per_sample = 8; 
     ecfg.channels = 1; // Mono
+
+    encoder.begin(ecfg);
+    // Inicializamos encoders
+    nfc.begin();
   }
   else
   {
@@ -846,31 +860,24 @@ void WavRecording()
     ecfg.sample_rate = DEFAULT_WAV_SAMPLING_RATE_REC;
     ecfg.bits_per_sample = 16; 
     ecfg.channels = 2; // Stereo
+
+    encoder.begin(ecfg);
   }
-  
-  encoder.begin(ecfg);
-
-
-  // Inicializamos encoders
-  nfc.begin();
-
-  // Deshabilitamos el amplificador de salida
-  // Con esto ajustamos la salida a la del recorder.
-  showOption("menuAudio.mutAmp.val",String(false));
+  // Actuamos sobre el amplificador  
   kitStream.setPAPower(ACTIVE_AMP && EN_SPEAKER); 
   STOP = false;
-
   WAVFILE_PRELOAD = false;
-  copier.setSynchAudioInfo(true);
-  copier8bWAV.setSynchAudioInfo(true);
 
-  WAV_8BIT_MONO ? copier8bWAV.begin() : copier.begin();
+  copier.begin();
+
+  // Indicamos
+  hmi.writeString("tape.lblFreq.txt=\"" + String(int(ecfg.sample_rate/1000)) + "KHz\"" );
 
   // loop de grabacion
   while (!STOP)
   {
     // Grabamos a WAV file
-    wavfilesize += WAV_8BIT_MONO ? copier8bWAV.copy() : copier.copy();    
+    wavfilesize += copier.copy();    
 
     // Sacamos audio por la salida
     if ((millis() - progress_millis) > 1000)
@@ -916,29 +923,16 @@ void WavRecording()
                                          (wavfilesize > 1000000 ? " MB" : " KB") + "\"");
   
   // Cerramos el stream
-  copier8bWAV.end();
+  //copier8bWAV.end();
   copier.end();
   encoder.end();
-  nfc.end();
+  multi.end();
+
+  //if (WAV_8BIT_MONO) nfc.end();
 
   // Cerramos el fichero WAV
   wavfile.flush();
   wavfile.close();
-
-
-  // Devolvemos la configuracion a la board.
-  new_sr.sample_rate = SAMPLING_RATE;
-  new_sr.bits_per_sample = 16;
-  new_sr.channels = 2;
-
-  kitStream.setAudioInfo(new_sr);      
-  
-  // Cambiamos el sampling rate en el HW
-  // Indicamos
-  hmi.writeString("tape.lblFreq.txt=\"" + String(int(SAMPLING_RATE/1000)) + "KHz\"" );  
-  //
-  showOption("menuAudio.mutAmp.val",String(ACTIVE_AMP));
-  kitStream.setPAPower(ACTIVE_AMP && EN_SPEAKER);
 
   WAVFILE_PRELOAD = true;
 }
@@ -1493,7 +1487,7 @@ void updateSamplingRateIndicator(int rate, int bps, String ext)
       }              
   }
   else
-  {
+  {   
       hmi.writeString("tape.wavind.txt=\"\"");
   }
 }
@@ -3251,7 +3245,7 @@ void playingFile()
   kitStream.setVolume(MAX_MAIN_VOL);
   kitStream.setPAPower(ACTIVE_AMP && EN_SPEAKER);
 
-  AudioInfo new_sr;
+  auto new_sr = kitStream.defaultConfig();
   
   // Por defecto
 
@@ -4276,7 +4270,15 @@ void remDetection()
     else if (digitalRead(GPIO_MSX_REMOTE_PAUSE) != LOW && REM_DETECTED)
     {
         // Recuperamos el mensaje original
-        hmi.writeString("tape.wavind.txt=\"\"");
+        if (WAV_8BIT_MONO)
+        {
+          hmi.writeString("tape.wavind.txt=\"WAV8\"");
+        }
+        else
+        {
+          hmi.writeString("tape.wavind.txt=\"\"");
+        }
+        
         logln("REM released");
         // Reseteamos el flag
         REM_DETECTED = false;
@@ -5466,277 +5468,8 @@ bool createSpecialDirectory(String fDir)
   }  
 }
 
-void setup()
+void updateHMIfirmware()
 {
-
-
-
-  // Inicializar puerto USB Serial a 115200 para depurar / subida de firm
-  Serial.begin(115200);
-
-  // Configuramos el size de los buffers de TX y RX del puerto serie
-  SerialHW.setRxBufferSize(4096);
-  SerialHW.setTxBufferSize(4096);
-
-  // Configuramos el puerto de comunicaciones con el HMI a 921600
-  SerialHW.begin(SerialHWDataBits, SERIAL_8N1, hmiRxD, hmiTxD);
-  delay(125);
-
-  // Forzamos un reinicio de la pantalla
-  hmi.writeString("rest");
-  delay(125);
-
-  // Indicamos que estamos haciendo reset
-  sendStatus(RESET, 1);
-  delay(250);
-
-  hmi.writeString("statusLCD.txt=\"POWADCR " + String(VERSION) + "\"");
-  delay(1250);
-
-
-  // -------------------------------------------------------------------------
-  //
-  // Inicializamos el soporte de audio
-  //
-  // -------------------------------------------------------------------------
-  hmi.writeString("statusLCD.txt=\"Setting audio board\"");
-  //
-  // slot SD
-  powadcr_pins.addSPI(ESP32PinsSD);
-  // add i2c codec pins: scl, sda, port, frequency
-  powadcr_pins.addI2C(PinFunction::CODEC, 32, 33);
-  // add i2s pins: mclk, bck, ws,data_out, data_in ,(port)
-  powadcr_pins.addI2S(PinFunction::CODEC, 0, 27, 25, 26, 35);
-  // add other pins: PA on gpio 21
-  powadcr_pins.addPin(PinFunction::PA, 21, PinLogic::Output);
-
-  // Teclas
-  //powadcr_pins.addPin(PinFunction::KEY, 36, PinLogic::InputActiveLow, 1);
-  //powadcr_pins.addPin(PinFunction::KEY, 13, PinLogic::InputActiveLow, 2);
-  //powadcr_pins.addPin(PinFunction::KEY, 19, PinLogic::InputActiveLow, 3);
-  //powadcr_pins.addPin(PinFunction::KEY, 5, PinLogic::InputActiveLow, 6);
-  // Deteccion de cable conectado al AMP
-  powadcr_pins.addPin(PinFunction::AUXIN_DETECT, 12, PinLogic::InputActiveLow);
-  // Deteccion de cable conectado al HEADPHONE
-  powadcr_pins.addPin(PinFunction::HEADPHONE_DETECT, 39, PinLogic::InputActiveLow);
-  // Amplificador ENABLE pin
-  powadcr_pins.addPin(PinFunction::PA, 21, PinLogic::Output);
-  // Power led indicador
-  powadcr_pins.addPin(PinFunction::LED, 22, PinLogic::Output);
-
-  //
-  auto cfg = kitStream.defaultConfig(RXTX_MODE);
-  cfg.bits_per_sample = 16;
-  cfg.channels = 2;
-  cfg.sample_rate = SAMPLING_RATE;
-  //cfg.buffer_size = 262144;
-  cfg.input_device =  ADC_INPUT_LINE2;
-  cfg.output_device = DAC_OUTPUT_ALL;
-  // Esto es importante para el uso de SD_MMC
-  cfg.sd_active = false;
-  
-  //
-  kitStream.begin(cfg);
-
-  // Ajustamos el volumen de entrada
-  kitStream.setInputVolume(IN_REC_VOL);
-
-  // Para que esta linea haga efecto debe estar el define 
-  //
-  #if USE_AUDIO_LOGGING
-    //AudioToolsLogger.begin(Serial, AudioToolsLogLevel::Debug);
-  #endif  
-
-  // Arrancamos el indicador de power
-  actuatePowerLed(true,POWERLED_DUTY);
-  //
-  // ----------------------------------------------------------------------
-
-  #ifdef MSX_REMOTE_PAUSE
-    hmi.writeString("statusLCD.txt=\"Setting Remote Pause\"");
-    delay(1250);
-    pinMode(GPIO_MSX_REMOTE_PAUSE, INPUT_PULLUP);
-  #endif
-
-  // Configuramos acceso a la SD
-
-  logln("Waiting for SD Card");
-  // GpioPin pincs = kitStream.getPinID(PinFunction::SD,0);
-
-  // logln("Pin CS: " + String(pincs));
-  
-  hmi.writeString("statusLCD.txt=\"WAITING FOR SD CARD\"");
-  delay(125);
-
-  int SD_Speed = SD_FRQ_MHZ_INITIAL; // Velocidad en Hz (config.h)
-
-  // ****************************************************************
-  //
-  //
-  //      Recordar poner todos los SWITCHES del Audiokit a ON
-  //
-  //
-  // ****************************************************************
-  if (!SD_MMC.begin("/sdcard",false,false,SD_Speed))
-  {
-
-    // SD no inicializada
-    while(1)
-    {
-      hmi.writeString("statusLCD.txt=\"SD_MMC not mounted\"");
-      delay(2000);
-      hmi.writeString("statusLCD.txt=\"1. Verify audiokit switches.\"");
-      delay(2000);
-      hmi.writeString("statusLCD.txt=\"2. Verify SD card type.\"");
-      delay(2000);
-    }
-  }
-  else
-  {
-    logln("SD Card mounted");
-    hmi.writeString("statusLCD.txt=\"SD_MMC available\"");
-    delay(125);
-  }
-
-
-  //SD_SPEED_MHZ = setSDFrequency(SD_Speed);
-
-  //logln("SD Card - Speed " + String(SD_SPEED_MHZ));
-
-  // Para forzar a un valor, descomentar esta linea
-  // y comentar las dos de arriba
-  // Le pasamos al HMI el gestor de SD
-
-  //hmi.set_sdf(sdf);
-
-  if (psramInit())
-  {
-    //SerialHW.println("\nPSRAM is correctly initialized");
-    hmi.writeString("statusLCD.txt=\"PSRAM OK\"");
-  }
-  else
-  {
-    //SerialHW.println("PSRAM not available");
-    hmi.writeString("statusLCD.txt=\"PSRAM FAILED!\"");
-  }
-  delay(125);
-
-  // -------------------------------------------------------------------------
-  // Inicializar SPIFFS mínimo
-  // -------------------------------------------------------------------------
-  // hmi.writeString("statusLCD.txt=\"Initializing SPIFFS\"");
-  // initSPIFFS();
-  // if (esp_spiffs_mounted)
-  // {
-  //   hmi.writeString("statusLCD.txt=\"SPIFFS mounted\"");
-  // }
-  // else
-  // {
-  //   hmi.writeString("statusLCD.txt=\"SPIFFS error\"");
-  // }
-  // delay(500);
-
-  // -------------------------------------------------------------------------
-  // Actualización OTA por SD
-  // -------------------------------------------------------------------------
-
-  log_v("");
-  log_v("Search for firmware..");
-  char strpath[20] = {};
-  strcpy(strpath, "/firmware.bin");
-
-  File firmware = SD_MMC.open(strpath, FILE_READ);
-
-  if (firmware)
-  {
-    logln("Firmware file opened " + String(strpath));
-    hmi.writeString("statusLCD.txt=\"Checking firmware...\"");
-    
-    // Verificar magic byte antes del update
-    uint8_t magicByte = firmware.peek();
-    logln("First byte of firmware: 0x" + String(magicByte, HEX));
-    
-    if (magicByte != 0xE9) 
-    {
-        logln("ERROR: Invalid firmware file - Wrong magic byte");
-        hmi.writeString("statusLCD.txt=\"Invalid firmware file\"");
-        firmware.close();
-        
-        // Eliminar archivo inválido
-        if (SD_MMC.remove("/firmware.bin")) {
-            logln("Invalid firmware file deleted");
-        }
-        return;
-    }    
-    hmi.writeString("statusLCD.txt=\"New powadcr firmware found\"");
-    logln("Firmware found on SD_MMC");
-    onOTAStart();
-    logln("Updating firmware...");
-
-    Update.onProgress(onOTAProgress);
-
-    size_t firmwareSize = firmware.available();
-    logln("Firmware size: " + String(firmwareSize) + " bytes");
-
-    if(!Update.begin(firmwareSize))
-    {
-      logln("Error initializing updater obj.");
-      Update.getError();
-      Update.printError(Serial);
-    }
-    else
-    {
-        uint8_t buf[2048];
-        int bytesRead = 0;
-        size_t totalWritten = 0;
-
-        while ((bytesRead = firmware.read(buf, sizeof(buf))) > 0) 
-        {
-          Update.write(buf, bytesRead);
-          totalWritten += bytesRead;
-          Serial.printf("Escritos: %d/%d bytes\n", totalWritten, firmwareSize);
-        }        
-    }
-
-    if (Update.end())
-    {
-      log_v("Update finished!");
-      hmi.writeString("statusLCD.txt=\"Update finished\"");
-      onOTAEnd(true);
-      delay(2000);
-    }
-    else
-    {
-      log_e("Update error!");
-      hmi.writeString("statusLCD.txt=\"Update error\"");
-      Update.getError();
-      Update.printError(Serial);
-      onOTAEnd(false);
-      delay(2000);
-    }
-
-    firmware.close();
-
-    if (SD_MMC.remove(strpath))
-    {
-      log_v("Firmware deleted succesfully!");
-    }
-    else
-    {
-      log_e("Firmware delete error!");
-    }
-    delay(2000);
-
-    ESP.restart();
-  }
-  else
-  {
-    log_v("not found!");
-  }
-
-  // -------------------------------------------------------------------------
-  // Actualizacion del HMI
-  // -------------------------------------------------------------------------
   char strpathtft[20] = {};
   strcpy(strpathtft, "/powadcr_iface.tft");
 
@@ -5750,11 +5483,158 @@ void setup()
     // Esperamos al reinicio de la pantalla
     delay(5000);
   }
+}
 
-  // -------------------------------------------------------------------------
-  // Cargamos configuración WiFi
-  // -------------------------------------------------------------------------
-  // Si hay configuración activamos el wifi
+void updateESP32firmware()
+{
+    log_v("");
+    log_v("Search for firmware..");
+    char strpath[20] = {};
+    strcpy(strpath, "/firmware.bin");
+
+    File firmware = SD_MMC.open(strpath, FILE_READ);
+
+    if (firmware)
+    {
+      logln("Firmware file opened " + String(strpath));
+      hmi.writeString("statusLCD.txt=\"Checking firmware...\"");
+      
+      // Verificar magic byte antes del update
+      uint8_t magicByte = firmware.peek();
+      logln("First byte of firmware: 0x" + String(magicByte, HEX));
+      
+      if (magicByte != 0xE9) 
+      {
+          logln("ERROR: Invalid firmware file - Wrong magic byte");
+          hmi.writeString("statusLCD.txt=\"Invalid firmware file\"");
+          firmware.close();
+          
+          // Eliminar archivo inválido
+          if (SD_MMC.remove("/firmware.bin")) {
+              logln("Invalid firmware file deleted");
+          }
+          return;
+      }    
+      hmi.writeString("statusLCD.txt=\"New powadcr firmware found\"");
+      logln("Firmware found on SD_MMC");
+      onOTAStart();
+      logln("Updating firmware...");
+
+      Update.onProgress(onOTAProgress);
+
+      size_t firmwareSize = firmware.available();
+      logln("Firmware size: " + String(firmwareSize) + " bytes");
+
+      if(!Update.begin(firmwareSize))
+      {
+        logln("Error initializing updater obj.");
+        Update.getError();
+        Update.printError(Serial);
+      }
+      else
+      {
+          uint8_t buf[2048];
+          int bytesRead = 0;
+          size_t totalWritten = 0;
+
+          while ((bytesRead = firmware.read(buf, sizeof(buf))) > 0) 
+          {
+            Update.write(buf, bytesRead);
+            totalWritten += bytesRead;
+            Serial.printf("Escritos: %d/%d bytes\n", totalWritten, firmwareSize);
+          }        
+      }
+
+      if (Update.end())
+      {
+        log_v("Update finished!");
+        hmi.writeString("statusLCD.txt=\"Update finished\"");
+        onOTAEnd(true);
+        delay(2000);
+      }
+      else
+      {
+        log_e("Update error!");
+        hmi.writeString("statusLCD.txt=\"Update error\"");
+        Update.getError();
+        Update.printError(Serial);
+        onOTAEnd(false);
+        delay(2000);
+      }
+
+      firmware.close();
+
+      if (SD_MMC.remove(strpath))
+      {
+        log_v("Firmware deleted succesfully!");
+      }
+      else
+      {
+        log_e("Firmware delete error!");
+      }
+      delay(2000);
+
+      ESP.restart();
+    }
+    else
+    {
+      log_v("not found!");
+    }
+}
+
+void setupAudioKit()
+{
+    hmi.writeString("statusLCD.txt=\"Setting audio board\"");
+    //
+    // slot SD
+    powadcr_pins.addSPI(ESP32PinsSD);
+    // add i2c codec pins: scl, sda, port, frequency
+    powadcr_pins.addI2C(PinFunction::CODEC, 32, 33);
+    // add i2s pins: mclk, bck, ws,data_out, data_in ,(port)
+    powadcr_pins.addI2S(PinFunction::CODEC, 0, 27, 25, 26, 35);
+    // add other pins: PA on gpio 21
+    powadcr_pins.addPin(PinFunction::PA, 21, PinLogic::Output);
+
+    // Teclas
+    //powadcr_pins.addPin(PinFunction::KEY, 36, PinLogic::InputActiveLow, 1);
+    //powadcr_pins.addPin(PinFunction::KEY, 13, PinLogic::InputActiveLow, 2);
+    //powadcr_pins.addPin(PinFunction::KEY, 19, PinLogic::InputActiveLow, 3);
+    //powadcr_pins.addPin(PinFunction::KEY, 5, PinLogic::InputActiveLow, 6);
+    // Deteccion de cable conectado al AMP
+    powadcr_pins.addPin(PinFunction::AUXIN_DETECT, 12, PinLogic::InputActiveLow);
+    // Deteccion de cable conectado al HEADPHONE
+    powadcr_pins.addPin(PinFunction::HEADPHONE_DETECT, 39, PinLogic::InputActiveLow);
+    // Amplificador ENABLE pin
+    powadcr_pins.addPin(PinFunction::PA, 21, PinLogic::Output);
+    // Power led indicador
+    powadcr_pins.addPin(PinFunction::LED, 22, PinLogic::Output);
+
+    //
+    auto cfg = kitStream.defaultConfig(RXTX_MODE);
+    cfg.bits_per_sample = 16;
+    cfg.channels = 2;
+    cfg.sample_rate = SAMPLING_RATE;
+    //cfg.buffer_size = 262144;
+    cfg.input_device =  ADC_INPUT_LINE2;
+    cfg.output_device = DAC_OUTPUT_ALL;
+    // Esto es importante para el uso de SD_MMC
+    cfg.sd_active = false;
+    
+    //
+    kitStream.begin(cfg);
+
+    // Ajustamos el volumen de entrada
+    kitStream.setInputVolume(IN_REC_VOL);
+
+    // Para que esta linea haga efecto debe estar el define 
+    //
+    #if USE_AUDIO_LOGGING
+      //AudioToolsLogger.begin(Serial, AudioToolsLogLevel::Debug);
+    #endif    
+}
+
+void setupWifi()
+{
   logln("Wifi setting - loading");
 
   if (loadWifiCfgFile())
@@ -5788,7 +5668,252 @@ void setup()
     }
   }
 
-  delay(750);
+  delay(750);  
+}
+
+void prepareCardStructure()
+{
+    // Creamos el directorio /fav
+    String fDir = "/FAV";
+
+    //Esto lo hacemos para ver si el directorio existe
+    if(createSpecialDirectory(fDir))
+    {
+      hmi.writeString("statusLCD.txt=\"Creating FAV directory\"");
+      hmi.reloadCustomDir("/");
+      delay(750);    
+    }
+
+
+    // Creamos el directorio /rec
+    fDir = "/REC";
+
+    //Esto lo hacemos para ver si el directorio existe
+    if(createSpecialDirectory(fDir))
+    {
+      hmi.writeString("statusLCD.txt=\"Creating REC directory\"");
+      hmi.reloadCustomDir("/");
+      delay(750);    
+    }
+
+
+    // Creamos el directorio /wav
+    fDir = "/WAV";
+
+    //Esto lo hacemos para ver si el directorio existe
+    if(createSpecialDirectory(fDir))
+    {
+      hmi.writeString("statusLCD.txt=\"Creating WAV directory\"");
+      hmi.reloadCustomDir("/");
+      delay(750);    
+    }
+
+
+    // Creamos el directorio /mp3
+    fDir = "/MP3";
+
+    if(createSpecialDirectory(fDir))
+    {
+      hmi.writeString("statusLCD.txt=\"Creating MP3 directory\"");
+      hmi.reloadCustomDir("/");
+      delay(750);    
+    }
+
+    // Creamos el directorio /flac
+    fDir = "/FLAC";
+
+    if(createSpecialDirectory(fDir))
+    {
+      hmi.writeString("statusLCD.txt=\"Creating FLAC directory\"");
+      hmi.reloadCustomDir("/");
+      delay(750);    
+    }  
+}
+
+void setupSDCard()
+{
+  logln("Waiting for SD Card");
+    
+    hmi.writeString("statusLCD.txt=\"WAITING FOR SD CARD\"");
+    delay(125);
+
+    int SD_Speed = SD_FRQ_MHZ_INITIAL; // Velocidad en Hz (config.h)
+
+    // ****************************************************************
+    //
+    //
+    //      Recordar poner todos los SWITCHES del Audiokit a ON
+    //
+    //
+    // ****************************************************************
+    if (!SD_MMC.begin("/sdcard",false,false,SD_Speed))
+    {
+
+      // SD no inicializada
+      while(1)
+      {
+        hmi.writeString("statusLCD.txt=\"SD_MMC not mounted\"");
+        delay(2000);
+        hmi.writeString("statusLCD.txt=\"1. Verify audiokit switches.\"");
+        delay(2000);
+        hmi.writeString("statusLCD.txt=\"2. Verify SD card type.\"");
+        delay(2000);
+      }
+    }
+    else
+    {
+      logln("SD Card mounted");
+      hmi.writeString("statusLCD.txt=\"SD_MMC available\"");
+      delay(125);
+    }
+
+
+    if (psramInit())
+    {
+      //SerialHW.println("\nPSRAM is correctly initialized");
+      hmi.writeString("statusLCD.txt=\"PSRAM OK\"");
+    }
+    else
+    {
+      //SerialHW.println("PSRAM not available");
+      hmi.writeString("statusLCD.txt=\"PSRAM FAILED!\"");
+    }
+    delay(125);  
+}
+
+void loadHMICfgfromNVS()
+{
+    LAST_MESSAGE = "Loading HMI settings.";
+
+    loadHMICfg();
+
+    // Actualizamos la configuracion
+    logln("EN_STERO = " + String(EN_STEREO));
+    logln("MUTE AMP = " + String(!ACTIVE_AMP));
+    logln("VOL_LIMIT_HEADPHONE = " + String(VOL_LIMIT_HEADPHONE));
+    logln("MAIN_VOL" + String(MAIN_VOL));
+    logln("MAIN_VOL_L" + String(MAIN_VOL_L));
+    logln("MAIN_VOL_R" + String(MAIN_VOL_R));
+    //
+    // EN_STEREO
+    showOption("menuAudio.stereoOut.val",String(EN_STEREO));
+    // MUTE_AMPLIFIER
+    showOption("menuAudio.mutAmp.val",String(!ACTIVE_AMP));
+    // POWERLED_DUTY
+    showOption("menu.ppled.val",String(PWM_POWER_LED));
+    // First view files on sorting
+    showOption("menu.sortFil.val",String(!SORT_FILES_FIRST_DIR));
+
+
+    if (ACTIVE_AMP)
+    {
+      MAIN_VOL_L = 5;
+      // Actualizamos el HMI
+      hmi.writeString("menuAudio.volL.val=" + String(MAIN_VOL_L));
+      hmi.writeString("menuAudio.volLevel.val=" + String(MAIN_VOL_L)); 
+    }
+
+    if (EN_SPEAKER)
+    {
+      // Actualizamos el HMI
+      showOption("menuAudio.enSpeak.val",String(EN_SPEAKER));
+    }
+
+    // VOL_LIMIT
+    showOption("menuAudio.volLimit.val",String(VOL_LIMIT_HEADPHONE));
+    // Volumen sliders
+    showOption("menuAudio.volM.val",String(MAIN_VOL));
+    showOption("menuAudio.volLevelM.val",String(MAIN_VOL));
+    //
+    showOption("menuAudio.volR.val",String(MAIN_VOL_R));
+    showOption("menuAudio.volLevel.val",String(MAIN_VOL_R));
+    //
+    showOption("menuAudio.volL.val",String(MAIN_VOL_L));
+    showOption("menuAudio.volLevelL.val",String(MAIN_VOL_L));
+
+    // Equalizer
+    showOption("menuEq.eqHigh.val",String(EQ_HIGH));
+    showOption("menuEq.eqHighL.val",String(EQ_HIGH));
+    //
+    showOption("menuEq.eqMid.val",String(EQ_MID));
+    showOption("menuEq.eqMidL.val",String(EQ_MID));
+    //
+    showOption("menuEq.eqLow.val",String(EQ_LOW));
+    showOption("menuEq.eqLowL.val",String(EQ_LOW));
+    EQ_CHANGE = true;
+    
+    // Esto lo hacemos porque depende de la configuración cargada.
+    kitStream.setPAPower(ACTIVE_AMP && EN_SPEAKER);   
+    //
+    delay(500);  
+}
+
+void setup()
+{
+
+
+  // Inicializar puerto USB Serial a 115200 para depurar / subida de firm
+  Serial.begin(115200);
+
+  // Configuramos el size de los buffers de TX y RX del puerto serie
+  SerialHW.setRxBufferSize(4096);
+  SerialHW.setTxBufferSize(4096);
+
+  // Configuramos el puerto de comunicaciones con el HMI a 921600
+  SerialHW.begin(SerialHWDataBits, SERIAL_8N1, hmiRxD, hmiTxD);
+  delay(125);
+
+  // Forzamos un reinicio de la pantalla
+  hmi.writeString("rest");
+  delay(125);
+
+  // Indicamos que estamos haciendo reset
+  sendStatus(RESET, 1);
+  delay(250);
+
+  hmi.writeString("statusLCD.txt=\"POWADCR " + String(VERSION) + "\"");
+  delay(1250);
+
+
+  // -------------------------------------------------------------------------
+  //
+  // Inicializamos el soporte de audio
+  //
+  // -------------------------------------------------------------------------
+  setupAudioKit();
+
+  // Arrancamos el indicador de power
+  actuatePowerLed(true,POWERLED_DUTY);
+  
+  // -------------------------------------------------------------------
+  // Configuramos el pin de Remote Pause si está habilitado
+  // -------------------------------------------------------------------
+  #ifdef MSX_REMOTE_PAUSE
+    hmi.writeString("statusLCD.txt=\"Setting Remote Pause\"");
+    delay(1250);
+    pinMode(GPIO_MSX_REMOTE_PAUSE, INPUT_PULLUP);
+  #endif
+
+  // -------------------------------------------------------------------------
+  // Configuramos acceso a la SD
+  // -------------------------------------------------------------------------
+  setupSDCard();
+
+  // -------------------------------------------------------------------------
+  // Actualización OTA por SD
+  // -------------------------------------------------------------------------
+  updateESP32firmware();
+
+  // -------------------------------------------------------------------------
+  // Actualizacion del HMI
+  // -------------------------------------------------------------------------
+  updateHMIfirmware();
+
+  // -------------------------------------------------------------------------
+  // Cargamos configuración WiFi
+  // -------------------------------------------------------------------------
+  // Si hay configuración activamos el wifi
+  setupWifi();
 
 
   // -------------------------------------------------------------------------
@@ -5826,64 +5951,7 @@ void setup()
   // Estructura de la SD
   //
   // ----------------------------------------------------------
-
-  // Creamos el directorio /fav
-  String fDir = "/FAV";
-
-  //Esto lo hacemos para ver si el directorio existe
-  if(createSpecialDirectory(fDir))
-  {
-    hmi.writeString("statusLCD.txt=\"Creating FAV directory\"");
-    hmi.reloadCustomDir("/");
-    delay(750);    
-  }
-
-
-  // Creamos el directorio /rec
-  fDir = "/REC";
-
-  //Esto lo hacemos para ver si el directorio existe
-  if(createSpecialDirectory(fDir))
-  {
-    hmi.writeString("statusLCD.txt=\"Creating REC directory\"");
-    hmi.reloadCustomDir("/");
-    delay(750);    
-  }
-
-
-  // Creamos el directorio /wav
-  fDir = "/WAV";
-
-  //Esto lo hacemos para ver si el directorio existe
-  if(createSpecialDirectory(fDir))
-  {
-    hmi.writeString("statusLCD.txt=\"Creating WAV directory\"");
-    hmi.reloadCustomDir("/");
-    delay(750);    
-  }
-
-
-  // Creamos el directorio /mp3
-  fDir = "/MP3";
-
-  if(createSpecialDirectory(fDir))
-  {
-    hmi.writeString("statusLCD.txt=\"Creating MP3 directory\"");
-    hmi.reloadCustomDir("/");
-    delay(750);    
-  }
-
-  // Creamos el directorio /flac
-  fDir = "/FLAC";
-
-  if(createSpecialDirectory(fDir))
-  {
-    hmi.writeString("statusLCD.txt=\"Creating FLAC directory\"");
-    hmi.reloadCustomDir("/");
-    delay(750);    
-  }
-
-
+  prepareCardStructure();
 
 
   // -------------------------------------------------------------------------
@@ -5894,7 +5962,6 @@ void setup()
 
   //Paramos la animación de la cinta1
   tapeAnimationOFF();
-  // changeLogo(0);
   logln("Waiting for HMI");
 
   hmi.writeString("statusLCD.txt=\"STARTING HMI\"");
@@ -5918,7 +5985,6 @@ void setup()
   // Configuramos el sampling rate por defecto
   //
   // -------------------------------------------------------------------------
-
   // 48KHz
   hmi.writeString("menuAudio2.r0.val=0");
   // 44KHz
@@ -5930,11 +5996,10 @@ void setup()
   //
   SAMPLING_RATE = 22050;  // Por defecto 22050
 
-  AudioInfo new_sr = kitStream.defaultConfig();
+  auto new_sr = kitStream.defaultConfig();
   new_sr.sample_rate = SAMPLING_RATE;
   kitStream.setAudioInfo(new_sr);
 
-  //
   hmi.writeString("tape.lblFreq.txt=\"22KHz\"");
   hmi.refreshPulseIcons(INVERSETRAIN, ZEROLEVEL);
   
@@ -5945,9 +6010,6 @@ void setup()
   // -------------------------------------------------------------------------
   pTAP.set_HMI(hmi);
   pTZX.set_HMI(hmi);
-  //y el gestor de ficheros
-  // pTAP.set_SDM(sdm);
-  // pTZX.set_SDM(sdm);
 
   // Si es test está activo. Lo lanzamos
   #ifdef TEST
@@ -5963,12 +6025,12 @@ void setup()
   FILE_SELECTED = false;
 
   // Inicialmente el POWADCR está en STOP
-  STOP = true;
-  PLAY = false;
-  PAUSE = false;
-  REC = false;
-  FFWIND = false;
-  RWIND = false;
+  STOP =    true;
+  PLAY =    false;
+  PAUSE =   false;
+  REC =     false;
+  FFWIND =  false;
+  RWIND =   false;
 
   sendStatus(REC_ST);
 
@@ -5981,73 +6043,12 @@ void setup()
   // Cargamos la configuracion del HMI desde la particion NVS
   //
   // --------------------------------------------------------------------------
-  LAST_MESSAGE = "Loading HMI settings.";
-
-  loadHMICfg();
-
-  // Actualizamos la configuracion
-  logln("EN_STERO = " + String(EN_STEREO));
-  logln("MUTE AMP = " + String(!ACTIVE_AMP));
-  logln("VOL_LIMIT_HEADPHONE = " + String(VOL_LIMIT_HEADPHONE));
-  logln("MAIN_VOL" + String(MAIN_VOL));
-  logln("MAIN_VOL_L" + String(MAIN_VOL_L));
-  logln("MAIN_VOL_R" + String(MAIN_VOL_R));
-  //
-  // EN_STEREO
-  showOption("menuAudio.stereoOut.val",String(EN_STEREO));
-  // MUTE_AMPLIFIER
-  showOption("menuAudio.mutAmp.val",String(!ACTIVE_AMP));
-  // POWERLED_DUTY
-  showOption("menu.ppled.val",String(PWM_POWER_LED));
-  // First view files on sorting
-  showOption("menu.sortFil.val",String(!SORT_FILES_FIRST_DIR));
+  loadHMICfgfromNVS();
 
 
-  if (ACTIVE_AMP)
-  {
-    MAIN_VOL_L = 5;
-    // Actualizamos el HMI
-    hmi.writeString("menuAudio.volL.val=" + String(MAIN_VOL_L));
-    hmi.writeString("menuAudio.volLevel.val=" + String(MAIN_VOL_L)); 
-  }
-
-  if (EN_SPEAKER)
-  {
-    // Actualizamos el HMI
-    showOption("menuAudio.enSpeak.val",String(EN_SPEAKER));
-  }
-
-  // VOL_LIMIT
-  showOption("menuAudio.volLimit.val",String(VOL_LIMIT_HEADPHONE));
-  // Volumen sliders
-  showOption("menuAudio.volM.val",String(MAIN_VOL));
-  showOption("menuAudio.volLevelM.val",String(MAIN_VOL));
-  //
-  showOption("menuAudio.volR.val",String(MAIN_VOL_R));
-  showOption("menuAudio.volLevel.val",String(MAIN_VOL_R));
-  //
-  showOption("menuAudio.volL.val",String(MAIN_VOL_L));
-  showOption("menuAudio.volLevelL.val",String(MAIN_VOL_L));
-
-  // Equalizer
-  showOption("menuEq.eqHigh.val",String(EQ_HIGH));
-  showOption("menuEq.eqHighL.val",String(EQ_HIGH));
-  //
-  showOption("menuEq.eqMid.val",String(EQ_MID));
-  showOption("menuEq.eqMidL.val",String(EQ_MID));
-  //
-  showOption("menuEq.eqLow.val",String(EQ_LOW));
-  showOption("menuEq.eqLowL.val",String(EQ_LOW));
-  EQ_CHANGE = true;
-  
-  // Esto lo hacemos porque depende de la configuración cargada.
-  kitStream.setPAPower(ACTIVE_AMP && EN_SPEAKER);   
-  //
-  delay(500);
-
-  //
-
-  //
+  // ---------------------------------------------------------------------------
+  // Mensaje de bienvenida
+  // ---------------------------------------------------------------------------
   LAST_MESSAGE = "Press EJECT to select a file or REC.";
 
   // ---------------------------------------------------------------------------
@@ -6057,6 +6058,7 @@ void setup()
   // ---------------------------------------------------------------------------
   
   esp_task_wdt_init(WDT_TIMEOUT, false); // enable panic so ESP32 restarts
+
   // Control del tape
   xTaskCreatePinnedToCore(Task1code, "TaskCORE1", 16384, NULL, 3 | portPRIVILEGE_BIT, &Task1, 0);
   esp_task_wdt_add(&Task1);
@@ -6076,8 +6078,6 @@ void setup()
   #ifdef DEBUGMODE
     hmi.writeString("tape.name.txt=\"DEBUG MODE ACTIVE\"");
   #endif
-
-
 
   // fin del setup()
 }
