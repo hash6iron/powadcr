@@ -102,7 +102,11 @@ How PowaDCR parts are connected?
 - The led for power on and recording indications is connected to GPIO pin 22 and GND
 
 <b>REM connection</b>
-- The REM input for remote tape control is assigned to GPIO pin 19
+- The REM input for remote tape control is assigned to GPIO pin 19 and GND. See example below with MSX computer.
+  <p align="center">
+    <img width="540" height="326" alt="REM" src="https://github.com/user-attachments/assets/37a33fe6-69c5-4f08-b839-53896d9daa75" />
+  </p>
+  
 
 Audiokit DIP switch configuration
 -----
