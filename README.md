@@ -100,9 +100,12 @@ How PowaDCR parts are connected?
 
 <b>LED indicator</b>
 - The led for power on and recording indications is connected to GPIO pin 22 and GND
+  <p align="center">
+  <img width="326" height="103" alt="led" src="https://github.com/user-attachments/assets/88c771d5-d1f8-4805-8d02-5bae96531cff" />
+  </p>
 
 <b>REM connection</b>
-- The REM input for remote tape control is assigned to GPIO pin 19 and GND. See example below with MSX computer.
+- The REM input for remote tape control is assigned to GPIO pin 19 and GND. See example below for MSX computer.
   <p align="center">
     <img width="540" height="326" alt="REM" src="https://github.com/user-attachments/assets/37a33fe6-69c5-4f08-b839-53896d9daa75" />
   </p>
