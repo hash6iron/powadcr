@@ -139,7 +139,8 @@ class HMI
           }
 
           std::vector<std::tuple<String, String, String, String>> linesWithKeys;
-          linesWithKeys.reserve(1024);
+          // linesWithKeys.reserve(1024);
+          linesWithKeys.reserve(FILE_TOTAL_FILES < 256 ? FILE_TOTAL_FILES : 256); // Limitar reserva
           
           file.seek(0);
           writeString("statusFILE.txt=\"READING 0%\"");
@@ -565,7 +566,7 @@ class HMI
                               strcmp(ext, "wav") == 0 || strcmp(ext, "mp3") == 0 ||
                               strcmp(ext, "flac") == 0 || strcmp(ext, "lst") == 0 ||
                               strcmp(ext, "dsc") == 0 || strcmp(ext, "inf") == 0 ||
-                              strcmp(ext, "txt") == 0)
+                              strcmp(ext, "txt") == 0 || strcmp(ext, "radio") == 0)
                           {
                               // ✅ VALIDACIÓN FINAL: Verificar que el archivo realmente existe
                               String fullPath = FILE_LAST_DIR + "/" + fname;
@@ -680,7 +681,7 @@ class HMI
                               strcmp(ext, "wav") == 0 || strcmp(ext, "mp3") == 0 ||
                               strcmp(ext, "flac") == 0 || strcmp(ext, "lst") == 0 ||
                               strcmp(ext, "dsc") == 0 || strcmp(ext, "inf") == 0 ||
-                              strcmp(ext, "txt") == 0)
+                              strcmp(ext, "txt") == 0 || strcmp(ext, "radio") == 0)
                           {
                               fout.print(String(lpos)); fout.print(separator);
                               fout.print("F"); fout.print(separator);
@@ -1470,7 +1471,7 @@ class HMI
               {
                 color = DSC_FILE_COLOR;  // Negro - Indica que es un fichero DSC
               }
-              else if (type == ".TAP" || type == ".TZX" || type == ".TSX" || type == ".CDT" || type == ".WAV" || type == ".MP3" || type == ".FLAC")
+              else if (type == ".TAP" || type == ".TZX" || type == ".TSX" || type == ".CDT" || type == ".WAV" || type == ".MP3" || type == ".FLAC" || type == ".RADIO")
               {
                   //Ficheros
                   if (SD_MMC.exists("/fav/" + szName))
@@ -1602,7 +1603,7 @@ class HMI
             {
               WiFi.mode(WIFI_STA);
               WiFi.begin(ssid, password);
-              btStart();
+              //btStart();
               //LAST_MESSAGE = "Connecting wifi radio";
               //delay(125);
               //LAST_MESSAGE = "Wifi enabled";
@@ -1615,7 +1616,7 @@ class HMI
           {
             WiFi.disconnect(true);
             WiFi.mode(WIFI_OFF);
-            btStop();          
+            //btStop();          
             //LAST_MESSAGE = "Disconnecting wifi radio";
             //delay(2000);
             //LAST_MESSAGE = "Wifi disabled";
@@ -2930,7 +2931,13 @@ class HMI
           TONE_ADJUST = (-210)*(TONE_ADJUSTMENT_ZX_SPECTRUM + (valVol-TONE_ADJUSTMENT_ZX_SPECTRUM_LIMIT));         
           logln("TONE: " + String(TONE_ADJUST) + " Hz"); 
           //saveHMIcfg("EQLopt");
-        }                          
+        }    
+        else if (strCmd.indexOf("WWW") != -1) 
+        {
+          // Activa audio internet.
+          logln("Audio internet enabled.");
+          IRADIO_EN = true;
+        }
         // Devuelve el % de filtrado aplicado en pantalla. Filtro del recording
         else if (strCmd.indexOf("THR=") != -1) 
         {
@@ -3534,7 +3541,6 @@ class HMI
           //
           if (valEn==1)
           {
-              // Activa el loop de audio
               WIFI_ENABLE = true;
           }
           else
@@ -3968,7 +3974,7 @@ class HMI
           int blType = 0;
           String blName = "";
           // Para el caso de los players, no se usa esto.
-          if (TYPE_FILE_LOAD != "MP3" && TYPE_FILE_LOAD != "WAV" && TYPE_FILE_LOAD != "FLAC")
+          if (TYPE_FILE_LOAD != "MP3" && TYPE_FILE_LOAD != "WAV" && TYPE_FILE_LOAD != "FLAC" && TYPE_FILE_LOAD != "RADIO")
           {
                 if ((STOP || PAUSE) && !REC)
                 {
@@ -4365,16 +4371,6 @@ class HMI
         }
       }
 
-      // void set_SDM(SDmanager sdm)
-      // {
-      //   _sdm = sdm;
-      // }
-      
-      // void set_sdf(File sdf)
-      // {
-      //   _sdf = sdf;
-      // } 
-
       void getMemFree()
       {
           logln("");
@@ -4449,27 +4445,7 @@ class HMI
                 writeString("tape0.pulseInd.pic=34");
               }          
           }
-      }
-      
-      // int getStreamfileSize(String path)
-      // {
-      //   char pfile[255] = {};
-      //   strcpy(pfile, path.c_str());
-      //   File32 f = sdm.openFile32(pfile);
-      //   int fsize = f.size();
-      //   f.close();
-      
-      //   // if (fsize < 1000000)
-      //   // {
-      //   //   hmi.writeString("size.txt=\"" + String(fsize / 1024) + " KB\"");
-      //   // }
-      //   // else
-      //   // {
-      //   //   hmi.writeString("size.txt=\"" + String(fsize / 1024 / 1024) + " MB\"");
-      //   // }
-      
-      //   return fsize;
-      // }      
+      }  
 
       String getFileExtension(const String &fileName) {
         int dotIndex = fileName.lastIndexOf('.');
@@ -4496,11 +4472,24 @@ class HMI
 
       void openBlockMediaBrowser(tAudioList* source) 
       {
+          int totalblocks = 0;
+          
+          if (IRADIO_EN) 
+          {
+            // Esto lo hacemos para la visualizacion
+            totalblocks = TOTAL_BLOCKS;
+            totalblocks = totalblocks + 1; 
+          }
+          else
+          {
+            totalblocks = TOTAL_BLOCKS;
+          }
+
           int max = MAX_BLOCKS_IN_BROWSER;
-          if (TOTAL_BLOCKS > max) {
+          if (totalblocks > max) {
               max = MAX_BLOCKS_IN_BROWSER;
           } else {
-              max = TOTAL_BLOCKS - 1;
+              max = totalblocks - 1;
           }
           BB_BROWSER_MAX = max;
 
@@ -4509,7 +4498,7 @@ class HMI
               BB_PAGE_SELECTED = (BB_PTR_ITEM / MAX_BLOCKS_IN_BROWSER) + 1;
 
               writeString("mp3browser.path.txt=\"" + HMI_FNAME + "\"");
-              writeString("mp3browser.totalBl.txt=\"" + String(TOTAL_BLOCKS - 1) + "\"");
+              writeString("mp3browser.totalBl.txt=\"" + String(totalblocks - 1) + "\"");
               writeString("mp3browser.bbpag.txt=\"" + String(BB_PAGE_SELECTED) + "\"");
               writeString("mp3browser.size0.txt=\"SIZE[MB]\"");
 
@@ -4527,13 +4516,25 @@ class HMI
           // Paso 1..max: Mostrar cada item
           int i = BB_BROWSER_STEP;
           if (i <= BB_BROWSER_MAX) {
-              if (i + BB_PTR_ITEM > TOTAL_BLOCKS - 1) {
-                  writeString("mp3browser.id" + String(i) + ".txt=\"\"");
-                  writeString("mp3browser.name" + String(i) + ".txt=\"\"");
-              } else {
-                  String name = source[i + BB_PTR_ITEM - 1].filename;
+
+              if(IRADIO_EN)
+              {
                   writeString("mp3browser.id" + String(i) + ".txt=\"" + String(i + BB_PTR_ITEM) + "\"");
-                  writeString("mp3browser.name" + String(i) + ".txt=\"" + getFileNameFromPath(name) + "\"");
+                  writeString("mp3browser.name" + String(i) + ".txt=\"" + source[i + BB_PTR_ITEM - 1].filename + "\"");
+              }
+              else
+              {
+                  if (i + BB_PTR_ITEM > TOTAL_BLOCKS - 1) 
+                  {
+                      writeString("mp3browser.id" + String(i) + ".txt=\"\"");
+                      writeString("mp3browser.name" + String(i) + ".txt=\"\"");
+                  } 
+                  else 
+                  {
+                      String name = source[i + BB_PTR_ITEM - 1].filename;
+                      writeString("mp3browser.id" + String(i) + ".txt=\"" + String(i + BB_PTR_ITEM) + "\"");
+                      writeString("mp3browser.name" + String(i) + ".txt=\"" + getFileNameFromPath(name) + "\"");
+                  }                
               }
               BB_BROWSER_STEP++;
               // Si hemos terminado, reseteamos flags

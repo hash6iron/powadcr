@@ -89,7 +89,7 @@
 // Enable / Disable Audiokit logging
 #define USE_AUDIO_LOGGING false
 // States of LOG_LEVEL: Debug, Info, Warning, Error
-#define LOG_LEVEL AudioLogger::Error
+#define LOG_LEVEL AudioLogger::Info
 // Definicion del puerto serie para la pantalla
 #define SerialHWDataBits 921600
 #define hmiTxD 23
@@ -102,7 +102,7 @@
 // Configuración del sistema
 // --------------------------------------------------------------
 
-#define VERSION "1.0r6.3"
+#define VERSION "1.0r7"
 #define MACHINE_ZX
 #define POWER_LED_INTENSITY 125 // Valor entre 0 y 255
 
@@ -187,6 +187,7 @@
 
 // Maximo numero de ficheros capturados en la lista de audio por directorio
 #define MAX_FILES_AUDIO_LIST                          512
+#define MAX_RADIO_STATIONS                            512
 
 // ---------------------------------------------------------------------------------------------
 // NO COMENTAR SI SE ESTÁ USANDO 22200 Hz en otro caso hay que usar 44100 para recording
