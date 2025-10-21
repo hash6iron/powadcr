@@ -129,7 +129,12 @@ How to install firmwares in powadcr?
 
 - First you need to flash the screen firmware with this file : https://github.com/hash6iron/powadcr/releases/download/Release/powadcr_iface.tft 
 - The second step is to flash the following file in AudioKit board : https://github.com/hash6iron/powadcr/releases/download/Release/Powadcr_v1.0r2.bin
-- Then install later, the Screen and AudioKit firmwares from the latest relase: https://github.com/hash6iron/powadcr/releases/latest
+- Then install later, the Screen and AudioKit firmwares from the latest relase :
+
+  https://github.com/hash6iron/powadcr/releases/latest
+
+
+
 
 <b>How to?</b>
 
