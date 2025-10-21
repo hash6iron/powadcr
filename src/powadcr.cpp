@@ -2389,6 +2389,7 @@ void RadioPlayer()
       }
       //
       player.setVolume(1);
+      player.setAutoFade(true);
       //decoder.addNotifyAudioChange(kitStream);
 
       STOP = false;
@@ -2480,7 +2481,12 @@ void RadioPlayer()
             
             if (FFWIND)
             {
+                // Animación de rebobinado
                 rewindAnimation(FFWIND ? 1 : -1);
+                // Reiniciar el progreso
+                hmi.writeString("tape.progressTotal.val=0");
+                hmi.writeString("tape.progressBlock.val=0");
+                //
                 player.stop();
                 // Avanza en la lista
                 TOTAL_BLOCKS = nextRadioStation(PATH_FILE_TO_LOAD, radioName, radioUrlBuffer, sizeof(radioUrlBuffer));
@@ -2501,7 +2507,12 @@ void RadioPlayer()
             }
             else if (RWIND)
             {
+                // Animación de rebobinado
                 rewindAnimation(FFWIND ? 1 : -1);
+                // Reiniciar el progreso
+                hmi.writeString("tape.progressTotal.val=0");
+                hmi.writeString("tape.progressBlock.val=0");                
+                // 
                 player.stop();
                 // Retrocede en la lista
                 TOTAL_BLOCKS = nextRadioStation(PATH_FILE_TO_LOAD, radioName, radioUrlBuffer, sizeof(radioUrlBuffer),false);
@@ -2519,58 +2530,69 @@ void RadioPlayer()
                 FFWIND = false;
                 RWIND = false;
             }
-
-            // Seleccion de pista con Block Browser
-            if (BB_OPEN || BB_UPDATE)
-            {
-              //
-              hmi.openBlockMediaBrowser(audiolist);
-            }
-            // Salida del Block Browser
-            else if (UPDATE_HMI)
-            {
-              logln("UPDATE HMI");
-
-              // *******************************************************
-              // Hemos seleccionado una emisora de radio del BBrowser
-              // *******************************************************
-              if (BLOCK_SELECTED > 0 && BLOCK_SELECTED <= TOTAL_BLOCKS)
-              {
-                  // Cogemos el indice y cargamos la URL
-                  int currentPointer = BLOCK_SELECTED - 1;
-                  logln("Selected file: " + (audiolist[currentPointer].filename) + " - Index: " + String(currentPointer));
-                  player.stop(); // Detener el reproductor
-                  // Actualizamos HMI
-                  int res = nextRadioStation(PATH_FILE_TO_LOAD, radioName, radioUrlBuffer, sizeof(radioUrlBuffer), true, currentPointer, true);
-                  playerState = 0;
-                  PLAY = true;
-              }            
-              UPDATE_HMI = false;
-            }
-            else if (UPDATE)
-            {
-              // Si el bloque seleccionado es válido y no es el último
-              if (BLOCK_SELECTED > 0 && (BLOCK_SELECTED <= TOTAL_BLOCKS))
-              {
-                  // Reproducir el bloque seleccionado
-                  int currentPointer = BLOCK_SELECTED - 1;
-                  player.stop(); // Detener el reproductor
-                  int res = nextRadioStation(PATH_FILE_TO_LOAD, radioName, radioUrlBuffer, sizeof(radioUrlBuffer), true, currentPointer, true);
-                  playerState = 0;
-                  PLAY = true;
-                  UPDATE = false;                  
-              }   
-            }         
             break;
         }
+
+        // Seleccion de pista con Block Browser
+        if (BB_OPEN || BB_UPDATE)
+        {
+          //
+          hmi.openBlockMediaBrowser(audiolist);
+        }
+        // Salida del Block Browser
+        else if (UPDATE_HMI)
+        {
+          logln("UPDATE HMI");
+
+          // *******************************************************
+          // Hemos seleccionado una emisora de radio del BBrowser
+          // *******************************************************
+          if (BLOCK_SELECTED > 0 && BLOCK_SELECTED <= TOTAL_BLOCKS)
+          {
+              // Cogemos el indice y cargamos la URL
+              int currentPointer = BLOCK_SELECTED - 1;
+              logln("Selected file: " + (audiolist[currentPointer].filename) + " - Index: " + String(currentPointer));
+              player.stop(); // Detener el reproductor
+              // Actualizamos HMI
+              int res = nextRadioStation(PATH_FILE_TO_LOAD, radioName, radioUrlBuffer, sizeof(radioUrlBuffer), true, currentPointer, true);
+              playerState = 0;
+              PLAY = true;
+          }            
+          UPDATE_HMI = false;
+        }
+        else if (UPDATE)
+        {
+          // Si el bloque seleccionado es válido y no es el último
+          if (BLOCK_SELECTED > 0 && (BLOCK_SELECTED <= TOTAL_BLOCKS))
+          {
+              // Reproducir el bloque seleccionado
+              int currentPointer = BLOCK_SELECTED - 1;
+              player.stop(); // Detener el reproductor
+              int res = nextRadioStation(PATH_FILE_TO_LOAD, radioName, radioUrlBuffer, sizeof(radioUrlBuffer), true, currentPointer, true);
+              playerState = 0;
+              PLAY = true;
+              UPDATE = false;                  
+          }   
+        }                 
         // Control de la información en pantalla
         if (millis() - trefresh > 2000)
         {
-          // Actualizamos el marcador de buffer
-          updateIndicators(TOTAL_BLOCKS,1,bufferw,decoder.audioInfoEx().bitrate,radioName);
-          hmi.writeString("name.txt=\"" + radioName + "\"");
-          LAST_MESSAGE = "Playing: " + radioName;
-          trefresh = millis();
+            if (bufferw > 0)
+            {
+                hmi.writeString("tape.progressTotal.val=100");
+                hmi.writeString("tape.progressBlock.val=100");
+            }
+            else
+            {
+                hmi.writeString("tape.progressTotal.val=0");
+                hmi.writeString("tape.progressBlock.val=0");            
+            }
+
+            // Actualizamos el marcador de buffer
+            updateIndicators(TOTAL_BLOCKS,1,bufferw,decoder.audioInfoEx().bitrate,radioName);
+            hmi.writeString("name.txt=\"" + radioName + "\"");
+            LAST_MESSAGE = "Playing: " + radioName;
+            trefresh = millis();
         }
 
       }
