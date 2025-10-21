@@ -89,6 +89,8 @@ EasyNex myNex(SerialHW);
 #include "AudioTools/AudioCodecs/CodecMP3Helix.h"
 #include "AudioTools/AudioCodecs/CodecFLACFoxen.h"
 #include "AudioTools/CoreAudio/AudioFilter/Equalizer.h"
+#include "AudioTools/Disk/AudioSourceURL.h"
+#include "AudioTools/Communication/AudioHttp.h"
 
 #ifdef BLUETOOTH_ENABLE
   #include "AudioTools/Communication/A2DPStream.h"
@@ -803,34 +805,34 @@ void WavRecording()
   new_sr.sample_rate = DEFAULT_WAV_SAMPLING_RATE_REC;
   kitStream.setAudioInfo(new_sr);       
   
-  const size_t BUFFER_SIZE = 4096;
-  int16_t buffer[BUFFER_SIZE];
+  // const size_t BUFFER_SIZE = 4096;
+  // int16_t buffer[BUFFER_SIZE];
 
-  EncodedAudioStream encoder(&wavfile, new WAVEncoder());       // Encoder WAV PCM
-  NumberFormatConverterStreamT<int16_t, uint8_t> nfc(encoder);  // Convierte de 16-bits a 8-bits);
+  EncodedAudioStream encoder(&wavfile, new WAVEncoder());         // Encoder WAV PCM
+
+  // El conversor tiene que actuar sobre la fuente (audio en RAW), si actua sobre el WAV decoder
+  // destroza literalmente la cabecera WAV, ya que el decoder añade información sobre esta
+  // en este caso la fuente de entrada es kitStream configurada como TX / RX
+  //
+  // Ojo! Ahora nfc es una entrada como Line-in de kitStrem.
+  NumberFormatConverterStreamT<int16_t, uint8_t> nfc(kitStream);  // Convierte de 16-bits a 8-bits
 
   MultiOutput multi(kitStream);
+  StreamCopy copier;
 
   if (WAV_8BIT_MONO) 
   {
     hmi.writeString("tape.wavind.txt=\"WAV8\"");
-    multi.add(nfc);
-  }
-  else
-  {
-    multi.add(encoder);
   }
 
-  //multi.add(kitStream);
+  // Añadimos las salidas del multi
+  multi.add(encoder);
+  // Esto lo añado para escuchar mientras grabo.
+  multi.add(kitStream);
+  // Iniciamos el multi
   multi.begin();
-  
-  // Definición de los copiers
-  // es copier(&to, &from)
-  //StreamCopy copier8bWAV(multi, kitStream); // copies data to both file and line_out
-  StreamCopy copier(multi, kitStream); // copies data to both file and line_out
-
+    
   copier.setSynchAudioInfo(true);
-  //copier8bWAV.setSynchAudioInfo(true);
 
   // Esperamos a que la pantalla esté lista
   LAST_MESSAGE = "Recording to WAV - Press STOP to finish.";
@@ -847,11 +849,9 @@ void WavRecording()
     // Configuramos el encoder para 22KHz, 8-bit mono
     ecfg.sample_rate = DEFAULT_8BIT_WAV_SAMPLING_RATE_REC;
     // Esto es así porque ya el nfc se encarga de convertir a 8 bits
-    ecfg.bits_per_sample = 8; 
+    ecfg.bits_per_sample = 16; 
     ecfg.channels = 1; // Mono
-
-    encoder.begin(ecfg);
-    // Inicializamos encoders
+    // Inicializamos convertidor
     nfc.begin();
   }
   else
@@ -860,15 +860,28 @@ void WavRecording()
     ecfg.sample_rate = DEFAULT_WAV_SAMPLING_RATE_REC;
     ecfg.bits_per_sample = 16; 
     ecfg.channels = 2; // Stereo
-
-    encoder.begin(ecfg);
   }
+
+  // Iniciamos el encoder con la configuración de señal
+  encoder.begin(ecfg);
+
   // Actuamos sobre el amplificador  
   kitStream.setPAPower(ACTIVE_AMP && EN_SPEAKER); 
+  // Reset de variables
   STOP = false;
   WAVFILE_PRELOAD = false;
 
-  copier.begin();
+  // Iniciamos el copier
+  if (WAV_8BIT_MONO) 
+  {
+    // En este caso cogemos la entrada convertida a 8 bits
+    copier.begin(encoder,nfc);
+  }
+  else
+  {
+    // En este caso cogemos la entrada RAW
+    copier.begin(encoder,kitStream);
+  }
 
   // Indicamos
   hmi.writeString("tape.lblFreq.txt=\"" + String(int(ecfg.sample_rate/1000)) + "KHz\"" );
@@ -928,7 +941,7 @@ void WavRecording()
   encoder.end();
   multi.end();
 
-  //if (WAV_8BIT_MONO) nfc.end();
+  if (WAV_8BIT_MONO) nfc.end();
 
   // Cerramos el fichero WAV
   wavfile.flush();
@@ -1522,8 +1535,6 @@ void updateIndicators(int size, int pos, uint32_t fsize, int bitrate, String fna
     LASTFNAME = fname;
     // Actualizamos el nombre del fichero en la pantalla
     hmi.writeString("tape.fileName.txt=\"" + fname + "\"");
-  }
-  {
     hmi.writeString("mp3browser.path.txt=\"" + fname + "\"");
   }
 
@@ -1631,6 +1642,80 @@ String getFileNameFromPath(const String &filePath) {
       return filePath.substring(lastSlash + 1); // Devuelve el nombre del archivo con su extensión
   }
   return filePath; // Si no hay separador, devuelve la cadena completa
+}
+
+// ✅ NUEVA FUNCIÓN
+int generateRadioList(tAudioList* &radioList) {
+    // Asignamos memoria para la lista de radios
+    radioList = (tAudioList*)ps_calloc(MAX_RADIO_STATIONS, sizeof(tAudioList));
+    if (radioList == nullptr) {
+        logln("Error: Failed to allocate memory for radio list.");
+        return 0;
+    }
+
+    int radioCount = 0;
+    const char* filepath = PATH_FILE_TO_LOAD.c_str();
+
+    // 1. Verificar que el archivo de radios existe
+    if (!SD_MMC.exists(filepath)) {
+        logln("Error: Radio list file not found: " + String(filepath));
+        free(radioList); // Liberar memoria si el archivo no existe
+        radioList = nullptr;
+        return 0;
+    }
+
+    // 2. Abrir el archivo para lectura
+    File radioFile = SD_MMC.open(filepath, FILE_READ);
+    if (!radioFile) {
+        logln("Error: Could not open radio list file: " + String(filepath));
+        free(radioList); // Liberar memoria si no se puede abrir
+        radioList = nullptr;
+        return 0;
+    }
+
+    logln("Generating radio list from: " + String(filepath));
+
+    // 3. Leer el archivo línea por línea
+    while (radioFile.available() && radioCount < MAX_RADIO_STATIONS) {
+        String line = radioFile.readStringUntil('\n');
+        line.trim();
+
+        // Ignorar líneas vacías o sin el separador ','
+        int commaIndex = line.indexOf(',');
+        if (line.length() == 0 || commaIndex == -1) {
+            continue;
+        }
+
+        // 4. Extraer nombre y URL
+        String stationName = line.substring(0, commaIndex);
+        String stationUrl = line.substring(commaIndex + 1);
+
+        // Limpiar espacios en blanco al principio y al final
+        stationName.trim();
+        stationUrl.trim();
+
+        // 5. Eliminar comillas del nombre de la emisora
+        if (stationName.length() >= 2) {
+            if (stationName.startsWith("\"") && stationName.endsWith("\"")) {
+                stationName = stationName.substring(1, stationName.length() - 1);
+            } else if (stationName.startsWith("'") && stationName.endsWith("'")) {
+                stationName = stationName.substring(1, stationName.length() - 1);
+            }
+        }
+
+        // 6. Almacenar en la estructura si los datos son válidos
+        if (stationName.length() > 0 && stationUrl.length() > 0) {
+            radioList[radioCount].filename = stationName;
+            radioList[radioCount].path = stationUrl;
+            radioCount++;
+        }
+    }
+
+    // 7. Cerrar el archivo y devolver el total
+    radioFile.close();
+
+    logln("Radio list generated with " + String(radioCount) + " stations.");
+    return radioCount;
 }
 
 int generateAudioList(tAudioList* &audioList, String extension = ".mp3") {
@@ -1806,82 +1891,6 @@ int generateAudioList(tAudioList* &audioList, String extension = ".mp3") {
     return size;
 }
 
-int generateAudioList_old(tAudioList* &audioList, String extension = "mp3") {
-    audioList = (tAudioList*)ps_calloc(MAX_FILES_AUDIO_LIST, sizeof(tAudioList));
-    int size = 0;
-
-    String parentDir = FILE_LAST_DIR;
-    if (!parentDir.endsWith("/")) parentDir += "/";
-    String filesListPath = parentDir + "_files.lst";
-    String fileSelected = getFileNameFromPath(PATH_FILE_TO_LOAD);
-
-    File filesListFile = SD_MMC.open(filesListPath.c_str(), FILE_READ);
-    if (!filesListFile) {
-        logln("Error: Cannot open " + filesListPath);
-        return 0;
-    }
-
-    char *line = (char*)ps_calloc(512, sizeof(char));
-    String strline;
-
-    try {
-      while (filesListFile.available() && size < MAX_FILES_AUDIO_LIST) 
-      {
-
-          filesListFile.readBytesUntil('\n', line, 511);
-          strline = String(line);
-          strline.trim();
-          if (strline.length() == 0) continue;
-
-          // Parseamos los 4 campos: indice|tipo|tamaño|nombre|
-          int idx1 = strline.indexOf('|');
-          int idx2 = strline.indexOf('|', idx1 + 1);
-          int idx3 = strline.indexOf('|', idx2 + 1);
-          int idx4 = strline.indexOf('|', idx3 + 1);
-
-          if (idx1 == -1 || idx2 == -1 || idx3 == -1 || idx4 == -1) continue;
-
-          String tipo = strline.substring(idx1 + 1, idx2);
-          String nombre = strline.substring(idx3 + 1, idx4);
-          String tamano = strline.substring(idx2 + 1, idx3);
-          String indice = strline.substring(0, idx1);
-
-          tipo.trim();
-          nombre.trim();
-
-          // Solo ficheros y extensión coincidente
-          String nombreLower = nombre;
-          nombreLower.toLowerCase();
-          String extensionLower = extension;
-          extensionLower.toLowerCase();
-          if (tipo == "F" && nombreLower.endsWith(extensionLower)) {
-              audioList[size].index = indice.toInt();
-              audioList[size].filename = nombre;
-              audioList[size].path = parentDir;
-              audioList[size].size = tamano.toInt();
-
-              // capturamos el indice del fichero seleccionado en el browser
-              if (audioList[size].filename.equalsIgnoreCase(fileSelected)) {
-                  MEDIA_CURRENT_POINTER = size;
-              }
-              size++;
-          }
-      }
-    }
-    catch (...) {
-        // Aseguramos que el archivo se cierre incluso si hay errores
-        free(line);
-        filesListFile.close();
-        throw;
-    }
-
-    free(line);
-    filesListFile.close(); // Aseguramos que el archivo se cierre
-    TOTAL_BLOCKS = size;
-    logln("Generating audio list with " + String(size) + " files.");    
-    return size;
-}
-
 int getIndexFromAudioList(tAudioList* audioList, int size, const String &searchValue) 
 {
     for (int i = 0; i < size; i++) 
@@ -1916,6 +1925,675 @@ void prevAudio(int &currentPointer, int audioListSize)
     }
 }
 
+int nextRadioStation(const String& filepath, String& radioname, char* url, size_t urlMaxSize, bool forward = true, int index = -1, bool use_index = false) 
+{
+    static String lastFilepath = "";
+    static int currentLine = -1; // Empezamos en -1 para que la primera llamada devuelva línea 0
+    static int totalLines = 0;
+    static bool firstCall = true;
+    
+    // Si el filepath cambió, reiniciar
+    if (lastFilepath != filepath) {
+        lastFilepath = filepath;
+        currentLine = -1;
+        totalLines = 0;
+        firstCall = true;
+    }
+    
+    // Verificar que el archivo existe
+    if (!SD_MMC.exists(filepath.c_str())) {
+        logln("Radio file not found: " + filepath);
+        return 0;
+    }
+    
+    // Contar líneas válidas en la primera llamada
+    if (firstCall) {
+        File radioFile = SD_MMC.open(filepath.c_str(), FILE_READ);
+        if (!radioFile) {
+            logln("Cannot open radio file: " + filepath);
+            return 0;
+        }
+        
+        totalLines = 0;
+        while (radioFile.available()) {
+            String line = radioFile.readStringUntil('\n');
+            line.trim();
+            if (line.length() > 0 && line.indexOf(',') != -1) {
+                totalLines++;
+            }
+        }
+        radioFile.close();
+        
+        if (totalLines == 0) {
+            logln("No valid radio stations found in: " + filepath);
+            return 0;
+        }
+        
+        firstCall = false;
+        logln("Found " + String(totalLines) + " radio stations in file");
+    }
+
+    // ✅ LÓGICA DE NAVEGACIÓN MEJORADA
+    if (use_index) {
+        // Modo índice: saltar a una línea específica
+        if (index >= 0 && index < totalLines) {
+            currentLine = index;
+            logln("Jumping to index: " + String(currentLine));
+        } else {
+            logln("Error: Index " + String(index) + " is out of bounds.");
+            return totalLines; // Devolver total de líneas pero no cambiar nada
+        }
+    } else {
+        // Modo secuencial (adelante/atrás)
+        if (forward) {
+            currentLine = (currentLine + 1) % totalLines;
+            logln("Moving forward to line: " + String(currentLine));
+        } else {
+            currentLine = (currentLine - 1 + totalLines) % totalLines;
+            logln("Moving backward to line: " + String(currentLine));
+        }
+    }
+    
+    // Abrir archivo para lectura
+    File radioFile = SD_MMC.open(filepath.c_str(), FILE_READ);
+    if (!radioFile) {
+        logln("Cannot open radio file for reading: " + filepath);
+        return totalLines;
+    }
+    
+    int lineIndex = 0;
+    String currentLineText = "";
+    bool found = false;
+    
+    // Leer hasta encontrar la línea deseada
+    while (radioFile.available() && !found) {
+        currentLineText = radioFile.readStringUntil('\n');
+        currentLineText.trim();
+        
+        if (currentLineText.length() > 0 && currentLineText.indexOf(',') != -1) {
+            if (lineIndex == currentLine) {
+                found = true;
+                break;
+            }
+            lineIndex++;
+        }
+    }
+    
+    radioFile.close();
+    
+    if (!found) {
+        logln("Error: Could not find line " + String(currentLine) + " in radio file");
+        return totalLines;
+    }
+    
+    // Parsear la línea: "nombre,url"
+    int commaIndex = currentLineText.indexOf(',');
+    if (commaIndex == -1) {
+        logln("Error: Invalid format in line: " + currentLineText);
+        return totalLines;
+    }
+    
+    // Extraer nombre y URL
+    radioname = currentLineText.substring(0, commaIndex);
+    String tempUrl = currentLineText.substring(commaIndex + 1);
+    
+    // Limpiar espacios
+    radioname.trim();
+    tempUrl.trim();
+    
+    // Eliminar comillas del nombre
+    if (radioname.length() >= 2) {
+        if (radioname.startsWith("\"") && radioname.endsWith("\"")) {
+            radioname = radioname.substring(1, radioname.length() - 1);
+        } else if (radioname.startsWith("'") && radioname.endsWith("'")) {
+            radioname = radioname.substring(1, radioname.length() - 1);
+        }
+    }
+    
+    // Eliminar comillas de la URL
+    if (tempUrl.length() >= 2) {
+        if (tempUrl.startsWith("\"") && tempUrl.endsWith("\"")) {
+            tempUrl = tempUrl.substring(1, tempUrl.length() - 1);
+        } else if (tempUrl.startsWith("'") && tempUrl.endsWith("'")) {
+            tempUrl = tempUrl.substring(1, tempUrl.length() - 1);
+        }
+    }
+    
+    radioname.trim();
+    tempUrl.trim();
+    
+    if (radioname.length() == 0 || tempUrl.length() == 0) {
+        logln("Error: Empty name or URL after processing quotes in line: " + currentLineText);
+        return totalLines;
+    }
+    
+    if (tempUrl.length() >= urlMaxSize) {
+        logln("Error: URL too long for buffer: " + tempUrl);
+        return totalLines;
+    }
+    
+    // Copiar URL al buffer char* (radioUrlBuffer en el contexto de la llamada)
+    strncpy(url, tempUrl.c_str(), urlMaxSize - 1);
+    url[urlMaxSize - 1] = '\0'; // Asegurar terminación null
+    
+    String mode = use_index ? "index " + String(index) : (forward ? "forward" : "backward");
+    logln("Radio station selected (" + mode + "): " + radioname + " -> " + String(url));
+    logln("Current position: " + String(currentLine + 1) + "/" + String(totalLines));
+    
+    return totalLines;
+}
+
+// int nextRadioStation(const String& filepath, String& radioname, char* url, size_t urlMaxSize, bool forward = true) 
+// {
+//     static String lastFilepath = "";
+//     static int currentLine = -1; // ✅ Empezamos en -1 para que la primera llamada devuelva línea 0
+//     static int totalLines = 0;
+//     static bool firstCall = true;
+    
+//     // Si el filepath cambió, reiniciar
+//     if (lastFilepath != filepath) {
+//         lastFilepath = filepath;
+//         currentLine = -1; // ✅ Reiniciamos a -1
+//         totalLines = 0;
+//         firstCall = true;
+//     }
+    
+//     // Verificar que el archivo existe
+//     if (!SD_MMC.exists(filepath.c_str())) {
+//         logln("Radio file not found: " + filepath);
+//         return 0; // ✅ Retornamos 0 si hay error
+//     }
+    
+//     // Contar líneas válidas en la primera llamada
+//     if (firstCall) {
+//         File radioFile = SD_MMC.open(filepath.c_str(), FILE_READ);
+//         if (!radioFile) {
+//             logln("Cannot open radio file: " + filepath);
+//             return 0; // ✅ Retornamos 0 si hay error
+//         }
+        
+//         totalLines = 0;
+//         while (radioFile.available()) {
+//             String line = radioFile.readStringUntil('\n');
+//             line.trim();
+            
+//             // Solo contar líneas que no estén vacías y tengan coma
+//             if (line.length() > 0 && line.indexOf(',') != -1) {
+//                 totalLines++;
+//             }
+//         }
+//         radioFile.close();
+        
+//         if (totalLines == 0) {
+//             logln("No valid radio stations found in: " + filepath);
+//             return 0; // ✅ Retornamos 0 si no hay líneas válidas
+//         }
+        
+//         firstCall = false;
+//         logln("Found " + String(totalLines) + " radio stations in file");
+//     }
+    
+//     // ✅ NAVEGAR según el parámetro forward
+//     if (forward) {
+//         // Avanzar al siguiente índice (circular)
+//         currentLine = (currentLine + 1) % totalLines;
+//         logln("Moving forward to line: " + String(currentLine));
+//     } else {
+//         // Retroceder al índice anterior (circular)
+//         currentLine = (currentLine - 1 + totalLines) % totalLines;
+//         logln("Moving backward to line: " + String(currentLine));
+//     }
+    
+//     // Abrir archivo para lectura
+//     File radioFile = SD_MMC.open(filepath.c_str(), FILE_READ);
+//     if (!radioFile) {
+//         logln("Cannot open radio file for reading: " + filepath);
+//         return totalLines; // ✅ Retornamos totalLines aunque haya error de lectura
+//     }
+    
+//     int lineIndex = 0;
+//     String currentLineText = "";
+//     bool found = false;
+    
+//     // Leer hasta encontrar la línea deseada
+//     while (radioFile.available() && !found) {
+//         currentLineText = radioFile.readStringUntil('\n');
+//         currentLineText.trim();
+        
+//         // Solo procesar líneas válidas
+//         if (currentLineText.length() > 0 && currentLineText.indexOf(',') != -1) {
+//             if (lineIndex == currentLine) {
+//                 found = true;
+//                 break;
+//             }
+//             lineIndex++;
+//         }
+//     }
+    
+//     radioFile.close();
+    
+//     if (!found) {
+//         logln("Error: Could not find line " + String(currentLine) + " in radio file");
+//         return totalLines; // ✅ Retornamos totalLines aunque no encontremos la línea
+//     }
+    
+//     // Parsear la línea: "nombre,url"
+//     int commaIndex = currentLineText.indexOf(',');
+//     if (commaIndex == -1) {
+//         logln("Error: Invalid format in line: " + currentLineText);
+//         return totalLines; // ✅ Retornamos totalLines aunque haya error de formato
+//     }
+    
+//     // Extraer nombre y URL
+//     radioname = currentLineText.substring(0, commaIndex);
+//     String tempUrl = currentLineText.substring(commaIndex + 1);
+    
+//     // Limpiar espacios
+//     radioname.trim();
+//     tempUrl.trim();
+    
+//     // ✅ ELIMINAR comillas del radioname si existen
+//     if (radioname.length() >= 2) {
+//         // Verificar si empieza y termina con comillas dobles
+//         if (radioname.charAt(0) == '"' && radioname.charAt(radioname.length() - 1) == '"') {
+//             radioname = radioname.substring(1, radioname.length() - 1);
+//             logln("Removed double quotes from radio name");
+//         }
+//         // Verificar si empieza y termina con comillas simples
+//         else if (radioname.charAt(0) == '\'' && radioname.charAt(radioname.length() - 1) == '\'') {
+//             radioname = radioname.substring(1, radioname.length() - 1);
+//             logln("Removed single quotes from radio name");
+//         }
+//     }
+    
+//     // ✅ TAMBIÉN eliminar comillas de la URL si existen
+//     if (tempUrl.length() >= 2) {
+//         // Verificar si empieza y termina con comillas dobles
+//         if (tempUrl.charAt(0) == '"' && tempUrl.charAt(tempUrl.length() - 1) == '"') {
+//             tempUrl = tempUrl.substring(1, tempUrl.length() - 1);
+//             logln("Removed double quotes from URL");
+//         }
+//         // Verificar si empieza y termina con comillas simples
+//         else if (tempUrl.charAt(0) == '\'' && tempUrl.charAt(tempUrl.length() - 1) == '\'') {
+//             tempUrl = tempUrl.substring(1, tempUrl.length() - 1);
+//             logln("Removed single quotes from URL");
+//         }
+//     }
+    
+//     // Limpiar espacios otra vez después de eliminar comillas
+//     radioname.trim();
+//     tempUrl.trim();
+    
+//     // Validar que no estén vacíos después de procesar
+//     if (radioname.length() == 0 || tempUrl.length() == 0) {
+//         logln("Error: Empty name or URL after processing quotes in line: " + currentLineText);
+//         return totalLines; // ✅ Retornamos totalLines aunque haya error
+//     }
+    
+//     // ✅ COPIAR URL al char* con verificación de tamaño
+//     if (tempUrl.length() >= urlMaxSize) {
+//         logln("Error: URL too long for buffer: " + tempUrl);
+//         return totalLines; // ✅ Retornamos totalLines aunque la URL sea muy larga
+//     }
+    
+//     // Copiar URL al buffer char*
+//     strncpy(url, tempUrl.c_str(), urlMaxSize - 1);
+//     url[urlMaxSize - 1] = '\0'; // Asegurar terminación null
+    
+//     String direction = forward ? "forward" : "backward";
+//     logln("Radio station selected (" + direction + "): " + radioname + " -> " + String(url));
+//     logln("Current position: " + String(currentLine + 1) + "/" + String(totalLines));
+    
+//     return totalLines; // ✅ Retornamos el total de líneas del archivo
+// }
+
+String getRadioUrlByIndex(int index) {
+    const char* filepath = PATH_FILE_TO_LOAD.c_str();
+
+    // 1. Verificar que el archivo de radios existe
+    if (!SD_MMC.exists(filepath)) {
+        logln("Error (getRadioUrlByIndex): Radio list file not found: " + String(filepath));
+        return ""; // Devuelve una cadena vacía si el archivo no existe
+    }
+
+    // 2. Abrir el archivo para lectura
+    File radioFile = SD_MMC.open(filepath, FILE_READ);
+    if (!radioFile) {
+        logln("Error (getRadioUrlByIndex): Could not open radio list file: " + String(filepath));
+        return ""; // Devuelve una cadena vacía si no se puede abrir
+    }
+
+    logln("Searching for URL at index " + String(index) + " in " + String(filepath));
+
+    int currentLine = 0;
+    String url = "";
+
+    // 3. Leer el archivo línea por línea hasta encontrar el índice deseado
+    while (radioFile.available()) {
+        String line = radioFile.readStringUntil('\n');
+        line.trim();
+
+        // Ignorar líneas vacías o sin el separador ','
+        int commaIndex = line.indexOf(',');
+        if (line.length() == 0 || commaIndex == -1) {
+            continue;
+        }
+
+        // 4. Comprobar si la línea actual es la que buscamos
+        if (currentLine == index) {
+            // Extraer la URL
+            url = line.substring(commaIndex + 1);
+            url.trim();
+
+            // Eliminar comillas si existen
+            if (url.length() >= 2) {
+                if (url.startsWith("\"") && url.endsWith("\"")) {
+                    url = url.substring(1, url.length() - 1);
+                } else if (url.startsWith("'") && url.endsWith("'")) {
+                    url = url.substring(1, url.length() - 1);
+                }
+            }
+            
+            // Salir del bucle una vez encontrada la URL
+            break; 
+        }
+
+        // Incrementar el contador de líneas válidas
+        currentLine++;
+    }
+
+    // 5. Cerrar el archivo
+    radioFile.close();
+
+    if (url.isEmpty()) {
+        logln("Warning (getRadioUrlByIndex): Index " + String(index) + " not found or line is invalid.");
+    } else {
+        logln("Found URL at index " + String(index) + ": " + url);
+    }
+
+    // 6. Devolver la URL encontrada o una cadena vacía si no se encontró
+    return url;
+}
+
+
+void RadioPlayer()
+{
+      // Lista de audio
+      int audioListSize = 0;
+      tAudioList* audiolist;
+
+      // ✅ Prepara la salida de audio para la radio
+      logln("Configuring kitStream for Radio TX mode...");
+      kitStream.flush();
+      //
+      auto cfg = kitStream.defaultConfig(TX_MODE);
+      cfg.sample_rate = 44100;
+      cfg.bits_per_sample = 16;
+      cfg.channels = 2;
+      kitStream.setAudioInfo(cfg);
+      logln("kitStream ready for radio.");
+
+      // Prepara la salida de audio sin interferir con la SD
+      hmi.activateWifi(false);
+    
+      IRADIO_EN = true;
+      
+      const char *urls[1] = {""};
+    
+      URLStream urlStream(ssid.c_str(), password);
+      AudioSourceURL source(urlStream, urls, "audio/mp3");
+      MP3DecoderHelix decoder;
+
+      audio_tools::Equalizer3Bands eq(kitStream);
+      audio_tools::ConfigEqualizer3Bands cfg_eq;
+
+      cfg_eq = eq.defaultConfig();
+      cfg_eq.setAudioInfo(cfg);
+      cfg_eq.gain_low = EQ_LOW;
+      cfg_eq.gain_medium = EQ_MID;
+      cfg_eq.gain_high = EQ_HIGH;
+      eq.begin(cfg_eq);
+
+      AudioPlayer player(source, eq, decoder);
+      
+      // Variables
+      // ---------------------------------------------------------
+      uint8_t playerState = 0;
+      unsigned long trefresh = millis();
+      size_t bufferw = 0;
+      int totalBlocks = 0;
+      int currentBlock = 0;
+      String radioName = "";
+      static char radioUrlBuffer[512]; // Buffer estático para la URL
+
+      // Inicia reproductor
+      if (!player.begin())
+      {
+          // Manejo de errores
+          logln("Error initializing RADIO player");
+          // Finaliza
+          player.end();    
+          delay(125);
+          urlStream.end();
+          delay(125);
+          decoder.end();
+          delay(125);
+
+          LAST_MESSAGE = "...";
+          IRADIO_EN = false;
+          delay(500);
+
+          hmi.activateWifi(true);    
+          IRADIO_EN = false;      
+          return;
+      }
+      //
+      player.setVolume(1);
+      //decoder.addNotifyAudioChange(kitStream);
+
+      STOP = false;
+      EJECT = false;
+
+      logln("Starting RADIO playback...");
+
+      LAST_MESSAGE = "Ready for radio playback.";
+      TOTAL_BLOCKS = nextRadioStation(PATH_FILE_TO_LOAD, radioName, radioUrlBuffer, sizeof(radioUrlBuffer));
+      TOTAL_BLOCKS = generateRadioList(audiolist);
+      
+      for (int i = 0; i < TOTAL_BLOCKS; i++)
+      {
+          logln("Station " + String(i+1) + ": " + audiolist[i].filename);
+      }
+
+      // Bucle principal
+      while (!EJECT)
+      {
+        
+        switch (playerState)
+        {
+          case 0:
+            // Estado inicial
+            if (PLAY)
+            {
+                urls[0] = radioUrlBuffer;
+                logln("Tuning to station: " + radioName + " -> " + String(radioUrlBuffer));
+                AudioSourceURL newsource(urlStream, urls, "audio/mp3");
+                player.setAudioSource(newsource);
+                if (player.begin())
+                {
+                  delay(125);               
+                  playerState = 1;
+                  //
+                  bufferw = 0;
+                  tapeAnimationON();
+                }
+                else
+                {
+                  logln("Error starting RADIO playback...");
+                  LAST_MESSAGE = "Error starting RADIO playback.";
+                  PLAY = false;
+                  playerState = 0;
+                  bufferw = 0;
+                } 
+            }
+            break;
+
+          case 1:
+            // Estado de reproducción
+            if (PLAY)
+            {
+                bufferw += player.copy();
+
+                if (EQ_CHANGE) 
+                {
+                    EQ_CHANGE = false;
+                    auto cfg = kitStream.defaultConfig();
+                    cfg_eq.setAudioInfo(cfg);
+                    cfg_eq.gain_low = EQ_LOW;
+                    cfg_eq.gain_medium = EQ_MID;
+                    cfg_eq.gain_high = EQ_HIGH;
+
+                    if (!eq.begin(cfg_eq))
+                    {
+                        LAST_MESSAGE = "Error EQ initialization";
+                        STOP = true;
+                        PLAY = false;
+                        break;
+                    }
+                }
+            }
+            else if (STOP)
+            {
+              player.stop();
+              playerState = 0;
+              PLAY = false;
+              bufferw = 0;
+              tapeAnimationOFF();
+            }
+            else if (PAUSE)
+            {
+              player.stop();
+              PLAY = false;
+              playerState = 0;
+              tapeAnimationOFF();
+            }
+            
+            if (FFWIND)
+            {
+                rewindAnimation(FFWIND ? 1 : -1);
+                player.stop();
+                // Avanza en la lista
+                TOTAL_BLOCKS = nextRadioStation(PATH_FILE_TO_LOAD, radioName, radioUrlBuffer, sizeof(radioUrlBuffer));
+                urls[0] = radioUrlBuffer;
+                logln("Tuning to station: " + radioName + " -> " + String(radioUrlBuffer));
+                AudioSourceURL newsource(urlStream, urls, "audio/mp3");
+                player.setAudioSource(newsource);
+                if (player.begin())
+                {
+                  delay(125);
+                  //
+                  playerState = 1;
+                  bufferw = 0;
+                }
+                //
+                FFWIND = false;
+                RWIND = false;
+            }
+            else if (RWIND)
+            {
+                rewindAnimation(FFWIND ? 1 : -1);
+                player.stop();
+                // Retrocede en la lista
+                TOTAL_BLOCKS = nextRadioStation(PATH_FILE_TO_LOAD, radioName, radioUrlBuffer, sizeof(radioUrlBuffer),false);
+                urls[0] = radioUrlBuffer;
+                logln("Tuning to station: " + radioName + " -> " + String(radioUrlBuffer));
+                AudioSourceURL newsource(urlStream, urls, "audio/mp3");
+                player.setAudioSource(newsource);
+                if (player.begin())
+                {
+                  delay(125);               
+                  //
+                  playerState = 1;
+                  bufferw = 0;
+                }
+                FFWIND = false;
+                RWIND = false;
+            }
+
+            // Seleccion de pista con Block Browser
+            if (BB_OPEN || BB_UPDATE)
+            {
+              //
+              hmi.openBlockMediaBrowser(audiolist);
+            }
+            // Salida del Block Browser
+            else if (UPDATE_HMI)
+            {
+              logln("UPDATE HMI");
+
+              // *******************************************************
+              // Hemos seleccionado una emisora de radio del BBrowser
+              // *******************************************************
+              if (BLOCK_SELECTED > 0 && BLOCK_SELECTED <= TOTAL_BLOCKS)
+              {
+                  // Cogemos el indice y cargamos la URL
+                  int currentPointer = BLOCK_SELECTED - 1;
+                  logln("Selected file: " + (audiolist[currentPointer].filename) + " - Index: " + String(currentPointer));
+                  player.stop(); // Detener el reproductor
+                  // Actualizamos HMI
+                  int res = nextRadioStation(PATH_FILE_TO_LOAD, radioName, radioUrlBuffer, sizeof(radioUrlBuffer), true, currentPointer, true);
+                  playerState = 0;
+                  PLAY = true;
+              }            
+              UPDATE_HMI = false;
+            }
+            else if (UPDATE)
+            {
+              // Si el bloque seleccionado es válido y no es el último
+              if (BLOCK_SELECTED > 0 && (BLOCK_SELECTED <= TOTAL_BLOCKS))
+              {
+                  // Reproducir el bloque seleccionado
+                  int currentPointer = BLOCK_SELECTED - 1;
+                  player.stop(); // Detener el reproductor
+                  int res = nextRadioStation(PATH_FILE_TO_LOAD, radioName, radioUrlBuffer, sizeof(radioUrlBuffer), true, currentPointer, true);
+                  playerState = 0;
+                  PLAY = true;
+                  UPDATE = false;                  
+              }   
+            }         
+            break;
+        }
+        // Control de la información en pantalla
+        if (millis() - trefresh > 2000)
+        {
+          // Actualizamos el marcador de buffer
+          updateIndicators(TOTAL_BLOCKS,1,bufferw,decoder.audioInfoEx().bitrate,radioName);
+          hmi.writeString("name.txt=\"" + radioName + "\"");
+          LAST_MESSAGE = "Playing: " + radioName;
+          trefresh = millis();
+        }
+
+      }
+      logln("Stopping RADIO playback...");
+      //
+      // Finaliza
+      player.end();    
+      delay(125);
+      urlStream.end();
+      delay(125);
+      decoder.end();
+      delay(125);
+
+      LAST_MESSAGE = "...";
+      IRADIO_EN = false;
+      delay(500);
+
+      hmi.activateWifi(true);
+      //
+      IRADIO_EN = false;      
+
+}
+
 void MediaPlayer() 
 {   
     
@@ -1924,8 +2602,8 @@ void MediaPlayer()
     // Reproductor de medios
     //
     // ---------------------------------------------------------
-
     LAST_MESSAGE = "Waiting...";
+    //resetOutputCodec();
 
 
     // Variables
@@ -2033,6 +2711,7 @@ void MediaPlayer()
     decoderFLAC.addNotifyAudioChange(kitStream);
     decoderFLAC.addNotifyAudioChange(eq);
 
+
     // Configuración del reproductor
     // ---------------------------------------------------------
     AudioInfo audiosr;
@@ -2043,7 +2722,7 @@ void MediaPlayer()
     
     player.setVolume(1);
     
-    auto tempConfig = kitStream.audioInfo();
+    auto tempConfig = kitStream.defaultConfig();
 
     // Esto es necesario para que el player sepa donde rediregir el audio
     switch(ext[0])
@@ -2072,15 +2751,7 @@ void MediaPlayer()
         //decoderWAV.setOutput(eq);
         // Configuramos el player con el decoder
         player.setDecoder(decoderWAV);
-        
-        // Configuramos temporalmente el audio a 22050Hz hasta que leamos el archivo real
-        // tempConfig = kitStream.defaultConfig();
-        // tempConfig.sample_rate = 44100;
-        // tempConfig.bits_per_sample = 16;
-        // tempConfig.channels = 2;
-        // kitStream.setAudioInfo(tempConfig);
-        // eq.setAudioInfo(tempConfig);
-        
+                
         // Otras configuraciones del player
         player.setAutoNext(AUTO_NEXT);
         player.setAutoFade(AUTO_FADE);
@@ -2288,13 +2959,11 @@ void MediaPlayer()
     // Bucle principal
     //
     // ---------------------------------------------------------------
+    
 
     while (!EJECT && !REC) 
     {
         // Actualizamos el volumen y el ecualizador si es necesario
-        //kitStream.setVolume(MAIN_VOL / 100);
-        //kitStream.setPAPower(ACTIVE_AMP & EN_SPEAKER);
-        
         // Control del ecualizador
         if (EQ_CHANGE) 
         {
@@ -3172,15 +3841,23 @@ void MediaPlayer()
    tapeAnimationOFF();
    
    // Descargamos objetos
-   player.end();
+   //player.end();
    eq.end();
+   
+   // Desvinculamos todas las notificaciones. Importante para evitar problemas
+   decoderMP3.clearNotifyAudioChange();
+   decoderWAV.clearNotifyAudioChange();
+   decoderFLAC.clearNotifyAudioChange();
    //
    decoderMP3.end();
    decoderWAV.end(); 
    decoderFLAC.end();
    measureMP3.end();
    metadatafilter.end();
-      
+
+   // Desvinculamos todas las notificaciones. Importante para evitar problemas
+   kitStream.clearNotifyAudioChange();
+
    // Cerramos el puntero de avance rapido y lo eliminamos.
    if (p_file_seek != nullptr && p_file_seek)
    {
@@ -3189,20 +3866,7 @@ void MediaPlayer()
 
    // Liberamos la memoria del audiolist
    free(audiolist); 
-
-  //  // Devolvemos la configuracion a la board.
-  //  AudioInfo new_sr = kitStream.defaultConfig();
-  //  new_sr.sample_rate = SAMPLING_RATE;
-  //  new_sr.bits_per_sample = 16;
-  //  new_sr.channels = 2;
-  //  kitStream.setAudioInfo(new_sr);      
-   
-   // Indicamos
-   //hmi.writeString("tape.lblFreq.txt=\"" + String(int(SAMPLING_RATE/1000)) + "KHz\"" );  
-
-   //
-   //showOption("menuAudio.mutAmp.val",String(ACTIVE_AMP));
-   //kitStream.setPAPower(ACTIVE_AMP && EN_SPEAKER);      
+    
 }
 
 // Función helper para cambiar configuración de audio de manera segura
@@ -3371,6 +4035,13 @@ void playingFile()
     //FLACplayer();
     logln("Finish FLAC playing file");
   }
+  else if (TYPE_FILE_LOAD == "RADIO")
+  {
+    logln("Type file load: " + TYPE_FILE_LOAD);
+    // Reproducimos el FLAC file
+    RadioPlayer();
+    logln("Finish RADIO playing.");
+  }  
   else
   {
     logAlert("Unknown type_file_load");
@@ -3679,6 +4350,12 @@ void loadingFile(char *file_ch)
       FILE_PREPARED = true;
       TYPE_FILE_LOAD = "FLAC";
     }
+    else if (PATH_FILE_TO_LOAD.indexOf(".RADIO", PATH_FILE_TO_LOAD.length() - 6) != -1)
+    {
+      logln("RADIO file to load: " + PATH_FILE_TO_LOAD);
+      FILE_PREPARED = true;
+      TYPE_FILE_LOAD = "RADIO";
+    }
   }
   else
   {
@@ -3844,7 +4521,7 @@ void nextGroupBlock()
 {
   logln("Seacrh Next Group Block");
 
-  if (TYPE_FILE_LOAD != "TAP" && TYPE_FILE_LOAD != "WAV" && TYPE_FILE_LOAD != "MP3" && TYPE_FILE_LOAD != "FLAC")
+  if (TYPE_FILE_LOAD != "TAP" && TYPE_FILE_LOAD != "WAV" && TYPE_FILE_LOAD != "MP3" && TYPE_FILE_LOAD != "FLAC" && TYPE_FILE_LOAD != "RADIO")
   {
     while (myTZX.descriptor[BLOCK_SELECTED].ID != 34 && BLOCK_SELECTED <= TOTAL_BLOCKS)
     {
@@ -3872,7 +4549,7 @@ void prevGroupBlock()
 {
   logln("Seacrh Previous Group Block");
 
-  if (TYPE_FILE_LOAD != "TAP" && TYPE_FILE_LOAD != "WAV" && TYPE_FILE_LOAD != "MP3" && TYPE_FILE_LOAD != "FLAC")
+  if (TYPE_FILE_LOAD != "TAP" && TYPE_FILE_LOAD != "WAV" && TYPE_FILE_LOAD != "MP3" && TYPE_FILE_LOAD != "FLAC" && TYPE_FILE_LOAD != "RADIO")
   {
     while (myTZX.descriptor[BLOCK_SELECTED].ID != 33 && BLOCK_SELECTED > 1)
     {
@@ -3900,7 +4577,7 @@ void isGroupStart()
   // Verificamos si se entra en un grupo
   logln("ID: " + String(myTZX.descriptor[BLOCK_SELECTED].ID));
 
-  if (TYPE_FILE_LOAD != "TAP" && TYPE_FILE_LOAD != "WAV" && TYPE_FILE_LOAD != "MP3" && TYPE_FILE_LOAD != "FLAC")
+  if (TYPE_FILE_LOAD != "TAP" && TYPE_FILE_LOAD != "WAV" && TYPE_FILE_LOAD != "MP3" && TYPE_FILE_LOAD != "FLAC" && TYPE_FILE_LOAD != "RADIO")
   {
     if (myTZX.descriptor[BLOCK_SELECTED].ID == 33)
     {
@@ -3923,7 +4600,7 @@ void isGroupEnd()
   // Verificamos si se entra en un grupo
   logln("ID: " + String(myTZX.descriptor[BLOCK_SELECTED].ID));
 
-  if (TYPE_FILE_LOAD != "TAP" && TYPE_FILE_LOAD != "WAV" && TYPE_FILE_LOAD != "MP3" && TYPE_FILE_LOAD != "FLAC")
+  if (TYPE_FILE_LOAD != "TAP" && TYPE_FILE_LOAD != "WAV" && TYPE_FILE_LOAD != "MP3" && TYPE_FILE_LOAD != "FLAC" && TYPE_FILE_LOAD != "RADIO")
   {
     if (myTZX.descriptor[BLOCK_SELECTED].ID == 34)
     {
@@ -3954,6 +4631,12 @@ void putLogo()
     hmi.writeString("tape.logo.pic=49");
     delay(5);
   }  
+  else if (TYPE_FILE_LOAD == "RADIO")
+  {
+    // iRADIO
+    hmi.writeString("tape.logo.pic=50");
+    delay(5);
+  } 
   else if (TYPE_FILE_LOAD == "WAV")
   {
     // WAV file
@@ -4431,7 +5114,7 @@ void tapeControl()
       //Activamos la animación
       tapeAnimationON();
       // Reproducimos el fichero
-      if (TYPE_FILE_LOAD != "WAV" && TYPE_FILE_LOAD != "MP3" && TYPE_FILE_LOAD != "FLAC")
+      if (TYPE_FILE_LOAD != "WAV" && TYPE_FILE_LOAD != "MP3" && TYPE_FILE_LOAD != "FLAC" && TYPE_FILE_LOAD != "RADIO")
       {
         LAST_MESSAGE = "Loading in progress. Please wait.";
       }
@@ -4526,7 +5209,7 @@ void tapeControl()
       setPolarization();
       STOP = false; //28/11
 
-      if (TYPE_FILE_LOAD != "WAV" && TYPE_FILE_LOAD != "MP3" && TYPE_FILE_LOAD != "FLAC")
+      if (TYPE_FILE_LOAD != "WAV" && TYPE_FILE_LOAD != "MP3" && TYPE_FILE_LOAD != "FLAC" && TYPE_FILE_LOAD != "RADIO")
       {
         getTheFirstPlayeableBlock();
       }
@@ -4645,7 +5328,7 @@ void tapeControl()
 
       HMI_FNAME = FILE_LOAD;
 
-      if (TYPE_FILE_LOAD != "WAV" && TYPE_FILE_LOAD != "MP3" && TYPE_FILE_LOAD != "FLAC")
+      if (TYPE_FILE_LOAD != "WAV" && TYPE_FILE_LOAD != "MP3" && TYPE_FILE_LOAD != "FLAC" && TYPE_FILE_LOAD != "RADIO")
       {
         getTheFirstPlayeableBlock();
       }
@@ -4655,7 +5338,7 @@ void tapeControl()
     else if (FFWIND || RWIND)
     {
 
-      if (TYPE_FILE_LOAD != "WAV" && TYPE_FILE_LOAD != "MP3" && TYPE_FILE_LOAD != "FLAC")
+      if (TYPE_FILE_LOAD != "WAV" && TYPE_FILE_LOAD != "MP3" && TYPE_FILE_LOAD != "FLAC" && TYPE_FILE_LOAD != "RADIO")
       {
         logln("Cambio de bloque");
         // Actuamos sobre el cassette
@@ -4744,7 +5427,7 @@ void tapeControl()
     else if (FFWIND || RWIND)
     {
       // Actuamos sobre el cassette
-      if (TYPE_FILE_LOAD != "WAV" && TYPE_FILE_LOAD != "MP3" && TYPE_FILE_LOAD != "FLAC")
+      if (TYPE_FILE_LOAD != "WAV" && TYPE_FILE_LOAD != "MP3" && TYPE_FILE_LOAD != "FLAC" && TYPE_FILE_LOAD != "RADIO")
       {
         logln("Cambio de bloque - CASE 10");
         // Actuamos sobre el cassette
@@ -4854,7 +5537,7 @@ void tapeControl()
             // Para poner mas logos actualizar el HMI
             putLogo();
 
-            if (TYPE_FILE_LOAD != "WAV" && TYPE_FILE_LOAD != "MP3" && TYPE_FILE_LOAD != "FLAC")
+            if (TYPE_FILE_LOAD != "WAV" && TYPE_FILE_LOAD != "MP3" && TYPE_FILE_LOAD != "FLAC" && TYPE_FILE_LOAD != "RADIO")
             {
               getTheFirstPlayeableBlock();
 
@@ -5187,7 +5870,7 @@ void tapeControl()
   // Actualizamos el HMI - indicadores
   if (UPDATE)
   {
-    if (TYPE_FILE_LOAD != "TAP" && TYPE_FILE_LOAD != "WAV" && TYPE_FILE_LOAD != "MP3" && TYPE_FILE_LOAD != "FLAC")
+    if (TYPE_FILE_LOAD != "TAP" && TYPE_FILE_LOAD != "WAV" && TYPE_FILE_LOAD != "MP3" && TYPE_FILE_LOAD != "FLAC" && TYPE_FILE_LOAD != "RADIO")
     {
       // Forzamos un refresco de los indicadores para TZX, CDT y TSX
       hmi.setBasicFileInformation(myTZX.descriptor[BLOCK_SELECTED].ID,
@@ -5226,6 +5909,7 @@ void tapeControl()
 void Task1code(void *pvParameters)
 {
   //setup();
+
   for (;;)
   {
     if (serialEventRun)
@@ -5234,15 +5918,17 @@ void Task1code(void *pvParameters)
     //esp_task_wdt_reset();
     //remDetection();
     tapeControl();
+
   }
 }
 
+//Task0code se puede liberar desde el config, para usar un solo CORE
 void Task0code(void *pvParameters)
 {
 
   // const int windowNameLength = 44;
 
-#ifndef SAMPLINGTEST
+  #ifndef SAMPLINGTEST
   // Core 0 - Para el HMI
   int startTime = millis();
   int startTime2 = millis();
@@ -5263,7 +5949,10 @@ void Task0code(void *pvParameters)
     
     // Control del FTP
     #ifdef FTP_SERVER_ENABLE
-      ftpSrv.handleFTP();
+      if (!IRADIO_EN)
+      {
+        ftpSrv.handleFTP();
+      }
     #endif
 
 
@@ -5673,6 +6362,7 @@ void setupWifi()
 
 void prepareCardStructure()
 {
+    
     // Creamos el directorio /fav
     String fDir = "/FAV";
 
@@ -5728,6 +6418,17 @@ void prepareCardStructure()
       hmi.reloadCustomDir("/");
       delay(750);    
     }  
+
+    // Creamos el directorio /radio
+    fDir = "/RADIO";
+
+    //Esto lo hacemos para ver si el directorio existe
+    if(createSpecialDirectory(fDir))
+    {
+      hmi.writeString("statusLCD.txt=\"Creating RADIO directory\"");
+      hmi.reloadCustomDir("/");
+      delay(750);    
+    }    
 }
 
 void setupSDCard()
@@ -6060,7 +6761,8 @@ void setup()
   esp_task_wdt_init(WDT_TIMEOUT, false); // enable panic so ESP32 restarts
 
   // Control del tape
-  xTaskCreatePinnedToCore(Task1code, "TaskCORE1", 16384, NULL, 3 | portPRIVILEGE_BIT, &Task1, 0);
+  //xTaskCreatePinnedToCore(Task1code, "TaskCORE1", 16384, NULL, 3 | portPRIVILEGE_BIT, &Task1, 0);
+  xTaskCreatePinnedToCore(Task1code, "TaskCORE1", 10240, NULL, 3 | portPRIVILEGE_BIT, &Task1, 0);
   esp_task_wdt_add(&Task1);
   delay(500);
 

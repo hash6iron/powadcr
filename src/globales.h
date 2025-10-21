@@ -167,6 +167,13 @@ struct tAudioList
     int size = 0;
 };
 
+struct tRadioList
+{
+    String name = "";
+    String url = "";
+    int index = 0;
+};
+
 // En little endian. Formato PZX
 struct tPZX
 {
@@ -658,6 +665,11 @@ IPAddress subnet(0, 0, 0, 0);
 IPAddress gateway(0, 0, 0, 0);
 IPAddress primaryDNS(0, 0, 0, 0); // Not Mandatory
 IPAddress secondaryDNS(0, 0, 0, 0);     // Not Mandatory
+
+// Internet Radio
+bool IRADIO_EN = false;
+
+
 
 // Declaraciones de metodos
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
