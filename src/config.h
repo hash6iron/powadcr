@@ -93,7 +93,7 @@
 #define FILE_COPY_CONSTRUCTOR_SELECT                    FILE_COPY_CONSTRUCTOR_PUBLIC
 
 // Enable / Disable Audiokit logging
-#define USE_AUDIO_LOGGING                               true
+#define USE_AUDIO_LOGGING                               false
 // States of LOG_LEVEL: Debug, Info, Warning, Error
 #define LOG_LEVEL                                       AudioLogger::Info
 // Definicion del puerto serie para la pantalla
