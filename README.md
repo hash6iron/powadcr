@@ -204,20 +204,20 @@ Is possible to connect directly to the machine audio output line-out, anyway, if
 
 **Supported machines by powadcr**
 
-|   Microcomputer  | File format supported |
-| ---------------- | --------------------- |
-| Spectrum         | TAP, TZX, WAV         |
-| CPC Amstrad      | CDT(TZX), WAV         |
-| MSX              | TSX, WAV              |
-| ORIC             | TZX (DR), WAV         |
-| Enterprise       | TZX (DR), WAV         |
-| Apple IIe        | TZX (DR), WAV         |
-| Mattel Aquarious | TZX (DR), WAV         |
-| Lynx             | TZX (DR), WAV         |
-| TRS-80 (COCO)    | TZX (DR), WAV         |
-| THOMPSON MO5     | TZX (DR), WAV         |
-| TI99             | TZX (DR), WAV         |
-| JUPITER          | TZX (DR), WAV         |
+|   Microcomputer  |  Play format  | Record format |
+| ---------------- | ------------- | ------------- |
+| Spectrum         | TAP, TZX, WAV | TAP, WAV      |
+| CPC Amstrad      | CDT(TZX), WAV | WAV           |
+| MSX              | TSX, WAV      | WAV           |
+| ORIC             | TZX (DR), WAV | WAV           |
+| Enterprise       | TZX (DR), WAV | WAV           |
+| Apple IIe        | TZX (DR), WAV | WAV           |
+| Mattel Aquarious | TZX (DR), WAV | WAV           |
+| Lynx             | TZX (DR), WAV | WAV           |
+| TRS-80 (COCO)    | TZX (DR), WAV | WAV           |
+| THOMPSON MO5     | TZX (DR), WAV | WAV           |
+| TI99             | TZX (DR), WAV | WAV           |
+| JUPITER          | TZX (DR), WAV | WAV           |
 
 
 
