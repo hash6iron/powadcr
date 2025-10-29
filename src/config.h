@@ -72,39 +72,62 @@
 // --------------------------------------------------------------
 // Configuración necesaria para powaDCR
 // --------------------------------------------------------------
+// Tarea del Core 0 - Tape control (Task1code - tapeControl, audio, etc.) - La más pesada
+#define TASK1_STACK_SIZE                                16384 // Defecto 12288
+
+// Tarea del Core 1 - HMI (Task0code - HMI, FTP, etc.) - Más ligera
+#define TASK0_STACK_SIZE                                8192  // Defecto 8192
+
 
 // Definimos la ganancia de la entrada de linea (para RECORDING)
-#define WORKAROUND_ES8388_LINE1_GAIN MIC_GAIN_MAX
-#define WORKAROUND_ES8388_LINE2_GAIN MIC_GAIN_MAX
+#define WORKAROUND_ES8388_LINE1_GAIN                    MIC_GAIN_MAX
+#define WORKAROUND_ES8388_LINE2_GAIN                    MIC_GAIN_MAX
 
 // Mezcla LINE 1 and LINE 2.
-#define WORKAROUND_MIC_LINEIN_MIXED false
+#define WORKAROUND_MIC_LINEIN_MIXED                     false
 
 // Esencial para poder variar la ganancia de salida de HPLINE y ROUT, LOUT
-#define AI_THINKER_ES8388_VOLUME_HACK 1
+#define AI_THINKER_ES8388_VOLUME_HACK                   1
 
 // For SDFat >2.3.0 version
-#define FILE_COPY_CONSTRUCTOR_SELECT FILE_COPY_CONSTRUCTOR_PUBLIC
+#define FILE_COPY_CONSTRUCTOR_SELECT                    FILE_COPY_CONSTRUCTOR_PUBLIC
 
 // Enable / Disable Audiokit logging
-#define USE_AUDIO_LOGGING false
+#define USE_AUDIO_LOGGING                               false
 // States of LOG_LEVEL: Debug, Info, Warning, Error
-#define LOG_LEVEL AudioLogger::Info
+#define LOG_LEVEL                                       AudioLogger::Info
 // Definicion del puerto serie para la pantalla
-#define SerialHWDataBits 921600
-#define hmiTxD 23
-#define hmiRxD 18
-#define powerLed 22
-#define GPIO_MSX_REMOTE_PAUSE 19
-#define WDT_TIMEOUT 360000
+#define SerialHWDataBits                                921600
+#define hmiTxD                                          23
+#define hmiRxD                                          18
+#define powerLed                                        22
+#define GPIO_MSX_REMOTE_PAUSE                           19
+#define WDT_TIMEOUT                                     360000
+
+// --------------------------------------------------------------
+// Configuración de memoria para SSL
+// --------------------------------------------------------------
+// CONFIGURACIÓN SSL OPTIMIZADA
+#define CONFIG_MBEDTLS_SSL_MAX_CONTENT_LEN          2048    // Reducir de 16KB por defecto
+#define CONFIG_MBEDTLS_ASYMMETRIC_CONTENT_LEN       1       // Habilitar contenido asimétrico
+#define CONFIG_MBEDTLS_SSL_IN_CONTENT_LEN           2048    // Buffer de entrada SSL
+#define CONFIG_MBEDTLS_SSL_OUT_CONTENT_LEN          2048    // Buffer de salida SSL
+
+// REDUCIR MEMORIA PARA CERTIFICADOS
+#define CONFIG_MBEDTLS_CERTIFICATE_BUNDLE           0       // Deshabilitar bundle de certificados
+#define CONFIG_MBEDTLS_X509_CRT_PARSE_C             0       // Solo parsing básico
+
+// DESHABILITAR FUNCIONES SSL NO NECESARIAS
+#define CONFIG_MBEDTLS_SSL_PROTO_TLS1_2             0       // Solo TLS 1.2
+#define CONFIG_MBEDTLS_SSL_PROTO_TLS1_3             0       // Deshabilitar TLS 1.3 (más pesado)
 
 // --------------------------------------------------------------
 // Configuración del sistema
 // --------------------------------------------------------------
 
-#define VERSION "1.0r7"
+#define VERSION                                         "1.0r7"
 #define MACHINE_ZX
-#define POWER_LED_INTENSITY 125 // Valor entre 0 y 255
+#define POWER_LED_INTENSITY                             125 // Valor entre 0 y 255
 
 // Define sampling rate a 44.1KHz. En otro caso será a 32KHz
 //#define SAMPLING44
@@ -121,7 +144,7 @@
 // Descomentar para test de reproducción en memoria
 //#define TEST
 
-#define SD_CHIP_SELECT 13 // Pin CS de la SD
+#define SD_CHIP_SELECT                                13 // Pin CS de la SD
 
 // --------------------------------------------------------------
 // Interfaz
@@ -133,19 +156,19 @@
 // --------------------------------------------------------------
 // Browser
 // --------------------------------------------------------------
-#define TOTAL_FILES_IN_BROWSER_PAGE 13  // No se cuenta la primera fila que es para el path
-#define MAX_FILES_TO_LOAD           14  // Esto siempre es TOTAL_FILES_IN_BROWSER_PAGE + 1
-#define MAX_BLOCKS_IN_BROWSER       13
-#define MAX_FILES_FOUND_BUFF        255
-#define EACH_FILES_REFRESH          5   // Cada n ficheros refresca el marcador. Por defecto 50
+#define TOTAL_FILES_IN_BROWSER_PAGE                   13  // No se cuenta la primera fila que es para el path
+#define MAX_FILES_TO_LOAD                             14  // Esto siempre es TOTAL_FILES_IN_BROWSER_PAGE + 1
+#define MAX_BLOCKS_IN_BROWSER                         13
+#define MAX_FILES_FOUND_BUFF                          255
+#define EACH_FILES_REFRESH                            5   // Cada n ficheros refresca el marcador. Por defecto 50
 
 // Colores del browser
-#define DEFAULT_COLOR       65535
-#define DIR_COLOR           60868
-#define DSC_FILE_COLOR      0
-#define FAVORITE_FILE_COLOR 34815
-#define SPECIAL_FILE_COLOR  44405
-#define OTHER_FILES_COLOR   44405
+#define DEFAULT_COLOR                                 65535
+#define DIR_COLOR                                     60868
+#define DSC_FILE_COLOR                                0
+#define FAVORITE_FILE_COLOR                           34815
+#define SPECIAL_FILE_COLOR                            44405
+#define OTHER_FILES_COLOR                             44405
 
 // --------------------------------------------------------------
 // Player / SD
@@ -186,17 +209,24 @@
 #define PER_TO_SHOW_ESTIMATED_TIME                    3
 
 // Maximo numero de ficheros capturados en la lista de audio por directorio
-#define MAX_FILES_AUDIO_LIST                          512
-#define MAX_RADIO_STATIONS                            512
+#define MAX_FILES_AUDIO_LIST                          128
 
+// --------------------------------------------------------------
+// Radio Internet
+// -------------------------------------------------------------------
+
+#define MAX_RADIO_STATIONS                            128
+#define JITTER_BUFFER_SIZE                            128
+#define RADIO_CONNECT_TIMEOUT_MS                      10000
+#define USE_SSL_STATIONS                              false
 // ---------------------------------------------------------------------------------------------
 // NO COMENTAR SI SE ESTÁ USANDO 22200 Hz en otro caso hay que usar 44100 para recording
 // Si se usa el sampling rate de ZX Spectrum (22.2KHz) para la grabación y reproducción de TAPs
-#define USE_ZX_SPECTRUM_SR 1 
+#define USE_ZX_SPECTRUM_SR                            1 
 //
 // ----------------------------------------------------------------------------------------------
 // Particion mas pequeña de un silencio
-#define MIN_FRAME_FOR_SILENCE_PULSE_GENERATION 256
+#define MIN_FRAME_FOR_SILENCE_PULSE_GENERATION        256
 
 // --------------------------------------------------------------
 // Recording
@@ -209,17 +239,17 @@
 // TAP config.
 // --------------------------------------------------------------
 // Acorta el tono guia del bloque data despues de header
-#define LEVEL_REDUCTION_HEADER_TONE_IN_TAP 1
+#define LEVEL_REDUCTION_HEADER_TONE_IN_TAP            1
 
 // Activa el modo de split de los bloques. 
 // si superan el tamaño (en bytes) definido por SIZE_TO_ACTIVATE_SPLIT
-#define SPLIT_ENABLED 0
-#define SIZE_TO_ACTIVATE_SPLIT 20000
-#define SIZE_FOR_SPLIT 10000
+#define SPLIT_ENABLED                                 0
+#define SIZE_TO_ACTIVATE_SPLIT                        20000
+#define SIZE_FOR_SPLIT                                10000
 
 // Maximo número de bloques para el descriptor.
-#define MAX_BLOCKS_IN_TAP 4000
-#define MAX_BLOCKS_IN_TZX 4000
+#define MAX_BLOCKS_IN_TAP                             4000
+#define MAX_BLOCKS_IN_TZX                             4000
 
 // Configuracion del test in/out
 bool TEST_LINE_IN_OUT = false;
@@ -245,12 +275,12 @@ bool TEST_LINE_IN_OUT = false;
 // <DNS2>192.168.2.1</DNS2>
 
 // HMI
-#define windowNameLength    32
-#define windowNameLengthFB  50
-#define tRotateNameRfsh     230
+#define windowNameLength                            32
+#define windowNameLengthFB                          50
+#define tRotateNameRfsh                             230
 
 // Limitador de volumen
-#define MAX_VOL_FOR_HEADPHONE_LIMIT 40
+#define MAX_VOL_FOR_HEADPHONE_LIMIT                 40
 
 // Recursos opcionales
 //#define BLUETOOTH_ENABLE
@@ -260,7 +290,7 @@ bool TEST_LINE_IN_OUT = false;
 #define MSX_REMOTE_PAUSE
 
 // Parametros internos
-#define MAIN_VOL_FACTOR 100
+#define MAIN_VOL_FACTOR                             100
 
 
 
