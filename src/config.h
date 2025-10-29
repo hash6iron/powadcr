@@ -73,7 +73,7 @@
 // Configuración necesaria para powaDCR
 // --------------------------------------------------------------
 // Tarea del Core 0 - Tape control (Task1code - tapeControl, audio, etc.) - La más pesada
-#define TASK1_STACK_SIZE                                12500 // Defecto 12288
+#define TASK1_STACK_SIZE                                16384 // Defecto 12288
 
 // Tarea del Core 1 - HMI (Task0code - HMI, FTP, etc.) - Más ligera
 #define TASK0_STACK_SIZE                                8192  // Defecto 8192
@@ -108,17 +108,17 @@
 // Configuración de memoria para SSL
 // --------------------------------------------------------------
 // CONFIGURACIÓN SSL OPTIMIZADA
-#define CONFIG_MBEDTLS_SSL_MAX_CONTENT_LEN          4096    // Reducir de 16KB por defecto
+#define CONFIG_MBEDTLS_SSL_MAX_CONTENT_LEN          2048    // Reducir de 16KB por defecto
 #define CONFIG_MBEDTLS_ASYMMETRIC_CONTENT_LEN       1       // Habilitar contenido asimétrico
-#define CONFIG_MBEDTLS_SSL_IN_CONTENT_LEN           4096    // Buffer de entrada SSL
-#define CONFIG_MBEDTLS_SSL_OUT_CONTENT_LEN          4096    // Buffer de salida SSL
+#define CONFIG_MBEDTLS_SSL_IN_CONTENT_LEN           2048    // Buffer de entrada SSL
+#define CONFIG_MBEDTLS_SSL_OUT_CONTENT_LEN          2048    // Buffer de salida SSL
 
 // REDUCIR MEMORIA PARA CERTIFICADOS
 #define CONFIG_MBEDTLS_CERTIFICATE_BUNDLE           0       // Deshabilitar bundle de certificados
-#define CONFIG_MBEDTLS_X509_CRT_PARSE_C             1       // Solo parsing básico
+#define CONFIG_MBEDTLS_X509_CRT_PARSE_C             0       // Solo parsing básico
 
 // DESHABILITAR FUNCIONES SSL NO NECESARIAS
-#define CONFIG_MBEDTLS_SSL_PROTO_TLS1_2             1       // Solo TLS 1.2
+#define CONFIG_MBEDTLS_SSL_PROTO_TLS1_2             0       // Solo TLS 1.2
 #define CONFIG_MBEDTLS_SSL_PROTO_TLS1_3             0       // Deshabilitar TLS 1.3 (más pesado)
 
 // --------------------------------------------------------------
@@ -210,9 +210,15 @@
 
 // Maximo numero de ficheros capturados en la lista de audio por directorio
 #define MAX_FILES_AUDIO_LIST                          128
+
+// --------------------------------------------------------------
+// Radio Internet
+// -------------------------------------------------------------------
+
 #define MAX_RADIO_STATIONS                            128
 #define JITTER_BUFFER_SIZE                            128
-
+#define RADIO_CONNECT_TIMEOUT_MS                      10000
+#define USE_SSL_STATIONS                              false
 // ---------------------------------------------------------------------------------------------
 // NO COMENTAR SI SE ESTÁ USANDO 22200 Hz en otro caso hay que usar 44100 para recording
 // Si se usa el sampling rate de ZX Spectrum (22.2KHz) para la grabación y reproducción de TAPs
@@ -233,7 +239,7 @@
 // TAP config.
 // --------------------------------------------------------------
 // Acorta el tono guia del bloque data despues de header
-#define LEVEL_REDUCTION_HEADER_TONE_IN_TAP 1
+#define LEVEL_REDUCTION_HEADER_TONE_IN_TAP            1
 
 // Activa el modo de split de los bloques. 
 // si superan el tamaño (en bytes) definido por SIZE_TO_ACTIVATE_SPLIT
@@ -284,7 +290,7 @@ bool TEST_LINE_IN_OUT = false;
 #define MSX_REMOTE_PAUSE
 
 // Parametros internos
-#define MAIN_VOL_FACTOR 100
+#define MAIN_VOL_FACTOR                             100
 
 
 

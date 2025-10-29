@@ -2689,12 +2689,20 @@ class HMI
             logAlert("REC pressed.");
           #endif
 
-          PLAY = false;
-          PAUSE = false;
-          STOP = false;
-          REC = true;
-          ABORT = false;
-          EJECT = false;
+          if (IRADIO_EN)
+          {
+            REC = true;
+          }
+          else
+          {
+            PLAY = false;
+            PAUSE = false;
+            STOP = false;
+            REC = true;
+            ABORT = false;
+            EJECT = false;
+          }
+          
         }
         else if (strCmd.indexOf("PAUSE") != -1) 
         {
@@ -4554,27 +4562,27 @@ class HMI
 
           // Paso 1..max: Mostrar cada item
           int i = BB_BROWSER_STEP;
-          if (i <= BB_BROWSER_MAX) {
-
-              if(IRADIO_EN)
+          if (i <= BB_BROWSER_MAX) 
+          {
+              if (i + BB_PTR_ITEM > TOTAL_BLOCKS - 1) 
               {
+                  writeString("mp3browser.id" + String(i) + ".txt=\"\"");
+                  writeString("mp3browser.name" + String(i) + ".txt=\"\"");
+              } 
+              else 
+              {
+                if (IRADIO_EN)
+                {
                   writeString("mp3browser.id" + String(i) + ".txt=\"" + String(i + BB_PTR_ITEM) + "\"");
-                  writeString("mp3browser.name" + String(i) + ".txt=\"" + source[i + BB_PTR_ITEM - 1].filename + "\"");
-              }
-              else
-              {
-                  if (i + BB_PTR_ITEM > TOTAL_BLOCKS - 1) 
-                  {
-                      writeString("mp3browser.id" + String(i) + ".txt=\"\"");
-                      writeString("mp3browser.name" + String(i) + ".txt=\"\"");
-                  } 
-                  else 
-                  {
-                      String name = source[i + BB_PTR_ITEM - 1].filename;
-                      writeString("mp3browser.id" + String(i) + ".txt=\"" + String(i + BB_PTR_ITEM) + "\"");
-                      writeString("mp3browser.name" + String(i) + ".txt=\"" + getFileNameFromPath(name) + "\"");
-                  }                
-              }
+                  writeString("mp3browser.name" + String(i) + ".txt=\"" + source[i + BB_PTR_ITEM - 1].filename + "\"");                      
+                }
+                else
+                {
+                  String name = source[i + BB_PTR_ITEM - 1].filename;
+                  writeString("mp3browser.id" + String(i) + ".txt=\"" + String(i + BB_PTR_ITEM) + "\"");
+                  writeString("mp3browser.name" + String(i) + ".txt=\"" + getFileNameFromPath(name) + "\"");
+                }
+              }                
               BB_BROWSER_STEP++;
               // Si hemos terminado, reseteamos flags
               if (BB_BROWSER_STEP > BB_BROWSER_MAX) {

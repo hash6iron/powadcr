@@ -668,6 +668,7 @@ IPAddress secondaryDNS(0, 0, 0, 0);     // Not Mandatory
 
 // Internet Radio
 bool IRADIO_EN = false;
+bool URL_RADIO_IS_READY = false;
 
 
 
