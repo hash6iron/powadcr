@@ -309,11 +309,10 @@ class HMI
               file.flush();
           }
 
-          writeString("statusFILE.txt=\"SORT COMPLETE\"");
+          writeString("statusFILE.txt=\"SORT COMPLTE\"");
           linesWithKeys.clear();
           linesWithKeys.shrink_to_fit();
       }
-
 
       void sortFile_old(File &file, bool firstDir = true) 
       {
@@ -400,6 +399,20 @@ class HMI
           linesWithKeys.shrink_to_fit();
       }
 
+      inline bool hasInvalidASCII(const String& str) {
+          const char* data = str.c_str();
+          
+          // Solo los caracteres de control (0-31) y el DEL (127) son inválidos
+          // para nombres de archivo en tu sistema
+          static const char invalid_chars[] = 
+              "\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0A\x0B\x0C\x0D\x0E\x0F"
+              "\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1A\x1B\x1C\x1D\x1E\x1F"
+              "\x7F"; // Solo el carácter DEL (127)
+          
+          // strpbrk busca el PRIMER carácter que SÍ está en invalid_chars
+          return strpbrk(data, invalid_chars) != NULL;
+      }
+
       void fillWithFilesFromFile(File &fout, File &fstatus, const String &search_pattern, const String &path) 
       {
           // Ruta del archivo _files.lst
@@ -478,7 +491,7 @@ class HMI
           #endif
       }
 
-      void fillWithFiles(File &fout, File &fstatus, String search_pattern)
+      void fillWithFiles_new(File &fout, File &fstatus, String search_pattern)
       {
           const String separator="|";
           if (!global_dir.isDirectory()) return;
@@ -499,30 +512,22 @@ class HMI
           {
               if (entry == "") break;
 
-              // ✅ NUEVA VALIDACIÓN: Verificar que la entrada no esté corrupta
+              // Mejoras.
+              // Verificar que la entrada no esté corrupta
               if (entry.length() < 3 || entry.indexOf("...") == 0) {
                   #ifdef DEBUGMODE
                       logln("Skipping corrupted entry: " + entry);
                   #endif
                   continue;
               }
-
-              // ✅ NUEVA VALIDACIÓN: Verificar caracteres válidos
-              bool hasInvalidChars = false;
-              for (int i = 0; i < entry.length(); i++) {
-                  char c = entry.charAt(i);
-                  if (c < 32 || c > 126) { // Solo caracteres ASCII imprimibles
-                      hasInvalidChars = true;
-                      break;
-                  }
-              }
-              
-              if (hasInvalidChars) {
-                  #ifdef DEBUGMODE
+             
+              // Verificar caracteres inválidos
+              if (hasInvalidASCII(entry)) {
+                  // #ifdef DEBUGMODE
                       logln("Skipping entry with invalid characters: " + entry);
-                  #endif
+                  // #endif
                   continue;
-              }
+              }             
 
               #ifdef DEBUGMODE
                   logln("Processing file: " + entry);
@@ -538,7 +543,7 @@ class HMI
                   fnameToLower = fname;
                   fnameToLower.toLowerCase();
 
-                  // ✅ NUEVA VALIDACIÓN: Verificar que el nombre extraído sea válido
+                  // BUEVA VALIDACIÓN: Verificar que el nombre extraído sea válido
                   if (fname.length() == 0 || fname == "." || fname == "..") {
                       #ifdef DEBUGMODE
                           logln("Skipping invalid filename: " + fname);
@@ -612,7 +617,7 @@ class HMI
           fstatus.println("CDIR=" + String(cdir));
       }
 
-      void fillWithFiles_old(File &fout, File &fstatus, String search_pattern)
+      void fillWithFiles(File &fout, File &fstatus, String search_pattern)
       {
           // *****************************************************************************
           //
@@ -710,6 +715,7 @@ class HMI
               itemsCount++;
               itemsToShow++;
           }
+          //
           fstatus.println("CFIL=" + String(cfiles));
           fstatus.println("CDIR=" + String(cdir));
       }     
@@ -802,7 +808,6 @@ class HMI
 
           return true;
       }
-
 
       void registerFiles(const String &path, const String &filename, const String &filename_inf, const String &search_pattern, bool rescan) 
       {
@@ -1506,6 +1511,20 @@ class HMI
 
         showInformationAboutFiles();        
       
+      }
+
+      void jumpToDir(String newDir)
+      {
+          // Cambia al nuevo directorio
+          //FILE_BROWSER_SEARCHING = false;  
+          FILE_LAST_DIR_LAST = INITFILEPATH;
+          FILE_LAST_DIR = newDir;
+          FILE_PREVIOUS_DIR = INITFILEPATH;
+          // Open root directory
+          FILE_PTR_POS = 1;
+          IN_THE_SAME_DIR = false;
+          getFilesFromSD(false,SOURCE_FILE_TO_MANAGE,SOURCE_FILE_INF_TO_MANAGE);
+          putFilesInScreen();
       }
 
       void putInHome()
@@ -2670,12 +2689,20 @@ class HMI
             logAlert("REC pressed.");
           #endif
 
-          PLAY = false;
-          PAUSE = false;
-          STOP = false;
-          REC = true;
-          ABORT = false;
-          EJECT = false;
+          if (IRADIO_EN)
+          {
+            REC = true;
+          }
+          else
+          {
+            PLAY = false;
+            PAUSE = false;
+            STOP = false;
+            REC = true;
+            ABORT = false;
+            EJECT = false;
+          }
+          
         }
         else if (strCmd.indexOf("PAUSE") != -1) 
         {
@@ -2935,8 +2962,29 @@ class HMI
         else if (strCmd.indexOf("WWW") != -1) 
         {
           // Activa audio internet.
-          logln("Audio internet enabled.");
+          // logln("Audio internet enabled.");
+          // IRADIO_EN = true;
+        }
+        else if (strCmd.indexOf("RADI") != -1) 
+        {
+          // Salta al directorio de RADIO internet.
+          logln("Jumping to internet radio dir.");
           IRADIO_EN = true;
+          // Con este comando nos indica la pantalla que quiere
+          // le devolvamos ficheros en la posición actual del puntero
+          SOURCE_FILE_TO_MANAGE = "_files.lst";
+          SOURCE_FILE_INF_TO_MANAGE = "_files.inf"; 
+
+          LST_FILE_IS_OPEN = false;
+          if (fFileLST)
+          {
+            fFileLST.close();
+          }
+
+          jumpToDir("/RADIO");
+        
+          getFilesFromSD(false,SOURCE_FILE_TO_MANAGE,SOURCE_FILE_INF_TO_MANAGE);
+          refreshFiles();            
         }
         // Devuelve el % de filtrado aplicado en pantalla. Filtro del recording
         else if (strCmd.indexOf("THR=") != -1) 
@@ -4397,7 +4445,6 @@ class HMI
             #else
               writeString("menu.totalPSRAM.txt=\"" + String(ESP.getPsramSize() / 1024) + " KB | " + String(ESP.getHeapSize() / 1024) + " KB\"");            
             #endif
-            
           }
           
           lst_stackFreeCore0 = BLOCK_SELECTED;
@@ -4515,27 +4562,27 @@ class HMI
 
           // Paso 1..max: Mostrar cada item
           int i = BB_BROWSER_STEP;
-          if (i <= BB_BROWSER_MAX) {
-
-              if(IRADIO_EN)
+          if (i <= BB_BROWSER_MAX) 
+          {
+              if (i + BB_PTR_ITEM > TOTAL_BLOCKS - 1) 
               {
+                  writeString("mp3browser.id" + String(i) + ".txt=\"\"");
+                  writeString("mp3browser.name" + String(i) + ".txt=\"\"");
+              } 
+              else 
+              {
+                if (IRADIO_EN)
+                {
                   writeString("mp3browser.id" + String(i) + ".txt=\"" + String(i + BB_PTR_ITEM) + "\"");
-                  writeString("mp3browser.name" + String(i) + ".txt=\"" + source[i + BB_PTR_ITEM - 1].filename + "\"");
-              }
-              else
-              {
-                  if (i + BB_PTR_ITEM > TOTAL_BLOCKS - 1) 
-                  {
-                      writeString("mp3browser.id" + String(i) + ".txt=\"\"");
-                      writeString("mp3browser.name" + String(i) + ".txt=\"\"");
-                  } 
-                  else 
-                  {
-                      String name = source[i + BB_PTR_ITEM - 1].filename;
-                      writeString("mp3browser.id" + String(i) + ".txt=\"" + String(i + BB_PTR_ITEM) + "\"");
-                      writeString("mp3browser.name" + String(i) + ".txt=\"" + getFileNameFromPath(name) + "\"");
-                  }                
-              }
+                  writeString("mp3browser.name" + String(i) + ".txt=\"" + source[i + BB_PTR_ITEM - 1].filename + "\"");                      
+                }
+                else
+                {
+                  String name = source[i + BB_PTR_ITEM - 1].filename;
+                  writeString("mp3browser.id" + String(i) + ".txt=\"" + String(i + BB_PTR_ITEM) + "\"");
+                  writeString("mp3browser.name" + String(i) + ".txt=\"" + getFileNameFromPath(name) + "\"");
+                }
+              }                
               BB_BROWSER_STEP++;
               // Si hemos terminado, reseteamos flags
               if (BB_BROWSER_STEP > BB_BROWSER_MAX) {
