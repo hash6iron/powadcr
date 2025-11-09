@@ -1761,27 +1761,29 @@ class HMI
 
               BLOCK_SELECTED = num.toInt();
 
-              // updateInformationMainPage(true);
               // Esto lo hacemos para poder actualizar la info del bloque
+              if (!IRADIO_EN)
+              {
+                  if (BLOCK_SELECTED > (TOTAL_BLOCKS-2))
+                  {
+                    BLOCK_SELECTED = TOTAL_BLOCKS - 1;
+                  }
+                  else if (BLOCK_SELECTED < 1)
+                  {
+                    BLOCK_SELECTED = 1;
+                  }  
 
-              if (BLOCK_SELECTED > (TOTAL_BLOCKS-2))
-              {
-                BLOCK_SELECTED = TOTAL_BLOCKS - 1;
+                  if (TYPE_FILE_LOAD == "TAP")
+                  {
+                    BLOCK_SELECTED -= 1;
+                  }
               }
-              else if (BLOCK_SELECTED < 1)
-              {
-                BLOCK_SELECTED = 1;
-              }  
+              // Espermos unos ms para que de tiempo a la pantalla
+              delay(250);
 
-              if (TYPE_FILE_LOAD == "TAP")
-              {
-                BLOCK_SELECTED -= 1;
-              }
-  
               UPDATE = true;
               START_FFWD_ANIMATION = true;
             }
-
         }
         else if (strCmd.indexOf("REL=") != -1)
         {
@@ -2147,6 +2149,8 @@ class HMI
             }
             writeString("tape.currentBlock.val=" + String(BLOCK_SELECTED));
           }         
+          // Delay para esperar a que el browser se cierre
+          delay(250);
           BB_OPEN = false;
           BLOCK_BROWSER_OPEN = false;
           UPDATE_HMI = true;
@@ -3732,7 +3736,6 @@ class HMI
           if (MAIN_VOL >100)
           {
             MAIN_VOL = 100;
-
           }
 
           kitStream.setVolume(MAIN_VOL / 100);
@@ -3824,6 +3827,7 @@ class HMI
             #endif
             CURRENT_PAGE = 1;
             updateInformationMainPage(true);
+            TAPE_PAGE_SHOWN = true;
         }
         else
         {}
@@ -4421,23 +4425,28 @@ class HMI
 
       void getMemFree()
       {
-          logln("");
-          logln("");
-          logln("> MEM REPORT");
-          logln("------------------------------------------------------------");
-          logln("");
-          logln("Total heap: " + String(ESP.getHeapSize() / 1024) + "KB");
-          logln("Free heap: " + String(ESP.getFreeHeap() / 1024) + "KB");
-          logln("Total PSRAM: " + String(ESP.getPsramSize() / 1024) + "KB");
-          logln("Free PSRAM: " + String (ESP.getFreePsram() / 1024) + "KB");  
-          logln("");
-          logln("------------------------------------------------------------");
+          #ifdef DEBUGMODE
+            logln("");
+            logln("");
+            logln("> MEM REPORT");
+            logln("------------------------------------------------------------");
+            logln("");
+            logln("Total heap: " + String(ESP.getHeapSize() / 1024) + "KB");
+            logln("Free heap: " + String(ESP.getFreeHeap() / 1024) + "KB");
+            logln("Total PSRAM: " + String(ESP.getPsramSize() / 1024) + "KB");
+            logln("Free PSRAM: " + String (ESP.getFreePsram() / 1024) + "KB");  
+            logln("");
+            logln("------------------------------------------------------------");
+          #endif
           //
           updateMem();
       }           
 
       void updateMem()
       {
+          UBaseType_t hwm_core0 = uxTaskGetStackHighWaterMark(Task0);
+          UBaseType_t hwm_core1 = uxTaskGetStackHighWaterMark(Task1);
+
           if (lst_stackFreeCore0 != stackFreeCore0 || lst_psram_used != ESP.getPsramSize() || lst_stack_used != ESP.getHeapSize())
           {
             #ifdef DEBUGMODE
@@ -4456,7 +4465,7 @@ class HMI
             #ifdef DEBUGMODE
               writeString("menu.freePSRAM.txt=\"Task1: "  + String(stackFreeCore1) + " KB | " + String(ESP.getFreePsram() / 1024) + " KB | " + String(ESP.getFreeHeap() / 1024) + " KB\"");
             #else
-              writeString("menu.freePSRAM.txt=\""  + String(ESP.getFreePsram() / 1024) + " KB | " + String(ESP.getFreeHeap() / 1024) + " KB\"");
+              writeString("menu.freePSRAM.txt=\""  + String(ESP.getFreePsram() / 1024) + " KB | " + String(ESP.getFreeHeap() / 1024) + " KB | " + String(hwm_core0 * 4 / 1024) + "KB | " + String(hwm_core1 * 4 / 1024) + " KB\"");
             #endif
           }
           lst_stackFreeCore1 = BLOCK_SELECTED;

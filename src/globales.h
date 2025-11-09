@@ -552,6 +552,7 @@ bool IN_THE_SAME_DIR = false;
 String FILE_TXT_TO_SEARCH = "";
 //bool waitingRecMessageShown = false;
 int CURRENT_PAGE = 0;
+bool TAPE_PAGE_SHOWN = false;
 
 // Block browser
 bool BB_OPEN = false;
@@ -666,10 +667,19 @@ IPAddress gateway(0, 0, 0, 0);
 IPAddress primaryDNS(0, 0, 0, 0); // Not Mandatory
 IPAddress secondaryDNS(0, 0, 0, 0);     // Not Mandatory
 
+// Media player
+bool MEDIA_PLAYER_EN = false;
+bool WAS_LAUNCHED = false;
+
+
 // Internet Radio
 bool IRADIO_EN = false;
 bool URL_RADIO_IS_READY = false;
 
+// Remote control
+bool UPDATE_FROM_REMOTE_CONTROL = false;
+int FILE_POS_REMOTE_CONTROL = 0;
+bool CMD_FROM_REMOTE_CONTROL = false;
 
 
 // Declaraciones de metodos
