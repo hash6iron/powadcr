@@ -154,6 +154,11 @@ bool pageScreenIsShown = false;
 uint16_t USER_CONFIG_ARDUINO_LOOP_STACK_SIZE = 16384;
 #endif
 
+
+// SmartRadioBuffer
+// -----------------------------------------------------------------------
+#include "SmartRadioBuffer.h"
+
 // OTA SD Update
 // -----------------------------------------------------------------------
 #include <Update.h>
@@ -166,6 +171,16 @@ uint16_t USER_CONFIG_ARDUINO_LOOP_STACK_SIZE = 16384;
 #ifdef FTP_SERVER_ENABLE
   #include "ESP32FtpServer.h"
   FtpServer ftpSrv;
+#endif
+
+#ifdef WEB_SERVER_ENABLE
+  WiFiServer server(80);
+  String header;  
+  unsigned long currentTime = millis();
+  // Previous time
+  unsigned long previousTime = 0;   
+  // Define timeout time in milliseconds (example: 2000ms = 2s)
+  const long timeoutTime = 2000;  
 #endif
 
 
@@ -733,9 +748,9 @@ void waitForHMI(bool waitAndNotForze)
 void showRadioDial()
 {
   // Mostramos el dial de radio
-  hmi.writeString("tape.animation.pic=51");
-  delay(250);
-  hmi.writeString("tape.animation.pic=51");
+  hmi.writeString("tape.animation.pic=52");
+  hmi.writeString("tape.animation.pic=52");
+  //
 }
 
 void hideRadioDial()
@@ -2169,12 +2184,68 @@ String getRadioUrlByIndex(int index) {
     return url;
 }
 
+void updateDialIndicator(int pos)
+{
+    // Parametros.
+    const int xini = 130;           // x ini of dial
+    const int width = 232;          // dial range pixels   
+
+    if (TOTAL_BLOCKS <= 0 || BB_OPEN) return;
+
+    showRadioDial();
+    delay(125);
+    hmi.writeString("fill " + String(xini + (width/TOTAL_BLOCKS) * pos) + ",152,5,40," + String(DIAL_COLOR));
+    hmi.writeString("fill " + String(xini + (width/TOTAL_BLOCKS) * pos) + ",152,5,40," + String(DIAL_COLOR));
+    hmi.writeString("fill " + String(xini + (width/TOTAL_BLOCKS) * pos) + ",152,5,40," + String(DIAL_COLOR));
+    hmi.writeString("fill " + String(xini + (width/TOTAL_BLOCKS) * pos) + ",152,5,40," + String(DIAL_COLOR));
+}
+
+void dialIndicator(bool enable)
+{
+  if (enable)
+  {
+    hmi.writeString("tape.recIndicator.bco=" + String(RADIO_SYNTONIZATION_LED_COLOR));
+    hmi.writeString("tape.recIndicator.bco=" + String(RADIO_SYNTONIZATION_LED_COLOR));
+  }
+  else
+  {
+    hmi.writeString("tape.recIndicator.bco=32768");
+    hmi.writeString("tape.recIndicator.bco=32768");
+  }
+}
 
 void RadioPlayer()
 {
-    #define bfsz 2048
-    #define bfcnt 512
+    rotate_enable = false;
+    ENABLE_ROTATE_FILEBROWSER = false;
+    REM_ENABLE = false;
+    EJECT = false;
     
+    #ifdef USE_CIRCULAR_BUFFER_FOR_RADIO
+      // ✅ CREAR BUFFER CIRCULAR SIMPLE (usando la configuración de config.h)
+      //SimpleCircularBuffer radioBuffer(RADIO_BUFFER_SIZE);
+      SmartRadioBuffer radioBuffer(RADIO_BUFFER_SIZE);
+
+      logln("Radio buffer size: " + String(RADIO_BUFFER_SIZE) + " bytes");
+      
+      // ✅ VARIABLES DE CONTROL DE BUFFER
+      unsigned long lastNetworkRead = 0;
+      unsigned long lastPlayback = 0;
+      const unsigned long NETWORK_READ_INTERVAL = RADIO_NETWORK_READ_INTERVAL;
+      const unsigned long PLAYBACK_INTERVAL = RADIO_PLAYBACK_INTERVAL;
+      bool bufferFilled = false;
+    #endif
+    
+    // Paramos los timers
+    hmi.writeString("tape.tm0.en=0");
+    hmi.writeString("tape.tm0.en=0");
+    //
+    hmi.writeString("tape.tm1.en=0");
+    hmi.writeString("tape.tm1.en=0");
+    //
+    tapeAnimationOFF();
+    showRadioDial();
+
     int audioListSize = 0;
     tAudioList* audiolist;
 
@@ -2194,31 +2265,22 @@ void RadioPlayer()
     kitStream.setPAPower(ACTIVE_AMP && EN_SPEAKER);
     kitStream.setVolume(MAIN_VOL / 100);
 
-    hmi.activateWifi(false);
-    tapeAnimationOFF();
-    showRadioDial();
-
     IRADIO_EN = true;
 
-    const char *urls[1] = {""};
-    URLStream urlStream(ssid.c_str(), password, 256);
+    // ✅ CONFIGURAR TAMAÑOS DE BUFFER 
+    uint8_t networkBuffer[RADIO_NETWORK_BUFFER_SIZE];
+    uint8_t decodedBuffer[RADIO_DECODE_BUFFER_SIZE];
+    
+    URLStream urlStream(ssid.c_str(), password, RADIO_NETWORK_BUFFER_SIZE);
+    //URLStreamBufferedESP32 urlStream(&urlStreamT, RADIO_BUFFER_SIZE);
+    
     audio_tools::Equalizer3Bands eq(kitStream);
     audio_tools::ConfigEqualizer3Bands cfg_eq;
     
     MP3DecoderHelix decoder;
     EncodedAudioStream decodedStream(&eq, &decoder);
-    
-    SynchronizedBufferRTOS<uint8_t> buffer(bfsz, bfcnt);
 
-    wavfile = SD_MMC.open("/RADIO/radio_rec.wav", FILE_WRITE);
-    FILE_LOAD = getFileNameFromPath("/RADIO/radio_rec.wav");
-
-    AudioInfo wavencodercfg(SAMPLING_RATE, 2, 16);
-    
-    // Iniciamos el stream
-    encoderOutWAV.begin(wavencodercfg);    
-
-    // Configuramos el ecualizador
+    // Configurar ecualizador
     cfg_eq = eq.defaultConfig();
     cfg_eq.setAudioInfo(cfg);
     cfg_eq.gain_low = EQ_LOW;
@@ -2226,6 +2288,7 @@ void RadioPlayer()
     cfg_eq.gain_high = EQ_HIGH;
     eq.begin(cfg_eq);
 
+    // Variables de estado
     uint8_t playerState = 0;
     unsigned long trefresh = millis();
     size_t bufferw = 0;
@@ -2238,22 +2301,22 @@ void RadioPlayer()
         logln("Error initializing decoder");
         LAST_MESSAGE = "Decoder init failed";
         IRADIO_EN = false;
-        hmi.activateWifi(true);
         hideRadioDial();
         return;
     }
 
+    // Configuración inicial...
     STOP = false;
     EJECT = false;
-
-    logln("Starting RADIO playback...");
-    LAST_MESSAGE = "Ready for radio playback.";
     currentRadioStation = nextRadioStation(PATH_FILE_TO_LOAD, radioName, radioUrlBuffer, sizeof(radioUrlBuffer));
     TOTAL_BLOCKS = generateRadioList(audiolist);
-
+    updateDialIndicator(currentRadioStation);
+    LAST_MESSAGE = "Ready for radio playback.";
     playerState = 10;
 
     while (!EJECT) {
+        unsigned long currentTime = millis();
+        
         switch (playerState) {
             case 10:
                 if (PLAY) {
@@ -2265,36 +2328,33 @@ void RadioPlayer()
             case 0:
                 if (PLAY) {
                     if (!USE_SSL_STATIONS && String(radioUrlBuffer).startsWith("https://")) {
-                        logln("Invalid URL: " + String(radioUrlBuffer));
                         LAST_MESSAGE = "Error SSL URL not permitted.";
                         PLAY = false;
                         playerState = 0;
                         break;
                     }
 
+                    #ifdef USE_CIRCULAR_BUFFER_FOR_RADIO
+                      // ✅ LIMPIAR BUFFER AL CONECTAR
+                      radioBuffer.clear();
+                      bufferFilled = false;
+                    #endif
+                    
                     logln("Station: " + radioName + " -> " + String(radioUrlBuffer));
-                    
-                    URL_RADIO_IS_READY = false;
-
                     LAST_MESSAGE = "Connecting to " + radioName + "... (wait 60s)";
-
-                    urls[0] = radioUrlBuffer;
                     
-                    //
-                    // Aqui se queda bloqueado hasta conectar o timeout
-                    //
-                    if (urlStream.begin(urls[0])) {
+                    if (urlStream.begin(radioUrlBuffer)) {
                         logln("Connected to " + String(radioUrlBuffer));
-
+                        
+                        // Esperar conexión
                         int waitConnect = 0;
-                        //LAST_MESSAGE = "Waiting connection from " + radioName + "...";
                         while (!urlStream.httpRequest().connected()) {
                             if (waitConnect > RADIO_CONNECT_TIMEOUT_MS/10) {
-                                logln("Timeout connecting");
                                 LAST_MESSAGE = "Timeout connecting to " + radioName;
                                 PLAY = false;
                                 playerState = 0;
                                 urlStream.end();
+                                dialIndicator(false);
                                 break;
                             }
                             delay(10);
@@ -2303,17 +2363,15 @@ void RadioPlayer()
 
                         if (!PLAY) break;
 
+                        // Esperar datos
                         waitConnect = 0;
-                        LAST_MESSAGE = "Waiting data from " + radioName + "...";
-                        
-                        while (!urlStream.httpRequest().isReady()) 
-                        {
+                        while (!urlStream.httpRequest().isReady()) {
                             if (waitConnect > RADIO_CONNECT_TIMEOUT_MS/10) {
-                                logln("Timeout receiving headers");
                                 LAST_MESSAGE = "Timeout receiving data from " + radioName;
                                 PLAY = false;
                                 playerState = 0;
                                 urlStream.end();
+                                dialIndicator(false);
                                 break;
                             }
                             delay(10);
@@ -2323,50 +2381,84 @@ void RadioPlayer()
                         if (!PLAY) break;
 
                         URL_RADIO_IS_READY = true;
-
-                        delay(125);
                         playerState = 1;
                         bufferw = 0;
                         LAST_MESSAGE = "Playing RADIO: " + radioName;
-
+                        dialIndicator(true);
+                        
+                        #ifdef USE_CIRCULAR_BUFFER_FOR_RADIO
+                          // ✅ REINICIAR TEMPORIZADORES
+                          lastNetworkRead = currentTime;
+                          lastPlayback = currentTime;
+                        #endif
                     } else {
                         logln("Error connecting to " + String(radioUrlBuffer));
                         LAST_MESSAGE = "Error connecting to " + radioName;
                         PLAY = false;
                         playerState = 0;
                         urlStream.end();
+                        dialIndicator(false);
                     }
                 }
                 break;
 
             case 1:
                 if (PLAY) {
-                    // LECTURA Y DECODIFICACIÓN DIRECTA
-                    uint8_t tempBuffer[512];
-                    size_t bytesRead = urlStream.readBytes(tempBuffer, sizeof(tempBuffer));
-                    
-                    if (bytesRead > 0) 
-                    {
-                        decodedStream.write(tempBuffer, bytesRead);                          
-                        
-                        // if (REC)
-                        // {
-                        //   // Decodificamos los datos desde MP3 a RAW.
-                        //   size_t bytesRead = kitStream.readBytes(tempBuffer, sizeof(tempBuffer));
-                        //   // Los escribimos a WAV
-                        //   encoderOutWAV.write(tempBuffer, bytesRead);
-                        //   LAST_MESSAGE = "Recording RADIO: " + radioName;
-                        // }
-
-                        bufferw += bytesRead;
-
-                        if (!statusSignalOk) {
-                            statusSignalOk = true;
-                            hmi.writeString("tape.progressTotal.val=100");
-                            hmi.writeString("tape.progressBlock.val=100");
+                    #ifdef USE_CIRCULAR_BUFFER_FOR_RADIO
+                        // ✅ GESTIÓN DE BUFFER OPTIMIZADA PARA 320kbps
+                        if (currentTime - lastNetworkRead >= NETWORK_READ_INTERVAL) {
+                            size_t bytesRead = urlStream.readBytes(networkBuffer, sizeof(networkBuffer));
+                            if (bytesRead > 0) {
+                                size_t bytesWritten = radioBuffer.write(networkBuffer, bytesRead);
+                                bufferw += bytesWritten;
+                                
+                                if (bytesWritten < bytesRead) {
+                                    logln("Warning: Buffer overflow, dropping " + String(bytesRead - bytesWritten) + " bytes");
+                                }
+                                
+                                if (!statusSignalOk && bytesRead > 0) {
+                                    statusSignalOk = true;
+                                    dialIndicator(true);
+                                }
+                            }
+                            lastNetworkRead = currentTime;
                         }
-                    }
-
+                        
+                        // ✅ REPRODUCCIÓN CON BUFFER MÍNIMO MÁS ALTO
+                        if (currentTime - lastPlayback >= PLAYBACK_INTERVAL) {
+                            size_t available = radioBuffer.getAvailable(); // ✅ USAR getAvailable()
+                            
+                            // Esperar a tener suficiente buffer para 320kbps
+                            if (!bufferFilled && available < RADIO_MIN_BUFFER_FILL) {
+                                // Esperando llenar buffer inicial
+                            } else {
+                                bufferFilled = true;
+                                
+                                size_t bytesToRead = min(available, (size_t)RADIO_DECODE_BUFFER_SIZE);
+                                if (bytesToRead > 0) {
+                                    size_t bytesRead = radioBuffer.read(decodedBuffer, bytesToRead);
+                                    if (bytesRead > 0) {
+                                        decodedStream.write(decodedBuffer, bytesRead);
+                                    }
+                                }
+                            }
+                            lastPlayback = currentTime;
+                        }
+                    #else
+                        // ✅ STREAMING DIRECTO OPTIMIZADO
+                        size_t bytesRead = urlStream.readBytes(networkBuffer, sizeof(networkBuffer));
+                        if (bytesRead > 0) {
+                            bufferw += bytesRead;
+                            decodedStream.write(networkBuffer, bytesRead);
+                            
+                            if (!statusSignalOk && bytesRead > 0) {
+                                statusSignalOk = true;
+                                dialIndicator(true);
+                            }
+                        }
+                    #endif
+                    
+                    // ✅ CONTROL DE ECUALIZADOR
                     if (EQ_CHANGE) {
                         EQ_CHANGE = false;
                         auto cfg = kitStream.defaultConfig();
@@ -2376,32 +2468,51 @@ void RadioPlayer()
                         cfg_eq.gain_high = EQ_HIGH;
                         eq.begin(cfg_eq);
                     }
-                }
-                else if (STOP) {
+                    
+                } else if (STOP) {
                     playerState = 0;
                     PLAY = false;
                     REC = false;
                     bufferw = 0;
                     statusSignalOk = false;
-                    hmi.writeString("tape.progressTotal.val=0");
-                    hmi.writeString("tape.progressBlock.val=0");
+                    #ifdef USE_CIRCULAR_BUFFER_FOR_RADIO
+                      bufferFilled = false;
+                      radioBuffer.clear();
+                    #endif
+                    dialIndicator(false);
                     LAST_MESSAGE = "Stop radio playing.";
                     STOP = false;
-                }
-                else if (PAUSE) {
+                } else if (PAUSE) {
                     PLAY = false;
                     playerState = 0;
                     PAUSE = false;
+                    #ifdef USE_CIRCULAR_BUFFER_FOR_RADIO
+                      bufferFilled = false;
+                      radioBuffer.clear();
+                    #endif
                     LAST_MESSAGE = "Pause radio playing.";
+                    dialIndicator(false);
                     REC = false;
                 }
                 break;
         }
 
+        // ✅ CONTROL DE CAMBIO DE ESTACIÓN (igual que antes)
         if (FFWIND) {
-            hmi.writeString("tape.progressTotal.val=0");
-            hmi.writeString("tape.progressBlock.val=0");
+            
+            // if (CMD_FROM_REMOTE_CONTROL)
+            // {
+            //   CMD_FROM_REMOTE_CONTROL = false;
+            //   delay(250);
+            // }
+
+            dialIndicator(false);
+            #ifdef USE_CIRCULAR_BUFFER_FOR_RADIO
+              radioBuffer.clear();
+              bufferFilled = false;
+            #endif
             currentRadioStation = nextRadioStation(PATH_FILE_TO_LOAD, radioName, radioUrlBuffer, sizeof(radioUrlBuffer));
+            updateDialIndicator(currentRadioStation);
             FFWIND = false;
             RWIND = false;
             statusSignalOk = false;
@@ -2412,11 +2523,22 @@ void RadioPlayer()
             } else {
                 LAST_MESSAGE = "Select to " + radioName + " - press PLAY";
             }
-        }
-        else if (RWIND) {
-            hmi.writeString("tape.progressTotal.val=0");
-            hmi.writeString("tape.progressBlock.val=0");
+        } 
+        else if (RWIND) 
+        {
+            // if (CMD_FROM_REMOTE_CONTROL)
+            // {
+            //   CMD_FROM_REMOTE_CONTROL = false;
+            //   delay(250);
+            // }
+
+            dialIndicator(false);
+            #ifdef USE_CIRCULAR_BUFFER_FOR_RADIO
+              radioBuffer.clear();
+              bufferFilled = false;
+            #endif
             currentRadioStation = nextRadioStation(PATH_FILE_TO_LOAD, radioName, radioUrlBuffer, sizeof(radioUrlBuffer), false);
+            updateDialIndicator(currentRadioStation);
             FFWIND = false;
             RWIND = false;
             statusSignalOk = false;
@@ -2427,75 +2549,86 @@ void RadioPlayer()
             } else {
                 LAST_MESSAGE = "Select to " + radioName + " - (press PLAY)";
             }
-          }
+        }
+
+        // Resto del código de control igual...
         if (BB_OPEN || BB_UPDATE) {
             while (BB_OPEN || BB_UPDATE) {
                 hmi.openBlockMediaBrowser(audiolist);
             }
-            showRadioDial();
-        }
-        else if (UPDATE_HMI) {
-            logln("UPDATE HMI");
-            delay(250);
-
+        } else if (UPDATE_HMI || UPDATE) {
             if (BLOCK_SELECTED > 0 && BLOCK_SELECTED <= TOTAL_BLOCKS) {
                 int currentPointer = BLOCK_SELECTED - 1;
                 currentRadioStation = nextRadioStation(PATH_FILE_TO_LOAD, radioName, radioUrlBuffer, sizeof(radioUrlBuffer), true, currentPointer, true);
                 playerState = 0;
                 PLAY = true;
+                radioBuffer.clear();
+                bufferFilled = false;
             }
             UPDATE_HMI = false;
-            showRadioDial();
-        }
-        else if (UPDATE) {
-            if (BLOCK_SELECTED > 0 && BLOCK_SELECTED <= TOTAL_BLOCKS) {
-                int currentPointer = BLOCK_SELECTED - 1;
-                currentRadioStation = nextRadioStation(PATH_FILE_TO_LOAD, radioName, radioUrlBuffer, sizeof(radioUrlBuffer), true, currentPointer, true);
-                playerState = 0;
-                PLAY = true;
-            }
             UPDATE = false;
-            showRadioDial();
+
+            int waitfor = 0;
+            while (!TAPE_PAGE_SHOWN && !BB_OPEN) {
+                waitfor++;
+                delay(50);
+                if (waitfor > 10) break;
+            }
+
+            if (!BB_OPEN && TAPE_PAGE_SHOWN && !BLOCK_BROWSER_OPEN) {
+                updateDialIndicator(currentRadioStation);
+            }
         }
 
-        if ((millis() - trefresh > 2000)) {
+        // ✅ ACTUALIZACIÓN DE INFORMACIÓN (menos frecuente)
+        if ((millis() - trefresh > 3000)) { // Cada 3 segundos en lugar de 2
             updateIndicators(TOTAL_BLOCKS, currentRadioStation, bufferw, decoder.audioInfoEx().bitrate, radioName);
             hmi.writeString("name.txt=\"" + radioName + "\"");
 
-            if (PLAY && !REC) 
-            {
-                LAST_MESSAGE = "Playing: " + radioName;
+            if (PLAY && !REC) {
+                #ifdef USE_CIRCULAR_BUFFER_FOR_RADIO
+                    // ✅ MOSTRAR ESTADO DEL BUFFER
+                    float bufferUsage = (radioBuffer.getAvailable() * 100.0) / RADIO_BUFFER_SIZE;
+                    PROGRESS_BAR_TOTAL_VALUE = 100 - bufferUsage;
+                    PROGRESS_BAR_BLOCK_VALUE = 100 - bufferUsage;
+                    LAST_MESSAGE = "Playing: " + radioName + " (buffered)"; //+ " (buf: " + String(int(bufferUsage)) + "%)";
+                #else
+                    LAST_MESSAGE = "Playing: " + radioName + " (direct)";
+                #endif
             }
-            // else if (PLAY && REC) 
-            // {
-            //     LAST_MESSAGE = "Recording: " + radioName;
-            // }
             trefresh = millis();
         }
+
+        if (TAPE_PAGE_SHOWN && !BB_OPEN && !BLOCK_BROWSER_OPEN) {
+            updateDialIndicator(currentRadioStation);
+            TAPE_PAGE_SHOWN = false;
+        }
+        
+        // ✅ PEQUEÑA PAUSA PARA NO SATURAR EL CPU
+        delay(1);
     }
 
+    // Limpieza final (igual que antes)
     logln("Stopping RADIO playback...");
-
     IRADIO_EN = false;
-
     decodedStream.end();
     urlStream.end();
     decoder.end();
-    encoderOutWAV.end();
-    
     kitStream.clearNotifyAudioChange();
-
+    
     LAST_MESSAGE = "...";
     IRADIO_EN = false;
-    hmi.activateWifi(true);
     hideRadioDial();
     free(audiolist);
+    dialIndicator(false);
 
     //cerramos
-
-    wavfile.close();
+    hmi.writeString("tape.tm0.en=1");
+    hmi.writeString("tape.tm0.en=1");
+    //
+    hmi.writeString("tape.tm1.en=1");
+    hmi.writeString("tape.tm1.en=1");    
 }
-
 
 void MediaPlayer() 
 {   
@@ -2508,6 +2641,8 @@ void MediaPlayer()
     LAST_MESSAGE = "Waiting...";
     //resetOutputCodec();
 
+    MEDIA_PLAYER_EN = true;
+    EJECT = false;
 
     // Variables
     // ---------------------------------------------------------
@@ -2775,13 +2910,7 @@ void MediaPlayer()
     // Generamos la lista de audio y la del player la regeneramos
     //
     // **********************************************************
-    audioListSize = generateAudioList(audiolist, ext);
-    // Regeneramos el indice del player.
-    // String parentDir = FILE_LAST_DIR;
-    // if (!parentDir.endsWith("/")) parentDir += "/";
-    //source.end();
-    //source.reindex();
-    
+    audioListSize = generateAudioList(audiolist, ext);  
     //
     logln("Checking path: " + FILE_LAST_DIR);
     if (!SD_MMC.exists((FILE_LAST_DIR).c_str()))
@@ -2828,7 +2957,6 @@ void MediaPlayer()
 
     // Mostramos informacion del fichero seleccionado en el browser.
     updateIndicators(totalFilesIdx, currentPointer + 1, fileSize, bitRateRead, audiolist[currentPointer].filename);
-    
     // -------------------------------------------------------------------
     // -
     // - Arranque del player
@@ -2836,7 +2964,6 @@ void MediaPlayer()
     // -------------------------------------------------------------------
     LAST_MESSAGE = "Initializing player...";
     hmi.writeString("statusLCD.txt=\"" + LAST_MESSAGE + "\"");
-
     waitflag = 0;
     while(!player.begin() && !EJECT) 
     {
@@ -2862,7 +2989,6 @@ void MediaPlayer()
     // Bucle principal
     //
     // ---------------------------------------------------------------
-    
 
     while (!EJECT && !REC) 
     {
@@ -2897,10 +3023,10 @@ void MediaPlayer()
         switch (stateStreamplayer) 
         {
             case 0: // Esperando reproducción
+
                 if (PLAY) 
                 {
                     // Iniciamos el reproductor
-                    
                     if (WAVFILE_PRELOAD) WAVFILE_PRELOAD = false;
 
                     // Primer ms
@@ -2946,7 +3072,7 @@ void MediaPlayer()
                     updateSamplingRate(player, eq, audiosr);
 
                     LAST_MESSAGE = "...";
-
+                    
                     pFile = (File*)player.getStream();
 
                     if (pFile != nullptr) 
@@ -2966,6 +3092,20 @@ void MediaPlayer()
                     tapeAnimationON();                      
                   
                 }
+
+                if (UPDATE_FROM_REMOTE_CONTROL && FILE_POS_REMOTE_CONTROL >= 0)
+                {
+                    // Actualizamos el puntero desde el control remoto
+                    logln("File selected from remote control");
+                    logln("Position of the file: " + String(FILE_POS_REMOTE_CONTROL));
+                    UPDATE_FROM_REMOTE_CONTROL = false;
+                    currentPointer = FILE_POS_REMOTE_CONTROL;
+                    PLAY=true;
+                    STOP=false;
+                    PAUSE=false;
+                    fileread = 0;
+                }
+                
                 break;
 
             case 1: // Reproduciendo PLAY
@@ -3100,6 +3240,21 @@ void MediaPlayer()
                   PAUSE=false;
                 }
 
+                if (UPDATE_FROM_REMOTE_CONTROL && FILE_POS_REMOTE_CONTROL >= 0)
+                {
+                    // Actualizamos el puntero desde el control remoto
+                    logln("File selected from remote control");
+                    logln("Position of the file: " + String(FILE_POS_REMOTE_CONTROL));
+                    UPDATE_FROM_REMOTE_CONTROL = false;
+                    currentPointer = FILE_POS_REMOTE_CONTROL;
+                    PLAY=true;
+                    STOP=false;
+                    PAUSE=false;
+                    fileread = 0;
+                    player.stop();
+                    delay(125);
+                    stateStreamplayer = 0;
+                }
                 // Actualizamos indicadores cada 2 segundos
                 // En la actualización de indicadores cada segundo
 
@@ -4115,6 +4270,8 @@ void verifyConfigFileForSelection()
 
     cfg.close();
   }
+
+  MEDIA_PLAYER_EN = false;
 
   //free(fileCfg);
 }
@@ -5381,95 +5538,120 @@ void tapeControl()
       //
       EJECT = false;
 
-      if (FILE_SELECTED)
+      if (UPDATE_FROM_REMOTE_CONTROL)
       {
-        // Si se ha seleccionado lo cargo en el cassette.
-        char file_ch[257];
-        PATH_FILE_TO_LOAD.toCharArray(file_ch, 256);
-        loadingFile(file_ch);
+        logln("Loading file from REMOTE CONTROL: " + FILE_LOAD);
+        // Si venimos del control remoto, forzamos la selección del fichero
+        UPDATE_FROM_REMOTE_CONTROL = false;
+        // Para poner mas logos actualizar el HMI
+        putLogo();
+        //PROGRAM_NAME = FILE_LOAD;
+        hmi.writeString("name.txt=\"" + FILE_LOAD + "\"");
 
-        // Ponemos FILE_SELECTED = false, para el proximo fichero
-        FILE_SELECTED = false;
+        HMI_FNAME = FILE_LOAD;
 
-        // Ahora miro si está preparado
-        if (FILE_PREPARED)
-        {
-          #ifdef DEBUGMODE
-              logAlert("File inside the tape.");
-          #endif
-
-          // Avanzamos ahora hasta el primer bloque playeable
-          if (!ABORT)
+        TAPESTATE = 10;
+        LOADING_STATE = 0;
+        
+        //Damos tiempo a que la pagina del remote recargue y no interfiera
+        LAST_MESSAGE = ".. receiving from remote ..";
+        delay(1000);
+        //
+        playingFile();
+      }
+      else
+      {
+          if (FILE_SELECTED)
           {
-            logln("Type file load: " + TYPE_FILE_LOAD);
+            // Si se ha seleccionado lo cargo en el cassette.
+            char file_ch[257];
+            PATH_FILE_TO_LOAD.toCharArray(file_ch, 256);
+            loadingFile(file_ch);
 
-            // Para poner mas logos actualizar el HMI
-            putLogo();
+            // Ponemos FILE_SELECTED = false, para el proximo fichero
+            FILE_SELECTED = false;
 
-            if (TYPE_FILE_LOAD != "WAV" && TYPE_FILE_LOAD != "MP3" && TYPE_FILE_LOAD != "FLAC" && TYPE_FILE_LOAD != "RADIO")
+            // Ahora miro si está preparado
+            if (FILE_PREPARED)
             {
-              getTheFirstPlayeableBlock();
+              #ifdef DEBUGMODE
+                  logAlert("File inside the tape.");
+              #endif
 
-              LAST_MESSAGE = "File inside the TAPE.";
-              PROGRAM_NAME = FILE_LOAD;
-              HMI_FNAME = FILE_LOAD;
+              // Avanzamos ahora hasta el primer bloque playeable
+              if (!ABORT)
+              {
+                logln("Type file load: " + TYPE_FILE_LOAD);
 
-              TAPESTATE = 10;
-              LOADING_STATE = 0;
+                // Para poner mas logos actualizar el HMI
+                putLogo();
+
+                if (TYPE_FILE_LOAD != "WAV" && TYPE_FILE_LOAD != "MP3" && TYPE_FILE_LOAD != "FLAC" && TYPE_FILE_LOAD != "RADIO")
+                {
+                  getTheFirstPlayeableBlock();
+
+                  LAST_MESSAGE = "File inside the TAPE.";
+                  PROGRAM_NAME = FILE_LOAD;
+                  HMI_FNAME = FILE_LOAD;
+
+                  TAPESTATE = 10;
+                  LOADING_STATE = 0;
+                }
+                else
+                {
+                  //PROGRAM_NAME = FILE_LOAD;
+                  hmi.writeString("name.txt=\"" + FILE_LOAD + "\"");
+
+                  HMI_FNAME = FILE_LOAD;
+
+                  TAPESTATE = 10;
+                  LOADING_STATE = 0;
+
+                  // Esto lo hacemos para llevar el control desde el WAV player
+                  logln("Playing file CASE 100:");
+                  playingFile();
+                  logln("End of CASE 100 - PLAY from REC");
+
+                }
+              }
+              else
+              {
+                // Abortamos proceso de analisis
+                LAST_MESSAGE = "No file inside the tape";
+                TAPESTATE = 0;
+                LOADING_STATE = 0;
+              }
             }
             else
             {
-              //PROGRAM_NAME = FILE_LOAD;
-              hmi.writeString("name.txt=\"" + FILE_LOAD + "\"");
 
-              HMI_FNAME = FILE_LOAD;
+              #ifdef DEBUGMODE
+                        logAlert("No file selected or empty file.");
+              #endif
 
-              TAPESTATE = 10;
-              LOADING_STATE = 0;
-
-              // Esto lo hacemos para llevar el control desde el WAV player
-              logln("Playing file CASE 100:");
-              playingFile();
-              logln("End of CASE 100 - PLAY from REC");
-
+              LAST_MESSAGE = "No file inside the tape";
             }
           }
           else
           {
-            // Abortamos proceso de analisis
-            LAST_MESSAGE = "No file inside the tape";
+            // Volvemos al estado inicial.
             TAPESTATE = 0;
             LOADING_STATE = 0;
-          }
-        }
-        else
-        {
 
-          #ifdef DEBUGMODE
-                    logAlert("No file selected or empty file.");
-          #endif
+            // LAST_MESSAGE = "TYPE LOAD: " + TYPE_FILE_LOAD;
+            // delay(2000);
 
-          LAST_MESSAGE = "No file inside the tape";
-        }
+            if (FILE_PREPARED)
+            {
+              logln("Now ejecting file - Step 1");
+              ejectingFile();
+              FILE_PREPARED = false;
+            }
+
+            LAST_MESSAGE = "No file inside the tape";
+          }        
       }
-      else
-      {
-        // Volvemos al estado inicial.
-        TAPESTATE = 0;
-        LOADING_STATE = 0;
 
-        // LAST_MESSAGE = "TYPE LOAD: " + TYPE_FILE_LOAD;
-        // delay(2000);
-
-        if (FILE_PREPARED)
-        {
-          logln("Now ejecting file - Step 1");
-          ejectingFile();
-          FILE_PREPARED = false;
-        }
-
-        LAST_MESSAGE = "No file inside the tape";
-      }
     }
     else
     {
@@ -5769,6 +5951,1789 @@ void tapeControl()
   }
 }
 
+void jsUpdateTextBox(WiFiClient client)
+{
+    // ✅ JAVASCRIPT OPTIMIZADO PARA VOLUMEN
+    client.println("<script>");
+    client.println("function updateTrackInfo() {");
+    client.println("  fetch('/status')");
+    client.println("    .then(response => response.text())");
+    client.println("    .then(data => {");
+    client.println("      const trackInput = document.querySelector('.Input-text');");
+    client.println("      if (trackInput && data.trim() !== '') {");
+    client.println("        trackInput.value = data.trim();");
+    client.println("      }");
+    client.println("    })");
+    client.println("    .catch(error => console.log('Error:', error));");
+    client.println("}");
+    client.println("");
+    client.println("// ✅ Función optimizada para comandos");
+    client.println("function sendCommand(command) {");
+    client.println("  // Para comandos de volumen, usar endpoint ultra-ligero");
+    client.println("  if (command === 'VOLUP' || command === 'VOLDOWN') {");
+    client.println("    fetch('/' + command, {");
+    client.println("      method: 'GET'");
+    client.println("    })");
+    client.println("    .then(response => {");
+    client.println("      // Solo log, sin más procesamiento para volumen");
+    client.println("      console.log(command + ' sent (lightweight)');");
+    client.println("    })");
+    client.println("    .catch(error => console.log('Error:', error));");
+    client.println("  } else {");
+    client.println("    // Para otros comandos, usar el método normal");
+    client.println("    fetch('/' + command, {");
+    client.println("      method: 'GET'");
+    client.println("    })");
+    client.println("    .then(response => {");
+    client.println("      if (response.ok) {");
+    client.println("        console.log(command + ' command sent successfully');");
+    client.println("        // ✅ SOLO actualizar textbox para comandos específicos");
+    client.println("        if (command === 'PLAY' || command === 'NEXT' || command === 'PREV') {");
+    client.println("          setTimeout(updateTrackInfo, 500);");
+    client.println("        }");
+    client.println("      }");
+    client.println("    })");
+    client.println("    .catch(error => console.log('Error sending command:', error));");
+    client.println("  }");
+    client.println("}");
+    client.println("");
+    client.println("// Configurar eventos cuando la página esté lista");
+    client.println("document.addEventListener('DOMContentLoaded', function() {");
+    client.println("  const trackInput = document.querySelector('.Input-text');");
+    client.println("  if (trackInput) {");
+    client.println("    trackInput.addEventListener('click', updateTrackInfo);");
+    client.println("  }");
+    client.println("  ");
+    client.println("  // ✅ Configurar eventos para TODOS los botones sin recarga");
+    client.println("  const allButtons = document.querySelectorAll('a[href^=\"/\"]');");
+    client.println("  allButtons.forEach(button => {");
+    client.println("    button.addEventListener('click', function(e) {");
+    client.println("      e.preventDefault(); // ✅ Evitar recarga de página");
+    client.println("      const href = this.getAttribute('href');");
+    client.println("      const command = href.substring(1);");
+    client.println("      sendCommand(command);");
+    client.println("    });");
+    client.println("  });");
+    client.println("});");
+    client.println("</script>");  
+}
+
+void jsUpdateTextBoxWithFileList(WiFiClient client)
+{
+
+    client.println("<script>");
+    client.println("let fileListVisible = false;");
+    client.println("");
+    
+    client.println("function updateTrackInfo() {");
+    client.println("  fetch('/status')");
+    client.println("    .then(response => response.text())");
+    client.println("    .then(data => {");
+    client.println("      const trackInput = document.querySelector('.Input-text');");
+    client.println("      if (trackInput && data.trim() !== '') {");
+    client.println("        trackInput.value = data.trim();");
+    client.println("      }");
+    client.println("    })");
+    client.println("    .catch(error => console.log('Error:', error));");
+    client.println("}");
+    client.println("");
+    
+    // ✅ NUEVA FUNCIÓN PARA ACTUALIZAR EL BOTÓN PLAY/STOP
+    client.println("function updatePlayButton() {");
+    client.println("  fetch('/playstatus')");
+    client.println("    .then(response => response.text())");
+    client.println("    .then(data => {");
+    client.println("      const playButton = document.querySelector('.center-button .symbol.play-stop');");
+    client.println("      if (playButton) {");
+    client.println("        playButton.textContent = data.trim();");
+    client.println("        console.log('Play button updated to:', data.trim());");
+    client.println("      }");
+    client.println("    })");
+    client.println("    .catch(error => console.log('Error updating play button:', error));");
+    client.println("}");
+    client.println("");
+
+    client.println("function loadFileList() {");
+    client.println("  fetch('/filelist')");
+    client.println("    .then(response => response.json())");
+    client.println("    .then(data => {");
+    client.println("      const fileList = document.getElementById('fileList');");
+    client.println("      fileList.innerHTML = '';");
+    client.println("      ");
+    client.println("      if (data.items && data.items.length > 0) {");
+    client.println("        data.items.forEach((item, index) => {");
+    client.println("          const itemElement = document.createElement('div');");
+    client.println("          itemElement.className = 'file-item';");
+    client.println("          ");
+    client.println("          // ✅ DIFERENTES ESTILOS PARA HOME, PARENT DIR, DIRECTORIOS Y ARCHIVOS");
+    client.println("          if (item.type === 'home') {");
+    client.println("            itemElement.innerHTML = `HOME`;");
+    client.println("            itemElement.style.color = '#00ffff';"); // Celeste
+    client.println("            itemElement.style.fontWeight = 'bold';");
+    client.println("            itemElement.classList.add('home');");
+    client.println("            itemElement.addEventListener('click', () => goHome());");
+    client.println("          } else if (item.type === 'parent') {");
+    client.println("            itemElement.innerHTML = `..`;");
+    client.println("            itemElement.style.color = '#00ffff';"); // Celeste también para parent
+    client.println("            itemElement.style.fontWeight = 'bold';");
+    client.println("            itemElement.classList.add('parent');");
+    client.println("            itemElement.addEventListener('click', () => changeDirectory('..'));");
+    client.println("          } else if (item.type === 'directory') {");
+    client.println("            itemElement.innerHTML = `DIR: ${item.name}`;");
+    client.println("            itemElement.style.color = '#ffbf00';");
+    client.println("            itemElement.style.fontWeight = 'bold';");
+    client.println("            itemElement.classList.add('directory');");
+    client.println("            itemElement.addEventListener('click', () => changeDirectory(item.name));");
+    client.println("          } else {");
+    client.println("            let filePrefix = '';");
+    client.println("            if (item.name.toUpperCase().endsWith('.MP3')) filePrefix = 'MP3';");
+    client.println("            else if (item.name.toUpperCase().endsWith('.WAV')) filePrefix = 'WAV';");
+    client.println("            else if (item.name.toUpperCase().endsWith('.FLAC')) filePrefix = 'FLAC';");
+    client.println("            else if (item.name.toUpperCase().endsWith('.RADIO')) filePrefix = 'RADIO';");
+    client.println("            else filePrefix = 'AUDIO';");
+    client.println("            itemElement.innerHTML = `[${item.index + 1}] ${filePrefix}: ${item.name}`;");
+    client.println("            itemElement.style.color = '#fff';");
+    client.println("            itemElement.classList.add('file');");
+    client.println("            itemElement.addEventListener('click', () => selectFile(item.name, item.index));");
+    client.println("          }");
+    client.println("          ");
+    client.println("          fileList.appendChild(itemElement);");
+    client.println("        });");
+    client.println("      } else {");
+    client.println("        const noItems = document.createElement('div');");
+    client.println("        noItems.className = 'file-item';");
+    client.println("        noItems.textContent = 'No audio files or directories found';");
+    client.println("        fileList.appendChild(noItems);");
+    client.println("      }");
+    client.println("    })");
+    client.println("    .catch(error => {");
+    client.println("      console.log('Error loading file list:', error);");
+    client.println("      const fileList = document.getElementById('fileList');");
+    client.println("      fileList.innerHTML = '<div class=\"file-item\">Error loading files</div>';");
+    client.println("    });");
+    client.println("}");
+    client.println("");
+    
+    client.println("function goHome() {");
+    client.println("  console.log('Going to HOME directory');");
+    client.println("  ");
+    client.println("  fetch('/gohome', {");
+    client.println("    method: 'GET'");
+    client.println("  })");
+    client.println("  .then(response => {");
+    client.println("    if (response.ok) {");
+    client.println("      console.log('HOME directory changed successfully');");
+    client.println("      setTimeout(loadFileList, 300);");
+    client.println("    }");
+    client.println("  })");
+    client.println("  .catch(error => console.log('Error going to HOME:', error));");
+    client.println("}");
+    client.println("");
+    
+    client.println("function changeDirectory(dirName) {");
+    client.println("  console.log('Changing to directory:', dirName);");
+    client.println("  ");
+    client.println("  const encodedDirName = encodeURIComponent(dirName);");
+    client.println("  ");
+    client.println("  fetch('/changedir/' + encodedDirName, {");
+    client.println("    method: 'GET'");
+    client.println("  })");
+    client.println("  .then(response => {");
+    client.println("    if (response.ok) {");
+    client.println("      console.log('Directory changed successfully');");
+    client.println("      setTimeout(loadFileList, 300);");
+    client.println("    }");
+    client.println("  })");
+    client.println("  .catch(error => console.log('Error changing directory:', error));");
+    client.println("}");
+    client.println("");
+
+    client.println("function selectFile(filename, position) {");
+    client.println("  console.log('Selecting file:', filename, 'at position:', position);");
+    client.println("  ");
+    client.println("  const encodedFilename = encodeURIComponent(filename);");
+    client.println("  ");
+    client.println("  fetch('/select/' + encodedFilename + '?pos=' + position, {");
+    client.println("    method: 'GET'");
+    client.println("  })");
+    client.println("  .then(response => {");
+    client.println("    if (response.ok) {");
+    client.println("      console.log('File selected successfully at position:', position);");
+    client.println("      setTimeout(updateTrackInfo, 500);");
+    client.println("      toggleFileList();");
+    client.println("    }");
+    client.println("  })");
+    client.println("  .catch(error => console.log('Error selecting file:', error));");
+    client.println("}");
+    client.println("");
+    
+    client.println("function toggleFileList() {");
+    client.println("  const fileList = document.getElementById('fileList');");
+    client.println("  fileListVisible = !fileListVisible;");
+    client.println("  ");
+    client.println("  if (fileListVisible) {");
+    client.println("    loadFileList();");
+    client.println("    fileList.classList.add('show');");
+    client.println("  } else {");
+    client.println("    fileList.classList.remove('show');");
+    client.println("  }");
+    client.println("}");
+    client.println("");
+    
+    client.println("function sendCommand(command) {");
+    client.println("  if (command === 'VOLUP' || command === 'VOLDOWN') {");
+    client.println("    fetch('/' + command, {");
+    client.println("      method: 'GET'");
+    client.println("    })");
+    client.println("    .then(response => {");
+    client.println("      console.log(command + ' sent (lightweight)');");
+    client.println("    })");
+    client.println("    .catch(error => console.log('Error:', error));");
+    client.println("  } else {");
+    client.println("    fetch('/' + command, {");
+    client.println("      method: 'GET'");
+    client.println("    })");
+    client.println("    .then(response => {");
+    client.println("      if (response.ok) {");
+    client.println("        console.log(command + ' command sent successfully');");
+
+    client.println("        // ✅ ACTUALIZAR BOTÓN PLAY/STOP INMEDIATAMENTE");
+    client.println("        if (command === 'PLAY') {");
+    client.println("          setTimeout(() => {");
+    client.println("            updatePlayButton();");
+    client.println("            updateTrackInfo();");
+    client.println("          }, 300);");  // Pequeño delay para que el servidor procese
+    client.println("        } else if (command === 'NEXT' || command === 'PREV') {");
+    client.println("          setTimeout(updateTrackInfo, 500);");
+    client.println("        } else if (command === 'STOP' || command === 'PAUSE') {");
+    client.println("          setTimeout(() => {");
+    client.println("            updatePlayButton();");
+    client.println("            updateTrackInfo();");
+    client.println("          }, 300);");
+    client.println("        }");
+    client.println("      }");
+    client.println("    })");
+    client.println("    .catch(error => console.log('Error sending command:', error));");
+    client.println("  }");
+    client.println("}");
+    client.println("");
+    
+    client.println("document.addEventListener('DOMContentLoaded', function() {");
+    client.println("  const trackInput = document.querySelector('.Input-text');");
+    client.println("  if (trackInput) {");
+    client.println("    trackInput.addEventListener('click', updateTrackInfo);");
+    client.println("  }");
+    client.println("  ");
+    client.println("  const browseBtn = document.getElementById('browseBtn');");
+    client.println("  if (browseBtn) {");
+    client.println("    browseBtn.addEventListener('click', toggleFileList);");
+    client.println("  }");
+    client.println("  ");
+    client.println("  const allButtons = document.querySelectorAll('a[href^=\"/\"]');");
+    client.println("  allButtons.forEach(button => {");
+    client.println("    button.addEventListener('click', function(e) {");
+    client.println("      e.preventDefault();");
+    client.println("      const href = this.getAttribute('href');");
+    client.println("      const command = href.substring(1);");
+    client.println("      sendCommand(command);");
+    client.println("    });");
+    client.println("  });");
+    client.println("  ");
+    client.println("  // ✅ ACTUALIZAR BOTÓN AL CARGAR LA PÁGINA");
+    client.println("  updatePlayButton();");
+    client.println("  updateTrackInfo();");
+    client.println("  ");
+    
+    client.println("  document.addEventListener('click', function(e) {");
+    client.println("    const fileList = document.getElementById('fileList');");
+    client.println("    const browseBtn = document.getElementById('browseBtn');");
+    client.println("    const wrapper = document.querySelector('.Wrapper');");
+    client.println("    ");
+    client.println("    if (fileListVisible && !wrapper.contains(e.target)) {");
+    client.println("      fileList.classList.remove('show');");
+    client.println("      fileListVisible = false;");
+    client.println("    }");
+    client.println("  });");
+    
+    client.println("});");
+    client.println("</script>");  
+}
+
+// void jsUpdateTextBoxWithFileList(WiFiClient client)
+// {
+//     client.println("<script>");
+//     client.println("let fileListVisible = false;");
+//     client.println("");
+//     client.println("function updateTrackInfo() {");
+//     client.println("  fetch('/status')");
+//     client.println("    .then(response => response.text())");
+//     client.println("    .then(data => {");
+//     client.println("      const trackInput = document.querySelector('.Input-text');");
+//     client.println("      if (trackInput && data.trim() !== '') {");
+//     client.println("        trackInput.value = data.trim();");
+//     client.println("      }");
+//     client.println("    })");
+//     client.println("    .catch(error => console.log('Error:', error));");
+//     client.println("}");
+//     client.println("");
+//     client.println("function loadFileList() {");
+//     client.println("  fetch('/filelist')");
+//     client.println("    .then(response => response.json())");
+//     client.println("    .then(data => {");
+//     client.println("      const fileList = document.getElementById('fileList');");
+//     client.println("      fileList.innerHTML = '';");
+//     client.println("      ");
+//     client.println("      if (data.items && data.items.length > 0) {");
+//     client.println("        data.items.forEach((item, index) => {");
+//     client.println("          const itemElement = document.createElement('div');");
+//     client.println("          itemElement.className = 'file-item';");
+//     client.println("          ");
+//     client.println("          // ✅ DIFERENTES ICONOS Y COLORES PARA DIRECTORIOS Y ARCHIVOS");
+//     client.println("          if (item.type === 'directory') {");
+//     client.println("            itemElement.innerHTML = `📁 ${item.name}`;");
+//     client.println("            itemElement.style.color = '#ffbf00';");
+//     client.println("            itemElement.style.fontWeight = 'bold';");
+//     client.println("            itemElement.classList.add('directory');");
+//     client.println("            itemElement.addEventListener('click', () => changeDirectory(item.name));");
+//     client.println("          } else {");
+//     client.println("            let fileIcon = '🎵';");
+//     client.println("            if (item.name.toUpperCase().endsWith('.MP3')) fileIcon = '🎵';");
+//     client.println("            else if (item.name.toUpperCase().endsWith('.WAV')) fileIcon = '🎶';");
+//     client.println("            else if (item.name.toUpperCase().endsWith('.FLAC')) fileIcon = '🎼';");
+//     client.println("            else if (item.name.toUpperCase().endsWith('.RADIO')) fileIcon = '📻';");
+//     client.println("            itemElement.innerHTML = `${fileIcon} [${item.index + 1}] ${item.name}`;");
+//     client.println("            itemElement.style.color = '#fff';");
+//     client.println("            itemElement.classList.add('file');");
+//     client.println("            itemElement.addEventListener('click', () => selectFile(item.name, item.index));");
+//     client.println("          }");
+//     client.println("          ");
+//     client.println("          fileList.appendChild(itemElement);");
+//     client.println("        });");
+//     client.println("      } else {");
+//     client.println("        const noItems = document.createElement('div');");
+//     client.println("        noItems.className = 'file-item';");
+//     client.println("        noItems.textContent = 'No audio files or directories found';");
+//     client.println("        fileList.appendChild(noItems);");
+//     client.println("      }");
+//     client.println("    })");
+//     client.println("    .catch(error => {");
+//     client.println("      console.log('Error loading file list:', error);");
+//     client.println("      const fileList = document.getElementById('fileList');");
+//     client.println("      fileList.innerHTML = '<div class=\"file-item\">Error loading files</div>';");
+//     client.println("    });");
+//     client.println("}");
+//     client.println("");
+//     client.println("function changeDirectory(dirName) {");
+//     client.println("  console.log('Changing to directory:', dirName);");
+//     client.println("  ");
+//     client.println("  const encodedDirName = encodeURIComponent(dirName);");
+//     client.println("  ");
+//     client.println("  fetch('/changedir/' + encodedDirName, {");
+//     client.println("    method: 'GET'");
+//     client.println("  })");
+//     client.println("  .then(response => {");
+//     client.println("    if (response.ok) {");
+//     client.println("      console.log('Directory changed successfully');");
+//     client.println("      // ✅ RECARGAR LA LISTA DESPUÉS DEL CAMBIO DE DIRECTORIO");
+//     client.println("      setTimeout(loadFileList, 300);");
+//     client.println("    }");
+//     client.println("  })");
+//     client.println("  .catch(error => console.log('Error changing directory:', error));");
+//     client.println("}");
+//     client.println("");
+//     client.println("function selectFile(filename, position) {");
+//     client.println("  console.log('Selecting file:', filename, 'at position:', position);");
+//     client.println("  ");
+//     client.println("  const encodedFilename = encodeURIComponent(filename);");
+//     client.println("  ");
+//     client.println("  fetch('/select/' + encodedFilename + '?pos=' + position, {");
+//     client.println("    method: 'GET'");
+//     client.println("  })");
+//     client.println("  .then(response => {");
+//     client.println("    if (response.ok) {");
+//     client.println("      console.log('File selected successfully at position:', position);");
+//     client.println("      setTimeout(updateTrackInfo, 500);");
+//     client.println("      toggleFileList();");
+//     client.println("    }");
+//     client.println("  })");
+//     client.println("  .catch(error => console.log('Error selecting file:', error));");
+//     client.println("}");
+//     client.println("");
+//     client.println("function toggleFileList() {");
+//     client.println("  const fileList = document.getElementById('fileList');");
+//     client.println("  fileListVisible = !fileListVisible;");
+//     client.println("  ");
+//     client.println("  if (fileListVisible) {");
+//     client.println("    loadFileList();");
+//     client.println("    fileList.classList.add('show');");
+//     client.println("  } else {");
+//     client.println("    fileList.classList.remove('show');");
+//     client.println("  }");
+//     client.println("}");
+//     client.println("");
+//     client.println("function sendCommand(command) {");
+//     client.println("  if (command === 'VOLUP' || command === 'VOLDOWN') {");
+//     client.println("    fetch('/' + command, {");
+//     client.println("      method: 'GET'");
+//     client.println("    })");
+//     client.println("    .then(response => {");
+//     client.println("      console.log(command + ' sent (lightweight)');");
+//     client.println("    })");
+//     client.println("    .catch(error => console.log('Error:', error));");
+//     client.println("  } else {");
+//     client.println("    fetch('/' + command, {");
+//     client.println("      method: 'GET'");
+//     client.println("    })");
+//     client.println("    .then(response => {");
+//     client.println("      if (response.ok) {");
+//     client.println("        console.log(command + ' command sent successfully');");
+//     client.println("        if (command === 'PLAY' || command === 'NEXT' || command === 'PREV') {");
+//     client.println("          setTimeout(updateTrackInfo, 500);");
+//     client.println("        }");
+//     client.println("      }");
+//     client.println("    })");
+//     client.println("    .catch(error => console.log('Error sending command:', error));");
+//     client.println("  }");
+//     client.println("}");
+//     client.println("");
+//     client.println("document.addEventListener('DOMContentLoaded', function() {");
+//     client.println("  const trackInput = document.querySelector('.Input-text');");
+//     client.println("  if (trackInput) {");
+//     client.println("    trackInput.addEventListener('click', updateTrackInfo);");
+//     client.println("  }");
+//     client.println("  ");
+//     client.println("  const browseBtn = document.getElementById('browseBtn');");
+//     client.println("  if (browseBtn) {");
+//     client.println("    browseBtn.addEventListener('click', toggleFileList);");
+//     client.println("  }");
+//     client.println("  ");
+//     client.println("  const allButtons = document.querySelectorAll('a[href^=\"/\"]');");
+//     client.println("  allButtons.forEach(button => {");
+//     client.println("    button.addEventListener('click', function(e) {");
+//     client.println("      e.preventDefault();");
+//     client.println("      const href = this.getAttribute('href');");
+//     client.println("      const command = href.substring(1);");
+//     client.println("      sendCommand(command);");
+//     client.println("    });");
+//     client.println("  });");
+//     client.println("  ");
+//     client.println("  document.addEventListener('click', function(e) {");
+//     client.println("    const fileList = document.getElementById('fileList');");
+//     client.println("    const browseBtn = document.getElementById('browseBtn');");
+//     client.println("    const wrapper = document.querySelector('.Wrapper');");
+//     client.println("    ");
+//     client.println("    if (fileListVisible && !wrapper.contains(e.target)) {");
+//     client.println("      fileList.classList.remove('show');");
+//     client.println("      fileListVisible = false;");
+//     client.println("    }");
+//     client.println("  });");
+//     client.println("});");
+//     client.println("</script>");  
+// }
+
+// void jsUpdateTextBoxWithFileList(WiFiClient client)
+// {
+//     client.println("<script>");
+//     client.println("let fileListVisible = false;");
+//     client.println("");
+//     client.println("function updateTrackInfo() {");
+//     client.println("  fetch('/status')");
+//     client.println("    .then(response => response.text())");
+//     client.println("    .then(data => {");
+//     client.println("      const trackInput = document.querySelector('.Input-text');");
+//     client.println("      if (trackInput && data.trim() !== '') {");
+//     client.println("        trackInput.value = data.trim();");
+//     client.println("      }");
+//     client.println("    })");
+//     client.println("    .catch(error => console.log('Error:', error));");
+//     client.println("}");
+//     client.println("");
+//     client.println("function loadFileList() {");
+//     client.println("  fetch('/filelist')");
+//     client.println("    .then(response => response.json())");
+//     client.println("    .then(data => {");
+//     client.println("      const fileList = document.getElementById('fileList');");
+//     client.println("      fileList.innerHTML = '';");
+//     client.println("      ");
+//     client.println("      if (data.files && data.files.length > 0) {");
+//     client.println("        data.files.forEach((file, index) => {"); // ✅ Añadir index
+//     client.println("          const fileItem = document.createElement('div');"); // ✅ AÑADIDA ESTA LÍNEA QUE FALTABA
+//     client.println("          fileItem.className = 'file-item';");
+//     client.println("          fileItem.textContent = `[${index + 1}] ${file}`;"); // ✅ Mostrar posición
+//     client.println("          fileItem.addEventListener('click', () => selectFile(file, index));"); // ✅ Pasar index
+//     client.println("          fileList.appendChild(fileItem);");
+//     client.println("        });");
+//     client.println("      } else {");
+//     client.println("        const noFiles = document.createElement('div');");
+//     client.println("        noFiles.className = 'file-item';");
+//     client.println("        noFiles.textContent = 'No files found';");
+//     client.println("        fileList.appendChild(noFiles);");
+//     client.println("      }");
+//     client.println("    })");
+//     client.println("    .catch(error => {");
+//     client.println("      console.log('Error loading file list:', error);");
+//     client.println("      const fileList = document.getElementById('fileList');");
+//     client.println("      fileList.innerHTML = '<div class=\"file-item\">Error loading files</div>';");
+//     client.println("    });");
+//     client.println("}");
+//     client.println("");
+//     client.println("function selectFile(filename, position) {"); // ✅ Añadir parámetro position
+//     client.println("  console.log('Selecting file:', filename, 'at position:', position);");
+//     client.println("  ");
+//     client.println("  // Codificar el nombre del archivo para URL");
+//     client.println("  const encodedFilename = encodeURIComponent(filename);");
+//     client.println("  ");
+//     client.println("  fetch('/select/' + encodedFilename + '?pos=' + position, {"); // ✅ Añadir ?pos=
+//     client.println("    method: 'GET'");
+//     client.println("  })");
+//     client.println("  .then(response => {");
+//     client.println("    if (response.ok) {");
+//     client.println("      console.log('File selected successfully at position:', position);");
+//     client.println("      // Actualizar el textbox");
+//     client.println("      setTimeout(updateTrackInfo, 500);");
+//     client.println("      // Ocultar la lista");
+//     client.println("      toggleFileList();");
+//     client.println("    }");
+//     client.println("  })");
+//     client.println("  .catch(error => console.log('Error selecting file:', error));");
+//     client.println("}");
+//     client.println("");
+//     client.println("function toggleFileList() {");
+//     client.println("  const fileList = document.getElementById('fileList');");
+//     client.println("  fileListVisible = !fileListVisible;");
+//     client.println("  ");
+//     client.println("  if (fileListVisible) {");
+//     client.println("    loadFileList();");
+//     client.println("    fileList.classList.add('show');");
+//     client.println("  } else {");
+//     client.println("    fileList.classList.remove('show');");
+//     client.println("  }");
+//     client.println("}");
+//     client.println("");
+//     client.println("function sendCommand(command) {");
+//     client.println("  if (command === 'VOLUP' || command === 'VOLDOWN') {");
+//     client.println("    fetch('/' + command, {");
+//     client.println("      method: 'GET'");
+//     client.println("    })");
+//     client.println("    .then(response => {");
+//     client.println("      console.log(command + ' sent (lightweight)');");
+//     client.println("    })");
+//     client.println("    .catch(error => console.log('Error:', error));");
+//     client.println("  } else {");
+//     client.println("    fetch('/' + command, {");
+//     client.println("      method: 'GET'");
+//     client.println("    })");
+//     client.println("    .then(response => {");
+//     client.println("      if (response.ok) {");
+//     client.println("        console.log(command + ' command sent successfully');");
+//     client.println("        if (command === 'PLAY' || command === 'NEXT' || command === 'PREV') {");
+//     client.println("          setTimeout(updateTrackInfo, 500);");
+//     client.println("        }");
+//     client.println("      }");
+//     client.println("    })");
+//     client.println("    .catch(error => console.log('Error sending command:', error));");
+//     client.println("  }");
+//     client.println("}");
+//     client.println("");
+//     client.println("// Configurar eventos cuando la página esté lista");
+//     client.println("document.addEventListener('DOMContentLoaded', function() {");
+//     client.println("  const trackInput = document.querySelector('.Input-text');");
+//     client.println("  if (trackInput) {");
+//     client.println("    trackInput.addEventListener('click', updateTrackInfo);");
+//     client.println("  }");
+//     client.println("  ");
+//     client.println("  // Configurar el botón browse");
+//     client.println("  const browseBtn = document.getElementById('browseBtn');");
+//     client.println("  if (browseBtn) {");
+//     client.println("    browseBtn.addEventListener('click', toggleFileList);");
+//     client.println("  }");
+//     client.println("  ");
+//     client.println("  // Configurar eventos para todos los botones del control");
+//     client.println("  const allButtons = document.querySelectorAll('a[href^=\"/\"]');");
+//     client.println("  allButtons.forEach(button => {");
+//     client.println("    button.addEventListener('click', function(e) {");
+//     client.println("      e.preventDefault();");
+//     client.println("      const href = this.getAttribute('href');");
+//     client.println("      const command = href.substring(1);");
+//     client.println("      sendCommand(command);");
+//     client.println("    });");
+//     client.println("  });");
+//     client.println("  ");
+//     client.println("  // Cerrar lista al hacer click fuera");
+//     client.println("  document.addEventListener('click', function(e) {");
+//     client.println("    const fileList = document.getElementById('fileList');");
+//     client.println("    const browseBtn = document.getElementById('browseBtn');");
+//     client.println("    const wrapper = document.querySelector('.Wrapper');");
+//     client.println("    ");
+//     client.println("    if (fileListVisible && !wrapper.contains(e.target)) {");
+//     client.println("      fileList.classList.remove('show');");
+//     client.println("      fileListVisible = false;");
+//     client.println("    }");
+//     client.println("  });");
+//     client.println("});");
+//     client.println("</script>");  
+// }
+
+void stylebuttonscss(WiFiClient client)
+{    
+    // Botón azul normal
+    client.println(".button-71 {");
+    client.println("background-color: #0078d0;");
+    client.println("border: 0;");
+    client.println("border-radius: 56px;");
+    client.println("color: #fff;");
+    client.println("cursor: pointer;");
+    client.println("display: inline-block;");
+    client.println("font-family: system-ui,-apple-system,system-ui,\"Segoe UI\",Roboto,Ubuntu,\"Helvetica Neue\",sans-serif;");
+    client.println("font-size: 18px;");
+    client.println("font-weight: 600;");
+    client.println("outline: 0;");
+    client.println("padding: 16px 21px;");
+    client.println("position: relative;");
+    client.println("text-align: center;");
+    client.println("text-decoration: none;");
+    client.println("transition: all .3s;");
+    client.println("user-select: none;");
+    client.println("-webkit-user-select: none;");
+    client.println("touch-action: manipulation;");
+    client.println("width: 180px;");
+    client.println("box-sizing: border-box;");
+    client.println("margin: 5px;");
+    client.println("}");
+    client.println(".button-71:before {");
+    client.println("background-color: initial;");
+    client.println("background-image: linear-gradient(#fff 0, rgba(255, 255, 255, 0) 100%);");
+    client.println("border-radius: 125px;");
+    client.println("content: \"\";");
+    client.println("height: 50%;");
+    client.println("left: 4%;");
+    client.println("opacity: .5;");
+    client.println("position: absolute;");
+    client.println("top: 0;");
+    client.println("transition: all .3s;");
+    client.println("width: 92%;");
+    client.println("}");
+    client.println(".button-71:hover {");
+    client.println("box-shadow: rgba(255, 255, 255, .2) 0 3px 15px inset, rgba(0, 0, 0, .1) 0 3px 5px, rgba(0, 0, 0, .1) 0 10px 13px;");
+    client.println("transform: scale(1.05);");
+    client.println("}");
+    
+    // Botón rojo
+    client.println(".button-red {");
+    client.println("background-color: #dc3545;");
+    client.println("border: 0;");
+    client.println("border-radius: 56px;");
+    client.println("color: #fff;");
+    client.println("cursor: pointer;");
+    client.println("display: inline-block;");
+    client.println("font-family: system-ui,-apple-system,system-ui,\"Segoe UI\",Roboto,Ubuntu,\"Helvetica Neue\",sans-serif;");
+    client.println("font-size: 18px;");
+    client.println("font-weight: 600;");
+    client.println("outline: 0;");
+    client.println("padding: 16px 21px;");
+    client.println("position: relative;");
+    client.println("text-align: center;");
+    client.println("text-decoration: none;");
+    client.println("transition: all .3s;");
+    client.println("user-select: none;");
+    client.println("-webkit-user-select: none;");
+    client.println("touch-action: manipulation;");
+    client.println("width: 180px;");
+    client.println("box-sizing: border-box;");
+    client.println("margin: 5px;");
+    client.println("}");
+    client.println(".button-red:before {");
+    client.println("background-color: initial;");
+    client.println("background-image: linear-gradient(#fff 0, rgba(255, 255, 255, 0) 100%);");
+    client.println("border-radius: 125px;");
+    client.println("content: \"\";");
+    client.println("height: 50%;");
+    client.println("left: 4%;");
+    client.println("opacity: .5;");
+    client.println("position: absolute;");
+    client.println("top: 0;");
+    client.println("transition: all .3s;");
+    client.println("width: 92%;");
+    client.println("}");
+    client.println(".button-red:hover {");
+    client.println("background-color: #c82333;");
+    client.println("box-shadow: rgba(255, 255, 255, .2) 0 3px 15px inset, rgba(0, 0, 0, .1) 0 3px 5px, rgba(0, 0, 0, .1) 0 10px 13px;");
+    client.println("transform: scale(1.05);");
+    client.println("}");
+    
+    client.println(".volume-controls {");
+    client.println("display: flex;");
+    client.println("justify-content: center;");
+    client.println("align-items: center;");
+    client.println("gap: 10px;");
+    client.println("margin: 10px 0;");
+    client.println("}");
+    client.println("@media (min-width: 768px) {");
+    client.println(".button-71, .button-red {");
+    client.println("padding: 16px 48px;");
+    client.println("width: 200px;"); 
+    client.println("}}");
+
+}
+
+void remoteControlStyle(WiFiClient client)
+{
+    // ✅ DEFINIR VARIABLES CSS AL INICIO
+    client.println(":root {");
+    client.println("--circular-bg-color: #534d44ff;");
+    client.println("--circular-shadow-dark: #272727ff;");
+    client.println("--circular-shadow-light: #222222ff;");
+    client.println("--circular-shadow-inner: #b68c19ff;");//esta
+    client.println("--button-gradient-light: #fff;");
+    client.println("--button-gradient-dark: #2e2e2eff;");
+    client.println("--center-button-bg: #494949ff;");
+    client.println("--symbol-shadow: rgba(0, 0, 0, 0.7);");
+    client.println("--symbol-color: rgba(255, 255, 255, 0.8);");
+    client.println("--symbol-play-stop: rgba(0, 0, 0, 0.8);");
+    client.println("}");
+    
+    // ✅ CONTENEDOR PARA CENTRAR EL CONTROL CIRCULAR
+    client.println(".circular-control-container {");
+    client.println("display: flex;");
+    client.println("justify-content: center;");
+    client.println("align-items: center;");
+    client.println("width: 100%;");
+    client.println("margin: 20px 0;");
+    client.println("}");
+    
+    client.println("nav {");
+    client.println("width: 400px;");
+    client.println("height: 400px;");
+    client.println("background: var(--circular-bg-color);");
+    client.println("border-radius: 50%;");
+    client.println("padding: 20px;");
+    client.println("-webkit-transform: rotate(45deg);");
+    client.println("-moz-transform: rotate(45deg);");
+    client.println("transform: rotate(45deg);");
+    client.println("box-shadow: inset -12px 0 12px -6px var(--circular-shadow-dark), inset 12px 0 12px -6px var(--circular-shadow-light), inset 0 0 0 12px var(--circular-shadow-inner), inset 2px 0 4px 12px rgba(0, 0, 0, 0.4), 1px 0 4px rgba(0, 0, 0, 0.8);");
+    client.println("box-sizing: border-box;");
+    client.println("position: relative;");
+    client.println("margin: 0 auto;"); // ✅ Centrar horizontalmente
+    client.println("display: block;"); // ✅ Asegurar que es un bloque
+    client.println("}");
+    
+    // ✅ RESPONSIVE: Ajustar tamaño en pantallas pequeñas
+    client.println("@media (max-width: 480px) {");
+    client.println("nav {");
+    client.println("width: 300px;");
+    client.println("height: 300px;");
+    client.println("}");
+    client.println("}");
+    
+    client.println("a {");
+    client.println("text-decoration: none;");
+    client.println("}");
+    
+    client.println(".center-button {");
+    client.println("display: block;");
+    client.println("height: 38%;");
+    client.println("width: 38%;");
+    client.println("position: absolute;");
+    client.println("top: 31%;");
+    client.println("left: 31%;");
+    client.println("background: var(--center-button-bg);");
+    client.println("border-radius: 50%;");
+    client.println("box-shadow: 1px 0 4px rgba(0, 0, 0, 0.8);");
+    client.println("display: flex;");
+    client.println("align-items: center;");
+    client.println("justify-content: center;");
+    client.println("}");
+    
+    client.println(".button {");
+    client.println("display: block;");
+    client.println("width: 46%;");
+    client.println("height: 46%;");
+    client.println("margin: 2%;");
+    client.println("position: relative;");
+    client.println("float: left;");
+    client.println("box-shadow: 1px 0px 3px 1px rgba(0, 0, 0, 0.4), inset 0 0 0 1px var(--circular-shadow-light);");
+    client.println("cursor: pointer;");
+    client.println("display: flex;");
+    client.println("align-items: center;");
+    client.println("justify-content: center;");
+    client.println("}");
+    
+    client.println(".button::after {");
+    client.println("content: '';");
+    client.println("display: block;");
+    client.println("width: 50%;");
+    client.println("height: 50%;");
+    client.println("background: var(--circular-bg-color);");
+    client.println("position: absolute;");
+    client.println("border-radius: inherit;");
+    client.println("z-index: 1;");
+    client.println("}");
+    
+    client.println(".button.top {");
+    client.println("border-radius: 100% 0 0 0;");
+    client.println("background: radial-gradient(bottom right, ellipse cover, var(--button-gradient-light) 35%, var(--button-gradient-dark) 75%);");
+    client.println("}");
+    
+    client.println(".button.top::after {");
+    client.println("bottom: 0;");
+    client.println("right: 0;");
+    client.println("box-shadow: inset 2px 1px 2px 0 rgba(0, 0, 0, 0.4), 10px 10px 0 10px var(--circular-bg-color);");
+    client.println("-webkit-transform: skew(-3deg, -3deg) scale(0.96);");
+    client.println("-moz-transform: skew(-3deg, -3deg) scale(0.96);");
+    client.println("transform: skew(-3deg, -3deg) scale(0.96);");
+    client.println("}");
+    
+    client.println(".button.right {");
+    client.println("border-radius: 0 100% 0 0;");
+    client.println("background: radial-gradient(bottom left, ellipse cover, var(--button-gradient-light) 35%, var(--button-gradient-dark) 75%);");
+    client.println("}");
+    
+    client.println(".button.right::after {");
+    client.println("bottom: 0;");
+    client.println("left: 0;");
+    client.println("box-shadow: inset -2px 3px 2px -2px rgba(0, 0, 0, 0.4), -10px 10px 0 10px var(--circular-bg-color);");
+    client.println("-webkit-transform: skew(3deg, 3deg) scale(0.96);");
+    client.println("-moz-transform: skew(3deg, 3deg) scale(0.96);");
+    client.println("transform: skew(3deg, 3deg) scale(0.96);");
+    client.println("}");
+    
+    client.println(".button.left {");
+    client.println("border-radius: 0 0 0 100%;");
+    client.println("background: radial-gradient(top right, ellipse cover, var(--button-gradient-light) 35%, var(--button-gradient-dark) 75%);");
+    client.println("}");
+    
+    client.println(".button.left::after {");
+    client.println("top: 0;");
+    client.println("right: 0;");
+    client.println("box-shadow: inset 2px -1px 2px 0 rgba(0, 0, 0, 0.4), 10px -10px 0 10px var(--circular-bg-color);");
+    client.println("-webkit-transform: skew(3deg, 3deg) scale(0.96);");
+    client.println("-moz-transform: skew(3deg, 3deg) scale(0.96);");
+    client.println("transform: skew(3deg, 3deg) scale(0.96);");
+    client.println("}");
+    
+    client.println(".button.bottom {");
+    client.println("border-radius: 0 0 100% 0;");
+    client.println("background: radial-gradient(top left, ellipse cover, var(--button-gradient-light) 35%, var(--button-gradient-dark) 75%);");
+    client.println("}");
+    
+    client.println(".button.bottom::after {");
+    client.println("top: 0;");
+    client.println("left: 0;");
+    client.println("box-shadow: inset -2px -3px 2px -2px rgba(0, 0, 0, 0.4), -10px -10px 0 10px var(--circular-bg-color);");
+    client.println("-webkit-transform: skew(-3deg, -3deg) scale(0.96);");
+    client.println("-moz-transform: skew(-3deg, -3deg) scale(0.96);");
+    client.println("transform: skew(-3deg, -3deg) scale(0.96);");
+    client.println("}");
+    
+    // ESTILOS PARA LOS SÍMBOLOS
+    client.println(".symbol {");
+    client.println("font-size: 24px;");
+    client.println("color: var(--symbol-color);");
+    client.println("font-weight: bold;");
+    client.println("text-shadow: 1px 1px 2px var(--symbol-shadow);");
+    client.println("z-index: 10;");
+    client.println("position: relative;");
+    client.println("-webkit-transform: rotate(-45deg);");
+    client.println("-moz-transform: rotate(-45deg);");
+    client.println("transform: rotate(-45deg);");
+    client.println("pointer-events: none;");
+    client.println("}");
+    
+    client.println(".symbol.play-stop {");
+    client.println("font-size: 28px;");
+    client.println("color: var(--symbol-play-stop);");
+    client.println("-webkit-transform: rotate(-45deg);");
+    client.println("-moz-transform: rotate(-45deg);");
+    client.println("transform: rotate(-45deg);");
+    client.println("}");
+    
+    client.println(".symbol.volume {");
+    client.println("font-size: 20px;");
+    client.println("color: var(--symbol-color);");
+    client.println("}");
+    
+    client.println(".symbol.track {");
+    client.println("font-size: 16px;");
+    client.println("color: var(--symbol-color);");
+    client.println("display: flex;");                    // ✅ Añadir
+    client.println("align-items: center;");              // ✅ Añadir
+    client.println("justify-content: center;");          // ✅ Añadir
+    client.println("text-align: center;");               // ✅ Añadir    
+    client.println("}");
+}
+
+void textBoxcss(WiFiClient client)
+{
+    // ✅ VARIABLES CSS SOLO PARA EL TEXTBOX
+    client.println(".Wrapper {");
+    client.println("width: 100%;");
+    client.println("max-width: 400px;");
+    client.println("margin: 20px auto;");
+    client.println("padding: 0 20px;");
+    client.println("}");
+    
+    client.println(".Input {");
+    client.println("position: relative;");
+    client.println("margin-bottom: 20px;");
+    client.println("}");
+    
+    client.println(".Input-text {");
+    client.println("display: block;");
+    client.println("margin: 0;");
+    client.println("padding: 12px 16px;");
+    client.println("color: #fff;");
+    client.println("background-color: #333;");
+    client.println("width: 100%;");
+    client.println("font-family: inherit;");
+    client.println("font-size: 16px;");
+    client.println("font-weight: normal;");
+    client.println("border: 1px solid #555;");
+    client.println("border-radius: 4px;");
+    client.println("box-sizing: border-box;");
+    client.println("text-align: center;");
+    client.println("}");
+    
+    client.println(".Input-text:focus {");
+    client.println("outline: none;");
+    client.println("border-color: #ffbf00;");
+    client.println("}");
+
+    // ✅ CSS adicional para HOME y elementos de navegación
+    client.println(".file-item.home {");
+    client.println("background-color: #1a3d4d;"); // Fondo azul oscuro para HOME
+    client.println("border-left: 4px solid #00ffff;"); // Borde celeste
+    client.println("text-align: left;");
+    client.println("font-weight: bold;");
+    client.println("padding: 12px 15px;"); // Un poco más de padding para destacar
+    client.println("}");
+
+    client.println(".file-item.home:hover {");
+    client.println("background-color: #2a4d5d;");
+    client.println("border-left-color: #ffffff;");
+    client.println("color: #ffffff;");
+    client.println("}");
+
+    client.println(".file-item.parent {");
+    client.println("background-color: #2a2a2a;");
+    client.println("border-left: 3px solid #00ffff;"); // Celeste para parent
+    client.println("text-align: left;");
+    client.println("}");
+
+    client.println(".file-item.parent:hover {");
+    client.println("background-color: #3a3a3a;");
+    client.println("border-left-color: #ffffff;");
+    client.println("color: #ffffff;");
+    client.println("}");    
+}
+
+void readyPlayFile()
+{
+    UPDATE_FROM_REMOTE_CONTROL = true;
+    FILE_PREPARED = true;
+    PLAY=true;
+    STOP=false;
+    PAUSE=false;
+    FILE_BROWSER_OPEN = false;
+    // Llamamos a la carga de ficheros
+    TAPESTATE = 100;
+}
+
+void handleWebClient(WiFiClient client)
+{
+    if (client) {                             
+        currentTime = millis();
+        previousTime = currentTime;
+        Serial.println("New Client.");          
+        String currentLine = "";                
+        while (client.connected() && currentTime - previousTime <= timeoutTime) {  
+          currentTime = millis();
+          if (client.available()) {             
+            char c = client.read();             
+            Serial.write(c);                    
+            header += c;
+            if (c == '\n') {                    
+              if (currentLine.length() == 0) {
+
+                // ✅ ENDPOINT ULTRA-LIGERO PARA VOLUMEN
+                if (header.indexOf("GET /VOL") >= 0) {
+                  client.println("HTTP/1.1 204 No Content");
+                  client.println("Connection: close");
+                  client.println();
+                  
+                  if (header.indexOf("GET /VOLUP") >= 0) {
+                    hmi.verifyCommand("VOLUP");
+                    hmi.writeString("menuAudio.volM.val=" + String(MAIN_VOL));
+                    hmi.writeString("menuAudio.volLevelM.val=" + String(MAIN_VOL));
+                    logln("Volume UP via web: " + String(MAIN_VOL));
+                  } else if (header.indexOf("GET /VOLDOWN") >= 0) {
+                    hmi.verifyCommand("VOLDW");
+                    hmi.writeString("menuAudio.volM.val=" + String(MAIN_VOL));
+                    hmi.writeString("menuAudio.volLevelM.val=" + String(MAIN_VOL));
+                    logln("Volume DOWN via web: " + String(MAIN_VOL));
+                  }
+                  
+                  break;
+                }
+
+                // ✅ ENDPOINT PARA LISTAR ARCHIVOS Y DIRECTORIOS - SOLO AUDIO
+                if (header.indexOf("GET /filelist") >= 0) {
+                  client.println("HTTP/1.1 200 OK");
+                  client.println("Content-type:application/json");
+                  client.println("Connection: close");
+                  client.println();
+                  
+                  // ✅ VERIFICAR Y ESTABLECER FILE_LAST_DIR
+                  String parentDir = FILE_LAST_DIR;
+                  
+                  // Si FILE_LAST_DIR está vacío, usar directorio raíz por defecto
+                  if (parentDir.length() == 0) {
+                    parentDir = "/";
+                    logln("FILE_LAST_DIR was empty, using root directory");
+                  }
+                  
+                  if (!parentDir.endsWith("/")) parentDir += "/";
+                  
+                  logln("=== DEBUG FILE LIST ===");
+                  logln("FILE_LAST_DIR: '" + FILE_LAST_DIR + "'");
+                  logln("parentDir: '" + parentDir + "'");
+                  
+                  // ✅ USAR _files.lst PARA DIRECTORIOS E idx.txt PARA ARCHIVOS
+                  String filesListPath = parentDir + "_files.lst";
+                  String idxFilePath = parentDir + "idx.txt";
+                  
+                  logln("filesListPath: '" + filesListPath + "'");
+                  logln("idxFilePath: '" + idxFilePath + "'");
+                  logln("_files.lst exists: " + String(SD_MMC.exists(filesListPath.c_str())));
+                  logln("idx.txt exists: " + String(SD_MMC.exists(idxFilePath.c_str())));
+                  
+                  // Generar lista JSON
+                  client.println("{");
+                  client.println("\"currentPath\":\"" + parentDir + "\",");
+                  client.println("\"items\":[");
+                  
+                  bool firstItem = true;
+                  int itemIndex = 0;
+                  
+  // ✅ AÑADIR HOME COMO PRIMER ELEMENTO SIEMPRE
+  client.println("{\"name\":\"HOME\",\"type\":\"home\",\"index\":-2}");
+  firstItem = false;
+  
+  // ✅ AÑADIR DIRECTORIO PADRE SI NO ESTAMOS EN RAÍZ
+  if (parentDir != "/") {
+    client.println(",{\"name\":\".. (Parent Directory)\",\"type\":\"parent\",\"index\":-1}");
+  }                  
+
+                  // ✅ AÑADIR DIRECTORIO PADRE SI NO ESTAMOS EN RAÍZ
+                  // if (parentDir != "/") {
+                  //   client.println("{\"name\":\".. (Parent Directory)\",\"type\":\"directory\",\"index\":-1}");
+                  //   firstItem = false;
+                  // }
+                  
+                  // ✅ PASO 1: LEER DIRECTORIOS DESDE _files.lst
+                  if (SD_MMC.exists(filesListPath.c_str())) {
+                    File filesListFile = SD_MMC.open(filesListPath.c_str(), FILE_READ);
+                    if (filesListFile) {
+                      logln("Reading directories from _files.lst");
+                      
+                      while (filesListFile.available()) {
+                        String line = filesListFile.readStringUntil('\n');
+                        line.trim();
+                        if (line.length() == 0) continue;
+                        
+                        // Parsear línea: indice|tipo|tamaño|nombre|
+                        int idx1 = line.indexOf('|');
+                        int idx2 = line.indexOf('|', idx1 + 1);
+                        int idx3 = line.indexOf('|', idx2 + 1);
+                        int idx4 = line.indexOf('|', idx3 + 1);
+                        
+                        if (idx1 == -1 || idx2 == -1 || idx3 == -1 || idx4 == -1) continue;
+                        
+                        String tipo = line.substring(idx1 + 1, idx2);
+                        String nombre = line.substring(idx3 + 1, idx4);
+                        
+                        tipo.trim();
+                        nombre.trim();
+                        
+                        // ✅ SOLO DIRECTORIOS
+                        if (tipo == "D") {
+                          if (!firstItem) client.println(",");
+                          client.println("{\"name\":\"" + nombre + "\",\"type\":\"directory\",\"index\":" + String(itemIndex) + "}");
+                          firstItem = false;
+                          itemIndex++;
+                          logln("Added directory from _files.lst: " + nombre);
+                        }
+                      }
+                      filesListFile.close();
+                    } else {
+                      logln("Could not open _files.lst file");
+                    }
+                  }
+                  
+                  // ✅ PASO 2: LEER ARCHIVOS DE AUDIO DESDE idx.txt
+                  if (SD_MMC.exists(idxFilePath.c_str())) {
+                    File idxFile = SD_MMC.open(idxFilePath.c_str(), FILE_READ);
+                    if (idxFile) {
+                      logln("Reading audio files from idx.txt");
+                      
+                      while (idxFile.available()) {
+                        String line = idxFile.readStringUntil('\n');
+                        line.trim();
+                        if (line.length() == 0) continue;
+                        
+                        // ✅ idx.txt contiene rutas completas, extraer nombre del archivo
+                        String fileName = line;
+                        int lastSlash = fileName.lastIndexOf('/');
+                        if (lastSlash != -1) {
+                          fileName = fileName.substring(lastSlash + 1);
+                        }
+                        
+                        // ✅ Verificar que es un archivo de audio soportado
+                        String fileNameUpper = fileName;
+                        fileNameUpper.toUpperCase();
+                        
+                        if (fileNameUpper.endsWith(".WAV") || fileNameUpper.endsWith(".MP3") || 
+                            fileNameUpper.endsWith(".FLAC") || fileNameUpper.endsWith(".RADIO")) {
+                          
+                          if (!firstItem) client.println(",");
+                          client.println("{\"name\":\"" + fileName + "\",\"type\":\"file\",\"index\":" + String(itemIndex) + "}");
+                          firstItem = false;
+                          itemIndex++;
+                          #ifdef DEBUG
+                            logln("Added audio file from idx.txt: " + fileName);
+                          #endif
+                        }
+                      }
+                      idxFile.close();
+                    } else {
+                      logln("Could not open idx.txt file");
+                    }
+                  }
+                  
+                  // ✅ PASO 3: BUSCAR ARCHIVOS .RADIO SOLO SI ESTAMOS EN /RADIO
+                  if (parentDir == "/RADIO/" || parentDir == "/RADIO") {
+                    logln("Searching for .RADIO files in /RADIO directory");
+                    
+                    // Buscar archivos .RADIO directamente en el directorio /RADIO
+                    File radioDir = SD_MMC.open("/RADIO");
+                    if (radioDir && radioDir.isDirectory()) {
+                      File radioFile = radioDir.openNextFile();
+                      
+                      while (radioFile) {
+                        if (!radioFile.isDirectory()) {
+                          String fileName = radioFile.name();
+                          String fileNameUpper = fileName;
+                          fileNameUpper.toUpperCase();
+                          
+                          if (fileNameUpper.endsWith(".RADIO")) {
+                            // Verificar que no esté ya incluido en idx.txt
+                            bool alreadyIncluded = false;
+                            
+                            // Búsqueda simple para evitar duplicados
+                            // (Solo verificamos si ya se procesó desde idx.txt)
+                            
+                            if (!alreadyIncluded) {
+                              if (!firstItem) client.println(",");
+                              client.println("{\"name\":\"" + fileName + "\",\"type\":\"file\",\"index\":" + String(itemIndex) + "}");
+                              firstItem = false;
+                              itemIndex++;
+                              logln("Added .RADIO file from direct /RADIO scan: " + fileName);
+                            }
+                          }
+                        }
+                        radioFile = radioDir.openNextFile();
+                      }
+                      radioDir.close();
+                    } else {
+                      logln("Could not open /RADIO directory");
+                    }
+                  } else {
+                    // ✅ SOLO LOG DE DEBUG SI NO ESTAMOS EN /RADIO
+                    logln("Not in /RADIO directory, skipping .RADIO file search");
+                  }
+
+                  client.println("]}");
+                  logln("File list response completed with " + String(itemIndex) + " items");
+                  break;
+                }                
+
+                // ✅ ENDPOINT PARA CAMBIAR DIRECTORIO
+                if (header.indexOf("GET /changedir/") >= 0) {
+                  client.println("HTTP/1.1 204 No Content");
+                  client.println("Connection: close");
+                  client.println();
+                  
+                  // Extraer nombre del directorio de la URL
+                  int startPos = header.indexOf("GET /changedir/") + 15;
+                  int endPos = header.indexOf(" HTTP/", startPos);
+                  if (endPos > startPos) {
+                    String selectedDir = header.substring(startPos, endPos);
+                    selectedDir.trim();
+                    
+                    // Decodificar URL
+                    selectedDir.replace("%20", " ");
+                    selectedDir.replace("%2F", "/");
+                    selectedDir.replace("%21", "!");
+                    selectedDir.replace("%22", "\"");
+                    selectedDir.replace("%23", "#");
+                    selectedDir.replace("%24", "$");
+                    selectedDir.replace("%25", "%");
+                    selectedDir.replace("%26", "&");
+                    selectedDir.replace("%27", "'");
+                    selectedDir.replace("%28", "(");
+                    selectedDir.replace("%29", ")");
+                    selectedDir.replace("%2A", "*");
+                    selectedDir.replace("%2B", "+");
+                    selectedDir.replace("%2C", ",");
+                    selectedDir.replace("%2D", "-");
+                    selectedDir.replace("%2E", ".");
+                    
+                    logln("Directory change requested: " + selectedDir);
+                    
+                    String newDir = "";
+                    
+                    if (selectedDir == ".. (Parent Directory)") {
+                      // ✅ NAVEGAR AL DIRECTORIO PADRE
+                      String currentDir = FILE_LAST_DIR;
+                      if (currentDir.endsWith("/")) {
+                        currentDir = currentDir.substring(0, currentDir.length() - 1);
+                      }
+                      
+                      int lastSlash = currentDir.lastIndexOf('/');
+                      if (lastSlash > 0) {
+                        newDir = currentDir.substring(0, lastSlash);
+                      } else {
+                        newDir = "/";
+                      }
+                    } else {
+                      // ✅ NAVEGAR AL SUBDIRECTORIO
+                      String currentDir = FILE_LAST_DIR;
+                      if (!currentDir.endsWith("/")) currentDir += "/";
+                      newDir = currentDir + selectedDir;
+                    }
+                    
+                    // ✅ VERIFICAR QUE EL DIRECTORIO EXISTE
+                    if (SD_MMC.exists(newDir.c_str())) {
+                      File testDir = SD_MMC.open(newDir.c_str());
+                      if (testDir && testDir.isDirectory()) {
+                        FILE_LAST_DIR = newDir;
+                        logln("Directory changed to: " + FILE_LAST_DIR);
+                        
+                        // ✅ GENERAR NUEVO idx.txt PARA EL DIRECTORIO
+                        //generateListFile(FILE_LAST_DIR);
+                        
+                        testDir.close();
+                      } else {
+                        logln("Invalid directory: " + newDir);
+                        if (testDir) testDir.close();
+                      }
+                    } else {
+                      logln("Directory does not exist: " + newDir);
+                    }
+                  }
+                  
+                  break;
+                }
+
+                // ✅ ENDPOINT PARA SELECCIONAR ARCHIVO
+                if (header.indexOf("GET /select/") >= 0) {
+                  WAS_LAUNCHED = false;
+
+                  client.println("HTTP/1.1 204 No Content");
+                  client.println("Connection: close");
+                  client.println();
+
+                  // ✅ EXTRAER PARÁMETRO DE POSICIÓN PRIMERO
+                  int position = -1;
+                  int posParam = header.indexOf("?pos=");
+                  if (posParam != -1) {
+                      int posEnd = header.indexOf(" HTTP/", posParam);
+                      if (posEnd > posParam) {
+                          String posStr = header.substring(posParam + 5, posEnd);
+                          position = posStr.toInt();
+                          logln("Position received: " + String(position));
+                      }
+                  }
+                  
+                  // ✅ EXTRAER NOMBRE DEL ARCHIVO (SIN EL PARÁMETRO ?pos=)
+                  int startPos = header.indexOf("GET /select/") + 12;
+                  int endPos = posParam != -1 ? posParam : header.indexOf(" HTTP/", startPos);
+                  if (endPos > startPos) {
+                    String selectedFile = header.substring(startPos, endPos);
+                    selectedFile.trim();
+                    
+                    // Decodificar URL (reemplazar %20 con espacios, etc.)
+                    selectedFile.replace("%20", " ");
+                    selectedFile.replace("%21", "!");
+                    selectedFile.replace("%22", "\"");
+                    selectedFile.replace("%23", "#");
+                    selectedFile.replace("%24", "$");
+                    selectedFile.replace("%25", "%");
+                    selectedFile.replace("%26", "&");
+                    selectedFile.replace("%27", "'");
+                    selectedFile.replace("%28", "(");
+                    selectedFile.replace("%29", ")");
+                    selectedFile.replace("%2A", "*");
+                    selectedFile.replace("%2B", "+");
+                    selectedFile.replace("%2C", ",");
+                    selectedFile.replace("%2D", "-");
+                    selectedFile.replace("%2E", ".");
+                    selectedFile.replace("%2F", "/");
+                    
+                    logln("File selected from web: " + selectedFile + " at position: " + String(position));
+                    
+                    // ✅ VERIFICAR QUE ES UN ARCHIVO DE AUDIO SOPORTADO
+                    String fileUpper = selectedFile;
+                    fileUpper.toUpperCase();
+                    
+                    if (fileUpper.endsWith(".WAV") || fileUpper.endsWith(".MP3") || 
+                        fileUpper.endsWith(".FLAC") || fileUpper.endsWith(".RADIO")) {
+
+                          if (fileUpper.endsWith(".MP3")) TYPE_FILE_LOAD = "MP3";
+                          else if (fileUpper.endsWith(".WAV")) TYPE_FILE_LOAD = "WAV";
+                          else if (fileUpper.endsWith(".FLAC")) TYPE_FILE_LOAD = "FLAC";
+                          else if (fileUpper.endsWith(".RADIO")) TYPE_FILE_LOAD = "RADIO";
+
+                        // ✅ INTERRUMPIR PLAYERS ACTIVOS ANTES DE CARGAR EL NUEVO ARCHIVO
+                        // Interrumpir MediaPlayer
+                        logln("Interrupting MediaPlayer for new file selection");
+                      
+                        // Establecer el archivo seleccionado
+                        String fullPath = FILE_LAST_DIR;
+                        if (!fullPath.endsWith("/")) fullPath += "/";
+                        fullPath += selectedFile;
+                        
+                        PATH_FILE_TO_LOAD = fullPath;
+                        FILE_POS_REMOTE_CONTROL = position;
+                        FILE_LOAD = selectedFile;
+
+                        hmi.writeString("page tape");
+                        
+                        // Nos aseguramos que se cierra la reproducción actual
+                        delay(250);
+                        EJECT = true;
+                        delay(250);
+                        EJECT = true;
+                        // Lanzamos el medio que interactua en paralelo con el tapeControl()
+                        readyPlayFile();
+   
+                    } 
+                    else 
+                    {
+                      LAST_MESSAGE = "Unsupported file type.";
+                      logln("Unsupported file type: " + selectedFile);
+                    }
+                  }
+                  
+                  break;
+                }
+
+                // ✅ ENDPOINT /status PARA ACTUALIZACIÓN
+                if (header.indexOf("GET /status") >= 0) {
+                  client.println("HTTP/1.1 200 OK");
+                  client.println("Content-type:text/plain");
+                  client.println("Connection: close");
+                  client.println();
+                  
+                  String currentTrack = "";
+                  if (FILE_LOAD.length() > 0) {
+                      currentTrack = FILE_LOAD;
+                  } else if (PROGRAM_NAME.length() > 0) {
+                      currentTrack = PROGRAM_NAME;
+                  } else {
+                      currentTrack = "No track loaded";
+                  }
+                  
+                  client.println(currentTrack);
+                  client.println();
+                  break;
+                }                
+    
+                // ✅ NUEVO ENDPOINT PARA IR A HOME
+                if (header.indexOf("GET /gohome") >= 0) {
+                  client.println("HTTP/1.1 204 No Content");
+                  client.println("Connection: close");
+                  client.println();
+                  
+                  logln("HOME directory requested");
+                  
+                  // ✅ CAMBIAR AL DIRECTORIO RAÍZ
+                  FILE_LAST_DIR = "/";
+                  logln("Changed to HOME directory: " + FILE_LAST_DIR);
+                  
+                  break;
+                }
+
+                // ✅ MEJORAR EL ENDPOINT PARA CAMBIAR DIRECTORIO
+                if (header.indexOf("GET /changedir/") >= 0) {
+                  client.println("HTTP/1.1 204 No Content");
+                  client.println("Connection: close");
+                  client.println();
+                  
+                  // Extraer nombre del directorio de la URL
+                  int startPos = header.indexOf("GET /changedir/") + 15;
+                  int endPos = header.indexOf(" HTTP/", startPos);
+                  if (endPos > startPos) {
+                    String selectedDir = header.substring(startPos, endPos);
+                    selectedDir.trim();
+                    
+                    // Decodificar URL
+                    selectedDir.replace("%20", " ");
+                    selectedDir.replace("%2F", "/");
+                    selectedDir.replace("%21", "!");
+                    selectedDir.replace("%22", "\"");
+                    selectedDir.replace("%23", "#");
+                    selectedDir.replace("%24", "$");
+                    selectedDir.replace("%25", "%");
+                    selectedDir.replace("%26", "&");
+                    selectedDir.replace("%27", "'");
+                    selectedDir.replace("%28", "(");
+                    selectedDir.replace("%29", ")");
+                    selectedDir.replace("%2A", "*");
+                    selectedDir.replace("%2B", "+");
+                    selectedDir.replace("%2C", ",");
+                    selectedDir.replace("%2D", "-");
+                    selectedDir.replace("%2E", ".");
+                    
+                    logln("Directory change requested: " + selectedDir);
+                    
+                    String newDir = "";
+                    
+                    // ✅ MANEJAR NAVEGACIÓN ESPECIAL
+                    if (selectedDir == ".." || selectedDir == ".. (Parent Directory)") {
+                      // ✅ NAVEGAR AL DIRECTORIO PADRE
+                      String currentDir = FILE_LAST_DIR;
+                      if (currentDir.endsWith("/")) {
+                        currentDir = currentDir.substring(0, currentDir.length() - 1);
+                      }
+                      
+                      int lastSlash = currentDir.lastIndexOf('/');
+                      if (lastSlash > 0) {
+                        newDir = currentDir.substring(0, lastSlash);
+                      } else {
+                        newDir = "/";
+                      }
+                    } else {
+                      // ✅ NAVEGAR AL SUBDIRECTORIO
+                      String currentDir = FILE_LAST_DIR;
+                      if (!currentDir.endsWith("/")) currentDir += "/";
+                      newDir = currentDir + selectedDir;
+                    }
+                    
+                    // ✅ VERIFICAR QUE EL DIRECTORIO EXISTE
+                    if (SD_MMC.exists(newDir.c_str())) {
+                      File testDir = SD_MMC.open(newDir.c_str());
+                      if (testDir && testDir.isDirectory()) {
+                        FILE_LAST_DIR = newDir;
+                        logln("Directory changed to: " + FILE_LAST_DIR);
+                        testDir.close();
+                      } else {
+                        logln("Invalid directory: " + newDir);
+                        if (testDir) testDir.close();
+                      }
+                    } else {
+                      logln("Directory does not exist: " + newDir);
+                    }
+                  }
+                  
+                  break;
+                }                
+
+
+// ✅ NUEVO ENDPOINT PARA ESTADO PLAY/STOP
+if (header.indexOf("GET /playstatus") >= 0) {
+  client.println("HTTP/1.1 200 OK");
+  client.println("Content-type:text/plain");
+  client.println("Connection: close");
+  client.println();
+  
+  // Devolver el estado actual
+  if (PLAY) {
+    client.println("STOP");  // Si está reproduciendo, mostrar STOP
+  } else {
+    client.println("PLAY");  // Si está parado, mostrar PLAY
+  }
+  client.println();
+  break;
+}
+
+
+                client.println("HTTP/1.1 200 OK");
+                client.println("Content-type:text/html");
+                client.println("Connection: close");
+                client.println();
+                
+                // ✅ OTROS COMANDOS
+                if (header.indexOf("GET /PLAY") >= 0) {
+                  if (!PLAY) {
+                    hmi.verifyCommand("PLAY");
+                  } else {
+                    hmi.verifyCommand("STOP");
+                  }
+                } else if (header.indexOf("GET /STOP") >= 0) {
+                  hmi.verifyCommand("STOP");
+                } else if (header.indexOf("GET /PAUSE") >= 0) {
+                  hmi.verifyCommand("PAUSE");
+                } else if (header.indexOf("GET /NEXT") >= 0) {
+                  CMD_FROM_REMOTE_CONTROL = true;
+                  hmi.verifyCommand("FFWD");
+                } else if (header.indexOf("GET /PREV") >= 0) {
+                  CMD_FROM_REMOTE_CONTROL = true;
+                  hmi.verifyCommand("RWD");
+                }
+                
+                // Display the HTML web page
+                client.println("<!DOCTYPE html><html>");
+                client.println("<head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">");
+                client.println("<link rel=\"icon\" href=\"data:,\">");
+                
+                // JavaScript para actualizar el textbox y manejar la lista de archivos
+                jsUpdateTextBoxWithFileList(client);
+
+                // CSS styles
+                client.println("<style>html { font-family: Helvetica;display: inline-block;margin: 0px auto;text-align: center;background-color: black;color: #e6e5e2ff;}");
+                client.println("h1 { color: #ffbf00; }"); 
+                client.println("h2 { color: #888888; }");                 
+
+                // CSS para centrar elementos
+                client.println("body {");
+                client.println("display: flex;");
+                client.println("flex-direction: column;");
+                client.println("align-items: center;");
+                client.println("justify-content: center;");
+                client.println("min-height: 100vh;");
+                client.println("margin: 0;");
+                client.println("padding: 20px;");
+                client.println("box-sizing: border-box;");
+                client.println("}");
+                
+                client.println(".page-container {");
+                client.println("display: flex;");
+                client.println("flex-direction: column;");
+                client.println("align-items: center;");
+                client.println("justify-content: center;");
+                client.println("max-width: 800px;");
+                client.println("width: 100%;");
+                client.println("margin: 0 auto;");
+                client.println("}");
+                
+                client.println(".header-section {");
+                client.println("text-align: center;");
+                client.println("margin-bottom: 30px;");
+                client.println("}");
+                
+                client.println(".control-section {");
+                client.println("display: flex;");
+                client.println("flex-direction: column;");
+                client.println("align-items: center;");
+                client.println("gap: 30px;");
+                client.println("}");
+
+                // ✅ CSS para el botón "..." y el listbox
+                client.println(".textbox-container {");
+                client.println("display: flex;");
+                client.println("align-items: center;");
+                client.println("gap: 10px;");
+                client.println("width: 100%;");
+                client.println("max-width: 400px;");
+                client.println("}");
+                
+                client.println(".browse-button {");
+                client.println("background-color: #555;");
+                client.println("color: #fff;");
+                client.println("border: 1px solid #777;");
+                client.println("border-radius: 4px;");
+                client.println("padding: 12px 16px;");
+                client.println("cursor: pointer;");
+                client.println("font-size: 16px;");
+                client.println("min-width: 50px;");
+                client.println("text-align: center;");
+                client.println("}");
+                
+                client.println(".browse-button:hover {");
+                client.println("background-color: #666;");
+                client.println("border-color: #ffbf00;");
+                client.println("}");
+                
+                client.println(".file-list {");
+                client.println("display: none;");
+                client.println("position: absolute;");
+                client.println("top: 100%;");
+                client.println("left: 0;");
+                client.println("width: 100%;");
+                client.println("max-height: 300px;");
+                client.println("overflow-y: auto;");
+                client.println("background-color: #333;");
+                client.println("border: 1px solid #555;");
+                client.println("border-radius: 4px;");
+                client.println("z-index: 1000;");
+                client.println("margin-top: 5px;");
+                client.println("}");
+                
+                client.println(".file-list.show {");
+                client.println("display: block;");
+                client.println("}");
+                
+                client.println(".file-item {");
+                client.println("padding: 10px 15px;");
+                client.println("cursor: pointer;");
+                client.println("border-bottom: 1px solid #555;");
+                client.println("color: #fff;");
+                client.println("font-size: 14px;");
+                client.println("text-align: left;"); // ✅ SOLO ALINEACIÓN A LA IZQUIERDA                
+                client.println("}");
+                
+                client.println(".file-item:hover {");
+                client.println("background-color: #444;");
+                client.println("color: #ffbf00;");
+                client.println("}");
+                
+                client.println(".file-item:last-child {");
+                client.println("border-bottom: none;");
+                client.println("}");
+
+                // ✅ CSS adicional para directorios
+                client.println(".file-item.directory {");
+                client.println("background-color: #2a2a2a;");
+                client.println("border-left: 3px solid #ffbf00;");
+                client.println("text-align: left;"); // ✅ ALINEACIÓN A LA IZQUIERDA PARA DIRECTORIOS                
+                client.println("}");
+
+                client.println(".file-item.file {");
+                client.println("border-left: 3px solid #555;");
+                client.println("text-align: left;"); // ✅ ALINEACIÓN A LA IZQUIERDA PARA ARCHIVOS                
+                client.println("}");
+
+                client.println(".file-item.directory:hover {");
+                client.println("background-color: #3a3a3a;");
+                client.println("border-left-color: #fff;");
+                client.println("}");
+
+                // CSS para el footer
+                client.println(".footer {");
+                client.println("position: fixed;");
+                client.println("bottom: 10px;");
+                client.println("left: 50%;");
+                client.println("transform: translateX(-50%);");
+                client.println("text-align: center;");
+                client.println("font-size: 12px;");
+                client.println("color: #666;");
+                client.println("font-family: Arial, sans-serif;");
+                client.println("}");
+                
+                client.println(".footer a {");
+                client.println("color: #fff;");
+                client.println("text-decoration: none;");
+                client.println("transition: color 0.3s ease;");
+                client.println("}");
+                
+                client.println(".footer a:hover {");
+                client.println("color: #ffbf00;");
+                client.println("text-decoration: underline;");
+                client.println("}");
+
+                // CSS del control circular y textbox
+                remoteControlStyle(client);
+                textBoxcss(client);
+
+                client.println("</style></head>");
+                
+                // Estructura HTML
+                client.println("<body>");
+                client.println("<div class=\"page-container\">");
+                
+                // Sección de encabezado
+                client.println("<div class=\"header-section\">");
+                client.println("<h1>PowaDCR "  + String(VERSION) + "</h1>");
+                client.println("<h2>Remote control</h2>");
+                client.println("</div>");
+                
+                // Sección de controles
+                client.println("<div class=\"control-section\">");
+                
+                // ✅ TEXTBOX CON BOTÓN BROWSE
+                client.println("<div class=\"circular-control-container\">");
+                client.println("<div class=\"Wrapper\">");               
+                client.println("<div class=\"Input\" style=\"position: relative;\">");
+                
+                client.println("<div class=\"textbox-container\">");
+                
+                String currentTrack = "";
+                if (FILE_LOAD.length() > 0) {
+                    currentTrack = FILE_LOAD;  
+                } else if (PROGRAM_NAME.length() > 0) {
+                    currentTrack = PROGRAM_NAME;
+                } else {
+                    currentTrack = "No track loaded";
+                }
+                
+                client.println("<input class=\"Input-text\" type=\"text\" value=\"" + currentTrack + "\" readonly style=\"flex: 1;\">");
+                client.println("<button class=\"browse-button\" id=\"browseBtn\">...</button>");
+                client.println("</div>");
+                
+                // Lista de archivos (inicialmente oculta)
+                client.println("<div class=\"file-list\" id=\"fileList\">");
+                client.println("<div class=\"file-item\">Loading files...</div>");
+                client.println("</div>");
+                
+                client.println("</div>");
+                client.println("</div>");
+                client.println("</div>");
+
+                // Control circular
+                client.println("<div class=\"circular-control-container\">");
+                client.println("<nav>");
+                client.println("<a class=\"button top\" href=\"/VOLUP\">");
+                client.println("<span class=\"symbol volume\">VOL+</span>");
+                client.println("</a>");
+                client.println("<a class=\"button right\" href=\"/NEXT\">");
+                client.println("<span class=\"symbol track\">NEXT</span>");
+                client.println("</a>");
+                client.println("<a class=\"button left\" href=\"/PREV\">");
+                client.println("<span class=\"symbol track\">PREV</span>");
+                client.println("</a>");
+                client.println("<a class=\"button bottom\" href=\"/VOLDOWN\">");
+                client.println("<span class=\"symbol volume\">VOL-</span>");
+                client.println("</a>");
+                client.println("<a class=\"center-button\" href=\"/PLAY\">");
+
+                if (PLAY) {
+                    client.println("<span class=\"symbol play-stop\">STOP</span>");
+                } else {
+                    client.println("<span class=\"symbol play-stop\">PLAY</span>");
+                }
+                client.println("</a>");
+                client.println("</nav>");
+                client.println("</div>");
+                
+                client.println("</div>"); // Fin control-section
+                client.println("</div>"); // Fin page-container
+
+                // Footer
+                client.println("<div class=\"footer\">");
+                client.println("<a href=\"https://github.com/hash6iron/powadcr\" target=\"_blank\">Design by Hash6iron</a>");
+                client.println("</div>");
+
+                client.println("</body></html>");
+                
+                client.println();                
+                break;
+
+              } else { 
+                currentLine = "";
+              }
+            } else if (c != '\r') {  
+              currentLine += c;      
+            }
+          }
+        }
+        header = "";
+        client.stop();
+      }
+}
+
+
+
+
 // ******************************************************************
 //
 //            Gestión de nucleos del procesador
@@ -5824,21 +7789,28 @@ void Task0code(void *pvParameters)
         ftpSrv.handleFTP();
       }
     #endif    
+
+    #ifdef WEB_SERVER_ENABLE
+      WiFiClient client = server.available();
+      if (client)
+      {
+        handleWebClient(client);
+      }
+    #endif
     
-    // ✅ AÑADE ESTE BLOQUE DE CÓDIGO DENTRO DEL BUCLE for(;;)
-    if (millis() - stackCheckTime > 5000) 
-    { // Cada 5 segundos
-        UBaseType_t hwm_core0 = uxTaskGetStackHighWaterMark(Task0);
-        UBaseType_t hwm_core1 = uxTaskGetStackHighWaterMark(Task1);
-        
-        logln("Stack HWM Core 0 (HMI): " + String(hwm_core0 * 4 / 1024) + " KB free");
-        logln("Stack HWM Core 1 (Tape): " + String(hwm_core1 * 4 / 1024) + " KB free");
-        
-        stackCheckTime = millis();
-    }
-
-
-
+    #ifdef DEBUGMODE
+      // Comprobamos la pila cada 10 segundos 
+      if (millis() - stackCheckTime > 5000) 
+      { // Cada 5 segundos
+          UBaseType_t hwm_core0 = uxTaskGetStackHighWaterMark(Task0);
+          UBaseType_t hwm_core1 = uxTaskGetStackHighWaterMark(Task1);
+          
+          logln("Stack HWM Core 0 (HMI): " + String(hwm_core0 * 4 / 1024) + " KB free");
+          logln("Stack HWM Core 1 (Tape): " + String(hwm_core1 * 4 / 1024) + " KB free");
+          
+          stackCheckTime = millis();
+      }    
+    #endif
 
     // Control por botones
     //buttonsControl();
@@ -6231,15 +8203,13 @@ void setupWifi()
       hmi.writeString("menu.wifiEn.val=1");
       delay(125);
 
-      // Webserver
-      // ---------------------------------------------------
-      // configureWebServer();
-      // server.begin();
-      // logln("Webserver configured");
-
       // FTP Server
       #ifdef FTP_SERVER_ENABLE
         ftpSrv.begin(&SD_MMC,"powa","powa");
+      #endif
+
+      #ifdef WEB_SERVER_ENABLE
+        server.begin();
       #endif
 
     }
