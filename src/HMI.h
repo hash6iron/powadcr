@@ -2854,14 +2854,16 @@ class HMI
                 MAIN_VOL = MAX_VOL_FOR_HEADPHONE_LIMIT;
               }                 
           }
-
+          MASTER_VOL = valVol;
           // Ajustamos el volumen
           //logln("Main volume value=" + String(MAIN_VOL));
 
           // Control del Master volume
           // MAIN_VOL_L = MAIN_VOL;
           // MAIN_VOL_R = MAIN_VOL;
-          saveVolSliders();
+          saveHMIcfg("VOLMopt");
+
+          //saveVolSliders();
 
           kitStream.setVolume(MAIN_VOL / 100);
           
@@ -3733,21 +3735,38 @@ class HMI
         {
           MAIN_VOL += 1;
           
-          if (MAIN_VOL >100)
+          if (VOL_LIMIT_HEADPHONE)
           {
-            MAIN_VOL = 100;
+            if (MAIN_VOL > MAX_VOL_FOR_HEADPHONE_LIMIT)
+            {
+              MAIN_VOL = MAX_VOL_FOR_HEADPHONE_LIMIT;
+            }
+          }
+          else
+          {
+            if (MAIN_VOL > 100)
+            {
+              MAIN_VOL = 100;
+            }
           }
 
+          myNex.writeNum("menuAudio.volM.val", int(MAIN_VOL));
+          myNex.writeNum("menuAudio.volLevelM.val", int(MAIN_VOL));
+
           kitStream.setVolume(MAIN_VOL / 100);
+
         }        
         else if (strCmd.indexOf("VOLDW") != -1) 
         {
           MAIN_VOL -= 1;
           
-          if (MAIN_VOL < 30)
+          if (MAIN_VOL < 0)
           {
-            MAIN_VOL = 30;
+            MAIN_VOL = 0;
           }
+
+          myNex.writeNum("menuAudio.volM.val", int(MAIN_VOL));
+          myNex.writeNum("menuAudio.volLevelM.val", int(MAIN_VOL));
 
           kitStream.setVolume(MAIN_VOL / 100);
           // logln("");
@@ -4533,8 +4552,7 @@ class HMI
           if (IRADIO_EN) 
           {
             // Esto lo hacemos para la visualizacion
-            totalblocks = TOTAL_BLOCKS;
-            totalblocks = totalblocks + 1; 
+            totalblocks = TOTAL_BLOCKS + 1; 
           }
           else
           {
@@ -4558,9 +4576,9 @@ class HMI
               writeString("mp3browser.bbpag.txt=\"" + String(BB_PAGE_SELECTED) + "\"");
               writeString("mp3browser.size0.txt=\"SIZE[MB]\"");
 
-              double ctpage = (double)TOTAL_BLOCKS / (double)MAX_BLOCKS_IN_BROWSER;
+              double ctpage = (double)totalblocks / (double)MAX_BLOCKS_IN_BROWSER;
               int totalPages = trunc(ctpage);
-              if ((TOTAL_BLOCKS % MAX_BLOCKS_IN_BROWSER != 0) && ctpage > 1) {
+              if ((totalblocks % MAX_BLOCKS_IN_BROWSER != 0) && ctpage > 1) {
                   totalPages += 1;
               }
               writeString("mp3browser.totalPag.txt=\"" + String(totalPages) + "\"");
@@ -4573,7 +4591,7 @@ class HMI
           int i = BB_BROWSER_STEP;
           if (i <= BB_BROWSER_MAX) 
           {
-              if (i + BB_PTR_ITEM > TOTAL_BLOCKS - 1) 
+              if (i + BB_PTR_ITEM > totalblocks - 1) 
               {
                   writeString("mp3browser.id" + String(i) + ".txt=\"\"");
                   writeString("mp3browser.name" + String(i) + ".txt=\"\"");
