@@ -53,8 +53,8 @@ public:
         highWaterMark = (bufferSize * bufferSizeMultipler) / highWaterThreshold; // 75%
         
         if (buffer) {
-            logln("SmartRadioBuffer created: " + String(bufferSize) + " bytes");
-            logln("Water marks - Low: " + String(lowWaterMark) + ", Med: " + String(mediumWaterMark) + ", High: " + String(highWaterMark));
+            //logln("SmartRadioBuffer created: " + String(bufferSize) + " bytes");
+            //logln("Water marks - Low: " + String(lowWaterMark) + ", Med: " + String(mediumWaterMark) + ", High: " + String(highWaterMark));
         }
     }
     
@@ -156,7 +156,7 @@ private:
     // ✅ GESTIÓN INTELIGENTE DE OVERFLOW
     void handleBufferOverflow() {
         if (currentState != OVERFLOW) {
-            logln("Buffer overflow detected - entering overflow mode");
+            //logln("Buffer overflow detected - entering overflow mode");
             currentState = OVERFLOW;
         }
         
@@ -166,7 +166,7 @@ private:
         readPos = (readPos + bytesToDiscard) % bufferSize;
         available -= bytesToDiscard;
         
-        logln("Discarded " + String(bytesToDiscard) + " bytes to prevent overflow");
+        //logln("Discarded " + String(bytesToDiscard) + " bytes to prevent overflow");
     }
     
     // ✅ DECIDIR SI DEBEMOS LEER SEGÚN EL ESTADO
@@ -243,7 +243,7 @@ private:
         }
         
         if (newState != currentState) {
-            logln("Buffer state change: " + getStateString(currentState) + " -> " + getStateString(newState) + " (available: " + String(available) + ")");
+            ////logln("Buffer state change: " + getStateString(currentState) + " -> " + getStateString(newState) + " (available: " + String(available) + ")");
             currentState = newState;
         }
     }
@@ -285,13 +285,13 @@ public:
         unsigned long currentTime = millis();
         float avgWriteSpeed = (totalBytesWritten * 1000.0) / max(1UL, currentTime - 1000); // Aproximado
         
-        logln("=== SMART BUFFER STATS ===");
-        logln("State: " + getStatusString());
-        logln("Usage: " + String(available) + "/" + String(bufferSize) + " bytes");
-        logln("Total written: " + String(totalBytesWritten / 1024) + " KB");
-        logln("Total read: " + String(totalBytesRead / 1024) + " KB");
-        logln("Consecutive failures: " + String(consecutiveFailures));
-        logln("Connection stable: " + String(connectionStable));
-        logln("==========================");
+        //logln("=== SMART BUFFER STATS ===");
+        //logln("State: " + getStatusString());
+        //logln("Usage: " + String(available) + "/" + String(bufferSize) + " bytes");
+        //logln("Total written: " + String(totalBytesWritten / 1024) + " KB");
+        //logln("Total read: " + String(totalBytesRead / 1024) + " KB");
+        //logln("Consecutive failures: " + String(consecutiveFailures));
+        //logln("Connection stable: " + String(connectionStable));
+        //logln("==========================");
     }
 };

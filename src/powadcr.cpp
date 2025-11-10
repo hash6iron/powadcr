@@ -1675,7 +1675,7 @@ String getFileNameFromPath(const String &filePath) {
   return filePath; // Si no hay separador, devuelve la cadena completa
 }
 
-// ✅ NUEVA FUNCIÓN
+// ✅ NUEVA FUNCIÓN - CORREGIDA
 int generateRadioList(tAudioList* &radioList) {
     // Asignamos memoria para la lista de radios
     radioList = (tAudioList*)ps_calloc(MAX_RADIO_STATIONS, sizeof(tAudioList));
@@ -1690,7 +1690,7 @@ int generateRadioList(tAudioList* &radioList) {
     // 1. Verificar que el archivo de radios existe
     if (!SD_MMC.exists(filepath)) {
         logln("Error: Radio list file not found: " + String(filepath));
-        free(radioList); // Liberar memoria si el archivo no existe
+        free(radioList);
         radioList = nullptr;
         return 0;
     }
@@ -1699,31 +1699,43 @@ int generateRadioList(tAudioList* &radioList) {
     File radioFile = SD_MMC.open(filepath, FILE_READ);
     if (!radioFile) {
         logln("Error: Could not open radio list file: " + String(filepath));
-        free(radioList); // Liberar memoria si no se puede abrir
+        free(radioList);
         radioList = nullptr;
         return 0;
     }
 
     logln("Generating radio list from: " + String(filepath));
 
-    // 3. Leer el archivo línea por línea
-    while (radioFile.available() && radioCount < MAX_RADIO_STATIONS) {
+    // 3. Leer el archivo línea por línea - ✅ INCLUIR LA ÚLTIMA LÍNEA
+    while (radioCount < MAX_RADIO_STATIONS) {
         String line = radioFile.readStringUntil('\n');
         line.trim();
 
-        // Ignorar líneas vacías o sin el separador ','
+        // ✅ COMPROBAR EOF - si está vacío y estamos al final, salir
+        if (line.length() == 0) {
+            if (radioFile.position() >= radioFile.size()) {
+                break; // Fin del archivo
+            }
+            continue; // Línea vacía en medio del archivo
+        }
+
+        // Ignorar líneas sin el separador ','
         int commaIndex = line.indexOf(',');
-        if (line.length() == 0 || commaIndex == -1) {
+        if (commaIndex == -1) {
             continue;
         }
 
         // 4. Extraer nombre y URL
+        //logln("Radio read: " + line);
+
         String stationName = line.substring(0, commaIndex);
         String stationUrl = line.substring(commaIndex + 1);
 
-        // Limpiar espacios en blanco al principio y al final
+        // Limpiar espacios en blanco
         stationName.trim();
         stationUrl.trim();
+
+        //logln(" > Station Name: " + stationName + " | Station URL: " + stationUrl);
 
         // 5. Eliminar comillas del nombre de la emisora
         if (stationName.length() >= 2) {
@@ -1748,6 +1760,80 @@ int generateRadioList(tAudioList* &radioList) {
     logln("Radio list generated with " + String(radioCount) + " stations.");
     return radioCount;
 }
+
+// // ✅ NUEVA FUNCIÓN
+// int generateRadioList(tAudioList* &radioList) {
+//     // Asignamos memoria para la lista de radios
+//     radioList = (tAudioList*)ps_calloc(MAX_RADIO_STATIONS, sizeof(tAudioList));
+//     if (radioList == nullptr) {
+//         logln("Error: Failed to allocate memory for radio list.");
+//         return 0;
+//     }
+
+//     int radioCount = 0;
+//     const char* filepath = PATH_FILE_TO_LOAD.c_str();
+
+//     // 1. Verificar que el archivo de radios existe
+//     if (!SD_MMC.exists(filepath)) {
+//         logln("Error: Radio list file not found: " + String(filepath));
+//         free(radioList); // Liberar memoria si el archivo no existe
+//         radioList = nullptr;
+//         return 0;
+//     }
+
+//     // 2. Abrir el archivo para lectura
+//     File radioFile = SD_MMC.open(filepath, FILE_READ);
+//     if (!radioFile) {
+//         logln("Error: Could not open radio list file: " + String(filepath));
+//         free(radioList); // Liberar memoria si no se puede abrir
+//         radioList = nullptr;
+//         return 0;
+//     }
+
+//     logln("Generating radio list from: " + String(filepath));
+
+//     // 3. Leer el archivo línea por línea
+//     while (radioFile.available() && radioCount < MAX_RADIO_STATIONS) {
+//         String line = radioFile.readStringUntil('\n');
+//         line.trim();
+
+//         // Ignorar líneas vacías o sin el separador ','
+//         int commaIndex = line.indexOf(',');
+//         if (line.length() == 0 || commaIndex == -1) {
+//             continue;
+//         }
+
+//         // 4. Extraer nombre y URL
+//         String stationName = line.substring(0, commaIndex);
+//         String stationUrl = line.substring(commaIndex + 1);
+
+//         // Limpiar espacios en blanco al principio y al final
+//         stationName.trim();
+//         stationUrl.trim();
+
+//         // 5. Eliminar comillas del nombre de la emisora
+//         if (stationName.length() >= 2) {
+//             if (stationName.startsWith("\"") && stationName.endsWith("\"")) {
+//                 stationName = stationName.substring(1, stationName.length() - 1);
+//             } else if (stationName.startsWith("'") && stationName.endsWith("'")) {
+//                 stationName = stationName.substring(1, stationName.length() - 1);
+//             }
+//         }
+
+//         // 6. Almacenar en la estructura si los datos son válidos
+//         if (stationName.length() > 0 && stationUrl.length() > 0) {
+//             radioList[radioCount].filename = stationName;
+//             radioList[radioCount].path = stationUrl;
+//             radioCount++;
+//         }
+//     }
+
+//     // 7. Cerrar el archivo y devolver el total
+//     radioFile.close();
+
+//     logln("Radio list generated with " + String(radioCount) + " stations.");
+//     return radioCount;
+// }
 
 int generateAudioList(tAudioList* &audioList, String extension = ".mp3") {
     audioList = (tAudioList*)ps_calloc(MAX_FILES_AUDIO_LIST, sizeof(tAudioList));
@@ -3930,7 +4016,7 @@ bool setAudioInfoSafe(audio_tools::AudioInfo newInfo, const String& context = ""
 void playingFile()
 {
   rotate_enable = true;
-  kitStream.setVolume(MAX_MAIN_VOL);
+  kitStream.setVolume(MAIN_VOL/100.0);
   kitStream.setPAPower(ACTIVE_AMP && EN_SPEAKER);
 
   auto new_sr = kitStream.defaultConfig();
@@ -7982,10 +8068,9 @@ void Task0code(void *pvParameters)
 
 void showOption(String id, String value)
 {
-  //
-  hmi.writeString(id + "=" + value);
+  myNex.writeNum(id, value.toInt());
   delay(10);
-  hmi.writeString(id + "=" + value);
+  myNex.writeNum(id, value.toInt());
   delay(10);
 }
 
@@ -8350,7 +8435,7 @@ void loadHMICfgfromNVS()
     logln("EN_STERO = " + String(EN_STEREO));
     logln("MUTE AMP = " + String(!ACTIVE_AMP));
     logln("VOL_LIMIT_HEADPHONE = " + String(VOL_LIMIT_HEADPHONE));
-    logln("MAIN_VOL" + String(MAIN_VOL));
+    logln("MAIN_VOL" + String(MASTER_VOL));
     logln("MAIN_VOL_L" + String(MAIN_VOL_L));
     logln("MAIN_VOL_R" + String(MAIN_VOL_R));
     //
@@ -8380,25 +8465,33 @@ void loadHMICfgfromNVS()
 
     // VOL_LIMIT
     showOption("menuAudio.volLimit.val",String(VOL_LIMIT_HEADPHONE));
+
+    MAIN_VOL = float(MASTER_VOL);
+
+    if (MAIN_VOL > MAX_VOL_FOR_HEADPHONE_LIMIT && VOL_LIMIT_HEADPHONE)
+    {
+      MAIN_VOL = MAX_VOL_FOR_HEADPHONE_LIMIT;
+    }
+
     // Volumen sliders
-    showOption("menuAudio.volM.val",String(MAIN_VOL));
-    showOption("menuAudio.volLevelM.val",String(MAIN_VOL));
+    showOption("menuAudio.volM.val",String(int(MAIN_VOL)));
+    showOption("menuAudio.volLevelM.val",String(int(MAIN_VOL)));
     //
-    showOption("menuAudio.volR.val",String(MAIN_VOL_R));
-    showOption("menuAudio.volLevel.val",String(MAIN_VOL_R));
+    showOption("menuAudio.volR.val",String(int(MAIN_VOL_R)));
+    showOption("menuAudio.volLevel.val",String(int(MAIN_VOL_R)));
     //
-    showOption("menuAudio.volL.val",String(MAIN_VOL_L));
-    showOption("menuAudio.volLevelL.val",String(MAIN_VOL_L));
+    showOption("menuAudio.volL.val",String(int(MAIN_VOL_L)));
+    showOption("menuAudio.volLevelL.val",String(int(MAIN_VOL_L)));
 
     // Equalizer
-    showOption("menuEq.eqHigh.val",String(EQ_HIGH));
-    showOption("menuEq.eqHighL.val",String(EQ_HIGH));
+    showOption("menuEq.eqHigh.val",String(int(EQ_HIGH)));
+    showOption("menuEq.eqHighL.val",String(int(EQ_HIGH)));
     //
-    showOption("menuEq.eqMid.val",String(EQ_MID));
-    showOption("menuEq.eqMidL.val",String(EQ_MID));
+    showOption("menuEq.eqMid.val",String(int(EQ_MID)));
+    showOption("menuEq.eqMidL.val",String(int(EQ_MID)));
     //
-    showOption("menuEq.eqLow.val",String(EQ_LOW));
-    showOption("menuEq.eqLowL.val",String(EQ_LOW));
+    showOption("menuEq.eqLow.val",String(int(EQ_LOW)));
+    showOption("menuEq.eqLowL.val",String(int(EQ_LOW)));
     EQ_CHANGE = true;
     
     // Esto lo hacemos porque depende de la configuración cargada.
