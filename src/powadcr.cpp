@@ -158,6 +158,7 @@ uint16_t USER_CONFIG_ARDUINO_LOOP_STACK_SIZE = 16384;
 // SmartRadioBuffer
 // -----------------------------------------------------------------------
 #include "SmartRadioBuffer.h"
+//#include "PredictiveRadioBuffer.h"
 
 // OTA SD Update
 // -----------------------------------------------------------------------
@@ -496,6 +497,8 @@ bool loadWifiCfgFile()
 #endif
 
         fWifi.close();
+
+        cfgloaded = false;
       }
     }
   }
@@ -2279,6 +2282,8 @@ void updateDialIndicator(int pos)
     if (TOTAL_BLOCKS <= 0 || BB_OPEN) return;
 
     showRadioDial();
+    // No quitar esta pausa porque es necesaria para que de tiempo a acabar el proceso de pintado del dial
+    // si no, se dispara el dibujado de la linea antes y queda tapado por la imagen.
     delay(125);
     hmi.writeString("fill " + String(xini + (width/TOTAL_BLOCKS) * pos) + ",152,5,40," + String(DIAL_COLOR));
     hmi.writeString("fill " + String(xini + (width/TOTAL_BLOCKS) * pos) + ",152,5,40," + String(DIAL_COLOR));
@@ -2311,6 +2316,7 @@ void RadioPlayer()
       // ✅ CREAR BUFFER CIRCULAR SIMPLE (usando la configuración de config.h)
       //SimpleCircularBuffer radioBuffer(RADIO_BUFFER_SIZE);
       SmartRadioBuffer radioBuffer(RADIO_BUFFER_SIZE);
+      //PredictiveRadioBuffer radioBuffer(RADIO_BUFFER_SIZE);
 
       logln("Radio buffer size: " + String(RADIO_BUFFER_SIZE) + " bytes");
       
@@ -2586,12 +2592,6 @@ void RadioPlayer()
         // ✅ CONTROL DE CAMBIO DE ESTACIÓN (igual que antes)
         if (FFWIND) {
             
-            // if (CMD_FROM_REMOTE_CONTROL)
-            // {
-            //   CMD_FROM_REMOTE_CONTROL = false;
-            //   delay(250);
-            // }
-
             dialIndicator(false);
             #ifdef USE_CIRCULAR_BUFFER_FOR_RADIO
               radioBuffer.clear();
@@ -2612,12 +2612,6 @@ void RadioPlayer()
         } 
         else if (RWIND) 
         {
-            // if (CMD_FROM_REMOTE_CONTROL)
-            // {
-            //   CMD_FROM_REMOTE_CONTROL = false;
-            //   delay(250);
-            // }
-
             dialIndicator(false);
             #ifdef USE_CIRCULAR_BUFFER_FOR_RADIO
               radioBuffer.clear();
@@ -2654,20 +2648,16 @@ void RadioPlayer()
             UPDATE_HMI = false;
             UPDATE = false;
 
-            int waitfor = 0;
-            while (!TAPE_PAGE_SHOWN && !BB_OPEN) {
-                waitfor++;
-                delay(50);
-                if (waitfor > 10) break;
-            }
-
-            if (!BB_OPEN && TAPE_PAGE_SHOWN && !BLOCK_BROWSER_OPEN) {
-                updateDialIndicator(currentRadioStation);
-            }
+            //int waitfor = 0;
+            // while (!TAPE_PAGE_SHOWN && !BB_OPEN) {
+            //     waitfor++;
+            //     delay(50);
+            //     if (waitfor > 10) break;
+            // }
         }
 
-        // ✅ ACTUALIZACIÓN DE INFORMACIÓN (menos frecuente)
-        if ((millis() - trefresh > 3000)) { // Cada 3 segundos en lugar de 2
+        // ✅ ACTUALIZACIÓN DE INFORMACIÓN
+        if ((millis() - trefresh > 2000)) { // Cada 2 segundos
             updateIndicators(TOTAL_BLOCKS, currentRadioStation, bufferw, decoder.audioInfoEx().bitrate, radioName);
             hmi.writeString("name.txt=\"" + radioName + "\"");
 
@@ -2686,6 +2676,7 @@ void RadioPlayer()
         }
 
         if (TAPE_PAGE_SHOWN && !BB_OPEN && !BLOCK_BROWSER_OPEN) {
+            //delay(250);
             updateDialIndicator(currentRadioStation);
             TAPE_PAGE_SHOWN = false;
         }
@@ -4149,8 +4140,15 @@ void playingFile()
   {
     logln("Type file load: " + TYPE_FILE_LOAD);
     // Reproducimos el FLAC file
-    RadioPlayer();
-    logln("Finish RADIO playing.");
+    if (WIFI_CONNECTED)
+    {
+      RadioPlayer();
+      logln("Finish RADIO playing.");
+    }
+    else
+    {
+      LAST_MESSAGE = "WIFI not connected.";
+    }
   }  
   else
   {
@@ -7870,7 +7868,7 @@ void Task0code(void *pvParameters)
 
     // Control del FTP
     #ifdef FTP_SERVER_ENABLE
-      if (!IRADIO_EN && WIFI_ENABLE)
+      if (!IRADIO_EN && WIFI_ENABLE && WIFI_CONNECTED)
       {
         ftpSrv.handleFTP();
       }
@@ -8077,19 +8075,44 @@ void showOption(String id, String value)
 bool createSpecialDirectory(String fDir)
 {
   //Esto lo hacemos para ver si el directorio existe
+
+  // Existe el directorio?
   if (!SD_MMC.open(fDir))
   {
-    if (!SD_MMC.mkdir(fDir))
+    // En ese caso. Saco la pantalla de pregunta.
+    hmi.writeString("page create");
+    
+    int res = -1; // Valor inicial alto
+
+    // Mientras no haya respuesta continuo ahí
+    // el -1 se va a recibir como 77777 por eso res > 1
+    while(res!=0 && res!=1)
     {
-        #ifdef DEBUGMODE
-          logln("");
-          log("Error! Directory exists or wasn't created");
-        #endif
-        return false;
+      hmi.writeString("create.statusLCD.txt=\"Create " + fDir + "?\"");
+      res = myNex.readNumber("create.res.val");
+      logln("Response for create dir " + fDir + ": " + String(res));
+      delay(500);
     }
-    else
+
+    // delay(5000);
+    delay(500);
+
+    hmi.writeString("page screen"); // Vuelvo a la pantalla principal
+        
+    if (res==1)
     {
-      return true;
+        if (!SD_MMC.mkdir(fDir))
+        {
+            #ifdef DEBUGMODE
+              logln("");
+              log("Error! Directory exists or wasn't created");
+            #endif
+            return false;
+        }
+        else
+        {
+          return true;
+        }      
     }
   }
   else
@@ -8100,6 +8123,8 @@ bool createSpecialDirectory(String fDir)
     #endif
     return false;
   }  
+
+  return false;
 }
 
 void updateHMIfirmware()
@@ -8270,12 +8295,13 @@ void setupAudioKit()
 void setupWifi()
 {
   logln("Wifi setting - loading");
-
   if (loadWifiCfgFile())
   {
     //Si la conexión es correcta se actualiza el estado del HMI
     if (wifiSetup())
     {
+      
+      WIFI_CONNECTED = true;
       logln("Wifi OK");
 
       // Enviamos información al menu
@@ -8289,7 +8315,7 @@ void setupWifi()
       delay(125);
 
       // FTP Server
-      #ifdef FTP_SERVER_ENABLE
+      #ifdef FTP_SERVER_ENABLE      
         ftpSrv.begin(&SD_MMC,"powa","powa");
       #endif
 
@@ -8298,6 +8324,13 @@ void setupWifi()
       #endif
 
     }
+    else
+    {
+      WIFI_CONNECTED = false;
+      logln("Wifi FAILED");
+      hmi.writeString("menu.wifiEn.val=0");
+      delay(125);
+    }
   }
 
   delay(750);  
@@ -8305,7 +8338,7 @@ void setupWifi()
 
 void prepareCardStructure()
 {
-    
+        
     // Creamos el directorio /fav
     String fDir = "/FAV";
 
@@ -8316,6 +8349,17 @@ void prepareCardStructure()
       hmi.reloadCustomDir("/");
       delay(750);    
     }
+
+    // Creamos el directorio /rec
+    fDir = "/DATA";
+
+    //Esto lo hacemos para ver si el directorio existe
+    if(createSpecialDirectory(fDir))
+    {
+      hmi.writeString("statusLCD.txt=\"Creating DATA directory\"");
+      hmi.reloadCustomDir("/");
+      delay(750);    
+    }    
 
 
     // Creamos el directorio /rec
@@ -8627,10 +8671,18 @@ void setup()
   //
   // -------------------------------------------------------------------------
   // Inicializa volumen en HMI
-  hmi.writeString("menuAudio.volL.val=" + String(MAIN_VOL_L));
-  hmi.writeString("menuAudio.volR.val=" + String(MAIN_VOL_R));
-  hmi.writeString("menuAudio.volLevelL.val=" + String(MAIN_VOL_L));
-  hmi.writeString("menuAudio.volLevel.val=" + String(MAIN_VOL_R));
+  // hmi.writeString("menuAudio.volL.val=" + String(MAIN_VOL_L));
+  // hmi.writeString("menuAudio.volR.val=" + String(MAIN_VOL_R));
+  // hmi.writeString("menuAudio.volLevelL.val=" + String(MAIN_VOL_L));
+  // hmi.writeString("menuAudio.volLevel.val=" + String(MAIN_VOL_R));
+
+  myNex.writeNum("menuAudio.volM.val",int(MAIN_VOL));
+  myNex.writeNum("menuAudio.volLevelM.val",int(MAIN_VOL));
+  myNex.writeNum("menuAudio.volL.val",int(MAIN_VOL_L));
+  myNex.writeNum("menuAudio.volLevelL.val",int(MAIN_VOL_L));
+  myNex.writeNum("menuAudio.volR.val",int(MAIN_VOL_R));
+  myNex.writeNum("menuAudio.volLevel.val",int(MAIN_VOL_R));
+
 
   // -------------------------------------------------------------------------
   //

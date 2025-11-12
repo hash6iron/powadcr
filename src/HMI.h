@@ -1703,6 +1703,16 @@ class HMI
           delay(1000);
           ESP.restart();
         }
+        else if (strCmd.indexOf("YES") != -1)
+        {
+            YES = true;
+            NO = false;
+        }
+        else if (strCmd.indexOf("NO") != -1)
+        {
+            YES = false;
+            NO = true;
+        }
         else if (strCmd.indexOf("DSD") != -1)
         {
             DISABLE_SD = true;
@@ -2830,6 +2840,10 @@ class HMI
               MAIN_VOL_R = myNex.readNumber("menuAudio.volR.val");
               MAIN_VOL_L = myNex.readNumber("menuAudio.volL.val");
           }
+          
+          // Actualizamos el master slide
+          myNex.writeNum("menuAudio.volM.val", int(MAIN_VOL));
+          myNex.writeNum("menuAudio.volLevelM.val", int(MAIN_VOL));
           
           // Almacenamos en NVS
           saveHMIcfg("VLIopt");

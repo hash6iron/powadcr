@@ -395,9 +395,12 @@ int RECORDING_ERROR = 0;
 //int RECORDING_ERROR = 0;
 bool REC_AUDIO_LOOP = true;
 bool WIFI_ENABLE = true;
+bool WIFI_CONNECTED = false;
 //
 String LAST_COMMAND = "";
 //bool TIMMING_STABLISHED = false;
+bool YES = false;
+bool NO = false;
 
 // Variables para intercambio de información con el HMI
 // DEBUG
