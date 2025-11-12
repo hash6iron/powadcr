@@ -260,10 +260,10 @@ private:
             }
         }
         
-        if (newState != currentState) {
-            logln("Buffer state: " + getStateString(currentState) + " -> " + getStateString(newState) + " (" + String(getBufferUsage(), 1) + "%)");
-            currentState = newState;
-        }
+        // if (newState != currentState) {
+        //     logln("Buffer state: " + getStateString(currentState) + " -> " + getStateString(newState) + " (" + String(getBufferUsage(), 1) + "%)");
+        //     currentState = newState;
+        // }
     }
 
     

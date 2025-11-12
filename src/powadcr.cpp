@@ -2665,8 +2665,8 @@ void RadioPlayer()
                 #ifdef USE_CIRCULAR_BUFFER_FOR_RADIO
                     // ✅ MOSTRAR ESTADO DEL BUFFER
                     float bufferUsage = (radioBuffer.getAvailable() * 100.0) / RADIO_BUFFER_SIZE;
-                    PROGRESS_BAR_TOTAL_VALUE = 100 - bufferUsage;
-                    PROGRESS_BAR_BLOCK_VALUE = 100 - bufferUsage;
+                    PROGRESS_BAR_TOTAL_VALUE = bufferUsage;
+                    PROGRESS_BAR_BLOCK_VALUE = bufferUsage;
                     LAST_MESSAGE = "Playing: " + radioName + " (buffered)"; //+ " (buf: " + String(int(bufferUsage)) + "%)";
                 #else
                     LAST_MESSAGE = "Playing: " + radioName + " (direct)";
@@ -6766,7 +6766,7 @@ void remoteControlStyle(WiFiClient client)
     client.println(":root {");
     client.println("--circular-bg-color: #534d44ff;");
     client.println("--circular-shadow-dark: #272727ff;");
-    client.println("--circular-shadow-light: #222222ff;");
+    client.println("--circular-shadow-light: #afafafff;");
     client.println("--circular-shadow-inner: #b68c19ff;");//esta
     client.println("--button-gradient-light: #fff;");
     client.println("--button-gradient-dark: #2e2e2eff;");
