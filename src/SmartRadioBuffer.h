@@ -34,29 +34,28 @@ private:
     bool connectionStable;
     
     // Configuracion
-    const int lowWaterDivisor = 6;    // 5% para estado crítico
-    const int mediumWaterThreshold = 3;  // 90% para estado estable
-    const int highWaterThreshold = 3;    // 75% para estado de overflow
-    const int bufferSizeMultipler = 2;      // Multiplicador de tamaño de buffer respecto al original
+    // const int lowWaterDivisor = 6;    // 5% para estado crítico
+    // const int mediumWaterThreshold = 3;  // 90% para estado estable
+    // const int highWaterThreshold = 3;    // 75% para estado de overflow
+    //const int bufferSizeMultipler = 2;      // Multiplicador de tamaño de buffer respecto al original
 
 public:
-    SmartRadioBuffer(size_t size) : 
-        bufferSize(size), writePos(0), readPos(0), available(0),
-        currentState(FILLING), totalBytesWritten(0), totalBytesRead(0),
-        lastWriteTime(0), lastReadTime(0), consecutiveFailures(0), connectionStable(true) {
-        
-        buffer = (uint8_t*)ps_malloc(bufferSize);
-        
-        // ✅ CONFIGURAR MARCAS DE AGUA DINÁMICAS
-        lowWaterMark = bufferSize / lowWaterDivisor;      // 25%
-        mediumWaterMark = bufferSize / mediumWaterThreshold;   // 50%  
-        highWaterMark = (bufferSize * bufferSizeMultipler) / highWaterThreshold; // 75%
-        
-        if (buffer) {
-            logln("SmartRadioBuffer created: " + String(bufferSize) + " bytes");
-            logln("Water marks - Low: " + String(lowWaterMark) + ", Med: " + String(mediumWaterMark) + ", High: " + String(highWaterMark));
-        }
-    }
+SmartRadioBuffer(size_t size) : 
+    bufferSize(size), writePos(0), readPos(0), available(0),
+    currentState(FILLING), totalBytesWritten(0), totalBytesRead(0),
+    lastWriteTime(0), lastReadTime(0), consecutiveFailures(0), connectionStable(true) 
+{
+    
+    buffer = (uint8_t*)ps_malloc(bufferSize);
+    
+    // ✅ MARCAS DE AGUA CORREGIDAS - MÁS LÓGICAS
+    lowWaterMark = bufferSize / 8;        // 12.5% - crítico
+    mediumWaterMark = bufferSize / 4;     // 25% - empezar estable  
+    highWaterMark = (bufferSize * 3) / 4; // 75% - overflow
+    
+    // logln("SmartRadioBuffer created: " + String(bufferSize) + " bytes");
+    // logln("Water marks - Low: " + String(lowWaterMark) + " (" + String((lowWaterMark*100)/bufferSize) + "%), Med: " + String(mediumWaterMark) + " (" + String((mediumWaterMark*100)/bufferSize) + "%), High: " + String(highWaterMark) + " (" + String((highWaterMark*100)/bufferSize) + "%)");
+}
     
     ~SmartRadioBuffer() {
         if (buffer) {
@@ -156,7 +155,7 @@ private:
     // ✅ GESTIÓN INTELIGENTE DE OVERFLOW
     void handleBufferOverflow() {
         if (currentState != OVERFLOW) {
-            logln("Buffer overflow detected - entering overflow mode");
+            //logln("Buffer overflow detected - entering overflow mode");
             currentState = OVERFLOW;
         }
         
@@ -166,7 +165,7 @@ private:
         readPos = (readPos + bytesToDiscard) % bufferSize;
         available -= bytesToDiscard;
         
-        logln("Discarded " + String(bytesToDiscard) + " bytes to prevent overflow");
+        //logln("Discarded " + String(bytesToDiscard) + " bytes to prevent overflow");
     }
     
     // ✅ DECIDIR SI DEBEMOS LEER SEGÚN EL ESTADO
@@ -192,61 +191,112 @@ private:
                 return available > 0;
         }
     }
-    
-    // ✅ AJUSTAR TAMAÑO DE LECTURA SEGÚN ESTADO
+
+    // ✅ AJUSTAR TAMAÑO DE LECTURA SEGÚN ESTADO - MENOS RESTRICTIVO
     size_t adjustReadSize(size_t requestedSize) {
         switch (currentState) {
             case FILLING:
                 // Durante llenado, leer en chunks pequeños
-                return min(requestedSize, (size_t)256);
+                return min(requestedSize, (size_t)512);  // Aumentado de 256
                 
             case STABLE:
-                // En modo estable, tamaño normal
-                return min(requestedSize, (size_t)768);
+                // ✅ EN MODO ESTABLE, SER MUCHO MENOS RESTRICTIVO
+                return requestedSize;  // Sin restricciones - era 768
                 
             case CRITICAL:
-                // En modo crítico, chunks muy pequeños
-                return min(requestedSize, (size_t)128);
+                // En modo crítico, chunks pequeños
+                return min(requestedSize, (size_t)256);  // Aumentado de 128
                 
             case OVERFLOW:
                 // En overflow, chunks grandes para vaciar rápido
                 return requestedSize;
                 
             default:
-                return min(requestedSize, (size_t)512);
+                return min(requestedSize, (size_t)1024);  // Aumentado de 512
         }
-    }
+    }    
     
-    // ✅ ACTUALIZAR ESTADO SEGÚN NIVEL DE LLENADO
+    // // ✅ AJUSTAR TAMAÑO DE LECTURA SEGÚN ESTADO
+    // size_t adjustReadSize(size_t requestedSize) {
+    //     switch (currentState) {
+    //         case FILLING:
+    //             // Durante llenado, leer en chunks pequeños
+    //             return min(requestedSize, (size_t)256);
+                
+    //         case STABLE:
+    //             // En modo estable, tamaño normal
+    //             return min(requestedSize, (size_t)768);
+                
+    //         case CRITICAL:
+    //             // En modo crítico, chunks muy pequeños
+    //             return min(requestedSize, (size_t)128);
+                
+    //         case OVERFLOW:
+    //             // En overflow, chunks grandes para vaciar rápido
+    //             return requestedSize;
+                
+    //         default:
+    //             return min(requestedSize, (size_t)512);
+    //     }
+    // }
+
+    // ✅ ACTUALIZAR ESTADO SEGÚN NIVEL DE LLENADO - SIMPLIFICADO
     void updateBufferState() {
         BufferState newState = currentState;
         
-        // ✅ TRANSICIONES MÁS TEMPRANAS A ESTADOS DEFENSIVOS
-        if (available < lowWaterMark) {
+        // ✅ LÓGICA MÁS SIMPLE Y CLARA
+        if (available < lowWaterMark) {           // < 12.5%
             newState = CRITICAL;
-        } else if (available > highWaterMark) {
-            newState = OVERFLOW;
-        } else if (available > mediumWaterMark) {
+        } else if (available > highWaterMark) {   // > 75%
+            newState = OVERFLOW;  
+        } else if (available >= mediumWaterMark) { // >= 25%
             newState = STABLE;
         } else {
-            // ✅ ENTRE LOW Y MEDIUM - SER MÁS CONSERVADOR
-            if (currentState == FILLING && available >= (lowWaterMark / 2)) {  // Cambio aquí
-                newState = STABLE;
-            } else if (currentState != FILLING) {
-                // ✅ SI NO ESTAMOS LLENANDO Y TENEMOS POCO BUFFER, IR A CRÍTICO MÁS RÁPIDO
-                if (available < (lowWaterMark * 1.5)) {  // Nuevo: 1.5x lowWaterMark = crítico antes
-                    newState = CRITICAL;
-                } else {
-                    newState = STABLE;
-                }
+            // Entre 12.5% y 25% - mantener estado actual o ir a STABLE
+            if (currentState == FILLING) {
+                newState = STABLE;  // Salir de FILLING más temprano
+            } else {
+                newState = STABLE;  // Por defecto, ir a STABLE
             }
         }
         
-        if (newState != currentState) {
-            logln("Buffer state change: " + getStateString(currentState) + " -> " + getStateString(newState) + " (available: " + String(available) + ")");
-            currentState = newState;
-        }
+        // if (newState != currentState) {
+        //     logln("Buffer state: " + getStateString(currentState) + " -> " + getStateString(newState) + " (" + String(getBufferUsage(), 1) + "%)");
+        //     currentState = newState;
+        // }
     }
+
+    
+    // // ✅ ACTUALIZAR ESTADO SEGÚN NIVEL DE LLENADO
+    // void updateBufferState() {
+    //     BufferState newState = currentState;
+        
+    //     // ✅ TRANSICIONES MÁS TEMPRANAS A ESTADOS DEFENSIVOS
+    //     if (available < lowWaterMark) {
+    //         newState = CRITICAL;
+    //     } else if (available > highWaterMark) {
+    //         newState = OVERFLOW;
+    //     } else if (available > mediumWaterMark) {
+    //         newState = STABLE;
+    //     } else {
+    //         // ✅ ENTRE LOW Y MEDIUM - SER MÁS CONSERVADOR
+    //         if (currentState == FILLING && available >= (lowWaterMark / 2)) {  // Cambio aquí
+    //             newState = STABLE;
+    //         } else if (currentState != FILLING) {
+    //             // ✅ SI NO ESTAMOS LLENANDO Y TENEMOS POCO BUFFER, IR A CRÍTICO MÁS RÁPIDO
+    //             if (available < (lowWaterMark * 1.5)) {  // Nuevo: 1.5x lowWaterMark = crítico antes
+    //                 newState = CRITICAL;
+    //             } else {
+    //                 newState = STABLE;
+    //             }
+    //         }
+    //     }
+        
+    //     if (newState != currentState) {
+    //         ////logln("Buffer state change: " + getStateString(currentState) + " -> " + getStateString(newState) + " (available: " + String(available) + ")");
+    //         currentState = newState;
+    //     }
+    // }
     
     String getStateString(BufferState state) const {
         switch (state) {
@@ -285,13 +335,13 @@ public:
         unsigned long currentTime = millis();
         float avgWriteSpeed = (totalBytesWritten * 1000.0) / max(1UL, currentTime - 1000); // Aproximado
         
-        logln("=== SMART BUFFER STATS ===");
-        logln("State: " + getStatusString());
-        logln("Usage: " + String(available) + "/" + String(bufferSize) + " bytes");
-        logln("Total written: " + String(totalBytesWritten / 1024) + " KB");
-        logln("Total read: " + String(totalBytesRead / 1024) + " KB");
-        logln("Consecutive failures: " + String(consecutiveFailures));
-        logln("Connection stable: " + String(connectionStable));
-        logln("==========================");
+        //logln("=== SMART BUFFER STATS ===");
+        //logln("State: " + getStatusString());
+        //logln("Usage: " + String(available) + "/" + String(bufferSize) + " bytes");
+        //logln("Total written: " + String(totalBytesWritten / 1024) + " KB");
+        //logln("Total read: " + String(totalBytesRead / 1024) + " KB");
+        //logln("Consecutive failures: " + String(consecutiveFailures));
+        //logln("Connection stable: " + String(connectionStable));
+        //logln("==========================");
     }
 };
