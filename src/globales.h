@@ -395,9 +395,12 @@ int RECORDING_ERROR = 0;
 //int RECORDING_ERROR = 0;
 bool REC_AUDIO_LOOP = true;
 bool WIFI_ENABLE = true;
+bool WIFI_CONNECTED = false;
 //
 String LAST_COMMAND = "";
 //bool TIMMING_STABLISHED = false;
+bool YES = false;
+bool NO = false;
 
 // Variables para intercambio de información con el HMI
 // DEBUG
@@ -552,6 +555,7 @@ bool IN_THE_SAME_DIR = false;
 String FILE_TXT_TO_SEARCH = "";
 //bool waitingRecMessageShown = false;
 int CURRENT_PAGE = 0;
+bool TAPE_PAGE_SHOWN = false;
 
 // Block browser
 bool BB_OPEN = false;
@@ -602,10 +606,10 @@ const int RESET = 6;
 bool SAMPLINGTEST = false;
 //
 
-
-double MAIN_VOL = 0.9 * MAIN_VOL_FACTOR;
-double MAIN_VOL_R = 0.9 * MAIN_VOL_FACTOR;
-double MAIN_VOL_L = 0.05 * MAIN_VOL_FACTOR;
+uint8_t MASTER_VOL = 90;
+float MAIN_VOL = 90;
+float MAIN_VOL_R = 90;
+float MAIN_VOL_L = 5;
 float EQ_HIGH = 0.9;
 float EQ_MID = 0.5;
 float EQ_LOW = 0.7;
@@ -620,9 +624,9 @@ bool AUTO_NEXT = false;
 int MEDIA_CURRENT_POINTER = 0;
 bool CHANGE_TRACK_FILTER = false;
 
-double MAX_MAIN_VOL = 1 * MAIN_VOL_FACTOR;
-double MAX_MAIN_VOL_R = 1 * MAIN_VOL_FACTOR;
-double MAX_MAIN_VOL_L = 1 * MAIN_VOL_FACTOR;
+float MAX_MAIN_VOL = 100;
+float MAX_MAIN_VOL_R = 100;
+float MAX_MAIN_VOL_L = 100;
 int EN_STEREO = 0;
 bool ACTIVE_AMP = false;
 bool EN_SPEAKER = false;
@@ -666,10 +670,19 @@ IPAddress gateway(0, 0, 0, 0);
 IPAddress primaryDNS(0, 0, 0, 0); // Not Mandatory
 IPAddress secondaryDNS(0, 0, 0, 0);     // Not Mandatory
 
+// Media player
+bool MEDIA_PLAYER_EN = false;
+bool WAS_LAUNCHED = false;
+
+
 // Internet Radio
 bool IRADIO_EN = false;
 bool URL_RADIO_IS_READY = false;
 
+// Remote control
+bool UPDATE_FROM_REMOTE_CONTROL = false;
+int FILE_POS_REMOTE_CONTROL = 0;
+bool CMD_FROM_REMOTE_CONTROL = false;
 
 
 // Declaraciones de metodos
@@ -687,9 +700,9 @@ ConfigEntry configEntries[] =
   {"STEopt", CONFIG_TYPE_BOOL, &EN_STEREO},
   {"MAMopt", CONFIG_TYPE_BOOL, &ACTIVE_AMP},
   {"VLIopt", CONFIG_TYPE_BOOL, &VOL_LIMIT_HEADPHONE},
-  {"VOLMopt", CONFIG_TYPE_DOUBLE, &MAIN_VOL},
-  {"VOLLopt", CONFIG_TYPE_DOUBLE, &MAIN_VOL_L},
-  {"VOLRopt", CONFIG_TYPE_DOUBLE, &MAIN_VOL_R},
+  {"VOLMopt", CONFIG_TYPE_FLOAT, &MASTER_VOL},
+  {"VOLLopt", CONFIG_TYPE_FLOAT, &MAIN_VOL_L},
+  {"VOLRopt", CONFIG_TYPE_FLOAT, &MAIN_VOL_R},
   {"EQHopt", CONFIG_TYPE_FLOAT, &EQ_HIGH},
   {"EQMopt", CONFIG_TYPE_FLOAT, &EQ_MID},
   {"EQLopt", CONFIG_TYPE_FLOAT, &EQ_LOW},
@@ -698,12 +711,6 @@ ConfigEntry configEntries[] =
   {"SPKopt", CONFIG_TYPE_BOOL, &EN_SPEAKER},
 };
 
-
-// static inline void erase_cntrl(std::string &s) 
-// {
-//   s.erase(std::remove_if(s.begin(), s.end(),
-//           [&](char ch)
-//           { return std::iscntrl(static_cast<unsigned char>(ch));}),
 //           s.end());
 // }
 
@@ -854,7 +861,10 @@ void saveHMIcfg(std::string value)
               case CONFIG_TYPE_UINT32:
               nvs_set_u32(handle, entry.key, *static_cast<uint32_t*>(entry.value));
                   break;
-              case CONFIG_TYPE_INT8:
+              case CONFIG_TYPE_FLOAT:
+                  nvs_set_blob(handle, entry.key, static_cast<float*>(entry.value), sizeof(float));
+                  break;
+                  case CONFIG_TYPE_INT8:
               nvs_set_i8(handle, entry.key, *static_cast<int8_t*>(entry.value));
                   break;
           }
@@ -875,7 +885,6 @@ void saveHMIcfg(std::string value)
 
 void saveVolSliders()
 {
-  saveHMIcfg("VOLMopt");
   saveHMIcfg("VOLLopt");
   saveHMIcfg("VOLRopt");  
 }
@@ -965,54 +974,6 @@ void logAlert(String txt)
 
     lastAlertTxt = txt;
 }
-
-// Lee un rango de bytes de un archivo FS (SD, SD_MMC, etc.)
-// void readFileRange2(File &file, uint8_t* buffer, int offset, int size, bool keepPosition = false) {
-//     // Guarda la posición actual si se va a restaurar después
-//     uint32_t oldPos = 0;
-//     if (keepPosition) {
-//         oldPos = file.position();
-//     }
-
-//     // Mueve el puntero al offset deseado
-//     file.seek(offset);
-
-//     // Lee los bytes al buffer
-//     file.read(buffer, size);
-
-//     // Restaura la posición si es necesario
-//     if (keepPosition) {
-//         file.seek(oldPos);
-//     }
-// }
-
-// Puedes ponerla en cualquier archivo de tu proyecto
-
-// size_t readFileRangeFS(File &file, uint8_t* buffer, size_t offset, size_t size, bool keepPosition = false) {
-//     size_t oldPos = 0;
-//     if (keepPosition) {
-//         oldPos = file.position();
-//     }
-
-//     size_t fileSize = file.size();
-//     if (offset >= fileSize) {
-//         if (keepPosition) file.seek(oldPos);
-//         return 0;
-//     }
-
-//     if (offset + size > fileSize) {
-//         size = fileSize - offset;
-//     }
-
-//     file.seek(offset);
-//     size_t bytesRead = file.read(buffer, size);
-
-//     if (keepPosition) {
-//         file.seek(oldPos);
-//     }
-//     return bytesRead;
-// }
-
 
 void readFileRange(File mFile, uint8_t* &bufferFile, uint32_t offset, int size, bool logOn=false)
 {         

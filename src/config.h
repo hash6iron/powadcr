@@ -73,7 +73,7 @@
 // Configuración necesaria para powaDCR
 // --------------------------------------------------------------
 // Tarea del Core 0 - Tape control (Task1code - tapeControl, audio, etc.) - La más pesada
-#define TASK1_STACK_SIZE                                16384 // Defecto 12288
+#define TASK1_STACK_SIZE                                32768 // Defecto 16384
 
 // Tarea del Core 1 - HMI (Task0code - HMI, FTP, etc.) - Más ligera
 #define TASK0_STACK_SIZE                                8192  // Defecto 8192
@@ -108,10 +108,10 @@
 // Configuración de memoria para SSL
 // --------------------------------------------------------------
 // CONFIGURACIÓN SSL OPTIMIZADA
-#define CONFIG_MBEDTLS_SSL_MAX_CONTENT_LEN          2048    // Reducir de 16KB por defecto
+#define CONFIG_MBEDTLS_SSL_MAX_CONTENT_LEN          1024    // Reducir de 16KB por defecto
 #define CONFIG_MBEDTLS_ASYMMETRIC_CONTENT_LEN       1       // Habilitar contenido asimétrico
-#define CONFIG_MBEDTLS_SSL_IN_CONTENT_LEN           2048    // Buffer de entrada SSL
-#define CONFIG_MBEDTLS_SSL_OUT_CONTENT_LEN          2048    // Buffer de salida SSL
+#define CONFIG_MBEDTLS_SSL_IN_CONTENT_LEN           1024    // Buffer de entrada SSL
+#define CONFIG_MBEDTLS_SSL_OUT_CONTENT_LEN          1024    // Buffer de salida SSL
 
 // REDUCIR MEMORIA PARA CERTIFICADOS
 #define CONFIG_MBEDTLS_CERTIFICATE_BUNDLE           0       // Deshabilitar bundle de certificados
@@ -125,7 +125,7 @@
 // Configuración del sistema
 // --------------------------------------------------------------
 
-#define VERSION                                         "1.0r7"
+#define VERSION                                         "1.0r7.2"
 #define MACHINE_ZX
 #define POWER_LED_INTENSITY                             125 // Valor entre 0 y 255
 
@@ -216,9 +216,37 @@
 // -------------------------------------------------------------------
 
 #define MAX_RADIO_STATIONS                            128
-#define JITTER_BUFFER_SIZE                            128
-#define RADIO_CONNECT_TIMEOUT_MS                      10000
+// ✅ AUMENTAR BUFFER Y AJUSTAR PARÁMETROS PARA 160kbps PROBLEMÁTICOS
+#define RADIO_BUFFER_SIZE                             (96 * 1024)    // 64KB (doble del actual)
+#define RADIO_MIN_BUFFER_FILL                         (16 * 1024)    // 16KB antes de empezar (más conservador)
+
+// ✅ INTERVALOS MÁS AGRESIVOS PARA CONEXIONES PROBLEMÁTICAS
+#define RADIO_NETWORK_READ_INTERVAL                   2              // 5ms (más frecuente que 8ms)
+#define RADIO_PLAYBACK_INTERVAL                       10             // 8ms (menos frecuente para conservar buffer)
+
+// ✅ BUFFERS MÁS GRANDES PARA ABSORBER INTERRUPCIONES
+#define RADIO_NETWORK_BUFFER_SIZE                     512            // 512B (doble del actual)
+#define RADIO_DECODE_BUFFER_SIZE                      1024           // 1KB (más conservador en reproducción)
+
+#define RADIO_CONNECT_TIMEOUT_MS                      10000          // 15s timeout (más tiempo)
 #define USE_SSL_STATIONS                              false
+#define DIAL_COLOR                                    45056  
+#define RADIO_SYNTONIZATION_LED_COLOR                 2016
+// // Para buffer circular
+// #define RADIO_BUFFER_SIZE                             (64 * 1024)    // 128KB para 320kbps
+// #define RADIO_MIN_BUFFER_FILL                         (16 * 1024)    // 32KB mínimo antes de empezar reproducción
+// #define URL_STREAM_BUFFER_SIZE                        2048     // Tamaño del buffer de red para lectura directa
+// #define RADIO_NETWORK_READ_INTERVAL                   8        // Leer red cada 5ms (más frecuente) - ori. 5ms
+// #define RADIO_PLAYBACK_INTERVAL                       5        // Reproducir cada 2ms (más frecuente)
+// //
+// #define RADIO_NETWORK_BUFFER_SIZE                     1024     // Buffer de red más grande orig. 2048
+// #define RADIO_DECODE_BUFFER_SIZE                      2048     // Buffer de decodificación más grande orig. 2048
+// #define RADIO_CONNECT_TIMEOUT_MS                      10000
+// #define USE_SSL_STATIONS                              false
+// #define DIAL_COLOR                                    45056  
+// #define RADIO_SYNTONIZATION_LED_COLOR                 2016
+// Comentar para usar streaming directo sin buffer circular
+#define USE_CIRCULAR_BUFFER_FOR_RADIO                 
 // ---------------------------------------------------------------------------------------------
 // NO COMENTAR SI SE ESTÁ USANDO 22200 Hz en otro caso hay que usar 44100 para recording
 // Si se usa el sampling rate de ZX Spectrum (22.2KHz) para la grabación y reproducción de TAPs
@@ -285,6 +313,7 @@ bool TEST_LINE_IN_OUT = false;
 // Recursos opcionales
 //#define BLUETOOTH_ENABLE
 #define FTP_SERVER_ENABLE
+#define WEB_SERVER_ENABLE
 
 // Control remoto de PAUSA
 #define MSX_REMOTE_PAUSE
