@@ -4173,7 +4173,7 @@ void playingFile()
 void verifyConfigFileForSelection()
 {
   // Vamos a localizar el fichero de configuracion especifico para el fichero seleccionado
-  const int max_params = 4;
+  const int max_params = 5;
   String path = FILE_LAST_DIR;
   String tmpPath = PATH_FILE_TO_LOAD;
   tConfig *fileCfg; // = (tConfig*)ps_calloc(max_params,sizeof(tConfig));
@@ -4336,8 +4336,10 @@ void verifyConfigFileForSelection()
           AZIMUT = getValueOfParam(fileCfg[i].cfgLine, "azimut").toInt();
           TONE_ADJUST = (-210)*(TONE_ADJUSTMENT_ZX_SPECTRUM + (AZIMUT-TONE_ADJUSTMENT_ZX_SPECTRUM_LIMIT));
           // Movemos el slide
-          myNex.writeStr("menuAudio2.tone.val",String(AZIMUT));
-          myNex.writeStr("menuAudio2.toneL.val",String(AZIMUT-5));
+          myNex.writeNum("menuAudio2.tone.val",AZIMUT);
+          myNex.writeNum("menuAudio2.toneL.val",AZIMUT-5);
+
+          logln("Azimut get: " + String(AZIMUT) + " - Frec. adjust: " + String(TONE_ADJUST));
         }        
       }
 

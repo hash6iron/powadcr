@@ -178,7 +178,7 @@
 
 // Sampling rate TAP/TZX/..
 #define DEFAULT_MP3_SAMPLING_RATE                     44100
-#define STANDARD_SR_8_BIT_MACHINE                     22200   // Sampling rate adecuado para maquinas de 8 bitsAjuste AZIMUT (Hz) - 22200 Hz
+#define STANDARD_SR_8_BIT_MACHINE                     32150   // Sampling rate adecuado para maquinas de 8 bitsAjuste AZIMUT (Hz) - 22200 Hz
 #define STANDARD_SR_REC_ZX_SPECTRUM                   22200   // Sampling rate adecuado para ZX Spectrum (recorder) - Ajuste AZIMUT (Hz) - 22200 Hz
 
 // Sampling rate para WAV y REC WAV (pero ojo, no para PLAY TO WAV)
