@@ -4336,8 +4336,8 @@ void verifyConfigFileForSelection()
           AZIMUT = getValueOfParam(fileCfg[i].cfgLine, "azimut").toInt();
           TONE_ADJUST = (-210)*(TONE_ADJUSTMENT_ZX_SPECTRUM + (AZIMUT-TONE_ADJUSTMENT_ZX_SPECTRUM_LIMIT));
           // Movemos el slide
-          myNex.writeNum("menuAudio2.tone.val", AZIMUT);
-          myNex.writeNum("menuAudio2.toneL.val", AZIMUT-5);
+          myNex.writeStr("menuAudio2.tone.val="+String(AZIMUT));
+          myNex.writeStr("menuAudio2.toneL.val="+String(AZIMUT-5));
         }        
       }
 
