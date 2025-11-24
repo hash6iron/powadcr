@@ -125,7 +125,7 @@
 // Configuración del sistema
 // --------------------------------------------------------------
 
-#define VERSION                                         "1.0r7.2"
+#define VERSION                                         "1.0r7.3"
 #define MACHINE_ZX
 #define POWER_LED_INTENSITY                             125 // Valor entre 0 y 255
 
@@ -178,8 +178,7 @@
 
 // Sampling rate TAP/TZX/..
 #define DEFAULT_MP3_SAMPLING_RATE                     44100
-#define STANDARD_SR_8_BIT_MACHINE                     22200   // Sampling rate adecuado para maquinas de 8 bitsAjuste AZIMUT (Hz) - 22200 Hz
-#define STANDARD_SR_REC_ZX_SPECTRUM                   22200   // Sampling rate adecuado para ZX Spectrum (recorder) - Ajuste AZIMUT (Hz) - 22200 Hz
+#define STANDARD_SR_8_BIT_MACHINE                     32150   // Sampling rate adecuado para maquinas de 8 bitsAjuste AZIMUT (Hz) - 22200 Hz
 
 // Sampling rate para WAV y REC WAV (pero ojo, no para PLAY TO WAV)
 #define DEFAULT_WAV_SAMPLING_RATE                     44100
@@ -236,10 +235,14 @@
 #define DIAL_COLOR                                    45056  
 #define RADIO_SYNTONIZATION_LED_COLOR                 2016
          
-// ---------------------------------------------------------------------------------------------
-// NO COMENTAR SI SE ESTÁ USANDO 22200 Hz en otro caso hay que usar 44100 para recording
-// Si se usa el sampling rate de ZX Spectrum (22.2KHz) para la grabación y reproducción de TAPs
-#define USE_ZX_SPECTRUM_SR                            1 
+// --------------------------------------------------------------
+// Recording parameters
+// --------------------------------------------------------------
+// Poner 1 --> SI SE ESTÁ USANDO 22200 Hz 
+// Poner 0 --> Si se usa 32150 para recording
+#define USE_ZX_SPECTRUM_SR                            0 
+#define STANDARD_SR_REC_ZX_SPECTRUM                   32150   // Sampling rate adecuado para ZX Spectrum (recorder) - Ajuste AZIMUT (Hz) - 22200 Hz
+
 //
 // ----------------------------------------------------------------------------------------------
 // Particion mas pequeña de un silencio
