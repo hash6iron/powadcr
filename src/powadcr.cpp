@@ -157,7 +157,8 @@ uint16_t USER_CONFIG_ARDUINO_LOOP_STACK_SIZE = 16384;
 
 // SmartRadioBuffer
 // -----------------------------------------------------------------------
-#include "SmartRadioBuffer.h"
+#include "SimpleCircularBuffer.h"
+//#include "SmartRadioBuffer.h"
 //#include "PredictiveRadioBuffer.h"
 
 // OTA SD Update
@@ -2315,8 +2316,8 @@ void RadioPlayer()
     
     #ifdef USE_CIRCULAR_BUFFER_FOR_RADIO
       // ✅ CREAR BUFFER CIRCULAR SIMPLE (usando la configuración de config.h)
-      //SimpleCircularBuffer radioBuffer(RADIO_BUFFER_SIZE);
-      SmartRadioBuffer radioBuffer(RADIO_BUFFER_SIZE);
+      SimpleCircularBuffer radioBuffer(RADIO_BUFFER_SIZE);
+      //SmartRadioBuffer radioBuffer(RADIO_BUFFER_SIZE);
       //PredictiveRadioBuffer radioBuffer(RADIO_BUFFER_SIZE);
 
       logln("Radio buffer size: " + String(RADIO_BUFFER_SIZE) + " bytes");
@@ -2643,8 +2644,10 @@ void RadioPlayer()
                 currentRadioStation = nextRadioStation(PATH_FILE_TO_LOAD, radioName, radioUrlBuffer, sizeof(radioUrlBuffer), true, currentPointer, true);
                 playerState = 0;
                 PLAY = true;
-                radioBuffer.clear();
-                bufferFilled = false;
+                #ifdef USE_CIRCULAR_BUFFER_FOR_RADIO
+                  radioBuffer.clear();
+                  bufferFilled = false;
+                #endif
             }
             UPDATE_HMI = false;
             UPDATE = false;
@@ -4327,6 +4330,15 @@ void verifyConfigFileForSelection()
             INVERSETRAIN = false;
           }
         }
+        else if ((fileCfg[i].cfgLine).indexOf("azimut") != -1)
+        {
+          // Cogemos el azimut
+          AZIMUT = getValueOfParam(fileCfg[i].cfgLine, "azimut").toInt();
+          TONE_ADJUST = (-210)*(TONE_ADJUSTMENT_ZX_SPECTRUM + (AZIMUT-TONE_ADJUSTMENT_ZX_SPECTRUM_LIMIT));
+          // Movemos el slide
+          myNex.writeNum("menuAudio2.tone.val", AZIMUT);
+          myNex.writeNum("menuAudio2.toneL.val", AZIMUT-5);
+        }        
       }
 
       if (INVERSETRAIN)

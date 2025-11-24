@@ -2850,6 +2850,7 @@ class HMI
 
           // Le cambiamos el signo para que cuando seleccionemos -1 sea bajar tono en vez de quitar una muestra que es todo lo contrario (aumentar frecuencia)
           // y lo mismo con el +1
+          AZIMUT = valVol;
           TONE_ADJUST = (-210)*(TONE_ADJUSTMENT_ZX_SPECTRUM + (valVol-TONE_ADJUSTMENT_ZX_SPECTRUM_LIMIT));         
           logln("TONE: " + String(TONE_ADJUST) + " Hz"); 
           //saveHMIcfg("EQLopt");
@@ -3177,7 +3178,7 @@ class HMI
             // Ahora escribimos la configuracion
             cfg.println("<freq>"+ String(SAMPLING_RATE) +"</freq>");        
             cfg.println("<zerolevel>" + String(ZEROLEVEL) + "</zerolevel>");
-            cfg.println("<blockend>" + String(APPLY_END) + "</blockend>");     
+            cfg.println("<blockend>" + String(APPLY_END) + "</blockend>");   
 
             if (INVERSETRAIN)
             {
@@ -3187,6 +3188,8 @@ class HMI
             {
               cfg.println("<polarized>0</polarized>");
             }
+            cfg.println("<azimut>" + String(AZIMUT) + "</azimut>");
+
           }
           
           cfg.close();

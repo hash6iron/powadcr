@@ -43,7 +43,7 @@
 #define FTP_CTRL_PORT    21           // Command port on wich server is listening  
 #define FTP_DATA_PORT_PASV 50009      // Data port in passive mode
 
-#define FTP_TIME_OUT  5               // Disconnect client after 5 minutes of inactivity
+#define FTP_TIME_OUT 5                // Disconnect client after 5 minutes of inactivity
 #define FTP_CMD_SIZE 255 + 8          // max size of a command
 #define FTP_CWD_SIZE 255 + 8          // max size of a directory name
 #define FTP_FIL_SIZE 255              // max size of a file name

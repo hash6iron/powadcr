@@ -178,7 +178,7 @@
 
 // Sampling rate TAP/TZX/..
 #define DEFAULT_MP3_SAMPLING_RATE                     44100
-#define STANDARD_SR_8_BIT_MACHINE                     21000   // Sampling rate adecuado para maquinas de 8 bitsAjuste AZIMUT (Hz) - 22200 Hz
+#define STANDARD_SR_8_BIT_MACHINE                     22200   // Sampling rate adecuado para maquinas de 8 bitsAjuste AZIMUT (Hz) - 22200 Hz
 #define STANDARD_SR_REC_ZX_SPECTRUM                   22200   // Sampling rate adecuado para ZX Spectrum (recorder) - Ajuste AZIMUT (Hz) - 22200 Hz
 
 // Sampling rate para WAV y REC WAV (pero ojo, no para PLAY TO WAV)
@@ -215,6 +215,9 @@
 // Radio Internet
 // -------------------------------------------------------------------
 
+// Comentar para usar streaming directo sin buffer circular
+//#define USE_CIRCULAR_BUFFER_FOR_RADIO        
+
 #define MAX_RADIO_STATIONS                            128
 // ✅ AUMENTAR BUFFER Y AJUSTAR PARÁMETROS PARA 160kbps PROBLEMÁTICOS
 #define RADIO_BUFFER_SIZE                             (96 * 1024)    // 64KB (doble del actual)
@@ -232,21 +235,7 @@
 #define USE_SSL_STATIONS                              false
 #define DIAL_COLOR                                    45056  
 #define RADIO_SYNTONIZATION_LED_COLOR                 2016
-// // Para buffer circular
-// #define RADIO_BUFFER_SIZE                             (64 * 1024)    // 128KB para 320kbps
-// #define RADIO_MIN_BUFFER_FILL                         (16 * 1024)    // 32KB mínimo antes de empezar reproducción
-// #define URL_STREAM_BUFFER_SIZE                        2048     // Tamaño del buffer de red para lectura directa
-// #define RADIO_NETWORK_READ_INTERVAL                   8        // Leer red cada 5ms (más frecuente) - ori. 5ms
-// #define RADIO_PLAYBACK_INTERVAL                       5        // Reproducir cada 2ms (más frecuente)
-// //
-// #define RADIO_NETWORK_BUFFER_SIZE                     1024     // Buffer de red más grande orig. 2048
-// #define RADIO_DECODE_BUFFER_SIZE                      2048     // Buffer de decodificación más grande orig. 2048
-// #define RADIO_CONNECT_TIMEOUT_MS                      10000
-// #define USE_SSL_STATIONS                              false
-// #define DIAL_COLOR                                    45056  
-// #define RADIO_SYNTONIZATION_LED_COLOR                 2016
-// Comentar para usar streaming directo sin buffer circular
-#define USE_CIRCULAR_BUFFER_FOR_RADIO                 
+         
 // ---------------------------------------------------------------------------------------------
 // NO COMENTAR SI SE ESTÁ USANDO 22200 Hz en otro caso hay que usar 44100 para recording
 // Si se usa el sampling rate de ZX Spectrum (22.2KHz) para la grabación y reproducción de TAPs
@@ -255,13 +244,6 @@
 // ----------------------------------------------------------------------------------------------
 // Particion mas pequeña de un silencio
 #define MIN_FRAME_FOR_SILENCE_PULSE_GENERATION        256
-
-// --------------------------------------------------------------
-// Recording
-// -------------------------------------------------------------------
-
-// Comentar esta linea para hacer uso de PCM
-//#define USE_ADPCM_ENCODER
 
 // --------------------------------------------------------------
 // TAP config.
@@ -282,27 +264,9 @@
 // Configuracion del test in/out
 bool TEST_LINE_IN_OUT = false;
 
-// -------------------------------
-//
-// OTA setting
-//
-// -------------------------------
-// Dejar todo esto tal como está. La configuración se hace en el fichero wifi.cfg
-//
-// Los parámetros a incluir serán estos a continuación y en ese orden:
-//
-// Ejemplo:
-//
-// <hostname>powaDCR</hostname>
-// <ssid>miAPWiFi</ssid>
-// <password>miPasswordDelAp</password>
-// <IP>192.168.2.28</IP>
-// <SN>255.255.255.0</SN>
-// <GW>192.168.2.1</GW>
-// <DNS1>192.168.2.1</DNS1>
-// <DNS2>192.168.2.1</DNS2>
-
-// HMI
+// --------------------------------------------------------------
+//  HMI
+// --------------------------------------------------------------
 #define windowNameLength                            32
 #define windowNameLengthFB                          50
 #define tRotateNameRfsh                             230
@@ -322,4 +286,23 @@ bool TEST_LINE_IN_OUT = false;
 #define MAIN_VOL_FACTOR                             100
 
 
+// -------------------------------
+//
+// OTA setting
+//
+// -------------------------------
+// Dejar todo esto tal como está. La configuración se hace en el fichero wifi.cfg
+//
+// Los parámetros a incluir serán estos a continuación y en ese orden:
+//
+// Ejemplo:
+//
+// <hostname>powaDCR</hostname>
+// <ssid>miAPWiFi</ssid>
+// <password>miPasswordDelAp</password>
+// <IP>192.168.2.28</IP>
+// <SN>255.255.255.0</SN>
+// <GW>192.168.2.1</GW>
+// <DNS1>192.168.2.1</DNS1>
+// <DNS2>192.168.2.1</DNS2>
 
