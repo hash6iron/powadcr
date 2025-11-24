@@ -7960,10 +7960,10 @@ void Task0code(void *pvParameters)
           {
             actuatePowerLed(true,POWERLED_DUTY);
           }
-          else
-          {
-            logln("REC mode - Power LED fixed");
-          }
+          // else
+          // {
+          //   //logln("REC mode - Power LED fixed");
+          // }
         }
 
         if ((millis() - startTime3) > 500)
