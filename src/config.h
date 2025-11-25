@@ -125,7 +125,7 @@
 // Configuración del sistema
 // --------------------------------------------------------------
 
-#define VERSION                                         "1.0r7.3"
+#define VERSION                                         "v1.0r7.4"
 #define MACHINE_ZX
 #define POWER_LED_INTENSITY                             125 // Valor entre 0 y 255
 
@@ -288,6 +288,14 @@ bool TEST_LINE_IN_OUT = false;
 // Parametros internos
 #define MAIN_VOL_FACTOR                             100
 
+// ---------------------------------------------------------------
+// Auto-update settings
+// ---------------------------------------------------------------
+#define AUTO_UPDATE
+#define AUTO_UPDATE_URL                             "https://github.com/hash6iron/powadcr/releases/"
+#define GITHUB_OWNER                                "hash6iron"      // Tu usuario de GitHub
+#define GITHUB_REPO                                 "powadcr"        // Tu repositorio
+#define AUTO_UPDATE_CHECK                           false             // Habilitar check automático
 
 // -------------------------------
 //

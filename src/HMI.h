@@ -33,6 +33,15 @@
  +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
 
 #include <vector>
+// OTA SD Update
+// -----------------------------------------------------------------------
+#include <Update.h>
+
+#ifdef AUTO_UPDATE
+  #include "HTTPClient.h"
+  #include "WiFiClientSecure.h"
+  #include "ArduinoJson.h"  
+#endif
 
 #pragma once
 
@@ -3740,6 +3749,43 @@ class HMI
             updateInformationMainPage(true);
             TAPE_PAGE_SHOWN = true;
         }
+        else if (strCmd.indexOf("CHKUPD") != -1)
+        {
+          //-------------------------------------------------------------------------
+          //
+          // Buscamos nueva firmware
+          //
+          //-------------------------------------------------------------------------
+          #ifdef AUTO_UPDATE    
+            if (WIFI_CONNECTED) 
+            {
+              logln("Manual firmware update requested");
+              myNex.writeStr("update.status.txt","Please wait...");
+              manualFirmwareUpdate();        
+            } else {
+              myNex.writeStr("update.status.txt","WiFi required for updates");
+            }
+          #endif          
+        }    
+        else if (strCmd.indexOf("UPDATE") != -1)
+        {
+          //-------------------------------------------------------------------------
+          //
+          // Buscamos nueva firmware
+          //
+          //-------------------------------------------------------------------------
+          #ifdef AUTO_UPDATE    
+            // -------------------------------------------------------------------------
+            // Actualización OTA por SD
+            // -------------------------------------------------------------------------
+            updateESP32firmware();
+
+            // -------------------------------------------------------------------------
+            // Actualizacion del HMI
+            // -------------------------------------------------------------------------
+            updateHMIfirmware();
+          #endif          
+        }           
         else
         {}
 
@@ -4619,6 +4665,693 @@ class HMI
         }
       }
 
+      // ---------------------------------------------------------------------------------------
+      // HTTPClient
+      // ---------------------------------------------------------------------------------------
+    #ifdef AUTO_UPDATE 
+    
+    // ✅ FUNCIÓN SIMPLE PARA OBTENER ÚLTIMO TAG
+    String getLatestReleaseTag() {
+        if (!WIFI_CONNECTED) {
+            logln("Error: WiFi not connected");
+            LAST_MESSAGE = "WiFi not connected";
+            return "";
+        }
+        
+        HTTPClient http;
+        WiFiClientSecure client;
+        client.setInsecure();
+        
+        String apiUrl = "https://api.github.com/repos/hash6iron/powadcr/releases/latest";
+        
+        http.begin(client, apiUrl);
+        http.addHeader("User-Agent", "PowaDCR/" + String(VERSION));
+        
+        logln("Getting latest release from: " + apiUrl);
+        myNex.writeStr("update.status.txt","Checking latest version...");
+        
+        int httpCode = http.GET();
+        
+        if (httpCode != HTTP_CODE_OK) {
+            logln("HTTP error: " + String(httpCode));
+            myNex.writeStr("update.status.txt","GitHub API error: " + String(httpCode));
+            http.end();
+            return "";
+        }
+        
+        String payload = http.getString();
+        http.end();
+        
+        // ✅ PARSEAR JSON SIMPLE - SOLO EL TAG
+        DynamicJsonDocument doc(4096);
+        if (deserializeJson(doc, payload) != DeserializationError::Ok) {
+            logln("JSON parse error");
+            myNex.writeStr("update.status.txt","Parse error");
+            return "";
+        }
+        
+        String tagName = doc["tag_name"].as<String>();
+        
+        logln("Latest release tag: " + tagName);
+        myNex.writeStr("update.status.txt","Latest version: " + tagName);
+        
+        return tagName;
+    }
+
+    // ✅ FUNCIÓN OPTIMIZADA PARA ARCHIVOS GRANDES
+    bool downloadFileSimple(const String& url, const String& localPath) {
+        HTTPClient http;
+        WiFiClient* client = nullptr;
+        WiFiClientSecure* secureClient = nullptr;
+        
+        // ✅ HTTP O HTTPS
+        if (url.startsWith("https://")) {
+            secureClient = new WiFiClientSecure();
+            secureClient->setInsecure();
+            http.begin(*secureClient, url);
+        } else {
+            client = new WiFiClient();
+            http.begin(*client, url);
+        }
+        
+        // ✅ TIMEOUTS LARGOS PARA ARCHIVOS GRANDES
+        http.setTimeout(300000);  // 5 minutos
+        http.setConnectTimeout(30000); // 30 segundos para conectar
+        
+        http.addHeader("User-Agent", "PowaDCR/" + String(VERSION));
+        http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
+        
+        int httpCode = http.GET();
+        
+        if (httpCode != HTTP_CODE_OK) {
+            logln("HTTP error downloading: " + String(httpCode));
+            
+            // ✅ MANEJO ESPECÍFICO DE REDIRECCIONES
+            if (httpCode == HTTP_CODE_FOUND || httpCode == HTTP_CODE_MOVED_PERMANENTLY) {
+                String redirectURL = http.getLocation();
+                logln("Redirect to: " + redirectURL);
+                
+                http.end();
+                if (client) delete client;
+                if (secureClient) delete secureClient;
+                
+                return downloadFileSimple(redirectURL, localPath);
+            }
+            
+            http.end();
+            if (client) delete client;
+            if (secureClient) delete secureClient;
+            return false;
+        }
+        
+        // ✅ OBTENER TAMAÑO DEL ARCHIVO
+        int contentLength = http.getSize();
+        logln("File size: " + String(contentLength) + " bytes");
+        
+        if (contentLength > 0) {
+            LAST_MESSAGE = "Downloading " + String(contentLength / 1024) + " KB...";
+            writeString("statusFILE.txt=\"" + LAST_MESSAGE + "\"");
+        }
+        
+        // ✅ CREAR ARCHIVO
+        File file = SD_MMC.open(localPath.c_str(), FILE_WRITE);
+        if (!file) {
+            logln("Cannot create file: " + localPath);
+            http.end();
+            if (client) delete client;
+            if (secureClient) delete secureClient;
+            return false;
+        }
+        
+        // ✅ BUFFER MÁS GRANDE PARA ARCHIVOS GRANDES
+        const size_t bufferSize = 8192; // 8KB buffer
+        uint8_t* buffer = (uint8_t*)malloc(bufferSize);
+        
+        if (!buffer) {
+            logln("Cannot allocate buffer");
+            file.close();
+            http.end();
+            if (client) delete client;
+            if (secureClient) delete secureClient;
+            return false;
+        }
+        
+        WiFiClient* stream = http.getStreamPtr();
+        size_t totalBytes = 0;
+        unsigned long lastProgressUpdate = 0;
+        
+        // ✅ DESCARGAR CON PROGRESO
+        while (http.connected() && (contentLength <= 0 || totalBytes < contentLength)) {
+            
+            // ✅ VERIFICAR DATOS DISPONIBLES
+            size_t availableData = stream->available();
+            if (availableData == 0) {
+                delay(10);
+                continue;
+            }
+            
+            // ✅ LEER EN CHUNKS GRANDES
+            size_t bytesToRead = min(availableData, bufferSize);
+            size_t bytesRead = stream->readBytes(buffer, bytesToRead);
+            
+            if (bytesRead == 0) {
+                delay(10);
+                continue;
+            }
+            
+            // ✅ ESCRIBIR AL ARCHIVO EN CHUNKS
+            size_t bytesWritten = file.write(buffer, bytesRead);
+            if (bytesWritten != bytesRead) {
+                logln("Write error - Expected: " + String(bytesRead) + ", Written: " + String(bytesWritten));
+                break;
+            }
+            
+            totalBytes += bytesRead;
+            
+            // ✅ PROGRESO CADA 2 SEGUNDOS
+            if (millis() - lastProgressUpdate > 2000) {
+                if (contentLength > 0) {
+                    int progress = (totalBytes * 100) / contentLength;
+                    LAST_MESSAGE = "Downloaded " + String(progress) + "% (" + String(totalBytes / 1024) + " KB)";
+                } else {
+                    LAST_MESSAGE = "Downloaded " + String(totalBytes / 1024) + " KB";
+                }
+                writeString("statusFILE.txt=\"" + LAST_MESSAGE + "\"");
+                lastProgressUpdate = millis();
+                
+                // ✅ FLUSH PERIÓDICO PARA ARCHIVOS GRANDES
+                file.flush();
+                
+                logln("Progress: " + String(totalBytes) + " / " + String(contentLength) + " bytes");
+            }
+            
+            // ✅ YIELD PARA NO BLOQUEAR WATCHDOG
+            yield();
+            delay(1);
+        }
+        
+        // ✅ LIMPIEZA
+        free(buffer);
+        file.flush();
+        file.close();
+        http.end();
+        
+        if (client) delete client;
+        if (secureClient) delete secureClient;
+        
+        // ✅ VERIFICAR DESCARGA COMPLETA
+        bool success = false;
+        if (contentLength > 0) {
+            success = (totalBytes >= contentLength * 0.99); // Tolerancia del 1%
+        } else {
+            success = (totalBytes > 1000); // Al menos 1KB descargado
+        }
+        
+        if (success) {
+            logln("Download completed successfully!");
+            logln("Total bytes downloaded: " + String(totalBytes));
+            return true;
+        } else {
+            logln("Download failed or incomplete");
+            logln("Expected: " + String(contentLength) + " bytes");
+            logln("Downloaded: " + String(totalBytes) + " bytes");
+            
+            // ✅ ELIMINAR ARCHIVO INCOMPLETO
+            if (SD_MMC.exists(localPath.c_str())) {
+                SD_MMC.remove(localPath.c_str());
+                logln("Incomplete file deleted");
+            }
+            
+            return false;
+        }
+    }
+
+    // ✅ FUNCIÓN SIMPLE PARA DESCARGAR FIRMWARE - SIN VERIFICACIÓN DE ESPACIO
+    bool downloadFirmwareFiles(const String& tagVersion) {
+        if (tagVersion.length() == 0) {
+            logln("Error: No tag version provided");
+            myNex.writeStr("update.status.txt", "No version specified");
+            return false;
+        }
+        
+        // ✅ URLs DE DESCARGA DIRECTA
+        String firmwareUrl = "https://github.com/hash6iron/powadcr/releases/download/" + tagVersion + "/firmware.bin";
+        String interfaceUrl = "https://github.com/hash6iron/powadcr/releases/download/" + tagVersion + "/"+ HMI_MODEL +".tft";
+        
+        // ✅ RUTAS LOCALES
+        String firmwarePath = "/firmware.bin";
+        String interfacePath = "/"+ HMI_MODEL +".tft";
+        
+        logln("Downloading firmware files for version: " + tagVersion);
+        myNex.writeStr("update.status.txt", "Downloading " + tagVersion + "...");
+        
+        // ✅ DESCARGAR FIRMWARE.BIN (EL MÁS GRANDE)
+        logln("Downloading: " + firmwareUrl);
+        myNex.writeStr("update.status.txt", "Downloading firmware.bin (>1MB)...");
+        
+        if (!downloadFileSimple(firmwareUrl, firmwarePath)) {
+            logln("Failed to download firmware.bin");
+            myNex.writeStr("update.status.txt","Failed: firmware.bin");
+            return false;
+        }
+        
+        // ✅ PAUSA ENTRE DESCARGAS
+        delay(2000);
+        
+        // ✅ DESCARGAR POWADCR_IFACE.TFT
+        logln("Downloading: " + interfaceUrl);
+        myNex.writeStr("update.status.txt", "Downloading interface...");
+        
+        if (!downloadFileSimple(interfaceUrl, interfacePath)) {
+            logln("Failed to download " + HMI_MODEL + ".tft");
+            myNex.writeStr("update.status.txt","Failed: " + HMI_MODEL + ".tft");
+            return false;
+        }
+        
+        // ✅ VERIFICAR TAMAÑOS BÁSICOS (OPCIONAL)
+        File firmwareFile = SD_MMC.open(firmwarePath.c_str(), FILE_READ);
+        File interfaceFile = SD_MMC.open(interfacePath.c_str(), FILE_READ);
+        
+        if (firmwareFile && interfaceFile) {
+            size_t firmwareSize = firmwareFile.size();
+            size_t interfaceSize = interfaceFile.size();
+            
+            logln("Firmware size: " + String(firmwareSize) + " bytes");
+            logln("Interface size: " + String(interfaceSize) + " bytes");
+            
+            // Verificación básica de tamaños mínimos
+            if (firmwareSize > 1000000 && interfaceSize > 2000000) { // Firmware >1MB, Interface >2MB
+                
+                myNex.writeStr("update.status.txt", "Files downloaded");
+                logln("Both files downloaded successfully!");
+                
+                firmwareFile.close();
+                interfaceFile.close();
+                return true;
+            } else {
+                logln("Downloaded files seem too small - possible corruption");
+                myNex.writeStr("update.status.txt","Downloaded files corrupted");
+                // Eliminar archivos corruptos
+                SD_MMC.remove(firmwarePath.c_str());
+                SD_MMC.remove("/powadcr_iface.tft");
+            }
+        }
+        
+        if (firmwareFile) firmwareFile.close();
+        if (interfaceFile) interfaceFile.close();
+        
+        return false;
+    }
+    
+    // ✅ FUNCIÓN PRINCIPAL PARA ACTUALIZACIÓN MANUAL
+    void manualFirmwareUpdate() {
+        logln("=== MANUAL FIRMWARE UPDATE ===");
+        
+        // ✅ PASO 1: OBTENER ÚLTIMO TAG
+        String latestTag = getLatestReleaseTag();
+        if (latestTag.length() == 0) {
+            LAST_MESSAGE = "Failed to get version info";
+            writeString("statusFILE.txt=\"" + LAST_MESSAGE + "\"");
+            return;
+        }
+        
+        // ✅ COMPARAR CON VERSIÓN ACTUAL
+        String currentVersion = String(VERSION);
+        HMI_MODEL = myNex.readStr("update.firmVersion.txt");
+        myNex.writeStr("update.cVersion.txt",currentVersion.c_str());
+        myNex.writeStr("update.nVersion.txt",latestTag.c_str());
+
+        logln("Current version: " + currentVersion);
+        logln("Latest version: " + latestTag);
+        
+        if (latestTag.compareTo(currentVersion) <= 0) {
+            myNex.writeStr("update.status.txt","No update needed");
+            logln("No update needed");
+            return;
+        }
+        
+        // ✅ PASO 2: DESCARGAR ARCHIVOS
+        myNex.writeStr("update.status.txt","New update available");
+        
+        if (downloadFirmwareFiles(latestTag)) {
+            myNex.writeStr("update.status.txt","All firmwares downloaded. Update now.");
+            logln("Firmware update downloaded successfully!");
+            logln("Files ready: /firmware.bin and /powadcr_iface.tft");
+        } else {
+            myNex.writeStr("update.status.txt","Update failed.");
+            logln("Firmware update failed!");
+        }
+    }
+
+    #endif
+
+    void updateHMIfirmware()
+    {
+      char strpathtft[20] = {};
+      String hmifile = myNex.readStr("update.firmVersion.txt") + ".tft";
+      strcpy(strpathtft, hmifile.c_str());
+
+      File firmwaretft = SD_MMC.open(strpathtft, FILE_READ);
+      if (firmwaretft)
+      {
+        //writeStatusLCD("New display firmware");
+        myNex.writeStr("update.status.txt","Start to flashing display ...");
+        delay(2000);
+        // NOTA: Este metodo necesita que la pantalla esté alimentada con 5V
+        uploadFirmDisplay(strpathtft);
+        SD_MMC.remove(strpathtft);
+        // Esperamos al reinicio de la pantalla
+        delay(5000);
+      }
+      else
+      {
+        myNex.writeStr("update.status.txt","No display firmware found");
+        delay(2000);
+      }
+    }
+
+    void onOTAStart()
+    {
+      //pageScreenIsShown = false;
+    }
+
+    static void onOTAProgress(size_t currSize, size_t totalSize)
+    {
+      // log_v("CALLBACK:  Update process at %d of %d bytes...", currSize, totalSize);
+
+    #ifdef DEBUGMODE
+      logln("Uploading status: " + String(currSize / 1024) + "/" + String(totalSize / 1024) + " KB");
+    #endif
+
+      // if (!pageScreenIsShown)
+      // {
+      //   hmi.writeString("page screen");
+      //   hmi.writeString("screen.updateBar.bco=23275");
+      //   pageScreenIsShown = true;
+      // }
+
+      int prg = 0;
+      prg = (currSize * 100) / totalSize;
+
+      //hmi.writeString("statusLCD.txt=\"FIRMWARE UPDATING " + String(prg) + " %\"");
+      myNex.writeStr("update.status.txt","Flashing Audiokit ... " + String(prg) + " %");
+      //hmi.writeString("screen.updateBar.val=" + String(prg));
+    }
+
+    void onOTAEnd(bool success)
+    {
+      if (success)
+      {
+        myNex.writeStr("update.status.txt","Update finished");
+      }
+      else
+      {
+        myNex.writeStr("update.status.txt","Update error");
+      }
+    }
+
+    void updateESP32firmware()
+    {
+        // log_v("");
+        // log_v("Search for firmware..");
+        char strpath[20] = {};
+        strcpy(strpath, "/firmware.bin");
+
+        File firmware = SD_MMC.open(strpath, FILE_READ);
+
+        if (firmware)
+        {
+          logln("Firmware file opened " + String(strpath));
+          myNex.writeStr("update.status.txt","Checking firmware");
+          
+          // Verificar magic byte antes del update
+          uint8_t magicByte = firmware.peek();
+          logln("First byte of firmware: 0x" + String(magicByte, HEX));
+          
+          if (magicByte != 0xE9) 
+          {
+              logln("ERROR: Invalid firmware file - Wrong magic byte");
+              myNex.writeStr("update.status.txt","Invalid firmware file");
+              firmware.close();
+              
+              // Eliminar archivo inválido
+              if (SD_MMC.remove("/firmware.bin")) {
+                  logln("Invalid firmware file deleted");
+              }
+              return;
+          }    
+          myNex.writeStr("update.status.txt","Flashing Audiokit ...");
+          logln("Firmware found on SD_MMC");
+          onOTAStart();
+          logln("Updating firmware...");
+
+          Update.onProgress(onOTAProgress);
+
+          size_t firmwareSize = firmware.available();
+          logln("Firmware size: " + String(firmwareSize) + " bytes");
+
+          if(!Update.begin(firmwareSize))
+          {
+            logln("Error initializing updater obj.");
+            Update.getError();
+            Update.printError(Serial);
+          }
+          else
+          {
+              uint8_t buf[2048];
+              int bytesRead = 0;
+              size_t totalWritten = 0;
+
+              while ((bytesRead = firmware.read(buf, sizeof(buf))) > 0) 
+              {
+                Update.write(buf, bytesRead);
+                totalWritten += bytesRead;
+                Serial.printf("Escritos: %d/%d bytes\n", totalWritten, firmwareSize);
+              }        
+          }
+
+          if (Update.end())
+          {
+            log_v("Update finished!");
+            myNex.writeStr("update.status.txt","Update finished");
+            onOTAEnd(true);
+            delay(2000);
+          }
+          else
+          {
+            log_e("Update error!");
+            myNex.writeStr("update.status.txt","Update error");
+            
+            Update.getError();
+            Update.printError(Serial);
+            onOTAEnd(false);
+            delay(2000);
+          }
+
+          firmware.close();
+
+          if (SD_MMC.remove(strpath))
+          {
+            log_v("Firmware deleted succesfully!");
+          }
+          else
+          {
+            log_e("Firmware delete error!");
+          }
+          delay(2000);
+
+          ESP.restart();
+        }
+        else
+        {
+          log_v("not found!");
+          myNex.writeStr("update.status.txt","No firmware found");
+          delay(2000);
+        }
+    }
+
+    void uploadFirmDisplay(char *filetft)
+    {
+      
+      File file;
+      String ans = "";
+      
+      logln("Uploading file " + String(filetft));
+      try
+      {
+        file = SD_MMC.open(filetft,FILE_READ);
+      }
+      catch(String error)
+      {
+        myNex.writeStr("update.status.txt","Error opening TFT file");
+        delay(2000);
+        return;
+      }
+      
+      logln("File opened");
+
+      if (file)
+      {
+          uint32_t filesize = file.available();
+          logln("Starting uploading");
+
+          //Enviamos comando de conexión
+          // Forzamos un reinicio de la pantalla
+          write("DRAKJHSUYDGBNCJHGJKSHBDN");
+          SerialHW.write(0xff);
+          SerialHW.write(0xff);
+          SerialHW.write(0xff);
+          delay(200);
+
+          SerialHW.write(0x00);
+          SerialHW.write(0xff);
+          SerialHW.write(0xff);
+          SerialHW.write(0xff);
+          delay(200);
+
+          write("connect");
+          SerialHW.write(0xff);
+          SerialHW.write(0xff);
+          SerialHW.write(0xff);
+          delay(500);
+
+          write("connect");
+          SerialHW.write(0xff);
+          SerialHW.write(0xff);
+          SerialHW.write(0xff);
+
+          ans = readStr();
+          delay(500);
+
+          write("runmod=2");
+          SerialHW.write(0xff);
+          SerialHW.write(0xff);
+          SerialHW.write(0xff);
+
+          write("print \"mystop_yesABC\"");
+          SerialHW.write(0xff);
+          SerialHW.write(0xff);
+          SerialHW.write(0xff);
+
+          ans = readStr();
+
+          write("get sleep");
+          SerialHW.write(0xff);
+          SerialHW.write(0xff);
+          SerialHW.write(0xff);
+          delay(200);
+
+          write("get dim");
+          SerialHW.write(0xff);
+          SerialHW.write(0xff);
+          SerialHW.write(0xff);
+          delay(200);
+
+          write("get baud");
+          SerialHW.write(0xff);
+          SerialHW.write(0xff);
+          SerialHW.write(0xff);
+          delay(200);
+
+          write("prints \"ABC\",0");
+          SerialHW.write(0xff);
+          SerialHW.write(0xff);
+          SerialHW.write(0xff);
+          delay(200);
+
+          ans = readStr();
+
+          SerialHW.write(0x00);
+          SerialHW.write(0xff);
+          SerialHW.write(0xff);
+          SerialHW.write(0xff);
+          delay(200);
+
+          write("whmi-wris " + String(filesize) + ",921600,1");
+          SerialHW.write(0xff);
+          SerialHW.write(0xff);
+          SerialHW.write(0xff);
+
+          delay(500);
+          ans = readStr();
+
+          //
+          file.seek(0);
+
+          // Enviamos los datos
+
+          uint8_t buf[4096];
+          size_t avail;
+          size_t readcount;
+          int bl = 0;
+
+          while (filesize > 0)
+          {
+            // Leemos un bloque de 4096 bytes o el residual final < 4096
+            readcount = file.read(buf, filesize > 4096 ? 4096 : filesize);
+
+            // Lo enviamos
+            SerialHW.write(buf, readcount);
+
+            // Si es el primer bloque esperamos respuesta de 0x05 o 0x08
+            // en el caso de 0x08 saltaremos a la posición que indica la pantalla.
+
+            if (bl == 0)
+            {
+              String res = "";
+
+              // Una vez enviado el primer bloque esperamos 2s
+              delay(2000);
+
+              while (1)
+              {
+                res = readStr();
+
+                if (res.indexOf(0x08) != -1)
+                {
+                  int offset = (pow(16, 6) * int(res[4])) + (pow(16, 4) * int(res[3])) + (pow(16, 2) * int(res[2])) + int(res[1]);
+
+                  if (offset != 0)
+                  {
+                    file.seek(0);
+                    delay(50);
+                    file.seek(offset);
+                    delay(50);
+                  }
+                  break;
+                }
+                delay(50);
+              }
+            }
+            else
+            {
+              String res = "";
+              while (1)
+              {
+                // Esperams un ACK 0x05
+                res = readStr();
+                if (res.indexOf(0x05) != -1)
+                {
+                  break;
+                }
+              }
+            }
+
+            //
+            bl++;
+            // Vemos lo que queda una vez he movido el seek o he leido un bloque
+            // ".available" mide lo que queda desde el puntero a EOF.
+            filesize = file.available();
+          }
+
+          file.close();    
+      }
+      else
+      {
+        SD_MMC.remove(filetft);
+      }
+      
+    }
 
       // Constructor
       HMI()

@@ -161,10 +161,6 @@ uint16_t USER_CONFIG_ARDUINO_LOOP_STACK_SIZE = 16384;
 //#include "SmartRadioBuffer.h"
 //#include "PredictiveRadioBuffer.h"
 
-// OTA SD Update
-// -----------------------------------------------------------------------
-#include <Update.h>
-
 // SPIFFS
 // -----------------------------------------------------------------------
 // #include "esp_err.h"
@@ -184,7 +180,6 @@ uint16_t USER_CONFIG_ARDUINO_LOOP_STACK_SIZE = 16384;
   // Define timeout time in milliseconds (example: 2000ms = 2s)
   const long timeoutTime = 2000;  
 #endif
-
 
 using namespace audio_tools;
 
@@ -1072,44 +1067,44 @@ void stopRecording()
 // -------------------------------------------------------------------------------------------------------------------
 // unsigned long ota_progress_millis = 0;
 
-void onOTAStart()
-{
-  pageScreenIsShown = false;
-}
+// void onOTAStart()
+// {
+//   pageScreenIsShown = false;
+// }
 
-void onOTAProgress(size_t currSize, size_t totalSize)
-{
-  // log_v("CALLBACK:  Update process at %d of %d bytes...", currSize, totalSize);
+// void onOTAProgress(size_t currSize, size_t totalSize)
+// {
+//   // log_v("CALLBACK:  Update process at %d of %d bytes...", currSize, totalSize);
 
-#ifdef DEBUGMODE
-  logln("Uploading status: " + String(currSize / 1024) + "/" + String(totalSize / 1024) + " KB");
-#endif
+// #ifdef DEBUGMODE
+//   logln("Uploading status: " + String(currSize / 1024) + "/" + String(totalSize / 1024) + " KB");
+// #endif
 
-  if (!pageScreenIsShown)
-  {
-    hmi.writeString("page screen");
-    hmi.writeString("screen.updateBar.bco=23275");
-    pageScreenIsShown = true;
-  }
+//   if (!pageScreenIsShown)
+//   {
+//     hmi.writeString("page screen");
+//     hmi.writeString("screen.updateBar.bco=23275");
+//     pageScreenIsShown = true;
+//   }
 
-  int prg = 0;
-  prg = (currSize * 100) / totalSize;
+//   int prg = 0;
+//   prg = (currSize * 100) / totalSize;
 
-  hmi.writeString("statusLCD.txt=\"FIRMWARE UPDATING " + String(prg) + " %\"");
-  hmi.writeString("screen.updateBar.val=" + String(prg));
-}
+//   hmi.writeString("statusLCD.txt=\"FIRMWARE UPDATING " + String(prg) + " %\"");
+//   hmi.writeString("screen.updateBar.val=" + String(prg));
+// }
 
-void onOTAEnd(bool success)
-{
-  if (success)
-  {
-    hmi.writeString("statusLCD.txt=\"SUCCEESSFUL UPDATE\"");
-  }
-  else
-  {
-    hmi.writeString("statusLCD.txt=\"UPDATE FAIL\"");
-  }
-}
+// void onOTAEnd(bool success)
+// {
+//   if (success)
+//   {
+//     hmi.writeString("statusLCD.txt=\"SUCCEESSFUL UPDATE\"");
+//   }
+//   else
+//   {
+//     hmi.writeString("statusLCD.txt=\"UPDATE FAIL\"");
+//   }
+// }
 
 bool wifiSetup()
 {
@@ -1166,189 +1161,189 @@ void writeStatusLCD(String txt)
   hmi.writeString("statusLCD.txt=\"" + txt + "\"");
 }
 
-void uploadFirmDisplay(char *filetft)
-{
+// void uploadFirmDisplay(char *filetft)
+// {
   
-  File file;
-  String ans = "";
+//   File file;
+//   String ans = "";
   
-  logln("Uploading file " + String(filetft));
-  try
-  {
-    file = SD_MMC.open(filetft,FILE_READ);
-  }
-  catch(String error)
-  {
-    return;
-  }
+//   logln("Uploading file " + String(filetft));
+//   try
+//   {
+//     file = SD_MMC.open(filetft,FILE_READ);
+//   }
+//   catch(String error)
+//   {
+//     return;
+//   }
   
-  logln("File opened");
+//   logln("File opened");
 
-  if (file)
-  {
-      uint32_t filesize = file.available();
-      logln("Starting uploading");
+//   if (file)
+//   {
+//       uint32_t filesize = file.available();
+//       logln("Starting uploading");
 
-      //Enviamos comando de conexión
-      // Forzamos un reinicio de la pantalla
-      hmi.write("DRAKJHSUYDGBNCJHGJKSHBDN");
-      SerialHW.write(0xff);
-      SerialHW.write(0xff);
-      SerialHW.write(0xff);
-      delay(200);
+//       //Enviamos comando de conexión
+//       // Forzamos un reinicio de la pantalla
+//       hmi.write("DRAKJHSUYDGBNCJHGJKSHBDN");
+//       SerialHW.write(0xff);
+//       SerialHW.write(0xff);
+//       SerialHW.write(0xff);
+//       delay(200);
 
-      SerialHW.write(0x00);
-      SerialHW.write(0xff);
-      SerialHW.write(0xff);
-      SerialHW.write(0xff);
-      delay(200);
+//       SerialHW.write(0x00);
+//       SerialHW.write(0xff);
+//       SerialHW.write(0xff);
+//       SerialHW.write(0xff);
+//       delay(200);
 
-      hmi.write("connect");
-      SerialHW.write(0xff);
-      SerialHW.write(0xff);
-      SerialHW.write(0xff);
-      delay(500);
+//       hmi.write("connect");
+//       SerialHW.write(0xff);
+//       SerialHW.write(0xff);
+//       SerialHW.write(0xff);
+//       delay(500);
 
-      hmi.write("connect");
-      SerialHW.write(0xff);
-      SerialHW.write(0xff);
-      SerialHW.write(0xff);
+//       hmi.write("connect");
+//       SerialHW.write(0xff);
+//       SerialHW.write(0xff);
+//       SerialHW.write(0xff);
 
-      ans = hmi.readStr();
-      delay(500);
+//       ans = hmi.readStr();
+//       delay(500);
 
-      hmi.write("runmod=2");
-      SerialHW.write(0xff);
-      SerialHW.write(0xff);
-      SerialHW.write(0xff);
+//       hmi.write("runmod=2");
+//       SerialHW.write(0xff);
+//       SerialHW.write(0xff);
+//       SerialHW.write(0xff);
 
-      hmi.write("print \"mystop_yesABC\"");
-      SerialHW.write(0xff);
-      SerialHW.write(0xff);
-      SerialHW.write(0xff);
+//       hmi.write("print \"mystop_yesABC\"");
+//       SerialHW.write(0xff);
+//       SerialHW.write(0xff);
+//       SerialHW.write(0xff);
 
-      ans = hmi.readStr();
+//       ans = hmi.readStr();
 
-      hmi.write("get sleep");
-      SerialHW.write(0xff);
-      SerialHW.write(0xff);
-      SerialHW.write(0xff);
-      delay(200);
+//       hmi.write("get sleep");
+//       SerialHW.write(0xff);
+//       SerialHW.write(0xff);
+//       SerialHW.write(0xff);
+//       delay(200);
 
-      hmi.write("get dim");
-      SerialHW.write(0xff);
-      SerialHW.write(0xff);
-      SerialHW.write(0xff);
-      delay(200);
+//       hmi.write("get dim");
+//       SerialHW.write(0xff);
+//       SerialHW.write(0xff);
+//       SerialHW.write(0xff);
+//       delay(200);
 
-      hmi.write("get baud");
-      SerialHW.write(0xff);
-      SerialHW.write(0xff);
-      SerialHW.write(0xff);
-      delay(200);
+//       hmi.write("get baud");
+//       SerialHW.write(0xff);
+//       SerialHW.write(0xff);
+//       SerialHW.write(0xff);
+//       delay(200);
 
-      hmi.write("prints \"ABC\",0");
-      SerialHW.write(0xff);
-      SerialHW.write(0xff);
-      SerialHW.write(0xff);
-      delay(200);
+//       hmi.write("prints \"ABC\",0");
+//       SerialHW.write(0xff);
+//       SerialHW.write(0xff);
+//       SerialHW.write(0xff);
+//       delay(200);
 
-      ans = hmi.readStr();
+//       ans = hmi.readStr();
 
-      SerialHW.write(0x00);
-      SerialHW.write(0xff);
-      SerialHW.write(0xff);
-      SerialHW.write(0xff);
-      delay(200);
+//       SerialHW.write(0x00);
+//       SerialHW.write(0xff);
+//       SerialHW.write(0xff);
+//       SerialHW.write(0xff);
+//       delay(200);
 
-      hmi.write("whmi-wris " + String(filesize) + ",921600,1");
-      SerialHW.write(0xff);
-      SerialHW.write(0xff);
-      SerialHW.write(0xff);
+//       hmi.write("whmi-wris " + String(filesize) + ",921600,1");
+//       SerialHW.write(0xff);
+//       SerialHW.write(0xff);
+//       SerialHW.write(0xff);
 
-      delay(500);
-      ans = hmi.readStr();
+//       delay(500);
+//       ans = hmi.readStr();
 
-      //
-      file.seek(0);
+//       //
+//       file.seek(0);
 
-      // Enviamos los datos
+//       // Enviamos los datos
 
-      uint8_t buf[4096];
-      size_t avail;
-      size_t readcount;
-      int bl = 0;
+//       uint8_t buf[4096];
+//       size_t avail;
+//       size_t readcount;
+//       int bl = 0;
 
-      while (filesize > 0)
-      {
-        // Leemos un bloque de 4096 bytes o el residual final < 4096
-        readcount = file.read(buf, filesize > 4096 ? 4096 : filesize);
+//       while (filesize > 0)
+//       {
+//         // Leemos un bloque de 4096 bytes o el residual final < 4096
+//         readcount = file.read(buf, filesize > 4096 ? 4096 : filesize);
 
-        // Lo enviamos
-        SerialHW.write(buf, readcount);
+//         // Lo enviamos
+//         SerialHW.write(buf, readcount);
 
-        // Si es el primer bloque esperamos respuesta de 0x05 o 0x08
-        // en el caso de 0x08 saltaremos a la posición que indica la pantalla.
+//         // Si es el primer bloque esperamos respuesta de 0x05 o 0x08
+//         // en el caso de 0x08 saltaremos a la posición que indica la pantalla.
 
-        if (bl == 0)
-        {
-          String res = "";
+//         if (bl == 0)
+//         {
+//           String res = "";
 
-          // Una vez enviado el primer bloque esperamos 2s
-          delay(2000);
+//           // Una vez enviado el primer bloque esperamos 2s
+//           delay(2000);
 
-          while (1)
-          {
-            res = hmi.readStr();
+//           while (1)
+//           {
+//             res = hmi.readStr();
 
-            if (res.indexOf(0x08) != -1)
-            {
-              int offset = (pow(16, 6) * int(res[4])) + (pow(16, 4) * int(res[3])) + (pow(16, 2) * int(res[2])) + int(res[1]);
+//             if (res.indexOf(0x08) != -1)
+//             {
+//               int offset = (pow(16, 6) * int(res[4])) + (pow(16, 4) * int(res[3])) + (pow(16, 2) * int(res[2])) + int(res[1]);
 
-              if (offset != 0)
-              {
-                file.seek(0);
-                delay(50);
-                file.seek(offset);
-                delay(50);
-              }
-              break;
-            }
-            delay(50);
-          }
-        }
-        else
-        {
-          String res = "";
-          while (1)
-          {
-            // Esperams un ACK 0x05
-            res = hmi.readStr();
-            if (res.indexOf(0x05) != -1)
-            {
-              break;
-            }
-          }
-        }
+//               if (offset != 0)
+//               {
+//                 file.seek(0);
+//                 delay(50);
+//                 file.seek(offset);
+//                 delay(50);
+//               }
+//               break;
+//             }
+//             delay(50);
+//           }
+//         }
+//         else
+//         {
+//           String res = "";
+//           while (1)
+//           {
+//             // Esperams un ACK 0x05
+//             res = hmi.readStr();
+//             if (res.indexOf(0x05) != -1)
+//             {
+//               break;
+//             }
+//           }
+//         }
 
-        //
-        bl++;
-        // Vemos lo que queda una vez he movido el seek o he leido un bloque
-        // ".available" mide lo que queda desde el puntero a EOF.
-        filesize = file.available();
-      }
+//         //
+//         bl++;
+//         // Vemos lo que queda una vez he movido el seek o he leido un bloque
+//         // ".available" mide lo que queda desde el puntero a EOF.
+//         filesize = file.available();
+//       }
 
-      file.close();    
-  }
-  else
-  {
-    writeStatusLCD("file corrupt.");
-    SD_MMC.remove(filetft);
-  }
+//       file.close();    
+//   }
+//   else
+//   {
+//     writeStatusLCD("file corrupt.");
+//     SD_MMC.remove(filetft);
+//   }
 
   
-}
-// -------------------------------------------------------------------------------------------------------------------
+// }
+// // -------------------------------------------------------------------------------------------------------------------
 
 void prepareOutputToWav()
 {
@@ -8142,119 +8137,119 @@ bool createSpecialDirectory(String fDir)
   return false;
 }
 
-void updateHMIfirmware()
-{
-  char strpathtft[20] = {};
-  strcpy(strpathtft, "/powadcr_iface.tft");
+// void updateHMIfirmware()
+// {
+//   char strpathtft[20] = {};
+//   strcpy(strpathtft, "/powadcr_iface.tft");
 
-  File firmwaretft = SD_MMC.open(strpathtft, FILE_READ);
-  if (firmwaretft)
-  {
-    writeStatusLCD("New display firmware");
-    // NOTA: Este metodo necesita que la pantalla esté alimentada con 5V
-    uploadFirmDisplay(strpathtft);
-    SD_MMC.remove(strpathtft);
-    // Esperamos al reinicio de la pantalla
-    delay(5000);
-  }
-}
+//   File firmwaretft = SD_MMC.open(strpathtft, FILE_READ);
+//   if (firmwaretft)
+//   {
+//     writeStatusLCD("New display firmware");
+//     // NOTA: Este metodo necesita que la pantalla esté alimentada con 5V
+//     uploadFirmDisplay(strpathtft);
+//     SD_MMC.remove(strpathtft);
+//     // Esperamos al reinicio de la pantalla
+//     delay(5000);
+//   }
+// }
 
-void updateESP32firmware()
-{
-    log_v("");
-    log_v("Search for firmware..");
-    char strpath[20] = {};
-    strcpy(strpath, "/firmware.bin");
+// void updateESP32firmware()
+// {
+//     log_v("");
+//     log_v("Search for firmware..");
+//     char strpath[20] = {};
+//     strcpy(strpath, "/firmware.bin");
 
-    File firmware = SD_MMC.open(strpath, FILE_READ);
+//     File firmware = SD_MMC.open(strpath, FILE_READ);
 
-    if (firmware)
-    {
-      logln("Firmware file opened " + String(strpath));
-      hmi.writeString("statusLCD.txt=\"Checking firmware...\"");
+//     if (firmware)
+//     {
+//       logln("Firmware file opened " + String(strpath));
+//       hmi.writeString("statusLCD.txt=\"Checking firmware...\"");
       
-      // Verificar magic byte antes del update
-      uint8_t magicByte = firmware.peek();
-      logln("First byte of firmware: 0x" + String(magicByte, HEX));
+//       // Verificar magic byte antes del update
+//       uint8_t magicByte = firmware.peek();
+//       logln("First byte of firmware: 0x" + String(magicByte, HEX));
       
-      if (magicByte != 0xE9) 
-      {
-          logln("ERROR: Invalid firmware file - Wrong magic byte");
-          hmi.writeString("statusLCD.txt=\"Invalid firmware file\"");
-          firmware.close();
+//       if (magicByte != 0xE9) 
+//       {
+//           logln("ERROR: Invalid firmware file - Wrong magic byte");
+//           hmi.writeString("statusLCD.txt=\"Invalid firmware file\"");
+//           firmware.close();
           
-          // Eliminar archivo inválido
-          if (SD_MMC.remove("/firmware.bin")) {
-              logln("Invalid firmware file deleted");
-          }
-          return;
-      }    
-      hmi.writeString("statusLCD.txt=\"New powadcr firmware found\"");
-      logln("Firmware found on SD_MMC");
-      onOTAStart();
-      logln("Updating firmware...");
+//           // Eliminar archivo inválido
+//           if (SD_MMC.remove("/firmware.bin")) {
+//               logln("Invalid firmware file deleted");
+//           }
+//           return;
+//       }    
+//       hmi.writeString("statusLCD.txt=\"New powadcr firmware found\"");
+//       logln("Firmware found on SD_MMC");
+//       onOTAStart();
+//       logln("Updating firmware...");
 
-      Update.onProgress(onOTAProgress);
+//       Update.onProgress(onOTAProgress);
 
-      size_t firmwareSize = firmware.available();
-      logln("Firmware size: " + String(firmwareSize) + " bytes");
+//       size_t firmwareSize = firmware.available();
+//       logln("Firmware size: " + String(firmwareSize) + " bytes");
 
-      if(!Update.begin(firmwareSize))
-      {
-        logln("Error initializing updater obj.");
-        Update.getError();
-        Update.printError(Serial);
-      }
-      else
-      {
-          uint8_t buf[2048];
-          int bytesRead = 0;
-          size_t totalWritten = 0;
+//       if(!Update.begin(firmwareSize))
+//       {
+//         logln("Error initializing updater obj.");
+//         Update.getError();
+//         Update.printError(Serial);
+//       }
+//       else
+//       {
+//           uint8_t buf[2048];
+//           int bytesRead = 0;
+//           size_t totalWritten = 0;
 
-          while ((bytesRead = firmware.read(buf, sizeof(buf))) > 0) 
-          {
-            Update.write(buf, bytesRead);
-            totalWritten += bytesRead;
-            Serial.printf("Escritos: %d/%d bytes\n", totalWritten, firmwareSize);
-          }        
-      }
+//           while ((bytesRead = firmware.read(buf, sizeof(buf))) > 0) 
+//           {
+//             Update.write(buf, bytesRead);
+//             totalWritten += bytesRead;
+//             Serial.printf("Escritos: %d/%d bytes\n", totalWritten, firmwareSize);
+//           }        
+//       }
 
-      if (Update.end())
-      {
-        log_v("Update finished!");
-        hmi.writeString("statusLCD.txt=\"Update finished\"");
-        onOTAEnd(true);
-        delay(2000);
-      }
-      else
-      {
-        log_e("Update error!");
-        hmi.writeString("statusLCD.txt=\"Update error\"");
-        Update.getError();
-        Update.printError(Serial);
-        onOTAEnd(false);
-        delay(2000);
-      }
+//       if (Update.end())
+//       {
+//         log_v("Update finished!");
+//         hmi.writeString("statusLCD.txt=\"Update finished\"");
+//         onOTAEnd(true);
+//         delay(2000);
+//       }
+//       else
+//       {
+//         log_e("Update error!");
+//         hmi.writeString("statusLCD.txt=\"Update error\"");
+//         Update.getError();
+//         Update.printError(Serial);
+//         onOTAEnd(false);
+//         delay(2000);
+//       }
 
-      firmware.close();
+//       firmware.close();
 
-      if (SD_MMC.remove(strpath))
-      {
-        log_v("Firmware deleted succesfully!");
-      }
-      else
-      {
-        log_e("Firmware delete error!");
-      }
-      delay(2000);
+//       if (SD_MMC.remove(strpath))
+//       {
+//         log_v("Firmware deleted succesfully!");
+//       }
+//       else
+//       {
+//         log_e("Firmware delete error!");
+//       }
+//       delay(2000);
 
-      ESP.restart();
-    }
-    else
-    {
-      log_v("not found!");
-    }
-}
+//       ESP.restart();
+//     }
+//     else
+//     {
+//       log_v("not found!");
+//     }
+// }
 
 void setupAudioKit()
 {
@@ -8613,12 +8608,12 @@ void setup()
   // -------------------------------------------------------------------------
   // Actualización OTA por SD
   // -------------------------------------------------------------------------
-  updateESP32firmware();
+  //updateESP32firmware();
 
   // -------------------------------------------------------------------------
   // Actualizacion del HMI
   // -------------------------------------------------------------------------
-  updateHMIfirmware();
+  //hmi.updateHMIfirmware();
 
   // -------------------------------------------------------------------------
   // Cargamos configuración WiFi
@@ -8663,7 +8658,6 @@ void setup()
   //
   // ----------------------------------------------------------
   prepareCardStructure();
-
 
   // -------------------------------------------------------------------------
   //
