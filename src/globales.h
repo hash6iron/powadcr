@@ -685,6 +685,9 @@ bool UPDATE_FROM_REMOTE_CONTROL = false;
 int FILE_POS_REMOTE_CONTROL = 0;
 bool CMD_FROM_REMOTE_CONTROL = false;
 
+// Auto-update
+String HMI_MODEL = "";
+
 
 // Declaraciones de metodos
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -1035,161 +1038,6 @@ bool isDirectoryPath(const char* path)
     return isDir;
 }
 
-// bool isDirectoryPath(const char* path) 
-// {
-//     String spath = String(path);
-//     int lastSlash = spath.lastIndexOf('/');
-//     int lastDot = spath.lastIndexOf('.');
-
-//     // ✅ SI NO HAY PUNTO, VERIFICAR EN EL SISTEMA DE ARCHIVOS
-//     if (lastDot == -1) {
-//         File dir = SD_MMC.open(path, FILE_READ);
-//         bool isDir = dir && dir.isDirectory();
-//         if (dir) dir.close();
-//         return isDir;
-//     }
-
-//     // ✅ SI HAY PUNTO DESPUÉS DEL ÚLTIMO SLASH Y AL MENOS UN CARÁCTER DESPUÉS
-//     if (lastDot > lastSlash && lastDot < spath.length() - 1) {
-        
-//         String afterDot = spath.substring(lastDot + 1);
-        
-//         // ✅ CASO 1: Si después del punto hay espacios (seguido de lo que sea), asumir directorio
-//         bool hasSpaces = false;
-//         for (int i = 0; i < afterDot.length(); i++) {
-//             if (afterDot[i] == ' ') {
-//                 hasSpaces = true;
-//                 break;
-//             }
-//         }
-        
-//         if (hasSpaces) {
-//             logln("Pattern suggests directory (spaces after dot): " + spath);
-            
-//             // ✅ INTENTAR ABRIR COMO DIRECTORIO
-//             File dir = SD_MMC.open(path, FILE_READ);
-//             if (dir && dir.isDirectory()) {
-//                 dir.close();
-//                 logln("Confirmed as directory: " + spath);
-//                 return true;
-//             }
-            
-//             // ✅ SI FALLA COMO DIRECTORIO, INTENTAR COMO ARCHIVO
-//             if (dir) dir.close();
-//             File file = SD_MMC.open(path, FILE_READ);
-//             if (file && !file.isDirectory()) {
-//                 file.close();
-//                 logln("Actually is a file (despite spaces): " + spath);
-//                 return false;
-//             }
-            
-//             // ✅ SI AMBOS FALLAN, DESCARTAR
-//             if (file) file.close();
-//             logln("ERROR: Cannot access as directory or file, discarding: " + spath);
-//             return false; // Se descarta definitivamente
-//         }
-        
-//         // ✅ CASO 2: Si después del punto EMPIEZA CON NÚMEROS (seguido de lo que sea), asumir directorio
-//         bool startsWithNumbers = false;
-//         if (afterDot.length() > 0 && isdigit(afterDot[0])) {
-//             startsWithNumbers = true;
-//         }
-        
-//         if (startsWithNumbers) {
-//             logln("Pattern suggests directory (starts with numbers): " + spath);
-            
-//             // ✅ INTENTAR ABRIR COMO DIRECTORIO
-//             File dir = SD_MMC.open(path, FILE_READ);
-//             if (dir && dir.isDirectory()) {
-//                 dir.close();
-//                 logln("Confirmed as directory: " + spath);
-//                 return true;
-//             }
-            
-//             // ✅ SI FALLA COMO DIRECTORIO, INTENTAR COMO ARCHIVO
-//             if (dir) dir.close();
-//             File file = SD_MMC.open(path, FILE_READ);
-//             if (file && !file.isDirectory()) {
-//                 file.close();
-//                 logln("Actually is a file (despite starting with numbers): " + spath);
-//                 return false;
-//             }
-            
-//             // ✅ SI AMBOS FALLAN, DESCARTAR
-//             if (file) file.close();
-//             logln("ERROR: Cannot access as directory or file, discarding: " + spath);
-//             return false; // Se descarta definitivamente
-//         }
-        
-//         // ✅ CASO 3: Extensiones conocidas de archivo son definitivamente archivos (sin verificación adicional)
-//         String extension = afterDot; // ✅ CREAR COPIA SEPARADA
-//         extension.toLowerCase();     // ✅ MODIFICAR LA COPIA
-        
-//         if (extension == "tap" || extension == "tzx" || extension == "tsx" || 
-//             extension == "cdt" || extension == "mp3" || extension == "wav" || 
-//             extension == "flac" || extension == "radio" || extension == "txt" ||
-//             extension == "cfg" || extension == "ini" || extension == "log") {
-            
-//             // ✅ VERIFICAR QUE REALMENTE EXISTE COMO ARCHIVO
-//             File file = SD_MMC.open(path, FILE_READ);
-//             if (file && !file.isDirectory()) {
-//                 file.close();
-//                 return false; // Es definitivamente un archivo
-//             }
-            
-//             // ✅ SI FALLA, DESCARTAR
-//             if (file) file.close();
-//             logln("ERROR: Known file extension but cannot access: " + spath);
-//             return false; // Se descarta
-//         }
-        
-//         // ✅ CASO 4: Extensión desconocida - verificar ambas posibilidades
-//         logln("Unknown extension, checking both possibilities: " + spath);
-        
-//         // Primero intentar como archivo (más probable)
-//         File file = SD_MMC.open(path, FILE_READ);
-//         if (file && !file.isDirectory()) {
-//             file.close();
-//             logln("Unknown extension confirmed as file: " + spath);
-//             return false;
-//         }
-        
-//         // Si falla como archivo, intentar como directorio
-//         if (file) file.close();
-//         File dir = SD_MMC.open(path, FILE_READ);
-//         if (dir && dir.isDirectory()) {
-//             dir.close();
-//             logln("Unknown extension confirmed as directory: " + spath);
-//             return true;
-//         }
-        
-//         // Si ambos fallan, descartar
-//         if (dir) dir.close();
-//         logln("ERROR: Unknown extension, cannot access as file or directory: " + spath);
-//         return false; // Se descarta definitivamente
-//     }
-
-//     // ✅ VERIFICACIÓN FINAL EN EL SISTEMA DE ARCHIVOS
-//     File dir = SD_MMC.open(path, FILE_READ);
-//     if (dir && dir.isDirectory()) {
-//         dir.close();
-//         return true;
-//     }
-    
-//     if (dir) dir.close();
-//     File file = SD_MMC.open(path, FILE_READ);
-//     if (file && !file.isDirectory()) {
-//         file.close();
-//         return false;
-//     }
-    
-//     // Si no se puede acceder de ninguna manera, descartar
-//     if (file) file.close();
-//     logln("ERROR: Cannot determine type, discarding: " + spath);
-//     return false;
-// }
-
-
 int getFreeFileDescriptors() {
     int count = 0;
     // El ESP32 típicamente tiene un máximo de 16 descriptores
@@ -1214,4 +1062,5 @@ int getFreeFileDescriptors() {
     
     return MAX_FD - count;
 }
+
 
