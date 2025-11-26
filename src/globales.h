@@ -396,6 +396,7 @@ int RECORDING_ERROR = 0;
 bool REC_AUDIO_LOOP = true;
 bool WIFI_ENABLE = true;
 bool WIFI_CONNECTED = false;
+bool DHCP_ENABLE = false;
 //
 String LAST_COMMAND = "";
 //bool TIMMING_STABLISHED = false;
@@ -679,6 +680,7 @@ bool WAS_LAUNCHED = false;
 // Internet Radio
 bool IRADIO_EN = false;
 bool URL_RADIO_IS_READY = false;
+bool RADIO_BUFFERED = false;
 
 // Remote control
 bool UPDATE_FROM_REMOTE_CONTROL = false;
@@ -713,6 +715,8 @@ ConfigEntry configEntries[] =
   {"PLEopt", CONFIG_TYPE_BOOL, &PWM_POWER_LED},
   {"SFFopt", CONFIG_TYPE_BOOL, &SORT_FILES_FIRST_DIR},
   {"SPKopt", CONFIG_TYPE_BOOL, &EN_SPEAKER},
+  {"RBUFopt", CONFIG_TYPE_BOOL, &RADIO_BUFFERED},
+  {"DHCPFopt", CONFIG_TYPE_BOOL, &DHCP_ENABLE},
 };
 
 //           s.end());

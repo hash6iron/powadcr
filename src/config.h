@@ -53,6 +53,11 @@
 // |-- Update @ 2.0.0
 
 // --------------------------------------------------------------
+// Configuración de la versión del software
+// --------------------------------------------------------------
+#define VERSION                                         "v1.0r7.6"
+
+// --------------------------------------------------------------
 // Configuración de memoria optimizada
 // --------------------------------------------------------------
 
@@ -124,8 +129,6 @@
 // --------------------------------------------------------------
 // Configuración del sistema
 // --------------------------------------------------------------
-
-#define VERSION                                         "v1.0r7.5"
 #define MACHINE_ZX
 #define POWER_LED_INTENSITY                             125 // Valor entre 0 y 255
 
@@ -215,11 +218,11 @@
 // -------------------------------------------------------------------
 
 // Comentar para usar streaming directo sin buffer circular
-//#define USE_CIRCULAR_BUFFER_FOR_RADIO        
+#define USE_CIRCULAR_BUFFER_FOR_RADIO        
 
 #define MAX_RADIO_STATIONS                            128
 // ✅ AUMENTAR BUFFER Y AJUSTAR PARÁMETROS PARA 160kbps PROBLEMÁTICOS
-#define RADIO_BUFFER_SIZE                             (96 * 1024)    // 64KB (doble del actual)
+#define RADIO_BUFFER_SIZE                             (96 * 1024)    // 96KB (doble del actual)
 #define RADIO_MIN_BUFFER_FILL                         (16 * 1024)    // 16KB antes de empezar (más conservador)
 
 // ✅ INTERVALOS MÁS AGRESIVOS PARA CONEXIONES PROBLEMÁTICAS
@@ -227,10 +230,10 @@
 #define RADIO_PLAYBACK_INTERVAL                       10             // 8ms (menos frecuente para conservar buffer)
 
 // ✅ BUFFERS MÁS GRANDES PARA ABSORBER INTERRUPCIONES
-#define RADIO_NETWORK_BUFFER_SIZE                     512            // 512B (doble del actual)
-#define RADIO_DECODE_BUFFER_SIZE                      1024           // 1KB (más conservador en reproducción)
+#define RADIO_NETWORK_BUFFER_SIZE                     2048           // 512B (mitad del decoded buffer)
+#define RADIO_DECODE_BUFFER_SIZE                      4096           // 1KB (más conservador en reproducción)
 
-#define RADIO_CONNECT_TIMEOUT_MS                      10000          // 15s timeout (más tiempo)
+#define RADIO_CONNECT_TIMEOUT_MS                      10000          // 10s timeout (más tiempo)
 #define USE_SSL_STATIONS                              false
 #define DIAL_COLOR                                    45056  
 #define RADIO_SYNTONIZATION_LED_COLOR                 2016

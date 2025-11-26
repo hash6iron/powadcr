@@ -1638,6 +1638,44 @@ class HMI
 
           saveHMIcfg("SFFopt");
         }             
+        else if (strCmd.indexOf("RBUF=") != -1) 
+        {
+          //Cogemos el valor
+          uint8_t buff[8];
+          strCmd.getBytes(buff, 7);
+          int valEn = (int)buff[5];
+          //
+          if (valEn==1)
+          {
+            RADIO_BUFFERED = true;
+          }
+          else
+          {
+            RADIO_BUFFERED = false;
+          }
+
+          logln("Radio buffered: " + String(RADIO_BUFFERED));
+          saveHMIcfg("RBUFopt");
+        }   
+        else if (strCmd.indexOf("DHCP=") != -1) 
+        {
+          //Cogemos el valor
+          uint8_t buff[8];
+          strCmd.getBytes(buff, 7);
+          int valEn = (int)buff[5];
+          //
+          if (valEn==1)
+          {
+            DHCP_ENABLE = true;
+          }
+          else
+          {
+            DHCP_ENABLE = false;
+          }
+
+          logln("DHCP enabled: " + String(DHCP_ENABLE));
+          saveHMIcfg("DHCPFopt");
+        }               
         else if (strCmd.indexOf("BKX=") != -1) 
         {
             // Con este procedimiento capturamos el bloque seleccionado
@@ -3724,6 +3762,12 @@ class HMI
               logAlert("PAGE MENU");
             #endif
             CURRENT_PAGE = 2;
+            delay(500);
+            // Actualizamos estado checkbox
+            myNex.writeNum("menu.dhcp.val", int(DHCP_ENABLE));
+            myNex.writeNum("menu.ppled.val", int(PWM_POWER_LED));
+            myNex.writeNum("menu.sortFil.val", int(SORT_FILES_FIRST_DIR));
+            myNex.writeNum("menu.rbuf.val", int(RADIO_BUFFERED));
         }  
         else if (strCmd.indexOf("PMENU0") != -1)
         {
