@@ -2728,6 +2728,7 @@ class HMI
           // Actualizamos el master slide
           myNex.writeNum("menuAudio.volM.val", int(MAIN_VOL));
           myNex.writeNum("menuAudio.volLevelM.val", int(MAIN_VOL));
+          myNex.writeStr("tape.tapeVol.txt",String(MAIN_VOL) + "%");
           
           // Almacenamos en NVS
           saveHMIcfg("VLIopt");
@@ -2753,15 +2754,8 @@ class HMI
               }                 
           }
           MASTER_VOL = valVol;
-          // Ajustamos el volumen
-          //logln("Main volume value=" + String(MAIN_VOL));
-
-          // Control del Master volume
-          // MAIN_VOL_L = MAIN_VOL;
-          // MAIN_VOL_R = MAIN_VOL;
           saveHMIcfg("VOLMopt");
-
-          //saveVolSliders();
+          myNex.writeStr("tape.tapeVol.txt",String(MAIN_VOL) + "%");
 
           kitStream.setVolume(MAIN_VOL / 100);
           
@@ -3653,6 +3647,7 @@ class HMI
 
           myNex.writeNum("menuAudio.volM.val", int(MAIN_VOL));
           myNex.writeNum("menuAudio.volLevelM.val", int(MAIN_VOL));
+          myNex.writeStr("tape.tapeVol.txt",String(MAIN_VOL) + "%");
 
           kitStream.setVolume(MAIN_VOL / 100);
 
@@ -3668,6 +3663,8 @@ class HMI
 
           myNex.writeNum("menuAudio.volM.val", int(MAIN_VOL));
           myNex.writeNum("menuAudio.volLevelM.val", int(MAIN_VOL));
+          myNex.writeStr("tape.tapeVol.txt",String(MAIN_VOL) + "%");
+
 
           kitStream.setVolume(MAIN_VOL / 100);
           // logln("");
@@ -3776,14 +3773,17 @@ class HMI
           //-------------------------------------------------------------------------
           #ifdef AUTO_UPDATE    
             // -------------------------------------------------------------------------
-            // Actualización OTA por SD
-            // -------------------------------------------------------------------------
-            updateESP32firmware();
-
-            // -------------------------------------------------------------------------
             // Actualizacion del HMI
             // -------------------------------------------------------------------------
             updateHMIfirmware();
+            delay(5000);
+            // -------------------------------------------------------------------------
+            // Actualización OTA por SD
+            // -------------------------------------------------------------------------
+            updateESP32firmware();
+            myNex.writeStr("update.status.txt","Rebooting powaDCR ...");
+            delay(2000);
+            ESP.restart();
           #endif          
         }           
         else
@@ -5007,8 +5007,10 @@ class HMI
 
     void updateHMIfirmware()
     {
-      char strpathtft[20] = {};
-      String hmifile = myNex.readStr("update.firmVersion.txt") + ".tft";
+      char strpathtft[128] = {};
+      String hmifile = "/" + myNex.readStr("update.firmVersion.txt") + ".tft";
+      logln("Search for HMI file: " + hmifile);
+      
       strcpy(strpathtft, hmifile.c_str());
 
       File firmwaretft = SD_MMC.open(strpathtft, FILE_READ);
@@ -5019,9 +5021,15 @@ class HMI
         delay(2000);
         // NOTA: Este metodo necesita que la pantalla esté alimentada con 5V
         uploadFirmDisplay(strpathtft);
-        SD_MMC.remove(strpathtft);
         // Esperamos al reinicio de la pantalla
-        delay(5000);
+        myNex.writeStr("screen.statusLCD.txt","Waiting for update page ...");
+        delay(3000);
+        writeString("page update");
+        writeString("page update");
+        delay(500);   
+        //
+        myNex.writeStr("update.status.txt","Display firmware updated");
+        //tapeAnimationOFF();       
       }
       else
       {
@@ -5344,13 +5352,13 @@ class HMI
             filesize = file.available();
           }
 
-          file.close();    
+          file.close();   
       }
-      else
-      {
-        SD_MMC.remove(filetft);
-      }
-      
+
+      // Eliminamos el fichero
+      delay(500);
+      SD_MMC.remove(filetft);
+
     }
 
       // Constructor

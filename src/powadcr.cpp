@@ -8137,120 +8137,6 @@ bool createSpecialDirectory(String fDir)
   return false;
 }
 
-// void updateHMIfirmware()
-// {
-//   char strpathtft[20] = {};
-//   strcpy(strpathtft, "/powadcr_iface.tft");
-
-//   File firmwaretft = SD_MMC.open(strpathtft, FILE_READ);
-//   if (firmwaretft)
-//   {
-//     writeStatusLCD("New display firmware");
-//     // NOTA: Este metodo necesita que la pantalla esté alimentada con 5V
-//     uploadFirmDisplay(strpathtft);
-//     SD_MMC.remove(strpathtft);
-//     // Esperamos al reinicio de la pantalla
-//     delay(5000);
-//   }
-// }
-
-// void updateESP32firmware()
-// {
-//     log_v("");
-//     log_v("Search for firmware..");
-//     char strpath[20] = {};
-//     strcpy(strpath, "/firmware.bin");
-
-//     File firmware = SD_MMC.open(strpath, FILE_READ);
-
-//     if (firmware)
-//     {
-//       logln("Firmware file opened " + String(strpath));
-//       hmi.writeString("statusLCD.txt=\"Checking firmware...\"");
-      
-//       // Verificar magic byte antes del update
-//       uint8_t magicByte = firmware.peek();
-//       logln("First byte of firmware: 0x" + String(magicByte, HEX));
-      
-//       if (magicByte != 0xE9) 
-//       {
-//           logln("ERROR: Invalid firmware file - Wrong magic byte");
-//           hmi.writeString("statusLCD.txt=\"Invalid firmware file\"");
-//           firmware.close();
-          
-//           // Eliminar archivo inválido
-//           if (SD_MMC.remove("/firmware.bin")) {
-//               logln("Invalid firmware file deleted");
-//           }
-//           return;
-//       }    
-//       hmi.writeString("statusLCD.txt=\"New powadcr firmware found\"");
-//       logln("Firmware found on SD_MMC");
-//       onOTAStart();
-//       logln("Updating firmware...");
-
-//       Update.onProgress(onOTAProgress);
-
-//       size_t firmwareSize = firmware.available();
-//       logln("Firmware size: " + String(firmwareSize) + " bytes");
-
-//       if(!Update.begin(firmwareSize))
-//       {
-//         logln("Error initializing updater obj.");
-//         Update.getError();
-//         Update.printError(Serial);
-//       }
-//       else
-//       {
-//           uint8_t buf[2048];
-//           int bytesRead = 0;
-//           size_t totalWritten = 0;
-
-//           while ((bytesRead = firmware.read(buf, sizeof(buf))) > 0) 
-//           {
-//             Update.write(buf, bytesRead);
-//             totalWritten += bytesRead;
-//             Serial.printf("Escritos: %d/%d bytes\n", totalWritten, firmwareSize);
-//           }        
-//       }
-
-//       if (Update.end())
-//       {
-//         log_v("Update finished!");
-//         hmi.writeString("statusLCD.txt=\"Update finished\"");
-//         onOTAEnd(true);
-//         delay(2000);
-//       }
-//       else
-//       {
-//         log_e("Update error!");
-//         hmi.writeString("statusLCD.txt=\"Update error\"");
-//         Update.getError();
-//         Update.printError(Serial);
-//         onOTAEnd(false);
-//         delay(2000);
-//       }
-
-//       firmware.close();
-
-//       if (SD_MMC.remove(strpath))
-//       {
-//         log_v("Firmware deleted succesfully!");
-//       }
-//       else
-//       {
-//         log_e("Firmware delete error!");
-//       }
-//       delay(2000);
-
-//       ESP.restart();
-//     }
-//     else
-//     {
-//       log_v("not found!");
-//     }
-// }
-
 void setupAudioKit()
 {
     hmi.writeString("statusLCD.txt=\"Setting audio board\"");
@@ -8606,21 +8492,10 @@ void setup()
   setupSDCard();
 
   // -------------------------------------------------------------------------
-  // Actualización OTA por SD
-  // -------------------------------------------------------------------------
-  //updateESP32firmware();
-
-  // -------------------------------------------------------------------------
-  // Actualizacion del HMI
-  // -------------------------------------------------------------------------
-  //hmi.updateHMIfirmware();
-
-  // -------------------------------------------------------------------------
   // Cargamos configuración WiFi
   // -------------------------------------------------------------------------
   // Si hay configuración activamos el wifi
   setupWifi();
-
 
   // -------------------------------------------------------------------------
   //
@@ -8691,7 +8566,8 @@ void setup()
   myNex.writeNum("menuAudio.volLevelL.val",int(MAIN_VOL_L));
   myNex.writeNum("menuAudio.volR.val",int(MAIN_VOL_R));
   myNex.writeNum("menuAudio.volLevel.val",int(MAIN_VOL_R));
-
+  //
+  myNex.writeStr("tape.tapeVol.txt",String(MAIN_VOL) + "%");
 
   // -------------------------------------------------------------------------
   //
@@ -8699,21 +8575,21 @@ void setup()
   //
   // -------------------------------------------------------------------------
   // 48KHz
-  hmi.writeString("menuAudio2.r0.val=0");
+  myNex.writeNum("menuAudio2.r0.val",0);
   // 44KHz
-  hmi.writeString("menuAudio2.r1.val=0");
+  myNex.writeNum("menuAudio2.r1.val",0);
   // 32KHz
-  hmi.writeString("menuAudio2.r2.val=0");
+  myNex.writeNum("menuAudio2.r2.val",0);
   // 22KHz
-  hmi.writeString("menuAudio2.r3.val=1");
+  myNex.writeNum("menuAudio2.r3.val",1);
   //
-  SAMPLING_RATE = 22050;  // Por defecto 22050
+  SAMPLING_RATE = STANDARD_SR_8_BIT_MACHINE;  // Por defecto
 
   auto new_sr = kitStream.defaultConfig();
   new_sr.sample_rate = SAMPLING_RATE;
   kitStream.setAudioInfo(new_sr);
 
-  hmi.writeString("tape.lblFreq.txt=\"22KHz\"");
+  myNex.writeStr("tape.lblFreq.txt", "32KHz");
   hmi.refreshPulseIcons(INVERSETRAIN, ZEROLEVEL);
   
   // -------------------------------------------------------------------------
