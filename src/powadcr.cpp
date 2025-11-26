@@ -157,12 +157,9 @@ uint16_t USER_CONFIG_ARDUINO_LOOP_STACK_SIZE = 16384;
 
 // SmartRadioBuffer
 // -----------------------------------------------------------------------
-#include "SmartRadioBuffer.h"
+#include "SimpleCircularBuffer.h"
+//#include "SmartRadioBuffer.h"
 //#include "PredictiveRadioBuffer.h"
-
-// OTA SD Update
-// -----------------------------------------------------------------------
-#include <Update.h>
 
 // SPIFFS
 // -----------------------------------------------------------------------
@@ -170,7 +167,7 @@ uint16_t USER_CONFIG_ARDUINO_LOOP_STACK_SIZE = 16384;
 // #include "esp_spiffs.h"
 
 #ifdef FTP_SERVER_ENABLE
-  #include "lib\ESP32_FTPSERVER_SD\ESP32FtpServer.h"
+  #include "lib/ESP32_FTPSERVER_SD/ESP32FtpServer.h"
   FtpServer ftpSrv;
 #endif
 
@@ -183,7 +180,6 @@ uint16_t USER_CONFIG_ARDUINO_LOOP_STACK_SIZE = 16384;
   // Define timeout time in milliseconds (example: 2000ms = 2s)
   const long timeoutTime = 2000;  
 #endif
-
 
 using namespace audio_tools;
 
@@ -987,10 +983,6 @@ void WavRecording()
 void stopRecording()
 {
 
-  // Verificamos cual fue el motivo de la parada
-  // if (REC)
-  // {
-
   // No quitar esto, permite leer la variable totalBlockTransfered
   int tbt = taprec.totalBlockTransfered;
 
@@ -1041,11 +1033,6 @@ void stopRecording()
   }
   else
   {
-    // 26/02/2025
-
-    //taprec.terminate(true);
-    //LAST_MESSAGE = "Recording STOP without blocks captured.";
-    //tapeAnimationOFF();
     //
     delay(1500);
   }
@@ -1054,7 +1041,6 @@ void stopRecording()
 
   // Reiniciamos variables
   taprec.totalBlockTransfered = 0;
-  //taprec.WasfirstStepInTheRecordingProccess = false;
   // Reiniciamos flags de recording errors
   taprec.errorInDataRecording = false;
   taprec.fileWasNotCreated = true;
@@ -1064,50 +1050,6 @@ void stopRecording()
   //
   hmi.activateWifi(true);
   //
-  // Cambiamos la frecuencia de la SD
-  // sdf.begin(ESP32kit.pinSpiCs(), SD_SCK_MHZ(SD_SPEED_MHZ));
-}
-
-// -------------------------------------------------------------------------------------------------------------------
-// unsigned long ota_progress_millis = 0;
-
-void onOTAStart()
-{
-  pageScreenIsShown = false;
-}
-
-void onOTAProgress(size_t currSize, size_t totalSize)
-{
-  // log_v("CALLBACK:  Update process at %d of %d bytes...", currSize, totalSize);
-
-#ifdef DEBUGMODE
-  logln("Uploading status: " + String(currSize / 1024) + "/" + String(totalSize / 1024) + " KB");
-#endif
-
-  if (!pageScreenIsShown)
-  {
-    hmi.writeString("page screen");
-    hmi.writeString("screen.updateBar.bco=23275");
-    pageScreenIsShown = true;
-  }
-
-  int prg = 0;
-  prg = (currSize * 100) / totalSize;
-
-  hmi.writeString("statusLCD.txt=\"FIRMWARE UPDATING " + String(prg) + " %\"");
-  hmi.writeString("screen.updateBar.val=" + String(prg));
-}
-
-void onOTAEnd(bool success)
-{
-  if (success)
-  {
-    hmi.writeString("statusLCD.txt=\"SUCCEESSFUL UPDATE\"");
-  }
-  else
-  {
-    hmi.writeString("statusLCD.txt=\"UPDATE FAIL\"");
-  }
 }
 
 bool wifiSetup()
@@ -1122,20 +1064,19 @@ bool wifiSetup()
   delay(1500);
 
   // Configures Static IP Address
-  if (!WiFi.config(local_IP, gateway, subnet, primaryDNS, secondaryDNS))
+  if (!DHCP_ENABLE)
   {
-    hmi.writeString("statusLCD.txt=\"WiFi-STA setting failed!\"");
-    wifiActive = false;
+    if (!WiFi.config(local_IP, gateway, subnet, primaryDNS, secondaryDNS))
+    {
+      hmi.writeString("statusLCD.txt=\"WiFi-STA setting failed!\"");
+      wifiActive = false;
+    }
   }
-
-  //int trying_wifi = 0;
 
   if (WiFi.waitForConnectResult() != WL_CONNECTED)
   {
-    //trying_wifi++;
     hmi.writeString("statusLCD.txt=\"WiFi Connection failed!");
     wifiActive = false;
-    // delay(125);
   }
   else
   {
@@ -1144,8 +1085,6 @@ bool wifiSetup()
 
   if (wifiActive)
   {
-    // hmi.writeString("statusLCD.txt=\"Wifi + OTA - Enabled\"");
-    // delay(125);
 
     hmi.writeString("statusLCD.txt=\"IP " + WiFi.localIP().toString() + "\"");
     delay(50);
@@ -1165,189 +1104,6 @@ void writeStatusLCD(String txt)
   hmi.writeString("statusLCD.txt=\"" + txt + "\"");
 }
 
-void uploadFirmDisplay(char *filetft)
-{
-  
-  File file;
-  String ans = "";
-  
-  logln("Uploading file " + String(filetft));
-  try
-  {
-    file = SD_MMC.open(filetft,FILE_READ);
-  }
-  catch(String error)
-  {
-    return;
-  }
-  
-  logln("File opened");
-
-  if (file)
-  {
-      uint32_t filesize = file.available();
-      logln("Starting uploading");
-
-      //Enviamos comando de conexión
-      // Forzamos un reinicio de la pantalla
-      hmi.write("DRAKJHSUYDGBNCJHGJKSHBDN");
-      SerialHW.write(0xff);
-      SerialHW.write(0xff);
-      SerialHW.write(0xff);
-      delay(200);
-
-      SerialHW.write(0x00);
-      SerialHW.write(0xff);
-      SerialHW.write(0xff);
-      SerialHW.write(0xff);
-      delay(200);
-
-      hmi.write("connect");
-      SerialHW.write(0xff);
-      SerialHW.write(0xff);
-      SerialHW.write(0xff);
-      delay(500);
-
-      hmi.write("connect");
-      SerialHW.write(0xff);
-      SerialHW.write(0xff);
-      SerialHW.write(0xff);
-
-      ans = hmi.readStr();
-      delay(500);
-
-      hmi.write("runmod=2");
-      SerialHW.write(0xff);
-      SerialHW.write(0xff);
-      SerialHW.write(0xff);
-
-      hmi.write("print \"mystop_yesABC\"");
-      SerialHW.write(0xff);
-      SerialHW.write(0xff);
-      SerialHW.write(0xff);
-
-      ans = hmi.readStr();
-
-      hmi.write("get sleep");
-      SerialHW.write(0xff);
-      SerialHW.write(0xff);
-      SerialHW.write(0xff);
-      delay(200);
-
-      hmi.write("get dim");
-      SerialHW.write(0xff);
-      SerialHW.write(0xff);
-      SerialHW.write(0xff);
-      delay(200);
-
-      hmi.write("get baud");
-      SerialHW.write(0xff);
-      SerialHW.write(0xff);
-      SerialHW.write(0xff);
-      delay(200);
-
-      hmi.write("prints \"ABC\",0");
-      SerialHW.write(0xff);
-      SerialHW.write(0xff);
-      SerialHW.write(0xff);
-      delay(200);
-
-      ans = hmi.readStr();
-
-      SerialHW.write(0x00);
-      SerialHW.write(0xff);
-      SerialHW.write(0xff);
-      SerialHW.write(0xff);
-      delay(200);
-
-      hmi.write("whmi-wris " + String(filesize) + ",921600,1");
-      SerialHW.write(0xff);
-      SerialHW.write(0xff);
-      SerialHW.write(0xff);
-
-      delay(500);
-      ans = hmi.readStr();
-
-      //
-      file.seek(0);
-
-      // Enviamos los datos
-
-      uint8_t buf[4096];
-      size_t avail;
-      size_t readcount;
-      int bl = 0;
-
-      while (filesize > 0)
-      {
-        // Leemos un bloque de 4096 bytes o el residual final < 4096
-        readcount = file.read(buf, filesize > 4096 ? 4096 : filesize);
-
-        // Lo enviamos
-        SerialHW.write(buf, readcount);
-
-        // Si es el primer bloque esperamos respuesta de 0x05 o 0x08
-        // en el caso de 0x08 saltaremos a la posición que indica la pantalla.
-
-        if (bl == 0)
-        {
-          String res = "";
-
-          // Una vez enviado el primer bloque esperamos 2s
-          delay(2000);
-
-          while (1)
-          {
-            res = hmi.readStr();
-
-            if (res.indexOf(0x08) != -1)
-            {
-              int offset = (pow(16, 6) * int(res[4])) + (pow(16, 4) * int(res[3])) + (pow(16, 2) * int(res[2])) + int(res[1]);
-
-              if (offset != 0)
-              {
-                file.seek(0);
-                delay(50);
-                file.seek(offset);
-                delay(50);
-              }
-              break;
-            }
-            delay(50);
-          }
-        }
-        else
-        {
-          String res = "";
-          while (1)
-          {
-            // Esperams un ACK 0x05
-            res = hmi.readStr();
-            if (res.indexOf(0x05) != -1)
-            {
-              break;
-            }
-          }
-        }
-
-        //
-        bl++;
-        // Vemos lo que queda una vez he movido el seek o he leido un bloque
-        // ".available" mide lo que queda desde el puntero a EOF.
-        filesize = file.available();
-      }
-
-      file.close();    
-  }
-  else
-  {
-    writeStatusLCD("file corrupt.");
-    SD_MMC.remove(filetft);
-  }
-
-  
-}
-// -------------------------------------------------------------------------------------------------------------------
 
 void prepareOutputToWav()
 {
@@ -2313,21 +2069,20 @@ void RadioPlayer()
     REM_ENABLE = false;
     EJECT = false;
     
-    #ifdef USE_CIRCULAR_BUFFER_FOR_RADIO
-      // ✅ CREAR BUFFER CIRCULAR SIMPLE (usando la configuración de config.h)
-      //SimpleCircularBuffer radioBuffer(RADIO_BUFFER_SIZE);
-      SmartRadioBuffer radioBuffer(RADIO_BUFFER_SIZE);
-      //PredictiveRadioBuffer radioBuffer(RADIO_BUFFER_SIZE);
+    //#ifdef USE_CIRCULAR_BUFFER_FOR_RADIO
+    // ✅ CREAR BUFFER CIRCULAR SIMPLE (usando la configuración de config.h)
+    SimpleCircularBuffer radioBuffer(RADIO_BUFFER_SIZE);
+    //SmartRadioBuffer radioBuffer(RADIO_BUFFER_SIZE);
+    //PredictiveRadioBuffer radioBuffer(RADIO_BUFFER_SIZE);
 
-      logln("Radio buffer size: " + String(RADIO_BUFFER_SIZE) + " bytes");
-      
-      // ✅ VARIABLES DE CONTROL DE BUFFER
-      unsigned long lastNetworkRead = 0;
-      unsigned long lastPlayback = 0;
-      const unsigned long NETWORK_READ_INTERVAL = RADIO_NETWORK_READ_INTERVAL;
-      const unsigned long PLAYBACK_INTERVAL = RADIO_PLAYBACK_INTERVAL;
-      bool bufferFilled = false;
-    #endif
+    logln("Radio buffer size: " + String(RADIO_BUFFER_SIZE) + " bytes");
+    
+    // ✅ VARIABLES DE CONTROL DE BUFFER
+    unsigned long lastNetworkRead = 0;
+    unsigned long lastPlayback = 0;
+    const unsigned long NETWORK_READ_INTERVAL = RADIO_NETWORK_READ_INTERVAL;
+    const unsigned long PLAYBACK_INTERVAL = RADIO_PLAYBACK_INTERVAL;
+    bool bufferFilled = false;
     
     // Paramos los timers
     hmi.writeString("tape.tm0.en=0");
@@ -2427,12 +2182,13 @@ void RadioPlayer()
                         break;
                     }
 
-                    #ifdef USE_CIRCULAR_BUFFER_FOR_RADIO
-                      // ✅ LIMPIAR BUFFER AL CONECTAR
+                    //#ifdef USE_CIRCULAR_BUFFER_FOR_RADIO
+                    if(RADIO_BUFFERED)
+                    {
                       radioBuffer.clear();
                       bufferFilled = false;
-                    #endif
-                    
+                    }
+
                     logln("Station: " + radioName + " -> " + String(radioUrlBuffer));
                     LAST_MESSAGE = "Connecting to " + radioName + "... (wait 60s)";
                     
@@ -2479,11 +2235,13 @@ void RadioPlayer()
                         LAST_MESSAGE = "Playing RADIO: " + radioName;
                         dialIndicator(true);
                         
-                        #ifdef USE_CIRCULAR_BUFFER_FOR_RADIO
+                        //#ifdef USE_CIRCULAR_BUFFER_FOR_RADIO
+                        if(RADIO_BUFFERED)
+                        {
                           // ✅ REINICIAR TEMPORIZADORES
                           lastNetworkRead = currentTime;
                           lastPlayback = currentTime;
-                        #endif
+                        }
                     } else {
                         logln("Error connecting to " + String(radioUrlBuffer));
                         LAST_MESSAGE = "Error connecting to " + radioName;
@@ -2497,7 +2255,9 @@ void RadioPlayer()
 
             case 1:
                 if (PLAY) {
-                    #ifdef USE_CIRCULAR_BUFFER_FOR_RADIO
+                    //#ifdef USE_CIRCULAR_BUFFER_FOR_RADIO
+                    if(RADIO_BUFFERED)
+                    {
                         // ✅ GESTIÓN DE BUFFER OPTIMIZADA PARA 320kbps
                         if (currentTime - lastNetworkRead >= NETWORK_READ_INTERVAL) {
                             size_t bytesRead = urlStream.readBytes(networkBuffer, sizeof(networkBuffer));
@@ -2537,7 +2297,9 @@ void RadioPlayer()
                             }
                             lastPlayback = currentTime;
                         }
-                    #else
+                      }
+                      else
+                      {
                         // ✅ STREAMING DIRECTO OPTIMIZADO
                         size_t bytesRead = urlStream.readBytes(networkBuffer, sizeof(networkBuffer));
                         if (bytesRead > 0) {
@@ -2549,7 +2311,7 @@ void RadioPlayer()
                                 dialIndicator(true);
                             }
                         }
-                    #endif
+                      }
                     
                     // ✅ CONTROL DE ECUALIZADOR
                     if (EQ_CHANGE) {
@@ -2568,10 +2330,11 @@ void RadioPlayer()
                     REC = false;
                     bufferw = 0;
                     statusSignalOk = false;
-                    #ifdef USE_CIRCULAR_BUFFER_FOR_RADIO
+                    if(RADIO_BUFFERED)
+                    { 
                       bufferFilled = false;
                       radioBuffer.clear();
-                    #endif
+                    }
                     dialIndicator(false);
                     LAST_MESSAGE = "Stop radio playing.";
                     STOP = false;
@@ -2579,10 +2342,11 @@ void RadioPlayer()
                     PLAY = false;
                     playerState = 0;
                     PAUSE = false;
-                    #ifdef USE_CIRCULAR_BUFFER_FOR_RADIO
+                    if(RADIO_BUFFERED)
+                    {
                       bufferFilled = false;
                       radioBuffer.clear();
-                    #endif
+                    }
                     LAST_MESSAGE = "Pause radio playing.";
                     dialIndicator(false);
                     REC = false;
@@ -2594,10 +2358,11 @@ void RadioPlayer()
         if (FFWIND) {
             
             dialIndicator(false);
-            #ifdef USE_CIRCULAR_BUFFER_FOR_RADIO
+            if(RADIO_BUFFERED)
+            {
               radioBuffer.clear();
               bufferFilled = false;
-            #endif
+            }
             currentRadioStation = nextRadioStation(PATH_FILE_TO_LOAD, radioName, radioUrlBuffer, sizeof(radioUrlBuffer));
             updateDialIndicator(currentRadioStation);
             FFWIND = false;
@@ -2614,10 +2379,11 @@ void RadioPlayer()
         else if (RWIND) 
         {
             dialIndicator(false);
-            #ifdef USE_CIRCULAR_BUFFER_FOR_RADIO
+            if(RADIO_BUFFERED)
+            {
               radioBuffer.clear();
               bufferFilled = false;
-            #endif
+            }
             currentRadioStation = nextRadioStation(PATH_FILE_TO_LOAD, radioName, radioUrlBuffer, sizeof(radioUrlBuffer), false);
             updateDialIndicator(currentRadioStation);
             FFWIND = false;
@@ -2643,8 +2409,11 @@ void RadioPlayer()
                 currentRadioStation = nextRadioStation(PATH_FILE_TO_LOAD, radioName, radioUrlBuffer, sizeof(radioUrlBuffer), true, currentPointer, true);
                 playerState = 0;
                 PLAY = true;
-                radioBuffer.clear();
-                bufferFilled = false;
+                if(RADIO_BUFFERED)
+                {
+                  radioBuffer.clear();
+                  bufferFilled = false;
+                }
             }
             UPDATE_HMI = false;
             UPDATE = false;
@@ -2663,15 +2432,18 @@ void RadioPlayer()
             hmi.writeString("name.txt=\"" + radioName + "\"");
 
             if (PLAY && !REC) {
-                #ifdef USE_CIRCULAR_BUFFER_FOR_RADIO
+                if(RADIO_BUFFERED)
+                {
                     // ✅ MOSTRAR ESTADO DEL BUFFER
                     float bufferUsage = (radioBuffer.getAvailable() * 100.0) / RADIO_BUFFER_SIZE;
                     PROGRESS_BAR_TOTAL_VALUE = bufferUsage;
                     PROGRESS_BAR_BLOCK_VALUE = bufferUsage;
                     LAST_MESSAGE = "Playing: " + radioName + " (buffered)"; //+ " (buf: " + String(int(bufferUsage)) + "%)";
-                #else
+                }
+                else
+                {
                     LAST_MESSAGE = "Playing: " + radioName + " (direct)";
-                #endif
+                }
             }
             trefresh = millis();
         }
@@ -3555,6 +3327,7 @@ void MediaPlayer()
                     if(waitflag++>255){player.stop();}
                     delay(125);
                 }                
+                
               }
               else
               {
@@ -3563,6 +3336,7 @@ void MediaPlayer()
                 //currentIdx = source.indexOf((audiolist[currentPointer].filename).c_str());
                 CHANGE_TRACK_FILTER = true;
                 player.stop(); // Detener el reproductor
+                                
                 waitflag = 0;
                 while(!player.begin(currentIdx))
                 {
@@ -3570,7 +3344,14 @@ void MediaPlayer()
                 }
               }
                // Avanzamos al siguiente bloque
-              logln("Next file: " + String(currentPointer + " - " + audiolist[currentPointer + 1].filename));
+              #ifdef DEBUG
+                logln("FFWIND pressed. Moving to next track.");
+                logln("Next file: " + String(currentPointer + " - " + audiolist[currentPointer + 1].filename));
+              #endif
+              
+              //26/11/2025
+              fileSize = getStreamfileSize(pFile,true);
+
             } 
             else
             {
@@ -3582,6 +3363,7 @@ void MediaPlayer()
                 currentIdx = currentPointer;            
                 player.stop();
                 waitflag = 0;
+
                 while(!player.begin(currentIdx))
                 {
                     if(waitflag++>255){player.stop();}
@@ -3589,10 +3371,14 @@ void MediaPlayer()
                 //
                 twiceRWDTime = millis();
                 CHANGE_TRACK_FILTER = true;
+
+                //26/11/2025
+                fileSize = getStreamfileSize(pFile,true);
+
               }
               else
               {
-                // Si pulso rapido en los proximos segundos               
+                // Volvemos al inicio de la pista              
                 prevAudio(currentPointer, audioListSize);
                 //LAST_MESSAGE = "Searching...";
                 currentIdx = currentPointer;              
@@ -3602,7 +3388,12 @@ void MediaPlayer()
                     if(waitflag++>255){player.stop();}
                     delay(125);
                 }                
+
               }
+
+              //26/11/2025
+              fileSize = getStreamfileSize(pFile,true);
+
             }
 
             // Control de EOF
@@ -4170,7 +3961,7 @@ void playingFile()
 void verifyConfigFileForSelection()
 {
   // Vamos a localizar el fichero de configuracion especifico para el fichero seleccionado
-  const int max_params = 4;
+  const int max_params = 5;
   String path = FILE_LAST_DIR;
   String tmpPath = PATH_FILE_TO_LOAD;
   tConfig *fileCfg; // = (tConfig*)ps_calloc(max_params,sizeof(tConfig));
@@ -4327,6 +4118,17 @@ void verifyConfigFileForSelection()
             INVERSETRAIN = false;
           }
         }
+        else if ((fileCfg[i].cfgLine).indexOf("azimut") != -1)
+        {
+          // Cogemos el azimut
+          AZIMUT = getValueOfParam(fileCfg[i].cfgLine, "azimut").toInt();
+          TONE_ADJUST = (-210)*(TONE_ADJUSTMENT_ZX_SPECTRUM + (AZIMUT-TONE_ADJUSTMENT_ZX_SPECTRUM_LIMIT));
+          // Movemos el slide
+          myNex.writeNum("menuAudio2.tone.val",AZIMUT);
+          myNex.writeNum("menuAudio2.toneL.val",AZIMUT-5);
+
+          logln("Azimut get: " + String(AZIMUT) + " - Frec. adjust: " + String(TONE_ADJUST));
+        }        
       }
 
       if (INVERSETRAIN)
@@ -7946,10 +7748,10 @@ void Task0code(void *pvParameters)
           {
             actuatePowerLed(true,POWERLED_DUTY);
           }
-          else
-          {
-            logln("REC mode - Power LED fixed");
-          }
+          // else
+          // {
+          //   //logln("REC mode - Power LED fixed");
+          // }
         }
 
         if ((millis() - startTime3) > 500)
@@ -8126,120 +7928,6 @@ bool createSpecialDirectory(String fDir)
   }  
 
   return false;
-}
-
-void updateHMIfirmware()
-{
-  char strpathtft[20] = {};
-  strcpy(strpathtft, "/powadcr_iface.tft");
-
-  File firmwaretft = SD_MMC.open(strpathtft, FILE_READ);
-  if (firmwaretft)
-  {
-    writeStatusLCD("New display firmware");
-    // NOTA: Este metodo necesita que la pantalla esté alimentada con 5V
-    uploadFirmDisplay(strpathtft);
-    SD_MMC.remove(strpathtft);
-    // Esperamos al reinicio de la pantalla
-    delay(5000);
-  }
-}
-
-void updateESP32firmware()
-{
-    log_v("");
-    log_v("Search for firmware..");
-    char strpath[20] = {};
-    strcpy(strpath, "/firmware.bin");
-
-    File firmware = SD_MMC.open(strpath, FILE_READ);
-
-    if (firmware)
-    {
-      logln("Firmware file opened " + String(strpath));
-      hmi.writeString("statusLCD.txt=\"Checking firmware...\"");
-      
-      // Verificar magic byte antes del update
-      uint8_t magicByte = firmware.peek();
-      logln("First byte of firmware: 0x" + String(magicByte, HEX));
-      
-      if (magicByte != 0xE9) 
-      {
-          logln("ERROR: Invalid firmware file - Wrong magic byte");
-          hmi.writeString("statusLCD.txt=\"Invalid firmware file\"");
-          firmware.close();
-          
-          // Eliminar archivo inválido
-          if (SD_MMC.remove("/firmware.bin")) {
-              logln("Invalid firmware file deleted");
-          }
-          return;
-      }    
-      hmi.writeString("statusLCD.txt=\"New powadcr firmware found\"");
-      logln("Firmware found on SD_MMC");
-      onOTAStart();
-      logln("Updating firmware...");
-
-      Update.onProgress(onOTAProgress);
-
-      size_t firmwareSize = firmware.available();
-      logln("Firmware size: " + String(firmwareSize) + " bytes");
-
-      if(!Update.begin(firmwareSize))
-      {
-        logln("Error initializing updater obj.");
-        Update.getError();
-        Update.printError(Serial);
-      }
-      else
-      {
-          uint8_t buf[2048];
-          int bytesRead = 0;
-          size_t totalWritten = 0;
-
-          while ((bytesRead = firmware.read(buf, sizeof(buf))) > 0) 
-          {
-            Update.write(buf, bytesRead);
-            totalWritten += bytesRead;
-            Serial.printf("Escritos: %d/%d bytes\n", totalWritten, firmwareSize);
-          }        
-      }
-
-      if (Update.end())
-      {
-        log_v("Update finished!");
-        hmi.writeString("statusLCD.txt=\"Update finished\"");
-        onOTAEnd(true);
-        delay(2000);
-      }
-      else
-      {
-        log_e("Update error!");
-        hmi.writeString("statusLCD.txt=\"Update error\"");
-        Update.getError();
-        Update.printError(Serial);
-        onOTAEnd(false);
-        delay(2000);
-      }
-
-      firmware.close();
-
-      if (SD_MMC.remove(strpath))
-      {
-        log_v("Firmware deleted succesfully!");
-      }
-      else
-      {
-        log_e("Firmware delete error!");
-      }
-      delay(2000);
-
-      ESP.restart();
-    }
-    else
-    {
-      log_v("not found!");
-    }
 }
 
 void setupAudioKit()
@@ -8596,22 +8284,18 @@ void setup()
   // -------------------------------------------------------------------------
   setupSDCard();
 
-  // -------------------------------------------------------------------------
-  // Actualización OTA por SD
-  // -------------------------------------------------------------------------
-  updateESP32firmware();
-
-  // -------------------------------------------------------------------------
-  // Actualizacion del HMI
-  // -------------------------------------------------------------------------
-  updateHMIfirmware();
+  // --------------------------------------------------------------------------
+  //
+  // Cargamos la configuracion del HMI desde la particion NVS
+  //
+  // --------------------------------------------------------------------------
+  loadHMICfgfromNVS();
 
   // -------------------------------------------------------------------------
   // Cargamos configuración WiFi
   // -------------------------------------------------------------------------
   // Si hay configuración activamos el wifi
   setupWifi();
-
 
   // -------------------------------------------------------------------------
   //
@@ -8650,7 +8334,6 @@ void setup()
   // ----------------------------------------------------------
   prepareCardStructure();
 
-
   // -------------------------------------------------------------------------
   //
   // Esperando control del HMI
@@ -8683,7 +8366,8 @@ void setup()
   myNex.writeNum("menuAudio.volLevelL.val",int(MAIN_VOL_L));
   myNex.writeNum("menuAudio.volR.val",int(MAIN_VOL_R));
   myNex.writeNum("menuAudio.volLevel.val",int(MAIN_VOL_R));
-
+  //
+  myNex.writeStr("tape.tapeVol.txt",String(int(MAIN_VOL)) + "%");
 
   // -------------------------------------------------------------------------
   //
@@ -8691,21 +8375,21 @@ void setup()
   //
   // -------------------------------------------------------------------------
   // 48KHz
-  hmi.writeString("menuAudio2.r0.val=0");
+  myNex.writeNum("menuAudio2.r0.val",0);
   // 44KHz
-  hmi.writeString("menuAudio2.r1.val=0");
+  myNex.writeNum("menuAudio2.r1.val",0);
   // 32KHz
-  hmi.writeString("menuAudio2.r2.val=0");
+  myNex.writeNum("menuAudio2.r2.val",0);
   // 22KHz
-  hmi.writeString("menuAudio2.r3.val=1");
+  myNex.writeNum("menuAudio2.r3.val",1);
   //
-  SAMPLING_RATE = 22050;  // Por defecto 22050
+  SAMPLING_RATE = STANDARD_SR_8_BIT_MACHINE;  // Por defecto
 
   auto new_sr = kitStream.defaultConfig();
   new_sr.sample_rate = SAMPLING_RATE;
   kitStream.setAudioInfo(new_sr);
 
-  hmi.writeString("tape.lblFreq.txt=\"22KHz\"");
+  myNex.writeStr("tape.lblFreq.txt", "32KHz");
   hmi.refreshPulseIcons(INVERSETRAIN, ZEROLEVEL);
   
   // -------------------------------------------------------------------------
@@ -8743,12 +8427,12 @@ void setup()
   showOption("tape.progressBlock.val","0");
   showOption("tape.progressTotal.val","0");
 
-  // --------------------------------------------------------------------------
-  //
-  // Cargamos la configuracion del HMI desde la particion NVS
-  //
-  // --------------------------------------------------------------------------
-  loadHMICfgfromNVS();
+  // // --------------------------------------------------------------------------
+  // //
+  // // Cargamos la configuracion del HMI desde la particion NVS
+  // //
+  // // --------------------------------------------------------------------------
+  // loadHMICfgfromNVS();
 
 
   // ---------------------------------------------------------------------------

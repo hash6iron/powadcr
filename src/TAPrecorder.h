@@ -94,8 +94,8 @@ class TAPrecorder
       // Para 44.1KHz / 8 bits / mono
       //
       // Guide tone
-      #ifdef USE_ZX_SPECTRUM_SR
-        // Para 22.2KHz / 8 bits / mono - ZX Spectrum
+      #if USE_ZX_SPECTRUM_SR==1
+        // Para 22200Hz / 8 bits / mono - ZX Spectrum
         //
         // Guide tone
         const int16_t wToneMin = 11;            //min 23 Leader tone min pulse width
@@ -114,18 +114,19 @@ class TAPrecorder
         const int16_t wSyncMin = wBit0_min;     //min 2 
         const int16_t wSyncMax = wBit0_max;     //max 15
       #else
-        const int16_t wToneMin = 23;            //min 23 Leader tone min pulse width
-        const int16_t wToneMax = 40;            //max 40 Leader tone max pulse width  
+        // Para 32150Hz / 8 bits / mono - ZX Spectrum
+        const int16_t wToneMin = 16;            //min 23 Leader tone min pulse width
+        const int16_t wToneMax = 29;            //max 40 Leader tone max pulse width  
         
         // Silencio
-        const int16_t wSilence = 50;
+        const int16_t wSilence = 36;
 
         // Bit 0
-        const int16_t wBit0_min = 2;            //min 2
-        const int16_t wBit0_max = 15;           //max 15
+        const int16_t wBit0_min = 1;            //min 2
+        const int16_t wBit0_max = 10;           //max 15
         // Bit 1
-        const int16_t wBit1_min = 16;           //min 16  02/11/2024
-        const int16_t wBit1_max = 40;           //max 40  02/11/2024
+        const int16_t wBit1_min = 12;           //min 16  02/11/2024
+        const int16_t wBit1_max = 29;           //max 40  02/11/2024
         // SYNC == BIT_0
         const int16_t wSyncMin = wBit0_min;     //min 2 
         const int16_t wSyncMax = wBit0_max;     //max 15
@@ -515,7 +516,7 @@ class TAPrecorder
           return -1; // No se encontró ningún archivo con el formato especificado
       }
 
-      bool renameFile(char newFileName[], File &mFile)
+      bool renameRecFile(char newFileName[])
       {
           // Reservamos memoria             
           char cPath[57] = {""};
@@ -545,6 +546,8 @@ class TAPrecorder
           strcat(cPath,newFileName);
 
           // Comprobamos si existe el nuevo fichero
+          logln("Ruta del REC: " + String(cPath));
+           
           while(SD_MMC.exists(cPath))
           {              
               // Limpiamos el buffer
@@ -570,14 +573,16 @@ class TAPrecorder
               #endif
           }         
 
-          if (SD_MMC.rename(mFile.name(), cPath))
+          logln("Nueva Ruta del REC para rename: " + String(cPath));
+          char const *old_path = "/REC/_record";
+
+          if (SD_MMC.rename(old_path, cPath))
           {         
+            logln("File renamed successfully to: " + String(newFileName));
             return true;
           }
-          else
-          {
-            return false;
-          }
+
+          return false;
       }
           
 
@@ -1402,15 +1407,6 @@ class TAPrecorder
           }
           
 
-          logln("File name: " + String(newFileName));
-          logln(""); 
-          //      
-          if (!renameFile(newFileName, tapf))
-          {
-            logln("Error renaming file");
-          }      
-          delay(125); 
-
           if (errorDetected !=0)
           {
               // El checksum no era correcto
@@ -1451,12 +1447,27 @@ class TAPrecorder
               //PROGRAM_NAME = String(newFileName);            
           }
 
-          // Ahora lo cargamos en el tape por si quiero reproducir directamente
-          
-          String frpath = "/REC/" + String(newFileName);
-          REC_FILENAME = frpath;
+          delay(125);
           //
           tapf.close();
+          
+          // Una vez cerrado. Lo renombro
+          if (!renameRecFile(newFileName))
+          {
+            logln("Error renaming file");
+            LAST_MESSAGE = "Error renaming file";
+          }      
+          else
+          {
+            // Ahora lo cargamos en el tape por si quiero reproducir directamente
+            String frpath = "/REC/" + String(newFileName);
+            REC_FILENAME = frpath;
+
+            logln("File name: " + String(newFileName));
+            logln(""); 
+            
+            delay(125);           
+          }
 
           // new_sr.sample_rate = SAMPLING_RATE;
           // akit.setAudioInfo(new_sr);      
