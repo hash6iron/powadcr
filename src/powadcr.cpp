@@ -8567,7 +8567,7 @@ void setup()
   myNex.writeNum("menuAudio.volR.val",int(MAIN_VOL_R));
   myNex.writeNum("menuAudio.volLevel.val",int(MAIN_VOL_R));
   //
-  myNex.writeStr("tape.tapeVol.txt",String(MAIN_VOL) + "%");
+  myNex.writeStr("tape.tapeVol.txt",String(int(MAIN_VOL)) + "%");
 
   // -------------------------------------------------------------------------
   //
