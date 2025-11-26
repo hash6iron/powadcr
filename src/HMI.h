@@ -2728,7 +2728,7 @@ class HMI
           // Actualizamos el master slide
           myNex.writeNum("menuAudio.volM.val", int(MAIN_VOL));
           myNex.writeNum("menuAudio.volLevelM.val", int(MAIN_VOL));
-          myNex.writeStr("tape.tapeVol.txt",String(MAIN_VOL) + "%");
+          myNex.writeStr("tape.tapeVol.txt",String(int(MAIN_VOL)) + "%");
           
           // Almacenamos en NVS
           saveHMIcfg("VLIopt");
@@ -2755,7 +2755,7 @@ class HMI
           }
           MASTER_VOL = valVol;
           saveHMIcfg("VOLMopt");
-          myNex.writeStr("tape.tapeVol.txt",String(MAIN_VOL) + "%");
+          myNex.writeStr("tape.tapeVol.txt",String(int(MAIN_VOL)) + "%");
 
           kitStream.setVolume(MAIN_VOL / 100);
           
@@ -3647,7 +3647,7 @@ class HMI
 
           myNex.writeNum("menuAudio.volM.val", int(MAIN_VOL));
           myNex.writeNum("menuAudio.volLevelM.val", int(MAIN_VOL));
-          myNex.writeStr("tape.tapeVol.txt",String(MAIN_VOL) + "%");
+          myNex.writeStr("tape.tapeVol.txt",String(int(MAIN_VOL)) + "%");
 
           kitStream.setVolume(MAIN_VOL / 100);
 
@@ -3663,7 +3663,7 @@ class HMI
 
           myNex.writeNum("menuAudio.volM.val", int(MAIN_VOL));
           myNex.writeNum("menuAudio.volLevelM.val", int(MAIN_VOL));
-          myNex.writeStr("tape.tapeVol.txt",String(MAIN_VOL) + "%");
+          myNex.writeStr("tape.tapeVol.txt",String(int(MAIN_VOL)) + "%");
 
 
           kitStream.setVolume(MAIN_VOL / 100);
