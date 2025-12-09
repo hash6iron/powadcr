@@ -53,6 +53,10 @@ NOTE: Several version of this LCD are availables. The project uses T0 versions b
 
 About POWADCR Device.
 -----
+Architecture
+
+<img width="1280" height="720" alt="arquitectura" src="https://github.com/user-attachments/assets/4c0b7d64-9389-45ff-875b-fcaddc2149b2" />
+
 In this section we are going to describe parts to be needed to assemble the PowaDCR device.
 
 **Bill of material**
