@@ -81,6 +81,12 @@ struct ConfigEntry {
   void* value;  // Pointer to the configuration value
 };
 
+struct tRlePulse
+{
+    uint16_t pulse_len; // Longitud del pulso en T-States
+    uint16_t repeat;    // Número de repeticiones (será 1 para pulsos normales)
+};
+
 // Estructura de un bloque
 struct tTimming
 {
@@ -96,6 +102,41 @@ struct tTimming
   int* pulse_seq_array=nullptr;
   int bitcfg = 0;
   int bytecfg = 0;
+  int csw_sampling_rate;
+  int csw_compression_type;
+  int csw_num_pulses;         // ✅ AÑADIR: Número de pulsos en la secuencia RLE
+  tRlePulse* csw_pulse_data;  // ✅ AÑADIR: Puntero a la secuencia de pulsos RLE  
+};
+
+struct tSymDef
+{
+  // Definición de pulsos
+  int symbolFlag = 0;
+  int* pulse_array=nullptr;
+};
+
+struct tPrle
+{
+  // Tipo para el array de pilot/sync y repetición
+  int symbol = 0;
+  int repeat = 0;
+};
+
+struct tSymbol
+{
+  // Definición de un bloque 0x19
+  int TOTP = 0;                         // Total numero de simbols para pilot/sync
+  int NPP = 0;                          // Maximo numero de pulsos por pilot/sync simbolo
+  int ASP = 0;                          // Numero de simbolos para pilot/sync en la Alphabet table (0 = 256)
+  int TOTD = 0;                         // Total numero de simbols en el data stream
+  int NPD = 0;                          // Maximo numero de pulsos por data simbolo
+  int ASD = 0;                          // Numero de simbolos para data en la Alphabet table (0 = 256)
+  tSymDef* symDefPilot = nullptr;       // Pilot and Sync definition table
+  tSymDef* symDefData = nullptr;        // Data definition table
+  tPrle* pilotStream = nullptr;         // Pilot and sync data stream
+  int offsetDataStream = 0;
+  int offsetPilotDataStream = 0;
+  int* dataStream = nullptr;            // Data stream
 };
 
 // Estructura del descriptor de bloques
@@ -135,7 +176,10 @@ struct tTZXBlockDescriptor
   int maskLastByte = 8;
   bool hasMaskLastByte = false;
   tTimming timming;
+  tSymbol symbol;
   char typeName[36];
+  //
+  int compressionType = 0;
   int group = 0;
   int loop_count = 0;
   bool jump_this_ID = false;
@@ -244,7 +288,7 @@ double INTPART = 0.0;
 
 // Ajustamos este valor para un exacta frecuencia de oscilacion
 // aunque no coincida con el valor exacto real de la CPU
-double DfreqCPU = 3500000;
+double DfreqCPU = 3500000.0;
 
 const int DPULSES_HEADER = 8063;
 const int DPULSES_DATA = 3223;
@@ -333,7 +377,8 @@ uint8_t LAST_TAPESTATE = 0;
 // bool FIRST_BLOCK_INVERTED = false;
 //edge SCOPE = down;
 bool APPLY_END = false;
-int SAMPLING_RATE = 22050; //STANDARD_SR_ZX_SPECTRUM * 2;    // 44100 
+int SAMPLING_RATE = 32150; //STANDARD_SR_ZX_SPECTRUM * 2;    // 44100 
+int BASE_SR = 32150;
 int LAST_SAMPLING_RATE = 22050; //44100;
 int WAV_SAMPLING_RATE = DEFAULT_WAV_SAMPLING_RATE; // 44100;
 int WAV_BITS_PER_SAMPLE = 16;
@@ -687,9 +732,11 @@ bool UPDATE_FROM_REMOTE_CONTROL = false;
 int FILE_POS_REMOTE_CONTROL = 0;
 bool CMD_FROM_REMOTE_CONTROL = false;
 
+//
+bool IGNORE_DSC = false;
+
 // Auto-update
 String HMI_MODEL = "";
-
 
 // Declaraciones de metodos
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -983,42 +1030,66 @@ void logAlert(String txt)
     lastAlertTxt = txt;
 }
 
-void readFileRange(File mFile, uint8_t* &bufferFile, uint32_t offset, int size, bool logOn=false)
-{         
-    if (mFile) 
-    {
-        // Ponemos a cero el puntero de lectura del fichero
-        mFile.seek(0);          
+// void readFileRange(File mFile, uint8_t* &bufferFile, uint32_t offset, int size, bool logOn=false)
+// {         
+//     if (mFile) 
+//     {
+//         // Ponemos a cero el puntero de lectura del fichero
+//         mFile.seek(0);          
 
-        // Obtenemos el tamano del fichero
-        int rlen = mFile.available();
-        FILE_LENGTH = rlen;
+//         // Obtenemos el tamano del fichero
+//         int rlen = mFile.available();
+//         FILE_LENGTH = rlen;
 
-        // Posicionamos el puntero en la posicion indicada por offset
-        mFile.seek(offset); 
+//         // Posicionamos el puntero en la posicion indicada por offset
+//         mFile.seek(offset); 
 
-        // Si el fichero tiene aun datos entonces capturo
-        if (rlen != 0)
-        {
-            // Leo el bloque y lo meto en bufferFile.
-            mFile.read(bufferFile, size);
+//         // Si el fichero tiene aun datos entonces capturo
+//         if (rlen != 0)
+//         {
+//             // Leo el bloque y lo meto en bufferFile.
+//             mFile.read(bufferFile, size);
             
-            #ifdef DEBUGMODE
-                logln("buffer read: ");
-                for (int i=0; i<size; i++)
-                {
-                    logHEX(bufferFile[i]);
-                    log(" ");
-                }
-            #endif
-        }
-    } 
-    else 
-    {
-        #ifdef DEBUGMODE
-            logln("SD Card: error opening file.");
-            logln(mFile.name());
-        #endif
+//             #ifdef DEBUGMODE
+//                 logln("buffer read: ");
+//                 for (int i=0; i<size; i++)
+//                 {
+//                     logHEX(bufferFile[i]);
+//                     log(" ");
+//                 }
+//             #endif
+//         }
+//     } 
+//     else 
+//     {
+//         #ifdef DEBUGMODE
+//             logln("SD Card: error opening file.");
+//             logln(mFile.name());
+//         #endif
+//     }
+// }
+
+// ✅ VERSIÓN OPTIMIZADA - SIN MALLOC/FREE INNECESARIOS
+void readFileRange(File &file, uint8_t* buffer, int offset, int size, bool usePrgBar=false)
+{
+    if (!file || size == 0 || !buffer) {
+        return;
+    }
+
+    // ✅ SEEK DIRECTO AL OFFSET
+    file.seek(offset);
+    
+    // ✅ LEER DIRECTAMENTE AL BUFFER
+    size_t bytesRead = file.read(buffer, size);
+    
+    if (bytesRead != size) {
+        logln("Warning: Expected " + String(size) + " bytes, read " + String(bytesRead));
+    }
+
+    // ✅ ACTUALIZAR BARRA DE PROGRESO SI APLICA
+    if (usePrgBar) {
+        BYTES_LOADED = offset + bytesRead;
+        PROGRESS_BAR_TOTAL_VALUE = (BYTES_LOADED * 100) / BYTES_TOBE_LOAD;
     }
 }
 

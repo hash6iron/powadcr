@@ -55,7 +55,7 @@
 // --------------------------------------------------------------
 // Configuración de la versión del software
 // --------------------------------------------------------------
-#define VERSION                                         "v1.0r7.6"
+#define VERSION                                         "v1.0r7.7"
 
 // --------------------------------------------------------------
 // Configuración de memoria optimizada
@@ -182,6 +182,7 @@
 // Sampling rate TAP/TZX/..
 #define DEFAULT_MP3_SAMPLING_RATE                     44100
 #define STANDARD_SR_8_BIT_MACHINE                     32150   // Sampling rate adecuado para maquinas de 8 bitsAjuste AZIMUT (Hz) - 22200 Hz
+//#define STANDARD_SR_8_BIT_MACHINE                     31250   // Sampling rate adecuado para maquinas de 8 bitsAjuste AZIMUT (Hz) - 22200 Hz
 
 // Sampling rate para WAV y REC WAV (pero ojo, no para PLAY TO WAV)
 #define DEFAULT_WAV_SAMPLING_RATE                     44100
