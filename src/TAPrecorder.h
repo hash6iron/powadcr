@@ -468,6 +468,9 @@ class TAPrecorder
                 }
               }     
           }
+
+          // Información para la pagina debug
+          dbgBlkInfo = String(LAST_TYPE);
       }
 
       void removeSpaces(char* str) {
@@ -618,8 +621,17 @@ class TAPrecorder
         logln("Size  : " + String(lastBlockEndOffset - blockStartOffset + 1) + " bytes");
         logln("");        
 
+        // Informacion para la pagina debug
+        dataOffset1 = String(blockStartOffset);
+        dataOffset4 = String(lastBlockEndOffset);
+
         blockStartOffset = lastByteCount;
 
+        // Enviamos info a HMI
+        if (CURRENT_PAGE == 3)
+        {
+          hmi.refreshInfoDebug();
+        }
 
         // El nuevo bloque tiene que registrar su tamaño en el fichero .tap
         // depende si es HEAD or DATA
@@ -683,6 +695,16 @@ class TAPrecorder
       
       bool recording()
       {         
+
+          dbgBit0 = "";
+          dbgBit1 = "";
+          dbgSync1 = "";
+          dbgSync2 = "";
+          dbgTState = "";
+          dbgPauseAB = "";
+          dbgBlkInfo = "";
+          dbgRep = "";
+
           long startTime = millis();
           int AmpHi = high;
           int AmpLo = low;
@@ -1125,6 +1147,16 @@ class TAPrecorder
                                   {
                                     wPulseHigh=0;
                                     stateRecording = 2;
+
+                                    // Info para la pagina debug
+                                    dbgSync1 = "1";
+                                    dbgSync2 = "1";
+                                  }
+                                  else
+                                  {
+                                    // Info para la pagina debug
+                                    dbgSync1 = "";
+                                    dbgSync2 = "";
                                   }
                                 
                                   // // Detectamos si el pulso está invertido
@@ -1155,6 +1187,10 @@ class TAPrecorder
                                     // Generamos un bit 0
                                     bitByte += (0 * pow(2,7-bitCount));                              
                                     bitCount++;
+
+                                    // Info para la pagina debug
+                                    dbgBit0 = "1";
+                                    dbgBit1 = "";
                                   }
                                   // Bit 1
                                   else if (wPulseHigh >= wBit1_min &&
@@ -1168,6 +1204,10 @@ class TAPrecorder
                                     // Generamos un bit 1
                                     bitByte += (1 * pow(2,7-bitCount));                              
                                     bitCount++;
+                                    
+                                    // Info para la pagina debug
+                                    dbgBit0 = "";
+                                    dbgBit1 = "1";                                    
                                   }
                                   // No se puede usar la deteccion de bit erroneo porque si es mas grande
                                   // el ancho del pulso probablemente sea un silencio y hay que esperar.

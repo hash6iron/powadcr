@@ -72,6 +72,10 @@ class ZXProcessor
     //const double speakerOutPower = 0.002;
 
     public:
+
+    bool forzeLowLevel = false;
+    bool forzeHighLevel = false;
+    
     // Parametrizado para el ZX Spectrum - Timming de la ROM
     // Esto es un factor para el calculo de la duración de onda
     const double alpha = 4.0;
@@ -267,6 +271,17 @@ class ZXProcessor
                 minAmplitude = maxLevelDown;
             }
 
+            if (forzeLowLevel && !forzeHighLevel)
+            {
+                EDGE_EAR_IS = down;
+                forzeLowLevel = false;
+            }
+            else if (forzeHighLevel && !forzeLowLevel)
+            {
+                EDGE_EAR_IS = up;
+                forzeHighLevel = false;
+            }
+
             // Esta rutina genera el pulso dependiendo de como es el ultimo
             if(isError)
             {
@@ -439,6 +454,113 @@ class ZXProcessor
             
         }
 
+        void pulseSilence(int samples, bool changeNextEARedge = true)
+        {
+            // Calculamos el tamaño del buffer
+            int bytes = 0; //Cada muestra ocupa 2 bytes (16 bits)
+            int chn = channels;
+            int frames = 0;
+            double frames_rest = 0;
+
+            // El buffer se dimensiona para 16 bits
+            int16_t sample_L = 0;
+            int16_t sample_R = 0;
+            // Amplitud de la señal
+            double amplitude = 0;
+            
+            ACU_ERROR = 0;
+
+            //
+            // Generamos el semi-pulso
+            //
+
+            // Obtenemos la amplitud de la señal según la configuración de polarización,
+            // nivel low, etc.
+            amplitude = getChannelAmplitude(changeNextEARedge);
+            
+            if (SWAP_MIC_CHANNEL)
+            {
+                sample_L = amplitude * (MAIN_VOL_R / 100) * (MAIN_VOL / 100);
+                sample_R = amplitude * (MAIN_VOL_L / 100) * (MAIN_VOL / 100);
+            }
+            else
+            {
+                sample_R = amplitude * (MAIN_VOL_R / 100) * (MAIN_VOL / 100);
+                sample_L = amplitude * (MAIN_VOL_L / 100) * (MAIN_VOL / 100);
+            }
+
+            // Pasamos los datos para el modo DEBUG
+            DEBUG_AMP_R = sample_R;
+            DEBUG_AMP_L = sample_L;
+          
+            // Definiciones el número samples para el splitter
+            int minFrame = MIN_FRAME_FOR_SILENCE_PULSE_GENERATION;
+ 
+            // Si el semi-pulso tiene un numero 
+            // menor de muestras que el minFrame, entonces
+            // el minFrame será ese numero de muestras
+            if (samples <= minFrame)
+            {
+
+                #ifdef DEBUGMODE
+                    // log("SIMPLE PULSE");
+                    // log(" --> samp:  " + String(samples));
+                    // log(" --> bytes: " + String(bytes));
+                    // log(" --> Chns:  " + String(channels));
+                    // log(" --> T0:  " + String(T0));
+                    // log(" --> T1:  " + String(T1));
+                #endif 
+                // Definimos el tamaño del buffer
+                bytes = (int)samples * 2 * channels;
+                // Generamos la onda
+                createPulse(samples,bytes,sample_R,sample_L);
+            }
+            else
+            {
+                // Caso de un silencio o pulso muy largo
+                // -------------------------------------
+
+                // Definimos los terminadores de cada frame para el splitter
+                int frameSlot = minFrame;      
+
+                // Definimos el buffer
+                bytes = minFrame * 2 * channels;
+
+                // Dividimos la onda en trozos
+                int framesCounter = 0;
+
+                while(frameSlot <= samples)
+                {        
+
+                    createPulse(minFrame, bytes, sample_R, sample_L);
+                    frameSlot += minFrame;
+
+                    if (stopOrPauseRequest())
+                    {
+                        // Salimos
+                        return;
+                    }
+
+                    framesCounter++;
+
+                }
+
+                // Acumulamos el error producido
+                ACU_ERROR = (samples - (minFrame*framesCounter));
+                
+                #ifdef DEBUGMODE
+                    //log("ACU_ERROR: "+ String(ACU_ERROR));
+                #endif
+
+            }
+
+            if (stopOrPauseRequest())
+            {
+                // Salimos
+                return;
+            }
+        }
+
         void semiPulse(int width, bool changeNextEARedge = true, long calibrationValue = 0)
         {
             // Calculamos el tamaño del buffer
@@ -467,7 +589,7 @@ class ZXProcessor
             // ********************************************************************************************
             
             // Ajustamos
-            int samples = (rsamples);
+            int samples = round(rsamples);
 
             ACU_ERROR = 0;
 
@@ -786,8 +908,20 @@ class ZXProcessor
             {
                 // tStateSilenceOri = tStateSilence;
                 // tStateSilence = (duration / OneSecondTo_ms) * freqCPU;    
-
+                //logln("Sampling rate for SILENCE: " + String(SAMPLING_RATE));
                 samples = ((duration / 1000.0) * SAMPLING_RATE);
+
+                if (duration < 500)
+                {
+                    // Calculamos el error y agregamos una muestra si es necesario
+                    int samples_int = (int)samples;
+                    double duration_int = samples_int/SAMPLING_RATE * 1000.0;
+                    
+                    if ((duration_int - duration) > 0.01)
+                    {
+                        samples++;
+                    }
+                }
 
                 // Esto lo hacemos para acabar bien un ultimo flanco en down.
                 // Hay que tener en cuenta que el terminador se quita del tiempo de PAUSA
@@ -828,10 +962,14 @@ class ZXProcessor
 
 
                 // Aplicamos ahora el silencio
-                double dsapling = SAMPLING_RATE;
-                double width = ((samples / dsapling) * freqCPU) + calibrationValue;
+                // double dsapling = SAMPLING_RATE;
+                // double width = ((samples / dsapling) * freqCPU) + calibrationValue;
+                
+                //logln("Muestras: " + String(round(samples)) + " vs " + String(samples));
 
-                semiPulse(width, true); 
+                // Generador de pulsos exclusivo para silencios
+                int swidth = round(samples);
+                pulseSilence(swidth, true); 
                 
                 
                 #ifdef DEBUGMODE
@@ -871,6 +1009,22 @@ class ZXProcessor
                 
             }
         }   
+
+        void playCustomSymbol(int pulsewidth, int repeat, bool polarityChange)
+        {
+            //
+            // Esto lo usamos para el GENERALIZA DATA BLOCK ID-19
+            //
+            for (int i = 0; i < repeat;i++)
+            {
+                // Generamos los semipulsos        
+                semiPulse(pulsewidth,polarityChange);
+                //logln("EDGE: " + String(EDGE_EAR_IS));
+            }
+            //pilotTone(data, repeat);
+
+        } 
+
 
         void playData(uint8_t* bBlock, int lenBlock, int pulse_len, int num_pulses)
         {

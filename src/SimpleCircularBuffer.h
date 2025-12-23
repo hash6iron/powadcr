@@ -16,6 +16,7 @@ public:
         if (buffer) free(buffer);
     }
     
+
     size_t write(const uint8_t* data, size_t len) {
         if (!buffer) return 0;
         
