@@ -167,7 +167,7 @@ uint16_t USER_CONFIG_ARDUINO_LOOP_STACK_SIZE = 16384;
 // #include "esp_spiffs.h"
 
 #ifdef FTP_SERVER_ENABLE
-  #include "lib/ESP32_FTPSERVER_SD/ESP32FtpServer.h"
+  #include "ESP32FtpServer.h"
   FtpServer ftpSrv;
 #endif
 
