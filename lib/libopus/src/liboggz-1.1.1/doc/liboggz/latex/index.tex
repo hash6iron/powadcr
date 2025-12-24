@@ -1,0 +1,39 @@
+\section{Oggz makes programming with Ogg easy!}\label{index_intro}
+This is the documentation for the Oggz C API. Oggz provides a simple programming interface for reading and writing Ogg files and streams. Ogg is an interleaving data container developed by Monty at {\tt Xiph.Org}, originally to support the Ogg Vorbis audio format.
+
+liboggz supports the flexibility afforded by the Ogg file format while presenting the following API niceties:
+
+
+\begin{DoxyItemize}
+\item Strict adherence to the formatting requirements of Ogg \doxyref{bitstreams }{p.}{group__basics}, to ensure that only valid bitstreams are generated
+\item A simple, callback based open/read/close or open/write/close \doxyref{interface }{p.}{oggz_8h} to raw Ogg files
+\item A customisable \doxyref{seeking }{p.}{group__seek__api} abstraction for seeking on multitrack Ogg data
+\item A packet queue for feeding incoming packets for writing, with callback based notification when this queue is empty
+\item A means of overriding the \doxyref{IO functions }{p.}{oggz__io_8h} used by Oggz, for easier integration with media frameworks and similar systems.
+\item A handy \doxyref{table }{p.}{oggz__table_8h} structure for storing information on each logical bitstream
+\end{DoxyItemize}\subsection{Contents}\label{index_contents}
+
+\begin{DoxyItemize}
+\item \doxyref{Basics }{p.}{group__basics}: Information about Ogg required to understand liboggz
+\end{DoxyItemize}
+
+
+\begin{DoxyItemize}
+\item \doxyref{oggz.h }{p.}{oggz_8h}: Documentation of the Oggz C API
+\end{DoxyItemize}
+
+
+\begin{DoxyItemize}
+\item \doxyref{Configuration }{p.}{group__configuration}: Customizing liboggz to only read or write.
+\end{DoxyItemize}
+
+
+\begin{DoxyItemize}
+\item \doxyref{Building }{p.}{group__building}: Information related to building software that uses liboggz.
+\end{DoxyItemize}\section{Licensing}\label{index_Licensing}
+liboggz is provided under the following BSD-\/style open source license:
+
+
+\begin{DoxyCodeInclude}
+\end{DoxyCodeInclude}
+ 

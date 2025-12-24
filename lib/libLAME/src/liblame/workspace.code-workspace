@@ -1,0 +1,30 @@
+{
+	"folders": [
+		{
+			"path": "../.."
+		},
+		{
+			"name": "lame-encoder",
+			"path": "../../../../../PlatformIO/Projects/lame-encoder"
+		}
+	],
+	"settings": {
+		"files.associations": {
+			"random": "c",
+			"vec3b": "c",
+			"vec3i": "c",
+			"vec3s": "c",
+			"vec3ub": "c",
+			"vec3ui": "c",
+			"vec3us": "c",
+			"vec4b": "c",
+			"vec4d": "c",
+			"vec4f": "c",
+			"vec4i": "c",
+			"vec4s": "c",
+			"vec4ub": "c",
+			"vec4ui": "c",
+			"vec4us": "c"
+		}
+	}
+}

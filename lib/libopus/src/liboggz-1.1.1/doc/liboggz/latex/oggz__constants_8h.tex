@@ -1,0 +1,219 @@
+\section{oggz\_\-constants.h File Reference}
+\label{oggz__constants_8h}\index{oggz\_\-constants.h@{oggz\_\-constants.h}}
+
+
+General constants used by liboggz.  
+
+
+\subsection*{Typedefs}
+\begin{DoxyCompactItemize}
+\item 
+typedef enum {\bf OggzStreamContent} {\bf OggzStreamContent}\label{oggz__constants_8h_a69a05fe277d156358f300e3968ddc70f}
+
+\begin{DoxyCompactList}\small\item\em Definition of stream content types. \item\end{DoxyCompactList}\end{DoxyCompactItemize}
+\subsection*{Enumerations}
+\begin{DoxyCompactItemize}
+\item 
+enum {\bf OggzFlags} \{ \par
+{\bf OGGZ\_\-READ} =  0x00, 
+{\bf OGGZ\_\-WRITE} =  0x01, 
+{\bf OGGZ\_\-NONSTRICT} =  0x10, 
+{\bf OGGZ\_\-AUTO} =  0x20, 
+\par
+{\bf OGGZ\_\-PREFIX} =  0x40, 
+{\bf OGGZ\_\-SUFFIX} =  0x80
+ \}
+\begin{DoxyCompactList}\small\item\em Flags to \doxyref{oggz\_\-new()}{p.}{oggz_8h_a6eb34d123389ae38d993601f9e7bb9d6}, \doxyref{oggz\_\-open()}{p.}{oggz_8h_a65197cdd03f755f7ebfabf2fdff4c7db}, and oggz\_\-openfd(). \item\end{DoxyCompactList}\item 
+enum {\bf OggzStopCtl} \{ {\bf OGGZ\_\-CONTINUE} =  0, 
+{\bf OGGZ\_\-STOP\_\-OK} =  1, 
+{\bf OGGZ\_\-STOP\_\-ERR} =  -\/1
+ \}
+\item 
+enum {\bf OggzFlushOpts} \{ {\bf OGGZ\_\-FLUSH\_\-BEFORE} =  0x01, 
+{\bf OGGZ\_\-FLUSH\_\-AFTER} =  0x02
+ \}
+\begin{DoxyCompactList}\small\item\em Flush options for oggz\_\-write\_\-feed; can be or'ed together. \item\end{DoxyCompactList}\item 
+enum {\bf OggzStreamContent} \{ \par
+{\bfseries OGGZ\_\-CONTENT\_\-THEORA} =  0, 
+{\bfseries OGGZ\_\-CONTENT\_\-VORBIS}, 
+{\bfseries OGGZ\_\-CONTENT\_\-SPEEX}, 
+{\bfseries OGGZ\_\-CONTENT\_\-PCM}, 
+\par
+{\bfseries OGGZ\_\-CONTENT\_\-CMML}, 
+{\bfseries OGGZ\_\-CONTENT\_\-ANX2}, 
+{\bfseries OGGZ\_\-CONTENT\_\-SKELETON}, 
+{\bfseries OGGZ\_\-CONTENT\_\-FLAC0}, 
+\par
+{\bfseries OGGZ\_\-CONTENT\_\-FLAC}, 
+{\bfseries OGGZ\_\-CONTENT\_\-ANXDATA}, 
+{\bfseries OGGZ\_\-CONTENT\_\-CELT}, 
+{\bfseries OGGZ\_\-CONTENT\_\-KATE}, 
+\par
+{\bfseries OGGZ\_\-CONTENT\_\-DIRAC}, 
+{\bfseries OGGZ\_\-CONTENT\_\-UNKNOWN}
+ \}
+\begin{DoxyCompactList}\small\item\em Definition of stream content types. \item\end{DoxyCompactList}\item 
+enum {\bf OggzError} \{ \par
+{\bf OGGZ\_\-ERR\_\-OK} =  0, 
+{\bf OGGZ\_\-ERR\_\-GENERIC} =  -\/1, 
+{\bf OGGZ\_\-ERR\_\-BAD\_\-OGGZ} =  -\/2, 
+{\bf OGGZ\_\-ERR\_\-INVALID} =  -\/3, 
+\par
+{\bf OGGZ\_\-ERR\_\-NO\_\-STREAMS} =  -\/4, 
+{\bf OGGZ\_\-ERR\_\-BOS} =  -\/5, 
+{\bf OGGZ\_\-ERR\_\-EOS} =  -\/6, 
+{\bf OGGZ\_\-ERR\_\-BAD\_\-METRIC} =  -\/7, 
+\par
+{\bf OGGZ\_\-ERR\_\-SYSTEM} =  -\/10, 
+{\bf OGGZ\_\-ERR\_\-DISABLED} =  -\/11, 
+{\bf OGGZ\_\-ERR\_\-NOSEEK} =  -\/13, 
+{\bf OGGZ\_\-ERR\_\-STOP\_\-OK} =  -\/14, 
+\par
+{\bf OGGZ\_\-ERR\_\-STOP\_\-ERR} =  -\/15, 
+{\bf OGGZ\_\-ERR\_\-IO\_\-AGAIN} =  -\/16, 
+{\bf OGGZ\_\-ERR\_\-HOLE\_\-IN\_\-DATA} =  -\/17, 
+{\bf OGGZ\_\-ERR\_\-OUT\_\-OF\_\-MEMORY} =  -\/18, 
+\par
+{\bf OGGZ\_\-ERR\_\-BAD\_\-SERIALNO} =  -\/20, 
+{\bf OGGZ\_\-ERR\_\-BAD\_\-BYTES} =  -\/21, 
+{\bf OGGZ\_\-ERR\_\-BAD\_\-B\_\-O\_\-S} =  -\/22, 
+{\bf OGGZ\_\-ERR\_\-BAD\_\-E\_\-O\_\-S} =  -\/23, 
+\par
+{\bf OGGZ\_\-ERR\_\-BAD\_\-GRANULEPOS} =  -\/24, 
+{\bf OGGZ\_\-ERR\_\-BAD\_\-PACKETNO} =  -\/25, 
+{\bf OGGZ\_\-ERR\_\-COMMENT\_\-INVALID} =  -\/129, 
+{\bf OGGZ\_\-ERR\_\-BAD\_\-GUARD} =  -\/210, 
+\par
+{\bf OGGZ\_\-ERR\_\-RECURSIVE\_\-WRITE} =  -\/266
+ \}
+\begin{DoxyCompactList}\small\item\em Definitions of error return values. \item\end{DoxyCompactList}\end{DoxyCompactItemize}
+
+
+\subsection{Detailed Description}
+General constants used by liboggz. 
+
+\subsection{Enumeration Type Documentation}
+\index{oggz\_\-constants.h@{oggz\_\-constants.h}!OggzError@{OggzError}}
+\index{OggzError@{OggzError}!oggz_constants.h@{oggz\_\-constants.h}}
+\subsubsection[{OggzError}]{\setlength{\rightskip}{0pt plus 5cm}enum {\bf OggzError}}\label{oggz__constants_8h_a68ad49468cba9eb61380abd603b0f83e}
+
+
+Definitions of error return values. 
+
+\begin{Desc}
+\item[Enumerator: ]\par
+\begin{description}
+\index{OGGZ\_\-ERR\_\-OK@{OGGZ\_\-ERR\_\-OK}!oggz\_\-constants.h@{oggz\_\-constants.h}}\index{oggz\_\-constants.h@{oggz\_\-constants.h}!OGGZ\_\-ERR\_\-OK@{OGGZ\_\-ERR\_\-OK}}\item[{\em 
+OGGZ\_\-ERR\_\-OK\label{oggz__constants_8h_a68ad49468cba9eb61380abd603b0f83ea9c2ac780c03b38ba06e9ffe9c7f95a08}
+}]No error. \index{OGGZ\_\-ERR\_\-GENERIC@{OGGZ\_\-ERR\_\-GENERIC}!oggz\_\-constants.h@{oggz\_\-constants.h}}\index{oggz\_\-constants.h@{oggz\_\-constants.h}!OGGZ\_\-ERR\_\-GENERIC@{OGGZ\_\-ERR\_\-GENERIC}}\item[{\em 
+OGGZ\_\-ERR\_\-GENERIC\label{oggz__constants_8h_a68ad49468cba9eb61380abd603b0f83ea9cb5d186a7de1c24f0b72894ebc9886b}
+}]generic error \index{OGGZ\_\-ERR\_\-BAD\_\-OGGZ@{OGGZ\_\-ERR\_\-BAD\_\-OGGZ}!oggz\_\-constants.h@{oggz\_\-constants.h}}\index{oggz\_\-constants.h@{oggz\_\-constants.h}!OGGZ\_\-ERR\_\-BAD\_\-OGGZ@{OGGZ\_\-ERR\_\-BAD\_\-OGGZ}}\item[{\em 
+OGGZ\_\-ERR\_\-BAD\_\-OGGZ\label{oggz__constants_8h_a68ad49468cba9eb61380abd603b0f83ea195b205e2a10b746a9426da0d8fd22f6}
+}]oggz is not a valid OGGZ \index{OGGZ\_\-ERR\_\-INVALID@{OGGZ\_\-ERR\_\-INVALID}!oggz\_\-constants.h@{oggz\_\-constants.h}}\index{oggz\_\-constants.h@{oggz\_\-constants.h}!OGGZ\_\-ERR\_\-INVALID@{OGGZ\_\-ERR\_\-INVALID}}\item[{\em 
+OGGZ\_\-ERR\_\-INVALID\label{oggz__constants_8h_a68ad49468cba9eb61380abd603b0f83eadcd2c8d2d0624da6b5faa5c26fc87628}
+}]The requested operation is not suitable for this OGGZ. \index{OGGZ\_\-ERR\_\-NO\_\-STREAMS@{OGGZ\_\-ERR\_\-NO\_\-STREAMS}!oggz\_\-constants.h@{oggz\_\-constants.h}}\index{oggz\_\-constants.h@{oggz\_\-constants.h}!OGGZ\_\-ERR\_\-NO\_\-STREAMS@{OGGZ\_\-ERR\_\-NO\_\-STREAMS}}\item[{\em 
+OGGZ\_\-ERR\_\-NO\_\-STREAMS\label{oggz__constants_8h_a68ad49468cba9eb61380abd603b0f83eafd7a0ff230f3892aae44a8003203afd7}
+}]oggz contains no logical bitstreams \index{OGGZ\_\-ERR\_\-BOS@{OGGZ\_\-ERR\_\-BOS}!oggz\_\-constants.h@{oggz\_\-constants.h}}\index{oggz\_\-constants.h@{oggz\_\-constants.h}!OGGZ\_\-ERR\_\-BOS@{OGGZ\_\-ERR\_\-BOS}}\item[{\em 
+OGGZ\_\-ERR\_\-BOS\label{oggz__constants_8h_a68ad49468cba9eb61380abd603b0f83eac447250ac1367c84c875df0d01b70661}
+}]Operation is inappropriate for oggz in current bos state. \index{OGGZ\_\-ERR\_\-EOS@{OGGZ\_\-ERR\_\-EOS}!oggz\_\-constants.h@{oggz\_\-constants.h}}\index{oggz\_\-constants.h@{oggz\_\-constants.h}!OGGZ\_\-ERR\_\-EOS@{OGGZ\_\-ERR\_\-EOS}}\item[{\em 
+OGGZ\_\-ERR\_\-EOS\label{oggz__constants_8h_a68ad49468cba9eb61380abd603b0f83eafb09184b514aee32f1b512937fa618e0}
+}]Operation is inappropriate for oggz in current eos state. \index{OGGZ\_\-ERR\_\-BAD\_\-METRIC@{OGGZ\_\-ERR\_\-BAD\_\-METRIC}!oggz\_\-constants.h@{oggz\_\-constants.h}}\index{oggz\_\-constants.h@{oggz\_\-constants.h}!OGGZ\_\-ERR\_\-BAD\_\-METRIC@{OGGZ\_\-ERR\_\-BAD\_\-METRIC}}\item[{\em 
+OGGZ\_\-ERR\_\-BAD\_\-METRIC\label{oggz__constants_8h_a68ad49468cba9eb61380abd603b0f83ea82714dc1b1505af8e373c2b877ce0a04}
+}]Operation requires a valid metric, but none has been set. \index{OGGZ\_\-ERR\_\-SYSTEM@{OGGZ\_\-ERR\_\-SYSTEM}!oggz\_\-constants.h@{oggz\_\-constants.h}}\index{oggz\_\-constants.h@{oggz\_\-constants.h}!OGGZ\_\-ERR\_\-SYSTEM@{OGGZ\_\-ERR\_\-SYSTEM}}\item[{\em 
+OGGZ\_\-ERR\_\-SYSTEM\label{oggz__constants_8h_a68ad49468cba9eb61380abd603b0f83ea607f17c9c37f2d5c40d1ed55cb1d7e17}
+}]System specific error; check errno for details. \index{OGGZ\_\-ERR\_\-DISABLED@{OGGZ\_\-ERR\_\-DISABLED}!oggz\_\-constants.h@{oggz\_\-constants.h}}\index{oggz\_\-constants.h@{oggz\_\-constants.h}!OGGZ\_\-ERR\_\-DISABLED@{OGGZ\_\-ERR\_\-DISABLED}}\item[{\em 
+OGGZ\_\-ERR\_\-DISABLED\label{oggz__constants_8h_a68ad49468cba9eb61380abd603b0f83ea77029ff6686a406f966209f78f62c3ff}
+}]Functionality disabled at build time. \index{OGGZ\_\-ERR\_\-NOSEEK@{OGGZ\_\-ERR\_\-NOSEEK}!oggz\_\-constants.h@{oggz\_\-constants.h}}\index{oggz\_\-constants.h@{oggz\_\-constants.h}!OGGZ\_\-ERR\_\-NOSEEK@{OGGZ\_\-ERR\_\-NOSEEK}}\item[{\em 
+OGGZ\_\-ERR\_\-NOSEEK\label{oggz__constants_8h_a68ad49468cba9eb61380abd603b0f83ea761cede14a1d709ea722b607c59723ed}
+}]Seeking operation is not possible for this OGGZ. \index{OGGZ\_\-ERR\_\-STOP\_\-OK@{OGGZ\_\-ERR\_\-STOP\_\-OK}!oggz\_\-constants.h@{oggz\_\-constants.h}}\index{oggz\_\-constants.h@{oggz\_\-constants.h}!OGGZ\_\-ERR\_\-STOP\_\-OK@{OGGZ\_\-ERR\_\-STOP\_\-OK}}\item[{\em 
+OGGZ\_\-ERR\_\-STOP\_\-OK\label{oggz__constants_8h_a68ad49468cba9eb61380abd603b0f83ea5f9bde92dc6e7cc407e52e5dd61fdbf4}
+}]Reading was stopped by an OggzReadCallback returning OGGZ\_\-STOP\_\-OK or writing was stopped by an OggzWriteHungry callback returning OGGZ\_\-STOP\_\-OK. \index{OGGZ\_\-ERR\_\-STOP\_\-ERR@{OGGZ\_\-ERR\_\-STOP\_\-ERR}!oggz\_\-constants.h@{oggz\_\-constants.h}}\index{oggz\_\-constants.h@{oggz\_\-constants.h}!OGGZ\_\-ERR\_\-STOP\_\-ERR@{OGGZ\_\-ERR\_\-STOP\_\-ERR}}\item[{\em 
+OGGZ\_\-ERR\_\-STOP\_\-ERR\label{oggz__constants_8h_a68ad49468cba9eb61380abd603b0f83ea59dffeb8be96b2ac026735f7e5bb8a2a}
+}]Reading was stopped by an OggzReadCallback returning OGGZ\_\-STOP\_\-ERR or writing was stopped by an OggzWriteHungry callback returning OGGZ\_\-STOP\_\-ERR. \index{OGGZ\_\-ERR\_\-IO\_\-AGAIN@{OGGZ\_\-ERR\_\-IO\_\-AGAIN}!oggz\_\-constants.h@{oggz\_\-constants.h}}\index{oggz\_\-constants.h@{oggz\_\-constants.h}!OGGZ\_\-ERR\_\-IO\_\-AGAIN@{OGGZ\_\-ERR\_\-IO\_\-AGAIN}}\item[{\em 
+OGGZ\_\-ERR\_\-IO\_\-AGAIN\label{oggz__constants_8h_a68ad49468cba9eb61380abd603b0f83eab837c50e1cd4b858c02e1f89842bd134}
+}]no data available from IO, try again \index{OGGZ\_\-ERR\_\-HOLE\_\-IN\_\-DATA@{OGGZ\_\-ERR\_\-HOLE\_\-IN\_\-DATA}!oggz\_\-constants.h@{oggz\_\-constants.h}}\index{oggz\_\-constants.h@{oggz\_\-constants.h}!OGGZ\_\-ERR\_\-HOLE\_\-IN\_\-DATA@{OGGZ\_\-ERR\_\-HOLE\_\-IN\_\-DATA}}\item[{\em 
+OGGZ\_\-ERR\_\-HOLE\_\-IN\_\-DATA\label{oggz__constants_8h_a68ad49468cba9eb61380abd603b0f83eaed1eccb86408055f065009e64b88a7d4}
+}]Hole (sequence number gap) detected in input data. \index{OGGZ\_\-ERR\_\-OUT\_\-OF\_\-MEMORY@{OGGZ\_\-ERR\_\-OUT\_\-OF\_\-MEMORY}!oggz\_\-constants.h@{oggz\_\-constants.h}}\index{oggz\_\-constants.h@{oggz\_\-constants.h}!OGGZ\_\-ERR\_\-OUT\_\-OF\_\-MEMORY@{OGGZ\_\-ERR\_\-OUT\_\-OF\_\-MEMORY}}\item[{\em 
+OGGZ\_\-ERR\_\-OUT\_\-OF\_\-MEMORY\label{oggz__constants_8h_a68ad49468cba9eb61380abd603b0f83ea3edc55802c7a9052f14608b9c101b92c}
+}]Out of memory. \index{OGGZ\_\-ERR\_\-BAD\_\-SERIALNO@{OGGZ\_\-ERR\_\-BAD\_\-SERIALNO}!oggz\_\-constants.h@{oggz\_\-constants.h}}\index{oggz\_\-constants.h@{oggz\_\-constants.h}!OGGZ\_\-ERR\_\-BAD\_\-SERIALNO@{OGGZ\_\-ERR\_\-BAD\_\-SERIALNO}}\item[{\em 
+OGGZ\_\-ERR\_\-BAD\_\-SERIALNO\label{oggz__constants_8h_a68ad49468cba9eb61380abd603b0f83ead19554f4b1f544a1b575664b4a38694d}
+}]The requested serialno does not exist in this OGGZ. \index{OGGZ\_\-ERR\_\-BAD\_\-BYTES@{OGGZ\_\-ERR\_\-BAD\_\-BYTES}!oggz\_\-constants.h@{oggz\_\-constants.h}}\index{oggz\_\-constants.h@{oggz\_\-constants.h}!OGGZ\_\-ERR\_\-BAD\_\-BYTES@{OGGZ\_\-ERR\_\-BAD\_\-BYTES}}\item[{\em 
+OGGZ\_\-ERR\_\-BAD\_\-BYTES\label{oggz__constants_8h_a68ad49468cba9eb61380abd603b0f83eacf1a748ac6d70d304c193ac4d8a0142a}
+}]Packet disallowed due to invalid byte length. \index{OGGZ\_\-ERR\_\-BAD\_\-B\_\-O\_\-S@{OGGZ\_\-ERR\_\-BAD\_\-B\_\-O\_\-S}!oggz\_\-constants.h@{oggz\_\-constants.h}}\index{oggz\_\-constants.h@{oggz\_\-constants.h}!OGGZ\_\-ERR\_\-BAD\_\-B\_\-O\_\-S@{OGGZ\_\-ERR\_\-BAD\_\-B\_\-O\_\-S}}\item[{\em 
+OGGZ\_\-ERR\_\-BAD\_\-B\_\-O\_\-S\label{oggz__constants_8h_a68ad49468cba9eb61380abd603b0f83ea82a9669e837d20e2fb392c9f1f5eb960}
+}]Packet disallowed due to invalid b\_\-o\_\-s (beginning of stream) flag. \index{OGGZ\_\-ERR\_\-BAD\_\-E\_\-O\_\-S@{OGGZ\_\-ERR\_\-BAD\_\-E\_\-O\_\-S}!oggz\_\-constants.h@{oggz\_\-constants.h}}\index{oggz\_\-constants.h@{oggz\_\-constants.h}!OGGZ\_\-ERR\_\-BAD\_\-E\_\-O\_\-S@{OGGZ\_\-ERR\_\-BAD\_\-E\_\-O\_\-S}}\item[{\em 
+OGGZ\_\-ERR\_\-BAD\_\-E\_\-O\_\-S\label{oggz__constants_8h_a68ad49468cba9eb61380abd603b0f83eae2352f40f9376e4b9dc234db18a93798}
+}]Packet disallowed due to invalid e\_\-o\_\-s (end of stream) flag. \index{OGGZ\_\-ERR\_\-BAD\_\-GRANULEPOS@{OGGZ\_\-ERR\_\-BAD\_\-GRANULEPOS}!oggz\_\-constants.h@{oggz\_\-constants.h}}\index{oggz\_\-constants.h@{oggz\_\-constants.h}!OGGZ\_\-ERR\_\-BAD\_\-GRANULEPOS@{OGGZ\_\-ERR\_\-BAD\_\-GRANULEPOS}}\item[{\em 
+OGGZ\_\-ERR\_\-BAD\_\-GRANULEPOS\label{oggz__constants_8h_a68ad49468cba9eb61380abd603b0f83ea9d49be12111ae95d12252528496a88a7}
+}]Packet disallowed due to invalid granulepos. \index{OGGZ\_\-ERR\_\-BAD\_\-PACKETNO@{OGGZ\_\-ERR\_\-BAD\_\-PACKETNO}!oggz\_\-constants.h@{oggz\_\-constants.h}}\index{oggz\_\-constants.h@{oggz\_\-constants.h}!OGGZ\_\-ERR\_\-BAD\_\-PACKETNO@{OGGZ\_\-ERR\_\-BAD\_\-PACKETNO}}\item[{\em 
+OGGZ\_\-ERR\_\-BAD\_\-PACKETNO\label{oggz__constants_8h_a68ad49468cba9eb61380abd603b0f83ea5e0116f755d019616406ac341f1f6e98}
+}]Packet disallowed due to invalid packetno. \index{OGGZ\_\-ERR\_\-COMMENT\_\-INVALID@{OGGZ\_\-ERR\_\-COMMENT\_\-INVALID}!oggz\_\-constants.h@{oggz\_\-constants.h}}\index{oggz\_\-constants.h@{oggz\_\-constants.h}!OGGZ\_\-ERR\_\-COMMENT\_\-INVALID@{OGGZ\_\-ERR\_\-COMMENT\_\-INVALID}}\item[{\em 
+OGGZ\_\-ERR\_\-COMMENT\_\-INVALID\label{oggz__constants_8h_a68ad49468cba9eb61380abd603b0f83ead27c93cddea5ddaeaf168426f14833de}
+}]Comment violates VorbisComment restrictions. \index{OGGZ\_\-ERR\_\-BAD\_\-GUARD@{OGGZ\_\-ERR\_\-BAD\_\-GUARD}!oggz\_\-constants.h@{oggz\_\-constants.h}}\index{oggz\_\-constants.h@{oggz\_\-constants.h}!OGGZ\_\-ERR\_\-BAD\_\-GUARD@{OGGZ\_\-ERR\_\-BAD\_\-GUARD}}\item[{\em 
+OGGZ\_\-ERR\_\-BAD\_\-GUARD\label{oggz__constants_8h_a68ad49468cba9eb61380abd603b0f83ea57d5c64dce5d60f559e13dbe3e3c1c22}
+}]Guard provided by user has non-\/zero value. \index{OGGZ\_\-ERR\_\-RECURSIVE\_\-WRITE@{OGGZ\_\-ERR\_\-RECURSIVE\_\-WRITE}!oggz\_\-constants.h@{oggz\_\-constants.h}}\index{oggz\_\-constants.h@{oggz\_\-constants.h}!OGGZ\_\-ERR\_\-RECURSIVE\_\-WRITE@{OGGZ\_\-ERR\_\-RECURSIVE\_\-WRITE}}\item[{\em 
+OGGZ\_\-ERR\_\-RECURSIVE\_\-WRITE\label{oggz__constants_8h_a68ad49468cba9eb61380abd603b0f83ea8f0a11d443e4bf9f89a2cc4d44548081}
+}]Attempt to call \doxyref{oggz\_\-write()}{p.}{group__write__api_ga3c97d94ea425d64546adf9c368b71904} or \doxyref{oggz\_\-write\_\-output()}{p.}{group__write__api_ga5606dff01964caec4582eb172fde0c1c} from within a hungry() callback. \end{description}
+\end{Desc}
+
+\index{oggz\_\-constants.h@{oggz\_\-constants.h}!OggzFlags@{OggzFlags}}
+\index{OggzFlags@{OggzFlags}!oggz_constants.h@{oggz\_\-constants.h}}
+\subsubsection[{OggzFlags}]{\setlength{\rightskip}{0pt plus 5cm}enum {\bf OggzFlags}}\label{oggz__constants_8h_a12afc3c052f6e84eff5a99ac9f1ccdd3}
+
+
+Flags to \doxyref{oggz\_\-new()}{p.}{oggz_8h_a6eb34d123389ae38d993601f9e7bb9d6}, \doxyref{oggz\_\-open()}{p.}{oggz_8h_a65197cdd03f755f7ebfabf2fdff4c7db}, and oggz\_\-openfd(). 
+
+Can be or'ed together in the following combinations:
+\begin{DoxyItemize}
+\item OGGZ\_\-READ $|$ OGGZ\_\-AUTO
+\item OGGZ\_\-WRITE $|$ OGGZ\_\-NONSTRICT $|$ OGGZ\_\-PREFIX $|$ OGGZ\_\-SUFFIX 
+\end{DoxyItemize}\begin{Desc}
+\item[Enumerator: ]\par
+\begin{description}
+\index{OGGZ\_\-READ@{OGGZ\_\-READ}!oggz\_\-constants.h@{oggz\_\-constants.h}}\index{oggz\_\-constants.h@{oggz\_\-constants.h}!OGGZ\_\-READ@{OGGZ\_\-READ}}\item[{\em 
+OGGZ\_\-READ\label{oggz__constants_8h_a12afc3c052f6e84eff5a99ac9f1ccdd3a95bd4a2b27d6e9e119ee11a7c5c26c50}
+}]Read only. \index{OGGZ\_\-WRITE@{OGGZ\_\-WRITE}!oggz\_\-constants.h@{oggz\_\-constants.h}}\index{oggz\_\-constants.h@{oggz\_\-constants.h}!OGGZ\_\-WRITE@{OGGZ\_\-WRITE}}\item[{\em 
+OGGZ\_\-WRITE\label{oggz__constants_8h_a12afc3c052f6e84eff5a99ac9f1ccdd3a8819c3d01c84191dbf846b5e0a98d757}
+}]Write only. \index{OGGZ\_\-NONSTRICT@{OGGZ\_\-NONSTRICT}!oggz\_\-constants.h@{oggz\_\-constants.h}}\index{oggz\_\-constants.h@{oggz\_\-constants.h}!OGGZ\_\-NONSTRICT@{OGGZ\_\-NONSTRICT}}\item[{\em 
+OGGZ\_\-NONSTRICT\label{oggz__constants_8h_a12afc3c052f6e84eff5a99ac9f1ccdd3a24e9b4267730b726756241d7de2e8cf2}
+}]Disable strict adherence to mapping constraints, eg for handling an incomplete stream. \index{OGGZ\_\-AUTO@{OGGZ\_\-AUTO}!oggz\_\-constants.h@{oggz\_\-constants.h}}\index{oggz\_\-constants.h@{oggz\_\-constants.h}!OGGZ\_\-AUTO@{OGGZ\_\-AUTO}}\item[{\em 
+OGGZ\_\-AUTO\label{oggz__constants_8h_a12afc3c052f6e84eff5a99ac9f1ccdd3af5b915c8762126bff52a0499745d1732}
+}]Scan for known headers while reading, and automatically set metrics appropriately. Opening a file for reading with {\itshape flags\/} = OGGZ\_\-READ $|$ OGGZ\_\-AUTO will allow seeking on Speex, Vorbis, FLAC, Theora, CMML and all Annodex streams in units of milliseconds, once all bos pages have been delivered. \index{OGGZ\_\-PREFIX@{OGGZ\_\-PREFIX}!oggz\_\-constants.h@{oggz\_\-constants.h}}\index{oggz\_\-constants.h@{oggz\_\-constants.h}!OGGZ\_\-PREFIX@{OGGZ\_\-PREFIX}}\item[{\em 
+OGGZ\_\-PREFIX\label{oggz__constants_8h_a12afc3c052f6e84eff5a99ac9f1ccdd3acb0fc6d8842462d7a1624c3312c299fb}
+}]Write Prefix: Assume that we are only writing the prefix of an Ogg stream, ie. disable checking for conformance with end-\/of-\/stream constraints. \index{OGGZ\_\-SUFFIX@{OGGZ\_\-SUFFIX}!oggz\_\-constants.h@{oggz\_\-constants.h}}\index{oggz\_\-constants.h@{oggz\_\-constants.h}!OGGZ\_\-SUFFIX@{OGGZ\_\-SUFFIX}}\item[{\em 
+OGGZ\_\-SUFFIX\label{oggz__constants_8h_a12afc3c052f6e84eff5a99ac9f1ccdd3a70e2ea0bfd95ff858125a4f777eb90e8}
+}]Write Suffix: Assume that we are only writing the suffix of an Ogg stream, ie. disable checking for conformance with beginning-\/of-\/stream constraints. \end{description}
+\end{Desc}
+
+\index{oggz\_\-constants.h@{oggz\_\-constants.h}!OggzFlushOpts@{OggzFlushOpts}}
+\index{OggzFlushOpts@{OggzFlushOpts}!oggz_constants.h@{oggz\_\-constants.h}}
+\subsubsection[{OggzFlushOpts}]{\setlength{\rightskip}{0pt plus 5cm}enum {\bf OggzFlushOpts}}\label{oggz__constants_8h_a6a09e7685c864a9116473b236c847237}
+
+
+Flush options for oggz\_\-write\_\-feed; can be or'ed together. 
+
+\begin{Desc}
+\item[Enumerator: ]\par
+\begin{description}
+\index{OGGZ\_\-FLUSH\_\-BEFORE@{OGGZ\_\-FLUSH\_\-BEFORE}!oggz\_\-constants.h@{oggz\_\-constants.h}}\index{oggz\_\-constants.h@{oggz\_\-constants.h}!OGGZ\_\-FLUSH\_\-BEFORE@{OGGZ\_\-FLUSH\_\-BEFORE}}\item[{\em 
+OGGZ\_\-FLUSH\_\-BEFORE\label{oggz__constants_8h_a6a09e7685c864a9116473b236c847237a9dc1d61b8f27fe00ba9d0a8005a9bcfb}
+}]Flush all streams before beginning this packet. \index{OGGZ\_\-FLUSH\_\-AFTER@{OGGZ\_\-FLUSH\_\-AFTER}!oggz\_\-constants.h@{oggz\_\-constants.h}}\index{oggz\_\-constants.h@{oggz\_\-constants.h}!OGGZ\_\-FLUSH\_\-AFTER@{OGGZ\_\-FLUSH\_\-AFTER}}\item[{\em 
+OGGZ\_\-FLUSH\_\-AFTER\label{oggz__constants_8h_a6a09e7685c864a9116473b236c847237a42efb730f40edcdb0dfdb8a6294619c4}
+}]Flush after this packet. \end{description}
+\end{Desc}
+
+\index{oggz\_\-constants.h@{oggz\_\-constants.h}!OggzStopCtl@{OggzStopCtl}}
+\index{OggzStopCtl@{OggzStopCtl}!oggz_constants.h@{oggz\_\-constants.h}}
+\subsubsection[{OggzStopCtl}]{\setlength{\rightskip}{0pt plus 5cm}enum {\bf OggzStopCtl}}\label{oggz__constants_8h_a0dacf1292b80037e9aefeaee1b90f5ff}
+\begin{Desc}
+\item[Enumerator: ]\par
+\begin{description}
+\index{OGGZ\_\-CONTINUE@{OGGZ\_\-CONTINUE}!oggz\_\-constants.h@{oggz\_\-constants.h}}\index{oggz\_\-constants.h@{oggz\_\-constants.h}!OGGZ\_\-CONTINUE@{OGGZ\_\-CONTINUE}}\item[{\em 
+OGGZ\_\-CONTINUE\label{oggz__constants_8h_a0dacf1292b80037e9aefeaee1b90f5ffaf5242099c219d1330ddd861585cc3bf3}
+}]Continue calling read callbacks. \index{OGGZ\_\-STOP\_\-OK@{OGGZ\_\-STOP\_\-OK}!oggz\_\-constants.h@{oggz\_\-constants.h}}\index{oggz\_\-constants.h@{oggz\_\-constants.h}!OGGZ\_\-STOP\_\-OK@{OGGZ\_\-STOP\_\-OK}}\item[{\em 
+OGGZ\_\-STOP\_\-OK\label{oggz__constants_8h_a0dacf1292b80037e9aefeaee1b90f5ffac05c70a0c2213533267f8494eb928282}
+}]Stop calling callbacks, but retain buffered packet data. \index{OGGZ\_\-STOP\_\-ERR@{OGGZ\_\-STOP\_\-ERR}!oggz\_\-constants.h@{oggz\_\-constants.h}}\index{oggz\_\-constants.h@{oggz\_\-constants.h}!OGGZ\_\-STOP\_\-ERR@{OGGZ\_\-STOP\_\-ERR}}\item[{\em 
+OGGZ\_\-STOP\_\-ERR\label{oggz__constants_8h_a0dacf1292b80037e9aefeaee1b90f5ffa09454b9448ae3d93439b644243b6e552}
+}]Stop calling callbacks, and purge buffered packet data. \end{description}
+\end{Desc}
+

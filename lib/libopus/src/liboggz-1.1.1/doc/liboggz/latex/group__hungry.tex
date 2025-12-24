@@ -1,0 +1,30 @@
+\section{Writing with OggzHungry callbacks}
+\label{group__hungry}\index{Writing with OggzHungry callbacks@{Writing with OggzHungry callbacks}}
+
+
+You can add packets to the Oggz packet queue only when it is \char`\"{}hungry\char`\"{} by providing an OggzHungry callback.  
+
+
+You can add packets to the Oggz packet queue only when it is \char`\"{}hungry\char`\"{} by providing an OggzHungry callback. An OggzHungry callback will:
+\begin{DoxyItemize}
+\item Create an {\itshape ogg\_\-packet\/} structure
+\item Add it to the packet queue with \doxyref{oggz\_\-write\_\-feed()}{p.}{group__write__api_ga6ccaceb107db1fd2eae047dbdbaa5889}
+\end{DoxyItemize}
+
+Once you have set such a callback with \doxyref{oggz\_\-write\_\-set\_\-hungry\_\-callback()}{p.}{group__write__api_gaf362c030bc7a7f57cb23f2b863a59389}, simply call \doxyref{oggz\_\-write()}{p.}{group__write__api_ga3c97d94ea425d64546adf9c368b71904} or \doxyref{oggz\_\-write\_\-output()}{p.}{group__write__api_ga5606dff01964caec4582eb172fde0c1c} repeatedly, and Oggz will call your callback to provide packets when it is hungry.
+
+This process is illustrated in the following diagram:
+
+ 
+\begin{DoxyImage}
+\includegraphics[width=10cm]{hungry}
+\caption{Using OggzHungry}
+\end{DoxyImage}
+
+
+The following example code generates a stream of ten packets, each containing a single byte ('A', 'B', ... , 'J'):
+
+
+\begin{DoxyCodeInclude}
+\end{DoxyCodeInclude}
+ 
