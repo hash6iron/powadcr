@@ -1,0 +1,32 @@
+\section{Writing by force feeding Oggz}
+\label{group__force__feed}\index{Writing by force feeding Oggz@{Writing by force feeding Oggz}}
+
+
+Force feeding involves synchronously:
+\begin{DoxyItemize}
+\item Creating an {\itshape ogg\_\-packet\/} structure
+\item Adding it to the packet queue with \doxyref{oggz\_\-write\_\-feed()}{p.}{group__write__api_ga6ccaceb107db1fd2eae047dbdbaa5889}
+\item Calling \doxyref{oggz\_\-write()}{p.}{group__write__api_ga3c97d94ea425d64546adf9c368b71904} or \doxyref{oggz\_\-write\_\-output()}{p.}{group__write__api_ga5606dff01964caec4582eb172fde0c1c}, repeatedly as necessary, to generate the Ogg bitstream. 
+\end{DoxyItemize} 
+
+
+Force feeding involves synchronously:
+\begin{DoxyItemize}
+\item Creating an {\itshape ogg\_\-packet\/} structure
+\item Adding it to the packet queue with \doxyref{oggz\_\-write\_\-feed()}{p.}{group__write__api_ga6ccaceb107db1fd2eae047dbdbaa5889}
+\item Calling \doxyref{oggz\_\-write()}{p.}{group__write__api_ga3c97d94ea425d64546adf9c368b71904} or \doxyref{oggz\_\-write\_\-output()}{p.}{group__write__api_ga5606dff01964caec4582eb172fde0c1c}, repeatedly as necessary, to generate the Ogg bitstream. 
+\end{DoxyItemize}This process is illustrated in the following diagram:
+
+ 
+\begin{DoxyImage}
+\includegraphics[width=10cm]{forcefeed}
+\caption{Force Feeding Oggz}
+\end{DoxyImage}
+
+
+The following example code generates a stream of ten packets, each containing a single byte ('A', 'B', ... , 'J'):
+
+
+\begin{DoxyCodeInclude}
+\end{DoxyCodeInclude}
+ 

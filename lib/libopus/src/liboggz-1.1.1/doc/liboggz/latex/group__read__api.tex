@@ -1,0 +1,129 @@
+\section{Oggz Read API}
+\label{group__read__api}\index{Oggz Read API@{Oggz Read API}}
+
+
+Oggz parses Ogg bitstreams, forming ogg\_\-packet structures, and calling your OggzReadPacket callback(s).  
+
+
+\subsection*{Typedefs}
+\begin{DoxyCompactItemize}
+\item 
+typedef int($\ast$ {\bf OggzReadPacket} )({\bf OGGZ} $\ast$oggz, ogg\_\-packet $\ast$op, long serialno, void $\ast$user\_\-data)
+\begin{DoxyCompactList}\small\item\em This is the signature of a callback which you must provide for Oggz to call whenever it finds a new packet in the Ogg stream associated with {\itshape oggz\/}. \item\end{DoxyCompactList}\item 
+typedef int($\ast$ {\bf OggzReadPage} )({\bf OGGZ} $\ast$oggz, const ogg\_\-page $\ast$og, long serialno, void $\ast$user\_\-data)
+\begin{DoxyCompactList}\small\item\em This is the signature of a callback which you must provide for Oggz to call whenever it finds a new page in the Ogg stream associated with {\itshape oggz\/}. \item\end{DoxyCompactList}\end{DoxyCompactItemize}
+\subsection*{Functions}
+\begin{DoxyCompactItemize}
+\item 
+int {\bf oggz\_\-set\_\-read\_\-callback} ({\bf OGGZ} $\ast$oggz, long serialno, {\bf OggzReadPacket} read\_\-packet, void $\ast$user\_\-data)
+\begin{DoxyCompactList}\small\item\em Set a callback for Oggz to call when a new Ogg packet is found in the stream. \item\end{DoxyCompactList}\item 
+int {\bf oggz\_\-set\_\-read\_\-page} ({\bf OGGZ} $\ast$oggz, long serialno, {\bf OggzReadPage} read\_\-page, void $\ast$user\_\-data)
+\begin{DoxyCompactList}\small\item\em Set a callback for Oggz to call when a new Ogg page is found in the stream. \item\end{DoxyCompactList}\item 
+long {\bf oggz\_\-read} ({\bf OGGZ} $\ast$oggz, long n)
+\begin{DoxyCompactList}\small\item\em Read n bytes into {\itshape oggz\/}, calling any read callbacks on the fly. \item\end{DoxyCompactList}\item 
+long {\bf oggz\_\-read\_\-input} ({\bf OGGZ} $\ast$oggz, unsigned char $\ast$buf, long n)
+\begin{DoxyCompactList}\small\item\em Input data into {\itshape oggz\/}. \item\end{DoxyCompactList}\end{DoxyCompactItemize}
+
+
+\subsection{Detailed Description}
+Oggz parses Ogg bitstreams, forming ogg\_\-packet structures, and calling your OggzReadPacket callback(s). You provide Ogg data to Oggz with \doxyref{oggz\_\-read()}{p.}{group__read__api_ga3ce7a31de5da56375057436c6b5108f2} or \doxyref{oggz\_\-read\_\-input()}{p.}{group__read__api_ga77d4158dd119f496f73311ace7f630d6}, and independently process it in OggzReadPacket callbacks. It is possible to set a different callback per {\itshape serialno\/} (ie. for each logical bitstream in the Ogg bitstream -\/ see the \doxyref{Ogg basics}{p.}{group__basics} section for more detail).
+
+When using an OGGZ$\ast$ opened with the OGGZ\_\-AUTO flag set, Oggz will internally calculate the granulepos for each packet, even though these are not all recorded in the file: only the last packet ending on a page will have its granulepos recorded in the page header. Within a OggzReadPacket callback, calling \doxyref{oggz\_\-tell\_\-granulepos()}{p.}{group__seek__api_ga29181fb4e8f4e3629cb84810614acd30} will retrieve the calculated granulepos.
+
+See \doxyref{Oggz Seek API}{p.}{group__seek__api} for information on seeking on interleaved Ogg data, and for working with calculated granulepos values. 
+
+\subsection{Typedef Documentation}
+\index{read\_\-api@{read\_\-api}!OggzReadPacket@{OggzReadPacket}}
+\index{OggzReadPacket@{OggzReadPacket}!read_api@{read\_\-api}}
+\subsubsection[{OggzReadPacket}]{\setlength{\rightskip}{0pt plus 5cm}typedef int($\ast$ {\bf OggzReadPacket})({\bf OGGZ} $\ast$oggz, ogg\_\-packet $\ast$op, long serialno, void $\ast$user\_\-data)}\label{group__read__api_gaef015044907510cda7a3c06241e959e7}
+
+
+This is the signature of a callback which you must provide for Oggz to call whenever it finds a new packet in the Ogg stream associated with {\itshape oggz\/}. 
+
+
+\begin{DoxyParams}{Parameters}
+\item[{\em oggz}]The OGGZ handle \item[{\em op}]The full ogg\_\-packet (see $<$ogg/ogg.h$>$) \item[{\em serialno}]Identify the logical bistream in {\itshape oggz\/} that contains {\itshape op\/} \item[{\em user\_\-data}]A generic pointer you have provided earlier \end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+0 to continue, non-\/zero to instruct Oggz to stop.
+\end{DoxyReturn}
+\begin{DoxyNote}{Note}
+It is possible to provide different callbacks per logical bitstream -\/-\/ see \doxyref{oggz\_\-set\_\-read\_\-callback()}{p.}{group__read__api_ga6d5aae4f7f186fffe19d4fd3cd63148d} for more information. 
+\end{DoxyNote}
+\index{read\_\-api@{read\_\-api}!OggzReadPage@{OggzReadPage}}
+\index{OggzReadPage@{OggzReadPage}!read_api@{read\_\-api}}
+\subsubsection[{OggzReadPage}]{\setlength{\rightskip}{0pt plus 5cm}typedef int($\ast$ {\bf OggzReadPage})({\bf OGGZ} $\ast$oggz, const ogg\_\-page $\ast$og, long serialno, void $\ast$user\_\-data)}\label{group__read__api_ga8a1df0166fad1a0a6fe55d24e1a4b2e6}
+
+
+This is the signature of a callback which you must provide for Oggz to call whenever it finds a new page in the Ogg stream associated with {\itshape oggz\/}. 
+
+
+\begin{DoxyParams}{Parameters}
+\item[{\em oggz}]The OGGZ handle \item[{\em op}]The full ogg\_\-page (see $<$ogg/ogg.h$>$) \item[{\em user\_\-data}]A generic pointer you have provided earlier \end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+0 to continue, non-\/zero to instruct Oggz to stop. 
+\end{DoxyReturn}
+
+
+\subsection{Function Documentation}
+\index{read\_\-api@{read\_\-api}!oggz\_\-read@{oggz\_\-read}}
+\index{oggz\_\-read@{oggz\_\-read}!read_api@{read\_\-api}}
+\subsubsection[{oggz\_\-read}]{\setlength{\rightskip}{0pt plus 5cm}long oggz\_\-read ({\bf OGGZ} $\ast$ {\em oggz}, \/  long {\em n})}\label{group__read__api_ga3ce7a31de5da56375057436c6b5108f2}
+
+
+Read n bytes into {\itshape oggz\/}, calling any read callbacks on the fly. 
+
+
+\begin{DoxyParams}{Parameters}
+\item[{\em oggz}]An OGGZ handle previously opened for reading \item[{\em n}]A count of bytes to ingest \end{DoxyParams}
+
+\begin{DoxyRetVals}{Return values}
+\item[{\em $>$  0}]The number of bytes successfully ingested. \item[{\em 0}]End of file \item[{\em OGGZ\_\-ERR\_\-BAD\_\-OGGZ}]{\itshape oggz\/} does not refer to an existing OGGZ \item[{\em OGGZ\_\-ERR\_\-INVALID}]Operation not suitable for this OGGZ \item[{\em OGGZ\_\-ERR\_\-SYSTEM}]System error; check errno for details \item[{\em OGGZ\_\-ERR\_\-STOP\_\-OK}]Reading was stopped by a user callback returning OGGZ\_\-STOP\_\-OK \item[{\em OGGZ\_\-ERR\_\-STOP\_\-ERR}]Reading was stopped by a user callback returning OGGZ\_\-STOP\_\-ERR \item[{\em OGGZ\_\-ERR\_\-HOLE\_\-IN\_\-DATA}]Hole (sequence number gap) detected in input data \item[{\em OGGZ\_\-ERR\_\-OUT\_\-OF\_\-MEMORY}]Out of memory \end{DoxyRetVals}
+\index{read\_\-api@{read\_\-api}!oggz\_\-read\_\-input@{oggz\_\-read\_\-input}}
+\index{oggz\_\-read\_\-input@{oggz\_\-read\_\-input}!read_api@{read\_\-api}}
+\subsubsection[{oggz\_\-read\_\-input}]{\setlength{\rightskip}{0pt plus 5cm}long oggz\_\-read\_\-input ({\bf OGGZ} $\ast$ {\em oggz}, \/  unsigned char $\ast$ {\em buf}, \/  long {\em n})}\label{group__read__api_ga77d4158dd119f496f73311ace7f630d6}
+
+
+Input data into {\itshape oggz\/}. 
+
+
+\begin{DoxyParams}{Parameters}
+\item[{\em oggz}]An OGGZ handle previously opened for reading \item[{\em buf}]A memory buffer \item[{\em n}]A count of bytes to input \end{DoxyParams}
+
+\begin{DoxyRetVals}{Return values}
+\item[{\em $>$  0}]The number of bytes successfully ingested. \item[{\em OGGZ\_\-ERR\_\-BAD\_\-OGGZ}]{\itshape oggz\/} does not refer to an existing OGGZ \item[{\em OGGZ\_\-ERR\_\-INVALID}]Operation not suitable for this OGGZ \item[{\em OGGZ\_\-ERR\_\-STOP\_\-OK}]Reading was stopped by a user callback returning OGGZ\_\-STOP\_\-OK \item[{\em OGGZ\_\-ERR\_\-STOP\_\-ERR}]Reading was stopped by a user callback returning OGGZ\_\-STOP\_\-ERR \item[{\em OGGZ\_\-ERR\_\-HOLE\_\-IN\_\-DATA}]Hole (sequence number gap) detected in input data \item[{\em OGGZ\_\-ERR\_\-OUT\_\-OF\_\-MEMORY}]Out of memory \end{DoxyRetVals}
+\index{read\_\-api@{read\_\-api}!oggz\_\-set\_\-read\_\-callback@{oggz\_\-set\_\-read\_\-callback}}
+\index{oggz\_\-set\_\-read\_\-callback@{oggz\_\-set\_\-read\_\-callback}!read_api@{read\_\-api}}
+\subsubsection[{oggz\_\-set\_\-read\_\-callback}]{\setlength{\rightskip}{0pt plus 5cm}int oggz\_\-set\_\-read\_\-callback ({\bf OGGZ} $\ast$ {\em oggz}, \/  long {\em serialno}, \/  {\bf OggzReadPacket} {\em read\_\-packet}, \/  void $\ast$ {\em user\_\-data})}\label{group__read__api_ga6d5aae4f7f186fffe19d4fd3cd63148d}
+
+
+Set a callback for Oggz to call when a new Ogg packet is found in the stream. 
+
+
+\begin{DoxyParams}{Parameters}
+\item[{\em oggz}]An OGGZ handle previously opened for reading \item[{\em serialno}]Identify the logical bitstream in {\itshape oggz\/} to attach this callback to, or -\/1 to attach this callback to all unattached logical bitstreams in {\itshape oggz\/}. \item[{\em read\_\-packet}]Your callback function \item[{\em user\_\-data}]Arbitrary data you wish to pass to your callback \end{DoxyParams}
+
+\begin{DoxyRetVals}{Return values}
+\item[{\em 0}]Success \item[{\em OGGZ\_\-ERR\_\-BAD\_\-SERIALNO}]{\itshape serialno\/} does not identify an existing logical bitstream in {\itshape oggz\/}. \item[{\em OGGZ\_\-ERR\_\-BAD\_\-OGGZ}]{\itshape oggz\/} does not refer to an existing OGGZ \item[{\em OGGZ\_\-ERR\_\-INVALID}]Operation not suitable for this OGGZ \item[{\em OGGZ\_\-ERR\_\-OUT\_\-OF\_\-MEMORY}]Out of memory\end{DoxyRetVals}
+\begin{DoxyNote}{Note}
+Values of {\itshape serialno\/} other than -\/1 allows you to specify different callback functions for each logical bitstream.
+
+It is safe to call this callback from within an OggzReadPacket function, in order to specify that subsequent packets should be handled by a different OggzReadPacket function. 
+\end{DoxyNote}
+\index{read\_\-api@{read\_\-api}!oggz\_\-set\_\-read\_\-page@{oggz\_\-set\_\-read\_\-page}}
+\index{oggz\_\-set\_\-read\_\-page@{oggz\_\-set\_\-read\_\-page}!read_api@{read\_\-api}}
+\subsubsection[{oggz\_\-set\_\-read\_\-page}]{\setlength{\rightskip}{0pt plus 5cm}int oggz\_\-set\_\-read\_\-page ({\bf OGGZ} $\ast$ {\em oggz}, \/  long {\em serialno}, \/  {\bf OggzReadPage} {\em read\_\-page}, \/  void $\ast$ {\em user\_\-data})}\label{group__read__api_gafe738d4fdd4b00b1280f5978be19b2d5}
+
+
+Set a callback for Oggz to call when a new Ogg page is found in the stream. 
+
+
+\begin{DoxyParams}{Parameters}
+\item[{\em oggz}]An OGGZ handle previously opened for reading \item[{\em serialno}]Identify the logical bitstream in {\itshape oggz\/} to attach this callback to, or -\/1 to attach this callback to all unattached logical bitstreams in {\itshape oggz\/}. \item[{\em read\_\-page}]Your OggzReadPage callback function \item[{\em user\_\-data}]Arbitrary data you wish to pass to your callback \end{DoxyParams}
+
+\begin{DoxyRetVals}{Return values}
+\item[{\em 0}]Success \item[{\em OGGZ\_\-ERR\_\-BAD\_\-OGGZ}]{\itshape oggz\/} does not refer to an existing OGGZ \item[{\em OGGZ\_\-ERR\_\-INVALID}]Operation not suitable for this OGGZ \item[{\em OGGZ\_\-ERR\_\-OUT\_\-OF\_\-MEMORY}]Out of memory\end{DoxyRetVals}
+\begin{DoxyNote}{Note}
+Values of {\itshape serialno\/} other than -\/1 allows you to specify different callback functions for each logical bitstream.
+
+It is safe to call this callback from within an OggzReadPage function, in order to specify that subsequent pages should be handled by a different OggzReadPage function. 
+\end{DoxyNote}

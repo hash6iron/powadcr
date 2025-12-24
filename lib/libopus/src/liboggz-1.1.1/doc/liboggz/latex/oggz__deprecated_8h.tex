@@ -1,0 +1,92 @@
+\section{oggz\_\-deprecated.h File Reference}
+\label{oggz__deprecated_8h}\index{oggz\_\-deprecated.h@{oggz\_\-deprecated.h}}
+
+
+Deprecated interfaces.  
+
+
+\subsection*{Defines}
+\begin{DoxyCompactItemize}
+\item 
+\#define {\bf OGGZ\_\-ERR\_\-USER\_\-STOPPED}~OGGZ\_\-ERR\_\-STOP\_\-OK
+\begin{DoxyCompactList}\small\item\em DEPRECATED CONSTANT. \item\end{DoxyCompactList}\item 
+\#define {\bf OGGZ\_\-ERR\_\-READ\_\-STOP\_\-OK}~OGGZ\_\-ERR\_\-STOP\_\-OK
+\begin{DoxyCompactList}\small\item\em DEPRECATED CONSTANT. \item\end{DoxyCompactList}\item 
+\#define {\bf OGGZ\_\-ERR\_\-READ\_\-STOP\_\-ERR}~OGGZ\_\-ERR\_\-STOP\_\-ERR
+\begin{DoxyCompactList}\small\item\em DEPRECATED CONSTANT. \item\end{DoxyCompactList}\end{DoxyCompactItemize}
+\subsection*{Functions}
+\begin{DoxyCompactItemize}
+\item 
+int {\bf oggz\_\-set\_\-metric\_\-linear} ({\bf OGGZ} $\ast$oggz, long serialno, ogg\_\-int64\_\-t granule\_\-rate\_\-numerator, ogg\_\-int64\_\-t granule\_\-rate\_\-denominator)
+\begin{DoxyCompactList}\small\item\em DEPRECATED FUNCTION This function has been replaced with the more clearly named \doxyref{oggz\_\-set\_\-granulerate()}{p.}{group__metric_gaa2a86ec590161bc2295a2c8e91cefa49}. \item\end{DoxyCompactList}\item 
+ogg\_\-packet $\ast$ {\bf oggz\_\-comment\_\-generate} ({\bf OGGZ} $\ast$oggz, long serialno, {\bf OggzStreamContent} packet\_\-type, int FLAC\_\-final\_\-metadata\_\-block)
+\begin{DoxyCompactList}\small\item\em DEPRECATED FUNCTION This function has been replaced with \doxyref{oggz\_\-comments\_\-generate()}{p.}{oggz__comments_8h_a1ee69481fa517d80e63db962a23d53ae}, which does not require the packet\_\-type argument. \item\end{DoxyCompactList}\end{DoxyCompactItemize}
+
+
+\subsection{Detailed Description}
+Deprecated interfaces. 
+
+\subsection{Define Documentation}
+\index{oggz\_\-deprecated.h@{oggz\_\-deprecated.h}!OGGZ\_\-ERR\_\-READ\_\-STOP\_\-ERR@{OGGZ\_\-ERR\_\-READ\_\-STOP\_\-ERR}}
+\index{OGGZ\_\-ERR\_\-READ\_\-STOP\_\-ERR@{OGGZ\_\-ERR\_\-READ\_\-STOP\_\-ERR}!oggz_deprecated.h@{oggz\_\-deprecated.h}}
+\subsubsection[{OGGZ\_\-ERR\_\-READ\_\-STOP\_\-ERR}]{\setlength{\rightskip}{0pt plus 5cm}\#define OGGZ\_\-ERR\_\-READ\_\-STOP\_\-ERR~OGGZ\_\-ERR\_\-STOP\_\-ERR}\label{oggz__deprecated_8h_a7fb3e5030a672e6ecfd8e8e6bf57fdfa}
+
+
+DEPRECATED CONSTANT. 
+
+OGGZ\_\-ERR\_\-READ\_\-STOP\_\-OK, OGGZ\_\-ERR\_\-READ\_\-STOP\_\-ERR were introduced to allow the user to differentiate between a cancelled oggz\_\-read\_\-$\ast$() returning due to error or an ok condition. From 0.9.4 similar functionality was added for oggz\_\-write\_\-$\ast$(), hence this constant was renamed. \index{oggz\_\-deprecated.h@{oggz\_\-deprecated.h}!OGGZ\_\-ERR\_\-READ\_\-STOP\_\-OK@{OGGZ\_\-ERR\_\-READ\_\-STOP\_\-OK}}
+\index{OGGZ\_\-ERR\_\-READ\_\-STOP\_\-OK@{OGGZ\_\-ERR\_\-READ\_\-STOP\_\-OK}!oggz_deprecated.h@{oggz\_\-deprecated.h}}
+\subsubsection[{OGGZ\_\-ERR\_\-READ\_\-STOP\_\-OK}]{\setlength{\rightskip}{0pt plus 5cm}\#define OGGZ\_\-ERR\_\-READ\_\-STOP\_\-OK~OGGZ\_\-ERR\_\-STOP\_\-OK}\label{oggz__deprecated_8h_a0d9b4d212038e72fb45d751fe750d3cf}
+
+
+DEPRECATED CONSTANT. 
+
+OGGZ\_\-ERR\_\-READ\_\-STOP\_\-OK, OGGZ\_\-ERR\_\-READ\_\-STOP\_\-ERR were introduced to allow the user to differentiate between a cancelled oggz\_\-read\_\-$\ast$() returning due to error or an ok condition. From 0.9.4 similar functionality was added for oggz\_\-write\_\-$\ast$(), hence this constant was renamed. \index{oggz\_\-deprecated.h@{oggz\_\-deprecated.h}!OGGZ\_\-ERR\_\-USER\_\-STOPPED@{OGGZ\_\-ERR\_\-USER\_\-STOPPED}}
+\index{OGGZ\_\-ERR\_\-USER\_\-STOPPED@{OGGZ\_\-ERR\_\-USER\_\-STOPPED}!oggz_deprecated.h@{oggz\_\-deprecated.h}}
+\subsubsection[{OGGZ\_\-ERR\_\-USER\_\-STOPPED}]{\setlength{\rightskip}{0pt plus 5cm}\#define OGGZ\_\-ERR\_\-USER\_\-STOPPED~OGGZ\_\-ERR\_\-STOP\_\-OK}\label{oggz__deprecated_8h_aaa24ef96507165b2c5e1ac4108d59288}
+
+
+DEPRECATED CONSTANT. 
+
+OGGZ\_\-ERR\_\-USER\_\-STOPPED was introduced during development (post 0.8.3), and is similar in functionality to and numerically equal to (ie. ABI compatible with) OGGZ\_\-ERR\_\-STOP\_\-OK in $<$\doxyref{oggz/oggz\_\-constants.h}{p.}{oggz__constants_8h}$>$. It was badly named, as the preferred functionality distinguishes between a user's OggzReadCallback returning OGGZ\_\-STOP\_\-OK or OGGZ\_\-STOP\_\-ERR; your code should distinguish between these two too :-\/) Hence, don't use this (unreleased) name in new code. 
+
+\subsection{Function Documentation}
+\index{oggz\_\-deprecated.h@{oggz\_\-deprecated.h}!oggz\_\-comment\_\-generate@{oggz\_\-comment\_\-generate}}
+\index{oggz\_\-comment\_\-generate@{oggz\_\-comment\_\-generate}!oggz_deprecated.h@{oggz\_\-deprecated.h}}
+\subsubsection[{oggz\_\-comment\_\-generate}]{\setlength{\rightskip}{0pt plus 5cm}ogg\_\-packet$\ast$ oggz\_\-comment\_\-generate ({\bf OGGZ} $\ast$ {\em oggz}, \/  long {\em serialno}, \/  {\bf OggzStreamContent} {\em packet\_\-type}, \/  int {\em FLAC\_\-final\_\-metadata\_\-block})}\label{oggz__deprecated_8h_aab908fe161372aceb99f98a3be54ead5}
+
+
+DEPRECATED FUNCTION This function has been replaced with \doxyref{oggz\_\-comments\_\-generate()}{p.}{oggz__comments_8h_a1ee69481fa517d80e63db962a23d53ae}, which does not require the packet\_\-type argument. 
+
+Instead, the packet type is determined by the content type of the stream, which was discovered when the bos packet was passed to oggz\_\-write\_\-feed.
+
+Output a comment packet for the specified stream. 
+\begin{DoxyParams}{Parameters}
+\item[{\em oggz}]A OGGZ$\ast$ handle (created with OGGZ\_\-WRITE) \item[{\em serialno}]Identify a logical bitstream within {\itshape oggz\/} \item[{\em packet\_\-type}]Type of comment packet to generate, FLAC, OggPCM, Speex, Theora and Vorbis are supported \item[{\em FLAC\_\-final\_\-metadata\_\-block}]Set this to zero unless the packet\_\-type is FLAC, and there are no further metadata blocks to follow. See note below for details. \end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+A comment packet for the stream. When no longer needed it should be freed with \doxyref{oggz\_\-packet\_\-destroy()}{p.}{oggz__comments_8h_a9301332e99b0397cff54c3593595b809}. 
+\end{DoxyReturn}
+
+\begin{DoxyRetVals}{Return values}
+\item[{\em NULL}]content type does not support comments, not enough memory or comment was too long for FLAC \end{DoxyRetVals}
+\begin{DoxyNote}{Note}
+FLAC streams may contain multiple metadata blocks of different types. When encapsulated in Ogg the first of these must be a Vorbis comment packet but PADDING, APPLICATION, SEEKTABLE, CUESHEET and PICTURE may follow. The last metadata block must have its first bit set to 1. Since liboggz does not know whether you will supply more metadata blocks you must tell it if this is the last (or only) metadata block by setting FLAC\_\-final\_\-metadata\_\-block to 1. \par
+ As FLAC metadata blocks are limited in size to 16MB minus 1 byte, this function will refuse to produce longer comment packets for FLAC. \par
+ See {\tt http://flac.sourceforge.net/format.html} for more details. 
+\end{DoxyNote}
+\index{oggz\_\-deprecated.h@{oggz\_\-deprecated.h}!oggz\_\-set\_\-metric\_\-linear@{oggz\_\-set\_\-metric\_\-linear}}
+\index{oggz\_\-set\_\-metric\_\-linear@{oggz\_\-set\_\-metric\_\-linear}!oggz_deprecated.h@{oggz\_\-deprecated.h}}
+\subsubsection[{oggz\_\-set\_\-metric\_\-linear}]{\setlength{\rightskip}{0pt plus 5cm}int oggz\_\-set\_\-metric\_\-linear ({\bf OGGZ} $\ast$ {\em oggz}, \/  long {\em serialno}, \/  ogg\_\-int64\_\-t {\em granule\_\-rate\_\-numerator}, \/  ogg\_\-int64\_\-t {\em granule\_\-rate\_\-denominator})}\label{oggz__deprecated_8h_a12f232bca448853e66a1226ddccff7e0}
+
+
+DEPRECATED FUNCTION This function has been replaced with the more clearly named \doxyref{oggz\_\-set\_\-granulerate()}{p.}{group__metric_gaa2a86ec590161bc2295a2c8e91cefa49}. 
+
+Specify that a logical bitstream has a linear metric 
+\begin{DoxyParams}{Parameters}
+\item[{\em oggz}]An OGGZ handle \item[{\em serialno}]Identify the logical bitstream in {\itshape oggz\/} to attach this linear metric to. A value of -\/1 indicates that the metric should be attached to all unattached logical bitstreams in {\itshape oggz\/}. \item[{\em granule\_\-rate\_\-numerator}]The numerator of the granule rate \item[{\em granule\_\-rate\_\-denominator}]The denominator of the granule rate \end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+0 Success 
+\end{DoxyReturn}
+
+\begin{DoxyRetVals}{Return values}
+\item[{\em OGGZ\_\-ERR\_\-BAD\_\-SERIALNO}]{\itshape serialno\/} does not identify an existing logical bitstream in {\itshape oggz\/}. \item[{\em OGGZ\_\-ERR\_\-BAD\_\-OGGZ}]{\itshape oggz\/} does not refer to an existing OGGZ \end{DoxyRetVals}

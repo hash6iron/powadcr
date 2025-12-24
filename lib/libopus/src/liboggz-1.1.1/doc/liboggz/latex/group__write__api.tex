@@ -1,0 +1,139 @@
+\section{Oggz Write API}
+\label{group__write__api}\index{Oggz Write API@{Oggz Write API}}
+
+
+Oggz maintains a packet queue, such that you can independently add packets to the queue and write an Ogg bitstream.  
+
+
+\subsection*{Typedefs}
+\begin{DoxyCompactItemize}
+\item 
+typedef int($\ast$ {\bf OggzWriteHungry} )({\bf OGGZ} $\ast$oggz, int empty, void $\ast$user\_\-data)
+\begin{DoxyCompactList}\small\item\em This is the signature of a callback which Oggz will call when {\itshape oggz\/} is \doxyref{hungry }{p.}{group__hungry}. \item\end{DoxyCompactList}\end{DoxyCompactItemize}
+\subsection*{Functions}
+\begin{DoxyCompactItemize}
+\item 
+int {\bf oggz\_\-write\_\-set\_\-hungry\_\-callback} ({\bf OGGZ} $\ast$oggz, {\bf OggzWriteHungry} hungry, int only\_\-when\_\-empty, void $\ast$user\_\-data)
+\begin{DoxyCompactList}\small\item\em Set a callback for Oggz to call when {\itshape oggz\/} is \doxyref{hungry }{p.}{group__hungry}. \item\end{DoxyCompactList}\item 
+int {\bf oggz\_\-write\_\-feed} ({\bf OGGZ} $\ast$oggz, ogg\_\-packet $\ast$op, long serialno, int flush, int $\ast$guard)
+\begin{DoxyCompactList}\small\item\em Add a packet to {\itshape oggz's\/} packet queue. \item\end{DoxyCompactList}\item 
+long {\bf oggz\_\-write\_\-output} ({\bf OGGZ} $\ast$oggz, unsigned char $\ast$buf, long n)
+\begin{DoxyCompactList}\small\item\em Output data from an OGGZ handle. \item\end{DoxyCompactList}\item 
+long {\bf oggz\_\-write} ({\bf OGGZ} $\ast$oggz, long n)
+\begin{DoxyCompactList}\small\item\em Write n bytes from an OGGZ handle. \item\end{DoxyCompactList}\item 
+long {\bf oggz\_\-write\_\-get\_\-next\_\-page\_\-size} ({\bf OGGZ} $\ast$oggz)
+\begin{DoxyCompactList}\small\item\em Query the number of bytes in the next page to be written. \item\end{DoxyCompactList}\end{DoxyCompactItemize}
+
+
+\subsection{Detailed Description}
+Oggz maintains a packet queue, such that you can independently add packets to the queue and write an Ogg bitstream. There are two complementary methods for adding packets to the packet queue.
+
+
+\begin{DoxyItemize}
+\item by \doxyref{force feeding Oggz }{p.}{group__force__feed}
+\item by using \doxyref{OggzHungry }{p.}{group__hungry} callbacks
+\end{DoxyItemize}
+
+As each packet is enqueued, its validity is checked against the framing constraints outlined in the \doxyref{Ogg basics }{p.}{group__basics} section. If it does not pass these constraints, \doxyref{oggz\_\-write\_\-feed()}{p.}{group__write__api_ga6ccaceb107db1fd2eae047dbdbaa5889} will fail with an appropriate error code.
+
+\begin{DoxyNote}{Note}
+
+\begin{DoxyItemize}
+\item When writing, you can ensure that a packet starts on a new page by setting the {\itshape flush\/} parameter of \doxyref{oggz\_\-write\_\-feed()}{p.}{group__write__api_ga6ccaceb107db1fd2eae047dbdbaa5889} to {\itshape OGGZ\_\-FLUSH\_\-BEFORE\/} when enqueuing it. Similarly you can ensure that the last page a packet is written into won't contain any following packets by setting the {\itshape flush\/} parameter of \doxyref{oggz\_\-write\_\-feed()}{p.}{group__write__api_ga6ccaceb107db1fd2eae047dbdbaa5889} to {\itshape OGGZ\_\-FLUSH\_\-AFTER\/}.
+\item The {\itshape OGGZ\_\-FLUSH\_\-BEFORE\/} and {\itshape OGGZ\_\-FLUSH\_\-AFTER\/} flags can be bitwise OR'd together to ensure that the packet will not share any pages with any other packets, either before or after. 
+\end{DoxyItemize}
+\end{DoxyNote}
+
+
+\subsection{Typedef Documentation}
+\index{write\_\-api@{write\_\-api}!OggzWriteHungry@{OggzWriteHungry}}
+\index{OggzWriteHungry@{OggzWriteHungry}!write_api@{write\_\-api}}
+\subsubsection[{OggzWriteHungry}]{\setlength{\rightskip}{0pt plus 5cm}typedef int($\ast$ {\bf OggzWriteHungry})({\bf OGGZ} $\ast$oggz, int empty, void $\ast$user\_\-data)}\label{group__write__api_ga27ef9f56078d3c015431b1a67b2c1812}
+
+
+This is the signature of a callback which Oggz will call when {\itshape oggz\/} is \doxyref{hungry }{p.}{group__hungry}. 
+
+
+\begin{DoxyParams}{Parameters}
+\item[{\em oggz}]The OGGZ handle \item[{\em empty}]A value of 1 indicates that the packet queue is currently empty. A value of 0 indicates that the packet queue is not empty. \item[{\em user\_\-data}]A generic pointer you have provided earlier \end{DoxyParams}
+
+\begin{DoxyRetVals}{Return values}
+\item[{\em 0}]Continue \item[{\em non-\/zero}]Instruct Oggz to stop. \end{DoxyRetVals}
+
+
+\subsection{Function Documentation}
+\index{write\_\-api@{write\_\-api}!oggz\_\-write@{oggz\_\-write}}
+\index{oggz\_\-write@{oggz\_\-write}!write_api@{write\_\-api}}
+\subsubsection[{oggz\_\-write}]{\setlength{\rightskip}{0pt plus 5cm}long oggz\_\-write ({\bf OGGZ} $\ast$ {\em oggz}, \/  long {\em n})}\label{group__write__api_ga3c97d94ea425d64546adf9c368b71904}
+
+
+Write n bytes from an OGGZ handle. 
+
+Oggz will call your write callback as needed.
+
+
+\begin{DoxyParams}{Parameters}
+\item[{\em oggz}]An OGGZ handle previously opened for writing \item[{\em n}]A count of bytes to be written \end{DoxyParams}
+
+\begin{DoxyRetVals}{Return values}
+\item[{\em $>$ 0}]The number of bytes successfully output \item[{\em 0}]End of stream \item[{\em OGGZ\_\-ERR\_\-RECURSIVE\_\-WRITE}]Attempt to initiate writing from within an OggzHungry callback \item[{\em OGGZ\_\-ERR\_\-BAD\_\-OGGZ}]{\itshape oggz\/} does not refer to an existing OGGZ \item[{\em OGGZ\_\-ERR\_\-INVALID}]Operation not suitable for this OGGZ \item[{\em OGGZ\_\-ERR\_\-STOP\_\-OK}]Writing was stopped by an OggzHungry callback returning OGGZ\_\-STOP\_\-OK \item[{\em OGGZ\_\-ERR\_\-STOP\_\-ERR}]Reading was stopped by an OggzHungry callback returning OGGZ\_\-STOP\_\-ERR \end{DoxyRetVals}
+\index{write\_\-api@{write\_\-api}!oggz\_\-write\_\-feed@{oggz\_\-write\_\-feed}}
+\index{oggz\_\-write\_\-feed@{oggz\_\-write\_\-feed}!write_api@{write\_\-api}}
+\subsubsection[{oggz\_\-write\_\-feed}]{\setlength{\rightskip}{0pt plus 5cm}int oggz\_\-write\_\-feed ({\bf OGGZ} $\ast$ {\em oggz}, \/  ogg\_\-packet $\ast$ {\em op}, \/  long {\em serialno}, \/  int {\em flush}, \/  int $\ast$ {\em guard})}\label{group__write__api_ga6ccaceb107db1fd2eae047dbdbaa5889}
+
+
+Add a packet to {\itshape oggz's\/} packet queue. 
+
+
+\begin{DoxyParams}{Parameters}
+\item[{\em oggz}]An OGGZ handle previously opened for writing \item[{\em op}]An ogg\_\-packet with all fields filled in \item[{\em serialno}]Identify the logical bitstream in {\itshape oggz\/} to add the packet to \item[{\em flush}]Bitmask of OGGZ\_\-FLUSH\_\-BEFORE, OGGZ\_\-FLUSH\_\-AFTER \item[{\em guard}]A guard for nocopy, NULL otherwise \end{DoxyParams}
+
+\begin{DoxyRetVals}{Return values}
+\item[{\em 0}]Success \item[{\em OGGZ\_\-ERR\_\-BAD\_\-GUARD}]{\itshape guard\/} specified has non-\/zero initialization \item[{\em OGGZ\_\-ERR\_\-BOS}]Packet would be bos packet of a new logical bitstream, but oggz has already written one or more non-\/bos packets in other logical bitstreams, and {\itshape oggz\/} is not flagged OGGZ\_\-NONSTRICT \item[{\em OGGZ\_\-ERR\_\-EOS}]The logical bitstream identified by {\itshape serialno\/} is already at eos, and {\itshape oggz\/} is not flagged OGGZ\_\-NONSTRICT \item[{\em OGGZ\_\-ERR\_\-BAD\_\-BYTES}]{\itshape op-\/$>$bytes\/} is invalid, and {\itshape oggz\/} is not flagged OGGZ\_\-NONSTRICT \item[{\em OGGZ\_\-ERR\_\-BAD\_\-B\_\-O\_\-S}]{\itshape op-\/$>$b\_\-o\_\-s\/} is invalid, and {\itshape oggz\/} is not flagged OGGZ\_\-NONSTRICT \item[{\em OGGZ\_\-ERR\_\-BAD\_\-GRANULEPOS}]{\itshape op-\/$>$granulepos\/} is less than that of an earlier packet within this logical bitstream, and {\itshape oggz\/} is not flagged OGGZ\_\-NONSTRICT \item[{\em OGGZ\_\-ERR\_\-BAD\_\-PACKETNO}]{\itshape op-\/$>$packetno\/} is less than that of an earlier packet within this logical bitstream, and {\itshape oggz\/} is not flagged OGGZ\_\-NONSTRICT \item[{\em OGGZ\_\-ERR\_\-BAD\_\-SERIALNO}]{\itshape serialno\/} does not identify an existing logical bitstream in {\itshape oggz\/}, and {\itshape oggz\/} is not flagged OGGZ\_\-NONSTRICT or {\itshape serialno\/} is equal to -\/1, or {\itshape serialno\/} does not fit in 32 bits, ie. within the range (-\/(2$^\wedge$31), (2$^\wedge$31)-\/1) \item[{\em OGGZ\_\-ERR\_\-BAD\_\-OGGZ}]{\itshape oggz\/} does not refer to an existing OGGZ \item[{\em OGGZ\_\-ERR\_\-INVALID}]Operation not suitable for this OGGZ \item[{\em OGGZ\_\-ERR\_\-OUT\_\-OF\_\-MEMORY}]Unable to allocate memory to queue packet\end{DoxyRetVals}
+\begin{DoxyNote}{Note}
+If {\itshape op-\/$>$b\_\-o\_\-s\/} is initialized to {\itshape -\/1\/} before calling \doxyref{oggz\_\-write\_\-feed()}{p.}{group__write__api_ga6ccaceb107db1fd2eae047dbdbaa5889}, Oggz will fill it in with the appropriate value; ie. 1 for the first packet of a new stream, and 0 otherwise. 
+\end{DoxyNote}
+\index{write\_\-api@{write\_\-api}!oggz\_\-write\_\-get\_\-next\_\-page\_\-size@{oggz\_\-write\_\-get\_\-next\_\-page\_\-size}}
+\index{oggz\_\-write\_\-get\_\-next\_\-page\_\-size@{oggz\_\-write\_\-get\_\-next\_\-page\_\-size}!write_api@{write\_\-api}}
+\subsubsection[{oggz\_\-write\_\-get\_\-next\_\-page\_\-size}]{\setlength{\rightskip}{0pt plus 5cm}long oggz\_\-write\_\-get\_\-next\_\-page\_\-size ({\bf OGGZ} $\ast$ {\em oggz})}\label{group__write__api_gab25da7d2cbf39585357f2a426d3dba2f}
+
+
+Query the number of bytes in the next page to be written. 
+
+
+\begin{DoxyParams}{Parameters}
+\item[{\em oggz}]An OGGZ handle previously opened for writing \end{DoxyParams}
+
+\begin{DoxyRetVals}{Return values}
+\item[{\em $>$= 0}]The number of bytes in the next page \item[{\em OGGZ\_\-ERR\_\-BAD\_\-OGGZ}]{\itshape oggz\/} does not refer to an existing OGGZ \item[{\em OGGZ\_\-ERR\_\-INVALID}]Operation not suitable for this OGGZ \end{DoxyRetVals}
+\index{write\_\-api@{write\_\-api}!oggz\_\-write\_\-output@{oggz\_\-write\_\-output}}
+\index{oggz\_\-write\_\-output@{oggz\_\-write\_\-output}!write_api@{write\_\-api}}
+\subsubsection[{oggz\_\-write\_\-output}]{\setlength{\rightskip}{0pt plus 5cm}long oggz\_\-write\_\-output ({\bf OGGZ} $\ast$ {\em oggz}, \/  unsigned char $\ast$ {\em buf}, \/  long {\em n})}\label{group__write__api_ga5606dff01964caec4582eb172fde0c1c}
+
+
+Output data from an OGGZ handle. 
+
+Oggz will call your write callback as needed.
+
+
+\begin{DoxyParams}{Parameters}
+\item[{\em oggz}]An OGGZ handle previously opened for writing \item[{\em buf}]A memory buffer \item[{\em n}]A count of bytes to output \end{DoxyParams}
+
+\begin{DoxyRetVals}{Return values}
+\item[{\em $>$ 0}]The number of bytes successfully output \item[{\em 0}]End of stream \item[{\em OGGZ\_\-ERR\_\-RECURSIVE\_\-WRITE}]Attempt to initiate writing from within an OggzHungry callback \item[{\em OGGZ\_\-ERR\_\-BAD\_\-OGGZ}]{\itshape oggz\/} does not refer to an existing OGGZ \item[{\em OGGZ\_\-ERR\_\-INVALID}]Operation not suitable for this OGGZ \item[{\em OGGZ\_\-ERR\_\-STOP\_\-OK}]Writing was stopped by an OggzHungry callback returning OGGZ\_\-STOP\_\-OK \item[{\em OGGZ\_\-ERR\_\-STOP\_\-ERR}]Reading was stopped by an OggzHungry callback returning OGGZ\_\-STOP\_\-ERR \end{DoxyRetVals}
+\index{write\_\-api@{write\_\-api}!oggz\_\-write\_\-set\_\-hungry\_\-callback@{oggz\_\-write\_\-set\_\-hungry\_\-callback}}
+\index{oggz\_\-write\_\-set\_\-hungry\_\-callback@{oggz\_\-write\_\-set\_\-hungry\_\-callback}!write_api@{write\_\-api}}
+\subsubsection[{oggz\_\-write\_\-set\_\-hungry\_\-callback}]{\setlength{\rightskip}{0pt plus 5cm}int oggz\_\-write\_\-set\_\-hungry\_\-callback ({\bf OGGZ} $\ast$ {\em oggz}, \/  {\bf OggzWriteHungry} {\em hungry}, \/  int {\em only\_\-when\_\-empty}, \/  void $\ast$ {\em user\_\-data})}\label{group__write__api_gaf362c030bc7a7f57cb23f2b863a59389}
+
+
+Set a callback for Oggz to call when {\itshape oggz\/} is \doxyref{hungry }{p.}{group__hungry}. 
+
+
+\begin{DoxyParams}{Parameters}
+\item[{\em oggz}]An OGGZ handle previously opened for writing \item[{\em hungry}]Your callback function \item[{\em only\_\-when\_\-empty}]When to call: a value of 0 indicates that Oggz should call {\itshape hungry()\/} after each and every packet is written; a value of 1 indicates that Oggz should call {\itshape hungry()\/} only when its packet queue is empty \item[{\em user\_\-data}]Arbitrary data you wish to pass to your callback \end{DoxyParams}
+
+\begin{DoxyRetVals}{Return values}
+\item[{\em 0}]Success \item[{\em OGGZ\_\-ERR\_\-BAD\_\-OGGZ}]{\itshape oggz\/} does not refer to an existing OGGZ \item[{\em OGGZ\_\-ERR\_\-INVALID}]Operation not suitable for this OGGZ \end{DoxyRetVals}
+\begin{DoxyNote}{Note}
+Passing a value of 0 for {\itshape only\_\-when\_\-empty\/} allows you to feed new packets into {\itshape oggz's\/} packet queue on the fly. 
+\end{DoxyNote}
