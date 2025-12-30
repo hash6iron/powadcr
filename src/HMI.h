@@ -565,7 +565,7 @@ class HMI
                       if (!isDir && !isHidden)
                       {
                           // Compara extensión directamente (más rápido que strstr)
-                          if (strcmp(ext, "tap") == 0 || strcmp(ext, "tzx") == 0 ||
+                          if (strcmp(ext, "tap") == 0 || strcmp(ext, "tzx") == 0 || strcmp(ext, "pzx") == 0 ||
                               strcmp(ext, "tsx") == 0 || strcmp(ext, "cdt") == 0 ||
                               strcmp(ext, "wav") == 0 || strcmp(ext, "mp3") == 0 ||
                               strcmp(ext, "flac") == 0 || strcmp(ext, "lst") == 0 ||
@@ -1360,7 +1360,7 @@ class HMI
               {
                 color = DSC_FILE_COLOR;  // Negro - Indica que es un fichero DSC
               }
-              else if (type == ".TAP" || type == ".TZX" || type == ".TSX" || type == ".CDT" || type == ".WAV" || type == ".MP3" || type == ".FLAC" || type == ".RADIO")
+              else if (type == ".TAP" || type == ".TZX" || type == ".TSX" || type == ".CDT" || type == ".PZX" || type == ".WAV" || type == ".MP3" || type == ".FLAC" || type == ".RADIO")
               {
                   //Ficheros
                   if (SD_MMC.exists("/fav/" + szName))
@@ -3250,21 +3250,25 @@ class HMI
           if (valEn==0)
           {
               BASE_SR = 48000;
+              BASE_SR_TAP = 48000;
               //writeString("tape.lblFreq.txt=\"48KHz\"" );
           }
           else if(valEn==1)
           {
               BASE_SR = 44100;
+              BASE_SR_TAP = 44100;
               //writeString("tape.lblFreq.txt=\"44KHz\"" );
           }
           else if(valEn==2)
           {
               BASE_SR = 32000;
+              BASE_SR_TAP = 32000;
               //writeString("tape.lblFreq.txt=\"32KHz\"" );
           }
           else if(valEn==3)
           {
               BASE_SR = STANDARD_SR_8_BIT_MACHINE;
+              BASE_SR_TAP = STANDARD_SR_8_BIT_MACHINE_TAP;
               //writeString("tape.lblFreq.txt=\"22KHz\"" );
           }
           //
@@ -3765,15 +3769,28 @@ class HMI
             delay(500);
             // Actualizamos estado checkbox
             myNex.writeNum("menu.dhcp.val", int(DHCP_ENABLE));
-            myNex.writeNum("menu.ppled.val", int(PWM_POWER_LED));
-            myNex.writeNum("menu.sortFil.val", int(SORT_FILES_FIRST_DIR));
-            myNex.writeNum("menu.rbuf.val", int(RADIO_BUFFERED));
+            //myNex.writeNum("menu2.rbuf.val", int(RADIO_BUFFERED));
         }  
         else if (strCmd.indexOf("PMENU0") != -1)
         {
             // Estamos en la pantalla MENU
             writeString("mainmenu.verFirmware.txt=\" powadcr " + String(VERSION) + "\"");     
         }  
+        else if (strCmd.indexOf("PMENU2") != -1)
+        {
+            // Estamos en la pantalla MENU
+            #ifdef DEBUGMODE
+              logAlert("PAGE MENU(Eq)");
+            #endif
+            CURRENT_PAGE = 4;
+            delay(500);          
+            myNex.writeNum("menuEq.eqHigh.val", int(EQ_HIGH*100));
+            myNex.writeNum("menuEq.eqMid.val", int(EQ_MID*100));
+            myNex.writeNum("menuEq.eqLow.val", int(EQ_LOW*100));          
+            myNex.writeNum("menuEq.eqHighL.val", int(EQ_HIGH*100));
+            myNex.writeNum("menuEq.eqMidL.val", int(EQ_MID*100));
+            myNex.writeNum("menuEq.eqLowL.val", int(EQ_LOW*100));          
+        }
         else if (strCmd.indexOf("PMENU3") != -1)
         {
         }  
@@ -3782,6 +3799,13 @@ class HMI
         }         
         else if (strCmd.indexOf("PMENU5") != -1)
         {
+            #ifdef DEBUGMODE
+              logAlert("PAGE MENU(Next)");
+            #endif
+            CURRENT_PAGE = 5;
+            delay(500);          
+            myNex.writeNum("menu2.ppled.val", int(PWM_POWER_LED));
+            myNex.writeNum("menu2.sortFil.val", int(SORT_FILES_FIRST_DIR));          
         }         
         else if (strCmd.indexOf("PTAPE") != -1)
         {
@@ -3792,6 +3816,7 @@ class HMI
             CURRENT_PAGE = 1;
             updateInformationMainPage(true);
             TAPE_PAGE_SHOWN = true;
+            RADIO_PAGE_SHOWN = true;
         }
         else if (strCmd.indexOf("CHKUPD") != -1)
         {
@@ -4086,12 +4111,22 @@ class HMI
                           blName = myTAP.descriptor[BLOCK_SELECTED].name;
                           blType = myTAP.descriptor[BLOCK_SELECTED].type;
                         }
-                        else
+                        else if (TYPE_FILE_LOAD == "TZX")
                         {
 
                           //logln("REC mode" + String(REC));
                           blName = myTZX.descriptor[BLOCK_SELECTED].name;
                           blType = myTZX.descriptor[BLOCK_SELECTED].type;
+                        }
+                        else if (TYPE_FILE_LOAD == "PZX")
+                        {
+                          blName = "PZX"; //myPZX.descriptor[BLOCK_SELECTED].name;
+                          blType = 0;
+                        }
+                        else
+                        {
+                          blName = "";
+                          blType = 0;
                         }
 
                         // Si no hay nombre, ponemos "..."
@@ -4633,175 +4668,291 @@ class HMI
               }
           }
       }
-            
-      void openBlocksBrowser(tTZX myTZX = tTZX(), tTAP myTAP = tTAP())
-      {
-        // Rellenamos el browser con todos los bloques
-        const int pa = 5;
-        int max = MAX_BLOCKS_IN_BROWSER;
-        int totalPages = 0;
-
-        if (TOTAL_BLOCKS > max)
-        {
-          max = MAX_BLOCKS_IN_BROWSER;
-        }
-        else
-        {
-          max = TOTAL_BLOCKS - 1;
-        }
-
-        BB_PAGE_SELECTED = (BB_PTR_ITEM / MAX_BLOCKS_IN_BROWSER) + 1;
-
-        myNex.writeStr("blocks.path.txt",HMI_FNAME);
-        myNex.writeStr("blocks.totalBl.txt",String(TOTAL_BLOCKS - 1));
-        myNex.writeStr("blocks.bbpag.txt",String(BB_PAGE_SELECTED));  
-        myNex.writeStr("blocks.size0.txt","SIZE[B]");
-
-        // writeString("blocks.path.txt=\"" + HMI_FNAME + "\"");
-        // writeString("blocks.totalBl.txt=\"" + String(TOTAL_BLOCKS - 1) + "\"");
-        // writeString("blocks.bbpag.txt=\"" + String(BB_PAGE_SELECTED) + "\"");
-        // writeString("blocks.size0.txt=\"SIZE[B]\"");
-
-        totalPages = ((TOTAL_BLOCKS) / MAX_BLOCKS_IN_BROWSER);
-        if ((FILE_TOTAL_FILES) % MAX_BLOCKS_IN_BROWSER != 0)
-        {
-          totalPages += 1;
-        }
-
-        myNex.writeStr("blocks.totalPag.txt",String(totalPages));
-
-        for (int i = 1; i <= max; i++)
-        {
-          if (i + BB_PTR_ITEM > TOTAL_BLOCKS - 1)
-          {
-            // Los dejamos limpios pero sin informacion
-            myNex.writeStr("blocks.id" + String(i) + ".txt","");
-            delay(pa);
-            myNex.writeStr("blocks.data" + String(i) + ".txt","");
-            delay(pa);
-            myNex.writeStr("blocks.size" + String(i) + ".txt","");
-            delay(pa);
-            myNex.writeStr("blocks.name" + String(i) + ".txt","");
-            delay(pa);
-
-            // writeString("blocks.id" + String(i) + ".txt=\"\"");
-            // writeString("blocks.data" + String(i) + ".txt=\"\"");
-            // writeString("blocks.size" + String(i) + ".txt=\"\"");
-            // writeString("blocks.name" + String(i) + ".txt=\"\"");
-          }
-          else
-          {
-            // En otro caso metemos informacion
-            myNex.writeStr("blocks.id" + String(i) + ".txt",String(i + BB_PTR_ITEM));
-            delay(pa);
-
-            // writeString("blocks.id" + String(i) + ".txt=\"" + String(i + BB_PTR_ITEM) + "\"");
-
-            if (TYPE_FILE_LOAD != "TAP")
+      
+            void openBlocksBrowser(const tTZX& myTZX, const tTAP& myTAP, const tPZX& myPZX)
             {
-
-              if (String(myTZX.descriptor[i + BB_PTR_ITEM].typeName).indexOf("ID 21") != -1)
+              // Rellenamos el browser con todos los bloques
+              const int pa = 5;
+              int max = MAX_BLOCKS_IN_BROWSER;
+              int totalPages = 0;
+      
+              if (TOTAL_BLOCKS > max)
               {
-                myNex.writeNum("blocks.id" + String(i) + ".pco",2016);
-                delay(pa);
-                myNex.writeNum("blocks.data" + String(i) + ".pco",2016);
-                delay(pa);
-                myNex.writeNum("blocks.size" + String(i) + ".pco",2016);
-                delay(pa);
-                myNex.writeNum("blocks.name" + String(i) + ".pco",2016);
-                delay(pa);
-                // writeString("blocks.id" + String(i) + ".pco=2016");
-                // writeString("blocks.data" + String(i) + ".pco=2016");
-                // writeString("blocks.size" + String(i) + ".pco=2016");
-                // writeString("blocks.name" + String(i) + ".pco=2016");
-              }
-              else if (String(myTZX.descriptor[i + BB_PTR_ITEM].typeName).indexOf("ID 20") != -1)
-              {
-                myNex.writeNum("blocks.id" + String(i) + ".pco",64512);
-                delay(pa);
-                myNex.writeNum("blocks.data" + String(i) + ".pco",64512);
-                delay(pa);
-                myNex.writeNum("blocks.size" + String(i) + ".pco",64512);
-                delay(pa);
-                myNex.writeNum("blocks.name" + String(i) + ".pco",64512);
-                delay(pa);
-
-                // writeString("blocks.id" + String(i) + ".pco=64512");
-                // writeString("blocks.data" + String(i) + ".pco=64512");
-                // writeString("blocks.size" + String(i) + ".pco=64512");
-                // writeString("blocks.name" + String(i) + ".pco=64512");
+                max = MAX_BLOCKS_IN_BROWSER;
               }
               else
               {
-                myNex.writeNum("blocks.id" + String(i) + ".pco",57051);
-                delay(pa);
-                myNex.writeNum("blocks.data" + String(i) + ".pco",57051);
-                delay(pa);
-                myNex.writeNum("blocks.size" + String(i) + ".pco",57051);
-                delay(pa);
-                myNex.writeNum("blocks.name" + String(i) + ".pco",57051);
-                delay(pa);
-
-                // writeString("blocks.id" + String(i) + ".pco=57051");
-                // writeString("blocks.data" + String(i) + ".pco=57051");
-                // writeString("blocks.size" + String(i) + ".pco=57051");
-                // writeString("blocks.name" + String(i) + ".pco=57051");
+                max = TOTAL_BLOCKS > 0 ? TOTAL_BLOCKS : 0;
               }
-
-              int tzxSize = myTZX.descriptor[i + BB_PTR_ITEM].size;
-              myNex.writeStr("blocks.data" + String(i) + ".txt",myTZX.descriptor[i + BB_PTR_ITEM].typeName);
-               delay(pa);
-              //writeString("blocks.data" + String(i) + ".txt=\"" + myTZX.descriptor[i + BB_PTR_ITEM].typeName + "\"");
-              String tmpname = myTZX.descriptor[i + BB_PTR_ITEM].name;
-              tmpname.trim();
-              bool soloEspacios = (tmpname.length() == 0);
-              if (!soloEspacios)
+      
+              BB_PAGE_SELECTED = (BB_PTR_ITEM / MAX_BLOCKS_IN_BROWSER) + 1;
+      
+              myNex.writeStr("blocks.path.txt",HMI_FNAME);
+              myNex.writeStr("blocks.totalBl.txt",String(TOTAL_BLOCKS > 0 ? TOTAL_BLOCKS -1 : 0));
+              myNex.writeStr("blocks.bbpag.txt",String(BB_PAGE_SELECTED));  
+              myNex.writeStr("blocks.size0.txt","SIZE[B]");
+      
+              totalPages = (TOTAL_BLOCKS > 0) ? ((TOTAL_BLOCKS - 1) / MAX_BLOCKS_IN_BROWSER) + 1 : 1;
+              myNex.writeStr("blocks.totalPag.txt",String(totalPages));
+      
+              for (int i = 1; i <= max; i++)
               {
-                myNex.writeStr("blocks.name" + String(i) + ".txt",myTZX.descriptor[i + BB_PTR_ITEM].name);
-                delay(pa);
-
-                //writeString("blocks.name" + String(i) + ".txt=\"" + myTZX.descriptor[i + BB_PTR_ITEM].name + "\"");
+                // ✅ LÓGICA DE INDEXACIÓN UNIFICADA Y SEGURA
+                int real_idx = (i - 1) + BB_PTR_ITEM;
+      
+                if (real_idx >= TOTAL_BLOCKS)
+                {
+                  // Si el índice está fuera de rango, limpiamos la línea
+                  myNex.writeStr("blocks.id" + String(i) + ".txt","");
+                  delay(pa);
+                  myNex.writeStr("blocks.data" + String(i) + ".txt","");
+                  delay(pa);
+                  myNex.writeStr("blocks.size" + String(i) + ".txt","");
+                  delay(pa);
+                  myNex.writeStr("blocks.name" + String(i) + ".txt","");
+                  delay(pa);
+                }
+                else
+                {
+                  // Si el índice es seguro, rellenamos la información
+                  myNex.writeStr("blocks.id" + String(i) + ".txt",String(real_idx));
+                  delay(pa);
+      
+                  if (TYPE_FILE_LOAD == "TZX" || TYPE_FILE_LOAD == "CDT" || TYPE_FILE_LOAD == "TSX")
+                  {
+                      // ... (lógica TZX usando real_idx)
+                      // Colores, etc.
+                      myNex.writeStr("blocks.data" + String(i) + ".txt",myTZX.descriptor[real_idx].typeName);
+                      delay(pa);
+                      myNex.writeStr("blocks.name" + String(i) + ".txt",myTZX.descriptor[real_idx].name);
+                      delay(pa);
+                      myNex.writeStr("blocks.size" + String(i) + ".txt",String(myTZX.descriptor[real_idx].size));
+                      delay(pa);
+                  }
+                  else if (TYPE_FILE_LOAD == "PZX")
+                  {
+                    // ✅ LÓGICA PZX CORREGIDA USANDO real_idx
+                    myNex.writeStr("blocks.data" + String(i) + ".txt","PZX Block");
+                    delay(pa);
+                    
+                    // Esta llamada ahora es segura
+                    myNex.writeStr("blocks.name" + String(i) + ".txt",String(myPZX.descriptor[real_idx].typeName));
+                    delay(pa);
+      
+                    myNex.writeStr("blocks.size" + String(i) + ".txt",String(myPZX.descriptor[real_idx].size));
+                    delay(pa);
+                  }
+                  else // TAP
+                  {
+                    // ✅ LÓGICA TAP CORREGIDA USANDO real_idx
+                    myNex.writeStr("blocks.data" + String(i) + ".txt",myTAP.descriptor[real_idx].typeName);
+                    delay(pa);
+                    myNex.writeStr("blocks.name" + String(i) + ".txt",myTAP.descriptor[real_idx].name);
+                    delay(pa);
+                    myNex.writeStr("blocks.size" + String(i) + ".txt",String(myTAP.descriptor[real_idx].size));
+                    delay(pa);
+                  }
+                }
               }
-              else
-              {
-                myNex.writeStr("blocks.name" + String(i) + ".txt","|__ [BL-" + String(i) + "]");
-                delay(pa);
-                //writeString("blocks.name" + String(i) + ".txt=\"..[BL-" + String(i) + "]\"");
-              }
-              myNex.writeStr("blocks.size" + String(i) + ".txt",String(tzxSize));
-              delay(pa);
-              //writeString("blocks.size" + String(i) + ".txt=\"" + String(tzxSize) + "\"");
             }
-            else
-            {
-              int tapSize = myTAP.descriptor[i + BB_PTR_ITEM - 1].size;
-              myNex.writeStr("blocks.data" + String(i) + ".txt",myTAP.descriptor[i + BB_PTR_ITEM - 1].typeName);
-              delay(pa);
-              //writeString("blocks.data" + String(i) + ".txt=\"" + myTAP.descriptor[i + BB_PTR_ITEM - 1].typeName + "\"");
+      
+      
+      //void openBlocksBrowser(tTZX myTZX = tTZX(), tTAP myTAP = tTAP(), tPZX myPZX = tPZX())
+      // void openBlocksBrowser(const tTZX& myTZX, const tTAP& myTAP, const tPZX& myPZX)
+      // {
+      //   // Rellenamos el browser con todos los bloques
+      //   const int pa = 5;
+      //   int max = MAX_BLOCKS_IN_BROWSER;
+      //   int totalPages = 0;
 
-              String tmpname = myTAP.descriptor[i + BB_PTR_ITEM - 1].name;
-              tmpname.trim();
-              bool soloEspacios = (tmpname.length() == 0);
-              if (!soloEspacios)
-              {
-                myNex.writeStr("blocks.name" + String(i) + ".txt",myTAP.descriptor[i + BB_PTR_ITEM - 1].name);
-                delay(pa);
-                //writeString("blocks.name" + String(i) + ".txt=\"" + myTAP.descriptor[i + BB_PTR_ITEM - 1].name + "\"");
-              }
-              else
-              {
-                myNex.writeStr("blocks.name" + String(i) + ".txt","|__ [BL-" + String(i) + "]");
-                delay(pa);
-                //writeString("blocks.name" + String(i) + ".txt=\"..[BL-" + String(i) + "]\"");
-              }
-              myNex.writeStr("blocks.size" + String(i) + ".txt",String(tapSize));
-              delay(pa);
-              //writeString("blocks.size" + String(i) + ".txt=\"" + String(tapSize) + "\"");
-            }
-          }
+      //   if (TOTAL_BLOCKS > max)
+      //   {
+      //     max = MAX_BLOCKS_IN_BROWSER;
+      //   }
+      //   else
+      //   {
+      //     max = TOTAL_BLOCKS - 1;
+      //   }
+
+      //   BB_PAGE_SELECTED = (BB_PTR_ITEM / MAX_BLOCKS_IN_BROWSER) + 1;
+
+      //   myNex.writeStr("blocks.path.txt",HMI_FNAME);
+      //   myNex.writeStr("blocks.totalBl.txt",String(TOTAL_BLOCKS - 1));
+      //   myNex.writeStr("blocks.bbpag.txt",String(BB_PAGE_SELECTED));  
+      //   myNex.writeStr("blocks.size0.txt","SIZE[B]");
+
+      //   // writeString("blocks.path.txt=\"" + HMI_FNAME + "\"");
+      //   // writeString("blocks.totalBl.txt=\"" + String(TOTAL_BLOCKS - 1) + "\"");
+      //   // writeString("blocks.bbpag.txt=\"" + String(BB_PAGE_SELECTED) + "\"");
+      //   // writeString("blocks.size0.txt=\"SIZE[B]\"");
+
+      //   totalPages = ((TOTAL_BLOCKS) / MAX_BLOCKS_IN_BROWSER);
+      //   if ((FILE_TOTAL_FILES) % MAX_BLOCKS_IN_BROWSER != 0)
+      //   {
+      //     totalPages += 1;
+      //   }
+
+      //   myNex.writeStr("blocks.totalPag.txt",String(totalPages));
+
+      //   for (int i = 1; i <= max; i++)
+      //   {
+      //     if (i + BB_PTR_ITEM > TOTAL_BLOCKS - 1)
+      //     {
+      //       // Los dejamos limpios pero sin informacion
+      //       myNex.writeStr("blocks.id" + String(i) + ".txt","");
+      //       delay(pa);
+      //       myNex.writeStr("blocks.data" + String(i) + ".txt","");
+      //       delay(pa);
+      //       myNex.writeStr("blocks.size" + String(i) + ".txt","");
+      //       delay(pa);
+      //       myNex.writeStr("blocks.name" + String(i) + ".txt","");
+      //       delay(pa);
+
+      //       // writeString("blocks.id" + String(i) + ".txt=\"\"");
+      //       // writeString("blocks.data" + String(i) + ".txt=\"\"");
+      //       // writeString("blocks.size" + String(i) + ".txt=\"\"");
+      //       // writeString("blocks.name" + String(i) + ".txt=\"\"");
+      //     }
+      //     else
+      //     {
+      //       // En otro caso metemos informacion
+      //       myNex.writeStr("blocks.id" + String(i) + ".txt",String(i + BB_PTR_ITEM));
+      //       delay(pa);
+
+      //       // writeString("blocks.id" + String(i) + ".txt=\"" + String(i + BB_PTR_ITEM) + "\"");
+
+      //       if (TYPE_FILE_LOAD != "TAP" && TYPE_FILE_LOAD != "PZX")
+      //       {
+
+      //         if (String(myTZX.descriptor[i + BB_PTR_ITEM].typeName).indexOf("ID 21") != -1)
+      //         {
+      //           myNex.writeNum("blocks.id" + String(i) + ".pco",2016);
+      //           delay(pa);
+      //           myNex.writeNum("blocks.data" + String(i) + ".pco",2016);
+      //           delay(pa);
+      //           myNex.writeNum("blocks.size" + String(i) + ".pco",2016);
+      //           delay(pa);
+      //           myNex.writeNum("blocks.name" + String(i) + ".pco",2016);
+      //           delay(pa);
+      //           // writeString("blocks.id" + String(i) + ".pco=2016");
+      //           // writeString("blocks.data" + String(i) + ".pco=2016");
+      //           // writeString("blocks.size" + String(i) + ".pco=2016");
+      //           // writeString("blocks.name" + String(i) + ".pco=2016");
+      //         }
+      //         else if (String(myTZX.descriptor[i + BB_PTR_ITEM].typeName).indexOf("ID 20") != -1)
+      //         {
+      //           myNex.writeNum("blocks.id" + String(i) + ".pco",64512);
+      //           delay(pa);
+      //           myNex.writeNum("blocks.data" + String(i) + ".pco",64512);
+      //           delay(pa);
+      //           myNex.writeNum("blocks.size" + String(i) + ".pco",64512);
+      //           delay(pa);
+      //           myNex.writeNum("blocks.name" + String(i) + ".pco",64512);
+      //           delay(pa);
+
+      //           // writeString("blocks.id" + String(i) + ".pco=64512");
+      //           // writeString("blocks.data" + String(i) + ".pco=64512");
+      //           // writeString("blocks.size" + String(i) + ".pco=64512");
+      //           // writeString("blocks.name" + String(i) + ".pco=64512");
+      //         }
+      //         else
+      //         {
+      //           myNex.writeNum("blocks.id" + String(i) + ".pco",57051);
+      //           delay(pa);
+      //           myNex.writeNum("blocks.data" + String(i) + ".pco",57051);
+      //           delay(pa);
+      //           myNex.writeNum("blocks.size" + String(i) + ".pco",57051);
+      //           delay(pa);
+      //           myNex.writeNum("blocks.name" + String(i) + ".pco",57051);
+      //           delay(pa);
+
+      //           // writeString("blocks.id" + String(i) + ".pco=57051");
+      //           // writeString("blocks.data" + String(i) + ".pco=57051");
+      //           // writeString("blocks.size" + String(i) + ".pco=57051");
+      //           // writeString("blocks.name" + String(i) + ".pco=57051");
+      //         }
+
+      //         int tzxSize = myTZX.descriptor[i + BB_PTR_ITEM].size;
+      //         myNex.writeStr("blocks.data" + String(i) + ".txt",myTZX.descriptor[i + BB_PTR_ITEM].typeName);
+      //          delay(pa);
+      //         //writeString("blocks.data" + String(i) + ".txt=\"" + myTZX.descriptor[i + BB_PTR_ITEM].typeName + "\"");
+      //         String tmpname = myTZX.descriptor[i + BB_PTR_ITEM].name;
+      //         tmpname.trim();
+      //         bool soloEspacios = (tmpname.length() == 0);
+      //         if (!soloEspacios)
+      //         {
+      //           myNex.writeStr("blocks.name" + String(i) + ".txt",myTZX.descriptor[i + BB_PTR_ITEM].name);
+      //           delay(pa);
+
+      //           //writeString("blocks.name" + String(i) + ".txt=\"" + myTZX.descriptor[i + BB_PTR_ITEM].name + "\"");
+      //         }
+      //         else
+      //         {
+      //           myNex.writeStr("blocks.name" + String(i) + ".txt","|__ [BL-" + String(i) + "]");
+      //           delay(pa);
+      //           //writeString("blocks.name" + String(i) + ".txt=\"..[BL-" + String(i) + "]\"");
+      //         }
+      //         myNex.writeStr("blocks.size" + String(i) + ".txt",String(tzxSize));
+      //         delay(pa);
+      //         //writeString("blocks.size" + String(i) + ".txt=\"" + String(tzxSize) + "\"");
+      //       }
+      //       else if (TYPE_FILE_LOAD == "PZX")
+      //       {
+      //         // PZX
+      //         myNex.writeStr("blocks.data" + String(i) + ".txt","PZX Block");
+      //         delay(pa);
+      //         //writeString("blocks.data" + String(i) + ".txt=\"PZX Block\"");
+
+      //         // String tmpname = "PZX Block";
+      //         // tmpname.trim();
+      //         // bool soloEspacios = (tmpname.length() == 0);
+      //         // if (!soloEspacios)
+      //         // {
+      //         //   myNex.writeStr("blocks.name" + String(i) + ".txt","PZX Block");
+      //         //   delay(pa);
+      //         //   //writeString("blocks.name" + String(i) + ".txt=\"PZX Block\"");
+      //         // }
+      //         // else
+      //         // {
+      //         // myNex.writeStr("blocks.name" + String(i) + ".txt",String(myPZX.descriptor[(i-1) + BB_PTR_ITEM].typeName));
+      //         // delay(pa);
+      //           //writeString("blocks.name" + String(i) + ".txt=\"..[BL-" + String(i) + "]\"");
+      //         // }
+      //         int pzxSize = myPZX.descriptor[(i-1) + BB_PTR_ITEM].size;
+      //         myNex.writeStr("blocks.size" + String(i) + ".txt",String(pzxSize));
+      //         delay(pa);
+      //         //writeString("blocks.size" + String(i) + ".txt=\"" + String(pzxSize) + "\"");
+      //       }
+      //       else
+      //       {
+      //         int tapSize = myTAP.descriptor[i + BB_PTR_ITEM - 1].size;
+      //         myNex.writeStr("blocks.data" + String(i) + ".txt",myTAP.descriptor[i + BB_PTR_ITEM - 1].typeName);
+      //         delay(pa);
+      //         //writeString("blocks.data" + String(i) + ".txt=\"" + myTAP.descriptor[i + BB_PTR_ITEM - 1].typeName + "\"");
+
+      //         String tmpname = myTAP.descriptor[i + BB_PTR_ITEM - 1].name;
+      //         tmpname.trim();
+      //         bool soloEspacios = (tmpname.length() == 0);
+      //         if (!soloEspacios)
+      //         {
+      //           myNex.writeStr("blocks.name" + String(i) + ".txt",myTAP.descriptor[i + BB_PTR_ITEM - 1].name);
+      //           delay(pa);
+      //           //writeString("blocks.name" + String(i) + ".txt=\"" + myTAP.descriptor[i + BB_PTR_ITEM - 1].name + "\"");
+      //         }
+      //         else
+      //         {
+      //           myNex.writeStr("blocks.name" + String(i) + ".txt","|__ [BL-" + String(i) + "]");
+      //           delay(pa);
+      //           //writeString("blocks.name" + String(i) + ".txt=\"..[BL-" + String(i) + "]\"");
+      //         }
+      //         myNex.writeStr("blocks.size" + String(i) + ".txt",String(tapSize));
+      //         delay(pa);
+      //         //writeString("blocks.size" + String(i) + ".txt=\"" + String(tapSize) + "\"");
+      //       }
+      //     }
           
-        }
-      }
+      //   }
+      // }
 
       // ---------------------------------------------------------------------------------------
       // HTTPClient

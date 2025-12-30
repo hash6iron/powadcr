@@ -42,8 +42,8 @@ class TZXprocessor
     const char ID13STR[35] = "ID 13 - Pulse seq.                ";
     const char ID14STR[35] = "ID 14 - Pure data                 ";
     const char ID15STR[35] = "ID 15 - Direct recording          ";
-    const char ID18STR[35] = "ID 18 - CSW recording block       ";
-    const char ID19STR[35] = "ID 19 - Generalized data block    ";
+    const char ID18STR[35] = "ID 18 - CSW recording             ";
+    const char ID19STR[35] = "ID 19 - GDB                       ";
     const char ID20STR[35] = "ID 20 - Pause or Stop             ";
     const char ID21STR[35] = "ID 21 - Group start               ";
     const char ID22STR[35] = "ID 22 - Group end                 ";
@@ -70,6 +70,7 @@ class TZXprocessor
     // Definicion de un TZX
     //SdFat32 _sdf32;
     tTZX _myTZX;
+    PZXprocessor _pzx;
     File _mFile;
     int _sizeTZX;
     int _rlen;
@@ -970,28 +971,8 @@ class TZXprocessor
         // dataTAPsize = getWORD(mFile,positionOfTAPblock + headerTAPsize + 1);
         
         // NOTA: Sumamos 2 bytes que son la DWORD que indica el dataTAPsize
-        _myTZX.descriptor[currentBlock].size = _myTZX.descriptor[currentBlock].lengthOfData;         
+        _myTZX.descriptor[currentBlock].size = _myTZX.descriptor[currentBlock].lengthOfData + 8 + 1;         
     }
-
-    // void analyzeID24(File mFile, int currentOffset, int currentBlock)
-    // {
-    //     logln("ID-18: Extracting CSW Block data to 'csw.tmp'...");
-        
-    //     // 1. LEER LA CABECERA Y LOS PARÁMETROS
-    //     int blockSize = getNBYTE(mFile, currentOffset + 1, 4);
-    //     _myTZX.descriptor[currentBlock].size = blockSize + 5; // Tamaño total del bloque CSW incluyendo ID y tamaño
-        
-    //     _myTZX.descriptor[currentBlock].pauseAfterThisBlock = getWORD(mFile, currentOffset + 5);
-    //     _myTZX.descriptor[currentBlock].samplingRate = getNBYTE(mFile, currentOffset + 7, 3);
-    //     _myTZX.descriptor[currentBlock].compressionType = getBYTE(mFile, currentOffset + 10);
-
-    //     logln("  - Pause: " + String(_myTZX.descriptor[currentBlock].pauseAfterThisBlock) + " ms, SR: " + String(_myTZX.descriptor[currentBlock].samplingRate) + " Hz, Comp: " + String(_myTZX.descriptor[currentBlock].compressionType));
-
-    //     // Esto es para que tome los bloques como especiales
-    //     _myTZX.descriptor[currentBlock].type = 99;  
-    // }    
-
-    // ✅ IMPLEMENTACIÓN COMPLETA DE analyzeID24
 
     void analyzeID24(File mFile, int currentOffset, int currentBlock)
     {
@@ -1058,9 +1039,13 @@ class TZXprocessor
         // Si es RLE (Tipo 1) o si el Z-RLE falló y necesita fallback
         if (_myTZX.descriptor[currentBlock].timming.csw_compression_type == 1 || zrle_fallback_needed)
         {
-            if (zrle_fallback_needed) {
+            if (zrle_fallback_needed) 
+            {
                 logln("  - Executing fallback: Reading data as plain RLE.");
-            } else {
+                _myTZX.descriptor[currentBlock].playeable = false;
+            } 
+            else 
+            {
                 logln("  - RLE detected. Reading directly.");
             }
             rleDataSize = compressedDataSize;
@@ -1125,8 +1110,7 @@ class TZXprocessor
         free(rleData);
     }    
 
-
-        void analyzeID25(File mFile, int currentOffset, int currentBlock)
+    void analyzeID25(File mFile, int currentOffset, int currentBlock)
     {
         // ID-19 - Generalize Data Block
         //#ifdef DEBUGMODE
@@ -1797,7 +1781,8 @@ class TZXprocessor
                 // Obtenemos la dirección del siguiente offset
                 analyzeID21(mFile,currentOffset, currentBlock);
 
-                nextIDoffset = currentOffset + _myTZX.descriptor[currentBlock].size + 9 + 1;;  
+                nextIDoffset = currentOffset + _myTZX.descriptor[currentBlock].lengthOfData + 8 + 1;
+                logln("Next ID offset: 0x" + String(nextIDoffset,HEX));
                 strncpy(_myTZX.descriptor[currentBlock].typeName,ID15STR,35);
 
                 // Informacion minima del fichero
@@ -2520,6 +2505,21 @@ class TZXprocessor
         return _myTZX.descriptor;
     }
     
+    bool getPZXInfo(File mFile)
+    {
+        // (Lógica similar a getTZXInfo, pero para PZX)
+        // ...
+        return true;
+    }    
+
+    // ✅ NUEVA FUNCIÓN PARA OBTENER UN BLOQUE PZX
+    int getPZXBlock(File mFile, int currentOffset, tPZXBlockDescriptor &descriptor)
+    {
+        _pzx.analyzePZXBlock(mFile, currentOffset, descriptor);
+        // El siguiente offset es el actual + cabecera (8) + tamaño de datos
+        return currentOffset + 8 + descriptor.size;
+    }    
+
     void setDescriptorNull()
     {
             _myTZX.descriptor = nullptr;
@@ -2628,388 +2628,7 @@ class TZXprocessor
       _mFile = mFile;
       _sizeTZX = sizeTZX;
     }  
-
-    // bool getBlocksFromDescriptorFile(File mFileTZX, char* pathDSC, tTZX &myTZX)
-    // {
-    //     File mFileDsc;
-    //     uint32_t sizeTZX = 0;
-    //     String strLine;
-    //     String str;
-
-    //     // #ifdef DEBUGMODE
-    //     //   String strTmp;
-    //     // #endif
-
-    //     char sline[300];
-    //     //int nlines = 0;
-    //     int nparam = 0;
-    //     // Estamos indicando con nblock = -1 que es la cabecera del .dsc
-    //     // y no la queremos.
-    //     int nblock = 0;
-    //     // Agregamos la extension del fichero al path del .TZX
-
-    //     logln("Trying open DSC file: " + String(pathDSC));
-
-    //     // Ahora abrimos el fichero .dsc
-    //     mFileDsc = SD_MMC.open(pathDSC,FILE_READ);
-
-    //     //
-    //     if (mFileDsc)
-    //     {
-    //         // Ahora vamos a ir leyendo linea a linea y metiendo la informacion de los bloques en el descriptor.
-
-    //         // ------------------------------------------------------------------------------
-    //         // OJO! Si strLine supera el numero de caracteres declarado no entra en el WHILE 
-    //         // ------------------------------------------------------------------------------
-    //         logln("DSC File open: " + String(pathDSC));
-
-    //         mFileDsc.seek(0);
-
-    //         while (mFileDsc.available())
-    //         {
-    //           // Capturamos la linea completa
-    //           strLine = mFileDsc.readStringUntil('\n');
-    //           // Eliminamos el retorno de carro
-    //           strLine.replace("\r", "");
-    //           // Convertimos la linea en un array de char
-    //           strLine.toCharArray(sline, sizeof(sline));
-              
-    //           #ifdef DEBUGMODE
-    //             logln("Getting line: " + String(strLine));
-    //           #endif
-
-    //           // Descomponemos la linea en tokens
-    //           // Cogemos el primer token
-    //           str = strtok(sline, ",");
-
-    //           if (nblock == 0 && nparam == 0 && str != _blDscTZX.dscVersion)
-    //           {
-    //               LAST_MESSAGE = "DSC file old version.";
-    //               mFileDsc.close();
-    //               delay(1500);
-    //               return false;
-    //           }
-
-    //           // Ahora cogemos todos los parametros de strLine. Son 33 parametros
-    //           // los vamos leyendo uno a uno.
-    //           nparam = 0;
-    //           // Estamos indicando con nblock = -1 que es la cabecera del .dsc
-    //           // y no la queremos.
-    //           if (nblock > 0)
-    //           {
-    //               // Ahora recorremos todos los parametros de la linea. El primero id = 0
-    //               // ya lo hemos leido, nos lo saltamos. Por eso el case 0: no contiene nada.
-    //               while (str != NULL)
-    //               {
-
-    //                 #ifdef DEBUGMODE
-    //                     if (nparam != 12)
-    //                     {
-    //                       // Otros
-    //                       logln("[" + String(nblock) + "] - Param: [" + String(nparam) + "] - Value: " + String(str.toInt()));
-    //                     }
-    //                     else
-    //                     {
-    //                       // Name
-    //                       logln("[" + String(nblock) + "] - Param: [" + String(nparam) + "] - Value: " + String(str));                    
-    //                     }
-    //                 #endif
-
-    //                 int numPulses = 0;
-    //                 int coff = 0;
-
-    //                 #ifdef DEBUGMODE
-    //                   logln("Parameter: " + String(nblock) + " - " + String(nparam) + " - " + str);
-    //                 #endif
-
-    //                 // Vemos en cada momento que posicion de parametro estamos leyendo y lo procesamos
-    //                 switch (nparam)
-    //                 {
-    //                     case 0:
-    //                       // Posicion en el fichero
-    //                       break;
-
-    //                     case 1:
-    //                       // .ID (Block ID)
-    //                       myTZX.descriptor[nblock].ID = str.toInt();
-    //                       break;
-
-    //                     case 2:
-    //                       // .chk (Checksum)
-    //                       myTZX.descriptor[nblock].chk = str.toInt();
-    //                       break;
-
-    //                     case 3:
-    //                       // .delay
-    //                       myTZX.descriptor[nblock].delay = str.toInt();
-    //                       break;
-
-    //                     case 4:
-    //                       // .group
-    //                       myTZX.descriptor[nblock].group = str.toInt();
-    //                       break;
-
-    //                     case 5:
-    //                       // .hasMaskLastByte
-    //                       myTZX.descriptor[nblock].hasMaskLastByte = (str.toInt() == 0) ? false : true;
-    //                       break;
-
-    //                     case 6:
-    //                       // .header
-    //                       myTZX.descriptor[nblock].header = (str.toInt() == 0) ? false : true;             
-    //                       break;
-
-    //                     case 7:
-    //                       // .jump_this_ID
-    //                       myTZX.descriptor[nblock].jump_this_ID = (str.toInt() == 0) ? false : true;
-    //                       break;
-
-    //                     case 8:
-    //                       // .lengthOfData
-    //                       myTZX.descriptor[nblock].lengthOfData = str.toInt();
-    //                       break;
-
-    //                     case 9:
-    //                       // .loop_count
-    //                       myTZX.descriptor[nblock].loop_count = str.toInt();
-    //                       break;
-
-    //                     case 10:
-    //                       // .offset
-    //                       myTZX.descriptor[nblock].offset = str.toInt();
-    //                       break;
-
-    //                     case 11:
-    //                       // .offsetData
-    //                       myTZX.descriptor[nblock].offsetData = str.toInt();
-    //                       break;
-
-    //                     case 12:
-    //                       // .name
-    //                       strcpy(myTZX.descriptor[nblock].name,str.c_str());
-    //                       break;
-
-    //                     case 13:
-    //                       // .nameDetected
-    //                       myTZX.descriptor[nblock].nameDetected = (str.toInt() == 0) ? false : true;
-    //                       break;
-
-    //                     case 14:
-    //                       // .pauseAfterThisBlock
-    //                       myTZX.descriptor[nblock].pauseAfterThisBlock = str.toInt();
-    //                       break;
-
-    //                     case 15:
-    //                       // .playeable
-    //                       myTZX.descriptor[nblock].playeable = (str.toInt() == 0) ? false : true;
-    //                       break;
-
-    //                     case 16:
-    //                       // .samplingRate
-    //                       myTZX.descriptor[nblock].samplingRate = str.toInt();
-    //                       break;
-
-    //                     case 17:
-    //                       // .screen
-    //                       myTZX.descriptor[nblock].screen = (str.toInt() == 0) ? false : true;
-    //                       break;
-
-    //                     case 18:
-    //                       // .silent
-    //                       myTZX.descriptor[nblock].silent = str.toInt();
-    //                       break;
-
-    //                     case 19:
-    //                       // .size
-    //                       myTZX.descriptor[nblock].size = str.toInt();
-    //                       break;
-
-    //                     case 20:
-    //                       // .timming.bit_0
-    //                       myTZX.descriptor[nblock].timming.bit_0 = str.toInt();
-    //                       break;
-
-    //                     case 21:
-    //                       // .timming.bit_1
-    //                       myTZX.descriptor[nblock].timming.bit_1 = str.toInt();
-    //                       break;
-
-    //                     case 22:
-    //                       // .timming.pilot_len
-    //                       myTZX.descriptor[nblock].timming.pilot_len = str.toInt();
-    //                       break;
-
-    //                     case 23:
-    //                       // .timming.pilot_num_pulses
-    //                       myTZX.descriptor[nblock].timming.pilot_num_pulses = str.toInt();
-    //                       break;
-
-    //                     case 24:
-    //                       // .timming.pulse_seq_num_pulses
-    //                       numPulses = str.toInt();
-    //                       myTZX.descriptor[nblock].timming.pulse_seq_num_pulses = numPulses;
-
-    //                       // En el caso de que el bloque sea 0x13 hago esto.
-    //                       // para cargar el array con la secuencia.
-    //                       if (myTZX.descriptor[nblock].ID == 19)
-    //                       {
-    //                           // Calculamos la posicion de la secuencia de pulsos
-    //                           coff = myTZX.descriptor[nblock].offset + 2;
-    //                           // Reservamos memoria.
-    //                           _myTZX.descriptor[nblock].timming.pulse_seq_array = (int*)ps_calloc(numPulses + 1,sizeof(int));
-                              
-    //                           // Cogemos los pulsos
-    //                           logln("ID13 - Num. pulses: " + String(numPulses));
-                              
-    //                           for (int i=0;i<numPulses;i++)
-    //                           {
-    //                             _myTZX.descriptor[nblock].timming.pulse_seq_array[i] = getWORD(mFileTZX,coff);
-    //                             coff += 2;
-    //                           }
-    //                       }                          
-    //                       break;
-
-    //                     case 25:
-    //                       // .timming.pure_tone_len
-    //                       myTZX.descriptor[nblock].timming.pure_tone_len = str.toInt();
-    //                       break;
-
-    //                     case 26:
-    //                       // .timming.pure_tone_num_pulses
-    //                       myTZX.descriptor[nblock].timming.pure_tone_num_pulses = str.toInt();
-    //                       break;
-
-    //                     case 27:
-    //                       // .timming.sync_1
-    //                       myTZX.descriptor[nblock].timming.sync_1 = str.toInt();
-    //                       break;
-
-    //                     case 28:
-    //                       // .timming.sync_2
-    //                       myTZX.descriptor[nblock].timming.sync_2 = str.toInt();
-    //                       break;
-
-    //                     case 29:
-    //                       // .typeName
-    //                       strcpy(myTZX.descriptor[nblock].typeName,str.c_str());
-    //                       break;
-
-    //                     case 30:
-    //                       // .type
-    //                       myTZX.descriptor[nblock].type = str.toInt();
-    //                       break;
-
-    //                     case 31:
-    //                       // .timming.bitcfg
-    //                       myTZX.descriptor[nblock].timming.bitcfg = str.toInt();
-    //                       break;
-
-    //                     case 32:
-    //                       // .timming.bytecfg
-    //                       myTZX.descriptor[nblock].timming.bytecfg = str.toInt();
-    //                       break;
-
-    //                     case 33:
-    //                       // .maskLastByte
-    //                       myTZX.descriptor[nblock].maskLastByte = str.toInt();
-    //                       break;
-
-    //                     case 34:
-    //                       // El TZX tiene bloques Group start y Group End
-    //                       myTZX.hasGroupBlocks = str.toInt();
-    //                       break;
-
-    //                     case 35:
-    //                       // sizeTZX actual
-    //                       myTZX.size = str.toInt();
-    //                       sizeTZX = myTZX.size;
-    //                       break;
-
-    //                     case 36:  // Ojo! Esto es la posicion del dato en la linea!!!!
-    //                       // Signal level solo queda afectado si hay un ID43
-    //                       if (myTZX.descriptor[nblock].ID == 43)
-    //                       {
-    //                           logln("");
-    //                           log("Signal LEVEL");
-    //                           myTZX.descriptor[nblock].signalLvl = str.toInt();
-                
-    //                           // Inversion de señal      
-    //                           INVERSETRAIN = myTZX.descriptor[nblock].signalLvl;
-                                  
-    //                           _hmi.refreshPulseIcons(INVERSETRAIN,ZEROLEVEL);                          
-                              
-    //                       }
-    //                       break;
-
-    //                     default:
-    //                       break;
-    //                 }
-
-    //                 // Cogemos el parametro siguiente
-    //                 str = strtok(NULL, ",");
-    //                 nparam++;
-    //               }
-
-    //               if (nblock > 0 && nparam==0)
-    //               {
-    //                 logln("Error. No params were read.");
-    //                 mFileDsc.close();
-    //                 return false;
-    //               }
-    //               // 
-    //           }
-              
-    //           if (myTZX.descriptor[nblock].ID == 25)
-    //           {
-    //             // Generalized Data Block
-    //             logln("GDB Block detected at DSC reading. Not supported.");
-    //             logln("Analyzing TZX file directly.");
-    //             analyzeID25(mFileTZX, myTZX.descriptor[nblock].offset, nblock);
-    //           }
-    //           nblock++;
-    //           TOTAL_BLOCKS = nblock;
-    //         }
-
-    //         if (TOTAL_BLOCKS == 0)
-    //         {
-    //           logln("Error, any block captured.");
-    //           mFileDsc.close();
-    //           return false;
-    //         }
-
-    //         logln("Total blocks captured from DSC: " + String(TOTAL_BLOCKS));
-
-    //         // Nos posicionamos en el bloque 1
-    //         BLOCK_SELECTED = 0;
-    //         _hmi.writeString("currentBlock.val=" + String(BLOCK_SELECTED));
-    //         myTZX.numBlocks = TOTAL_BLOCKS;  
-
-    //         // Listamos el contenido de myTZX
-    //         #ifdef DEBUGMODE
-    //           logln("Listing all blocks captured from DSC");
-    //           for (int i=0;i<TOTAL_BLOCKS;i++)
-    //           {
-    //               String strTmp = "Block " + String(i) + " - ID: " + String(myTZX.descriptor[i].ID) + " - Name: " + String(myTZX.descriptor[i].name) + " - Size: " + String(myTZX.descriptor[i].size) + " - Offset: " + String(myTZX.descriptor[i].offset) + " - DataOffset: " + String(myTZX.descriptor[i].offsetData);
-    //               logln(strTmp);
-    //           }   
-    //           logln("End listing all blocks captured from DSC");
-    //         #endif
-
-
-    //         mFileDsc.close();
-    //         // Decimos que ha ido bien
-    //         return true;
-    //     }
-    //     else
-    //     {
-          
-    //       // Decimos que NO ha ido bien
-    //       logln("Error opening DSC file.");
-    //       mFileDsc.close();
-    //       return false;
-    //     }
-    // }
-    
+   
     void proccessingDescriptor(File &tzxFile)
     {
 
@@ -3066,33 +2685,8 @@ class TZXprocessor
       {
           FILE_IS_OPEN = true;
 
-          // Asignamos el path al objeto blockDescriptor
-          // strcat(pathDSC,".dsc");
-          
-          // if (_blDscTZX.existBlockDescriptorFile(dscFile, pathDSC) && !IGNORE_DSC)
-          // {
-              // // No lo creamos mas, ahora cogemos todo el descriptor del fichero
-              // // y nos ahorramos el procesado
-              // LAST_MESSAGE = "Loading blocks from DSC";
-
-              // if (!getBlocksFromDescriptorFile(tzxFile, pathDSC, _myTZX))
-              // {
-                // // Lanzamos entonces la extraccion directa desde el .TZX
-                // proccessingDescriptor(dscFile,tzxFile,pathDSC);
-                // logln("All blocks captured from TZX file");
-              // }
-              // else
-              // {
-              //   logln("All blocks captured from DSC file");
-          //     // }
-          // }
-          // else
-          // {
-            // Lanzamos la extraccion directa desde el TZX
-            // y creamos el nuevo .dsc
-            proccessingDescriptor(tzxFile);
-            logln("All blocks captured from TZX file");
-          // }
+          proccessingDescriptor(tzxFile);
+          logln("All blocks captured from TZX file");
       }
       else
       {
@@ -3103,13 +2697,6 @@ class TZXprocessor
 
     void initialize()
     {
-        // if (_myTZX.descriptor != nullptr)
-        // {
-        //   //free(_myTZX.descriptor);
-        //   //free(_myTZX.name);
-        //   //_myTZX.descriptor = nullptr;
-
-        // }          
 
         strncpy(_myTZX.name,"          ",10);
         _myTZX.numBlocks = 0;
@@ -3393,6 +2980,7 @@ class TZXprocessor
                 // Obtenemos el bit a transmitir
                 uint8_t bitMasked = bitRead(bRead[i2], 0 + n);
 
+
                 // Si el bit leido del BYTE es un "1"
                 if(bitMasked == 1)
                 {
@@ -3449,13 +3037,25 @@ class TZXprocessor
         free(bRead);
     }
     
-    int getIDAndPlay(int i)
+    int getIDAndPlay(int i, bool is_pzx = false)
     {
         // Inicializamos el buffer de reproducción. Memoria dinamica
         uint8_t* bufferPlay = nullptr;
         int dly = 0;
         int newPosition = -1;
+
+        // Por defecto usamos este sampling rate 
+        // (si lo cambia DR lo recuperamos en el siguinente bloque)
+
         
+        // ******************************************************************************************
+        //
+        //
+        // --- LÓGICA DE REPRODUCCIÓN TZX ---
+        //
+        //
+        // ******************************************************************************************
+
         // Cogemos la mascara del ultimo byte
         if (_myTZX.descriptor[i].hasMaskLastByte)
         {
@@ -3481,48 +3081,153 @@ class TZXprocessor
 
         switch (_myTZX.descriptor[i].ID)
         {
-            case 21:
+            // case 21:
+            // {
+            //   DIRECT_RECORDING = true;
+            //   // 
+            //   // PROGRAM_NAME = "Audio block (WAV)";
+            //   LAST_SIZE = _myTZX.descriptor[i].size;  
+            //   //
+            //   // Congemos la configuracion por defecto ya establecida
+            //   // para despues cambiar los parametros que necesitemos
+            //   // y el resto se conserven.
+            //   new_sr = kitStream.audioInfo();
+            //   // Calculamos el sampling rate desde el bloque ID 0x15
+            //   divd = double(_myTZX.descriptor[i].samplingRate) * (1.0/DfreqCPU);
+            //   sr = divd > 0 ? round(1.0 / (divd)) : 0; //antes 44.1KHz (20/12/2025)
+
+            //   if (sr == 0)
+            //   {
+            //     LAST_MESSAGE = "Error calculating sampling rate. Using default";
+            //     return 0;
+            //   }
+
+            //   //
+            //   logln("Value in TZX srate: " + String(_myTZX.descriptor[i].samplingRate));
+            //   logln("Custom sampling rate: " + String(sr));
+
+            //   // Si el sampling rate es menor de 8kHz, lo cambiamos a default
+            //   if (sr < 8000)
+            //   {
+            //     sr = BASE_SR;
+            //     logln("Error. Changing sampling rate: " + String(sr));
+            //   }
+
+            //   // Cambiamos el sampling rate en el HW
+            //   new_sr.sample_rate = sr;
+            //   kitStream.setAudioInfo(new_sr);      
+  
+            //   // Indicamos el sampling rate
+            //   LAST_MESSAGE = "Direct recording at " + String(sr) + "Hz";
+            //   _hmi.writeString("tape.lblFreq.txt=\"" + String(int(sr/1000)) + "KHz\"" );
+
+
+            //   //
+            //   SAMPLING_RATE = sr;
+            //   BIT_DR_0 =_myTZX.descriptor[i].samplingRate;
+            //   BIT_DR_1 = _myTZX.descriptor[i].samplingRate;
+  
+            //   logln("MaskLastByte leido: " + String(_myTZX.descriptor[i].maskLastByte));
+
+            //   playBlock(_myTZX.descriptor[i]);
+
+            //   // Recuperamos sampling
+            //   new_sr = kitStream.audioInfo();
+            //   new_sr.sample_rate = BASE_SR;
+            //   kitStream.setAudioInfo(new_sr); 
+            //   SAMPLING_RATE = BASE_SR;       
+            //   //           
+            //   DIRECT_RECORDING = false;
+            //   break;
+            // }
+            
+// *********************************************************
+
+            case 21: // ID 0x15 - Direct Recording
             {
               DIRECT_RECORDING = true;
-              // 
-              // PROGRAM_NAME = "Audio block (WAV)";
-              LAST_SIZE = _myTZX.descriptor[i].size;  
-              //
-              // Congemos la configuracion por defecto ya establecida
-              // para despues cambiar los parametros que necesitemos
-              // y el resto se conserven.
+              
+              // 1. Calcula el SR de entrada como ya lo haces
+              // double divd = double(_myTZX.descriptor[i].samplingRate) * (1.0 / DfreqCPU);
+              // int input_sr = divd > 0 ? round(1.0 / divd) : BASE_SR;
+              
+              // 2. NO cambies la configuración de kitStream. Déjala fija en 32150Hz.
               new_sr = kitStream.audioInfo();
               // Calculamos el sampling rate desde el bloque ID 0x15
               divd = double(_myTZX.descriptor[i].samplingRate) * (1.0/DfreqCPU);
-              sr = divd > 0 ? round(1.0 / (divd)) : BASE_SR; //antes 44.1KHz (20/12/2025)
-              //
-              logln("Value in TZX srate: " + String(_myTZX.descriptor[i].samplingRate));
-              logln("Custom sampling rate: " + String(sr));
 
-              // Si el sampling rate es menor de 8kHz, lo cambiamos a default
-              if (sr < 8000)
+
+              sr = divd > 0 ? round(1.0 / (divd)) : 0; //antes 44.1KHz (20/12/2025)
+
+              if (sr == 0)
               {
-                sr = BASE_SR;
-                logln("Error. Changing sampling rate: " + String(sr));
+                LAST_MESSAGE = "Error in sampling rate. Abort.";
+                return 0;
               }
 
-              // Cambiamos el sampling rate en el HW
-              new_sr.sample_rate = sr;
-              kitStream.setAudioInfo(new_sr);      
-   
-              // Indicamos el sampling rate
-              LAST_MESSAGE = "Direct recording at " + String(sr) + "Hz";
-              _hmi.writeString("tape.lblFreq.txt=\"" + String(int(sr/1000)) + "KHz\"" );
-
-
               //
-              SAMPLING_RATE = sr;
-              BIT_DR_0 =_myTZX.descriptor[i].samplingRate;
-              BIT_DR_1 = _myTZX.descriptor[i].samplingRate;
+              //logln("Value in TZX srate: " + String(_myTZX.descriptor[i].samplingRate));
+              //logln("Custom sampling rate: " + String(sr));
 
-              playBlock(_myTZX.descriptor[i]);
+              // Si el sampling rate es menor de 8kHz, lo cambiamos a default
+              // if (sr < 8000)
+              // {
+              //   sr = BASE_SR;
+              //   logln("Error. Changing sampling rate: " + String(sr));
+              // }
+              // BIT_DR_0 =_myTZX.descriptor[i].samplingRate;
+              // BIT_DR_1 = _myTZX.descriptor[i].samplingRate;
+
+              // Cambiamos el sampling rate en el HW
+              new_sr.sample_rate = sr + TONE_ADJUST;
+              kitStream.setAudioInfo(new_sr);                     
+              
+              // 3. Lee los datos del bloque en un buffer
+              int data_size = _myTZX.descriptor[i].lengthOfData;
+
+              // Usamos un buffer temporal en el stack si el tamaño es razonable,
+              // o alocación dinámica si es muy grande.
+              if (data_size > 0 && data_size < 16384) 
+              { // Límite de seguridad para el stack
+                  uint8_t bufferPlay[data_size];
+                  readFileRange(_mFile, bufferPlay, _myTZX.descriptor[i].offsetData, data_size, true);
+                  
+                  // 4. Llama a la nueva función de reproducción con remuestreo
+                  _zxp.playDRBlock2(bufferPlay, data_size, true);
+
+              } else if (data_size >= 16384) {
+                  // Para bloques muy grandes, procesar en trozos para no agotar la RAM
+                  logln("DR Block is very large. Processing in chunks.");
+                  const int chunk_size = 4096;
+                  uint8_t chunk_buffer[chunk_size];
+                  int bytes_left = data_size;
+                  int current_offset = _myTZX.descriptor[i].offsetData;
+
+                  while(bytes_left > 0) {
+                      int bytes_to_read = min(bytes_left, chunk_size);
+                      readFileRange(_mFile, chunk_buffer, current_offset, bytes_to_read, true);
+
+                      bool is_last_chunk = (bytes_to_read == bytes_left);
+
+                      _zxp.playDRBlock2(chunk_buffer, bytes_to_read, is_last_chunk);
+                      
+                      bytes_left -= bytes_to_read;
+                      current_offset += bytes_to_read;
+                      
+                      if(stopOrPauseRequest()) break;
+                  }
+              }
+
+              // Pausa después del bloque
+              _zxp.silenceDR(_myTZX.descriptor[i].pauseAfterThisBlock, sr + TONE_ADJUST);
+
+              DIRECT_RECORDING = false;
+              
               break;
             }
+
+// **********************************************************
+            
             case 36:  
             {  //Loop start ID 0x24
               // El loop controla el cursor de bloque por tanto debe estar el primero
@@ -3535,7 +3240,7 @@ class TZXprocessor
             }
             case 37:
             {
-             //Loop end ID 0x25
+            //Loop end ID 0x25
               #ifdef DEBUGMODE
                   log("LOOP: " + String(LOOP_PLAYED) + " / " + String(LOOP_COUNT));
                   log("------------------------------------------------------");
@@ -3899,9 +3604,9 @@ class TZXprocessor
                                       _zxp.silence(silence,0.0); 
                                   }                              
                               }
-                             
+                              break; 
+                          
                             }
-                            break; 
 
                             case 18:
                             {
@@ -3910,13 +3615,13 @@ class TZXprocessor
                                   log("ID 0x12:");
                               #endif                    
                               _zxp.playPureTone(_myTZX.descriptor[i].timming.pure_tone_len,_myTZX.descriptor[i].timming.pure_tone_num_pulses);
+                              break;
                             }
-                            break;
 
                             case 19:
                             {
                               // ID 0x13 - Reproducimos una secuencia. Pulsos de longitud contenidos en un array y repetición 
-                               #ifdef DEBUGMODE
+                              #ifdef DEBUGMODE
                                   logln("ID 0x13:");
                                   logln("Num. pulses: " + String(_myTZX.descriptor[i].timming.pulse_seq_num_pulses));
                                   for(int j=0;j<_myTZX.descriptor[i].timming.pulse_seq_num_pulses;j++)
@@ -3924,10 +3629,10 @@ class TZXprocessor
                                     SerialHW.print(_myTZX.descriptor[i].timming.pulse_seq_array[j],HEX);
                                     SerialHW.print(",");
                                   }
-                               #endif                                                                     
+                              #endif                                                                     
                               _zxp.playCustomSequence(_myTZX.descriptor[i].timming.pulse_seq_array,_myTZX.descriptor[i].timming.pulse_seq_num_pulses);                                                                           
+                              break;                          
                             }
-                            break;                          
 
                             case 20:
                             {
@@ -4045,8 +3750,8 @@ class TZXprocessor
                                   _zxp.playPureData(bufferPlay, _myTZX.descriptor[i].size);
                                   free(bufferPlay);                                  
                               }                               
+                              break;   
                             } 
-                            break;   
                             
                             case 24:
                             {
@@ -4085,8 +3790,8 @@ class TZXprocessor
                                 }
                                 
                                 _zxp.silence(_myTZX.descriptor[i].pauseAfterThisBlock);
+                                break;
                             }
-                           break;
                             
                             case 25:
                             {
@@ -4330,9 +4035,8 @@ class TZXprocessor
 
                               // Pausa despues de bloque
                               _zxp.silence(_myTZX.descriptor[i].pauseAfterThisBlock);
-
+                              break;
                             }
-                            break;
                         }
                     }
                     else 
@@ -4347,6 +4051,7 @@ class TZXprocessor
                         {
                           case 16:
                           {
+                            //BASE_SR = STANDARD_SR_8_BIT_MACHINE;
                             // ID 0x10
                             _myTZX.descriptor[i].timming.pilot_len = DPILOT_LEN;
                             playBlock(_myTZX.descriptor[i]);
@@ -4375,6 +4080,7 @@ class TZXprocessor
         }      
 
         return newPosition;
+
     }
 
     void play()

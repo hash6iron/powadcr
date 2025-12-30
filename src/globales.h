@@ -106,6 +106,11 @@ struct tTimming
   int csw_compression_type;
   int csw_num_pulses;         // ✅ AÑADIR: Número de pulsos en la secuencia RLE
   tRlePulse* csw_pulse_data;  // ✅ AÑADIR: Puntero a la secuencia de pulsos RLE  
+
+  // PARA PZX
+  int pzx_num_pulses;         // Número de pulsos en un bloque PULS
+  tRlePulse* pzx_pulse_data;  // Puntero a la secuencia de pulsos (reutilizamos tRlePulse)
+
 };
 
 struct tSymDef
@@ -200,7 +205,27 @@ struct tTZX
 
 struct tPZXBlockDescriptor
 {
+  char name[11];
+  char tag[5];              // "PZXT", "PULS", etc.
+  int offset = 0;
+  int size = 0;
+  bool playeable = false;
+  char typeName[36];
+  uint8_t initial_level = 0;  // 0 para low, 1 para high
+  tTimming timming;           // Para bloques PULS y DATA
   
+  // Para bloque DATA
+  int data_bit_count = 0;
+  int data_tail_pulse = 0;
+  int data_p0_count = 0;
+  int data_p1_count = 0;
+  uint16_t* data_s0_pulses = nullptr;
+  uint16_t* data_s1_pulses = nullptr;
+  int data_stream_offset = 0;
+
+  // Para bloque PAUS
+  int pause_duration = 0;
+  uint8_t edge = POLARIZATION;       // Edge of the begining of the block. Only for playing
 };
 
 struct tAudioList
@@ -222,6 +247,8 @@ struct tRadioList
 struct tPZX
 {
   char tag[5] = {""};                         // el tag son 4 caracteres + /0
+  int numBlocks = 0;                      // Numero de bloques
+  char name[11] = {""};                      // Nombre del PZX
   uint32_t size = 0;
   tPZXBlockDescriptor* descriptor = nullptr;
 };
@@ -239,6 +266,8 @@ struct tTAP
 tTAP myTAP;
 // Procesador de TZX/TSX/CDT
 tTZX myTZX;
+// Procesador de PZX
+tPZX myPZX;
 
 // tMediaDescriptor myMediaDescriptor[256]; // Descriptor de ficheros multimedia
 
@@ -264,6 +293,8 @@ struct tConfig
   bool enable = false;
   String cfgLine = "";
 };
+
+
 
 //
 //
@@ -377,8 +408,9 @@ uint8_t LAST_TAPESTATE = 0;
 // bool FIRST_BLOCK_INVERTED = false;
 //edge SCOPE = down;
 bool APPLY_END = false;
-int SAMPLING_RATE = 32150; //STANDARD_SR_ZX_SPECTRUM * 2;    // 44100 
-int BASE_SR = 32150;
+int SAMPLING_RATE = 32150;      //STANDARD_SR_ZX_SPECTRUM               // 44100 
+int BASE_SR = 32150;            //STANDARD_SR_ZX_SPECTRUM               // 44100
+int BASE_SR_TAP = 31250;        //STANDARD_SR_8_BIT_MACHINE_TAP         // 44100
 int LAST_SAMPLING_RATE = 22050; //44100;
 int WAV_SAMPLING_RATE = DEFAULT_WAV_SAMPLING_RATE; // 44100;
 int WAV_BITS_PER_SAMPLE = 16;
@@ -602,6 +634,7 @@ String FILE_TXT_TO_SEARCH = "";
 //bool waitingRecMessageShown = false;
 int CURRENT_PAGE = 0;
 bool TAPE_PAGE_SHOWN = false;
+bool RADIO_PAGE_SHOWN = false;
 
 // Block browser
 bool BB_OPEN = false;

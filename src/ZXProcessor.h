@@ -43,6 +43,7 @@ class ZXProcessor
 {
    
     private:
+
     // FIR Filter variables.
     int _x[3] = {0,0,0};
 
@@ -409,7 +410,7 @@ class ZXProcessor
             }
         }
 
-        void sampleDR(int width, int amp)
+        void sampleDR(int samples, int amp)
         {
             // Calculamos el tamaño del buffer
             int bytes = 0; //Cada muestra ocupa 2 bytes (16 bits)
@@ -423,9 +424,9 @@ class ZXProcessor
             // Amplitud de la señal
             double amplitude = 0;
             
-            //double rsamples = (width / freqCPU) * SAMPLING_RATE;
+            //double rsamples = round((width / freqCPU) * SAMPLING_RATE);
             // Ajustamos
-            int samples = 1;
+            //int samples = 1;
 
             // Ajustamos el volumen
 
@@ -763,7 +764,6 @@ class ZXProcessor
             semiPulse(nTStates,true);      
         }
         
-
         void sendDataArray(uint8_t* data, int size, bool isThelastDataPart)
         {
             uint8_t _mask = 8;   // Para el last_byte
@@ -881,9 +881,110 @@ class ZXProcessor
 
     public:
 
+        void setEdge(uint8_t edge)
+        {
+            EDGE_EAR_IS = edge;
+        }
+
         void set_maskLastByte(uint8_t mask)
         {
             _mask_last_byte = mask;
+        }
+
+        void silenceDR(double duration, int sr, long calibrationValue = 0)
+        {
+            // la duracion se da en ms
+            LAST_SILENCE_DURATION = duration;
+
+            // Paso la duración a T-States
+            double parts = 0, fractPart, intPart, terminator_samples = 0;
+            int lastPart = 0; 
+            int tStateSilence = 0;  
+            int tStateSilenceOri = 0;     
+            double samples = 0;     
+
+            #ifdef DEBUGMODE
+                log("Silencio: " + String(duration) + " ms");
+            #endif            
+
+            // El silencio siempre acaba en un pulso de nivel bajo
+            // Si no hay silencio, se pasas tres kilos del silencio y salimos
+            if (duration > 0)
+            {
+                // tStateSilenceOri = tStateSilence;
+                // tStateSilence = (duration / OneSecondTo_ms) * freqCPU;    
+                //logln("Sampling rate for SILENCE: " + String(SAMPLING_RATE));
+                samples = ((duration / 1000.0) * sr);
+
+                if (duration < 500)
+                {
+                    // Calculamos el error y agregamos una muestra si es necesario
+                    int samples_int = (int)samples;
+                    double duration_int = samples_int/sr * 1000.0;
+                    
+                    if ((duration_int - duration) > 0.01)
+                    {
+                        samples++;
+                    }
+                }
+
+                // Esto lo hacemos para acabar bien un ultimo flanco en down.
+                // Hay que tener en cuenta que el terminador se quita del tiempo de PAUSA
+                // la pausa puede ir desde 0 ms a 0x9999 ms
+                // 1ms = 3500 T-States
+                //
+                // Según la especificación al menos 1ms debe estar en un flanco contrario al ultimo flanco para reconocer este ultimo, y después aplicar
+                // el resto, como pausa.
+                //
+
+                if (APPLY_END)
+                {
+                    if (EDGE_EAR_IS==down)
+                    {
+                        // El primer milisegundo es el contrario al ultimo flanco
+                        // el terminador se genera en base al ultimo flanco que indique
+                        // EDGE_EAR_IS
+                        #ifdef DEBUGMODE
+                            log("Añado TERMINATOR +1ms");
+                        #endif
+
+                        terminator_samples = terminator(maxTerminatorWidth);
+                        
+                        // El terminador ocupa 1ms
+                        if (duration > 1)
+                        {
+                            // Si es mayor de 1ms, entonces se lo restamos.
+                            samples -= terminator_samples;
+                            // Inicializamos la polarización de la señal
+                            //EDGE_EAR_IS = down;   
+                        }
+                    }
+                }
+
+                #ifdef DEBUGMODE
+                    log("Samples: " + String(samples));
+                #endif
+
+
+                // Aplicamos ahora el silencio
+                // double dsapling = SAMPLING_RATE;
+                // double width = ((samples / dsapling) * freqCPU) + calibrationValue;
+                
+                //logln("Muestras: " + String(round(samples)) + " vs " + String(samples));
+
+                // Generador de pulsos exclusivo para silencios
+                int swidth = round(samples);
+                pulseSilence(swidth, true); 
+                
+                
+                #ifdef DEBUGMODE
+                    log("..ACU_ERROR: " + String(ACU_ERROR));
+                #endif
+
+                //insertamos el error de silencio calculado 
+                insertSamplesError(ACU_ERROR,true);   
+
+            }                 
         }
 
         void silence(double duration, long calibrationValue = 0)
@@ -982,6 +1083,18 @@ class ZXProcessor
             }       
         }
 
+        void pulse(int width, bool changeNextEARedge = true, long calibrationValue = 0)
+        {
+            // Para PZX
+            semiPulse(width,changeNextEARedge, calibrationValue);         
+        }
+
+        void playPulse(int lenPulse)
+        {
+            // Para PZX
+            semiPulse(lenPulse,true);         
+        }
+
         void playPureTone(int lenPulse, int numPulses)
         {
             // syncronize with short leader tone
@@ -1024,7 +1137,6 @@ class ZXProcessor
             //pilotTone(data, repeat);
 
         } 
-
 
         void playData(uint8_t* bBlock, int lenBlock, int pulse_len, int num_pulses)
         {
@@ -1076,6 +1188,63 @@ class ZXProcessor
         }
 
 
+    // ✅ FUNCIÓN playDRBlock MODIFICADA PARA MANEJAR EL ÚLTIMO BYTE
+    void playDRBlock2(uint8_t* bBlock, int size, bool isThelastDataPart)
+    {
+        if (!bBlock || size == 0) return;
+
+        // 1. Calcular cuántos bits totales procesar en este trozo
+        int total_bits_to_process = size * 8;
+
+        // 2. Si este es el último trozo Y la máscara es válida (1-7),
+        //    recalculamos los bits a procesar.
+        if (isThelastDataPart && _mask_last_byte > 0 && _mask_last_byte < 8)
+        {
+            // Bits a procesar = (todos los bytes menos el último) * 8 + los bits de la máscara
+            total_bits_to_process = ((size - 1) * 8) + _mask_last_byte;
+        }
+
+        int current_bit_count = 0;
+        // 3. Iterar por cada byte del trozo
+        for (int byte_idx = 0; byte_idx < size; byte_idx++)
+        {
+            uint8_t current_byte = bBlock[byte_idx];
+
+            // 4. Iterar por cada bit del byte (de MSB a LSB)
+            for (int bit_idx = 7; bit_idx >= 0; bit_idx--)
+            {
+                // 5. Si ya hemos procesado todos los bits necesarios, salir del bucle.
+                if (current_bit_count >= total_bits_to_process)
+                {
+                    break;
+                }
+
+                // ✅ CORRECCIÓN: Llamar a sampleDR con los 2 argumentos correctos.
+                // Obtenemos el bit actual
+                uint8_t bit_value = (current_byte >> bit_idx) & 1;
+
+                // Si el bit es '1', usamos la amplitud positiva. Si es '0', la negativa.
+                if (bit_value == 1)
+                {
+                    // bit 1
+                    sampleDR(1, maxLevelUp);
+                }
+                else
+                {
+                    // bit 0
+                    sampleDR(1, maxLevelDown);
+                }
+                
+                current_bit_count++;
+            }
+
+            if (current_bit_count >= total_bits_to_process)
+            {
+                break;
+            }
+        }
+    }
+
         void playDRBlock(uint8_t* bBlock, int size, bool isThelastDataPart)
         {
             // Aqui ponemos el byte de mascara del bloque ID 0x15 - 
@@ -1091,74 +1260,75 @@ class ZXProcessor
                 bRead = bBlock[i];
                 // Descomponemos el byte
 
+                //log("Dato: " + String(i) + " - " + String(data[i]));
 
-                    //log("Dato: " + String(i) + " - " + String(data[i]));
+                // Para la protección con mascara ID 0x11 - 0x0C
+                // ---------------------------------------------
+                // "Used bits in the last uint8_t (other bits should be 0) {8}
+                //(e.g. if this is 6, then the bits used (x) in the last uint8_t are: xxxxxx00, wh///ere MSb is the leftmost bit, LSb is the rightmost bit)"
+                
+                // ¿Es el ultimo BYTE?. Si se ha aplicado mascara entonces
+                // se modifica el numero de bits a transmitir
 
-                    // Para la protección con mascara ID 0x11 - 0x0C
-                    // ---------------------------------------------
-                    // "Used bits in the last uint8_t (other bits should be 0) {8}
-                    //(e.g. if this is 6, then the bits used (x) in the last uint8_t are: xxxxxx00, wh///ere MSb is the leftmost bit, LSb is the rightmost bit)"
-                    
-                    // ¿Es el ultimo BYTE?. Si se ha aplicado mascara entonces
-                    // se modifica el numero de bits a transmitir
-
-                    if (LOADING_STATE==1 || TEST_RUNNING)
+                if (LOADING_STATE==1 || TEST_RUNNING)
+                {
+                    // Vemos si es el ultimo byte de la ultima partición de datos del bloque
+                    if ((i == size - 1) && isThelastDataPart)
                     {
-                        // Vemos si es el ultimo byte de la ultima partición de datos del bloque
-                        if ((i == size - 1) && isThelastDataPart)
-                        {
-                            // Aplicamos la mascara
-                            _mask = _mask_last_byte;
-                        }
-                        else
-                        {
-                            // En otro caso todo el byte es valido.
-                            // se anula la mascara.
-                            _mask = 8;
-                        }
-                        
-                        // #ifdef DEBUGMODE
-                        //     logln("Audio is Out");
-                        //     logln("Mask: " + String(_mask));
-                        // #endif
-
-                        // Ahora vamos a descomponer el byte leido
-                        // y le aplicamos la mascara. Es decir SOLO SE TRANSMITE el nº de bits que indica
-                        // la mascara, para el último byte del bloque
-
-                        for (int n=0;n < _mask;n++)
-                        {
-                            // Obtenemos el bit a transmitir
-                            uint8_t bitMasked = bitRead(bRead, 7-n);
-
-                            // Si el bit leido del BYTE es un "1"
-                            if(bitMasked == 1)
-                            {
-                                sampleDR(BIT_DR_1, maxLevelUp);                               
-                            }
-                            else
-                            {
-                                sampleDR(BIT_DR_0, maxLevelDown);
-                            }
-                        }
-
-                        // Hemos cargado +1 byte. Seguimos
-                        if (!TEST_RUNNING)
-                        {
-                            BYTES_LOADED++;
-                            bytes_in_this_block++;
-                            BYTES_LAST_BLOCK = bytes_in_this_block;              
-                        }
+                        // Aplicamos la mascara
+                        _mask = _mask_last_byte;
                     }
                     else
                     {
-                        return;
+                        // En otro caso todo el byte es valido.
+                        // se anula la mascara.
+                        _mask = 8;
+                    }
+                    
+                    #ifdef DEBUGMODE
+                        logln("Audio is Out");
+                        logln("Mask: " + String(_mask));
+                    #endif
+
+                    // Ahora vamos a descomponer el byte leido
+                    // y le aplicamos la mascara. Es decir SOLO SE TRANSMITE el nº de bits que indica
+                    // la mascara, para el último byte del bloque
+
+                    for (int n=0;n < _mask;n++)
+                    {
+                        // Obtenemos el bit a transmitir
+                        uint8_t bitMasked = bitRead(bRead, 7-n);
+
+                        // Si el bit leido del BYTE es un "1"
+                        if(bitMasked == 1)
+                        {
+                            // bit "1"
+                            sampleDR(1, maxLevelUp);                               
+                        }
+                        else
+                        {
+                            // bit "0"
+                            sampleDR(1, maxLevelDown);
+                        }
                     }
 
-                    ptrOffset = i;
-                    // Esto lo hacemos para asegurarnos que la barra se llena entera
-                    PROGRESS_BAR_TOTAL_VALUE = ((PRG_BAR_OFFSET_INI + (ptrOffset+1)) * 100 ) / BYTES_TOBE_LOAD ;
-                    PROGRESS_BAR_BLOCK_VALUE = ((PRG_BAR_OFFSET_INI + (ptrOffset+1)) * 100 ) / PRG_BAR_OFFSET_END;                                  
+                    // Hemos cargado +1 byte. Seguimos
+                    if (!TEST_RUNNING)
+                    {
+                        BYTES_LOADED++;
+                        bytes_in_this_block++;
+                        BYTES_LAST_BLOCK = bytes_in_this_block;              
+                    }
+                }
+                else
+                {
+                    return;
+                }
+
+                ptrOffset = i;
+                // Esto lo hacemos para asegurarnos que la barra se llena entera
+                PROGRESS_BAR_TOTAL_VALUE = ((PRG_BAR_OFFSET_INI + (ptrOffset+1)) * 100 ) / BYTES_TOBE_LOAD ;
+                PROGRESS_BAR_BLOCK_VALUE = ((PRG_BAR_OFFSET_INI + (ptrOffset+1)) * 100 ) / PRG_BAR_OFFSET_END;                                  
             }
         }
 
@@ -1232,39 +1402,10 @@ class ZXProcessor
             silence(3000);
         }
 
-        // void set_kit(AudioKitStream kit)
-        // { 
-        //   kitStream = kit;
-        // }
-
         void set_HMI(HMI hmi)
         {
           _hmi = hmi;
         }
-
-        // size_t createTestSignal(uint8_t *buffer, int samples, int amplitude)
-        // {
-
-        //     // Procedimiento para genera un pulso 
-        //     int chn = channels;
-        //     size_t result = 0;
-            
-        //     int16_t *ptr = (int16_t*)buffer;
-            
-        //     int16_t sample_L = amplitude;
-        //     int16_t sample_R = amplitude;
-
-        //     for (int j=0;j<samples;j++)
-        //     {
-        //         //R-OUT
-        //         *ptr++ = sample_R;
-        //         //L-OUT
-        //         *ptr++ = sample_L;
-        //         result+=2*chn;
-        //     }
-
-        //     return result;            
-        // }
 
         void samplingtest(float samplingrate)
         {
