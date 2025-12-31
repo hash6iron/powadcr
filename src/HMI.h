@@ -4120,7 +4120,7 @@ class HMI
                         }
                         else if (TYPE_FILE_LOAD == "PZX")
                         {
-                          blName = "PZX"; //myPZX.descriptor[BLOCK_SELECTED].name;
+                          blName = myPZX.descriptor[BLOCK_SELECTED].name;
                           blType = 0;
                         }
                         else
@@ -4715,7 +4715,14 @@ class HMI
                 else
                 {
                   // Si el índice es seguro, rellenamos la información
-                  myNex.writeStr("blocks.id" + String(i) + ".txt",String(real_idx));
+                  if (TYPE_FILE_LOAD != "PZX")
+                  {
+                    myNex.writeStr("blocks.id" + String(i) + ".txt",String(real_idx));
+                  }
+                  else
+                  {
+                    myNex.writeStr("blocks.id" + String(i) + ".txt",String(real_idx + 1));
+                  }
                   delay(pa);
       
                   if (TYPE_FILE_LOAD == "TZX" || TYPE_FILE_LOAD == "CDT" || TYPE_FILE_LOAD == "TSX")

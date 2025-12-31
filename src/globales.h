@@ -182,6 +182,9 @@ struct tTZXBlockDescriptor
   bool hasMaskLastByte = false;
   tTimming timming;
   tSymbol symbol;
+  uint16_t call_sequence_count;
+  uint16_t* call_sequence_array;
+  uint16_t numSelections;  
   char typeName[36];
   //
   int compressionType = 0;
@@ -222,7 +225,9 @@ struct tPZXBlockDescriptor
   uint16_t* data_s0_pulses = nullptr;
   uint16_t* data_s1_pulses = nullptr;
   int data_stream_offset = 0;
-
+  // Para bloques CSW
+  int csw_num_pulses;
+  tRlePulse* csw_pulse_data;
   // Para bloque PAUS
   int pause_duration = 0;
   uint8_t edge = POLARIZATION;       // Edge of the begining of the block. Only for playing
@@ -250,6 +255,7 @@ struct tPZX
   int numBlocks = 0;                      // Numero de bloques
   char name[11] = {""};                      // Nombre del PZX
   uint32_t size = 0;
+  uint32_t csw_sampling_rate;
   tPZXBlockDescriptor* descriptor = nullptr;
 };
 

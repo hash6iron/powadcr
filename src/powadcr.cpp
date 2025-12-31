@@ -5645,7 +5645,7 @@ void setFWIND()
 {
   logln("Set FFWD - " + String(LAST_BLOCK_WAS_GROUP_START));
 
-  if (TYPE_FILE_LOAD != "TAP")
+  if (TYPE_FILE_LOAD != "TAP" && TYPE_FILE_LOAD != "PZX")
   {
     if (LAST_BLOCK_WAS_GROUP_START)
     {
@@ -5666,7 +5666,7 @@ void setFWIND()
   }
 
 
-  if(TYPE_FILE_LOAD != "TAP")
+  if(TYPE_FILE_LOAD != "TAP" && TYPE_FILE_LOAD != "PZX")
   { 
     // Para las estructuras TZX, CDT y TSX
     if (BLOCK_SELECTED > (TOTAL_BLOCKS - 1))
@@ -5675,7 +5675,15 @@ void setFWIND()
         isGroupStart();    
     }
   }    
-  else
+  else if (TYPE_FILE_LOAD == "PZX")
+  {
+    // Para el fichero PZX
+    if (BLOCK_SELECTED > (TOTAL_BLOCKS - 1))
+    {
+        BLOCK_SELECTED = 0;
+    }
+  }
+  else if (TYPE_FILE_LOAD == "TAP")
   {
     // Para el fichero TAP
     if (BLOCK_SELECTED > (TOTAL_BLOCKS - 2))
@@ -5685,7 +5693,7 @@ void setFWIND()
   }
   
 
-  if (TYPE_FILE_LOAD != "TAP")
+  if (TYPE_FILE_LOAD != "TAP" && TYPE_FILE_LOAD != "PZX")
   {
     // Forzamos un refresco de los indicadores
     hmi.setBasicFileInformation(myTZX.descriptor[BLOCK_SELECTED].ID,
@@ -5695,7 +5703,15 @@ void setFWIND()
                                 myTZX.descriptor[BLOCK_SELECTED].size,
                                 myTZX.descriptor[BLOCK_SELECTED].playeable);
   }
-  else
+  else if (TYPE_FILE_LOAD != "PZX")
+  {
+    // Forzamos un refresco de los indicadores
+    hmi.setBasicFileInformation(0, 0, myPZX.descriptor[BLOCK_SELECTED].name,
+                                myPZX.descriptor[BLOCK_SELECTED].typeName,
+                                myPZX.descriptor[BLOCK_SELECTED].size,
+                                myPZX.descriptor[BLOCK_SELECTED].playeable);
+  }
+  else if (TYPE_FILE_LOAD == "TAP")
   {
     // Forzamos un refresco de los indicadores
     hmi.setBasicFileInformation(0, 0, myTAP.descriptor[BLOCK_SELECTED].name,
@@ -5714,7 +5730,7 @@ void setRWIND()
 
   logln("Set RWD - " + String(LAST_BLOCK_WAS_GROUP_END));
 
-  if (TYPE_FILE_LOAD != "TAP")
+  if (TYPE_FILE_LOAD != "TAP" && TYPE_FILE_LOAD != "PZX")
   {
     if (LAST_BLOCK_WAS_GROUP_END)
     {
@@ -5734,7 +5750,7 @@ void setRWIND()
   }
 
   // Para las estructuras TZX, CDT y TSX
-  if(TYPE_FILE_LOAD != "TAP")
+  if(TYPE_FILE_LOAD != "TAP" && TYPE_FILE_LOAD != "PZX")
   {   
     if (BLOCK_SELECTED < 1)
     {
@@ -5742,7 +5758,7 @@ void setRWIND()
       isGroupEnd();    
     }
   }
-  else
+  else if (TYPE_FILE_LOAD == "TAP")
   {
     // Para el fichero TAP
     if (BLOCK_SELECTED < 0)
@@ -5750,8 +5766,16 @@ void setRWIND()
       BLOCK_SELECTED = (TOTAL_BLOCKS - 2);
     }
   }
+  else if (TYPE_FILE_LOAD == "PZX")
+  {
+    // Para el fichero PZX
+    if (BLOCK_SELECTED < 0)
+    {
+      BLOCK_SELECTED = (TOTAL_BLOCKS - 1);
+    }
+  }
 
-  if (TYPE_FILE_LOAD != "TAP")
+  if (TYPE_FILE_LOAD != "TAP" && TYPE_FILE_LOAD != "PZX"              )
   {
     // Forzamos un refresco de los indicadores
     hmi.setBasicFileInformation(myTZX.descriptor[BLOCK_SELECTED].ID,
@@ -5761,7 +5785,15 @@ void setRWIND()
                                 myTZX.descriptor[BLOCK_SELECTED].size,
                                 myTZX.descriptor[BLOCK_SELECTED].playeable);
   }
-  else
+  else if (TYPE_FILE_LOAD != "PZX")
+  {
+    // Forzamos un refresco de los indicadores
+    hmi.setBasicFileInformation(0, 0, myPZX.descriptor[BLOCK_SELECTED].name,
+                                myPZX.descriptor[BLOCK_SELECTED].typeName,
+                                myPZX.descriptor[BLOCK_SELECTED].size,
+                                myPZX.descriptor[BLOCK_SELECTED].playeable);
+  }
+  else if (TYPE_FILE_LOAD == "TAP")
   {
     // Forzamos un refresco de los indicadores
     hmi.setBasicFileInformation(0, 0, myTAP.descriptor[BLOCK_SELECTED].name,
@@ -6780,7 +6812,7 @@ void tapeControl()
   // Actualizamos el HMI - indicadores
   if (UPDATE)
   {
-    if (TYPE_FILE_LOAD != "TAP" && TYPE_FILE_LOAD != "WAV" && TYPE_FILE_LOAD != "MP3" && TYPE_FILE_LOAD != "FLAC" && TYPE_FILE_LOAD != "RADIO")
+    if (TYPE_FILE_LOAD != "TAP" && TYPE_FILE_LOAD != "WAV" && TYPE_FILE_LOAD != "MP3" && TYPE_FILE_LOAD != "FLAC" && TYPE_FILE_LOAD != "RADIO" && TYPE_FILE_LOAD != "PZX")
     {
       // Forzamos un refresco de los indicadores para TZX, CDT y TSX
       hmi.setBasicFileInformation(myTZX.descriptor[BLOCK_SELECTED].ID,
@@ -6790,7 +6822,17 @@ void tapeControl()
                                   myTZX.descriptor[BLOCK_SELECTED].size,
                                   myTZX.descriptor[BLOCK_SELECTED].playeable);
     }
-    else
+    else if (TYPE_FILE_LOAD == "PZX")
+    {
+      // Forzamos un refresco de los indicadores para PZX
+      hmi.setBasicFileInformation(0,
+                                  0,
+                                  myPZX.descriptor[BLOCK_SELECTED].name,
+                                  myPZX.descriptor[BLOCK_SELECTED].typeName,
+                                  myPZX.descriptor[BLOCK_SELECTED].size,
+                                  myPZX.descriptor[BLOCK_SELECTED].playeable);
+    }
+    else if (TYPE_FILE_LOAD == "TAP")
     {
       // Forzamos un refresco de los indicadores para TAP
       hmi.setBasicFileInformation(0, 0, myTAP.descriptor[BLOCK_SELECTED].name,

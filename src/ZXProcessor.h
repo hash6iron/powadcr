@@ -891,7 +891,7 @@ class ZXProcessor
             _mask_last_byte = mask;
         }
 
-        void silenceDR(double duration, int sr, long calibrationValue = 0)
+        void silenceDR(double duration, int sr)
         {
             // la duracion se da en ms
             LAST_SILENCE_DURATION = duration;
@@ -987,7 +987,7 @@ class ZXProcessor
             }                 
         }
 
-        void silence(double duration, long calibrationValue = 0)
+        void silence(double duration)
         {
             // la duracion se da en ms
             LAST_SILENCE_DURATION = duration;
@@ -1012,10 +1012,11 @@ class ZXProcessor
                 //logln("Sampling rate for SILENCE: " + String(SAMPLING_RATE));
                 samples = ((duration / 1000.0) * SAMPLING_RATE);
 
-                if (duration < 500)
+                if (duration < 500.0)
                 {
                     // Calculamos el error y agregamos una muestra si es necesario
-                    int samples_int = (int)samples;
+                    int samples_int = round(samples);
+                    //int samples_int = (int)samples;
                     double duration_int = samples_int/SAMPLING_RATE * 1000.0;
                     
                     if ((duration_int - duration) > 0.01)

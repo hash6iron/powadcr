@@ -1902,7 +1902,7 @@ class TZXprocessor
           case 35:
             ID_NOT_IMPLEMENTED = true;
             // analyzeBlockUnknow(currentID,currentOffset, currentBlock);
-            // nextIDoffset = currentOffset + 1;            
+            nextIDoffset = currentOffset + 2 + 1;            
 
             // _myTZX.descriptor[currentBlock].typeName = "ID 23 - Jump to block";
             strncpy(_myTZX.descriptor[currentBlock].typeName,ID23STR,35);
@@ -1958,20 +1958,44 @@ class TZXprocessor
 
           // ID 26 - Call sequence
           case 38:
+          {
             ID_NOT_IMPLEMENTED = true;
-            // analyzeBlockUnknow(currentID,currentOffset, currentBlock);
-            // nextIDoffset = currentOffset + 1;            
+
+            _myTZX.descriptor[currentBlock].ID = 38; // 0x26
+            _myTZX.descriptor[currentBlock].playeable = false;
+            _myTZX.descriptor[currentBlock].offset = currentOffset;
+
+            uint16_t num_calls = getWORD(mFile, currentOffset + 1);
+            _myTZX.descriptor[currentBlock].call_sequence_count = num_calls;
+
+            if (num_calls > 0)
+            {
+                _myTZX.descriptor[currentBlock].call_sequence_array = (uint16_t*)ps_calloc(num_calls, sizeof(uint16_t));
+                if (_myTZX.descriptor[currentBlock].call_sequence_array)
+                {
+                    int data_offset = currentOffset + 3;
+                    for (int i = 0; i < num_calls; i++)
+                    {
+                        _myTZX.descriptor[currentBlock].call_sequence_array[i] = getWORD(mFile, data_offset + (i * 2));
+                    }
+                }
+            }
+            
+            // El tamaño del bloque es 1 (ID) + 2 (count) + count * 2 (array)
+            _myTZX.descriptor[currentBlock].size = 2 + (num_calls * 2);
+                // analyzeBlockUnknow(currentID,currentOffset, currentBlock);
+            nextIDoffset = currentOffset + _myTZX.descriptor[currentBlock].size + 1;            
 
             // _myTZX.descriptor[currentBlock].typeName = "ID 26 - Call seq.";
             strncpy(_myTZX.descriptor[currentBlock].typeName,ID26STR,35);
             res=false;
             break;
-
+          }
           // ID 27 - Return from sequence
           case 39:
             ID_NOT_IMPLEMENTED = true;
             // analyzeBlockUnknow(currentID,currentOffset, currentBlock);
-            // nextIDoffset = currentOffset + 1;            
+            nextIDoffset = currentOffset + 1;            
 
             // _myTZX.descriptor[currentBlock].typeName = "ID 27 - Return from seq.";
             strncpy(_myTZX.descriptor[currentBlock].typeName,ID27STR,35);
@@ -3567,7 +3591,7 @@ class TZXprocessor
                                       // delete[] _myTZX.descriptor[i].timming.pulse_seq_array;
                                       PROGRESS_BAR_BLOCK_VALUE = ((PRG_BAR_OFFSET_INI + (ldatos)) * 100 ) / PRG_BAR_OFFSET_END;
                                       // Pausa despues de bloque                                  
-                                      _zxp.silence(silence,0.0);
+                                      _zxp.silence(silence);
                                   }
 
                                   #ifdef DEBUGMODE
@@ -3601,7 +3625,7 @@ class TZXprocessor
                                       free(_myTZX.descriptor[i].timming.pulse_seq_array); 
                                       // delete[] _myTZX.descriptor[i].timming.pulse_seq_array;
                                       // Pausa despues de bloque 
-                                      _zxp.silence(silence,0.0); 
+                                      _zxp.silence(silence); 
                                   }                              
                               }
                               break; 
