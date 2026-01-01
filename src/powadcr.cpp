@@ -2270,8 +2270,27 @@ void RadioPlayer()
     while (!EJECT) {
         
         // Gestión de botones FFWD/RWIND
-        if (FFWIND || RWIND) {
+        if (FFWIND || RWIND) 
+        {
             dialIndicator(false);
+
+            // ✅ CORRECCIÓN DEFINITIVA: Parada y reinicio completo del pipeline de audio
+            if (PLAY) 
+            {
+                // 1. Detener la tarea de red para que no escriba más en el buffer.
+                if (networkTaskHandle != NULL) {
+                    taskParams.running = false;
+                    vTaskDelay(pdMS_TO_TICKS(100)); // Dar tiempo a que la tarea termine.
+                    networkTaskHandle = NULL;
+                }
+
+                // 2. Detener y limpiar el pipeline de audio por completo.
+                decodedStream.end();
+                kitStream.setMute(true);
+                //kitStream.end(); // Detiene el hardware de audio (I2S).
+            }
+
+            // 3. Limpiar el buffer de software.
             radioBuffer.clear();
             isBuffering = true;
             
@@ -2280,17 +2299,58 @@ void RadioPlayer()
             
             if (PLAY) {
                 LAST_MESSAGE = "Tuning to " + radioName + "...";
+                
+                // 4. Reiniciar el pipeline de audio.
+                //kitStream.begin(cfg); // Reinicia el hardware de audio con su configuración.
+                kitStream.setMute(false);
+                decodedStream.begin();
+
+                // 5. Reiniciar y lanzar de nuevo la tarea de red con la nueva URL.
+                taskParams.running = true;
                 strcpy(taskParams.url_buffer, radioUrlBuffer);
                 taskParams.new_url = true;
+                xTaskCreatePinnedToCore(radio_network_task, "RadioNetworkTask", 8192, &taskParams, 1, &networkTaskHandle, 0);
+
             } else {
                 LAST_MESSAGE = "Select: " + radioName;
-                taskParams.new_url = false;
             }
             
             FFWIND = RWIND = false;
             statusSignalOk = false;
             playerState = 1;
-        }
+        }            
+
+            // // ✅ CORRECCIÓN DEFINITIVA: Reiniciar el decodificador
+            // if (PLAY) 
+            // {
+            //     // 1. Detener la tarea de red para que no escriba más en el buffer.
+            //     taskParams.running = false;
+            //     vTaskDelay(pdMS_TO_TICKS(100)); // Dar tiempo a que la tarea termine.
+
+            //     // 2. Detener y limpiar el pipeline de audio por completo.
+            //     decodedStream.end();
+            //     kitStream.end(); // Detiene el DMA de la tarjeta de sonido.
+            // }
+
+            // radioBuffer.clear();
+            // isBuffering = true;
+            
+            // currentRadioStation = nextRadioStation(PATH_FILE_TO_LOAD, radioName, radioUrlBuffer, sizeof(radioUrlBuffer), FFWIND);
+            // updateDialIndicator(currentRadioStation);
+            
+            // if (PLAY) {
+            //     LAST_MESSAGE = "Tuning to " + radioName + "...";
+            //     strcpy(taskParams.url_buffer, radioUrlBuffer);
+            //     taskParams.new_url = true;
+            // } else {
+            //     LAST_MESSAGE = "Select: " + radioName;
+            //     taskParams.new_url = false;
+            // }
+            
+            // FFWIND = RWIND = false;
+            // statusSignalOk = false;
+            // playerState = 1;
+        // }
         
         // ✅ GESTIÓN DEL EXPLORADOR DE EMISORAS (REINTEGRADO)
         if (BB_OPEN || BB_UPDATE) {
@@ -2305,23 +2365,53 @@ void RadioPlayer()
                 // Si ya estábamos reproduciendo, cambiamos de emisora
                 if (PLAY) {
                     dialIndicator(false);
+
+                    // ✅ APLICAR LA MISMA LÓGICA DE PARADA Y REINICIO AQUÍ
+                    // 1. Detener la tarea de red.
+                    if (networkTaskHandle != NULL) {
+                        taskParams.running = false;
+                        vTaskDelay(pdMS_TO_TICKS(100));
+                        networkTaskHandle = NULL;
+                    }
+
+                    // 2. Detener y limpiar el pipeline.
+                    decodedStream.end();
+                    kitStream.setMute(true);
+                    //kitStream.end();
+
+                    // 3. Limpiar buffer.
                     radioBuffer.clear();
                     isBuffering = true;
-                    // if (!BB_OPEN)
-                    // {
-                    //   updateDialIndicator(currentRadioStation);
-                    //   LAST_MESSAGE = "Tuning to " + radioName + "...";                      
-                    // }                    
+
+                    // 4. Reiniciar pipeline.
+                    //kitStream.begin(cfg);
+                    kitStream.setMute(false);
+                    decodedStream.begin();
+
+                    // 5. Reiniciar tarea de red.
+                    taskParams.running = true;
                     strcpy(taskParams.url_buffer, radioUrlBuffer);
                     taskParams.new_url = true;
+                    xTaskCreatePinnedToCore(radio_network_task, "RadioNetworkTask", 8192, &taskParams, 1, &networkTaskHandle, 0);
+                    
+                    LAST_MESSAGE = "Tuning to " + radioName + "...";
                     playerState = 1;
-                } else {
-                    // if (!BB_OPEN)
-                    // {
-                    //   updateDialIndicator(currentRadioStation);
-                    //   LAST_MESSAGE = "Tuning to " + radioName + "...";                      
-                    // } 
                 }
+
+                // if (PLAY) {
+                //     dialIndicator(false);
+                //     // Reiniciar el decodificador también aquí
+                //     decodedStream.end();   // Finaliza y limpia el decodificador
+                //     decodedStream.begin(); // Reinicia el decodificador para el nuevo stream
+
+                //     radioBuffer.clear();
+                //     kitStream.flush();     // Vacía el búfer de la tarjeta de sonido
+                //     isBuffering = true;
+                   
+                //     strcpy(taskParams.url_buffer, radioUrlBuffer);
+                //     taskParams.new_url = true;
+                //     playerState = 1;
+                // }
             }
             UPDATE_HMI = false;
             UPDATE = false;
@@ -2448,900 +2538,6 @@ void RadioPlayer()
 }
 // ... (resto del código) ...
 
-
-// void RadioPlayer()
-// {
-//     rotate_enable = false;
-//     ENABLE_ROTATE_FILEBROWSER = false;
-//     REM_ENABLE = false;
-//     EJECT = false;
-    
-//     // 1. CONFIGURACIÓN DE TAREAS Y BUFFERS
-//     SimpleCircularBuffer radioBuffer(RADIO_BUFFER_SIZE);
-//     URLStream urlStream(ssid.c_str(), password); // El tamaño del buffer interno de URLStream ya no es tan crítico
-    
-//     RadioNetworkTaskParams taskParams;
-//     taskParams.stream = &urlStream;
-//     taskParams.buffer = &radioBuffer;
-//     taskParams.running = true;
-//     taskParams.new_url = false;
-
-//     TaskHandle_t networkTaskHandle = NULL;
-//     xTaskCreatePinnedToCore(
-//         radio_network_task,   // Función de la tarea
-//         "RadioNetworkTask",   // Nombre de la tarea
-//         8192,                 // Tamaño de la pila (stack)
-//         &taskParams,          // Parámetros de la tarea
-//         1,                    // Prioridad
-//         &networkTaskHandle,   // Handle de la tarea
-//         0                     // Core 0
-//     );
-
-//     const size_t BUFFER_START_THRESHOLD = RADIO_BUFFER_SIZE * 0.75;
-//     const size_t BUFFER_STOP_THRESHOLD = RADIO_BUFFER_SIZE * 0.25;
-//     bool isBuffering = true;
-
-//     // Paramos los timers y animaciones
-//     hmi.writeString("tape.tm0.en=0");
-//     hmi.writeString("tape.tm1.en=0");
-//     tapeAnimationOFF();
-//     showRadioDial();
-
-//     // Configuración del pipeline de audio
-//     tAudioList* audiolist = nullptr;
-//     kitStream.flush();
-    
-//     auto cfg = kitStream.defaultConfig(TX_MODE); // Modo solo transmisión
-//     cfg.sample_rate = 44100;
-//     cfg.bits_per_sample = 16;
-//     cfg.channels = 2;
-//     kitStream.setAudioInfo(cfg);
-    
-//     hmi.writeString("tape.lblFreq.txt=\"" + String(int(cfg.sample_rate/1000)) + "KHz\"");
-//     kitStream.setPAPower(ACTIVE_AMP && EN_SPEAKER);
-//     kitStream.setVolume(MAIN_VOL / 100.0);
-
-//     IRADIO_EN = true;
-    
-//     audio_tools::Equalizer3Bands eq(kitStream);
-//     audio_tools::ConfigEqualizer3Bands cfg_eq;
-    
-//     MP3DecoderHelix decoder;
-//     EncodedAudioStream decodedStream(&eq, &decoder);
-
-//     cfg_eq = eq.defaultConfig();
-//     cfg_eq.setAudioInfo(cfg);
-//     cfg_eq.gain_low = EQ_LOW;
-//     cfg_eq.gain_medium = EQ_MID;
-//     cfg_eq.gain_high = EQ_HIGH;
-//     eq.begin(cfg_eq);
-
-//     // Variables de estado
-//     uint8_t playerState = 0;
-//     unsigned long trefresh = millis();
-//     size_t bufferw = 0;
-//     int currentRadioStation = 0;
-//     String radioName = "";
-//     static char radioUrlBuffer[256];
-//     bool statusSignalOk = false;
-
-//     if (!decodedStream.begin()) {
-//         logln("Error initializing decoder");
-//         LAST_MESSAGE = "Decoder init failed";
-//         taskParams.running = false; // Detener la tarea de red
-//         vTaskDelay(pdMS_TO_TICKS(100));
-//         IRADIO_EN = false;
-//         hideRadioDial();
-//         return;
-//     }
-
-//     // Estado inicial
-//     STOP = false;
-//     EJECT = false;
-//     TOTAL_BLOCKS = generateRadioList(audiolist);
-//     currentRadioStation = nextRadioStation(PATH_FILE_TO_LOAD, radioName, radioUrlBuffer, sizeof(radioUrlBuffer), true, 0, true);
-//     updateDialIndicator(currentRadioStation);
-//     LAST_MESSAGE = "Ready. Press PLAY.";
-//     playerState = 10;
-
-//     while (!EJECT) {
-        
-//         // Gestión de botones
-//         if (FFWIND || RWIND) {
-//             dialIndicator(false);
-//             radioBuffer.clear();
-//             isBuffering = true;
-            
-//             currentRadioStation = nextRadioStation(PATH_FILE_TO_LOAD, radioName, radioUrlBuffer, sizeof(radioUrlBuffer), FFWIND);
-//             updateDialIndicator(currentRadioStation);
-            
-//             if (PLAY) {
-//                 LAST_MESSAGE = "Tuning to " + radioName + "...";
-//                 strcpy(taskParams.url_buffer, radioUrlBuffer);
-//                 taskParams.new_url = true; // La tarea de red se encargará de la nueva conexión
-//             } else {
-//                 LAST_MESSAGE = "Select: " + radioName;
-//                 taskParams.new_url = false; // No conectar hasta que se pulse PLAY
-//             }
-            
-//             FFWIND = RWIND = false;
-//             statusSignalOk = false;
-//             playerState = 1;
-//         }
-        
-//         // Máquina de estados del reproductor
-//         switch (playerState) {
-//             case 10: // Estado inicial esperando PLAY
-//                 if (PLAY) {
-//                     playerState = 0;
-//                 }
-//                 break;
-
-//             case 0: // Conectando a la emisora
-//                 if (PLAY) {
-//                     if (!USE_SSL_STATIONS && String(radioUrlBuffer).startsWith("https://")) {
-//                         LAST_MESSAGE = "Error: SSL URL not permitted.";
-//                         PLAY = false;
-//                         break;
-//                     }
-//                     radioBuffer.clear();
-//                     isBuffering = true;
-//                     logln("Station: " + radioName + " -> " + String(radioUrlBuffer));
-//                     LAST_MESSAGE = "Connecting to " + radioName + "...";
-                    
-//                     // Le decimos a la tarea de red que se conecte
-//                     strcpy(taskParams.url_buffer, radioUrlBuffer);
-//                     taskParams.new_url = true;
-                    
-//                     playerState = 1; // Pasamos directamente al estado de reproducción/buffering
-//                     bufferw = 0;
-//                     dialIndicator(true);
-//                 }
-//                 break;
-
-//             case 1: // ESTADO PRINCIPAL: SOLO REPRODUCCIÓN (CONSUMIDOR)
-//                 if (PLAY) {
-//                     // --- Lógica de Buffering y Reproducción ---
-//                     if (isBuffering) {
-//                         LAST_MESSAGE = "Buffering: " + String((radioBuffer.getAvailable() * 100) / RADIO_BUFFER_SIZE) + "%";
-//                         if (radioBuffer.getAvailable() >= BUFFER_START_THRESHOLD) {
-//                             logln("Buffer filled. Starting playback.");
-//                             isBuffering = false;
-//                             LAST_MESSAGE = "Playing: " + radioName;
-//                         }
-//                     } else { // Estamos en modo reproducción
-//                         if (radioBuffer.getAvailable() < BUFFER_STOP_THRESHOLD) {
-//                             logln("Buffer low. Pausing to re-buffer.");
-//                             isBuffering = true; // Volvemos a modo buffering
-//                         } else {
-//                             // Hay suficientes datos, consumimos del buffer y decodificamos
-//                             size_t available = radioBuffer.getAvailable();
-//                             size_t bytesToRead = min(available, (size_t)RADIO_DECODE_BUFFER_SIZE);
-//                             if (bytesToRead > 0) {
-//                                 uint8_t decodedBuffer[bytesToRead];
-//                                 size_t bytesReadFromBuffer = radioBuffer.read(decodedBuffer, bytesToRead);
-//                                 if (bytesReadFromBuffer > 0) {
-//                                     decodedStream.write(decodedBuffer, bytesReadFromBuffer);
-//                                     bufferw += bytesReadFromBuffer; // Actualizamos contador para UI
-//                                 }
-//                             }
-//                         }
-//                     }
-//                 } else if (STOP || PAUSE) {
-//                     playerState = 10; // Volver al estado de espera
-//                     PLAY = false;
-//                     bufferw = 0;
-//                     statusSignalOk = false;
-//                     isBuffering = true;
-//                     radioBuffer.clear();
-//                     dialIndicator(false);
-                    
-//                     // Detener la conexión en la tarea de red
-//                     taskParams.new_url = false;
-//                     urlStream.end();
-                    
-//                     LAST_MESSAGE = "Radio stopped.";
-//                     STOP = PAUSE = false;
-//                 }
-//                 break;
-//         }
-
-//         // Actualización de la interfaz de usuario
-//         if ((millis() - trefresh > 1000)) {
-//             float bufferUsage = (radioBuffer.getAvailable() * 100.0) / RADIO_BUFFER_SIZE;
-//             PROGRESS_BAR_TOTAL_VALUE = bufferUsage;
-//             PROGRESS_BAR_BLOCK_VALUE = bufferUsage;
-//             updateIndicators(TOTAL_BLOCKS, currentRadioStation, bufferw, decoder.audioInfoEx().bitrate, radioName);
-//             hmi.writeString("name.txt=\"" + radioName + "\"");
-//             trefresh = millis();
-//         }
-        
-//         // Pequeña pausa para ceder tiempo a otras tareas de bajo nivel en este core
-//         delay(10); 
-//     }
-
-//     // Limpieza final
-//     logln("Stopping RADIO playback...");
-//     taskParams.running = false; // Señal para que la tarea de red termine
-//     vTaskDelay(pdMS_TO_TICKS(200)); // Damos tiempo a la tarea para que termine limpiamente
-
-//     IRADIO_EN = false;
-//     decodedStream.end();
-//     decoder.end();
-//     kitStream.clearNotifyAudioChange();
-//     LAST_MESSAGE = "...";
-//     hideRadioDial();
-//     if (audiolist != nullptr) {
-//         free(audiolist);
-//     }
-//     dialIndicator(false);
-//     hmi.writeString("tape.tm0.en=1");
-//     hmi.writeString("tape.tm1.en=1");
-// }
-
-
-// void RadioPlayer()
-// {
-//     rotate_enable = false;
-//     ENABLE_ROTATE_FILEBROWSER = false;
-//     REM_ENABLE = false;
-//     EJECT = false;
-    
-//     // ✅ 1. CONFIGURACIÓN DEL BUFFER Y UMBRALES
-//     SimpleCircularBuffer radioBuffer(RADIO_BUFFER_SIZE);
-//     logln("Radio buffer size: " + String(RADIO_BUFFER_SIZE) + " bytes");
-    
-//     // Umbral alto para empezar a reproducir (High Watermark)
-//     const size_t BUFFER_START_THRESHOLD = RADIO_BUFFER_SIZE * 0.75; // 75%
-//     // Umbral bajo para pausar y re-buffer (Low Watermark)
-//     const size_t BUFFER_STOP_THRESHOLD = RADIO_BUFFER_SIZE * 0.10;  // 10%
-
-//     bool isBuffering = true; // Empezamos siempre en modo buffering
-
-//     // Paramos los timers y animaciones
-//     hmi.writeString("tape.tm0.en=0");
-//     hmi.writeString("tape.tm1.en=0");
-//     tapeAnimationOFF();
-//     showRadioDial();
-
-//     // ... (resto de la configuración inicial de streams, EQ, decoder, etc. sin cambios) ...
-//     int audioListSize = 0;
-//     tAudioList* audiolist;
-
-//     logln("Configuring kitStream for Radio TX mode...");
-//     kitStream.flush();
-    
-//     auto cfg = kitStream.defaultConfig();
-//     cfg.sample_rate = 44100;
-//     cfg.bits_per_sample = 16;
-//     cfg.channels = 2;
-//     kitStream.setAudioInfo(cfg);
-//     logln("kitStream ready for radio.");
-    
-//     sample_rate_t srd = kitStream.audioInfo().sample_rate;
-//     hmi.writeString("tape.lblFreq.txt=\"" + String(int(srd/1000)) + "KHz\"");
-
-//     kitStream.setPAPower(ACTIVE_AMP && EN_SPEAKER);
-//     kitStream.setVolume(MAIN_VOL / 100);
-
-//     IRADIO_EN = true;
-    
-//     uint8_t networkBuffer[RADIO_NETWORK_BUFFER_SIZE];
-    
-//     URLStream urlStream(ssid.c_str(), password, RADIO_NETWORK_BUFFER_SIZE);
-    
-//     audio_tools::Equalizer3Bands eq(kitStream);
-//     audio_tools::ConfigEqualizer3Bands cfg_eq;
-    
-//     MP3DecoderHelix decoder;
-//     EncodedAudioStream decodedStream(&eq, &decoder);
-
-//     cfg_eq = eq.defaultConfig();
-//     cfg_eq.setAudioInfo(cfg);
-//     cfg_eq.gain_low = EQ_LOW;
-//     cfg_eq.gain_medium = EQ_MID;
-//     cfg_eq.gain_high = EQ_HIGH;
-//     eq.begin(cfg_eq);
-
-//     uint8_t playerState = 0;
-//     unsigned long trefresh = millis();
-//     size_t bufferw = 0;
-//     int currentRadioStation = 1;
-//     String radioName = "";
-//     static char radioUrlBuffer[256];
-//     bool statusSignalOk = false;
-
-//     if (!decodedStream.begin()) {
-//         logln("Error initializing decoder");
-//         LAST_MESSAGE = "Decoder init failed";
-//         IRADIO_EN = false;
-//         hideRadioDial();
-//         return;
-//     }
-
-//     STOP = false;
-//     EJECT = false;
-//     currentRadioStation = nextRadioStation(PATH_FILE_TO_LOAD, radioName, radioUrlBuffer, sizeof(radioUrlBuffer));
-//     TOTAL_BLOCKS = generateRadioList(audiolist);
-//     updateDialIndicator(currentRadioStation);
-//     LAST_MESSAGE = "Ready for radio playback.";
-//     playerState = 10;
-
-//     while (!EJECT) {
-        
-//         // ✅ La gestión de botones (FFWIND, RWIND, etc.) se mantiene igual
-//         // ... (código de FFWIND, RWIND, BB_OPEN, etc. sin cambios) ...
-//         if (FFWIND || RWIND) {
-//             dialIndicator(false);
-//             isBuffering = true; // Forzar re-buffering al cambiar de estación
-//             radioBuffer.clear();
-//             currentRadioStation = nextRadioStation(PATH_FILE_TO_LOAD, radioName, radioUrlBuffer, sizeof(radioUrlBuffer), FFWIND);
-//             updateDialIndicator(currentRadioStation);
-//             FFWIND = RWIND = false;
-//             statusSignalOk = false;
-//             playerState = 0; // Volver al estado de conexión
-//             if (PLAY) { LAST_MESSAGE = "Tuning to " + radioName + "..."; } 
-//             else { LAST_MESSAGE = "Select to " + radioName + " - press PLAY"; }
-//         }
-//         // ... (resto del código de control de UI) ...
-
-
-//         switch (playerState) {
-//             case 10: // Estado inicial esperando PLAY
-//                 if (PLAY) {
-//                     logln("First starting");
-//                     playerState = 0;
-//                 }
-//                 break;
-
-//             case 0: // Conectando a la emisora
-//                 if (PLAY) {
-//                     if (!USE_SSL_STATIONS && String(radioUrlBuffer).startsWith("https://")) {
-//                         LAST_MESSAGE = "Error SSL URL not permitted.";
-//                         PLAY = false;
-//                         break;
-//                     }
-
-//                     radioBuffer.clear();
-//                     isBuffering = true; // ✅ Siempre empezamos en modo buffering
-
-//                     logln("Station: " + radioName + " -> " + String(radioUrlBuffer));
-//                     LAST_MESSAGE = "Connecting to " + radioName + "...";
-                    
-//                     if (urlStream.begin(radioUrlBuffer)) {
-//                         logln("Connected. Waiting for data...");
-//                         playerState = 1; // Pasar al estado de reproducción/buffering
-//                         bufferw = 0;
-//                         dialIndicator(true);
-//                     } else {
-//                         logln("Error connecting to " + String(radioUrlBuffer));
-//                         LAST_MESSAGE = "Error connecting to " + radioName;
-//                         PLAY = false;
-//                         dialIndicator(false);
-//                     }
-//                 }
-//                 break;
-
-//             case 1: // ✅ ESTADO PRINCIPAL: REPRODUCCIÓN Y GESTIÓN DE BUFFER
-//             {
-//               if (PLAY)
-//               {
-//                     if (radioBuffer.getFreeSpace() > sizeof(networkBuffer)) 
-//                     { // ✅ CORREGIDO
-//                         size_t bytesRead = urlStream.readBytes(networkBuffer, sizeof(networkBuffer));
-//                         if (bytesRead > 0) 
-//                         {
-//                             radioBuffer.write(networkBuffer, bytesRead);
-//                             bufferw += bytesRead;
-//                             statusSignalOk = true;
-//                         } 
-//                         else if (!urlStream.isChunked() && urlStream.available() == 0) 
-//                         {
-//                             logln("End of stream detected.");
-//                         }
-//                     }
-
-//                     // --- Lógica de Reproducción ---
-//                     if (isBuffering) 
-//                     {
-//                         // Estamos en modo "llenar buffer"
-//                         LAST_MESSAGE = "Buffering: " + String((radioBuffer.getAvailable() * 100) / RADIO_BUFFER_SIZE) + "%"; // ✅ CORREGIDO
-//                         if (radioBuffer.getAvailable() >= BUFFER_START_THRESHOLD) 
-//                         { // ✅ CORREGIDO
-//                             logln("Buffer filled. Starting playback.");
-//                             isBuffering = false; // Salimos del modo buffering
-//                             LAST_MESSAGE = "Playing: " + radioName;
-//                         }
-//                     } 
-//                     else 
-//                     {
-//                         // Estamos en modo "reproducción"
-//                         if (radioBuffer.getAvailable() < BUFFER_STOP_THRESHOLD) 
-//                         { // ✅ CORREGIDO
-//                             logln("Buffer low. Pausing to re-buffer.");
-//                             isBuffering = true; // Volvemos a modo buffering
-//                         } 
-//                         else 
-//                         {
-//                             // Hay suficientes datos, reproducimos un trozo
-//                             size_t available = radioBuffer.getAvailable(); // ✅ CORREGIDO
-//                             size_t bytesToRead = min(available, (size_t)RADIO_DECODE_BUFFER_SIZE);
-//                             if (bytesToRead > 0) 
-//                             {
-//                                 uint8_t decodedBuffer[bytesToRead];
-//                                 size_t bytesReadFromBuffer = radioBuffer.read(decodedBuffer, bytesToRead);
-//                                 if (bytesReadFromBuffer > 0) 
-//                                 {
-//                                     decodedStream.write(decodedBuffer, bytesReadFromBuffer);
-//                                 }
-//                             }
-//                         }
-//                     }
-//                 } 
-//                 else if (STOP || PAUSE) 
-//                 {
-//                     playerState = 0;
-//                     PLAY = false;
-//                     bufferw = 0;
-//                     statusSignalOk = false;
-//                     isBuffering = true;
-//                     radioBuffer.clear();
-//                     dialIndicator(false);
-//                     urlStream.end(); // ✅ Importante cerrar la conexión de red
-//                     LAST_MESSAGE = "Stop radio playing.";
-//                     STOP = PAUSE = false;
-//                 }
-//                 break;
-//             }
-//         }
-
-//         // ... (código de actualización de HMI y otros controles sin cambios) ...
-//         if ((millis() - trefresh > 2000)) {
-//             float bufferUsage = (radioBuffer.getAvailable() * 100.0) / RADIO_BUFFER_SIZE;
-//             PROGRESS_BAR_TOTAL_VALUE = bufferUsage;
-//             PROGRESS_BAR_BLOCK_VALUE = bufferUsage;
-//             updateIndicators(TOTAL_BLOCKS, currentRadioStation, bufferw, decoder.audioInfoEx().bitrate, radioName);
-//             hmi.writeString("name.txt=\"" + radioName + "\"");
-//             trefresh = millis();
-//         }
-//         // ...
-
-//         delay(5); // ✅ Pequeña pausa para ceder CPU
-//     }
-
-//     // Limpieza final
-//     logln("Stopping RADIO playback...");
-//     IRADIO_EN = false;
-//     decodedStream.end();
-//     urlStream.end();
-//     decoder.end();
-//     kitStream.clearNotifyAudioChange();
-//     LAST_MESSAGE = "...";
-//     hideRadioDial();
-//     free(audiolist);
-//     dialIndicator(false);
-//     hmi.writeString("tape.tm0.en=1");
-//     hmi.writeString("tape.tm1.en=1");
-// }
-
-
-// void RadioPlayer()
-// {
-//     rotate_enable = false;
-//     ENABLE_ROTATE_FILEBROWSER = false;
-//     REM_ENABLE = false;
-//     EJECT = false;
-    
-//     //#ifdef USE_CIRCULAR_BUFFER_FOR_RADIO
-//     // ✅ CREAR BUFFER CIRCULAR SIMPLE (usando la configuración de config.h)
-//     SimpleCircularBuffer radioBuffer(RADIO_BUFFER_SIZE);
-//     //SmartRadioBuffer radioBuffer(RADIO_BUFFER_SIZE);
-//     //PredictiveRadioBuffer radioBuffer(RADIO_BUFFER_SIZE);
-
-//     logln("Radio buffer size: " + String(RADIO_BUFFER_SIZE) + " bytes");
-    
-//     // ✅ VARIABLES DE CONTROL DE BUFFER
-//     unsigned long lastNetworkRead = 0;
-//     unsigned long lastPlayback = 0;
-//     const unsigned long NETWORK_READ_INTERVAL = RADIO_NETWORK_READ_INTERVAL;
-//     const unsigned long PLAYBACK_INTERVAL = RADIO_PLAYBACK_INTERVAL;
-//     bool bufferFilled = false;
-    
-//     // Paramos los timers
-//     hmi.writeString("tape.tm0.en=0");
-//     hmi.writeString("tape.tm0.en=0");
-//     //
-//     hmi.writeString("tape.tm1.en=0");
-//     hmi.writeString("tape.tm1.en=0");
-//     //
-//     tapeAnimationOFF();
-//     showRadioDial();
-
-//     int audioListSize = 0;
-//     tAudioList* audiolist;
-
-//     logln("Configuring kitStream for Radio TX mode...");
-//     kitStream.flush();
-    
-//     auto cfg = kitStream.defaultConfig();
-//     cfg.sample_rate = 44100;
-//     cfg.bits_per_sample = 16;
-//     cfg.channels = 2;
-//     kitStream.setAudioInfo(cfg);
-//     logln("kitStream ready for radio.");
-    
-//     sample_rate_t srd = kitStream.audioInfo().sample_rate;
-//     hmi.writeString("tape.lblFreq.txt=\"" + String(int(srd/1000)) + "KHz\"");
-
-//     kitStream.setPAPower(ACTIVE_AMP && EN_SPEAKER);
-//     kitStream.setVolume(MAIN_VOL / 100);
-
-//     IRADIO_EN = true;
-
-//     // ✅ CONFIGURAR TAMAÑOS DE BUFFER 
-//     uint8_t networkBuffer[RADIO_NETWORK_BUFFER_SIZE];
-//     uint8_t decodedBuffer[RADIO_DECODE_BUFFER_SIZE];
-    
-//     URLStream urlStream(ssid.c_str(), password, RADIO_NETWORK_BUFFER_SIZE);
-//     //URLStreamBufferedESP32 urlStream(&urlStreamT, RADIO_BUFFER_SIZE);
-    
-//     audio_tools::Equalizer3Bands eq(kitStream);
-//     audio_tools::ConfigEqualizer3Bands cfg_eq;
-    
-//     MP3DecoderHelix decoder;
-//     EncodedAudioStream decodedStream(&eq, &decoder);
-
-//     // Configurar ecualizador
-//     cfg_eq = eq.defaultConfig();
-//     cfg_eq.setAudioInfo(cfg);
-//     cfg_eq.gain_low = EQ_LOW;
-//     cfg_eq.gain_medium = EQ_MID;
-//     cfg_eq.gain_high = EQ_HIGH;
-//     eq.begin(cfg_eq);
-
-//     // Variables de estado
-//     uint8_t playerState = 0;
-//     unsigned long trefresh = millis();
-//     size_t bufferw = 0;
-//     int currentRadioStation = 1;
-//     String radioName = "";
-//     static char radioUrlBuffer[256];
-//     bool statusSignalOk = false;
-
-//     if (!decodedStream.begin()) {
-//         logln("Error initializing decoder");
-//         LAST_MESSAGE = "Decoder init failed";
-//         IRADIO_EN = false;
-//         hideRadioDial();
-//         return;
-//     }
-
-//     // Configuración inicial...
-//     STOP = false;
-//     EJECT = false;
-//     currentRadioStation = nextRadioStation(PATH_FILE_TO_LOAD, radioName, radioUrlBuffer, sizeof(radioUrlBuffer));
-//     TOTAL_BLOCKS = generateRadioList(audiolist);
-//     updateDialIndicator(currentRadioStation);
-//     LAST_MESSAGE = "Ready for radio playback.";
-//     playerState = 10;
-
-//     while (!EJECT) {
-//         unsigned long currentTime = millis();
-        
-//         switch (playerState) {
-//             case 10:
-//                 if (PLAY) {
-//                     logln("First starting");
-//                     playerState = 0;
-//                 }
-//                 break;
-
-//             case 0:
-//                 if (PLAY) {
-//                     if (!USE_SSL_STATIONS && String(radioUrlBuffer).startsWith("https://")) {
-//                         LAST_MESSAGE = "Error SSL URL not permitted.";
-//                         PLAY = false;
-//                         playerState = 0;
-//                         break;
-//                     }
-
-//                     //#ifdef USE_CIRCULAR_BUFFER_FOR_RADIO
-//                     if(RADIO_BUFFERED)
-//                     {
-//                       radioBuffer.clear();
-//                       bufferFilled = false;
-//                     }
-
-//                     logln("Station: " + radioName + " -> " + String(radioUrlBuffer));
-//                     LAST_MESSAGE = "Connecting to " + radioName + "... (wait 60s)";
-                    
-//                     if (urlStream.begin(radioUrlBuffer)) {
-//                         logln("Connected to " + String(radioUrlBuffer));
-                        
-//                         // Esperar conexión
-//                         int waitConnect = 0;
-//                         while (!urlStream.httpRequest().connected()) {
-//                             if (waitConnect > RADIO_CONNECT_TIMEOUT_MS/10) {
-//                                 LAST_MESSAGE = "Timeout connecting to " + radioName;
-//                                 PLAY = false;
-//                                 playerState = 0;
-//                                 urlStream.end();
-//                                 dialIndicator(false);
-//                                 break;
-//                             }
-//                             delay(10);
-//                             waitConnect++;
-//                         }
-
-//                         if (!PLAY) break;
-
-//                         // Esperar datos
-//                         waitConnect = 0;
-//                         while (!urlStream.httpRequest().isReady()) {
-//                             if (waitConnect > RADIO_CONNECT_TIMEOUT_MS/10) {
-//                                 LAST_MESSAGE = "Timeout receiving data from " + radioName;
-//                                 PLAY = false;
-//                                 playerState = 0;
-//                                 urlStream.end();
-//                                 dialIndicator(false);
-//                                 break;
-//                             }
-//                             delay(10);
-//                             waitConnect++;
-//                         }
-
-//                         if (!PLAY) break;
-
-//                         URL_RADIO_IS_READY = true;
-//                         playerState = 1;
-//                         bufferw = 0;
-//                         LAST_MESSAGE = "Playing RADIO: " + radioName;
-//                         dialIndicator(true);
-                        
-//                         //#ifdef USE_CIRCULAR_BUFFER_FOR_RADIO
-//                         if(RADIO_BUFFERED)
-//                         {
-//                           // ✅ REINICIAR TEMPORIZADORES
-//                           lastNetworkRead = currentTime;
-//                           lastPlayback = currentTime;
-//                         }
-//                     } else {
-//                         logln("Error connecting to " + String(radioUrlBuffer));
-//                         LAST_MESSAGE = "Error connecting to " + radioName;
-//                         PLAY = false;
-//                         playerState = 0;
-//                         urlStream.end();
-//                         dialIndicator(false);
-//                     }
-//                 }
-//                 break;
-
-//             case 1:
-//                 if (PLAY) {
-//                     //#ifdef USE_CIRCULAR_BUFFER_FOR_RADIO
-//                     if(RADIO_BUFFERED)
-//                     {
-//                         // ✅ GESTIÓN DE BUFFER OPTIMIZADA PARA 320kbps
-//                         if (currentTime - lastNetworkRead >= NETWORK_READ_INTERVAL) {
-//                             size_t bytesRead = urlStream.readBytes(networkBuffer, sizeof(networkBuffer));
-//                             if (bytesRead > 0) {
-//                                 size_t bytesWritten = radioBuffer.write(networkBuffer, bytesRead);
-//                                 bufferw += bytesWritten;
-                                
-//                                 if (bytesWritten < bytesRead) {
-//                                     logln("Warning: Buffer overflow, dropping " + String(bytesRead - bytesWritten) + " bytes");
-//                                 }
-                                
-//                                 if (!statusSignalOk && bytesRead > 0) {
-//                                     statusSignalOk = true;
-//                                     dialIndicator(true);
-//                                 }
-//                             }
-//                             lastNetworkRead = currentTime;
-//                         }
-                        
-//                         // ✅ REPRODUCCIÓN CON BUFFER MÍNIMO MÁS ALTO
-//                         if (currentTime - lastPlayback >= PLAYBACK_INTERVAL) {
-//                             size_t available = radioBuffer.getAvailable(); // ✅ USAR getAvailable()
-                            
-//                             // Esperar a tener suficiente buffer para 320kbps
-//                             if (!bufferFilled && available < RADIO_MIN_BUFFER_FILL) {
-//                                 // Esperando llenar buffer inicial
-//                             } else {
-//                                 bufferFilled = true;
-                                
-//                                 size_t bytesToRead = min(available, (size_t)RADIO_DECODE_BUFFER_SIZE);
-//                                 if (bytesToRead > 0) {
-//                                     size_t bytesRead = radioBuffer.read(decodedBuffer, bytesToRead);
-//                                     if (bytesRead > 0) {
-//                                         decodedStream.write(decodedBuffer, bytesRead);
-//                                     }
-//                                 }
-//                             }
-//                             lastPlayback = currentTime;
-//                         }
-//                       }
-//                       else
-//                       {
-//                         // ✅ STREAMING DIRECTO OPTIMIZADO
-//                         size_t bytesRead = urlStream.readBytes(networkBuffer, sizeof(networkBuffer));
-//                         if (bytesRead > 0) {
-//                             bufferw += bytesRead;
-//                             decodedStream.write(networkBuffer, bytesRead);
-                            
-//                             if (!statusSignalOk && bytesRead > 0) {
-//                                 statusSignalOk = true;
-//                                 dialIndicator(true);
-//                             }
-//                         }
-//                       }
-                    
-//                     // ✅ CONTROL DE ECUALIZADOR
-//                     if (EQ_CHANGE) {
-//                         EQ_CHANGE = false;
-//                         auto cfg = kitStream.defaultConfig();
-//                         cfg_eq.setAudioInfo(cfg);
-//                         cfg_eq.gain_low = EQ_LOW;
-//                         cfg_eq.gain_medium = EQ_MID;
-//                         cfg_eq.gain_high = EQ_HIGH;
-//                         eq.begin(cfg_eq);
-//                     }
-                    
-//                 } else if (STOP) {
-//                     playerState = 0;
-//                     PLAY = false;
-//                     REC = false;
-//                     bufferw = 0;
-//                     statusSignalOk = false;
-//                     if(RADIO_BUFFERED)
-//                     { 
-//                       bufferFilled = false;
-//                       radioBuffer.clear();
-//                     }
-//                     dialIndicator(false);
-//                     LAST_MESSAGE = "Stop radio playing.";
-//                     STOP = false;
-//                 } else if (PAUSE) {
-//                     PLAY = false;
-//                     playerState = 0;
-//                     PAUSE = false;
-//                     if(RADIO_BUFFERED)
-//                     {
-//                       bufferFilled = false;
-//                       radioBuffer.clear();
-//                     }
-//                     LAST_MESSAGE = "Pause radio playing.";
-//                     dialIndicator(false);
-//                     REC = false;
-//                 }
-//                 break;
-//         }
-
-//         // ✅ CONTROL DE CAMBIO DE ESTACIÓN (igual que antes)
-//         if (FFWIND) {
-            
-//             dialIndicator(false);
-//             if(RADIO_BUFFERED)
-//             {
-//               radioBuffer.clear();
-//               bufferFilled = false;
-//             }
-//             currentRadioStation = nextRadioStation(PATH_FILE_TO_LOAD, radioName, radioUrlBuffer, sizeof(radioUrlBuffer));
-//             updateDialIndicator(currentRadioStation);
-//             FFWIND = false;
-//             RWIND = false;
-//             statusSignalOk = false;
-//             playerState = 0;
-
-//             if (PLAY) {
-//                 LAST_MESSAGE = "Tuning to " + radioName + "...";
-//             } else {
-//                 LAST_MESSAGE = "Select to " + radioName + " - press PLAY";
-//             }
-//         } 
-//         else if (RWIND) 
-//         {
-//             dialIndicator(false);
-//             if(RADIO_BUFFERED)
-//             {
-//               radioBuffer.clear();
-//               bufferFilled = false;
-//             }
-//             currentRadioStation = nextRadioStation(PATH_FILE_TO_LOAD, radioName, radioUrlBuffer, sizeof(radioUrlBuffer), false);
-//             updateDialIndicator(currentRadioStation);
-//             FFWIND = false;
-//             RWIND = false;
-//             statusSignalOk = false;
-//             playerState = 0;
-
-//             if (PLAY) {
-//                 LAST_MESSAGE = "Tuning to " + radioName + "...";
-//             } else {
-//                 LAST_MESSAGE = "Select to " + radioName + " - (press PLAY)";
-//             }
-//         }
-
-//         // Resto del código de control igual...
-//         if (BB_OPEN || BB_UPDATE) {
-//             while (BB_OPEN || BB_UPDATE) {
-//                 hmi.openBlockMediaBrowser(audiolist);
-//             }
-//         } else if (UPDATE_HMI || UPDATE) {
-//             if (BLOCK_SELECTED > 0 && BLOCK_SELECTED <= TOTAL_BLOCKS) {
-//                 int currentPointer = BLOCK_SELECTED - 1;
-//                 currentRadioStation = nextRadioStation(PATH_FILE_TO_LOAD, radioName, radioUrlBuffer, sizeof(radioUrlBuffer), true, currentPointer, true);
-//                 playerState = 0;
-//                 PLAY = true;
-//                 if(RADIO_BUFFERED)
-//                 {
-//                   radioBuffer.clear();
-//                   bufferFilled = false;
-//                 }
-//             }
-//             UPDATE_HMI = false;
-//             UPDATE = false;
-
-//             //int waitfor = 0;
-//             // while (!TAPE_PAGE_SHOWN && !BB_OPEN) {
-//             //     waitfor++;
-//             //     delay(50);
-//             //     if (waitfor > 10) break;
-//             // }
-//         }
-
-//         // ✅ ACTUALIZACIÓN DE INFORMACIÓN
-//         if ((millis() - trefresh > 2000)) { // Cada 2 segundos
-//             updateIndicators(TOTAL_BLOCKS, currentRadioStation, bufferw, decoder.audioInfoEx().bitrate, radioName);
-//             hmi.writeString("name.txt=\"" + radioName + "\"");
-
-//             if (PLAY && !REC) {
-//                 if(RADIO_BUFFERED)
-//                 {
-//                     // ✅ MOSTRAR ESTADO DEL BUFFER
-//                     float bufferUsage = (radioBuffer.getAvailable() * 100.0) / RADIO_BUFFER_SIZE;
-//                     PROGRESS_BAR_TOTAL_VALUE = bufferUsage;
-//                     PROGRESS_BAR_BLOCK_VALUE = bufferUsage;
-//                     LAST_MESSAGE = "Playing: " + radioName + " (buffered)"; //+ " (buf: " + String(int(bufferUsage)) + "%)";
-//                 }
-//                 else
-//                 {
-//                     LAST_MESSAGE = "Playing: " + radioName + " (direct)";
-//                 }
-//             }
-//             trefresh = millis();
-//         }
-
-//         if (TAPE_PAGE_SHOWN && !BB_OPEN && !BLOCK_BROWSER_OPEN) {
-//             //delay(250);
-//             updateDialIndicator(currentRadioStation);
-//             TAPE_PAGE_SHOWN = false;
-//         }
-        
-//         // ✅ PEQUEÑA PAUSA PARA NO SATURAR EL CPU
-//         delay(1);
-//     }
-
-//     // Limpieza final (igual que antes)
-//     logln("Stopping RADIO playback...");
-//     IRADIO_EN = false;
-//     decodedStream.end();
-//     urlStream.end();
-//     decoder.end();
-//     kitStream.clearNotifyAudioChange();
-    
-//     LAST_MESSAGE = "...";
-//     IRADIO_EN = false;
-//     hideRadioDial();
-//     free(audiolist);
-//     dialIndicator(false);
-
-//     //cerramos
-//     hmi.writeString("tape.tm0.en=1");
-//     hmi.writeString("tape.tm0.en=1");
-//     //
-//     hmi.writeString("tape.tm1.en=1");
-//     hmi.writeString("tape.tm1.en=1");    
-// }
 
 void MediaPlayer() 
 {   
@@ -5234,6 +4430,46 @@ void stopFile()
   tapeAnimationOFF();
 }
 
+void freeMemoryFromDescriptorPZX(tPZXBlockDescriptor *descriptor)
+{
+  if (descriptor == nullptr) return;
+
+  // Iteramos por todos los bloques para liberar la memoria de los punteros internos
+  for (int n = 0; n < TOTAL_BLOCKS; n++)
+  {
+    if (strcmp(descriptor[n].tag, "PULS") == 0)
+    {
+      // ✅ CORRECCIÓN: El nombre correcto es 'pulses_data'
+      if (descriptor[n].data_s0_pulses != nullptr) {
+        free(descriptor[n].data_s0_pulses);
+        descriptor[n].data_s0_pulses = nullptr;
+      }
+      if (descriptor[n].data_s1_pulses != nullptr) {
+        free(descriptor[n].data_s1_pulses);
+        descriptor[n].data_s1_pulses = nullptr;
+      }      
+    }
+    else if (strcmp(descriptor[n].tag, "DATA") == 0)
+    {
+      if (descriptor[n].data_s0_pulses != nullptr) {
+        free(descriptor[n].data_s0_pulses);
+        descriptor[n].data_s0_pulses = nullptr;
+      }
+      if (descriptor[n].data_s1_pulses != nullptr) {
+        free(descriptor[n].data_s1_pulses);
+        descriptor[n].data_s1_pulses = nullptr;
+      }
+    }
+    else if (strcmp(descriptor[n].tag, "CSW") == 0)
+    {
+      if (descriptor[n].csw_pulse_data != nullptr) {
+        free(descriptor[n].csw_pulse_data);
+        descriptor[n].csw_pulse_data = nullptr;
+      }
+    }
+  }
+}
+
 void ejectingFile()
 {
   logln("Eject executing for " + TYPE_FILE_LOAD);
@@ -5269,17 +4505,19 @@ void ejectingFile()
   }
   else if (TYPE_FILE_LOAD == "PZX")
   {
-    // Solicitamos el puntero _myPZX de la clase
-    // para liberarlo
+    // Solicitamos el puntero _myPZX de la clase para liberarlo
     logln("Eject PZX");
-    // if (myPZXmemoryReserved)
-    // {
-    //   LAST_MESSAGE = "Preparing structure";
-    //   free(pPZX.getDescriptor());
-    //   // Finalizamos
-    //   pPZX.terminate();
-    //   myPZXmemoryReserved = false;
-    // }
+    if (myPZX.descriptor != nullptr)
+    {
+      LAST_MESSAGE = "Preparing structure";
+      // Primero liberamos la memoria interna de cada bloque
+      freeMemoryFromDescriptorPZX(myPZX.descriptor);
+      // Luego liberamos el array de descriptores principal
+      free(myPZX.descriptor);
+      myPZX.descriptor = nullptr;
+      // Finalizamos
+      //pPZX.terminate();
+    }
   }
   else if (TYPE_FILE_LOAD == "WAV" || TYPE_FILE_LOAD == "MP3" || TYPE_FILE_LOAD == "FLAC" || TYPE_FILE_LOAD == "RADIO")
   {
