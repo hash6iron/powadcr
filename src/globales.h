@@ -228,6 +228,8 @@ struct tPZXBlockDescriptor
   // Para bloques CSW
   int csw_num_pulses;
   tRlePulse* csw_pulse_data;
+  // Para el bloque PZX STOP
+  uint16_t stop_flags;
   // Para bloque PAUS
   int pause_duration = 0;
   uint8_t edge = POLARIZATION;       // Edge of the begining of the block. Only for playing

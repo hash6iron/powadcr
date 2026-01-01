@@ -103,6 +103,14 @@ int getWORD(File mFile, int offset)
         // Aquí se podría leer la versión y la info del tape si se quisiera mostrar en la UI
     }
 
+    void analyzeSTOP(File &mFile, tPZXBlockDescriptor &descriptor) {
+        strncpy(descriptor.typeName, "PZX Stop Tape", 35);
+        descriptor.playeable = true; // Es una acción reproducible
+        // Leemos los 2 bytes de flags del bloque
+        descriptor.stop_flags = getNBYTE(mFile, descriptor.offset + 8, 2);
+        logln(" - STOP block found. Flags: " + String(descriptor.stop_flags));
+    }    
+
     void analyzePAUS(File &mFile, tPZXBlockDescriptor &descriptor) {
         strncpy(descriptor.typeName, "PZX Pause", 35);
         descriptor.playeable = true;
@@ -380,7 +388,7 @@ public:
         else if (strcmp(tag, "PAUS") == 0) analyzePAUS(mFile, descriptor);
         else if (strcmp(tag, "CSW") == 0) analyzeCSW(mFile, descriptor); // ✅ AÑADIDO: Llamada a analyzeCSW        
         else if (strcmp(tag, "BRWS") == 0) { strncpy(descriptor.typeName, "Browse Point", 35); descriptor.playeable = false; }
-        else if (strcmp(tag, "STOP") == 0) { strncpy(descriptor.typeName, "Stop Tape", 35); descriptor.playeable = false; }
+        else if (strcmp(tag, "STOP") == 0) { analyzeSTOP(mFile, descriptor); }
         else { strncpy(descriptor.typeName, "Unknown PZX Block", 35); descriptor.playeable = false; }
     }
  
@@ -679,15 +687,17 @@ public:
 
         // Ahora lo voy actualizando a medida que van avanzando los bloques.
         PROGRAM_NAME_2 = "...";
+        
+        bool pause_from_stop_block = false;
 
         for (int i = firstBlockToBePlayed; i < _myPZX.numBlocks; ++i)
         {
             if (STOP || EJECT) break;
 
-            if (PAUSE) 
+            if (PAUSE || pause_from_stop_block) 
             {
                 tapeAnimationOFF();
-                LAST_MESSAGE = "Paused by user";
+                LAST_MESSAGE = "Tape paused. Press Play to continue.";
                 while (!PLAY && !STOP && !EJECT)
                 {
                     delay(100);
@@ -733,14 +743,12 @@ public:
                     logln("Solicito abrir el BLOCKBROWSER");
 
                     hmi.openBlocksBrowser(myTZX,myTAP,myPZX);
-                    //openBlocksBrowser();
 
                     BB_UPDATE = false;
                     BB_OPEN = false;
                     }                    
-
                 }
-
+                                
                 if (PLAY)
                 {
                     PAUSE = false;
@@ -758,18 +766,17 @@ public:
                     break;
                 }
 
-                if (BLOCK_SELECTED > 0)
+                // Si se paro por un bloque STOP, continuamos al siguiente
+                // en otro caso permanecemos en el mismo bloque.
+                if (BLOCK_SELECTED > 0 && !pause_from_stop_block)
                 {
                     i = BLOCK_SELECTED - 1;
                 }
+
+                pause_from_stop_block = false;
             }
 
-
-
             BLOCK_SELECTED = i+1;
-
-            //tPZXBlockDescriptor &descriptor = _myPZX.descriptor[i];
-            //logln("Block " + String(i + 1) + "/" + String(_myPZX.numBlocks) + ": " + String(_myPZX.descriptor[i].typeName));
 
             if (!_myPZX.descriptor[i].playeable) continue;
 
@@ -784,19 +791,7 @@ public:
 
             CURRENT_BLOCK_IN_PROGRESS = i + 1;
             _hmi.setBasicFileInformation(0,0,_myPZX.descriptor[i].name,_myPZX.descriptor[i].typeName,_myPZX.descriptor[i].size,_myPZX.descriptor[i].playeable);
-            // _hmi.updateProgressBar(PROGRESS_BAR_BLOCK_VALUE, 100);
-            //logln("Playing PZX Block " + String(i + 1) + "/" + String(_myPZX.numBlocks) + ": " + String(_myPZX.descriptor[i].typeName));
 
-            // if (strcmp(_myPZX.descriptor[i].tag, "PULS") == 0)
-            // {
-            //     logln(" - Playing PZX PULS Block");
-
-            //     for (int p = 0; p < _myPZX.descriptor[i].timming.pzx_num_pulses; ++p)
-            //     {
-            //         //if (stopOrPauseRequest()) break;                   
-            //         _zxp.pulse(_myPZX.descriptor[i].timming.pzx_pulse_data[p].pulse_len, true);
-            //     }
-            // }
             if (strcmp(_myPZX.descriptor[i].tag, "PULS") == 0)
             {
                 //logln(" - Playing PZX PULS Block");
@@ -894,11 +889,15 @@ public:
                 }
                 _zxp.silence(_myPZX.descriptor[i].pause_duration);
             }
-
+            else if (strcmp(_myPZX.descriptor[i].tag, "STOP") == 0)
+            {
+                logln(" - Executing PZX STOP Block. Pausing tape.");
+                pause_from_stop_block = true;
+                PLAY = false;
+                //PAUSE = true;
+            }
             PROGRESS_BAR_TOTAL_VALUE = (int)(((float)(i + 1) / _myPZX.numBlocks) * 100.0);
-            //_hmi.updateProgressBar(PROGRESS_BAR_TOTAL_VALUE, 100, true);
 
-            //delay(5000);
         }
 
         // En el caso de no haber parado manualmente, es por finalizar

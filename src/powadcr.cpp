@@ -3988,20 +3988,19 @@ void playingFile()
 
     //kitStream.setAudioInfo(new_sr);  
     
-    //
-    // if (OUT_TO_WAV)
-    // {
-    //     // Configuramos el encoder WAV directament
-    //     AudioInfo wavencodercfg(SAMPLING_RATE, 2, 16);
-    //     // Iniciamos el stream
-    //     encoderOutWAV.begin(wavencodercfg);
+    if (OUT_TO_WAV)
+    {
+        // Configuramos el encoder WAV directament
+        AudioInfo wavencodercfg(SAMPLING_RATE, 2, 16);
+        // Iniciamos el stream
+        encoderOutWAV.begin(wavencodercfg);
         
-    //     // Verificamos la configuración final
-    //     logln("Sampling rate changed for PZX format file: " + String(SAMPLING_RATE)  + "Hz");
-    //     logln("WAV encoder - Out to WAV: " + String(encoderOutWAV.audioInfo().sample_rate) + 
-    //           "Hz, Bits: " + String(encoderOutWAV.audioInfo().bits_per_sample) + 
-    //           ", Channels: " + String(encoderOutWAV.audioInfo().channels));  
-    // }
+        // Verificamos la configuración final
+        logln("Sampling rate changed for PZX format file: " + String(SAMPLING_RATE)  + "Hz");
+        logln("WAV encoder - Out to WAV: " + String(encoderOutWAV.audioInfo().sample_rate) + 
+              "Hz, Bits: " + String(encoderOutWAV.audioInfo().bits_per_sample) + 
+              ", Channels: " + String(encoderOutWAV.audioInfo().channels));  
+    }
 
     // Indicamos el sampling rate
     hmi.writeString("tape.lblFreq.txt=\"" + String(int(SAMPLING_RATE/1000)) + "KHz\"" );
@@ -4016,10 +4015,6 @@ void playingFile()
     //Paramos la animación
     tapeAnimationOFF();
     //
-    // if (OUT_TO_WAV)
-    // {
-    //   encoderOutWAV.end();
-    // }
   }  
   else if (TYPE_FILE_LOAD == "WAV")
   { 
