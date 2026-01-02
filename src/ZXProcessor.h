@@ -228,8 +228,15 @@ class ZXProcessor
                 //R-OUT - Right channel output (Amplified output)
                 *ptr++ = sample_R;
                 //L-OUT - Left channel output (Speaker)
-                *ptr++ = sample_L * EN_STEREO * EN_SPEAKER;
-
+                if (ACTIVE_AMP)
+                {
+                    *ptr++ = sample_L * EN_SPEAKER;
+                }
+                else
+                {
+                    *ptr++ = sample_L;
+                }
+                
                 result+=2*channels;
 
                 if (stopOrPauseRequest())
@@ -249,6 +256,10 @@ class ZXProcessor
                 {                
                     encoderOutWAV.write(buffer, result);
                 }
+                //
+                #ifdef BT_STACK
+                    write_audio_to_bluetooth(buffer, result);                
+                #endif
             }
 
             // Reiniciamos
@@ -396,7 +407,14 @@ class ZXProcessor
                 //R-OUT - Right channel output (Amplified output) and current output.
                 *ptr++ = sample_R;
                 //L-OUT - Left channel output (Speaker)
-                *ptr++ = sample_L * EN_STEREO * EN_SPEAKER;
+                if (ACTIVE_AMP)
+                {
+                    *ptr++ = sample_L * EN_SPEAKER;
+                }
+                else
+                {
+                    *ptr++ = sample_L;
+                }
                 //                        
 
                 result+=2*chn;                    
@@ -408,6 +426,10 @@ class ZXProcessor
             {                
                 encoderOutWAV.write(buffer, result);
             }
+
+            #ifdef BT_STACK
+                write_audio_to_bluetooth(buffer, result);
+            #endif
         }
 
         void sampleDR(int samples, int amp)

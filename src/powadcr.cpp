@@ -120,6 +120,9 @@ File audioFile;
   EncodedAudioStream encoderOutWAV(&wavfile, &wavEncoder);
 #endif
 
+#ifdef BT_STACK
+  #include "BluetoothAudioEmitter.h"
+#endif
 
 #include "ZXProcessor.h"
 
@@ -168,6 +171,8 @@ uint16_t USER_CONFIG_ARDUINO_LOOP_STACK_SIZE = 16384;
 // -----------------------------------------------------------------------
 // #include "esp_err.h"
 // #include "esp_spiffs.h"
+
+
 
 #ifdef FTP_SERVER_ENABLE
   #include "ESP32FtpServer.h"
@@ -3860,18 +3865,23 @@ void playingFile()
   rotate_enable = true;
   kitStream.setVolume(MAIN_VOL/100.0);
   kitStream.setPAPower(ACTIVE_AMP && EN_SPEAKER);
-
-  auto new_sr = kitStream.defaultConfig();
   
+  auto new_sr = kitStream.defaultConfig();
+  new_sr.channels = 2;
+
+  LAST_SAMPLING_RATE = SAMPLING_RATE + TONE_ADJUST;
+  SAMPLING_RATE = BASE_SR + TONE_ADJUST;
+  new_sr.sample_rate = BASE_SR + TONE_ADJUST;
+
+  kitStream.setAudioInfo(new_sr); 
+
   // Por defecto
 
   if (TYPE_FILE_LOAD == "TAP")
   {
     // Ajustamos la salida de audio al valor estandar de las maquinas de 8 bits
-    new_sr = kitStream.defaultConfig();
-    LAST_SAMPLING_RATE = SAMPLING_RATE + TONE_ADJUST;
-    SAMPLING_RATE = BASE_SR + TONE_ADJUST;
-    new_sr.sample_rate = BASE_SR + TONE_ADJUST;
+    //new_sr = kitStream.defaultConfig();
+
 
     if (!setAudioInfoSafe(new_sr, "TAP playback")) {
         LAST_MESSAGE = "Error configuring audio for TAP";
@@ -3879,9 +3889,6 @@ void playingFile()
         PLAY = false;
         return;
     }      
-
-    //kitStream.setAudioInfo(new_sr);    
-
     
     //
     if (OUT_TO_WAV)
@@ -3920,10 +3927,10 @@ void playingFile()
   else if (TYPE_FILE_LOAD == "TZX" || TYPE_FILE_LOAD == "CDT" || TYPE_FILE_LOAD == "TSX" )
   {
     // Ajustamos la salida de audio al valor estandar de las maquinas de 8 bits
-    new_sr = kitStream.defaultConfig();
-    LAST_SAMPLING_RATE = SAMPLING_RATE + TONE_ADJUST;
-    SAMPLING_RATE = BASE_SR + TONE_ADJUST;
-    new_sr.sample_rate = BASE_SR + TONE_ADJUST;
+    //new_sr = kitStream.defaultConfig();
+    // LAST_SAMPLING_RATE = SAMPLING_RATE + TONE_ADJUST;
+    // SAMPLING_RATE = BASE_SR + TONE_ADJUST;
+    // new_sr.sample_rate = BASE_SR + TONE_ADJUST;
 
     logln("New sampling rate = " + String(SAMPLING_RATE));
     
@@ -3972,10 +3979,10 @@ void playingFile()
   else if (TYPE_FILE_LOAD == "PZX")
   {
     // Ajustamos la salida de audio al valor estandar de las maquinas de 8 bits
-    new_sr = kitStream.defaultConfig();
-    LAST_SAMPLING_RATE = SAMPLING_RATE + TONE_ADJUST;
-    SAMPLING_RATE = BASE_SR + TONE_ADJUST;
-    new_sr.sample_rate = BASE_SR + TONE_ADJUST;
+    //new_sr = kitStream.defaultConfig();
+    // LAST_SAMPLING_RATE = SAMPLING_RATE + TONE_ADJUST;
+    // SAMPLING_RATE = BASE_SR + TONE_ADJUST;
+    // new_sr.sample_rate = BASE_SR + TONE_ADJUST;
 
     logln("New sampling rate = " + String(SAMPLING_RATE));
     
@@ -4760,9 +4767,9 @@ void putLogo()
   }
   else if (TYPE_FILE_LOAD == "PZX")
   {
-    // TZX file
-    // hmi.writeString("tape.logo.pic=47");
-    // delay(5);
+    // PZX file
+    hmi.writeString("tape.logo.pic=53");
+    delay(5);
   }
   else if (TYPE_FILE_LOAD == "CDT")
   {
@@ -5144,901 +5151,926 @@ void tapeControl()
     LAST_TAPESTATE = TAPESTATE;
   }
 
+  // Gestor de estados del TAPE
+  //
+  // NOTA: REM function: Este sistema funciona si automáticamente el ordenador inicia la reproducción con REM
+  //       en otro caso se considera acción del usuario y no hace efecto, hasta pulsar PAUSE o STOP
+  //
+
   switch (TAPESTATE)
   {
-  case 0:
     // Modo reposo. Aqui se está cuando:
     // - Tape: STOP
     // Posibles acciones
     // - Se pulsa EJECT - Nuevo fichero
     // - Se pulsa REC
     //
-    LOADING_STATE = 0;
-
-    #ifdef DEBUGMODE
-        logAlert("Tape state 0");
-    #endif
-
-    if (EJECT && !STOP_OR_PAUSE_REQUEST)
+    case 0:
     {
+
+      LOADING_STATE = 0;
+
       #ifdef DEBUGMODE
-            logAlert("EJECT state in TAPESTATE = " + String(TAPESTATE));
+          logAlert("Tape state 0");
       #endif
 
-      // Inicializamos la polarizacion
-      EDGE_EAR_IS = POLARIZATION;
-
-      // Limpiamos los campos del TAPE
-      // porque hemos expulsado la cinta.
-      //hmi.clearInformationFile();
-
-      TAPESTATE = 99;
-      // Expulsamos la cinta
-      //FILE_PREPARED = false; // Esto lo comentamos para hacerlo cuando haga el ejecting()
-      // para poder descargar el anterior de la PSRAM
-      FILE_SELECTED = false;
-      //
-      AUTO_STOP = false;
-      BB_PTR_ITEM = 0;
-      BB_PAGE_SELECTED = 0;
-      //
-      setPolarization();
-    }
-    else if (SAMPLINGTEST)
-    {
-      logln("Testing is output");
-      zxp.samplingtest(14000);
-
-      SAMPLINGTEST = false;
-    }
-    else if (REC)
-    {
-      recCondition();
-    }
-    else if (DISABLE_SD)
-    {
-      // DISABLE_SD = false;
-      // // Deshabilitamos temporalmente la SD para poder subir un firmware
-      // SD_MMC.end();
-      // int tout = 59;
-      // while (tout != 0)
-      // {
-      //   delay(1000);
-      //   hmi.writeString("debug.blockLoading.txt=\"" + String(tout) + "\"");
-      //   tout--;
-      // }
-
-      // hmi.writeString("debug.blockLoading.txt=\"..\"");
-      
-      // if (!SD_MMC.begin(SD_CHIP_SELECT, SD_SCK_MHZ(SD_SPEED_MHZ)))
-      // {
-      //   logln("Error recoverind SD access");
-      // };
-    }
-    else
-    {
-      TAPESTATE = 0;
-      LOADING_STATE = 0;
-      PLAY = false;
-    }
-
-    break;
-
-  case 1:
-    //
-    // PLAY / STOP
-    //
-    remDetection();
-    // Esto nos permite abrir el Block Browser en reproduccion
-    if (BB_OPEN || BB_UPDATE)
-    {
-      // Ojo! no meter delay! que esta en una reproduccion
-      logln("Solicito abrir el BLOCKBROWSER");
-
-      hmi.openBlocksBrowser(myTZX,myTAP,myPZX);
-      //openBlocksBrowser();
-
-      BB_UPDATE = false;
-      BB_OPEN = false;
-    }
-
-    // Estados en reproduccion
-    if (PLAY || REM_DETECTED)
-    {
-      
-      if (REM_DETECTED) 
+      if (EJECT && !STOP_OR_PAUSE_REQUEST)
       {
-        PLAY = true;
-        PAUSE = false;
-        STOP = false;
-        REC = false;
-        EJECT = false;
-        ABORT = false;
-        BTN_PLAY_PRESSED = true; 
-        STATUS_REM_ACTUATED = true;
-      }
+        #ifdef DEBUGMODE
+              logAlert("EJECT state in TAPESTATE = " + String(TAPESTATE));
+        #endif
 
-      // Inicializamos la polarización de la señal al iniciar la reproducción.
-      //
-      LOADING_STATE = 1;
-      //Activamos la animación
-      tapeAnimationON();
-      // Reproducimos el fichero
-      if (TYPE_FILE_LOAD != "WAV" && TYPE_FILE_LOAD != "MP3" && TYPE_FILE_LOAD != "FLAC" && TYPE_FILE_LOAD != "RADIO")
-      {
-        LAST_MESSAGE = "Loading in progress. Please wait.";
-      }
-      else
-      {
-        LAST_MESSAGE = "Playing audio file.";
-      }
-      //
-      playingFile();
-      logln("End of CASE 1");
-    }
-    else if (EJECT && !STOP_OR_PAUSE_REQUEST)
-    {
-      TAPESTATE = 0;
-      LOADING_STATE = 0;
+        // Inicializamos la polarizacion
+        EDGE_EAR_IS = POLARIZATION;
 
-      if (OUT_TO_WAV)
-      {
-        wavfile.flush();
-        wavfile.close();
-        encoderOutWAV.end();
+        // Limpiamos los campos del TAPE
+        // porque hemos expulsado la cinta.
+        //hmi.clearInformationFile();
+
+        TAPESTATE = 99;
+        // Expulsamos la cinta
+        //FILE_PREPARED = false; // Esto lo comentamos para hacerlo cuando haga el ejecting()
+        // para poder descargar el anterior de la PSRAM
+        FILE_SELECTED = false;
+        //
+        AUTO_STOP = false;
+        BB_PTR_ITEM = 0;
+        BB_PAGE_SELECTED = 0;
+        //
+        setPolarization();
       }
-    }
-    else if (PAUSE)
-    {
-      TAPESTATE = 3;
-      // Esto la hacemos para evitar una salida inesperada de seleccion de bloques.
-      PAUSE = false;
-      //
-      if (AUTO_PAUSE)
+      else if (SAMPLINGTEST)
       {
-        logln("Auto-pause activated");
-        LAST_MESSAGE = "Tape auto-paused. Follow machine instructions.";
-        ABORT = false;
-        STOP = false;
+        logln("Testing is output");
+        zxp.samplingtest(14000);
+
+        SAMPLINGTEST = false;
       }
-      else
+      else if (REC)
       {
-        if (LAST_BLOCK_WAS_GROUP_START)
-        {
-          // Localizamos el GROUP START
-          prevGroupBlock();
-        }
+        recCondition();
       }
-    
+      else if (DISABLE_SD)
+      {
+        // DISABLE_SD = false;
+        // // Deshabilitamos temporalmente la SD para poder subir un firmware
+        // SD_MMC.end();
+        // int tout = 59;
+        // while (tout != 0)
+        // {
+        //   delay(1000);
+        //   hmi.writeString("debug.blockLoading.txt=\"" + String(tout) + "\"");
+        //   tout--;
         // }
 
-      if (OUT_TO_WAV)
-      {
-        wavfile.flush();
-        wavfile.close();
-        encoderOutWAV.end();
-      }
-    }
-    else if (STOP)
-    {
-      // Desactivamos la animación
-      // esta condicion evita solicitar la parada de manera infinita
-      logln("");
-      log("Tape state 1");
-
-      // Volvemos al estado de fichero preparado
-      TAPESTATE = 10;
-
-      if (LOADING_STATE == 1)
-      {
-        tapeAnimationOFF();
-        LOADING_STATE = 2;
-      }
-
-      LOADING_STATE = 2;
-      // Al parar el c.block del HMI se pone a 1.
-      BLOCK_SELECTED = 0; // 29/11
-
-      // Reproducimos el fichero
-      if (!AUTO_STOP)
-      {
-        LAST_MESSAGE = "Stop playing.";
-        STOP_OR_PAUSE_REQUEST = false;
+        // hmi.writeString("debug.blockLoading.txt=\"..\"");
+        
+        // if (!SD_MMC.begin(SD_CHIP_SELECT, SD_SCK_MHZ(SD_SPEED_MHZ)))
+        // {
+        //   logln("Error recoverind SD access");
+        // };
       }
       else
       {
-        LAST_MESSAGE = "Auto-Stop playing.";
-        AUTO_STOP = false;
+        TAPESTATE = 0;
+        LOADING_STATE = 0;
         PLAY = false;
-        PAUSE = false;
-        REC = false;
-        EJECT = false;
-        STOP_OR_PAUSE_REQUEST = false;
-      }
-
-      setPolarization();
-      STOP = false; //28/11
-
-      if (TYPE_FILE_LOAD != "WAV" && TYPE_FILE_LOAD != "MP3" && TYPE_FILE_LOAD != "FLAC" && TYPE_FILE_LOAD != "RADIO")
-      {
-        getTheFirstPlayeableBlock();
-      }
-
-      if (OUT_TO_WAV)
-      {
-        wavfile.flush();
-        wavfile.close();
-        encoderOutWAV.end();
       }
     }
-    else if (REC)
+    break;
+
+    // PLAY / STOP
+    case 1:
     {
-      // Expulsamos la cinta
-      if (LOADING_STATE == 0 || LOADING_STATE == 2)
+      remDetection();
+      // Esto nos permite abrir el Block Browser en reproduccion
+      if (BB_OPEN || BB_UPDATE)
+      {
+        // Ojo! no meter delay! que esta en una reproduccion
+        logln("Solicito abrir el BLOCKBROWSER");
+
+        hmi.openBlocksBrowser(myTZX,myTAP,myPZX);
+        //openBlocksBrowser();
+
+        BB_UPDATE = false;
+        BB_OPEN = false;
+      }
+
+      // Estados en reproduccion
+      if (PLAY || REM_DETECTED)
+      {
+        
+        if (REM_DETECTED) 
+        {
+          PLAY = true;
+          PAUSE = false;
+          STOP = false;
+          REC = false;
+          EJECT = false;
+          ABORT = false;
+          BTN_PLAY_PRESSED = true; 
+          STATUS_REM_ACTUATED = true;
+        }
+
+        // Inicializamos la polarización de la señal al iniciar la reproducción.
+        //
+        LOADING_STATE = 1;
+        //Activamos la animación
+        tapeAnimationON();
+        // Reproducimos el fichero
+        if (TYPE_FILE_LOAD != "WAV" && TYPE_FILE_LOAD != "MP3" && TYPE_FILE_LOAD != "FLAC" && TYPE_FILE_LOAD != "RADIO")
+        {
+          LAST_MESSAGE = "Loading in progress. Please wait.";
+        }
+        else
+        {
+          LAST_MESSAGE = "Playing audio file.";
+        }
+        //
+        playingFile();
+        logln("End of CASE 1");
+      }
+      else if (EJECT && !STOP_OR_PAUSE_REQUEST)
+      {
+        TAPESTATE = 0;
+        LOADING_STATE = 0;
+
+        if (OUT_TO_WAV)
+        {
+          wavfile.flush();
+          wavfile.close();
+          encoderOutWAV.end();
+        }
+      }
+      else if (PAUSE)
+      {
+        TAPESTATE = 3;
+        // Esto la hacemos para evitar una salida inesperada de seleccion de bloques.
+        PAUSE = false;
+        //
+        if (AUTO_PAUSE)
+        {
+          logln("Auto-pause activated");
+          LAST_MESSAGE = "Tape auto-paused. Follow machine instructions.";
+          ABORT = false;
+          STOP = false;
+        }
+        else
+        {
+          if (LAST_BLOCK_WAS_GROUP_START)
+          {
+            // Localizamos el GROUP START
+            prevGroupBlock();
+          }
+        }
+
+        if (OUT_TO_WAV)
+        {
+          wavfile.flush();
+          wavfile.close();
+          encoderOutWAV.end();
+        }
+      }
+      else if (STOP)
+      {
+        // Desactivamos la animación
+        // esta condicion evita solicitar la parada de manera infinita
+        logln("");
+        log("Tape state 1");
+
+        // Volvemos al estado de fichero preparado
+        TAPESTATE = 10;
+
+        if (LOADING_STATE == 1)
+        {
+          tapeAnimationOFF();
+          LOADING_STATE = 2;
+        }
+
+        LOADING_STATE = 2;
+        // Al parar el c.block del HMI se pone a 1.
+        BLOCK_SELECTED = 0; // 29/11
+
+        // Reproducimos el fichero
+        if (!AUTO_STOP)
+        {
+          LAST_MESSAGE = "Stop playing.";
+          STOP_OR_PAUSE_REQUEST = false;
+        }
+        else
+        {
+          LAST_MESSAGE = "Auto-Stop playing.";
+          AUTO_STOP = false;
+          PLAY = false;
+          PAUSE = false;
+          REC = false;
+          EJECT = false;
+          STOP_OR_PAUSE_REQUEST = false;
+        }
+
+        setPolarization();
+        STOP = false; //28/11
+
+        if (TYPE_FILE_LOAD != "WAV" && TYPE_FILE_LOAD != "MP3" && TYPE_FILE_LOAD != "FLAC" && TYPE_FILE_LOAD != "RADIO")
+        {
+          getTheFirstPlayeableBlock();
+        }
+
+        if (OUT_TO_WAV)
+        {
+          wavfile.flush();
+          wavfile.close();
+          encoderOutWAV.end();
+        }
+      }
+      else if (REC)
+      {
+        // Expulsamos la cinta
+        if (LOADING_STATE == 0 || LOADING_STATE == 2)
+        {
+          if (FILE_PREPARED)
+          {
+            logln("Now ejecting file - Step 4");
+            ejectingFile();
+          }
+
+          FILE_PREPARED = false;
+          FILE_SELECTED = false;
+          hmi.clearInformationFile();
+          tapeAnimationOFF();
+          recAnimationON();
+
+          if (MODEWAV)
+          {
+            LAST_MESSAGE = "Press PAUSE to start WAV recording.";
+            TAPESTATE = 120;
+          }
+          else
+          {
+            LAST_MESSAGE = "Press PAUSE to start TAP recording.";
+            TAPESTATE = 220;
+          }
+        }
+
+        if (OUT_TO_WAV)
+        {
+          wavfile.flush();
+          wavfile.close();
+          encoderOutWAV.end();
+        }
+      }
+      else
+      {
+        TAPESTATE = 1;
+      }
+    }
+    break;
+
+    // STOP 
+    case 2:
+    {
+      #ifdef DEBUGMODE
+          logAlert("Tape state 2");
+      #endif
+
+      TAPESTATE = 1;
+      //
+    }
+    break;
+
+    // PAUSE
+    case 3:
+    {
+      //
+      // PAUSE
+      //
+      #ifdef DEBUGMODE
+          logAlert("Tape state 3");
+      #endif
+
+      LOADING_STATE = 3;
+      //Activamos la animación
+      tapeAnimationOFF();
+
+      // Reproducimos el fichero
+      LAST_MESSAGE = "Tape paused. Press play or select block.";
+      
+      remDetection();
+      //
+      if (PLAY || REM_DETECTED)
+      {
+        if (REM_DETECTED)
+        {
+          PLAY = true;
+          PAUSE = false;
+          STOP = false;
+          REC = false;
+          EJECT = false;
+          ABORT = false;
+
+          BTN_PLAY_PRESSED = true;          
+        }
+        // Reanudamos la reproduccion
+        TAPESTATE = 1;
+        AUTO_PAUSE = false;
+        
+        recoverEdgeBeginOfBlock();
+      }
+      else if (PAUSE)
+      {
+        // Reanudamos la reproduccion pero con PAUSE
+        TAPESTATE = 5;
+        AUTO_PAUSE = false;
+
+        HMI_FNAME = FILE_LOAD;
+
+        recoverEdgeBeginOfBlock();
+      }
+      else if (STOP)
+      {
+        TAPESTATE = 1;
+        AUTO_PAUSE = false;
+
+        HMI_FNAME = FILE_LOAD;
+
+        if (TYPE_FILE_LOAD != "WAV" && TYPE_FILE_LOAD != "MP3" && TYPE_FILE_LOAD != "FLAC" && TYPE_FILE_LOAD != "RADIO")
+        {
+          getTheFirstPlayeableBlock();
+        }
+        //
+        setPolarization();
+      }
+      else if (FFWIND || RWIND)
+      {
+
+        if (TYPE_FILE_LOAD != "WAV" && TYPE_FILE_LOAD != "MP3" && TYPE_FILE_LOAD != "FLAC" && TYPE_FILE_LOAD != "RADIO")
+        {
+          logln("Cambio de bloque");
+          // Actuamos sobre el cassette
+          if (FFWIND)
+          {
+            setFWIND();
+            FFWIND = false;
+          }
+          else
+          {
+            setRWIND();
+            RWIND = false;
+          }
+
+          // Actualizamos el HMI
+          updateHMIOnBlockChange();
+        }
+      }
+      else if (BB_OPEN || BB_UPDATE)
+      {
+        hmi.openBlocksBrowser(myTZX,myTAP,myPZX);
+        BB_UPDATE = false;
+        BB_OPEN = false;
+      }
+      else if (EJECT && !STOP_OR_PAUSE_REQUEST)
+      {
+        TAPESTATE = 0;
+        LOADING_STATE = 0;
+        AUTO_PAUSE = false;
+      }
+      else
+      {
+        TAPESTATE = 3;
+      }
+    }
+    break;
+
+    case 5:
+    {  // Si venimos del estado de seleccion de bloques
+      // y pulso PAUSE continuo la carga en TAPESTATE = 1
+      TAPESTATE = 1;
+      PLAY = true;
+      PAUSE = false;
+    }
+    break;
+
+    case 10:
+    {  //
+      //File prepared. Esperando a PLAY / FFWD o RWD
+      //
+      remDetection();
+
+      if (PLAY || REM_DETECTED)
+      {
+        if (REM_DETECTED) PLAY = true;
+
+        if (FILE_PREPARED)
+        {
+          // Ponemos esto aqui porque prepareOutputToWav() puede cambiar el
+          // flujo de TAPESTATE
+          TAPESTATE = 1;
+          LOADING_STATE = 1;
+
+          if (OUT_TO_WAV)
+          {
+            prepareOutputToWav();
+          }
+        }
+      }
+      else if (EJECT && !STOP_OR_PAUSE_REQUEST)
+      {
+        TAPESTATE = 0;
+        LOADING_STATE = 0;
+      }
+      else if (REC)
       {
         if (FILE_PREPARED)
         {
-          logln("Now ejecting file - Step 4");
+          logln("Now ejecting file - Step 5");
           ejectingFile();
         }
 
         FILE_PREPARED = false;
         FILE_SELECTED = false;
         hmi.clearInformationFile();
-        tapeAnimationOFF();
-        recAnimationON();
-
-        if (MODEWAV)
-        {
-          LAST_MESSAGE = "Press PAUSE to start WAV recording.";
-          TAPESTATE = 120;
-        }
-        else
-        {
-          LAST_MESSAGE = "Press PAUSE to start TAP recording.";
-          TAPESTATE = 220;
-        }
+        TAPESTATE = 0;
       }
-
-      if (OUT_TO_WAV)
+      else if (FFWIND || RWIND)
       {
-        wavfile.flush();
-        wavfile.close();
-        encoderOutWAV.end();
-      }
-    }
-    else
-    {
-      TAPESTATE = 1;
-    }
-    break;
-
-  case 2:
-    //
-    // STOP
-    //
-    #ifdef DEBUGMODE
-        logAlert("Tape state 2");
-    #endif
-
-    TAPESTATE = 1;
-    //
-    break;
-
-  case 3:
-    //
-    // PAUSE
-    //
-    #ifdef DEBUGMODE
-        logAlert("Tape state 3");
-    #endif
-
-    LOADING_STATE = 3;
-    //Activamos la animación
-    tapeAnimationOFF();
-
-    // Reproducimos el fichero
-    LAST_MESSAGE = "Tape paused. Press play or select block.";
-    
-    remDetection();
-    //
-    if (PLAY || REM_DETECTED)
-    {
-      if (REM_DETECTED)
-      {
-        PLAY = true;
-        PAUSE = false;
-        STOP = false;
-        REC = false;
-        EJECT = false;
-        ABORT = false;
-
-        BTN_PLAY_PRESSED = true;          
-      }
-      // Reanudamos la reproduccion
-      TAPESTATE = 1;
-      AUTO_PAUSE = false;
-      
-      recoverEdgeBeginOfBlock();
-    }
-    else if (PAUSE)
-    {
-      // Reanudamos la reproduccion pero con PAUSE
-      TAPESTATE = 5;
-      AUTO_PAUSE = false;
-
-      HMI_FNAME = FILE_LOAD;
-
-      recoverEdgeBeginOfBlock();
-    }
-    else if (STOP)
-    {
-      TAPESTATE = 1;
-      AUTO_PAUSE = false;
-
-      HMI_FNAME = FILE_LOAD;
-
-      if (TYPE_FILE_LOAD != "WAV" && TYPE_FILE_LOAD != "MP3" && TYPE_FILE_LOAD != "FLAC" && TYPE_FILE_LOAD != "RADIO")
-      {
-        getTheFirstPlayeableBlock();
-      }
-      //
-      setPolarization();
-    }
-    else if (FFWIND || RWIND)
-    {
-
-      if (TYPE_FILE_LOAD != "WAV" && TYPE_FILE_LOAD != "MP3" && TYPE_FILE_LOAD != "FLAC" && TYPE_FILE_LOAD != "RADIO")
-      {
-        logln("Cambio de bloque");
         // Actuamos sobre el cassette
-        if (FFWIND)
+        if (TYPE_FILE_LOAD != "WAV" && TYPE_FILE_LOAD != "MP3" && TYPE_FILE_LOAD != "FLAC" && TYPE_FILE_LOAD != "RADIO")
         {
-          setFWIND();
-          FFWIND = false;
-        }
-        else
-        {
-          setRWIND();
-          RWIND = false;
-        }
+          logln("Cambio de bloque - CASE 10");
+          // Actuamos sobre el cassette
+          if (FFWIND)
+          {
+            setFWIND();
+            FFWIND = false;
+          }
+          else
+          {
+            setRWIND();
+            RWIND = false;
+          }
 
-        // Actualizamos el HMI
-        updateHMIOnBlockChange();
-      }
-    }
-    else if (BB_OPEN || BB_UPDATE)
-    {
-      hmi.openBlocksBrowser(myTZX,myTAP,myPZX);
-      BB_UPDATE = false;
-      BB_OPEN = false;
-    }
-    else if (EJECT && !STOP_OR_PAUSE_REQUEST)
-    {
-      TAPESTATE = 0;
-      LOADING_STATE = 0;
-      AUTO_PAUSE = false;
-    }
-    else
-    {
-      TAPESTATE = 3;
-    }
-    break;
-
-  case 5:
-    // Si venimos del estado de seleccion de bloques
-    // y pulso PAUSE continuo la carga en TAPESTATE = 1
-    TAPESTATE = 1;
-    PLAY = true;
-    PAUSE = false;
-    break;
-
-  case 10:
-    //
-    //File prepared. Esperando a PLAY / FFWD o RWD
-    //
-    remDetection();
-
-    if (PLAY || REM_DETECTED)
-    {
-      if (REM_DETECTED) PLAY = true;
-
-      if (FILE_PREPARED)
-      {
-        // Ponemos esto aqui porque prepareOutputToWav() puede cambiar el
-        // flujo de TAPESTATE
-        TAPESTATE = 1;
-        LOADING_STATE = 1;
-
-        if (OUT_TO_WAV)
-        {
-          prepareOutputToWav();
+          // Actualizamos el HMI
+          updateHMIOnBlockChange();
         }
       }
-    }
-    else if (EJECT && !STOP_OR_PAUSE_REQUEST)
-    {
-      TAPESTATE = 0;
-      LOADING_STATE = 0;
-    }
-    else if (REC)
-    {
-      if (FILE_PREPARED)
+      else if (BB_OPEN || BB_UPDATE)
       {
-        logln("Now ejecting file - Step 5");
-        ejectingFile();
-      }
-
-      FILE_PREPARED = false;
-      FILE_SELECTED = false;
-      hmi.clearInformationFile();
-      TAPESTATE = 0;
-    }
-    else if (FFWIND || RWIND)
-    {
-      // Actuamos sobre el cassette
-      if (TYPE_FILE_LOAD != "WAV" && TYPE_FILE_LOAD != "MP3" && TYPE_FILE_LOAD != "FLAC" && TYPE_FILE_LOAD != "RADIO")
-      {
-        logln("Cambio de bloque - CASE 10");
-        // Actuamos sobre el cassette
-        if (FFWIND)
-        {
-          setFWIND();
-          FFWIND = false;
-        }
-        else
-        {
-          setRWIND();
-          RWIND = false;
-        }
-
-        // Actualizamos el HMI
-        updateHMIOnBlockChange();
-      }
-    }
-    else if (BB_OPEN || BB_UPDATE)
-    {
-      hmi.openBlocksBrowser(myTZX,myTAP,myPZX);
-      BB_UPDATE = false;
-      BB_OPEN = false;
-    }
-    else
-    {
-      TAPESTATE = 10;
-      LOADING_STATE = 0;
-    }
-    break;
-
-  case 99:
-    //
-    // Eject
-    //
-    #ifdef DEBUGMODE
-        logAlert("Tape state 99");
-    #endif
-
-    if (FILE_BROWSER_OPEN)
-    {
-      // Abrimos el filebrowser
-      #ifdef DEBUGMODE
-            logAlert("State: File browser keep open.");
-      #endif
-
-      TAPESTATE = 100;
-      LOADING_STATE = 0;
-
-      // Limpiamos el nombre del fichero a cargar
-      FILE_LOAD = "";
-      hmi.writeString("name.txt=\"" + FILE_LOAD + "\"");
-      //
-
-      EJECT = false;
-    }
-    else
-    {
-      TAPESTATE = 99;
-      LOADING_STATE = 0;
-    }
-
-    break;
-
-  case 100:
-    //
-    // Filebrowser open
-    //
-    #ifdef DEBUGMODE
-        logAlert("Tape state 100");
-    #endif
-
-    if (!FILE_BROWSER_OPEN)
-    {
-      #ifdef DEBUGMODE
-            logln("State: File browser was closed.");
-            logln("Vble. FILE_SELECTED = " + String(FILE_SELECTED));
-      #endif
-      //
-      // Cerramos el filebrowser.
-      // y entramos en el estado FILE_PREPARED (inside the tape)
-      //
-      EJECT = false;
-
-      if (UPDATE_FROM_REMOTE_CONTROL)
-      {
-        logln("Loading file from REMOTE CONTROL: " + FILE_LOAD);
-        // Si venimos del control remoto, forzamos la selección del fichero
-        UPDATE_FROM_REMOTE_CONTROL = false;
-        // Para poner mas logos actualizar el HMI
-        putLogo();
-        //PROGRAM_NAME = FILE_LOAD;
-        hmi.writeString("name.txt=\"" + FILE_LOAD + "\"");
-
-        HMI_FNAME = FILE_LOAD;
-
-        TAPESTATE = 10;
-        LOADING_STATE = 0;
-        
-        //Damos tiempo a que la pagina del remote recargue y no interfiera
-        LAST_MESSAGE = ".. receiving from remote ..";
-        delay(1000);
-        //
-        playingFile();
+        hmi.openBlocksBrowser(myTZX,myTAP,myPZX);
+        BB_UPDATE = false;
+        BB_OPEN = false;
       }
       else
       {
-          if (FILE_SELECTED)
-          {
-            // Si se ha seleccionado lo cargo en el cassette.
-            char file_ch[257];
-            PATH_FILE_TO_LOAD.toCharArray(file_ch, 256);
-            loadingFile(file_ch);
+        TAPESTATE = 10;
+        LOADING_STATE = 0;
+      }
+    }
+    break;
 
-            // Ponemos FILE_SELECTED = false, para el proximo fichero
-            FILE_SELECTED = false;
+    case 99:
+    {
+      //
+      // Eject
+      //
+      #ifdef DEBUGMODE
+          logAlert("Tape state 99");
+      #endif
 
-            // Ahora miro si está preparado
-            if (FILE_PREPARED)
+      if (FILE_BROWSER_OPEN)
+      {
+        // Abrimos el filebrowser
+        #ifdef DEBUGMODE
+              logAlert("State: File browser keep open.");
+        #endif
+
+        TAPESTATE = 100;
+        LOADING_STATE = 0;
+
+        // Limpiamos el nombre del fichero a cargar
+        FILE_LOAD = "";
+        hmi.writeString("name.txt=\"" + FILE_LOAD + "\"");
+        //
+
+        EJECT = false;
+      }
+      else
+      {
+        TAPESTATE = 99;
+        LOADING_STATE = 0;
+      }
+    }
+    break;
+
+    case 100:
+    {
+      //
+      // Filebrowser open
+      //
+      #ifdef DEBUGMODE
+          logAlert("Tape state 100");
+      #endif
+
+      if (!FILE_BROWSER_OPEN)
+      {
+        #ifdef DEBUGMODE
+              logln("State: File browser was closed.");
+              logln("Vble. FILE_SELECTED = " + String(FILE_SELECTED));
+        #endif
+        //
+        // Cerramos el filebrowser.
+        // y entramos en el estado FILE_PREPARED (inside the tape)
+        //
+        EJECT = false;
+
+        if (UPDATE_FROM_REMOTE_CONTROL)
+        {
+          logln("Loading file from REMOTE CONTROL: " + FILE_LOAD);
+          // Si venimos del control remoto, forzamos la selección del fichero
+          UPDATE_FROM_REMOTE_CONTROL = false;
+          // Para poner mas logos actualizar el HMI
+          putLogo();
+          //PROGRAM_NAME = FILE_LOAD;
+          hmi.writeString("name.txt=\"" + FILE_LOAD + "\"");
+
+          HMI_FNAME = FILE_LOAD;
+
+          TAPESTATE = 10;
+          LOADING_STATE = 0;
+          
+          //Damos tiempo a que la pagina del remote recargue y no interfiera
+          LAST_MESSAGE = ".. receiving from remote ..";
+          delay(1000);
+          //
+          playingFile();
+        }
+        else
+        {
+            if (FILE_SELECTED)
             {
-              #ifdef DEBUGMODE
-                  logAlert("File inside the tape.");
-              #endif
+              // Si se ha seleccionado lo cargo en el cassette.
+              char file_ch[257];
+              PATH_FILE_TO_LOAD.toCharArray(file_ch, 256);
+              loadingFile(file_ch);
 
-              // Avanzamos ahora hasta el primer bloque playeable
-              if (!ABORT)
+              // Ponemos FILE_SELECTED = false, para el proximo fichero
+              FILE_SELECTED = false;
+
+              // Ahora miro si está preparado
+              if (FILE_PREPARED)
               {
-                logln("Type file load: " + TYPE_FILE_LOAD);
+                #ifdef DEBUGMODE
+                    logAlert("File inside the tape.");
+                #endif
 
-                // Para poner mas logos actualizar el HMI
-                putLogo();
-
-                if (TYPE_FILE_LOAD != "WAV" && TYPE_FILE_LOAD != "MP3" && TYPE_FILE_LOAD != "FLAC" && TYPE_FILE_LOAD != "RADIO")
+                // Avanzamos ahora hasta el primer bloque playeable
+                if (!ABORT)
                 {
-                  getTheFirstPlayeableBlock();
+                  logln("Type file load: " + TYPE_FILE_LOAD);
 
-                  LAST_MESSAGE = "File inside the TAPE.";
-                  PROGRAM_NAME = FILE_LOAD;
-                  HMI_FNAME = FILE_LOAD;
+                  // Para poner mas logos actualizar el HMI
+                  putLogo();
 
-                  TAPESTATE = 10;
-                  LOADING_STATE = 0;
+                  if (TYPE_FILE_LOAD != "WAV" && TYPE_FILE_LOAD != "MP3" && TYPE_FILE_LOAD != "FLAC" && TYPE_FILE_LOAD != "RADIO")
+                  {
+                    getTheFirstPlayeableBlock();
+
+                    LAST_MESSAGE = "File inside the TAPE.";
+                    PROGRAM_NAME = FILE_LOAD;
+                    HMI_FNAME = FILE_LOAD;
+
+                    TAPESTATE = 10;
+                    LOADING_STATE = 0;
+                  }
+                  else
+                  {
+                    //PROGRAM_NAME = FILE_LOAD;
+                    hmi.writeString("name.txt=\"" + FILE_LOAD + "\"");
+
+                    HMI_FNAME = FILE_LOAD;
+
+                    TAPESTATE = 10;
+                    LOADING_STATE = 0;
+
+                    // Esto lo hacemos para llevar el control desde el WAV player
+                    logln("Playing file CASE 100:");
+                    playingFile();
+                    logln("End of CASE 100 - PLAY from REC");
+
+                  }
                 }
                 else
                 {
-                  //PROGRAM_NAME = FILE_LOAD;
-                  hmi.writeString("name.txt=\"" + FILE_LOAD + "\"");
-
-                  HMI_FNAME = FILE_LOAD;
-
-                  TAPESTATE = 10;
+                  // Abortamos proceso de analisis
+                  LAST_MESSAGE = "No file inside the tape";
+                  TAPESTATE = 0;
                   LOADING_STATE = 0;
-
-                  // Esto lo hacemos para llevar el control desde el WAV player
-                  logln("Playing file CASE 100:");
-                  playingFile();
-                  logln("End of CASE 100 - PLAY from REC");
-
                 }
               }
               else
               {
-                // Abortamos proceso de analisis
+
+                #ifdef DEBUGMODE
+                          logAlert("No file selected or empty file.");
+                #endif
+
                 LAST_MESSAGE = "No file inside the tape";
-                TAPESTATE = 0;
-                LOADING_STATE = 0;
               }
             }
             else
             {
+              // Volvemos al estado inicial.
+              TAPESTATE = 0;
+              LOADING_STATE = 0;
 
-              #ifdef DEBUGMODE
-                        logAlert("No file selected or empty file.");
-              #endif
+              // LAST_MESSAGE = "TYPE LOAD: " + TYPE_FILE_LOAD;
+              // delay(2000);
+
+              if (FILE_PREPARED)
+              {
+                logln("Now ejecting file - Step 1");
+                ejectingFile();
+                FILE_PREPARED = false;
+              }
 
               LAST_MESSAGE = "No file inside the tape";
-            }
-          }
-          else
-          {
-            // Volvemos al estado inicial.
-            TAPESTATE = 0;
-            LOADING_STATE = 0;
+            }        
+        }
 
-            // LAST_MESSAGE = "TYPE LOAD: " + TYPE_FILE_LOAD;
-            // delay(2000);
-
-            if (FILE_PREPARED)
-            {
-              logln("Now ejecting file - Step 1");
-              ejectingFile();
-              FILE_PREPARED = false;
-            }
-
-            LAST_MESSAGE = "No file inside the tape";
-          }        
       }
-
-    }
-    else
-    {
-      TAPESTATE = 100;
-      LOADING_STATE = 0;
-    }
-    break;
-
-  case 120:
-    // Start WAV REC after PAUSE pressed
-    if (PAUSE)
-    {
-      // Preparmos y grabamos
-      prepareOutputToWav();
-      WavRecording();
-
-      // Definimos el estado de parada
-      REC = false;
-      PAUSE = false;
-      PLAY = false;
-      EJECT = false;
-      //
-      STOP = false;
-      //
-      recAnimationOFF();
-      recAnimationFIXED_OFF();
-      //
-      TAPESTATE = 130;
-      LOADING_STATE = 0;
-      RECORDING_ERROR = 0;      
-    }
-    else if (STOP)
-    {
-      TAPESTATE = 0;
-      LOADING_STATE = 0;
-      RECORDING_ERROR = 0;
-      REC = false;
-      recAnimationOFF();
-      recAnimationFIXED_OFF();
-      LAST_MESSAGE = "Recording canceled.";
-    }     
-    else
-    {
-      TAPESTATE = 120;
-    }
-    break;
-
-  case 130:
-    // WAV REC finished / Waiting for PLAY or others
-    if (PLAY)
-    {
-      if (REC_FILENAME !="")
+      else
       {
-        // logln("REC File on tape - CASE 130: " + String(REC_FILENAME));
-
-        // char file_ch[257];
-        // REC_FILENAME.toCharArray(file_ch, 256);
-        // loadingFile(file_ch);
-        
-        // FILE_SELECTED = false;
-        TYPE_FILE_LOAD = "WAV";
-        //
-        logln("REC File load: " + String(FILE_LOAD));
-        //
-        PROGRAM_NAME = FILE_LOAD;
-        hmi.writeString("name.txt=\"" + FILE_LOAD + "\"");
-        //
-        LAST_MESSAGE = "File inside the TAPE.";
-        HMI_FNAME = FILE_LOAD;
-
-        TAPESTATE = 10;    
+        TAPESTATE = 100;
         LOADING_STATE = 0;
-        // Mostramos el logo del fichero
-        putLogo();
-        // Pasamos la ruta del fichero al mediaPlayer
-        FILE_LAST_DIR = "/WAV";
-        // y el fichero seleccionado
-        PATH_FILE_TO_LOAD = FILE_LAST_DIR + "/" + FILE_LOAD;
-
-        hmi.reloadDir();
-        //
-        LAST_MESSAGE = "File preparing to play.";
-        // Eliminamos la ruta del fichero y nos quedamos con el nombre y la extensión
-        FILE_LOAD = getFileNameFromPath(FILE_LOAD);
-        // Esto lo hacemos para llevar el control desde el WAV player
-        playingFile();    
-        logln("End of CASE 130 - PLAY from REC");      
       }
-    }  
-    else if (REC)
-    {
-      recCondition();
-    }    
-    else if (EJECT && !STOP_OR_PAUSE_REQUEST)
-    {
-      //
-      recAnimationOFF();
-      recAnimationFIXED_OFF();
-      //
-      REC = false;
-      //Volvemos al estado de reposo
-      TAPESTATE = 0;
-      LOADING_STATE = 0;
-      RECORDING_ERROR = 0;        
-    }    
-    else
-    {
-      TAPESTATE = 130;
     }
     break;
 
-  case 220:
-    // Start TAP REC after PAUSE pressed
-    if (PAUSE)
+    case 120:
     {
-      // Pulsacion de PAUSE
-      // Preparamos la grabacion
-      recAnimationOFF();
-      prepareRecording();
-      recAnimationFIXED_ON();
-
-
-
-      // Inicializamos
-      PLAY = false;
-      PAUSE = false;
-      STOP = false;
-      REC = true;
-      ABORT = false;
-      EJECT = false;
-      taprec.actuateAutoRECStop = false;
-      taprec.stopRecordingProccess = false;
-      RECORDING_ERROR = 0;
-
-      // Saltamos a otro estado
-      TAPESTATE = 200;
-    }
-    else if (EJECT && !STOP_OR_PAUSE_REQUEST)
-    {
-      //
-      stopRecording();
-      recAnimationFIXED_OFF();
-      //
-      taprec.stopRecordingProccess = false;
-      taprec.actuateAutoRECStop = false;
-      REC = false;
-      //Volvemos al estado de reposo
-      TAPESTATE = 0;
-      LOADING_STATE = 0;
-      RECORDING_ERROR = 0;        
-    }    
-    else if (STOP)
-    {
-      TAPESTATE = 0;
-      LOADING_STATE = 0;
-      RECORDING_ERROR = 0;
-      REC = false;
-      STOP = false;
-      recAnimationOFF();
-      recAnimationFIXED_OFF();
-      LAST_MESSAGE = "Recording canceled.";
-    } 
-    else
-    {
-      LOADING_STATE = 0;
-      TAPESTATE = 220;
-    }
-    break;
-
-  case 200:
-    //
-    //remDetection();
-    // recording
-    if (REC)// || REM_DETECTED)
-    {
-      while (!taprec.recording())// || !REM_DETECTED)
+      // Start WAV REC after PAUSE pressed
+      if (PAUSE)
       {
-        //remDetection();
-        delay(1);
-      }
+        // Preparmos y grabamos
+        prepareOutputToWav();
+        WavRecording();
 
-      // RECORDING_IN_PROGRESS = false;
-      // logln("REC mode - Recording in progress " + String(RECORDING_IN_PROGRESS));
-      // Ha acabado con errores
-      LAST_MESSAGE = "Stop recording";
-      stopRecording();
-      recAnimationFIXED_OFF();
-      //
-      taprec.stopRecordingProccess = false;
-      taprec.actuateAutoRECStop = false;      
-      REC = false;
-      STOP = false;
-      EJECT = false;
-      PLAY = false;
-      PAUSE = false;
-      LOADING_STATE = 4;
-      TAPESTATE = 230;
-    }
-    break;
-
-  case 230:
-    //
-    // After recording. Fast PLAY
-    //
-    if (EJECT && !STOP_OR_PAUSE_REQUEST)
-    {
-      //
-      stopRecording();
-      recAnimationFIXED_OFF();
-      //
-      taprec.stopRecordingProccess = false;
-      taprec.actuateAutoRECStop = false;
-      REC = false;
-      //Volvemos al estado de reposo
-      TAPESTATE = 0;
-      LOADING_STATE = 0;
-      RECORDING_ERROR = 0;        
-    }    
-    else if (REC)
-    {
-      recCondition();
-    }
-    else if (PLAY)
-    {
-      if (REC_FILENAME !="")
-      {
-        char fileRecPath[100];
-        strcpy(fileRecPath,REC_FILENAME.c_str());
-        PATH_FILE_TO_LOAD = REC_FILENAME;
-
-        logln("");
-        logln("REC File on tape: CASE 230 - " + REC_FILENAME);
-        logln("");
-
-        FILE_SELECTED = true;
-        FILE_PREPARED = false;
+        // Definimos el estado de parada
+        REC = false;
+        PAUSE = false;
         PLAY = false;
-        // Escaneamos por los nuevos ficheros
-        //LAST_MESSAGE = "Rescaning files";
-        hmi.reloadDir();
-        LAST_MESSAGE = "File preparing to play.";
-        loadingFile(fileRecPath);
-        TYPE_FILE_LOAD = "TAP";
-        putLogo();
-        getTheFirstPlayeableBlock();
-        FILE_SELECTED = false;
-        PLAY = true;
-        TAPESTATE = 10;    
+        EJECT = false;
+        //
+        STOP = false;
+        //
+        recAnimationOFF();
+        recAnimationFIXED_OFF();
+        //
+        TAPESTATE = 130;
         LOADING_STATE = 0;
+        RECORDING_ERROR = 0;      
       }
-    }    
-    else
-    {
-      LOADING_STATE = 0;
-      TAPESTATE = 230;
-    }  
+      else if (STOP)
+      {
+        TAPESTATE = 0;
+        LOADING_STATE = 0;
+        RECORDING_ERROR = 0;
+        REC = false;
+        recAnimationOFF();
+        recAnimationFIXED_OFF();
+        LAST_MESSAGE = "Recording canceled.";
+      }     
+      else
+      {
+        TAPESTATE = 120;
+      }
+    }
     break;
 
-  default:
-    #ifdef DEBUGMODE
-        logAlert("Tape state unknow.");
-    #endif
+    case 130:
+    {
+      // WAV REC finished / Waiting for PLAY or others
+      if (PLAY)
+      {
+        if (REC_FILENAME !="")
+        {
+          // logln("REC File on tape - CASE 130: " + String(REC_FILENAME));
 
+          // char file_ch[257];
+          // REC_FILENAME.toCharArray(file_ch, 256);
+          // loadingFile(file_ch);
+          
+          // FILE_SELECTED = false;
+          TYPE_FILE_LOAD = "WAV";
+          //
+          logln("REC File load: " + String(FILE_LOAD));
+          //
+          PROGRAM_NAME = FILE_LOAD;
+          hmi.writeString("name.txt=\"" + FILE_LOAD + "\"");
+          //
+          LAST_MESSAGE = "File inside the TAPE.";
+          HMI_FNAME = FILE_LOAD;
+
+          TAPESTATE = 10;    
+          LOADING_STATE = 0;
+          // Mostramos el logo del fichero
+          putLogo();
+          // Pasamos la ruta del fichero al mediaPlayer
+          FILE_LAST_DIR = "/WAV";
+          // y el fichero seleccionado
+          PATH_FILE_TO_LOAD = FILE_LAST_DIR + "/" + FILE_LOAD;
+
+          hmi.reloadDir();
+          //
+          LAST_MESSAGE = "File preparing to play.";
+          // Eliminamos la ruta del fichero y nos quedamos con el nombre y la extensión
+          FILE_LOAD = getFileNameFromPath(FILE_LOAD);
+          // Esto lo hacemos para llevar el control desde el WAV player
+          playingFile();    
+          logln("End of CASE 130 - PLAY from REC");      
+        }
+      }  
+      else if (REC)
+      {
+        recCondition();
+      }    
+      else if (EJECT && !STOP_OR_PAUSE_REQUEST)
+      {
+        //
+        recAnimationOFF();
+        recAnimationFIXED_OFF();
+        //
+        REC = false;
+        //Volvemos al estado de reposo
+        TAPESTATE = 0;
+        LOADING_STATE = 0;
+        RECORDING_ERROR = 0;        
+      }    
+      else
+      {
+        TAPESTATE = 130;
+      }
+    }
+    break;
+
+    case 220:
+    {
+      // Start TAP REC after PAUSE pressed
+      if (PAUSE)
+      {
+        // Pulsacion de PAUSE
+        // Preparamos la grabacion
+        recAnimationOFF();
+        prepareRecording();
+        recAnimationFIXED_ON();
+
+
+
+        // Inicializamos
+        PLAY = false;
+        PAUSE = false;
+        STOP = false;
+        REC = true;
+        ABORT = false;
+        EJECT = false;
+        taprec.actuateAutoRECStop = false;
+        taprec.stopRecordingProccess = false;
+        RECORDING_ERROR = 0;
+
+        // Saltamos a otro estado
+        TAPESTATE = 200;
+      }
+      else if (EJECT && !STOP_OR_PAUSE_REQUEST)
+      {
+        //
+        stopRecording();
+        recAnimationFIXED_OFF();
+        //
+        taprec.stopRecordingProccess = false;
+        taprec.actuateAutoRECStop = false;
+        REC = false;
+        //Volvemos al estado de reposo
+        TAPESTATE = 0;
+        LOADING_STATE = 0;
+        RECORDING_ERROR = 0;        
+      }    
+      else if (STOP)
+      {
+        TAPESTATE = 0;
+        LOADING_STATE = 0;
+        RECORDING_ERROR = 0;
+        REC = false;
+        STOP = false;
+        recAnimationOFF();
+        recAnimationFIXED_OFF();
+        LAST_MESSAGE = "Recording canceled.";
+      } 
+      else
+      {
+        LOADING_STATE = 0;
+        TAPESTATE = 220;
+      }
+    }
+    break;
+
+    case 200:
+    {
+      //
+      //remDetection();
+      // recording
+      if (REC)// || REM_DETECTED)
+      {
+        while (!taprec.recording())// || !REM_DETECTED)
+        {
+          //remDetection();
+          delay(1);
+        }
+
+        // RECORDING_IN_PROGRESS = false;
+        // logln("REC mode - Recording in progress " + String(RECORDING_IN_PROGRESS));
+        // Ha acabado con errores
+        LAST_MESSAGE = "Stop recording";
+        stopRecording();
+        recAnimationFIXED_OFF();
+        //
+        taprec.stopRecordingProccess = false;
+        taprec.actuateAutoRECStop = false;      
+        REC = false;
+        STOP = false;
+        EJECT = false;
+        PLAY = false;
+        PAUSE = false;
+        LOADING_STATE = 4;
+        TAPESTATE = 230;
+      }
+    }
+    break;
+
+    case 230:
+    {
+      //
+      // After recording. Fast PLAY
+      //
+      if (EJECT && !STOP_OR_PAUSE_REQUEST)
+      {
+        //
+        stopRecording();
+        recAnimationFIXED_OFF();
+        //
+        taprec.stopRecordingProccess = false;
+        taprec.actuateAutoRECStop = false;
+        REC = false;
+        //Volvemos al estado de reposo
+        TAPESTATE = 0;
+        LOADING_STATE = 0;
+        RECORDING_ERROR = 0;        
+      }    
+      else if (REC)
+      {
+        recCondition();
+      }
+      else if (PLAY)
+      {
+        if (REC_FILENAME !="")
+        {
+          char fileRecPath[100];
+          strcpy(fileRecPath,REC_FILENAME.c_str());
+          PATH_FILE_TO_LOAD = REC_FILENAME;
+
+          logln("");
+          logln("REC File on tape: CASE 230 - " + REC_FILENAME);
+          logln("");
+
+          FILE_SELECTED = true;
+          FILE_PREPARED = false;
+          PLAY = false;
+          // Escaneamos por los nuevos ficheros
+          //LAST_MESSAGE = "Rescaning files";
+          hmi.reloadDir();
+          LAST_MESSAGE = "File preparing to play.";
+          loadingFile(fileRecPath);
+          TYPE_FILE_LOAD = "TAP";
+          putLogo();
+          getTheFirstPlayeableBlock();
+          FILE_SELECTED = false;
+          PLAY = true;
+          TAPESTATE = 10;    
+          LOADING_STATE = 0;
+        }
+      }    
+      else
+      {
+        LOADING_STATE = 0;
+        TAPESTATE = 230;
+      }  
+    }
+    break;
+
+    default:
+    {
+      #ifdef DEBUGMODE
+          logAlert("Tape state unknow.");
+      #endif
+    }
     break;
   }
 
@@ -7916,6 +7948,25 @@ void Task0code(void *pvParameters)
 
     hmi.readUART();
 
+    #ifdef BT_STACK
+        if (bt_connection_changed) 
+        {
+          bt_connection_changed = false; // Resetear la bandera
+          connection_state = new_connection_state; // Actualizar el estado global
+
+          if (connection_state == ESP_A2D_CONNECTION_STATE_CONNECTED) {
+              logln("A2DP Speaker Connected");
+              LAST_MESSAGE = "BT Speaker Connected";
+              esp_a2d_media_ctrl(ESP_A2D_MEDIA_CTRL_START);
+          } else if (connection_state == ESP_A2D_CONNECTION_STATE_DISCONNECTED) {
+              logln("A2DP Speaker Disconnected");
+              LAST_MESSAGE = "BT Speaker Disconnected";
+              // Volver a modo visible para poder reconectar
+              esp_bt_gap_set_scan_mode(ESP_BT_CONNECTABLE, ESP_BT_GENERAL_DISCOVERABLE);
+          }
+        }
+    #endif
+
     // Control del FTP
     #ifdef FTP_SERVER_ENABLE
       if (!IRADIO_EN && WIFI_ENABLE && WIFI_CONNECTED)
@@ -8436,10 +8487,14 @@ void loadHMICfgfromNVS()
     if (ACTIVE_AMP)
     {
       MAIN_VOL_L = 5;
-      // Actualizamos el HMI
-      hmi.writeString("menuAudio.volL.val=" + String(MAIN_VOL_L));
-      hmi.writeString("menuAudio.volLevel.val=" + String(MAIN_VOL_L)); 
     }
+    else
+    {
+      MAIN_VOL_L = MAIN_VOL_R;      
+    }
+    // Actualizamos el HMI
+    hmi.writeString("menuAudio.volL.val=" + String(MAIN_VOL_L));
+    hmi.writeString("menuAudio.volLevel.val=" + String(MAIN_VOL_L)); 
 
     if (EN_SPEAKER)
     {
@@ -8578,6 +8633,13 @@ void setup()
     hmi.writeString("statusLCD.txt=\"Bluetooth connected\"");
     delay(1250);
   #endif
+
+  #ifdef BT_STACK
+    startBluetoothAudio();
+  #endif
+  
+  LAST_MESSAGE = "BT Audio Enabled";  
+  delay(1500);
 
   // ----------------------------------------------------------
   // Estructura de la SD

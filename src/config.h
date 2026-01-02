@@ -284,6 +284,7 @@ bool TEST_LINE_IN_OUT = false;
 
 // Recursos opcionales
 //#define BLUETOOTH_ENABLE
+//#define BT_STACK
 #define FTP_SERVER_ENABLE
 #define WEB_SERVER_ENABLE
 

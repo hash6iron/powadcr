@@ -2592,21 +2592,21 @@ class HMI
             logAlert("PLAY pressed.");
           #endif
 
-          if(!WF_UPLOAD_TO_SD)
-          {
-            PLAY = true;
-            PAUSE = false;
-            STOP = false;
-            REC = false;
-            EJECT = false;
-            ABORT = false;
-  
-            BTN_PLAY_PRESSED = true;  
-          }
-          else
-          {
-            LAST_MESSAGE = "Wait to finish the uploading process.";
-          }
+          // if(!WF_UPLOAD_TO_SD)
+          // {
+          PLAY = true;
+          PAUSE = false;
+          STOP = false;
+          REC = false;
+          EJECT = false;
+          ABORT = false;
+
+          BTN_PLAY_PRESSED = true;  
+          // }
+          // else
+          // {
+          //   LAST_MESSAGE = "Wait to finish the uploading process.";
+          // }
 
           // *********************************************************************
           //
@@ -2678,54 +2678,59 @@ class HMI
             logAlert("EJECT pressed.");
           #endif
 
-          // Si no se esta subiendo nada a la SD desde WiFi podemos abrir
-          if (!WF_UPLOAD_TO_SD && !STOP_OR_PAUSE_REQUEST)
+          logln("Status of PAUSE_REQ: " + String(STOP_OR_PAUSE_REQUEST));
+
+          // Si no se esta solicitando un STOP o PAUSE aun
+          // if (!STOP_OR_PAUSE_REQUEST || PZX_EJECT_RQT)
+          // {
+          //PZX_EJECT_RQT = false;
+
+          PLAY = false;
+          PAUSE = false;
+          STOP = true;
+          REC = false;
+          ABORT = false;
+          EJECT = true;
+
+          // Esto lo hacemos así porque el EJECT lanza un comando en paralelo
+          // al control del tape (tapeControl)
+          // no quitar!!
+          if (PROGRAM_NAME != "" || TOTAL_BLOCKS !=0)
           {
-              PLAY = false;
-              PAUSE = false;
-              STOP = true;
-              REC = false;
-              ABORT = false;
-              EJECT = true;
-
-              // Esto lo hacemos así porque el EJECT lanza un comando en paralelo
-              // al control del tape (tapeControl)
-              // no quitar!!
-              if (PROGRAM_NAME != "" || TOTAL_BLOCKS !=0)
-              {
-                  LAST_MESSAGE = "Ejecting cassette.";
-                  writeString("g0.txt=\"" + LAST_MESSAGE + "\"");
-                  // writeXSTR(66,247,342,16,2,65535,0,1,1,50,LAST_MESSAGE);
-                  delay(125);
-                  clearInformationFile();
-                  delay(125);
-              }
-
-              FILE_BROWSER_OPEN = true;
-              //
-              if (myNex.readNumber("screen.source.val") == 1)
-              {
-                // Si estamos en el tape pasamos a tape0
-                delay(300);
-                writeString("page tape0");
-              }
-              delay(500);          
-              // Entramos en el file browser
-              writeString("page file");          
+              LAST_MESSAGE = "Ejecting cassette.";
+              writeString("g0.txt=\"" + LAST_MESSAGE + "\"");
+              // writeXSTR(66,247,342,16,2,65535,0,1,1,50,LAST_MESSAGE);
               delay(125);
-              refreshFiles();
+              clearInformationFile();
+              delay(125);
           }
-          else
+
+          FILE_BROWSER_OPEN = true;
+          //
+          if (myNex.readNumber("screen.source.val") == 1)
           {
-            if (WF_UPLOAD_TO_SD)
-            {
-              LAST_MESSAGE = "Wait to finish the uploading process.";
-            }
-            else if (STOP_OR_PAUSE_REQUEST)
-            {
-              LAST_MESSAGE = "Wait for tape stop or pause before ejecting.";
-            }
+            // Si estamos en el tape pasamos a tape0
+            delay(300);
+            writeString("page tape0");
           }
+          delay(500);          
+          // Entramos en el file browser
+          writeString("page file");          
+          delay(125);
+          refreshFiles();
+          // }
+          // else
+          // {
+          //   // if (WF_UPLOAD_TO_SD)
+          //   // {
+          //   //   LAST_MESSAGE = "Wait to finish the uploading process.";
+          //   // }
+          //   // else 
+          //   if (STOP_OR_PAUSE_REQUEST)
+          //   {
+          //     LAST_MESSAGE = "Wait for tape stop or pause before ejecting.";
+          //   }
+          // }
         }    
         else if (strCmd.indexOf("VLI=") != -1) 
         {
@@ -3094,10 +3099,15 @@ class HMI
           {
             // Bajamos el volumen del speaker que esta en el canal amplificado IZQ
             MAIN_VOL_L = 5;
-            // Actualizamos el HMI
-            writeString("menuAudio.volL.val=" + String(MAIN_VOL_L));
-            writeString("menuAudio.volLevel.val=" + String(MAIN_VOL_L));
           }
+          else
+          {
+            MAIN_VOL_L = MAIN_VOL_R;
+          }
+
+          // Actualizamos el HMI
+          writeString("menuAudio.volL.val=" + String(MAIN_VOL_L));
+          writeString("menuAudio.volLevel.val=" + String(MAIN_VOL_L));
 
           // Habilitamos el amplificador de salida
           kitStream.setPAPower(ACTIVE_AMP);

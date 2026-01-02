@@ -696,7 +696,7 @@ bool SAMPLINGTEST = false;
 uint8_t MASTER_VOL = 90;
 float MAIN_VOL = 90;
 float MAIN_VOL_R = 90;
-float MAIN_VOL_L = 5;
+float MAIN_VOL_L = 90;
 float EQ_HIGH = 0.9;
 float EQ_MID = 0.5;
 float EQ_LOW = 0.7;
@@ -731,7 +731,7 @@ bool menuOn = false;
 int nMENU = 0;
 
 // Indica cuando el WEBFILE esta ocupado
-bool WF_UPLOAD_TO_SD = 0;
+//bool WF_UPLOAD_TO_SD = 0;
 
 bool SORT_FILES_FIRST_DIR = true;
 bool REGENERATE_IDX = false;
@@ -775,6 +775,8 @@ bool CMD_FROM_REMOTE_CONTROL = false;
 
 //
 bool IGNORE_DSC = false;
+
+//bool PZX_EJECT_RQT = false;
 
 // Auto-update
 String HMI_MODEL = "";

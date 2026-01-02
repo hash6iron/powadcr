@@ -246,29 +246,6 @@ int getWORD(File mFile, int offset)
         }        
     }
 
-    bool stopOrPauseRequest()
-    {
-        // 
-        
-        if (LOADING_STATE == 1)
-        {
-            if (STOP==true)
-            {
-                LAST_MESSAGE = "Stop or pause requested";             
-                LOADING_STATE = 2; // STOP del bloque actual
-                return true;
-            }
-            else if (PAUSE==true)
-            {
-                LAST_MESSAGE = "Stop or pause requested";
-                LOADING_STATE = 3; // PAUSE del bloque actual
-                return true;
-            }
-          }      
-
-        return false;   
-    }
-
 public:
     void setPZX(tPZX pzx)
     {
@@ -677,6 +654,7 @@ public:
         BYTES_TOBE_LOAD = _myPZX.size;
         BYTES_LOADED = 0;
         PROGRESS_BAR_BLOCK_VALUE = 0;
+        STOP_OR_PAUSE_REQUEST = false;
         
         // Reiniciamos variables de control
         STOP = false;
@@ -755,14 +733,15 @@ public:
                     tapeAnimationON();
                     LAST_MESSAGE = "Resuming playback";
                 }
-                else  if (STOP)
+                else if (STOP)
                 {
                     LAST_MESSAGE = "Stopped by user";
+                    //LOADING_STATE = 2;
                     break;
                 }
-                else  if (EJECT)
+                else if (EJECT)
                 {
-                    LAST_MESSAGE = "Ejected by user";
+                    //PZX_EJECT_RQT = true;
                     break;
                 }
 
@@ -866,28 +845,65 @@ public:
             }
             else if (strcmp(_myPZX.descriptor[i].tag, "CSW") == 0)
             {
+
                 logln("Playing PZX CSW Block");
-                if (_myPZX.csw_sampling_rate > 0)
+                if (_myPZX.csw_sampling_rate > 0 && _myPZX.descriptor[i].csw_num_pulses > 0)
                 {
                     // Factor para convertir la duración del pulso CSW a T-States de 3.5MHz
                     float conversion_factor = (float)DfreqCPU / (float)_myPZX.csw_sampling_rate;
                     
+                    // Usar _zxp.pulse() en un bucle
+                    
+                    // Opcional: Si el nivel inicial es alto, generamos un pulso de duración 0 para establecerlo.
+                    // La implementación de _zxp.pulse() podría manejar esto de otra forma.
+                    // Si el audio empieza invertido, esta línea puede ser necesaria.
+                    if (_myPZX.descriptor[i].initial_level == 1) {
+                        _zxp.pulse(0, true); 
+                    }
+
+                    // 1. Iterar a través de los pulsos decodificados del RLE
                     for (int p = 0; p < _myPZX.descriptor[i].csw_num_pulses; ++p)
                     {
-                        if (STOP || EJECT || PAUSE) break;
+                        if (STOP) break;
                         
                         tRlePulse &pulse = _myPZX.descriptor[i].csw_pulse_data[p];
                         
-                        // Convertimos la duración del pulso a T-States
-                        uint32_t pulse_len_tstates = round((float)pulse.pulse_len * conversion_factor);
-                        
-                        if (pulse_len_tstates > 0) {
-                            // playCustomSymbol espera T-States y se encarga de la conversión final a audio
-                            _zxp.playCustomSymbol(pulse_len_tstates, pulse.repeat, true);
+                        // 2. Convertir la duración del pulso a T-States
+                        uint16_t pulse_len_tstates = round((float)pulse.pulse_len * conversion_factor);
+
+                        // 3. Repetir la llamada a _zxp.pulse() para cada repetición
+                        for (int r = 0; r < pulse.repeat; ++r)
+                        {
+                            if (STOP) break;
+                            _zxp.pulse(pulse_len_tstates, true);
                         }
                     }
+                    // ✅ FIN DE LA CORRECCIÓN
                 }
-                _zxp.silence(_myPZX.descriptor[i].pause_duration);
+                _zxp.silence(_myPZX.descriptor[i].pause_duration);              
+
+                // logln("Playing PZX CSW Block");
+                // if (_myPZX.csw_sampling_rate > 0)
+                // {
+                //     // Factor para convertir la duración del pulso CSW a T-States de 3.5MHz
+                //     float conversion_factor = (float)DfreqCPU / (float)_myPZX.csw_sampling_rate;
+                    
+                //     for (int p = 0; p < _myPZX.descriptor[i].csw_num_pulses; ++p)
+                //     {
+                //         if (STOP || EJECT || PAUSE) break;
+                        
+                //         tRlePulse &pulse = _myPZX.descriptor[i].csw_pulse_data[p];
+                        
+                //         // Convertimos la duración del pulso a T-States
+                //         uint32_t pulse_len_tstates = round((float)pulse.pulse_len * conversion_factor);
+                        
+                //         if (pulse_len_tstates > 0) {
+                //             // playCustomSymbol espera T-States y se encarga de la conversión final a audio
+                //             _zxp.playCustomSymbol(pulse_len_tstates, pulse.repeat, true);
+                //         }
+                //     }
+                // }
+                // _zxp.silence(_myPZX.descriptor[i].pause_duration);
             }
             else if (strcmp(_myPZX.descriptor[i].tag, "STOP") == 0)
             {
@@ -896,6 +912,8 @@ public:
                 PLAY = false;
                 //PAUSE = true;
             }
+            
+            // Actualizamos el progreso total
             PROGRESS_BAR_TOTAL_VALUE = (int)(((float)(i + 1) / _myPZX.numBlocks) * 100.0);
 
         }
@@ -904,13 +922,14 @@ public:
         // la reproducción
         if (LOADING_STATE == 1) 
         {
+            logln("PZX playback finished.");
 
             if(LAST_SILENCE_DURATION==0)
             {_zxp.silence(2000);}
 
             // Paramos
             #ifdef DEBUGMODE
-                logAlert("AUTO STOP launch.");
+                logln("AUTO STOP launch.");
             #endif
 
             PLAY = false;
@@ -928,6 +947,18 @@ public:
 
             _hmi.setBasicFileInformation(0,0,_myPZX.descriptor[BLOCK_SELECTED].name,_myPZX.descriptor[BLOCK_SELECTED].typeName,_myPZX.descriptor[BLOCK_SELECTED].size,_myPZX.descriptor[BLOCK_SELECTED].playeable);
         }
+        // else
+        // {
+        //   PLAY = false;
+        //   PAUSE = false;
+        //   STOP = true;
+        //   REC = false;
+        //   ABORT = true;
+        //   EJECT = false;
+
+        //   BLOCK_SELECTED = 0;
+        //   BYTES_LOADED = 0;            
+        // }
 
         // Cerrando
     }    
