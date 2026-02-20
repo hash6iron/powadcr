@@ -2422,7 +2422,7 @@ void RadioPlayer() {
   while (!EJECT) {
 
     // Gestión de botones FFWD/RWIND
-    if (FFWIND || RWIND) {
+    if (!isBuffering && (FFWIND || RWIND)) {
       dialIndicator(false);
       bufferw = 0; 
       // ✅ CORRECCIÓN DEFINITIVA: Parada y reinicio completo del pipeline de
@@ -2612,6 +2612,9 @@ void RadioPlayer() {
               }
             }
           }
+          //
+          dialIndicator(true);
+
         }
       } else if (STOP || PAUSE) {
         playerState = 10;
