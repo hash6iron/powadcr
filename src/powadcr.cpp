@@ -249,7 +249,7 @@ void actuatePowerLed(uint8_t state) {
   if (!MCP23017_AVAILABLE) {
     // Salida por el pin #powerLed
     pinMode(powerLed, OUTPUT);
-    analogWrite(powerLed, state);
+    analogWrite(powerLed, state * 255);
   } else {
     MCP23017_writePin(MCP_LED_IO_PIN_PA, state, I2C_MCP23017_ADDR);
   }
