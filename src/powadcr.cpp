@@ -2840,6 +2840,7 @@ void MediaPlayer() {
     // FLAC
     isFLAC = true;
     // measureFLAC.begin();
+    FLAC_IS_PLAYING = true;
 
     if (decoderFLAC.begin()) {
       logln("FLAC decoder initialized");
@@ -7903,7 +7904,7 @@ void Task0code(void *pvParameters) {
               lastminute = minute;
             }
 
-            if (second != lastsecond)
+            if (second != lastsecond && !FLAC_IS_PLAYING)
             {
               snprintf(buf, sizeof(buf), "%02u", second);
               myNex.writeStr("clock.timeS.txt", String(buf));
@@ -7963,7 +7964,7 @@ void Task0code(void *pvParameters) {
 
           startTime4 = millis();           
         }
-        
+            
 
         if ((millis() - startTime) > tScrRfsh) {
           startTime = millis();
