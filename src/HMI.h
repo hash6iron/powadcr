@@ -45,14 +45,46 @@
 
 #pragma once
 
+
 class HMI
 {
+public:
 
-      //SDMMC _sdm;
-      //FS _sdf;
-      File fFileLST;
-      
-      private:
+    // Lee la ruta almacenada en _last.txt y la devuelve como String
+    inline String loadLastMedia() {
+      File lastFile = SD_MMC.open("/_last.txt", FILE_READ);
+      String path = "";
+      if (lastFile) {
+        path = lastFile.readStringUntil('\n');
+        path.trim();
+        lastFile.close();
+      }
+      return path;
+    }
+
+    // Guarda la ruta pasada en un fichero _last.txt
+    inline void saveLastMedia(String path) {
+      if (path !="")
+      {
+        File lastFile = SD_MMC.open("/_last.txt", FILE_WRITE);
+        if (lastFile) 
+        {
+          lastFile.seek(0); // Escribe desde el principio
+          lastFile.println(path);
+          lastFile.close();
+        }
+      }
+      else
+      {
+        logln("No path to save in last.txt");
+      }
+    }
+
+    //SDMMC _sdm;
+    //FS _sdf;
+    File fFileLST;
+
+private:
 
       
 
@@ -2499,6 +2531,9 @@ class HMI
                   logAlert("File exists: " + PATH_FILE_TO_LOAD);
                 #endif
                 FILE_SELECTED = true;
+
+                // Guardamos esto en el fichero de last.txt
+                saveLastMedia(PATH_FILE_TO_LOAD);                
               }
             }
             else
@@ -2592,16 +2627,6 @@ class HMI
             logAlert("PLAY pressed.");
           #endif
 
-          // if(!WF_UPLOAD_TO_SD)
-          // {
-          // if (PLAY || CURRENT_PAGE == 0)
-          // {
-          //   // Lanzamos el reloj
-          //   writeString("page clock");
-          //   CURRENT_PAGE = 99;
-          // }
-          // else
-          // {
           PLAY = true;
           PAUSE = false;
           STOP = false;
@@ -2611,21 +2636,6 @@ class HMI
 
           BTN_PLAY_PRESSED = true;  
           writeString("BBOK.val=1");
-          // }
-          // }
-          // else
-          // {
-          //   LAST_MESSAGE = "Wait to finish the uploading process.";
-          // }
-
-          // *********************************************************************
-          //
-          // Solo esta de prueba. ELIMINAR!!!!
-          //
-          
-          //
-          // *********************************************************************
-
 
         }   
         else if (strCmd.indexOf("REC") != -1) 
@@ -2730,19 +2740,6 @@ class HMI
           writeString("page file");          
           delay(125);
           refreshFiles();
-          // }
-          // else
-          // {
-          //   // if (WF_UPLOAD_TO_SD)
-          //   // {
-          //   //   LAST_MESSAGE = "Wait to finish the uploading process.";
-          //   // }
-          //   // else 
-          //   if (STOP_OR_PAUSE_REQUEST)
-          //   {
-          //     LAST_MESSAGE = "Wait for tape stop or pause before ejecting.";
-          //   }
-          // }
         }    
         else if (strCmd.indexOf("VLI=") != -1) 
         {
@@ -4716,299 +4713,102 @@ class HMI
           }
       }
       
-            void openBlocksBrowser(const tTZX& myTZX, const tTAP& myTAP, const tPZX& myPZX)
+      void openBlocksBrowser(const tTZX& myTZX, const tTAP& myTAP, const tPZX& myPZX)
+      {
+        // Rellenamos el browser con todos los bloques
+        const int pa = 5;
+        int max = MAX_BLOCKS_IN_BROWSER;
+        int totalPages = 0;
+
+        // TOTAL_BLOCKS incluye +1, así que el número real de bloques es TOTAL_BLOCKS - 1
+        int realBlockCount = TOTAL_BLOCKS > 0 ? TOTAL_BLOCKS - 1 : 0;
+        if (realBlockCount > max)
+        {
+          max = MAX_BLOCKS_IN_BROWSER;
+        }
+        else
+        {
+          max = realBlockCount;
+        }
+
+        BB_PAGE_SELECTED = (BB_PTR_ITEM / MAX_BLOCKS_IN_BROWSER) + 1;
+
+        myNex.writeStr("blocks.path.txt",HMI_FNAME);
+        myNex.writeStr("blocks.totalBl.txt",String(TOTAL_BLOCKS > 0 ? TOTAL_BLOCKS -1 : 0));
+        myNex.writeStr("blocks.bbpag.txt",String(BB_PAGE_SELECTED));  
+        myNex.writeStr("blocks.size0.txt","SIZE[B]");
+
+        totalPages = (TOTAL_BLOCKS > 0) ? ((TOTAL_BLOCKS - 1) / MAX_BLOCKS_IN_BROWSER) + 1 : 1;
+        myNex.writeStr("blocks.totalPag.txt",String(totalPages));
+
+        for (int i = 1; i <= max; i++)
+        {
+          // ✅ LÓGICA DE INDEXACIÓN UNIFICADA Y SEGURA
+          int real_idx = (i - 1) + BB_PTR_ITEM;
+
+          if (real_idx >= TOTAL_BLOCKS - 1)
+          {
+            // Si el índice está fuera de rango, limpiamos la línea
+            myNex.writeStr("blocks.id" + String(i) + ".txt","");
+            delay(pa);
+            myNex.writeStr("blocks.data" + String(i) + ".txt","");
+            delay(pa);
+            myNex.writeStr("blocks.size" + String(i) + ".txt","");
+            delay(pa);
+            myNex.writeStr("blocks.name" + String(i) + ".txt","");
+            delay(pa);
+          }
+          else
+          {
+            // Si el índice es seguro, rellenamos la información
+            // if (TYPE_FILE_LOAD != "PZX")
+            // {
+            //   myNex.writeStr("blocks.id" + String(i) + ".txt",String(real_idx+1));
+            // }
+            // else
+            // {
+            myNex.writeStr("blocks.id" + String(i) + ".txt",String(real_idx + 1));
+            // }
+            delay(pa);
+
+            if (TYPE_FILE_LOAD == "TZX" || TYPE_FILE_LOAD == "CDT" || TYPE_FILE_LOAD == "TSX")
             {
-              // Rellenamos el browser con todos los bloques
-              const int pa = 5;
-              int max = MAX_BLOCKS_IN_BROWSER;
-              int totalPages = 0;
-      
-              // TOTAL_BLOCKS incluye +1, así que el número real de bloques es TOTAL_BLOCKS - 1
-              int realBlockCount = TOTAL_BLOCKS > 0 ? TOTAL_BLOCKS - 1 : 0;
-              if (realBlockCount > max)
-              {
-                max = MAX_BLOCKS_IN_BROWSER;
-              }
-              else
-              {
-                max = realBlockCount;
-              }
-      
-              BB_PAGE_SELECTED = (BB_PTR_ITEM / MAX_BLOCKS_IN_BROWSER) + 1;
-      
-              myNex.writeStr("blocks.path.txt",HMI_FNAME);
-              myNex.writeStr("blocks.totalBl.txt",String(TOTAL_BLOCKS > 0 ? TOTAL_BLOCKS -1 : 0));
-              myNex.writeStr("blocks.bbpag.txt",String(BB_PAGE_SELECTED));  
-              myNex.writeStr("blocks.size0.txt","SIZE[B]");
-      
-              totalPages = (TOTAL_BLOCKS > 0) ? ((TOTAL_BLOCKS - 1) / MAX_BLOCKS_IN_BROWSER) + 1 : 1;
-              myNex.writeStr("blocks.totalPag.txt",String(totalPages));
-      
-              for (int i = 1; i <= max; i++)
-              {
-                // ✅ LÓGICA DE INDEXACIÓN UNIFICADA Y SEGURA
-                int real_idx = (i - 1) + BB_PTR_ITEM;
-      
-                if (real_idx >= TOTAL_BLOCKS - 1)
-                {
-                  // Si el índice está fuera de rango, limpiamos la línea
-                  myNex.writeStr("blocks.id" + String(i) + ".txt","");
-                  delay(pa);
-                  myNex.writeStr("blocks.data" + String(i) + ".txt","");
-                  delay(pa);
-                  myNex.writeStr("blocks.size" + String(i) + ".txt","");
-                  delay(pa);
-                  myNex.writeStr("blocks.name" + String(i) + ".txt","");
-                  delay(pa);
-                }
-                else
-                {
-                  // Si el índice es seguro, rellenamos la información
-                  // if (TYPE_FILE_LOAD != "PZX")
-                  // {
-                  //   myNex.writeStr("blocks.id" + String(i) + ".txt",String(real_idx+1));
-                  // }
-                  // else
-                  // {
-                  myNex.writeStr("blocks.id" + String(i) + ".txt",String(real_idx + 1));
-                  // }
-                  delay(pa);
-      
-                  if (TYPE_FILE_LOAD == "TZX" || TYPE_FILE_LOAD == "CDT" || TYPE_FILE_LOAD == "TSX")
-                  {
-                      // ... (lógica TZX usando real_idx)
-                      // Colores, etc.
-                      myNex.writeStr("blocks.data" + String(i) + ".txt",myTZX.descriptor[real_idx + 1].typeName);
-                      delay(pa);
-                      myNex.writeStr("blocks.name" + String(i) + ".txt",myTZX.descriptor[real_idx + 1].name);
-                      delay(pa);
-                      myNex.writeStr("blocks.size" + String(i) + ".txt",String(myTZX.descriptor[real_idx + 1].size));
-                      delay(pa);
-                  }
-                  else if (TYPE_FILE_LOAD == "PZX")
-                  {
-                    // ✅ LÓGICA PZX CORREGIDA USANDO real_idx
-                    myNex.writeStr("blocks.data" + String(i) + ".txt","PZX Block");
-                    delay(pa);
-                    
-                    // Esta llamada ahora es segura
-                    myNex.writeStr("blocks.name" + String(i) + ".txt",String(myPZX.descriptor[real_idx].typeName));
-                    delay(pa);
-      
-                    myNex.writeStr("blocks.size" + String(i) + ".txt",String(myPZX.descriptor[real_idx].size));
-                    delay(pa);
-                  }
-                  else // TAP
-                  {
-                    // ✅ LÓGICA TAP CORREGIDA USANDO real_idx
-                    myNex.writeStr("blocks.data" + String(i) + ".txt",myTAP.descriptor[real_idx].typeName);
-                    delay(pa);  
-                    myNex.writeStr("blocks.name" + String(i) + ".txt",myTAP.descriptor[real_idx].name);
-                    delay(pa);
-                    myNex.writeStr("blocks.size" + String(i) + ".txt",String(myTAP.descriptor[real_idx].size));
-                    delay(pa);
-                  }
-                }
-              }
+                // ... (lógica TZX usando real_idx)
+                // Colores, etc.
+                myNex.writeStr("blocks.data" + String(i) + ".txt",myTZX.descriptor[real_idx + 1].typeName);
+                delay(pa);
+                myNex.writeStr("blocks.name" + String(i) + ".txt",myTZX.descriptor[real_idx + 1].name);
+                delay(pa);
+                myNex.writeStr("blocks.size" + String(i) + ".txt",String(myTZX.descriptor[real_idx + 1].size));
+                delay(pa);
             }
+            else if (TYPE_FILE_LOAD == "PZX")
+            {
+              // ✅ LÓGICA PZX CORREGIDA USANDO real_idx
+              myNex.writeStr("blocks.data" + String(i) + ".txt","PZX Block");
+              delay(pa);
+              
+              // Esta llamada ahora es segura
+              myNex.writeStr("blocks.name" + String(i) + ".txt",String(myPZX.descriptor[real_idx].typeName));
+              delay(pa);
+
+              myNex.writeStr("blocks.size" + String(i) + ".txt",String(myPZX.descriptor[real_idx].size));
+              delay(pa);
+            }
+            else // TAP
+            {
+              // ✅ LÓGICA TAP CORREGIDA USANDO real_idx
+              myNex.writeStr("blocks.data" + String(i) + ".txt",myTAP.descriptor[real_idx].typeName);
+              delay(pa);  
+              myNex.writeStr("blocks.name" + String(i) + ".txt",myTAP.descriptor[real_idx].name);
+              delay(pa);
+              myNex.writeStr("blocks.size" + String(i) + ".txt",String(myTAP.descriptor[real_idx].size));
+              delay(pa);
+            }
+          }
+        }
+      }
       
-      
-      //void openBlocksBrowser(tTZX myTZX = tTZX(), tTAP myTAP = tTAP(), tPZX myPZX = tPZX())
-      // void openBlocksBrowser(const tTZX& myTZX, const tTAP& myTAP, const tPZX& myPZX)
-      // {
-      //   // Rellenamos el browser con todos los bloques
-      //   const int pa = 5;
-      //   int max = MAX_BLOCKS_IN_BROWSER;
-      //   int totalPages = 0;
-
-      //   if (TOTAL_BLOCKS > max)
-      //   {
-      //     max = MAX_BLOCKS_IN_BROWSER;
-      //   }
-      //   else
-      //   {
-      //     max = TOTAL_BLOCKS - 1;
-      //   }
-
-      //   BB_PAGE_SELECTED = (BB_PTR_ITEM / MAX_BLOCKS_IN_BROWSER) + 1;
-
-      //   myNex.writeStr("blocks.path.txt",HMI_FNAME);
-      //   myNex.writeStr("blocks.totalBl.txt",String(TOTAL_BLOCKS - 1));
-      //   myNex.writeStr("blocks.bbpag.txt",String(BB_PAGE_SELECTED));  
-      //   myNex.writeStr("blocks.size0.txt","SIZE[B]");
-
-      //   // writeString("blocks.path.txt=\"" + HMI_FNAME + "\"");
-      //   // writeString("blocks.totalBl.txt=\"" + String(TOTAL_BLOCKS - 1) + "\"");
-      //   // writeString("blocks.bbpag.txt=\"" + String(BB_PAGE_SELECTED) + "\"");
-      //   // writeString("blocks.size0.txt=\"SIZE[B]\"");
-
-      //   totalPages = ((TOTAL_BLOCKS) / MAX_BLOCKS_IN_BROWSER);
-      //   if ((FILE_TOTAL_FILES) % MAX_BLOCKS_IN_BROWSER != 0)
-      //   {
-      //     totalPages += 1;
-      //   }
-
-      //   myNex.writeStr("blocks.totalPag.txt",String(totalPages));
-
-      //   for (int i = 1; i <= max; i++)
-      //   {
-      //     if (i + BB_PTR_ITEM > TOTAL_BLOCKS - 1)
-      //     {
-      //       // Los dejamos limpios pero sin informacion
-      //       myNex.writeStr("blocks.id" + String(i) + ".txt","");
-      //       delay(pa);
-      //       myNex.writeStr("blocks.data" + String(i) + ".txt","");
-      //       delay(pa);
-      //       myNex.writeStr("blocks.size" + String(i) + ".txt","");
-      //       delay(pa);
-      //       myNex.writeStr("blocks.name" + String(i) + ".txt","");
-      //       delay(pa);
-
-      //       // writeString("blocks.id" + String(i) + ".txt=\"\"");
-      //       // writeString("blocks.data" + String(i) + ".txt=\"\"");
-      //       // writeString("blocks.size" + String(i) + ".txt=\"\"");
-      //       // writeString("blocks.name" + String(i) + ".txt=\"\"");
-      //     }
-      //     else
-      //     {
-      //       // En otro caso metemos informacion
-      //       myNex.writeStr("blocks.id" + String(i) + ".txt",String(i + BB_PTR_ITEM));
-      //       delay(pa);
-
-      //       // writeString("blocks.id" + String(i) + ".txt=\"" + String(i + BB_PTR_ITEM) + "\"");
-
-      //       if (TYPE_FILE_LOAD != "TAP" && TYPE_FILE_LOAD != "PZX")
-      //       {
-
-      //         if (String(myTZX.descriptor[i + BB_PTR_ITEM].typeName).indexOf("ID 21") != -1)
-      //         {
-      //           myNex.writeNum("blocks.id" + String(i) + ".pco",2016);
-      //           delay(pa);
-      //           myNex.writeNum("blocks.data" + String(i) + ".pco",2016);
-      //           delay(pa);
-      //           myNex.writeNum("blocks.size" + String(i) + ".pco",2016);
-      //           delay(pa);
-      //           myNex.writeNum("blocks.name" + String(i) + ".pco",2016);
-      //           delay(pa);
-      //           // writeString("blocks.id" + String(i) + ".pco=2016");
-      //           // writeString("blocks.data" + String(i) + ".pco=2016");
-      //           // writeString("blocks.size" + String(i) + ".pco=2016");
-      //           // writeString("blocks.name" + String(i) + ".pco=2016");
-      //         }
-      //         else if (String(myTZX.descriptor[i + BB_PTR_ITEM].typeName).indexOf("ID 20") != -1)
-      //         {
-      //           myNex.writeNum("blocks.id" + String(i) + ".pco",64512);
-      //           delay(pa);
-      //           myNex.writeNum("blocks.data" + String(i) + ".pco",64512);
-      //           delay(pa);
-      //           myNex.writeNum("blocks.size" + String(i) + ".pco",64512);
-      //           delay(pa);
-      //           myNex.writeNum("blocks.name" + String(i) + ".pco",64512);
-      //           delay(pa);
-
-      //           // writeString("blocks.id" + String(i) + ".pco=64512");
-      //           // writeString("blocks.data" + String(i) + ".pco=64512");
-      //           // writeString("blocks.size" + String(i) + ".pco=64512");
-      //           // writeString("blocks.name" + String(i) + ".pco=64512");
-      //         }
-      //         else
-      //         {
-      //           myNex.writeNum("blocks.id" + String(i) + ".pco",57051);
-      //           delay(pa);
-      //           myNex.writeNum("blocks.data" + String(i) + ".pco",57051);
-      //           delay(pa);
-      //           myNex.writeNum("blocks.size" + String(i) + ".pco",57051);
-      //           delay(pa);
-      //           myNex.writeNum("blocks.name" + String(i) + ".pco",57051);
-      //           delay(pa);
-
-      //           // writeString("blocks.id" + String(i) + ".pco=57051");
-      //           // writeString("blocks.data" + String(i) + ".pco=57051");
-      //           // writeString("blocks.size" + String(i) + ".pco=57051");
-      //           // writeString("blocks.name" + String(i) + ".pco=57051");
-      //         }
-
-      //         int tzxSize = myTZX.descriptor[i + BB_PTR_ITEM].size;
-      //         myNex.writeStr("blocks.data" + String(i) + ".txt",myTZX.descriptor[i + BB_PTR_ITEM].typeName);
-      //          delay(pa);
-      //         //writeString("blocks.data" + String(i) + ".txt=\"" + myTZX.descriptor[i + BB_PTR_ITEM].typeName + "\"");
-      //         String tmpname = myTZX.descriptor[i + BB_PTR_ITEM].name;
-      //         tmpname.trim();
-      //         bool soloEspacios = (tmpname.length() == 0);
-      //         if (!soloEspacios)
-      //         {
-      //           myNex.writeStr("blocks.name" + String(i) + ".txt",myTZX.descriptor[i + BB_PTR_ITEM].name);
-      //           delay(pa);
-
-      //           //writeString("blocks.name" + String(i) + ".txt=\"" + myTZX.descriptor[i + BB_PTR_ITEM].name + "\"");
-      //         }
-      //         else
-      //         {
-      //           myNex.writeStr("blocks.name" + String(i) + ".txt","|__ [BL-" + String(i) + "]");
-      //           delay(pa);
-      //           //writeString("blocks.name" + String(i) + ".txt=\"..[BL-" + String(i) + "]\"");
-      //         }
-      //         myNex.writeStr("blocks.size" + String(i) + ".txt",String(tzxSize));
-      //         delay(pa);
-      //         //writeString("blocks.size" + String(i) + ".txt=\"" + String(tzxSize) + "\"");
-      //       }
-      //       else if (TYPE_FILE_LOAD == "PZX")
-      //       {
-      //         // PZX
-      //         myNex.writeStr("blocks.data" + String(i) + ".txt","PZX Block");
-      //         delay(pa);
-      //         //writeString("blocks.data" + String(i) + ".txt=\"PZX Block\"");
-
-      //         // String tmpname = "PZX Block";
-      //         // tmpname.trim();
-      //         // bool soloEspacios = (tmpname.length() == 0);
-      //         // if (!soloEspacios)
-      //         // {
-      //         //   myNex.writeStr("blocks.name" + String(i) + ".txt","PZX Block");
-      //         //   delay(pa);
-      //         //   //writeString("blocks.name" + String(i) + ".txt=\"PZX Block\"");
-      //         // }
-      //         // else
-      //         // {
-      //         // myNex.writeStr("blocks.name" + String(i) + ".txt",String(myPZX.descriptor[(i-1) + BB_PTR_ITEM].typeName));
-      //         // delay(pa);
-      //           //writeString("blocks.name" + String(i) + ".txt=\"..[BL-" + String(i) + "]\"");
-      //         // }
-      //         int pzxSize = myPZX.descriptor[(i-1) + BB_PTR_ITEM].size;
-      //         myNex.writeStr("blocks.size" + String(i) + ".txt",String(pzxSize));
-      //         delay(pa);
-      //         //writeString("blocks.size" + String(i) + ".txt=\"" + String(pzxSize) + "\"");
-      //       }
-      //       else
-      //       {
-      //         int tapSize = myTAP.descriptor[i + BB_PTR_ITEM - 1].size;
-      //         myNex.writeStr("blocks.data" + String(i) + ".txt",myTAP.descriptor[i + BB_PTR_ITEM - 1].typeName);
-      //         delay(pa);
-      //         //writeString("blocks.data" + String(i) + ".txt=\"" + myTAP.descriptor[i + BB_PTR_ITEM - 1].typeName + "\"");
-
-      //         String tmpname = myTAP.descriptor[i + BB_PTR_ITEM - 1].name;
-      //         tmpname.trim();
-      //         bool soloEspacios = (tmpname.length() == 0);
-      //         if (!soloEspacios)
-      //         {
-      //           myNex.writeStr("blocks.name" + String(i) + ".txt",myTAP.descriptor[i + BB_PTR_ITEM - 1].name);
-      //           delay(pa);
-      //           //writeString("blocks.name" + String(i) + ".txt=\"" + myTAP.descriptor[i + BB_PTR_ITEM - 1].name + "\"");
-      //         }
-      //         else
-      //         {
-      //           myNex.writeStr("blocks.name" + String(i) + ".txt","|__ [BL-" + String(i) + "]");
-      //           delay(pa);
-      //           //writeString("blocks.name" + String(i) + ".txt=\"..[BL-" + String(i) + "]\"");
-      //         }
-      //         myNex.writeStr("blocks.size" + String(i) + ".txt",String(tapSize));
-      //         delay(pa);
-      //         //writeString("blocks.size" + String(i) + ".txt=\"" + String(tapSize) + "\"");
-      //       }
-      //     }
-          
-      //   }
-      // }
 
       // ---------------------------------------------------------------------------------------
       // HTTPClient

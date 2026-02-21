@@ -619,6 +619,7 @@ bool FILE_SELECTED = false;
 bool FILE_PREPARED = false;
 bool FILE_INSIDE_TAPE = false;
 bool PROGRAM_NAME_DETECTED = false;
+bool REQ_LAST_MEDIA = false;
 
 tFileBuffer FILES_BUFF[MAX_FILES_TO_LOAD];
 tFileBuffer FILES_FOUND_BUFF[MAX_FILES_FOUND_BUFF];

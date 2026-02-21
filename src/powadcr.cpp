@@ -1196,37 +1196,6 @@ void WavRecording() {
 
   WAVFILE_PRELOAD = true;
 
-  // if (BTNREC_PRESSED)
-  // {
-  //   BTNREC_PRESSED = false;
-  //   // // Convertimos a TAP
-  //   // if (taprec.convertWAVtoTAP(REC_FILENAME.c_str(), ("/REC/" + wavfilename + ".tap").c_str())) 
-  //   // {
-  //   //   LAST_MESSAGE = "WAV to TAP conversion done. Saved as /REC/" + wavfilename + ".tap";
-  //   //     logln("WAV to TAP conversion done.");
-
-  //   // } 
-  //   // else 
-  //   // {
-  //   //   LAST_MESSAGE = "WAV to TAP conversion failed.";
-  //   //     logln("WAV to TAP conversion failed.");
-  //   // }
-
-  //   // Convertimos a TZX
-  //   // if (taprec.convertWAVtoTZXDR(REC_FILENAME.c_str(), ("/REC/" + wavfilename + ".tzx").c_str())) 
-  //   // {
-  //   //   LAST_MESSAGE = "WAV to TZX conversion done. Saved as /REC/" + wavfilename + ".tzx";
-  //   //   logln("WAV to TZX conversion done.");
-  //   // } 
-  //   // else 
-  //   // {
-  //   //   LAST_MESSAGE = "WAV to TZX conversion failed.";
-  //   //   logln("WAV to TZX conversion failed.");
-  //   // }
-
-  //   // Retornamos
-  // }
-
 }
 
 void stopRecording() {
@@ -1605,6 +1574,15 @@ String removeExtension(const String &filename) {
     return filename.substring(0, dotIndex);
   }
   return filename; // Si no hay punto, devuelve el nombre tal cual
+}
+
+// Devuelve solo el directorio de una ruta completa
+inline String getDirFromPath(String fullPath) {
+  int lastSlash = fullPath.lastIndexOf('/');
+  if (lastSlash > 0) {
+    return fullPath.substring(0, lastSlash);
+  }
+  return "";
 }
 
 String getFileNameFromPath(const String &filePath) {
@@ -3002,12 +2980,13 @@ void MediaPlayer() {
   LAST_MESSAGE = "Initializing player...";
   hmi.writeString("statusLCD.txt=\"" + LAST_MESSAGE + "\"");
   waitflag = 0;
-  while (!player.begin() && !EJECT) {
+  while (!player.begin() && !EJECT) 
+  {
     if (waitflag++ > 32) // Esperamos un maximo de 32*125ms = 4s
     {
       LAST_MESSAGE = "Error indexing files. Open again.";
       delay(2000);
-      break;
+      return;
     }
     delay(125);
   }
@@ -3015,10 +2994,10 @@ void MediaPlayer() {
   LAST_MESSAGE = "Player ready. Press Play.";
   hmi.writeString("statusLCD.txt=\"" + LAST_MESSAGE + "\"");
 
-// Si la salida de bluetooth está a tope, no demoramos
-#ifdef BLUETOOTH_ENABLE
-  player.setDelayIfOutputFull(0);
-#endif
+  // Si la salida de bluetooth está a tope, no demoramos
+  #ifdef BLUETOOTH_ENABLE
+    player.setDelayIfOutputFull(0);
+  #endif
 
   // ---------------------------------------------------------------
   //
@@ -3026,7 +3005,8 @@ void MediaPlayer() {
   //
   // ---------------------------------------------------------------
 
-  while (!EJECT && !REC) {
+  while (!EJECT && !REC) 
+  {
     // Actualizamos el volumen y el ecualizador si es necesario
     // Control del ecualizador
     if (EQ_CHANGE) {
@@ -4354,7 +4334,8 @@ void loadingFile(char *file_ch) {
   // Cogemos el fichero seleccionado y lo cargamos
 
   // Si no está vacio
-  if (FILE_SELECTED) {
+  if (FILE_SELECTED) 
+  {
 
     // Convierto a mayusculas
     PATH_FILE_TO_LOAD.toUpperCase();
@@ -4365,15 +4346,16 @@ void loadingFile(char *file_ch) {
 
     // Eliminamos la memoria ocupado por el actual insertado
     // y lo ejectamos
-    if (FILE_PREPARED) {
+    if (FILE_PREPARED) 
+    {
       logln("Now ejecting file - Step 3");
       ejectingFile();
       FILE_PREPARED = false;
     }
 
     // Cargamos el seleccionado.
-    if (PATH_FILE_TO_LOAD.indexOf(".TAP", PATH_FILE_TO_LOAD.length() - 4) !=
-        -1) {
+    if (PATH_FILE_TO_LOAD.indexOf(".TAP", PATH_FILE_TO_LOAD.length() - 4) != -1) 
+    {
       logln("");
       logln("TAP file");
       logln("");
@@ -4395,27 +4377,27 @@ void loadingFile(char *file_ch) {
       proccesingTAP(file_ch);
       TYPE_FILE_LOAD = "TAP";
       BYTES_TOBE_LOAD = myTAP.size;
-    } else if (PATH_FILE_TO_LOAD.indexOf(".PZX", PATH_FILE_TO_LOAD.length() -
-                                                     4) != -1) {
+    } 
+    else if (PATH_FILE_TO_LOAD.indexOf(".PZX", PATH_FILE_TO_LOAD.length() - 4) != -1) 
+    {
       pPZX.setPZX(myPZX);
       // Lo procesamos
       proccesingPZX(file_ch);
       TYPE_FILE_LOAD = "PZX";
       BYTES_TOBE_LOAD = myPZX.size;
-    } else if ((PATH_FILE_TO_LOAD.indexOf(".TZX", PATH_FILE_TO_LOAD.length() -
-                                                      4) != -1) ||
-               (PATH_FILE_TO_LOAD.indexOf(".TSX", PATH_FILE_TO_LOAD.length() -
-                                                      4) != -1) ||
-               (PATH_FILE_TO_LOAD.indexOf(".CDT", PATH_FILE_TO_LOAD.length() -
-                                                      4) != -1)) {
+    } 
+    else if ((PATH_FILE_TO_LOAD.indexOf(".TZX", PATH_FILE_TO_LOAD.length() - 4) != -1) ||
+               (PATH_FILE_TO_LOAD.indexOf(".TSX", PATH_FILE_TO_LOAD.length() - 4) != -1) ||
+               (PATH_FILE_TO_LOAD.indexOf(".CDT", PATH_FILE_TO_LOAD.length() - 4) != -1)) 
+               {
 
       // Verificamos si hay fichero de configuracion para este archivo
       // seleccionado
       verifyConfigFileForSelection(); // Reservamos memoria
       //
-      if (!myTZXmemoryReserved) {
-        myTZX.descriptor = (tTZXBlockDescriptor *)ps_calloc(
-            MAX_BLOCKS_IN_TZX, sizeof(struct tTZXBlockDescriptor));
+      if (!myTZXmemoryReserved) 
+      {
+        myTZX.descriptor = (tTZXBlockDescriptor *)ps_calloc(MAX_BLOCKS_IN_TZX, sizeof(struct tTZXBlockDescriptor));
         myTZXmemoryReserved = true;
       }
 
@@ -4425,45 +4407,37 @@ void loadingFile(char *file_ch) {
       // Lo procesamos. Para ZX Spectrum
       proccesingTZX(file_ch);
 
-      if (PATH_FILE_TO_LOAD.indexOf(".TZX", PATH_FILE_TO_LOAD.length() - 4) !=
-          -1) {
+      if (PATH_FILE_TO_LOAD.indexOf(".TZX", PATH_FILE_TO_LOAD.length() - 4) != -1) {
         TYPE_FILE_LOAD = "TZX";
-      } else if (PATH_FILE_TO_LOAD.indexOf(".TSX", PATH_FILE_TO_LOAD.length() -
-                                                       4) != -1) {
+      } else if (PATH_FILE_TO_LOAD.indexOf(".TSX", PATH_FILE_TO_LOAD.length() - 4) != -1) {
         TYPE_FILE_LOAD = "TSX";
-      } else if (PATH_FILE_TO_LOAD.indexOf(".PZX", PATH_FILE_TO_LOAD.length() -
-                                                       4) != -1) {
+      } else if (PATH_FILE_TO_LOAD.indexOf(".PZX", PATH_FILE_TO_LOAD.length() - 4) != -1) {
         TYPE_FILE_LOAD = "PZX";
       } else {
         TYPE_FILE_LOAD = "CDT";
       }
       BYTES_TOBE_LOAD = myTZX.size;
-    } else if (PATH_FILE_TO_LOAD.indexOf(".WAV", PATH_FILE_TO_LOAD.length() -
-                                                     4) != -1) {
+    } else if (PATH_FILE_TO_LOAD.indexOf(".WAV", PATH_FILE_TO_LOAD.length() - 4) != -1) {
       logln("Wav file to load: " + PATH_FILE_TO_LOAD);
       FILE_PREPARED = true;
       TYPE_FILE_LOAD = "WAV";
-    } else if (PATH_FILE_TO_LOAD.indexOf(".MP3", PATH_FILE_TO_LOAD.length() -
-                                                     4) != -1) {
+    } else if (PATH_FILE_TO_LOAD.indexOf(".MP3", PATH_FILE_TO_LOAD.length() - 4) != -1) {
       logln("MP3 file to load: " + PATH_FILE_TO_LOAD);
       FILE_PREPARED = true;
       TYPE_FILE_LOAD = "MP3";
-    } else if (PATH_FILE_TO_LOAD.indexOf(".FLAC", PATH_FILE_TO_LOAD.length() -
-                                                      5) != -1) {
+    } else if (PATH_FILE_TO_LOAD.indexOf(".FLAC", PATH_FILE_TO_LOAD.length() - 5) != -1) {
       logln("FLAC file to load: " + PATH_FILE_TO_LOAD);
       FILE_PREPARED = true;
       TYPE_FILE_LOAD = "FLAC";
-    } else if (PATH_FILE_TO_LOAD.indexOf(".RADIO", PATH_FILE_TO_LOAD.length() -
-                                                       6) != -1) {
+    } else if (PATH_FILE_TO_LOAD.indexOf(".RADIO", PATH_FILE_TO_LOAD.length() - 6) != -1) {
       logln("RADIO file to load: " + PATH_FILE_TO_LOAD);
       FILE_PREPARED = true;
       TYPE_FILE_LOAD = "RADIO";
     }
   } else {
-#ifdef DEBUGMODE
-    logAlert("Nothing was prepared.");
-#endif
-    // changeLogo(0);
+    #ifdef DEBUGMODE
+        logAlert("Nothing was prepared.");
+    #endif
 
     if (FILE_PREPARED) {
       logln("Now ejecting file - Step 2");
@@ -4595,14 +4569,6 @@ void prepareRecording() {
 void RECready() { prepareRecording(); }
 
 void getAudioSettingFromHMI() {
-  // if (myNex.readNumber("menuAdio.enTerm.val") == 1)
-  // {
-  //   APPLY_END = true;
-  // }
-  // else
-  // {
-  //   APPLY_END = false;
-  // }
 
   if (myNex.readNumber("menuAdio.polValue.val") == 1) {
     // Para que empiece en DOWN tenemos que poner POLARIZATION en UP
@@ -5072,14 +5038,14 @@ void tapeControl() {
 
     LOADING_STATE = 0;
 
-#ifdef DEBUGMODE
-    logAlert("Tape state 0");
-#endif
+    #ifdef DEBUGMODE
+        logAlert("Tape state 0");
+    #endif
 
-    if (EJECT && !STOP_OR_PAUSE_REQUEST) {
-#ifdef DEBUGMODE
-      logAlert("EJECT state in TAPESTATE = " + String(TAPESTATE));
-#endif
+        if (EJECT && !STOP_OR_PAUSE_REQUEST) {
+    #ifdef DEBUGMODE
+          logAlert("EJECT state in TAPESTATE = " + String(TAPESTATE));
+    #endif
 
       // Inicializamos la polarizacion
       EDGE_EAR_IS = INVERSETRAIN ? POLARIZATION ^ 1 : POLARIZATION;
@@ -5100,32 +5066,54 @@ void tapeControl() {
       BB_PAGE_SELECTED = 0;
       //
       setPolarization();
-    } else if (SAMPLINGTEST) {
+    }
+    else if (SAMPLINGTEST) 
+    {
       logln("Testing is output at 96KHz");
       zxp.samplingtest(96000);
 
       SAMPLINGTEST = false;
-    } else if (REC) {
+    } 
+    else if (REC) 
+    {
       recCondition();
-    } else if (DISABLE_SD) {
-      // DISABLE_SD = false;
-      // // Deshabilitamos temporalmente la SD para poder subir un firmware
-      // SD_MMC.end();
-      // int tout = 59;
-      // while (tout != 0)
-      // {
-      //   delay(1000);
-      //   hmi.writeString("debug.blockLoading.txt=\"" + String(tout) + "\"");
-      //   tout--;
-      // }
+    }
+    else if (DISABLE_SD) 
+    {
+      // ------------------
+      // Disable SD
+      // ------------------
+    } 
+    else if (PLAY) 
+    {
+      //
+      // Reproducimos el ultimo fichero cargado
+      //
+      logln("State: Play was pressed. Loading last file.");
+      // Cargamos el ultimo fichero reproducido en el cassette
+      FILE_BROWSER_OPEN = false;
+      UPDATE_FROM_REMOTE_CONTROL = false;
+      ABORT = false;
+      EJECT = false;
+      PLAY = false;
+      REC = false;
+      // Esto se usa para reproducir
+      FILE_SELECTED = true;
+      FILE_PREPARED = false;
+      LOADING_STATE = 0;
+      TAPESTATE = 100;
 
-      // hmi.writeString("debug.blockLoading.txt=\"..\"");
+      // Cargamos el medio
+      PATH_FILE_TO_LOAD = hmi.loadLastMedia();
+      FILE_LOAD = getFileNameFromPath(PATH_FILE_TO_LOAD);
+      FILE_LAST_DIR = getDirFromPath(PATH_FILE_TO_LOAD);
 
-      // if (!SD_MMC.begin(SD_CHIP_SELECT, SD_SCK_MHZ(SD_SPEED_MHZ)))
-      // {
-      //   logln("Error recoverind SD access");
-      // };
-    } else {
+      // Mostramos la página de carga
+      hmi.writeString("page tape");          
+      delay(125);
+    } 
+    else 
+    {
       TAPESTATE = 0;
       LOADING_STATE = 0;
       PLAY = false;
@@ -5455,10 +5443,10 @@ void tapeControl() {
 #endif
 
     if (FILE_BROWSER_OPEN) {
-// Abrimos el filebrowser
-#ifdef DEBUGMODE
-      logAlert("State: File browser keep open.");
-#endif
+      // Abrimos el filebrowser
+      #ifdef DEBUGMODE
+            logAlert("State: File browser keep open.");
+      #endif
 
       TAPESTATE = 100;
       LOADING_STATE = 0;
@@ -5471,30 +5459,33 @@ void tapeControl() {
       EJECT = false;
     } else {
       TAPESTATE = 99;
-      LOADING_STATE = 0;
+      LOADING_STATE = 0;     
     }
   } break;
 
-  case 100: {
-//
-// Filebrowser open
-//
-#ifdef DEBUGMODE
-    logAlert("Tape state 100");
-#endif
+  case 100: 
+  {
+    //
+    // Filebrowser open
+    //
+    #ifdef DEBUGMODE
+        logAlert("Tape state 100");
+    #endif
 
-    if (!FILE_BROWSER_OPEN) {
-#ifdef DEBUGMODE
-      logln("State: File browser was closed.");
-      logln("Vble. FILE_SELECTED = " + String(FILE_SELECTED));
-#endif
+    if (!FILE_BROWSER_OPEN) 
+    {
+      #ifdef DEBUGMODE
+            logln("State: File browser was closed.");
+            logln("Vble. FILE_SELECTED = " + String(FILE_SELECTED));
+      #endif
       //
       // Cerramos el filebrowser.
       // y entramos en el estado FILE_PREPARED (inside the tape)
       //
       EJECT = false;
 
-      if (UPDATE_FROM_REMOTE_CONTROL) {
+      if (UPDATE_FROM_REMOTE_CONTROL)
+      {
         logln("Loading file from REMOTE CONTROL: " + FILE_LOAD);
         // Si venimos del control remoto, forzamos la selección del fichero
         UPDATE_FROM_REMOTE_CONTROL = false;
@@ -5513,31 +5504,39 @@ void tapeControl() {
         delay(1000);
         //
         playingFile();
-      } else {
-        if (FILE_SELECTED) {
+      } 
+      else 
+      {
+        if (FILE_SELECTED) 
+        {
           // Si se ha seleccionado lo cargo en el cassette.
           char file_ch[257];
           PATH_FILE_TO_LOAD.toCharArray(file_ch, 256);
           loadingFile(file_ch);
+          
+          REQ_LAST_MEDIA = false;
 
           // Ponemos FILE_SELECTED = false, para el proximo fichero
           FILE_SELECTED = false;
 
           // Ahora miro si está preparado
-          if (FILE_PREPARED) {
-#ifdef DEBUGMODE
-            logAlert("File inside the tape.");
-#endif
+          if (FILE_PREPARED) 
+          {
+            #ifdef DEBUGMODE
+                        logAlert("File inside the tape.");
+            #endif
 
             // Avanzamos ahora hasta el primer bloque playeable
-            if (!ABORT) {
+            if (!ABORT) 
+            {
               logln("Type file load: " + TYPE_FILE_LOAD);
 
               // Para poner mas logos actualizar el HMI
               putLogo();
 
               if (TYPE_FILE_LOAD != "WAV" && TYPE_FILE_LOAD != "MP3" &&
-                  TYPE_FILE_LOAD != "FLAC" && TYPE_FILE_LOAD != "RADIO") {
+                  TYPE_FILE_LOAD != "FLAC" && TYPE_FILE_LOAD != "RADIO") 
+                  {
                 getTheFirstPlayeableBlock();
 
                 LAST_MESSAGE = "File inside the TAPE.";
@@ -5574,7 +5573,9 @@ void tapeControl() {
 
             LAST_MESSAGE = "No file inside the tape";
           }
-        } else {
+        } 
+        else 
+        {
           // Volvemos al estado inicial.
           TAPESTATE = 0;
           LOADING_STATE = 0;
@@ -5582,7 +5583,8 @@ void tapeControl() {
           // LAST_MESSAGE = "TYPE LOAD: " + TYPE_FILE_LOAD;
           // delay(2000);
 
-          if (FILE_PREPARED) {
+          if (FILE_PREPARED) 
+          {
             logln("Now ejecting file - Step 1");
             ejectingFile();
             FILE_PREPARED = false;
