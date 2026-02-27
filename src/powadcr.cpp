@@ -1148,11 +1148,6 @@ void WavRecording() {
   
   uint32_t samplesWritten = 0;
 
-  if (WAV_8BIT_MONO) 
-  {
-    LAST_MESSAGE = "Warning: I2S output not supports 8-bits";
-    delay(1500);
-  } 
   //
   LAST_MESSAGE = "Recording to WAV - Press STOP to finish.";
 
