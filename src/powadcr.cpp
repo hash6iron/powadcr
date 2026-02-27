@@ -1072,6 +1072,175 @@ void WavRecording() {
 
   logln("Starting WAV recording... on file " + wavfilename);
 
+  AudioInfo info(DEFAULT_WAV_SAMPLING_RATE_REC, 1, 16);
+  AudioInfo infoStereo(DEFAULT_WAV_SAMPLING_RATE_REC, 2, 16);
+  // Stream de audio del WAV
+  EncodedAudioStream encoder(&wavfile, new WAVEncoder()); // Encoder WAV PCM
+  // Convertidor 16 a 8 bits
+  NumberFormatConverterStreamT<int16_t, uint8_t> nfc;
+
+  // --- MultiOutput y copier para WAV ---
+  MultiOutput multi;
+
+  if (WAV_8BIT_MONO)
+  {
+    multi.add(nfc);
+    multi.add(kitStream);
+
+    nfc.setOutput(encoder);
+  }
+  else
+  {
+    multi.add(encoder);
+    multi.add(kitStream);
+  }
+
+  StreamCopy copier;
+
+  // Esperamos a que la pantalla esté lista
+  recAnimationOFF();
+  delay(125);
+  recAnimationFIXED_ON();
+  tapeAnimationON();
+
+  // Agregamos las salidas al multiple
+  
+  if (WAV_8BIT_MONO) 
+  {
+    // Configuramos el convertidor para 8-bit mono, con la misma frecuencia de muestreo que el encoder
+    
+    // Configuracion del convertidor
+    nfc.setAudioInfo(info);
+    nfc.begin(info);
+
+    // Inicializamos el multiple output con la configuración de señal del convertidor
+    //multi.setAudioInfo(info);
+    multi.begin(info);
+    // Configuramos el copier
+    copier.begin(multi, kitStream); // WAV: fuente kitStream, destinos encoder y kitStream
+    copier.setSynchAudioInfo(true);
+    // IMPORTATNTE: Inicializamos el encoder y kitStream con la configuración de señal del convertidor
+    encoder.begin(nfc.audioInfoOut());
+  } 
+  else 
+  {
+    // Configuramos el encoder para 44KHz, 16-bit stereo, 2 canales
+    multi.setAudioInfo(infoStereo);
+    multi.begin();
+    // Configuramos el copier
+    copier.begin(multi, kitStream); // WAV: fuente kitStream, destinos encoder y kitStream
+    copier.setSynchAudioInfo(true);
+    // Inicializamos el encoder
+    encoder.begin(infoStereo);
+  }
+
+  // Iniciamos el encoder con la configuración de señal
+  
+
+  // Reset de variables
+  STOP = false;
+  WAVFILE_PRELOAD = false;
+  BTNREC_PRESSED = false;
+
+  // Indicamos
+  hmi.writeString("tape.lblFreq.txt=\"" + String(int(kitStream.audioInfo().sample_rate / 1000)) +
+                  "KHz\"");
+  
+  uint32_t samplesWritten = 0;
+
+  if (WAV_8BIT_MONO) 
+  {
+    LAST_MESSAGE = "Warning: I2S output not supports 8-bits";
+    delay(1500);
+  } 
+  //
+  LAST_MESSAGE = "Recording to WAV - Press STOP to finish.";
+
+  //
+  while (!STOP && !BTNREC_PRESSED) {
+    size_t samplesCopied = copier.copy();
+    wavfilesize += samplesCopied;
+
+    // Actualiza tiempo y UI
+    if ((millis() - progress_millis) > 1000) {
+      rectime_s++;
+      if (rectime_s > 59) {
+        rectime_s = 0;
+        rectime_m++;
+      }
+      progress_millis = millis();
+    }
+    if ((millis() - progress_millis2) > 1000) {
+      LAST_MESSAGE = "Recording time: " +
+                     ((rectime_m < 10 ? "0" : "") + String(rectime_m)) + ":" +
+                     ((rectime_s < 10 ? "0" : "") + String(rectime_s));
+      hmi.writeString("size.txt=\"" +
+                      String(wavfilesize > 1000000 ? wavfilesize / 1024 / 1024
+                                                   : wavfilesize / 1024) +
+                      (wavfilesize > 1000000 ? " MB" : " KB") + "\"");
+      progress_millis2 = millis();
+    }
+  }
+
+  logln("File has ");
+  log(String(wavfilesize / 1024));
+  log(" Kbytes");
+
+  // Paramos todo
+  TAPESTATE = 0;
+  LOADING_STATE = 0;
+  RECORDING_ERROR = 0;
+  REC = false;
+  recAnimationOFF();
+  recAnimationFIXED_OFF();
+  tapeAnimationOFF();
+
+  LAST_MESSAGE = "Recording finish";
+  logln("Recording finish!");
+
+  hmi.writeString("size.txt=\"" +
+                  String(wavfilesize > 1000000 ? wavfilesize / 1024 / 1024
+                                               : wavfilesize / 1024) +
+                  (wavfilesize > 1000000 ? " MB" : " KB") + "\"");
+
+  copier.end();
+  encoder.end();
+  nfc.end();
+  multi.end();
+
+  // Cerramos el fichero WAV
+  wavfile.flush();
+  wavfile.close();
+
+  WAVFILE_PRELOAD = true;
+
+}
+
+
+void WavRecording_old() {
+  //-----------------------------------------------------------
+  //
+  // Esta rutina graba en WAV el audio que entra por LINE IN
+  //
+  //-----------------------------------------------------------
+  String wavfilename = wavfile.name();
+
+  unsigned long progress_millis = 0;
+  unsigned long progress_millis2 = 0;
+  int rectime_s = 0;
+  int rectime_m = 0;
+  size_t wavfilesize = 0;
+
+  auto new_sr = kitStream.defaultConfig(RXTX_MODE);
+  // Guardamos la configuracion de sampling rate
+  SAMPLING_RATE = new_sr.sample_rate;
+  new_sr.sample_rate = DEFAULT_WAV_SAMPLING_RATE_REC;
+  kitStream.setAudioInfo(new_sr);
+  // Actuamos sobre el amplificador
+  kitStream.setPAPower(ACTIVE_AMP && EN_SPEAKER);  
+
+  logln("Starting WAV recording... on file " + wavfilename);
+
 
   AudioInfo info(DEFAULT_WAV_SAMPLING_RATE_REC, 1, 16);
   AudioInfo infoStereo(DEFAULT_WAV_SAMPLING_RATE_REC, 2, 16);
@@ -1088,7 +1257,6 @@ void WavRecording() {
   StreamCopy copier;
 
   // Esperamos a que la pantalla esté lista
-  LAST_MESSAGE = "Recording to WAV - Press STOP to finish.";
   recAnimationOFF();
   delay(125);
   recAnimationFIXED_ON();
@@ -1139,6 +1307,15 @@ void WavRecording() {
   
   uint32_t samplesWritten = 0;
 
+  if (WAV_8BIT_MONO) 
+  {
+    LAST_MESSAGE = "Warning: I2S output not supports 8-bits";
+    delay(1500);
+  } 
+  //
+  LAST_MESSAGE = "Recording to WAV - Press STOP to finish.";
+
+  //
   while (!STOP && !BTNREC_PRESSED) {
     size_t samplesCopied = copier.copy();
     wavfilesize += samplesCopied;

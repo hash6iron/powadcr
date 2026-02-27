@@ -101,7 +101,7 @@
 // Enable / Disable Audiokit logging
 #define USE_AUDIO_LOGGING false
 // States of LOG_LEVEL: Debug, Info, Warning, Error
-#define LOG_LEVEL AudioLogger::Info
+#define LOG_LEVEL AudioLogger::Debug
 // Definicion del puerto serie para la pantalla
 #define SerialHWDataBits 921600
 //  pinout
