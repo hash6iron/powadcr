@@ -8024,24 +8024,9 @@ void Task0code(void *pvParameters) {
           }
         }
 
-
-        if (millis() - startTime4 > timeRTC) 
-        {
-          // Timer para actualizar hora RTC
-          // if (CURRENT_PAGE == 0) 
-          // {             
-          //   LAST_MESSAGE = getFormattedDateTime(rtc.getAmPm(),rtc.getDay(), rtc.getMonth(), rtc.getYear(),
-          //                           rtc.getHour(), rtc.getMinute(), rtc.getSecond()) + " - Press EJECT or REC.";
-            
-          //   lasthour = 0;
-          //   lastminute = 0;
-          //   lastsecond = 0;
-          //   lastTimeMessage = "";
-          //   lastRadioIsPlaying = false;
-          //   lastMusicIsPlaying = false;
-          // }
-          // else 
-          
+        // Actualizamos el RTC
+        if ((millis() - startTime4 > timeRTC) && NTP_AVAILABLE) 
+        {          
           if (CURRENT_PAGE == 99) 
           {
 
@@ -8132,6 +8117,8 @@ void Task0code(void *pvParameters) {
             lastTimeMessage = "";
             lastRadioIsPlaying = false;
             lastMusicIsPlaying = false;
+            //
+            //hmi.writeString("page tape");
           }                              
 
           startTime4 = millis();           
@@ -8476,12 +8463,14 @@ void setupNTP()
   if (!getLocalTime(&timeinfo)) {
     logln("NTP. Failed to obtain time");
     hmi.writeString("statusLCD.txt=\"NTP pool failed\"");
+    NTP_AVAILABLE = false;
     return;
   }
   rtc.setTimeStruct(timeinfo);
   //rtc.setTime(30, 24, 15, 17, 1, 2021);
   logln(rtc.getTime("%A, %B %d %Y %H:%M:%S"));
   hmi.writeString("statusLCD.txt=\"" + rtc.getTime("%A, %B %d %Y %H:%M:%S") + "\"");
+  NTP_AVAILABLE = true;
   delay(2000);
   //struct tm timeinfo = rtc.getTimeStruct();
 }
