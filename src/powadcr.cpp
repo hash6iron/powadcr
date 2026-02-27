@@ -8400,65 +8400,17 @@ void setupWifi() {
   delay(750);
 }
 
-// void setupNTPClient()
-// {
-//     hmi.writeString("statusLCD.txt=\"NTP Client running\"");
-//     // NTP Client
-//     timeclient.begin();
-//     timeclient.setTimeOffset(TIMEZONE * 3600);
-//     timeclient.forceUpdate();
-//     String formattedDate = timeclient.getFormattedDate();
-//     logln("NTP client running");
-//     logln(formattedDate);
-
-//     // Extract date
-//     int splitT = formattedDate.indexOf("T");
-//     String NTPday = formattedDate.substring(0, splitT);
-//     // Extract time
-//     String NTPtime = formattedDate.substring(splitT + 1, formattedDate.length() - 1);
-
-
-//     updateNTP();
-//     setNtpDateTimeFromStrings(NTPday, NTPtime);
-//     time_t tepoch = getNtpEpoch();
-
-//     rtc.setTime(TIMEINFO.tm_sec, TIMEINFO.tm_min, TIMEINFO.tm_hour, TIMEINFO.tm_mday, TIMEINFO.tm_mon + 1, TIMEINFO.tm_year + 1900);
-//     delay(5000);
-//     //rtc.setTimeStruct(TIMEINFO);
-//     hmi.writeString("statusLCD.txt=\"" + NTPday + " - " + NTPtime + "\"");
-//     getLocalTime(&TIMEINFO);
-//     logln("TIMEINFO struct log:");
-//     logln("tm_sec: " + String(TIMEINFO.tm_sec));
-//     logln("tm_min: " + String(TIMEINFO.tm_min));
-//     logln("tm_hour: " + String(TIMEINFO.tm_hour));    
-//     logln("tm_mday: " + String(TIMEINFO.tm_mday));
-//     logln("tm_mon: " + String(TIMEINFO.tm_mon));
-//     logln("tm_year: " + String(TIMEINFO.tm_year));
-//     logln("tm_wday: " + String(TIMEINFO.tm_wday));
-//     logln("tm_yday: " + String(TIMEINFO.tm_yday));
-//     logln("tm_isdst: " + String(TIMEINFO.tm_isdst));
-//     logln("----------");
-//     logln(rtc.getTimeDate(false));    
-//     logln("From RTC:");
-//     logln("Date & Time: " + String(rtc.getDay()) + "/" + String(rtc.getMonth()) + "/" + String(rtc.getYear()) + " " + String(rtc.getHour()) + ":" + String(rtc.getMinute()) + ":" + String(rtc.getSecond()));
-//     delay(1000);
-//     logln("------");
-//     logln("Date & Time: " + String(rtc.getDay()) + "/" + String(rtc.getMonth()) + "/" + String(rtc.getYear()) + " " + String(rtc.getHour()) + ":" + String(rtc.getMinute()) + ":" + String(rtc.getSecond()));
-
-//     //
-    
-// }
-
 void setupNTP()
 {
   // NTP Client
   hmi.writeString("statusLCD.txt=\"NTP and RTC settings\"");
   const char* ntpServer1 = NTPSERVER;
   const char* ntpServer2 = "pool.ntp.org";
+  const char* ntpServer3 = "time.google.com";
 
   const long gmtOffset_sec = TIMEZONE * 3600;
   const int daylightOffset_sec = SUMMERTIME ? 3600 : 0;
-  configTime(gmtOffset_sec, daylightOffset_sec, ntpServer1, ntpServer2);
+  configTime(gmtOffset_sec, daylightOffset_sec, ntpServer1, ntpServer2, ntpServer3);
   struct tm timeinfo;
   if (!getLocalTime(&timeinfo)) {
     logln("NTP. Failed to obtain time");
@@ -8841,8 +8793,6 @@ void setup() {
   // Configuramos el reloj interno del sistema
   //
   // -------------------------------------------------------------------------
-  //updateNTP();
-  //setupNTPClient();
   setupNTP();
  
   
