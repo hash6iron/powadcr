@@ -434,15 +434,13 @@ bool loadCfgFile() {
       logln("");
 
       // Hostname
-      strcpy(HOSTNAME,
-             (getValueOfParam(CFGSYSTEM[0].cfgLine, "hostname")).c_str());
+      strcpy(HOSTNAME, (getValueOfParam(CFGSYSTEM[0].cfgLine, "hostname")).c_str());
       logln(HOSTNAME);
       // SSID - Wifi
       ssid = (getValueOfParam(CFGSYSTEM[1].cfgLine, "ssid")).c_str();
       logln(ssid);
       // Password - WiFi
-      strcpy(password,
-             (getValueOfParam(CFGSYSTEM[2].cfgLine, "password")).c_str());
+      strcpy(password, (getValueOfParam(CFGSYSTEM[2].cfgLine, "password")).c_str());
       logln(password);
 
       // Local IP
@@ -476,29 +474,27 @@ bool loadCfgFile() {
       IP = strToIPAddress(String(ip1));
       secondaryDNS = IPAddress(IP[0], IP[1], IP[2], IP[3]);
 
-      // MCP23017
-      strcpy(param,
-             (getValueOfParam(CFGSYSTEM[8].cfgLine, "MCP23017")).c_str());
+      // MCP23017 (on/off)
+      strcpy(param, (getValueOfParam(CFGSYSTEM[8].cfgLine, "MCP23017")).c_str());
       logln("MCP23017: " + String(param));
-      MCP23017_AVAILABLE = String(param) == "on" ? true : false;
+      String(param).toLowerCase();
+      MCP23017_AVAILABLE = String(param) == "on" || String(param) == "1" ? true : false;
 
       // NTP-SERVER
-      strcpy(param,
-             (getValueOfParam(CFGSYSTEM[9].cfgLine, "NTPSERVER")).c_str());
+      strcpy(param, (getValueOfParam(CFGSYSTEM[9].cfgLine, "NTPSERVER")).c_str());
       logln("NTP-SERVER: " + String(param));
       NTPSERVER = param;
 
       // NTP-TIMEZONE
-      strcpy(param,
-             (getValueOfParam(CFGSYSTEM[10].cfgLine, "TIMEZONE")).c_str());
+      strcpy(param, (getValueOfParam(CFGSYSTEM[10].cfgLine, "TIMEZONE")).c_str());
       TIMEZONE = String(param).toInt();
       logln("TIMEZONE: " + String(TIMEZONE));
 
-      // NTP-SUMMER TIME
-      strcpy(param,
-             (getValueOfParam(CFGSYSTEM[11].cfgLine, "SUMMERTIME")).c_str());
+      // NTP-SUMMER TIME (on/off)
+      strcpy(param, (getValueOfParam(CFGSYSTEM[11].cfgLine, "SUMMERTIME")).c_str());
       logln("SUMMERTIME: " + String(param));
-      SUMMERTIME = String(param).toInt();
+      String(param).toLowerCase();
+      MCP23017_AVAILABLE = String(param) == "on" || String(param) == "1" ? true : false;
 
 
       logln("");
