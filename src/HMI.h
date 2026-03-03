@@ -3849,6 +3849,7 @@ private:
             //updateInformationMainPage(true);
             TAPE_PAGE_SHOWN = false;
             RADIO_PAGE_SHOWN = false;
+            TAPE0_PAGE_SHOWN = true;
         }      
         else if (strCmd.indexOf("PCLOCK") != -1)
         {

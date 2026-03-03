@@ -278,6 +278,8 @@ private:
     return _yf[2];
   }
 
+  public: 
+
   void createPulse(int width, int bytes, uint16_t sample_R, uint16_t sample_L) {
     size_t result = 0;
     uint8_t buffer[bytes + 4];
@@ -314,6 +316,8 @@ private:
     }
   }
 
+  private: 
+  
   void sampleDR(int samples, int amp) {
     // Calculamos el tamaño del buffer
     int bytes = 0; // Cada muestra ocupa 2 bytes (16 bits)

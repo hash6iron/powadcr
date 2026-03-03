@@ -411,7 +411,7 @@ uint8_t POWERLED_DUTY = POWER_LED_INTENSITY;
 uint8_t TAPESTATE = 0;
 uint8_t LAST_TAPESTATE = 0;
 bool ADD_ONE_SAMPLE_COMPENSATION = false;
-bool MCP23017_AVAILABLE = true;
+bool MCP23017_AVAILABLE = false;
 
 // --------------------------------------------------------------------------
 //
@@ -426,8 +426,7 @@ bool MCP23017_AVAILABLE = true;
 // bool FIRST_BLOCK_INVERTED = false;
 // edge SCOPE = down;
 // bool APPLY_END = false;
-double SAMPLING_RATE =
-    STANDARD_SR_8_BIT_MACHINE; // STANDARD_SR_ZX_SPECTRUM               // 44100
+double SAMPLING_RATE = STANDARD_SR_8_BIT_MACHINE; // STANDARD_SR_ZX_SPECTRUM               // 44100
 int BASE_SR = STANDARD_SR_REC_ZX_SPECTRUM; // STANDARD_SR_ZX_SPECTRUM // 44100
 int BASE_SR_TAP = 31250; // STANDARD_SR_8_BIT_MACHINE_TAP         // 44100
 int LAST_SAMPLING_RATE = 22050;                    // 44100;
@@ -654,6 +653,7 @@ bool IN_THE_SAME_DIR = false;
 String FILE_TXT_TO_SEARCH = "";
 // bool waitingRecMessageShown = false;
 int CURRENT_PAGE = 0;
+bool TAPE0_PAGE_SHOWN = false;
 bool TAPE_PAGE_SHOWN = false;
 bool RADIO_PAGE_SHOWN = false;
 
@@ -839,6 +839,7 @@ ConfigEntry configEntries[] = {
     {"SPKopt", CONFIG_TYPE_BOOL, &EN_SPEAKER},
     {"RBUFopt", CONFIG_TYPE_BOOL, &RADIO_BUFFERED},
     {"DHCPFopt", CONFIG_TYPE_BOOL, &DHCP_ENABLE},
+    {"MCPAVAIL", CONFIG_TYPE_BOOL, &MCP23017_AVAILABLE},
 };
 
 //           s.end());
@@ -1089,7 +1090,7 @@ void logHEX(int n) {
 void log(String txt) { Serial.print(txt); }
 
 void logln(String txt) {
-  Serial.println("");
+  //Serial.println("");
   Serial.print(txt);
   Serial.println("");
 }
