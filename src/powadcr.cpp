@@ -478,10 +478,10 @@ bool loadCfgFile() {
       secondaryDNS = IPAddress(IP[0], IP[1], IP[2], IP[3]);
 
       // MCP23017 (on/off)
-      strcpy(param, (getValueOfParam(CFGSYSTEM[8].cfgLine, "MCP23017")).c_str());
-      logln("MCP23017: " + String(param));
-      String(param).toLowerCase();
-      MCP23017_AVAILABLE = String(param) == "on" || String(param) == "1" ? true : false;
+      // strcpy(param, (getValueOfParam(CFGSYSTEM[8].cfgLine, "MCP23017")).c_str());
+      // logln("MCP23017: " + String(param));
+      // String(param).toLowerCase();
+      // MCP23017_AVAILABLE = String(param) == "on" || String(param) == "1" ? true : false;
 
       // NTP-SERVER
       strcpy(param, (getValueOfParam(CFGSYSTEM[9].cfgLine, "NTPSERVER")).c_str());
@@ -8785,6 +8785,7 @@ void setup() {
       myNex.writeNum("screen.ack.val", 2);
       delay(125);       
       myNex.writeNum("screen.tm0.en", 0);
+      MCP23017_AVAILABLE = false;
     } 
     else 
     {
@@ -8813,6 +8814,7 @@ void setup() {
         myNex.writeNum("screen.ack.val", 2);
         delay(125);
         myNex.writeNum("screen.tm0.en", 0);
+        MCP23017_AVAILABLE = true;
       } 
       else 
       {
@@ -8850,6 +8852,8 @@ void setup() {
         myNex.writeNum("screen.ack.val", 2);
         delay(125);
         myNex.writeNum("screen.tm0.en", 0);
+        //
+        MCP23017_AVAILABLE = true;
       } 
       else 
       {
