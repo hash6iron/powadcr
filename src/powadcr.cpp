@@ -8599,6 +8599,10 @@ void setupSDCard() {
     hmi.writeString("statusLCD.txt=\"PSRAM FAILED!\"");
   }
   delay(125);
+
+  // Cache total heap sizes (they never change after boot)
+  CACHED_PSRAM_TOTAL_KB = ESP.getPsramSize() / 1024;
+  CACHED_HEAP_TOTAL_KB = ESP.getHeapSize() / 1024;
 }
 
 void loadHMICfgfromNVS() {

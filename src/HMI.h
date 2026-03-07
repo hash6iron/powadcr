@@ -3782,19 +3782,17 @@ private:
         }
         else if (strCmd.indexOf("PMENU1") != -1)
         {
-            // Estamos en la pantalla MENU
-            #ifdef DEBUGMODE
-              logAlert("PAGE MENU");
-            #endif
+            if (CURRENT_PAGE == 2) {
+              return;
+            }
             CURRENT_PAGE = 2;
             delay(500);
-            // Actualizamos estado checkbox
             myNex.writeNum("menu.dhcp.val", int(DHCP_ENABLE));
-            //myNex.writeNum("menu2.rbuf.val", int(RADIO_BUFFERED));
-        }  
+        }
         else if (strCmd.indexOf("PMENU0") != -1)
         {
             // Estamos en la pantalla MENU
+            CURRENT_PAGE = 5;
             writeString("mainmenu.verFirmware.txt=\" powadcr " + String(VERSION) + "\"");     
         }  
         else if (strCmd.indexOf("PMENU2") != -1)
@@ -4337,7 +4335,6 @@ private:
                             
           if (CURRENT_PAGE == 2)
           {
-            // Solo mostramos la información de memoria si estamos en la pagina de Menú
             updateMem();
           }
           
@@ -4458,14 +4455,11 @@ private:
           }
       }
 
-      void readUART() 
+      void readUART()
       {
         // Esperamos a que todos los datos salientes se hayan enviado
         SerialHW.flush();
 
-        // if (SerialHW.available() >= 1) 
-        // {
-          // get the new uint8_t:
         while (SerialHW.available() > 0)
         {
           String strCmd = SerialHW.readString();
@@ -4545,33 +4539,51 @@ private:
 
       void updateMem()
       {
+          // Solo actualizar cada 1 segundo
+          static unsigned long _lastMemUpdate = 0;
+          if (millis() - _lastMemUpdate < 1000) return;
+          _lastMemUpdate = millis();
+
+          // Evitar ejecución simultánea desde ambos cores
+          static volatile bool _updatingMem = false;
+          if (_updatingMem) return;
+          _updatingMem = true;
+
           UBaseType_t hwm_core0 = uxTaskGetStackHighWaterMark(Task0);
           UBaseType_t hwm_core1 = uxTaskGetStackHighWaterMark(Task1);
 
-          if (lst_stackFreeCore0 != stackFreeCore0 || lst_psram_used != ESP.getPsramSize() || lst_stack_used != ESP.getHeapSize())
+          // Usamos valores cacheados para totales (no cambian nunca tras el boot)
+          uint32_t psramTotal = CACHED_PSRAM_TOTAL_KB;
+          uint32_t heapTotal = CACHED_HEAP_TOTAL_KB;
+          uint32_t psramFree = ESP.getFreePsram() / 1024;
+          uint32_t heapFree = ESP.getFreeHeap() / 1024;
+
+          if (lst_stackFreeCore0 != stackFreeCore0 || lst_psram_used != psramTotal || lst_stack_used != heapTotal)
           {
             #ifdef DEBUGMODE
-              writeString("menu.totalPSRAM.txt=\"Task0: " + String(stackFreeCore0) + " KB | " + String(ESP.getPsramSize() / 1024) + " KB | " + String(ESP.getHeapSize() / 1024) + " KB\"");            
+              writeString("menu.totalPSRAM.txt=\"Task0: " + String(stackFreeCore0) + " KB | " + String(psramTotal) + " KB | " + String(heapTotal) + " KB\"");
             #else
-              writeString("menu.totalPSRAM.txt=\"" + String(ESP.getPsramSize() / 1024) + " KB | " + String(ESP.getHeapSize() / 1024) + " KB\"");            
+              writeString("menu.totalPSRAM.txt=\"" + String(psramTotal) + " KB | " + String(heapTotal) + " KB\"");
             #endif
           }
-          
-          lst_stackFreeCore0 = BLOCK_SELECTED;
-          lst_psram_used = ESP.getPsramSize();
-          lst_stack_used = ESP.getHeapSize();
 
-          if (lst_stackFreeCore1 != stackFreeCore1 || lst_psram_used != ESP.getFreePsram() || lst_stack_used != ESP.getFreeHeap())
+          lst_stackFreeCore0 = BLOCK_SELECTED;
+          lst_psram_used = psramTotal;
+          lst_stack_used = heapTotal;
+
+          if (lst_stackFreeCore1 != stackFreeCore1 || lst_psram_free != psramFree || lst_stack_free != heapFree)
           {
             #ifdef DEBUGMODE
-              writeString("menu.freePSRAM.txt=\"Task1: "  + String(stackFreeCore1) + " KB | " + String(ESP.getFreePsram() / 1024) + " KB | " + String(ESP.getFreeHeap() / 1024) + " KB\"");
+              writeString("menu.freePSRAM.txt=\"Task1: "  + String(stackFreeCore1) + " KB | " + String(psramFree) + " KB | " + String(heapFree) + " KB\"");
             #else
-              writeString("menu.freePSRAM.txt=\""  + String(ESP.getFreePsram() / 1024) + " KB | " + String(ESP.getFreeHeap() / 1024) + " KB | " + String(hwm_core0 * 4 / 1024) + "KB | " + String(hwm_core1 * 4 / 1024) + " KB\"");
+              writeString("menu.freePSRAM.txt=\""  + String(psramFree) + " KB | " + String(heapFree) + " KB | " + String(hwm_core0 * 4 / 1024) + "KB | " + String(hwm_core1 * 4 / 1024) + " KB\"");
             #endif
           }
           lst_stackFreeCore1 = BLOCK_SELECTED;
-          lst_psram_free = ESP.getFreePsram();
-          lst_stack_free = ESP.getFreeHeap();
+          lst_psram_free = psramFree;
+          lst_stack_free = heapFree;
+
+          _updatingMem = false;
       }
 
       void refreshPulseIcons(bool polValue, bool lvlLowZeroValue)
