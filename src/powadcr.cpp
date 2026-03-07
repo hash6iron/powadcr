@@ -249,9 +249,8 @@ void actuatePowerLed(uint8_t state) {
   //   state = LOW;
 
   if (!MCP23017_AVAILABLE) {
-    // Salida por el pin #powerLed
-    pinMode(powerLed, OUTPUT);
-    analogWrite(powerLed, state * 255);
+    // Salida por el pin #powerLed (pinMode se configura en setup)
+    digitalWrite(powerLed, state ? LOW : HIGH);
   } else {
     MCP23017_writePin(MCP_LED_IO_PIN_PA, state, I2C_MCP23017_ADDR);
   }
@@ -7934,25 +7933,26 @@ void Task0code(void *pvParameters) {
           tScrRfsh = 125;
         }
 
-        // Lo dejamos fijo a low power
-        if (!REC) 
-        {
-          actuatePowerLed(1);
-        }
-
-        if ((millis() - startTime3) > 500) {
-          // Timer para el powerLed / recording led indicator
-          startTime3 = millis();
-
+        // LED: encendido durante playback/loading/recording, apagado en standby
+        if (PLAY || LOADING_STATE == 1 || LOADING_STATE == 4) {
           if (REC && !IRADIO_EN) {
-            // Modo grabacion
-            if (!powerLedFixed) {
-              statusPoweLed = !statusPoweLed;
-              actuatePowerLed(statusPoweLed);
-            } else if (!IRADIO_EN) {
-              actuatePowerLed(1);
+            // Modo grabacion: parpadeo
+            if ((millis() - startTime3) > 500) {
+              startTime3 = millis();
+              if (!powerLedFixed) {
+                statusPoweLed = !statusPoweLed;
+                actuatePowerLed(statusPoweLed);
+              } else {
+                actuatePowerLed(1);
+              }
             }
+          } else {
+            // Playback/loading: LED fijo encendido
+            actuatePowerLed(1);
           }
+        } else {
+          // Standby: LED apagado
+          actuatePowerLed(0);
         }
 
         // Actualizamos el RTC
@@ -8910,10 +8910,11 @@ void setup() {
   if (!MCP23017_AVAILABLE) {
     // Salida por el pin #powerLed
     pinMode(powerLed, OUTPUT);
+    digitalWrite(powerLed, HIGH); // Apagado inicial
     for (int i = 0; i < 10; i++) {
-      analogWrite(powerLed, 0);
+      digitalWrite(powerLed, LOW);  // Encender
       delay(80);
-      analogWrite(powerLed, 1);
+      digitalWrite(powerLed, HIGH); // Apagar
       delay(80);
     }
   } else {
