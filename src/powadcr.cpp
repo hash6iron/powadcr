@@ -8209,17 +8209,13 @@ bool createSpecialDirectory(String fDir) {
 
 void testingAudioKit() 
 {
-  AudioInfo info(32000, 2, 16);
-  SineWaveGenerator<int16_t> sineWave(32000);                // subclass of SoundGenerator with max amplitude of 32000
+  AudioInfo info(SAMPLING_RATE, 2, 16);
+  SineWaveGenerator<int16_t> sineWave(SAMPLING_RATE);                // subclass of SoundGenerator with max amplitude of 32000
   GeneratedSoundStream<int16_t> sound(sineWave);             // Stream generated from sine wave
   StreamCopy copier(kitStream, sound);                             // copies sound into i2s
 
-  auto config = kitStream.defaultConfig(TX_MODE);
-  config.copyFrom(info); 
-  kitStream.setPAPower(true); // Disable PA power control if not needed
   kitStream.setVolume(0.5); // Set volume to 50%
-  kitStream.begin(config);
-
+  
   // Setup sine wave (1046.5f Hz)
   sineWave.begin(info, N_C6);
 
@@ -8242,6 +8238,8 @@ void testingAudioKit()
   }
   //
   delay(125);
+
+  kitStream.setVolume(MAIN_VOL / 100.0f); // Volumen general
 }
 
 void setupAudioKit() {
