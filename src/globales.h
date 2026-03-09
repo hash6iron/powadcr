@@ -53,6 +53,9 @@ int lst_psram_used = 0;
 int lst_stack_used = 0;
 int lst_psram_free = 0;
 int lst_stack_free = 0;
+// Cached heap total sizes (set once at startup, never change)
+uint32_t CACHED_PSRAM_TOTAL_KB = 0;
+uint32_t CACHED_HEAP_TOTAL_KB = 0;
 int SD_SPEED_MHZ = 4;
 
 // Inversion de pulso
