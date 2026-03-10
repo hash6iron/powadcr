@@ -1669,7 +1669,25 @@ private:
           }
 
           saveHMIcfg("SFFopt");
-        }             
+        }   
+        else if (strCmd.indexOf("PLD=") != -1) 
+        {
+          //Cogemos el valor
+          uint8_t buff[8];
+          strCmd.getBytes(buff, 7);
+          int valEn = (int)buff[4];
+          //
+          if (valEn==1)
+          {
+            POWER_LED_MODE = false;
+          }
+          else
+          {
+            POWER_LED_MODE = true;
+          }
+
+          saveHMIcfg("PLDopt");
+        }                    
         else if (strCmd.indexOf("RBUF=") != -1) 
         {
           //Cogemos el valor
@@ -3824,7 +3842,7 @@ private:
             #endif
             CURRENT_PAGE = 5;
             delay(500);          
-            //myNex.writeNum("menu2.ppled.val", int(PWM_POWER_LED));
+            myNex.writeNum("menu2.pwled.val", int(!POWER_LED_MODE));
             myNex.writeNum("menu2.sortFil.val", int(SORT_FILES_FIRST_DIR));          
         }         
         else if (strCmd.indexOf("PTAPE") != -1)

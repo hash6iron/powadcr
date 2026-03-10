@@ -410,6 +410,7 @@ bool disable_auto_media_stop = false;
 bool POWERLED_ON = true;
 bool ENABLE_POWER_LED = true;
 uint8_t POWERLED_DUTY = POWER_LED_INTENSITY;
+bool POWER_LED_MODE = false; // false = normal on/off, true = intensity control with duty cycle
 
 uint8_t TAPESTATE = 0;
 uint8_t LAST_TAPESTATE = 0;
@@ -840,6 +841,7 @@ ConfigEntry configEntries[] = {
     {"EQLopt", CONFIG_TYPE_FLOAT, &EQ_LOW},
     {"PLEopt", CONFIG_TYPE_BOOL, &ENABLE_POWER_LED},
     {"SFFopt", CONFIG_TYPE_BOOL, &SORT_FILES_FIRST_DIR},
+    {"PLDopt", CONFIG_TYPE_BOOL, &POWER_LED_MODE},
     {"SPKopt", CONFIG_TYPE_BOOL, &EN_SPEAKER},
     {"RBUFopt", CONFIG_TYPE_BOOL, &RADIO_BUFFERED},
     {"DHCPFopt", CONFIG_TYPE_BOOL, &DHCP_ENABLE},

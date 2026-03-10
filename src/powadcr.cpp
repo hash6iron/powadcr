@@ -252,7 +252,8 @@ void actuatePowerLed(uint8_t state) {
     // Salida por el pin #powerLed (pinMode se configura en setup)
     //digitalWrite(powerLed, state ? LOW : HIGH);
     pinMode(powerLed, OUTPUT);
-    analogWrite(powerLed, state * 255);    
+    digitalWrite(powerLed, state ? LOW : HIGH);
+    //analogWrite(powerLed, state * 255);    
   } else {
     MCP23017_writePin(MCP_LED_IO_PIN_PA, state, I2C_MCP23017_ADDR);
   }
@@ -7937,27 +7938,59 @@ void Task0code(void *pvParameters) {
           tScrRfsh = 125;
         }
 
-        // LED: encendido durante playback/loading/recording, apagado en standby
-        if (PLAY || LOADING_STATE == 1 || LOADING_STATE == 4) {
-          if (REC && !IRADIO_EN) {
-            // Modo grabacion: parpadeo
-            if ((millis() - startTime3) > 500) {
-              startTime3 = millis();
-              if (!powerLedFixed) {
-                statusPoweLed = !statusPoweLed;
-                actuatePowerLed(statusPoweLed);
+        if (POWER_LED_MODE==0)
+        {
+            // LED: encendido durante playback/loading/recording, apagado en standby
+            if (PLAY || LOADING_STATE == 1 || LOADING_STATE == 4) {
+              if (REC && !IRADIO_EN) {
+                // Modo grabacion: parpadeo
+                if ((millis() - startTime3) > 500) {
+                  startTime3 = millis();
+                  if (!powerLedFixed) {
+                    statusPoweLed = !statusPoweLed;
+                    actuatePowerLed(statusPoweLed);
+                  } else {
+                    actuatePowerLed(1);
+                  }
+                }
               } else {
+                // Playback/loading: LED fijo encendido
                 actuatePowerLed(1);
               }
+            } else {
+              // Standby: LED apagado
+              actuatePowerLed(0);
             }
-          } else {
-            // Playback/loading: LED fijo encendido
-            actuatePowerLed(1);
-          }
-        } else {
-          // Standby: LED apagado
-          actuatePowerLed(0);
         }
+        else
+        {
+            // Lo dejamos fijo a low power
+            if (!REC) 
+            {
+              actuatePowerLed(1);
+            }
+
+            if ((millis() - startTime3) > 500) 
+            {
+              // Timer para el powerLed / recording led indicator
+              startTime3 = millis();
+
+              if (REC && !IRADIO_EN) 
+              {
+                // Modo grabacion
+                if (!powerLedFixed) 
+                {
+                  statusPoweLed = !statusPoweLed;
+                  actuatePowerLed(statusPoweLed);
+                }
+                else if (!IRADIO_EN) 
+                {
+                  actuatePowerLed(1);
+                }
+              }
+          }
+      }
+
 
         // Actualizamos el RTC
         if ((millis() - startTime4 > timeRTC) && NTP_AVAILABLE) 
@@ -8625,10 +8658,12 @@ void loadHMICfgfromNVS() {
   showOption("menuAudio.stereoOut.val", String(EN_STEREO));
   // MUTE_AMPLIFIER
   showOption("menuAudio.mutAmp.val", String(!ACTIVE_AMP));
-  // POWERLED_DUTY
-  showOption("menu.ppled.val", String(ENABLE_POWER_LED));
+  // // POWERLED_DUTY
+  // showOption("menu.ppled.val", String(ENABLE_POWER_LED));
   // First view files on sorting
-  showOption("menu.sortFil.val", String(!SORT_FILES_FIRST_DIR));
+  showOption("menu2.sortFil.val", String(!SORT_FILES_FIRST_DIR));
+  // Powerled always off/on
+  showOption("menu2.pwled.val", String(!POWER_LED_MODE));
 
   if (ACTIVE_AMP) {
     MAIN_VOL_L = 5;
