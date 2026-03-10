@@ -278,6 +278,8 @@ private:
     return _yf[2];
   }
 
+  public: 
+
   void createPulse(int width, int bytes, uint16_t sample_R, uint16_t sample_L) {
     size_t result = 0;
     uint8_t buffer[bytes + 4];
@@ -306,6 +308,25 @@ private:
       result += 2 * chn;
     }
 
+    // int sr_parts = (MOTOR_DELAY_MS * (SAMPLING_RATE / 1000) * 2 * channels);
+    
+
+    // if (REM_DETECTED && (firstBytes_REM < sr_parts))
+    // {
+    //   // Si se ha detectado el REM y no se han escrito los primeros 4 bytes, insertamos un pulso de error
+    //   AudioInfo info = kitStream.audioInfo();
+    //   info.sample_rate = (SAMPLING_RATE / sr_parts)*firstBytes_REM;
+    //   kitStream.setAudioInfo(info);
+    //   firstBytes_REM++;
+    //   if (firstBytes_REM >= sr_parts) 
+    //   {
+    //     // Una vez insertados los primeros 4 bytes, restauramos el sample rate original
+    //     AudioInfo info = kitStream.audioInfo();
+    //     info.sample_rate = SAMPLING_RATE;
+    //     kitStream.setAudioInfo(info);
+    //   }
+    // }
+
     // Volcamos en el buffer
     if (OUT_TO_WAV) {
       encoderOutWAV.write(buffer, result);
@@ -314,6 +335,8 @@ private:
     }
   }
 
+  private: 
+  
   void sampleDR(int samples, int amp) {
     // Calculamos el tamaño del buffer
     int bytes = 0; // Cada muestra ocupa 2 bytes (16 bits)

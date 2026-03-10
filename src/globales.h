@@ -53,6 +53,9 @@ int lst_psram_used = 0;
 int lst_stack_used = 0;
 int lst_psram_free = 0;
 int lst_stack_free = 0;
+// Cached heap total sizes (set once at startup, never change)
+uint32_t CACHED_PSRAM_TOTAL_KB = 0;
+uint32_t CACHED_HEAP_TOTAL_KB = 0;
 int SD_SPEED_MHZ = 4;
 
 // Inversion de pulso
@@ -407,11 +410,12 @@ bool disable_auto_media_stop = false;
 bool POWERLED_ON = true;
 bool ENABLE_POWER_LED = true;
 uint8_t POWERLED_DUTY = POWER_LED_INTENSITY;
+bool POWER_LED_MODE = false; // false = normal on/off, true = intensity control with duty cycle
 
 uint8_t TAPESTATE = 0;
 uint8_t LAST_TAPESTATE = 0;
 bool ADD_ONE_SAMPLE_COMPENSATION = false;
-bool MCP23017_AVAILABLE = true;
+bool MCP23017_AVAILABLE = false;
 
 // --------------------------------------------------------------------------
 //
@@ -426,8 +430,7 @@ bool MCP23017_AVAILABLE = true;
 // bool FIRST_BLOCK_INVERTED = false;
 // edge SCOPE = down;
 // bool APPLY_END = false;
-double SAMPLING_RATE =
-    STANDARD_SR_8_BIT_MACHINE; // STANDARD_SR_ZX_SPECTRUM               // 44100
+double SAMPLING_RATE = STANDARD_SR_8_BIT_MACHINE; // STANDARD_SR_ZX_SPECTRUM               // 44100
 int BASE_SR = STANDARD_SR_REC_ZX_SPECTRUM; // STANDARD_SR_ZX_SPECTRUM // 44100
 int BASE_SR_TAP = 31250; // STANDARD_SR_8_BIT_MACHINE_TAP         // 44100
 int LAST_SAMPLING_RATE = 22050;                    // 44100;
@@ -619,6 +622,7 @@ bool FILE_SELECTED = false;
 bool FILE_PREPARED = false;
 bool FILE_INSIDE_TAPE = false;
 bool PROGRAM_NAME_DETECTED = false;
+bool REQ_LAST_MEDIA = false;
 
 tFileBuffer FILES_BUFF[MAX_FILES_TO_LOAD];
 tFileBuffer FILES_FOUND_BUFF[MAX_FILES_FOUND_BUFF];
@@ -653,6 +657,7 @@ bool IN_THE_SAME_DIR = false;
 String FILE_TXT_TO_SEARCH = "";
 // bool waitingRecMessageShown = false;
 int CURRENT_PAGE = 0;
+bool TAPE0_PAGE_SHOWN = false;
 bool TAPE_PAGE_SHOWN = false;
 bool RADIO_PAGE_SHOWN = false;
 
@@ -759,6 +764,7 @@ String BLUETOOTH_DEVICE_PAIRED = "JBL T450BT";
 bool REM_ENABLE = true;
 bool REM_DETECTED = false;
 bool STATUS_REM_ACTUATED = false;
+int firstBytes_REM = 0;
 
 // WiFi
 char HOSTNAME[32] = {};
@@ -806,6 +812,8 @@ uint8_t NTPday = 0;
 struct tm TIMEINFO;
 bool RADIO_IS_PLAYING = false;
 bool MUSIC_IS_PLAYING = false;
+bool FLAC_IS_PLAYING = false;
+bool NTP_AVAILABLE = false;
 
 // bool PZX_EJECT_RQT = false;
 
@@ -833,9 +841,11 @@ ConfigEntry configEntries[] = {
     {"EQLopt", CONFIG_TYPE_FLOAT, &EQ_LOW},
     {"PLEopt", CONFIG_TYPE_BOOL, &ENABLE_POWER_LED},
     {"SFFopt", CONFIG_TYPE_BOOL, &SORT_FILES_FIRST_DIR},
+    {"PLDopt", CONFIG_TYPE_BOOL, &POWER_LED_MODE},
     {"SPKopt", CONFIG_TYPE_BOOL, &EN_SPEAKER},
     {"RBUFopt", CONFIG_TYPE_BOOL, &RADIO_BUFFERED},
     {"DHCPFopt", CONFIG_TYPE_BOOL, &DHCP_ENABLE},
+    {"MCPAVAIL", CONFIG_TYPE_BOOL, &MCP23017_AVAILABLE},
 };
 
 //           s.end());
@@ -1086,7 +1096,7 @@ void logHEX(int n) {
 void log(String txt) { Serial.print(txt); }
 
 void logln(String txt) {
-  Serial.println("");
+  //Serial.println("");
   Serial.print(txt);
   Serial.println("");
 }
@@ -1266,27 +1276,37 @@ uint8_t MCP23017_readPin(uint8_t pin, uint8_t i2c_addr = 0x20) {
 void remDetection() {
   bool isAvailableForREM = false;
 
-  if (TYPE_FILE_LOAD == "TAP") {
+  if (TYPE_FILE_LOAD == "TAP") 
+  {
     isAvailableForREM = myTAP.availableForREM;
-  } else if (TYPE_FILE_LOAD == "TZX" || TYPE_FILE_LOAD == "TSX" ||
-             TYPE_FILE_LOAD == "CDT") {
+  } 
+  else if (TYPE_FILE_LOAD == "TZX" || TYPE_FILE_LOAD == "TSX" || TYPE_FILE_LOAD == "CDT") 
+  {
     isAvailableForREM = myTZX.availableForREM;
-  } else if (TYPE_FILE_LOAD == "PZX") {
+  }
+  else if (TYPE_FILE_LOAD == "PZX") 
+  {
     isAvailableForREM = myPZX.availableForREM;
-  } else {
+  }
+  else 
+  {
     isAvailableForREM = false;
   }
 
-  if (REM_ENABLE && isAvailableForREM) {
-    if (digitalRead(GPIO_MSX_REMOTE_PAUSE) == LOW && !REM_DETECTED) {
+  if (REM_ENABLE && isAvailableForREM) 
+  {
+    if (digitalRead(GPIO_MSX_REMOTE_PAUSE) == LOW && !REM_DETECTED) 
+    {
       // Informamos del REM detectado
       myNex.writeStr("tape.wavind.txt", "REM");
       logln("REM detected");
-      // Retardo de arranque de motor
-      delay(1000 / 50);
+      // Retardo de arranque de motor 20ms (50Hz)
+      delay(MOTOR_DELAY_MS);
       // Flag del REM a true
       REM_DETECTED = true;
-    } else if (digitalRead(GPIO_MSX_REMOTE_PAUSE) != LOW && REM_DETECTED) {
+    }
+    else if (digitalRead(GPIO_MSX_REMOTE_PAUSE) != LOW && REM_DETECTED) 
+    {
       // Recuperamos el mensaje original
       if (WAV_8BIT_MONO) {
         myNex.writeStr("tape.wavind.txt", "MONO");
@@ -1295,9 +1315,8 @@ void remDetection() {
       }
 
       logln("REM released");
-      // Retardo de parada de motor
-      delay(1000 / 50);
-
+      // Retardo de parada de motor 20ms (50Hz)
+      delay(MOTOR_DELAY_MS);
       // Reseteamos el flag
       REM_DETECTED = false;
     }

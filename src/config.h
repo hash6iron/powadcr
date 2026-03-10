@@ -56,7 +56,7 @@
 // --------------------------------------------------------------
 // Configuración de la versión del software
 // --------------------------------------------------------------
-#define VERSION "v1.0r7.9"
+#define VERSION "v1.0r7.10"
 
 // --------------------------------------------------------------
 // Configuración de memoria optimizada
@@ -101,7 +101,7 @@
 // Enable / Disable Audiokit logging
 #define USE_AUDIO_LOGGING false
 // States of LOG_LEVEL: Debug, Info, Warning, Error
-#define LOG_LEVEL AudioLogger::Info
+#define LOG_LEVEL AudioLogger::Debug
 // Definicion del puerto serie para la pantalla
 #define SerialHWDataBits 921600
 //  pinout
@@ -306,6 +306,7 @@ int GPIO_MSX_REMOTE_PAUSE = 19;
 // ----------------------------------------------------------------------------------------------
 // Particion mas pequeña de un silencio
 #define MIN_FRAME_FOR_SILENCE_PULSE_GENERATION 1024
+#define MOTOR_DELAY_MS                         20 // Retardo de arranque/parada de motor en ms (20ms = 50Hz)
 
 // --------------------------------------------------------------
 // TAP config.

@@ -1071,6 +1071,11 @@ public:
     // Reestablece todas las variables críticas de estado
     resetRecordingState();
 
+    // Reset de nombres
+    FILE_LOAD = "";
+    PROGRAM_NAME = "";
+    PROGRAM_NAME_2 = "";
+
     dbgBit0 = "";
     dbgBit1 = "";
     dbgSync1 = "";
@@ -1170,9 +1175,9 @@ public:
     errorDetected = 0;
 
     // Cambiamos el sampling rate en el HW
-    auto new_sr = kitStream.defaultConfig();
+    auto new_sr = kitStream.defaultConfig(RXTX_MODE);
+    new_sr.input_device = ADC_INPUT_LINE2;
     new_sr.sample_rate = STANDARD_SR_REC_ZX_SPECTRUM;
-
     kitStream.setAudioInfo(new_sr);
     // Indicamos
     _hmi.writeString("tape.lblFreq.txt=\"" +
@@ -1258,7 +1263,8 @@ public:
       lenSamplesCaptured = kitStream.readBytes(bufferRec, BUFFER_SIZE_REC);
 
       // Esperamos a que el buffer este lleno
-      if (lenSamplesCaptured >= BUFFER_SIZE_REC) {
+      if (lenSamplesCaptured >= BUFFER_SIZE_REC) 
+      {
         // Apuntamos al buffer de grabacion
         int16_t *value_ptr = (int16_t *)bufferRec;
         // Apuntamos al buffer de salida
@@ -1433,7 +1439,8 @@ public:
             // +++++++++++++++++++++++++++++++++++++++++++++
             // Analisis del tren de pulsos
             // +++++++++++++++++++++++++++++++++++++++++++++
-            switch (stateRecording) {
+            switch (stateRecording) 
+            {
             // TONO GUIA
             case 0: { // Esperando un tono guia
               if (pulseOkHigh) {
@@ -1753,8 +1760,10 @@ public:
         // interpretacion de los datos pero algo debe ocurrir indirectamente con
         // el buffer de audio, que mejora la captura de datos
         kitStream.write(bufferOut, lenSamplesCaptured);
-      } else {
-        LAST_MESSAGE = "Buffer error";
+      } 
+      else 
+      {
+        LAST_MESSAGE = "No signal detected.";
         logln("Incomplete capturing data");
         REC = false;
         delay(3000);
