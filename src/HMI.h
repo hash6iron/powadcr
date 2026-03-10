@@ -3160,6 +3160,7 @@ private:
           else
           {
               EN_SPEAKER = false;
+              kitStream.setPAPower(ACTIVE_AMP && EN_SPEAKER);
               //kitStream.setSpeakerActive(false);
           }
 

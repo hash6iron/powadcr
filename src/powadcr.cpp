@@ -250,7 +250,9 @@ void actuatePowerLed(uint8_t state) {
 
   if (!MCP23017_AVAILABLE) {
     // Salida por el pin #powerLed (pinMode se configura en setup)
-    digitalWrite(powerLed, state ? LOW : HIGH);
+    //digitalWrite(powerLed, state ? LOW : HIGH);
+    pinMode(powerLed, OUTPUT);
+    analogWrite(powerLed, state * 255);    
   } else {
     MCP23017_writePin(MCP_LED_IO_PIN_PA, state, I2C_MCP23017_ADDR);
   }
@@ -2864,7 +2866,6 @@ void MediaPlayer() {
 
   player.setAudioSource(source);
   player.setOutput(eq);
-
   player.setVolume(1);
 
   auto tempConfig = kitStream.defaultConfig();
@@ -3119,6 +3120,7 @@ void MediaPlayer() {
       kitStream.setPAPower(ACTIVE_AMP && EN_SPEAKER);
       AMP_CHANGE = false;
       SPK_CHANGE = false;
+      
     }
 
     // Estados del reproductor
@@ -5392,8 +5394,10 @@ void tapeControl() {
 
     remDetection();
     //
-    if (PLAY || REM_DETECTED) {
-      if (REM_DETECTED) {
+    if (PLAY || REM_DETECTED) 
+    {
+      if (REM_DETECTED) 
+      {
         PLAY = true;
         PAUSE = false;
         STOP = false;
@@ -8540,11 +8544,10 @@ void setupMCP()
   if (MCP23017_AVAILABLE) {
     if (setupMCP23017()) {
       // Hay placa de extensión los pines son otros
+      // Ahora POWERLED está configurado en la placa MCP23017
       logln("MCP23017 found");
       hmiTxD = 5;
       hmiRxD = 22;
-      // Configurado en la placa MCP23017
-      // powerLed = 18;
       GPIO_MSX_REMOTE_PAUSE = 19;
     }
   } else {

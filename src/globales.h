@@ -763,6 +763,7 @@ String BLUETOOTH_DEVICE_PAIRED = "JBL T450BT";
 bool REM_ENABLE = true;
 bool REM_DETECTED = false;
 bool STATUS_REM_ACTUATED = false;
+int firstBytes_REM = 0;
 
 // WiFi
 char HOSTNAME[32] = {};
@@ -1273,27 +1274,37 @@ uint8_t MCP23017_readPin(uint8_t pin, uint8_t i2c_addr = 0x20) {
 void remDetection() {
   bool isAvailableForREM = false;
 
-  if (TYPE_FILE_LOAD == "TAP") {
+  if (TYPE_FILE_LOAD == "TAP") 
+  {
     isAvailableForREM = myTAP.availableForREM;
-  } else if (TYPE_FILE_LOAD == "TZX" || TYPE_FILE_LOAD == "TSX" ||
-             TYPE_FILE_LOAD == "CDT") {
+  } 
+  else if (TYPE_FILE_LOAD == "TZX" || TYPE_FILE_LOAD == "TSX" || TYPE_FILE_LOAD == "CDT") 
+  {
     isAvailableForREM = myTZX.availableForREM;
-  } else if (TYPE_FILE_LOAD == "PZX") {
+  }
+  else if (TYPE_FILE_LOAD == "PZX") 
+  {
     isAvailableForREM = myPZX.availableForREM;
-  } else {
+  }
+  else 
+  {
     isAvailableForREM = false;
   }
 
-  if (REM_ENABLE && isAvailableForREM) {
-    if (digitalRead(GPIO_MSX_REMOTE_PAUSE) == LOW && !REM_DETECTED) {
+  if (REM_ENABLE && isAvailableForREM) 
+  {
+    if (digitalRead(GPIO_MSX_REMOTE_PAUSE) == LOW && !REM_DETECTED) 
+    {
       // Informamos del REM detectado
       myNex.writeStr("tape.wavind.txt", "REM");
       logln("REM detected");
-      // Retardo de arranque de motor
-      delay(1000 / 50);
+      // Retardo de arranque de motor 20ms (50Hz)
+      delay(MOTOR_DELAY_MS);
       // Flag del REM a true
       REM_DETECTED = true;
-    } else if (digitalRead(GPIO_MSX_REMOTE_PAUSE) != LOW && REM_DETECTED) {
+    }
+    else if (digitalRead(GPIO_MSX_REMOTE_PAUSE) != LOW && REM_DETECTED) 
+    {
       // Recuperamos el mensaje original
       if (WAV_8BIT_MONO) {
         myNex.writeStr("tape.wavind.txt", "MONO");
@@ -1302,9 +1313,8 @@ void remDetection() {
       }
 
       logln("REM released");
-      // Retardo de parada de motor
-      delay(1000 / 50);
-
+      // Retardo de parada de motor 20ms (50Hz)
+      delay(MOTOR_DELAY_MS);
       // Reseteamos el flag
       REM_DETECTED = false;
     }

@@ -56,7 +56,7 @@
 // --------------------------------------------------------------
 // Configuración de la versión del software
 // --------------------------------------------------------------
-#define VERSION "v1.0r7.10b5"
+#define VERSION "v1.0r7.10"
 
 // --------------------------------------------------------------
 // Configuración de memoria optimizada
@@ -306,6 +306,7 @@ int GPIO_MSX_REMOTE_PAUSE = 19;
 // ----------------------------------------------------------------------------------------------
 // Particion mas pequeña de un silencio
 #define MIN_FRAME_FOR_SILENCE_PULSE_GENERATION 1024
+#define MOTOR_DELAY_MS                         20 // Retardo de arranque/parada de motor en ms (20ms = 50Hz)
 
 // --------------------------------------------------------------
 // TAP config.

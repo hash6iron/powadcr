@@ -308,6 +308,25 @@ private:
       result += 2 * chn;
     }
 
+    // int sr_parts = (MOTOR_DELAY_MS * (SAMPLING_RATE / 1000) * 2 * channels);
+    
+
+    // if (REM_DETECTED && (firstBytes_REM < sr_parts))
+    // {
+    //   // Si se ha detectado el REM y no se han escrito los primeros 4 bytes, insertamos un pulso de error
+    //   AudioInfo info = kitStream.audioInfo();
+    //   info.sample_rate = (SAMPLING_RATE / sr_parts)*firstBytes_REM;
+    //   kitStream.setAudioInfo(info);
+    //   firstBytes_REM++;
+    //   if (firstBytes_REM >= sr_parts) 
+    //   {
+    //     // Una vez insertados los primeros 4 bytes, restauramos el sample rate original
+    //     AudioInfo info = kitStream.audioInfo();
+    //     info.sample_rate = SAMPLING_RATE;
+    //     kitStream.setAudioInfo(info);
+    //   }
+    // }
+
     // Volcamos en el buffer
     if (OUT_TO_WAV) {
       encoderOutWAV.write(buffer, result);
