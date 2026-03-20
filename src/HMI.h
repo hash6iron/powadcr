@@ -5141,43 +5141,74 @@ private:
     }
     
     // ✅ FUNCIÓN PRINCIPAL PARA ACTUALIZACIÓN MANUAL
-    void manualFirmwareUpdate() {
-        logln("=== MANUAL FIRMWARE UPDATE ===");
-        
-        // ✅ PASO 1: OBTENER ÚLTIMO TAG
-        String latestTag = getLatestReleaseTag();
-        if (latestTag.length() == 0) {
-            LAST_MESSAGE = "Failed to get version info";
-            writeString("statusFILE.txt=\"" + LAST_MESSAGE + "\"");
-            return;
-        }
-        
-        // ✅ COMPARAR CON VERSIÓN ACTUAL
-        String currentVersion = String(VERSION);
-        HMI_MODEL = myNex.readStr("update.firmVersion.txt");
-        myNex.writeStr("update.cVersion.txt",currentVersion.c_str());
-        myNex.writeStr("update.nVersion.txt",latestTag.c_str());
+    // Compara dos versiones tipo vA.BrX.Y. Devuelve true si latest > current
+    bool isVersionNewer(const String& latest, const String& current) {
+      // Elimina la 'v' inicial si existe
+      String l = latest;
+      String c = current;
+      if (l.startsWith("v")) l = l.substring(1);
+      if (c.startsWith("v")) c = c.substring(1);
 
-        logln("Current version: " + currentVersion);
-        logln("Latest version: " + latestTag);
-        
-        if (latestTag.compareTo(currentVersion) <= 0) {
-            myNex.writeStr("update.status.txt","No update needed");
-            logln("No update needed");
-            return;
-        }
-        
-        // ✅ PASO 2: DESCARGAR ARCHIVOS
-        myNex.writeStr("update.status.txt","New update available");
-        
-        if (downloadFirmwareFiles(latestTag)) {
-            myNex.writeStr("update.status.txt","All firmwares downloaded. Update now.");
-            logln("Firmware update downloaded successfully!");
-            logln("Files ready: /firmware.bin and /powadcr_iface.tft");
-        } else {
-            myNex.writeStr("update.status.txt","Update failed.");
-            logln("Firmware update failed!");
-        }
+      // Busca los componentes: A.BrX.Y
+      int la = l.indexOf('.');
+      int lb = l.indexOf('r');
+      int lx = l.lastIndexOf('.');
+      int ca = c.indexOf('.');
+      int cb = c.indexOf('r');
+      int cx = c.lastIndexOf('.');
+
+      int lA = l.substring(0, la).toInt();
+      int cA = c.substring(0, ca).toInt();
+      int lB = l.substring(la+1, lb).toInt();
+      int cB = c.substring(ca+1, cb).toInt();
+      int lX = l.substring(lb+1, lx).toInt();
+      int cX = c.substring(cb+1, cx).toInt();
+      int lY = l.substring(lx+1).toInt();
+      int cY = c.substring(cx+1).toInt();
+
+      if (lA > cA) return true;
+      if (lA < cA) return false;
+      if (lB > cB) return true;
+      if (lB < cB) return false;
+      if (lX > cX) return true;
+      if (lX < cX) return false;
+      if (lY > cY) return true;
+      return false;
+    }
+
+    void manualFirmwareUpdate() {
+      logln("=== MANUAL FIRMWARE UPDATE ===");
+      // ✅ PASO 1: OBTENER ÚLTIMO TAG
+      String latestTag = getLatestReleaseTag();
+      if (latestTag.length() == 0) {
+        LAST_MESSAGE = "Failed to get version info";
+        writeString("statusFILE.txt=" + LAST_MESSAGE + "\"");
+        return;
+      }
+      // ✅ COMPARAR CON VERSIÓN ACTUAL
+      String currentVersion = String(VERSION);
+      HMI_MODEL = myNex.readStr("update.firmVersion.txt");
+      myNex.writeStr("update.cVersion.txt",currentVersion.c_str());
+      myNex.writeStr("update.nVersion.txt",latestTag.c_str());
+
+      logln("Current version: " + currentVersion);
+      logln("Latest version: " + latestTag);
+
+      if (!isVersionNewer(latestTag, currentVersion)) {
+        myNex.writeStr("update.status.txt","No update needed");
+        logln("No update needed");
+        return;
+      }
+      // ✅ PASO 2: DESCARGAR ARCHIVOS
+      myNex.writeStr("update.status.txt","New update available");
+      if (downloadFirmwareFiles(latestTag)) {
+        myNex.writeStr("update.status.txt","All firmwares downloaded. Update now.");
+        logln("Firmware update downloaded successfully!");
+        logln("Files ready: /firmware.bin and /powadcr_iface.tft");
+      } else {
+        myNex.writeStr("update.status.txt","Update failed.");
+        logln("Firmware update failed!");
+      }
     }
 
     #endif

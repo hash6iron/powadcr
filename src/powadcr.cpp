@@ -226,6 +226,11 @@ String removeExtension(const String &filename);
 bool statusPoweLed = false;
 bool powerLedFixed = false;
 
+uint8_t lastKeyValue = 0;
+uint8_t keyStatus = 0;
+uint8_t keykp_count[6];
+
+
 // Bluetooth
 #ifdef BLUETOOTH_ENABLE
 BluetoothA2DPSource a2dp;
@@ -7827,6 +7832,209 @@ void handleWebClient(WiFiClient client) {
   }
 }
 
+void buttonsControl()
+{
+  
+  uint8_t value = MCP23017_readGPIO(0x13);
+
+  if (value != lastKeyValue)
+  {
+    logln(""); 
+    log("KEYPAD value: ");
+    logHEX(value);
+    log(" -- ");
+    logBIN(value);
+
+    lastKeyValue = value;
+  }
+
+  if (keyStatus == 0)
+  {
+
+    if (value < 6)
+    {
+      keykp_count[value] = 0;
+      keykp_count[value]++;
+      keyStatus = 1;
+    }
+  }
+  else if (keyStatus == 1)
+  {
+    if (value < 6)
+    {
+      keykp_count[value]++;
+
+      if (keykp_count[value] > 128)
+      {
+        keyStatus = 3;
+      }
+      else
+      {
+        keyStatus = 2;
+      }
+    }
+  }
+  else if (keyStatus == 2)
+  {
+    // Short pressed
+    if (value < 6)
+    {
+      keykp_count[value] = 0;
+      keyStatus = 0;
+    }
+
+    switch (detectKeyPressed(value))
+    {
+      case 0:
+        {
+          //hmi.verifyCommand("PLAY");
+          logln("PLAY/STOP button pressed - Value: " + String(value));
+        }
+        break;
+      
+      case 1:
+        {
+          //hmi.verifyCommand("STOP");
+          logln("STOP button pressed - Value: " + String(value));
+        }
+        break;
+
+      case 2:
+        {
+          //hmi.verifyCommand("PAUSE");
+          logln("PAUSE button pressed - Value: " + String(value));
+        }
+        break;
+
+      case 3:
+        {
+          //hmi.verifyCommand("FFWD");
+          logln("FFWD button pressed - Value: " + String(value));
+        }
+        break;
+
+      case 4:
+        {
+          //hmi.verifyCommand("RWD");
+          logln("RWD button pressed - Value: " + String(value));
+        }
+        break;
+
+      case 5:
+        {
+          //hmi.verifyCommand("EJECT");
+          logln("EJECT button pressed - Value: " + String(value));
+        }
+        break;
+
+      default:
+        break;
+    }    
+  }
+  else if (keyStatus == 3)
+  {
+    if (value < 6)
+    {
+      keykp_count[value] = 0;
+    }    
+    // Long pressed
+    switch (detectKeyPressed(value))
+    {
+      case 0:
+        {
+          //hmi.verifyCommand("PLAY");
+          logln("PLAY/STOP button LONG pressed - Value: " + String(value));
+        }
+        break;
+      
+      case 1:
+        {
+          //hmi.verifyCommand("STOP");
+          logln("STOP button LONG pressed - Value: " + String(value));
+        }
+        break;
+
+      case 2:
+        {
+          //hmi.verifyCommand("PAUSE");
+          logln("PAUSE button LONG pressed - Value: " + String(value));
+        }
+        break;
+
+      case 3:
+        {
+          //hmi.verifyCommand("FFWD");
+          logln("FFWD button LONG pressed - Value: " + String(value));
+        }
+        break;
+
+      case 4:
+        {
+          //hmi.verifyCommand("RWD");
+          logln("RWD button LONG pressed - Value: " + String(value));
+        }
+        break;
+
+      case 5:
+        {
+          //hmi.verifyCommand("EJECT");
+          logln("EJECT button LONG pressed - Value: " + String(value));
+        }
+        break;
+
+      default:
+        keyStatus = 0;
+        break;
+    }    
+  }
+
+
+  // uint8_t key1State = MCP23017_readPin(MCP_KEY1_IO_PIN_PB, I2C_MCP23017_ADDR);
+  // uint8_t key2State = MCP23017_readPin(MCP_KEY2_IO_PIN_PB, I2C_MCP23017_ADDR);
+  // uint8_t key3State = MCP23017_readPin(MCP_KEY3_IO_PIN_PB, I2C_MCP23017_ADDR);
+  // uint8_t key4State = MCP23017_readPin(MCP_KEY4_IO_PIN_PB, I2C_MCP23017_ADDR);
+  // uint8_t key5State = MCP23017_readPin(MCP_KEY5_IO_PIN_PB, I2C_MCP23017_ADDR);
+  // uint8_t key6State = MCP23017_readPin(MCP_KEY6_IO_PIN_PB, I2C_MCP23017_ADDR);
+
+  // if (key1State == LOW) 
+  // {
+  //   hmi.verifyCommand("PLAY");
+  //   logln("PLAY/STOP button pressed - Value: " + String(key1State));
+  // }
+  
+  // if (key2State == LOW) 
+  // {
+  //   hmi.verifyCommand("STOP");
+  //   logln("STOP button pressed - Value: " + String(key2State));
+  // } 
+  
+  // if (key3State == LOW) 
+  // {
+  //   hmi.verifyCommand("PAUSE");
+  //   logln("PAUSE button pressed - Value: " + String(key3State));
+  // }
+  
+  // if (key4State == LOW) 
+  // {
+  //   CMD_FROM_REMOTE_CONTROL = true;
+  //   hmi.verifyCommand("FFWD");
+  //   logln("FFWD button pressed - Value: " + String(key4State));
+  // }
+  
+  // if (key5State == LOW) 
+  // {
+  //   CMD_FROM_REMOTE_CONTROL = true;
+  //   hmi.verifyCommand("RWD");
+  //   logln("RWD button pressed - Value: " + String(key5State));
+  // }
+  
+  // if (key6State == LOW) 
+  // {
+  //   hmi.verifyCommand("EJECT");
+  //   logln("EJECT button pressed - Value: " + String(key6State));
+  // }
+}
+
 // ******************************************************************
 //
 //            Gestión de nucleos del procesador
@@ -7919,8 +8127,12 @@ void Task0code(void *pvParameters) {
         }
     #endif
 
-        // Control por botones
-        // buttonsControl();
+    // Control por botones
+    // Estos solo funcionan en la pagina TAPE0 o TAPE del HMI
+    if (CURRENT_PAGE <= 1)
+    {
+        //buttonsControl();
+    }
 
         // Esto lo ponemos para evitar errores en la lectura del puerto serie
         // delay(25);
@@ -8349,6 +8561,10 @@ void setupAudioKit() {
 
 bool setupMCP23017() {
   
+  //                            
+  // See: https://wolles-elektronikkiste.de/en/port-expander-mcp23017-2
+  //
+
   logln("> Setting MCP23017.");
 
   if (!Wire1.begin(18, 23, 1700000U)) {
@@ -8367,15 +8583,20 @@ bool setupMCP23017() {
     MCP23017_AVAILABLE = true;
     saveHMIcfg("MCPAVAIL");
 
-    // Puerto A
+    // Configuracion del MCP23017
     Wire1.beginTransmission(I2C_MCP23017_ADDR);
     Wire1.write(0x00); // Reg. IODIRA
-    Wire1.write(0x00); // Configuramos todo el puerto A como salida
-    Wire1.endTransmission();
-    // Puerto B
-    Wire1.beginTransmission(I2C_MCP23017_ADDR);
-    Wire1.write(0x01);
-    Wire1.write(000000001); // Configuramos GPIO0B como entrada
+    Wire1.write(0x00); // Configuramos el puerto A como salida
+    //Wire1.endTransmission();
+
+    //Wire1.beginTransmission(I2C_MCP23017_ADDR);
+    Wire1.write(0x01);  // Reg. IODIRB
+    Wire1.write(0x3F);  // Configuramos GPIOB como entrada
+    //Wire1.endTransmission();
+    delay(125); 
+    //Wire1.beginTransmission(I2C_MCP23017_ADDR);
+    Wire1.write(0x0D);   // Reg. GPPUB
+    Wire1.write(0x3F);   // Activamos pull-up en PB0 .. PB5
     Wire1.endTransmission();
     //
     // test with powerLed
