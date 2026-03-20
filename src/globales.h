@@ -1093,6 +1093,11 @@ void logHEX(int n) {
   Serial.print(n, HEX);
 }
 
+void logBIN(int n) {
+  Serial.print(" 0x");
+  Serial.print(n, BIN);
+}
+
 void log(String txt) { Serial.print(txt); }
 
 void logln(String txt) {
@@ -1226,8 +1231,18 @@ int getFreeFileDescriptors() {
   return MAX_FD - count;
 }
 
+// Devuelve la posición del primer bit a 0 en un byte (0 = LSB, 7 = MSB), o -1 si todos están a 1
+int detectKeyPressed(uint8_t byte) {
+  for (int i = 0; i < 8; ++i) {
+    if (((byte >> i) & 1) == 0) {
+      return i;
+    }
+  }
+  return -1;
+}
+
 // Escribe el estado (HIGH/LOW) en un pin del MCP23017 sin afectar los demás
-void MCP23017_writePin(uint8_t pin, uint8_t state, uint8_t i2c_addr = 0x20) {
+void  MCP23017_writePin(uint8_t pin, uint8_t state, uint8_t i2c_addr = 0x20) {
   // Determina si el pin está en GPIOA (0-7) o GPIOB (8-15)
   uint8_t reg = (pin < 8) ? 0x12 : 0x13; // GPIOA=0x12, GPIOB=0x13
   uint8_t pin_mask = 1 << (pin % 8);
@@ -1255,7 +1270,8 @@ void MCP23017_writePin(uint8_t pin, uint8_t state, uint8_t i2c_addr = 0x20) {
 }
 
 // Lee el estado (HIGH/LOW) de un pin del MCP23017 sin afectar los demás
-uint8_t MCP23017_readPin(uint8_t pin, uint8_t i2c_addr = 0x20) {
+uint8_t MCP23017_readPin(uint8_t pin, uint8_t i2c_addr = 0x20) 
+{
   // Determina si el pin está en GPIOA (0-7) o GPIOB (8-15)
   uint8_t reg = (pin < 8) ? 0x12 : 0x13; // GPIOA=0x12, GPIOB=0x13
   uint8_t pin_mask = 1 << (pin % 8);
@@ -1271,6 +1287,24 @@ uint8_t MCP23017_readPin(uint8_t pin, uint8_t i2c_addr = 0x20) {
 
   // Devuelve HIGH o LOW como digitalRead
   return (current & pin_mask) ? HIGH : LOW;
+}
+
+uint8_t MCP23017_readGPIO(uint8_t regGPIO, uint8_t i2c_addr = 0x20) {
+
+  // Determina si el pin está en GPIOA (0-7) o GPIOB (8-15) 
+  uint8_t a;
+
+  // read the current GPIO output latches
+  Wire1.beginTransmission(i2c_addr);
+  Wire1.write(regGPIO);	
+  Wire1.endTransmission();
+  
+  Wire1.requestFrom(i2c_addr, (uint8_t)1);
+  a = Wire1.read();
+  // ba = Wire1.read();
+  // ba <<= 8;
+  // ba |= a;
+  return a;
 }
 
 void remDetection() {
