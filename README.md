@@ -118,7 +118,17 @@ How PowaDCR parts are connected?
   <p align="center">
     <img width="540" height="326" alt="REM" src="https://github.com/user-attachments/assets/37a33fe6-69c5-4f08-b839-53896d9daa75" />
   </p>
-  
+
+<b>MCP23017 for external keypad</b>
+- If you want to install an external keypad to control and simulate a vintage cassette, see below.
+>[!CAUTION]
+>In this case TX and RX for HMI shall be changed to the followin pins
+>- TX GPIO on Audiokit - Pin IO5
+>- RX GPIO on Audiokit - Pin IO22
+>- REM keeps on IO19
+
+<img width="1280" height="920" alt="image" src="https://github.com/user-attachments/assets/77e06446-dde5-4437-8531-cd3ba4e0e63d" />
+
 
 Audiokit DIP switch configuration
 -----
