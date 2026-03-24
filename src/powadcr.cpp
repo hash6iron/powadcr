@@ -228,7 +228,7 @@ bool powerLedFixed = false;
 
 uint8_t lastKeyValue = 0;
 uint8_t keyStatus = 0;
-uint8_t keykp_count[6];
+int keykp_count[7];
 
 
 // Bluetooth
@@ -260,7 +260,7 @@ void actuatePowerLed(uint8_t state) {
     digitalWrite(powerLed, state ? LOW : HIGH);
     //analogWrite(powerLed, state * 255);    
   } else {
-    MCP23017_writePin(MCP_LED_IO_PIN_PA, state, I2C_MCP23017_ADDR);
+    MCP23017_writePin(MCP_LED_IO_PIN, state, I2C_MCP23017_ADDR);
   }
 }
 
@@ -2306,27 +2306,35 @@ String getRadioUrlByIndex(int index) {
   return url;
 }
 
-void updateDialIndicator(int pos) {
+void updateDialIndicator(int pos) 
+{
   // Parametros.
-  const int xini = 130;  // x ini of dial
-  const int width = 232; // dial range pixels
 
-  if (TOTAL_BLOCKS <= 0 || BB_OPEN)
-    return;
+  // Con el reloj abierto mejor no hacemos nada con la barra del dial
+  // ya que se superpone en el reloj.
+  if (CURRENT_PAGE != 99)
+  {
+      const int xini = 130;  // x ini of dial
+      const int width = 232; // dial range pixels
 
-  showRadioDial();
-  // No quitar esta pausa porque es necesaria para que de tiempo a acabar el
-  // proceso de pintado del dial si no, se dispara el dibujado de la linea antes
-  // y queda tapado por la imagen.
-  delay(125);
-  hmi.writeString("fill " + String(xini + (width / TOTAL_BLOCKS) * pos) +
-                  ",152,5,40," + String(DIAL_COLOR));
-  hmi.writeString("fill " + String(xini + (width / TOTAL_BLOCKS) * pos) +
-                  ",152,5,40," + String(DIAL_COLOR));
-  hmi.writeString("fill " + String(xini + (width / TOTAL_BLOCKS) * pos) +
-                  ",152,5,40," + String(DIAL_COLOR));
-  hmi.writeString("fill " + String(xini + (width / TOTAL_BLOCKS) * pos) +
-                  ",152,5,40," + String(DIAL_COLOR));
+      if (TOTAL_BLOCKS <= 0 || BB_OPEN)
+        return;
+
+      showRadioDial();
+      // No quitar esta pausa porque es necesaria para que de tiempo a acabar el
+      // proceso de pintado del dial si no, se dispara el dibujado de la linea antes
+      // y queda tapado por la imagen.
+      delay(125);
+      hmi.writeString("fill " + String(xini + (width / TOTAL_BLOCKS) * pos) +
+                      ",152,5,40," + String(DIAL_COLOR));
+      hmi.writeString("fill " + String(xini + (width / TOTAL_BLOCKS) * pos) +
+                      ",152,5,40," + String(DIAL_COLOR));
+      hmi.writeString("fill " + String(xini + (width / TOTAL_BLOCKS) * pos) +
+                      ",152,5,40," + String(DIAL_COLOR));
+      hmi.writeString("fill " + String(xini + (width / TOTAL_BLOCKS) * pos) +
+                      ",152,5,40," + String(DIAL_COLOR));    
+  }
+
 }
 
 void dialIndicator(bool enable) {
@@ -7834,205 +7842,243 @@ void handleWebClient(WiFiClient client) {
 
 void buttonsControl()
 {
+  // --------------------------------------------------------------------------------------
+  // Control de la botonera conectada al MCP23017
+  // --------------------------------------------------------------------------------------
+
+  const int timeToLongPress = 28;             // Número de ciclos para considerar una pulsación larga
   
-  uint8_t value = MCP23017_readGPIO(0x13);
+  uint8_t value = MCP23017_readGPIO(0x12);
 
-  if (value != lastKeyValue)
+  value = ~value;                               // Invertimos los bits porque el hardware devuelve 0 para tecla presionada
+  value = value & 0x3F;                         // Eliminamos los bits de salida (aplico mascara 00111111)
+  
+  uint8_t keyPressed = 0;
+  
+  // Determinamos si hay tecla pulsada o no.
+  if (value==0)
   {
-    logln(""); 
-    log("KEYPAD value: ");
-    logHEX(value);
-    log(" -- ");
-    logBIN(value);
-
-    lastKeyValue = value;
+    keyPressed = 8;
   }
-
-  if (keyStatus == 0)
+  else
   {
-
-    if (value < 6)
-    {
-      keykp_count[value] = 0;
-      keykp_count[value]++;
-      keyStatus = 1;
-    }
+    keyPressed = log2(value);                     // Obtenemos el índice del bit a 1, que corresponde a la tecla presionada (0-5)     
   }
-  else if (keyStatus == 1)
+  
+  // Control de estado botones.
+  switch (keyStatus)
   {
-    if (value < 6)
+    case 0:
     {
-      keykp_count[value]++;
-
-      if (keykp_count[value] > 128)
+      // Initial state, waiting for key press
+      if (keyPressed < 8)
       {
-        keyStatus = 3;
+        keykp_count[keyPressed]=0;
+        keykp_count[keyPressed]++;
+        keyStatus = 1;
       }
       else
       {
-        keyStatus = 2;
+        keyStatus = 0;          
       }
     }
-  }
-  else if (keyStatus == 2)
-  {
-    // Short pressed
-    if (value < 6)
+    break;
+  
+    case 1:
     {
-      keykp_count[value] = 0;
-      keyStatus = 0;
+      // Determining if it's a short or long press
+      if (keyPressed < 8)
+      {
+        keykp_count[keyPressed]++;
+        // Si pulsamos sin soltar es larga
+        if (keykp_count[keyPressed] > timeToLongPress)
+        {
+          // Long pressed
+          keyStatus = 3;
+        }
+        lastKeyValue = keyPressed;
+      }      
+      else
+      {
+        // Short pressed
+        // Si pulsamos y hemos soltado antes de ser larga
+        if (keykp_count[lastKeyValue] > 0)
+        {
+          keyStatus = 2;
+          logln("SHORT!! Detected");
+        }
+      }
     }
+    break;
 
-    switch (detectKeyPressed(value))
+    case 2:
     {
-      case 0:
-        {
-          //hmi.verifyCommand("PLAY");
-          logln("PLAY/STOP button pressed - Value: " + String(value));
-        }
-        break;
-      
-      case 1:
-        {
-          //hmi.verifyCommand("STOP");
-          logln("STOP button pressed - Value: " + String(value));
-        }
-        break;
+      // Short pressed
 
-      case 2:
-        {
-          //hmi.verifyCommand("PAUSE");
-          logln("PAUSE button pressed - Value: " + String(value));
-        }
-        break;
+      switch (lastKeyValue)
+      {
+        case 8:
+          {
+            logln("Unknow key - Short press");
+            keyStatus = 5;       
+          }
+          break;
+        
+        case MCP_KEY_PLAY:
+          {
+            logln("PLAY/STOP button pressed - Value: " + String(keyPressed));
+            hmi.verifyCommand("PLAY");   
+            keyStatus = 5;       
+          }
+          break;
+        
+        case MCP_KEY_STOP:
+          {
+            hmi.verifyCommand("STOP");
+            logln("STOP button pressed - Value: " + String(keyPressed));
+            keyStatus = 5;       
+          }
+          break;
 
-      case 3:
-        {
-          //hmi.verifyCommand("FFWD");
-          logln("FFWD button pressed - Value: " + String(value));
-        }
-        break;
+        case MCP_KEY_PAUSE:
+          {
+            hmi.verifyCommand("PAUSE");
+            logln("PAUSE button pressed - Value: " + String(keyPressed));
+            keyStatus = 5;       
+          }
+          break;
 
-      case 4:
-        {
-          //hmi.verifyCommand("RWD");
-          logln("RWD button pressed - Value: " + String(value));
-        }
-        break;
+        case MCP_KEY_FFWD:
+          {
+            hmi.verifyCommand("FFWD");
+            logln("FFWD button pressed - Value: " + String(keyPressed));
+            keyStatus = 5;       
+          }
+          break;
 
-      case 5:
-        {
-          //hmi.verifyCommand("EJECT");
-          logln("EJECT button pressed - Value: " + String(value));
-        }
-        break;
+        case MCP_KEY_RWD:
+          {
+            hmi.verifyCommand("RWD");
+            logln("RWD button pressed - Value: " + String(keyPressed));
+            keyStatus = 5;       
+          }
+          break;
 
-      default:
-        break;
-    }    
-  }
-  else if (keyStatus == 3)
-  {
-    if (value < 6)
+        case MCP_KEY_REC:
+          {
+            hmi.verifyCommand("REC");
+            logln("REC button pressed - Value: " + String(keyPressed));
+            keyStatus = 5;       
+          }
+          break;
+
+        case MCP_KEY_EJECT:
+          {
+            hmi.verifyCommand("EJECT");
+            logln("EJECT button pressed - Value: " + String(keyPressed));
+            keyStatus = 5;       
+          }
+          break;
+
+        default:
+            logln("Unknow key pressed");
+            keyStatus = 0;       
+          break;
+      }    
+    }
+    break;
+
+    case 3:
     {
-      keykp_count[value] = 0;
-    }    
-    // Long pressed
-    switch (detectKeyPressed(value))
+      // Long pressed
+      switch (keyPressed)
+      {
+        case 8:
+          // Release button, do nothing
+          {
+            logln("Key released: " + String(keyPressed) + " - Value: " + String(keyPressed));
+            if (KEEP_FFWIND || KEEP_RWIND)
+            {
+              KEEP_FFWIND = false;
+              KEEP_RWIND = false;
+              // Esto lo hacemos para salir del modo fast wind
+              hmi.verifyCommand("FFWD");
+            }
+            // Cambiamos de estado
+            keyStatus = 0;
+            //
+          }
+          break;
+        
+        case MCP_KEY_PLAY:
+          {
+            logln("PLAY/STOP button LONG pressed");
+          }
+          break;
+        
+        case MCP_KEY_STOP:
+          {
+            logln("STOP button LONG pressed");
+          }
+          break;
+
+        case MCP_KEY_PAUSE:
+          {
+            logln("PAUSE button LONG pressed");
+          }
+          break;
+        
+        case MCP_KEY_RWD:
+          {
+            hmi.verifyCommand("TTWD");
+            logln("RWD button LONG pressed");
+          }
+          break;
+
+        case MCP_KEY_FFWD:
+          {
+            hmi.verifyCommand("SFWD");
+            logln("FFWD button LONG pressed");
+          }
+          break;
+
+        case MCP_KEY_REC:
+          {
+            logln("REC button LONG pressed");
+          }
+          break;
+          
+        case MCP_KEY_EJECT:
+          {
+            hmi.writeString("page mainmenu");
+            logln("EJECT button LONG pressed");
+            // Forzamos salida para no repetir mas el comando
+            keyStatus = 5;
+          }
+          break;
+
+        default:
+          keyStatus = 0;
+          break;
+      }          
+    }
+    break;
+
+    case 5:
     {
-      case 0:
-        {
-          //hmi.verifyCommand("PLAY");
-          logln("PLAY/STOP button LONG pressed - Value: " + String(value));
-        }
-        break;
-      
-      case 1:
-        {
-          //hmi.verifyCommand("STOP");
-          logln("STOP button LONG pressed - Value: " + String(value));
-        }
-        break;
-
-      case 2:
-        {
-          //hmi.verifyCommand("PAUSE");
-          logln("PAUSE button LONG pressed - Value: " + String(value));
-        }
-        break;
-
-      case 3:
-        {
-          //hmi.verifyCommand("FFWD");
-          logln("FFWD button LONG pressed - Value: " + String(value));
-        }
-        break;
-
-      case 4:
-        {
-          //hmi.verifyCommand("RWD");
-          logln("RWD button LONG pressed - Value: " + String(value));
-        }
-        break;
-
-      case 5:
-        {
-          //hmi.verifyCommand("EJECT");
-          logln("EJECT button LONG pressed - Value: " + String(value));
-        }
-        break;
-
-      default:
+      // Esperamos soltar el botón
+      if (keyPressed == 8)
+      {
         keyStatus = 0;
-        break;
-    }    
+        logln("Key released");      
+      }
+    }
+    break;
+
+    default:
+    break;
   }
 
-
-  // uint8_t key1State = MCP23017_readPin(MCP_KEY1_IO_PIN_PB, I2C_MCP23017_ADDR);
-  // uint8_t key2State = MCP23017_readPin(MCP_KEY2_IO_PIN_PB, I2C_MCP23017_ADDR);
-  // uint8_t key3State = MCP23017_readPin(MCP_KEY3_IO_PIN_PB, I2C_MCP23017_ADDR);
-  // uint8_t key4State = MCP23017_readPin(MCP_KEY4_IO_PIN_PB, I2C_MCP23017_ADDR);
-  // uint8_t key5State = MCP23017_readPin(MCP_KEY5_IO_PIN_PB, I2C_MCP23017_ADDR);
-  // uint8_t key6State = MCP23017_readPin(MCP_KEY6_IO_PIN_PB, I2C_MCP23017_ADDR);
-
-  // if (key1State == LOW) 
-  // {
-  //   hmi.verifyCommand("PLAY");
-  //   logln("PLAY/STOP button pressed - Value: " + String(key1State));
-  // }
-  
-  // if (key2State == LOW) 
-  // {
-  //   hmi.verifyCommand("STOP");
-  //   logln("STOP button pressed - Value: " + String(key2State));
-  // } 
-  
-  // if (key3State == LOW) 
-  // {
-  //   hmi.verifyCommand("PAUSE");
-  //   logln("PAUSE button pressed - Value: " + String(key3State));
-  // }
-  
-  // if (key4State == LOW) 
-  // {
-  //   CMD_FROM_REMOTE_CONTROL = true;
-  //   hmi.verifyCommand("FFWD");
-  //   logln("FFWD button pressed - Value: " + String(key4State));
-  // }
-  
-  // if (key5State == LOW) 
-  // {
-  //   CMD_FROM_REMOTE_CONTROL = true;
-  //   hmi.verifyCommand("RWD");
-  //   logln("RWD button pressed - Value: " + String(key5State));
-  // }
-  
-  // if (key6State == LOW) 
-  // {
-  //   hmi.verifyCommand("EJECT");
-  //   logln("EJECT button pressed - Value: " + String(key6State));
-  // }
 }
 
 // ******************************************************************
@@ -8067,6 +8113,7 @@ void Task0code(void *pvParameters) {
   int startTime3 = millis();
   int startTime4 = millis();
   int startTime5 = millis();
+  int startTimeKey = millis();
 
   int tClock = millis();
   int ho = 0;
@@ -8074,6 +8121,7 @@ void Task0code(void *pvParameters) {
   int se = 0;
   int tScrRfsh = 125;
   int timeRTC = 1000;
+  int timeKeyPoll = 250;
 
   uint8_t lasthour = 0;
   uint8_t lastminute = 0;
@@ -8129,15 +8177,11 @@ void Task0code(void *pvParameters) {
 
     // Control por botones
     // Estos solo funcionan en la pagina TAPE0 o TAPE del HMI
-    if (CURRENT_PAGE <= 1)
-    {
-        //buttonsControl();
-    }
 
-        // Esto lo ponemos para evitar errores en la lectura del puerto serie
-        // delay(25);
+    // Esto lo ponemos para evitar errores en la lectura del puerto serie
+    // delay(25);
 
-        // esp_task_wdt_reset();
+    // esp_task_wdt_reset();
 
     #ifndef DEBUGMODE
 
@@ -8202,7 +8246,6 @@ void Task0code(void *pvParameters) {
               }
           }
       }
-
 
         // Actualizamos el RTC
         if ((millis() - startTime4 > timeRTC) && NTP_AVAILABLE) 
@@ -8313,6 +8356,15 @@ void Task0code(void *pvParameters) {
 
         if (!FLAC_IS_PLAYING)
         {
+          // Hacemos poll de la botonera
+          if (millis() - startTimeKey > timeKeyPoll)
+          {
+            if ((CURRENT_PAGE <= 1 || CURRENT_PAGE == 99) && !FILE_BROWSER_OPEN)
+            {
+                buttonsControl();
+            }          
+          }
+
           if (rotate_enable || ENABLE_ROTATE_FILEBROWSER) 
           {
             if ((millis() - startTime2) > tRotateNameRfsh && (FILE_LOAD.length() > windowNameLength || ((ROTATE_FILENAME.length() > windowNameLengthFB)) * ENABLE_ROTATE_FILEBROWSER)) 
@@ -8398,6 +8450,7 @@ void Task0code(void *pvParameters) {
           }
         }
         
+
     #endif
   }
 #endif
@@ -8582,28 +8635,31 @@ bool setupMCP23017() {
 
     MCP23017_AVAILABLE = true;
     saveHMIcfg("MCPAVAIL");
-
-    // Configuracion del MCP23017
+  
+    // Puerto A
     Wire1.beginTransmission(I2C_MCP23017_ADDR);
-    Wire1.write(0x00); // Reg. IODIRA
-    Wire1.write(0x00); // Configuramos el puerto A como salida
-    //Wire1.endTransmission();
+      Wire1.write(0x00);  // Reg. IODIRA
+      Wire1.write(0x3F);  // Configuramos GPIOA como entrada PA0..PA5 y salida pin PA6..PA7
+    Wire1.endTransmission();    //
+    
+    // Puerto A pull-up
+    Wire1.beginTransmission(I2C_MCP23017_ADDR);
+      Wire1.write(0x0C);   // Reg. GPPUA
+      Wire1.write(0x3F);   // Activamos pull-up en PA0 .. PA5
+    Wire1.endTransmission();    //
 
-    //Wire1.beginTransmission(I2C_MCP23017_ADDR);
-    Wire1.write(0x01);  // Reg. IODIRB
-    Wire1.write(0x3F);  // Configuramos GPIOB como entrada
-    //Wire1.endTransmission();
-    delay(125); 
-    //Wire1.beginTransmission(I2C_MCP23017_ADDR);
-    Wire1.write(0x0D);   // Reg. GPPUB
-    Wire1.write(0x3F);   // Activamos pull-up en PB0 .. PB5
-    Wire1.endTransmission();
+    // Puerto B
+    Wire1.beginTransmission(I2C_MCP23017_ADDR);
+      Wire1.write(0x01); // Reg. IODIRB
+      Wire1.write(0x00); // Configuramos el puerto B como salida
+    Wire1.endTransmission();    //
+
     //
     // test with powerLed
     for (int i = 0; i < 10; i++) {
-      MCP23017_writePin(MCP_LED_IO_PIN_PA, LOW, I2C_MCP23017_ADDR);
+      MCP23017_writePin(MCP_LED_IO_PIN, LOW, I2C_MCP23017_ADDR);
       delay(80);
-      MCP23017_writePin(MCP_LED_IO_PIN_PA, HIGH, I2C_MCP23017_ADDR);
+      MCP23017_writePin(MCP_LED_IO_PIN, HIGH, I2C_MCP23017_ADDR);
       delay(80);
     }
 
@@ -8885,6 +8941,23 @@ void loadHMICfgfromNVS() {
   showOption("menu2.sortFil.val", String(!SORT_FILES_FIRST_DIR));
   // Powerled always off/on
   showOption("menu2.pwled.val", String(!POWER_LED_MODE));
+// Hide virtual keyboard from screen
+  showOption("menu2.c0.val", String(HIDE_VIRTUAL_KEY));
+
+  if (HIDE_VIRTUAL_KEY)
+  {
+    myNex.writeNum("tape0.p1.pic",54);
+    myNex.writeNum("tape.p0.pic",54);
+    myNex.writeNum("menu2.hkey.val",1);
+  }
+  else
+  {
+    myNex.writeNum("tape0.p1.pic",48);
+    myNex.writeNum("tape.p0.pic",48);
+    myNex.writeNum("menu2.hkey.val",0);
+  }
+
+  //
 
   if (ACTIVE_AMP) {
     MAIN_VOL_L = 5;
@@ -9178,9 +9251,9 @@ void setup() {
     hmi.writeString("statusLCD.txt=\"MCP23017 available\"");
 
     for (int i = 0; i < 10; i++) {
-      MCP23017_writePin(MCP_LED_IO_PIN_PA, LOW, I2C_MCP23017_ADDR);
+      MCP23017_writePin(MCP_LED_IO_PIN, LOW, I2C_MCP23017_ADDR);
       delay(80);
-      MCP23017_writePin(MCP_LED_IO_PIN_PA, HIGH, I2C_MCP23017_ADDR);
+      MCP23017_writePin(MCP_LED_IO_PIN, HIGH, I2C_MCP23017_ADDR);
       delay(80);
     }
   }

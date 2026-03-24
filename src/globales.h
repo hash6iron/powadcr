@@ -411,6 +411,7 @@ bool POWERLED_ON = true;
 bool ENABLE_POWER_LED = true;
 uint8_t POWERLED_DUTY = POWER_LED_INTENSITY;
 bool POWER_LED_MODE = false; // false = normal on/off, true = intensity control with duty cycle
+bool HIDE_VIRTUAL_KEY = false;
 
 uint8_t TAPESTATE = 0;
 uint8_t LAST_TAPESTATE = 0;
@@ -842,6 +843,7 @@ ConfigEntry configEntries[] = {
     {"PLEopt", CONFIG_TYPE_BOOL, &ENABLE_POWER_LED},
     {"SFFopt", CONFIG_TYPE_BOOL, &SORT_FILES_FIRST_DIR},
     {"PLDopt", CONFIG_TYPE_BOOL, &POWER_LED_MODE},
+    {"HVKopt", CONFIG_TYPE_BOOL, &HIDE_VIRTUAL_KEY},
     {"SPKopt", CONFIG_TYPE_BOOL, &EN_SPEAKER},
     {"RBUFopt", CONFIG_TYPE_BOOL, &RADIO_BUFFERED},
     {"DHCPFopt", CONFIG_TYPE_BOOL, &DHCP_ENABLE},
@@ -1232,14 +1234,14 @@ int getFreeFileDescriptors() {
 }
 
 // Devuelve la posición del primer bit a 0 en un byte (0 = LSB, 7 = MSB), o -1 si todos están a 1
-int detectKeyPressed(uint8_t byte) {
-  for (int i = 0; i < 8; ++i) {
-    if (((byte >> i) & 1) == 0) {
-      return i;
-    }
-  }
-  return -1;
-}
+// int detectKeyPressed(uint8_t byte) {
+//   for (int i = 0; i < 8; ++i) {
+//     if (((byte >> i) & 1) == 1) {
+//       return i;
+//     }
+//   }
+//   return -1;
+// }
 
 // Escribe el estado (HIGH/LOW) en un pin del MCP23017 sin afectar los demás
 void  MCP23017_writePin(uint8_t pin, uint8_t state, uint8_t i2c_addr = 0x20) {
