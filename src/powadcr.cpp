@@ -8639,13 +8639,13 @@ bool setupMCP23017() {
     // Puerto A
     Wire1.beginTransmission(I2C_MCP23017_ADDR);
       Wire1.write(0x00);  // Reg. IODIRA
-      Wire1.write(0x3F);  // Configuramos GPIOA como entrada PA0..PA5 y salida pin PA6..PA7
+      Wire1.write(0x7F);  // Configuramos GPIOA como entrada PA0..PA6 y salida pin PA7
     Wire1.endTransmission();    //
     
     // Puerto A pull-up
     Wire1.beginTransmission(I2C_MCP23017_ADDR);
       Wire1.write(0x0C);   // Reg. GPPUA
-      Wire1.write(0x3F);   // Activamos pull-up en PA0 .. PA5
+      Wire1.write(0x7F);   // Activamos pull-up en PA0 .. PA5
     Wire1.endTransmission();    //
 
     // Puerto B
