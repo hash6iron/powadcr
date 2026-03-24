@@ -1687,7 +1687,27 @@ private:
           }
 
           saveHMIcfg("PLDopt");
-        }                    
+        }     
+        else if (strCmd.indexOf("HVK=") != -1) 
+        {
+          // Hide Virtual Keyboard
+
+          //Cogemos el valor
+          uint8_t buff[8];
+          strCmd.getBytes(buff, 7);
+          int valEn = (int)buff[4];
+          //
+          if (valEn==1)
+          {
+            HIDE_VIRTUAL_KEY = true;
+          }
+          else
+          {
+            HIDE_VIRTUAL_KEY = false;
+          }
+
+          saveHMIcfg("HVKopt");
+        }                       
         else if (strCmd.indexOf("RBUF=") != -1) 
         {
           //Cogemos el valor
@@ -3843,7 +3863,19 @@ private:
             CURRENT_PAGE = 5;
             delay(500);          
             myNex.writeNum("menu2.pwled.val", int(!POWER_LED_MODE));
-            myNex.writeNum("menu2.sortFil.val", int(SORT_FILES_FIRST_DIR));          
+            myNex.writeNum("menu2.c0.val", int(HIDE_VIRTUAL_KEY));
+            myNex.writeNum("menu2.sortFil.val", int(SORT_FILES_FIRST_DIR));   
+            
+            if (HIDE_VIRTUAL_KEY)
+            {
+              myNex.writeNum("tape0.p1.pic",54);
+              myNex.writeNum("tape.p0.pic",54);
+            }
+            else
+            {
+              myNex.writeNum("tape0.p1.pic",48);
+              myNex.writeNum("tape.p0.pic",48);
+            }
         }         
         else if (strCmd.indexOf("PTAPE") != -1)
         {
@@ -3916,6 +3948,19 @@ private:
           // Buscamos nueva firmware
           //
           //-------------------------------------------------------------------------
+          // Paramos toda la reproducción de medios
+          PLAY = false;
+          PAUSE = false;
+          STOP = true;
+          REC = false;
+          ABORT = true;
+          EJECT = false;
+          BLOCK_SELECTED = 0;
+          BYTES_LOADED = 0;
+          myNex.writeStr("update.status.txt","Stop player ...");
+          delay(1000);
+          
+          // Actualizamos
           #ifdef AUTO_UPDATE    
             // -------------------------------------------------------------------------
             // Actualizacion del HMI

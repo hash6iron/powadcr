@@ -56,7 +56,7 @@
 // --------------------------------------------------------------
 // Configuración de la versión del software
 // --------------------------------------------------------------
-#define VERSION "v1.0r7.11" // Formato: vX.YrW.Z (X=major, Y=minor, W=revision, Z=revision_minor)
+#define VERSION "v1.0r7.12" // Formato: vX.YrW.Z (X=major, Y=minor, W=revision, Z=revision_minor)
 
 // --------------------------------------------------------------
 // Configuración de memoria optimizada
@@ -117,16 +117,19 @@ int GPIO_MSX_REMOTE_PAUSE = 19;
 #define I2C_MCP23017_AVAILABLE // Comentar si no se usa el MCP23017
 #define I2C_MCP23017_ADDR 0x20 // 0x20
 #define I2C_GRP_LCD_ADDR  0x27  // 0x27
+
 // PORT A
-#define MCP_LED_IO_PIN_PA  0    // Pin del MCP23017 para Power LED
-// PORT B
-#define MCP_KEY1_IO_PIN_PB 8   // Pin del MCP23017 para Key1
-#define MCP_KEY2_IO_PIN_PB 9   // Pin del MCP23017 para Key2
-#define MCP_KEY3_IO_PIN_PB 10   // Pin del MCP23017 para Key3
-#define MCP_KEY4_IO_PIN_PB 11  // Pin del MCP23017 para Key4
-#define MCP_KEY5_IO_PIN_PB 12   // Pin del MCP23017 para Key5
-#define MCP_KEY6_IO_PIN_PB 13  // Pin del MCP23017 para Key6
-#define MCP_REM_IO_PIN_PB  15   // Pin del MCP23017 para Remote Pause
+#define MCP_KEY_PLAY       5   // Pin +1 del MCP23017 para Key2
+#define MCP_KEY_STOP       1   // Pin +1 del MCP23017 para Key3
+#define MCP_KEY_PAUSE      2   // Pin +1 del MCP23017 para Key6
+#define MCP_KEY_RWD        4   // Pin +1 del MCP23017 para Key4
+#define MCP_KEY_FFWD       3   // Pin +1 del MCP23017 para Key5
+#define MCP_KEY_REC        6   // Pin +1 del MCP23017 para Key1
+#define MCP_KEY_EJECT      0   // Pin +1 del MCP23017 para Key1
+
+#define MCP_LED_IO_PIN     7   // Pin del MCP23017 para Power LED
+
+
 
 // --------------------------------------------------------------
 // Configuración de memoria para SSL
