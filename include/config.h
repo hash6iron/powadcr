@@ -273,6 +273,7 @@ int GPIO_MSX_REMOTE_PAUSE = 19;
 #define RADIO_DECODE_BUFFER_SIZE 4096  // 1KB (más conservador en reproducción)
 
 #define RADIO_CONNECT_TIMEOUT_MS 10000 // 10s timeout (más tiempo)
+#define RADIO_BUFFER_TIMEOUT_MS  8000  // 8s sin crecimiento del buffer → reintentar
 #define USE_SSL_STATIONS false
 #define DIAL_COLOR 45056
 #define RADIO_SYNTONIZATION_LED_COLOR 2016

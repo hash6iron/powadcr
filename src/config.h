@@ -56,7 +56,7 @@
 // --------------------------------------------------------------
 // Configuración de la versión del software
 // --------------------------------------------------------------
-#define VERSION "v1.0r7.12" // Formato: vX.YrW.Z (X=major, Y=minor, W=revision, Z=revision_minor)
+#define VERSION "v1.0r7.13" // Formato: vX.YrW.Z (X=major, Y=minor, W=revision, Z=revision_minor)
 
 // --------------------------------------------------------------
 // Configuración de memoria optimizada
@@ -83,7 +83,7 @@
 #define TASK1_STACK_SIZE 32768 // Defecto 16384
 
 // Tarea del Core 1 - HMI (Task0code - HMI, FTP, etc.) - Más ligera
-#define TASK0_STACK_SIZE 8192 // Defecto 8192
+#define TASK0_STACK_SIZE 16384 // Defecto 8192
 
 // Definimos la ganancia de la entrada de linea (para RECORDING)
 #define WORKAROUND_ES8388_LINE1_GAIN MIC_GAIN_MAX
@@ -276,6 +276,7 @@ int GPIO_MSX_REMOTE_PAUSE = 19;
 #define RADIO_DECODE_BUFFER_SIZE 4096  // 1KB (más conservador en reproducción)
 
 #define RADIO_CONNECT_TIMEOUT_MS 10000 // 10s timeout (más tiempo)
+#define RADIO_BUFFER_TIMEOUT_MS  8000  // 8s sin crecimiento del buffer → reintentar
 #define USE_SSL_STATIONS false
 #define DIAL_COLOR 45056
 #define RADIO_SYNTONIZATION_LED_COLOR 2016
@@ -367,6 +368,13 @@ bool TEST_LINE_IN_OUT = false;
 #define GITHUB_OWNER "hash6iron" // Tu usuario de GitHub
 #define GITHUB_REPO "powadcr"    // Tu repositorio
 #define AUTO_UPDATE_CHECK false  // Habilitar check automático
+
+// ---------------------------------------------------------------
+//
+// otros
+//
+// ---------------------------------------------------------------
+#define SPOTIFY_CONTROL_ENABLE
 
 // -------------------------------
 //

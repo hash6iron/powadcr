@@ -279,8 +279,10 @@ class URLStreamESP32 : public AbstractURLStream {
   }
   // ends the request
   virtual void end() override {
+    if (client_handle == nullptr) return;  // idempotente: ya fue liberado
     esp_http_client_close(client_handle);
     esp_http_client_cleanup(client_handle);
+    client_handle = nullptr;  // evitar doble-free y uso tras liberación
   }
 
   /// Writes are not supported

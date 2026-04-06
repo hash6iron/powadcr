@@ -96,6 +96,7 @@ private:
           int seek=0;
           String fileName="";
           String fileType="";
+          String IDZXDB="";
       };
 
       bool copyFileFS(const char* srcPath, const char* dstPath) {
@@ -457,27 +458,29 @@ private:
       void fillWithFilesFromFile(File &fout, File &fstatus, const String &search_pattern, const String &path) 
       {
           // Ruta del archivo _files.lst
-          String path_file_lst = path + "_files.lst";
+          String path_file_lst = "";
+          if (path.lastIndexOf('/') == path.length() - 1) 
+          {
+              // Si la ruta termina con '/', le añadimos el nombre del archivo
+              path_file_lst = path + "_files.lst";
+          } else {
+              // Si no termina con '/', añadimos '/' y el nombre del archivo
+              path_file_lst = path + "/_files.lst";          
+          }
       
           // Verificamos si el archivo _files.lst existe
           if (!SD_MMC.exists(path_file_lst.c_str())) {
-              #ifdef DEBUGMODE
-                  logln("File _files.lst does not exist: " + path_file_lst);
-              #endif
+              logln("File _files.lst does not exist: " + path_file_lst);
               return;
           }
 
-          #ifdef DEBUGMODE
-              logln("Reading file: " + path_file_lst);
-          #endif
+          logln("Reading file: " + path_file_lst);
 
           // Abrimos el archivo _files.lst
           File lstFile;
           lstFile = SD_MMC.open(path_file_lst.c_str(), FILE_READ);
           if (!lstFile) {
-              #ifdef DEBUGMODE
-                  logln("Failed to open _files.lst: " + path_file_lst);
-              #endif
+              logln("Failed to open _files.lst: " + path_file_lst);
               return;
           }
       
@@ -493,6 +496,8 @@ private:
       
           String searchPatternUC = search_pattern;
           searchPatternUC.toUpperCase(); // Convertimos el patrón de búsqueda a mayúsculas
+
+          writeString("statusFILE.txt=\"Search...\"");
       
           // Recorremos el archivo línea por línea
           while (lstFile.available()) {
@@ -507,10 +512,23 @@ private:
               // Convertimos el nombre del archivo a mayúsculas para la comparación
               String filenameUC = fl.fileName;
               filenameUC.toUpperCase();
-      
+
+              // logln("Processing file: " + fl.fileName + " (Type: " + fl.fileType + ", Seek: " + String(fl.seek) + ", IDZXDB: " + fl.IDZXDB + ")");
+              // logln("Search pattern: " + searchPatternUC);
+              // logln("Filename uppercase: " + filenameUC);
+
               // Si el archivo cumple con el patrón de búsqueda, lo escribimos en fout
-              if (filenameUC.indexOf(searchPatternUC) != -1) {
-                  fout.printf("%d|%s|%d|%s|\n", fl.ID, fl.fileType.c_str(), fl.seek, fl.fileName.c_str());
+              if (filenameUC.indexOf(searchPatternUC) != -1) 
+              {
+                  if (fl.IDZXDB != "") 
+                  {
+                    fout.printf("%d|%s|%d|%s|%s|\n", fl.ID, fl.fileType.c_str(), fl.seek, fl.fileName.c_str(), fl.IDZXDB.c_str());
+                  }
+                  else
+                  {
+                    fout.printf("%d|%s|%d|%s|\n", fl.ID, fl.fileType.c_str(), fl.seek, fl.fileName.c_str());
+                  }
+                  
                   FILE_TOTAL_FILES++;
               }
       
@@ -579,7 +597,10 @@ private:
                   fnameToLower.toLowerCase();
 
                   // Obtenemos la extensión del fichero
-                  const char *ext = getFileExtension(fname.c_str());
+                  const char *ext = getFileExtension(fnameToLower.c_str());
+
+                  // logln("File name: " + fnameToLower);
+                  // logln("Extension: " + String(ext));
 
                   #ifdef DEBUGMODE
                       logln("File: " + fname);
@@ -602,7 +623,7 @@ private:
                               strcmp(ext, "wav") == 0 || strcmp(ext, "mp3") == 0 ||
                               strcmp(ext, "flac") == 0 || strcmp(ext, "lst") == 0 ||
                               strcmp(ext, "dsc") == 0 || strcmp(ext, "inf") == 0 ||
-                              strcmp(ext, "txt") == 0 || strcmp(ext, "radio") == 0)
+                              strcmp(ext, "txt") == 0 || strcmp(ext, "radio") == 0 || strcmp(ext, "zxdb") || strcmp(ext, "zip") == 0)
                           {
                               fout.print(String(lpos)); fout.print(separator);
                               fout.print("F"); fout.print(separator);
@@ -728,6 +749,7 @@ private:
       void registerFiles(const String &path, const String &filename, const String &filename_inf, const String &search_pattern, bool rescan) 
       {
           // Construimos las rutas completas
+
           String regFile = path + "/" + filename;
           String statusFile = path + "/" + filename_inf;
       
@@ -743,11 +765,10 @@ private:
           // Manejadores de archivos
           File f, fstatus;
       
-          #ifdef DEBUGMODE
-              logln("File created: " + regFile);
-              logln("File status created: " + statusFile);
-          #endif
-  
+          logln("Registering. File created: " + regFile);
+          logln("Registering. File status created: " + statusFile);
+          logln("Rescan: " + String(rescan));
+
           // Abrimos los archivos
           f = SD_MMC.open(file_ch, FILE_WRITE);
           fstatus = SD_MMC.open(filest_ch, FILE_WRITE);
@@ -770,9 +791,17 @@ private:
                   logln("Registering files in path: " + path);   
               #endif
       
-              // Si es una búsqueda y no es un rescan, usamos el archivo existente
-              if (!search_pattern.isEmpty() && !rescan && f.size() > 0 && fstatus.size() > 0)
+              bool zxdb_search = FILE_LAST_DIR.indexOf("ONLINE") != -1 ? true : false;
+              if (zxdb_search)
               {
+                  // Si la ruta es ONLINE, no intentamos cargar un _files.lst previo
+                  logln("Online path, skipping loading from existing file.");
+              }
+
+              // Si es una búsqueda y no es un rescan, usamos el archivo existente
+              if (zxdb_search || (!search_pattern.isEmpty() && !rescan && f.size() > 0 && fstatus.size() > 0))
+              {
+                  logln("Filling with existing file: " + regFile);
                   fillWithFilesFromFile(f, fstatus, search_pattern, path);
               } 
               else 
@@ -815,23 +844,37 @@ private:
               switch(index)
               {
                 case 0:
-                lineData.ID = atoi(ptr);
+                {
+                  lineData.ID = atoi(ptr);
+                }
                 break;
 
                 case 1:
-                lineData.type = ptr[0];
+                {
+                  lineData.type = ptr[0];
+                }
                 break;
 
                 case 2:
-                lineData.seek = atoi(ptr);
+                {
+                  lineData.seek = atoi(ptr);
+                }
                 break;
 
                 case 3:
-                // Cogemos la extensión del fichero
-                lineData.fileName = String(ptr);
-                int dotIdx = lineData.fileName.lastIndexOf('.');
-                lineData.fileType = (dotIdx != -1) ? lineData.fileName.substring(dotIdx) : "";
-                //logln("File type: " + lineData.fileType);
+                {
+                  // Cogemos la extensión del fichero
+                  lineData.fileName = String(ptr);
+                  int dotIdx = lineData.fileName.lastIndexOf('.');
+                  lineData.fileType = (dotIdx != -1) ? lineData.fileName.substring(dotIdx) : "";
+                  //logln("File type: " + lineData.fileType);
+                }
+                break;
+
+                case 4:
+                {
+                  lineData.IDZXDB = String(ptr);
+                }
                 break;
               }          
               ptr = strtok(NULL, separator);
@@ -1040,18 +1083,7 @@ private:
           FB_READING_FILES = true;
       
           clearFileBuffer();
-      
-          #ifdef DEBUGMODE
-              logln("Trying to use LST file: " + fFileList);
-              logln("Searching files in dir: " + FILE_LAST_DIR);
-              // File root = SD_MMC.open("/MP3");
-              // while (File entry = root.openNextFile()) {
-              //     logln(entry.name());
-              //     entry.close();
-              // }
-              // root.close();              
-          #endif
-      
+            
           // Aseguramos que el directorio está abierto
           if (global_dir) 
           {
@@ -1075,9 +1107,7 @@ private:
               return;
           }
       
-          #ifdef DEBUGMODE
-              logln("Directory: " + FILE_LAST_DIR + " - opened successfully.");
-          #endif
+          logln("Search: Directory: " + FILE_LAST_DIR + " - opened successfully.");
 
           FILE_DIR_OPEN_FAILED = false;
       
@@ -1088,8 +1118,15 @@ private:
               String pathTmp = "";
               if (FILE_LAST_DIR != "/") {pathTmp = FILE_LAST_DIR + "/" + output_file;}
               
+              logln("Checking if LST file exists at: " + pathTmp);
+              logln("Force rescan: " + String(force_rescan ? "Yes" : "No"));
+
               if (force_rescan || !SD_MMC.exists(pathTmp.c_str())) 
               {
+                // Si el archivo no existe o se fuerza el rescan, lo generamos
+                // Si el directorio no es ONLINE, no forzamos el rescan aunque se haya pedido, para evitar destruirlo ya que es virtual
+                if (FILE_LAST_DIR.indexOf("ONLINE") == -1) force_rescan = false;
+
                 registerFiles(FILE_LAST_DIR, output_file, output_file_inf, search_pattern, force_rescan);
               }
 
@@ -1102,9 +1139,10 @@ private:
               fFileLST.seek(0);
               LST_FILE_IS_OPEN = true;
           }
-      
+          
           // Si no estamos buscando, contamos las líneas en el archivo _files.inf
-          if (search_pattern == "") {
+          if (search_pattern == "") 
+          {
               countTotalLinesInLST(FILE_LAST_DIR, SOURCE_FILE_INF_TO_MANAGE);
           }
       
@@ -1392,7 +1430,7 @@ private:
               {
                 color = DSC_FILE_COLOR;  // Negro - Indica que es un fichero DSC
               }
-              else if (type == ".TAP" || type == ".TZX" || type == ".TSX" || type == ".CDT" || type == ".PZX" || type == ".WAV" || type == ".MP3" || type == ".FLAC" || type == ".RADIO")
+              else if (type == ".TAP" || type == ".TZX" || type == ".TSX" || type == ".CDT" || type == ".PZX" || type == ".WAV" || type == ".MP3" || type == ".FLAC" || type == ".RADIO" || type == ".ZXDB")
               {
                   //Ficheros
                   if (SD_MMC.exists("/fav/" + szName))
@@ -2553,25 +2591,46 @@ private:
               logln("File path to load: " + PATH_FILE_TO_LOAD);
               logln("File name only   : " + FILE_LOAD);
 
-              // Comprobamos que la ruta es existente
-              if (!SD_MMC.exists(PATH_FILE_TO_LOAD))
+              if (FILE_LOAD.indexOf(".zxdb") != -1)
               {
-                #ifdef DEBUGMODE
-                  logAlert("File not exists: " + PATH_FILE_TO_LOAD);
-                #endif
-                PATH_FILE_TO_LOAD = "";
-                FILE_LOAD = "";
-                FILE_SELECTED = false;
+                // Es un fichero virtual. Hay que descargarlo primero.
+                logln("File is a virtual file. Downloading ...");
+                // Cogemos el nombre del fichero sin .zxdb
+                String tittle = FILE_LOAD.substring(0, FILE_LOAD.length() - 5);
+                // Buscamos en _files.lst el ID que le corresponde a ese fichero para descargarlo
+                String idFile = getIdOfFileInLst(FILE_LAST_DIR + "/_files.lst", FILES_BUFF[FILE_IDX_SELECTED+1].path);
+
+                if (idFile != "")
+                {
+                  logln("File id to download: " + idFile);
+                  logln("Title of file to download: " + tittle);
+                  logln("Starting download from ZXDB ...");
+                  downloadFromZXDB(idFile, tittle);
+                }
+
               }
               else
               {
-                #ifdef DEBUGMODE
-                  logAlert("File exists: " + PATH_FILE_TO_LOAD);
-                #endif
-                FILE_SELECTED = true;
+                  // Comprobamos que la ruta es existente
+                  if (!SD_MMC.exists(PATH_FILE_TO_LOAD))
+                  {
+                    #ifdef DEBUGMODE
+                      logAlert("File not exists: " + PATH_FILE_TO_LOAD);
+                    #endif
+                    PATH_FILE_TO_LOAD = "";
+                    FILE_LOAD = "";
+                    FILE_SELECTED = false;
+                  }
+                  else
+                  {
+                    #ifdef DEBUGMODE
+                      logAlert("File exists: " + PATH_FILE_TO_LOAD);
+                    #endif
+                    FILE_SELECTED = true;
 
-                // Guardamos esto en el fichero de last.txt
-                saveLastMedia(PATH_FILE_TO_LOAD);                
+                    // Guardamos esto en el fichero de last.txt
+                    saveLastMedia(PATH_FILE_TO_LOAD);                
+                  }                
               }
             }
             else
@@ -2636,6 +2695,11 @@ private:
             FFWIND = true;
             RWIND = false;
             KEEP_FFWIND = false;
+
+            if (CURRENT_PAGE == 6)
+            {
+              verifyCommand("SPO4");
+            }
         }
         else if (strCmd.indexOf("RWD") != -1) 
         {
@@ -2643,6 +2707,12 @@ private:
             FFWIND = false;
             RWIND = true;
             KEEP_RWIND = false;
+
+            if (CURRENT_PAGE == 6)
+            {
+              verifyCommand("SPO1");
+            }
+
         }
         else if (strCmd.indexOf("SFWD") != -1) 
         {
@@ -2674,6 +2744,12 @@ private:
 
           BTN_PLAY_PRESSED = true;  
           writeString("BBOK.val=1");
+
+          if (CURRENT_PAGE == 6)
+          {
+            verifyCommand("SPO2");
+          }
+          
 
         }   
         else if (strCmd.indexOf("REC") != -1) 
@@ -2730,6 +2806,12 @@ private:
 
           BLOCK_SELECTED = 0;
           BYTES_LOADED = 0;
+
+          if (CURRENT_PAGE == 6)
+          {
+            verifyCommand("SPO3");
+          }
+
         }     
         else if (strCmd.indexOf("EJECT") != -1) 
         {
@@ -3606,7 +3688,9 @@ private:
           else
           {
               activateWifi(false);
-          }          
+          }    
+          
+          saveHMIcfg("WIFIopt");
         }
         // Show data debug by serial console
         else if (strCmd.indexOf("SDD=") != -1) 
@@ -3811,6 +3895,16 @@ private:
           
           findTheTextInFiles();
         }
+        else if (strCmd.indexOf("ZXDB=") != -1) 
+        {
+          //Cogemos el valor
+          uint8_t buff[8];
+          strCmd.getBytes(buff, 7);
+          char str = (char)buff[5];
+          //
+          logln("Update ZXDB with letter: " + String(str));
+          updateZXDB(String(str));
+        }        
         else if (strCmd.indexOf("PDEBUG") != -1)
         {
             // Estamos en la pantalla DEBUG
@@ -3888,6 +3982,14 @@ private:
             TAPE_PAGE_SHOWN = true;
             RADIO_PAGE_SHOWN = true;
         }
+        else if (strCmd.indexOf("PSPOT") != -1)
+        {
+            // Estamos en la pantalla TAPE
+            #ifdef DEBUGMODE
+              logAlert("PAGE SPOTIFY");
+            #endif
+            CURRENT_PAGE = 6;
+        }
         else if (strCmd.indexOf("0TAPE") != -1)
         {
             // Estamos en la pantalla TAPE
@@ -3910,6 +4012,46 @@ private:
             //updateInformationMainPage(true);
             TAPE_PAGE_SHOWN = false;
             RADIO_PAGE_SHOWN = false;
+            //
+        }    
+        else if (strCmd.indexOf("SPO4") != -1)
+        {
+            // Spotify PREV TRACK
+            //updateInformationMainPage(true);
+            if (SPOTIFY_CONTROL)
+            {
+              sp->skip_to_next();
+            }
+            //
+        }                  
+        else if (strCmd.indexOf("SPO1") != -1)
+        {
+            // Spotify PREV TRACK
+            //updateInformationMainPage(true);
+            if (SPOTIFY_CONTROL)
+            {
+              sp->skip_to_previous();
+            }
+            //
+        }     
+        else if (strCmd.indexOf("SPO2") != -1)
+        {
+            // Spotify PLAY/PAUSE
+            //updateInformationMainPage(true);
+            if (SPOTIFY_CONTROL)
+            {
+              sp->play();
+            }
+            //
+        }     
+        else if (strCmd.indexOf("SPO3") != -1)
+        {
+            // Spotify NEXT TRACK
+            //updateInformationMainPage(true);
+            if (SPOTIFY_CONTROL)
+            { 
+              sp->pause();
+            }
             //
         }            
         else if (strCmd.indexOf("CHKUPD") != -1)
@@ -4938,6 +5080,53 @@ private:
         myNex.writeStr("update.status.txt","Latest version: " + tagName);
         
         return tagName;
+    }
+
+    // Busca en _files.lst el ID correspondiente a un fichero .zxdb
+    // lstPath  : ruta completa al _files.lst  (e.g. "/ONLINE/A/_files.lst")
+    // fileName : nombre del fichero con extensión (e.g. "Manic Miner.zxdb")
+    // Retorna  : el ID de 7 dígitos, o "" si no se encuentra
+    // Formato de línea: {lineNum}|F|0|{title}.zxdb|{id}
+    String getIdOfFileInLst(const String& lstPath, const String& fileName)
+    {
+      File lst = SD_MMC.open(lstPath.c_str(), FILE_READ);
+      if (!lst)
+      {
+        logln("getIdOfFileInLst: no se pudo abrir " + lstPath);
+        return "";
+      }
+
+      while (lst.available())
+      {
+        String line = lst.readStringUntil('\n');
+        line.trim();
+        if (line.length() == 0) continue;
+
+        // Formato: lineNum|F|0|title.zxdb|id
+        // Buscamos el campo 4 (índice 3, base 0) que contiene el nombre del fichero
+        int f1 = line.indexOf('|');                        // después de lineNum
+        int f2 = (f1 != -1) ? line.indexOf('|', f1+1) : -1; // después de F
+        int f3 = (f2 != -1) ? line.indexOf('|', f2+1) : -1; // después de 0
+        int f4 = (f3 != -1) ? line.indexOf('|', f3+1) : -1; // después de title
+
+        if (f3 == -1 || f4 == -1) continue;
+
+        String titleInLine = line.substring(f3+1, f4);
+        titleInLine.trim();
+
+        if (titleInLine == fileName)
+        {
+          String id = line.substring(f4+1);
+          id.trim();
+          lst.close();
+          logln("getIdOfFileInLst: encontrado ID=" + id + " para " + fileName);
+          return id;
+        }
+      }
+
+      lst.close();
+      logln("getIdOfFileInLst: no encontrado " + fileName + " en " + lstPath);
+      return "";
     }
 
     // ✅ FUNCIÓN OPTIMIZADA PARA ARCHIVOS GRANDES

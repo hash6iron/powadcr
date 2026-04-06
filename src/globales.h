@@ -38,12 +38,14 @@
 #include <inttypes.h>
 #include <stdio.h>
 #include <string>
+#include <miniz.h>
 
 #define up 1
 #define down 0
 
 File global_dir;
-// File global_file;
+
+extern bool FTP_CONNECTED;
 
 int stackFreeCore0 = 0;
 int stackFreeCore1 = 0;
@@ -821,6 +823,14 @@ bool NTP_AVAILABLE = false;
 // Auto-update
 String HMI_MODEL = "";
 
+bool SPOTIFY_CONTROL = false;
+bool SPOTIFY_EN = false;
+String SPOTIFY_CLIENT_ID = "";
+String SPOTIFY_CLIENT_SECRET = "";
+
+//
+bool QUICK_BOOT = false;
+
 // Declaraciones de metodos
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 // void save();
@@ -848,6 +858,7 @@ ConfigEntry configEntries[] = {
     {"RBUFopt", CONFIG_TYPE_BOOL, &RADIO_BUFFERED},
     {"DHCPFopt", CONFIG_TYPE_BOOL, &DHCP_ENABLE},
     {"MCPAVAIL", CONFIG_TYPE_BOOL, &MCP23017_AVAILABLE},
+    {"WIFIopt", CONFIG_TYPE_BOOL, &WIFI_ENABLE},
 };
 
 //           s.end());
@@ -1108,6 +1119,11 @@ void logln(String txt) {
   Serial.println("");
 }
 
+void loglnf(const char *format, String txt)
+{
+  Serial.printf(format,txt);
+}
+
 String lastAlertTxt = "";
 
 void logAlert(String txt) {
@@ -1193,10 +1209,14 @@ bool isDirectoryPath(const char *path) {
 
   int lastSlash = spath.lastIndexOf('/');
   int lastDot = spath.lastIndexOf('.');
+  String spathWithoutDots = spath;
+  spathWithoutDots.replace(".", "");
+  int countDots = spath.length() - spathWithoutDots.length();
 
   // ¿Hay un punto después del último slash y al menos un carácter después del
   // punto?
-  if (lastDot > lastSlash && lastDot < spath.length() - 1) {
+  if (countDots == 1 && lastDot > lastSlash && lastDot < spath.length() - 1) 
+  {
     // Asumimos que es un fichero
     return false;
   }
@@ -1385,4 +1405,809 @@ inline String getFormattedDateTime(String amPm, uint8_t day, uint8_t month, uint
         snprintf(buf, sizeof(buf), "%02u/%02u/%04u - %02u:%02u:%02u", day, month, year, hour, minute, second);
     }
     return String(buf);
+}
+
+
+
+// void generate_zxdb_files_list_flat(File lst, const char* baseurl, int totalPerPage, int offset) 
+// {
+// // Descarga todas las páginas de ZXDB (output=flat) y genera _files.lst y _files.inf en /ONLINE
+//   HTTPClient http;
+  
+//   // Capturamos la información de ZXDB
+//   String url = String(baseurl) + "&size=" + String(totalPerPage) + "&offset=" + String(offset);
+//   http.begin(url.c_str());
+//   int httpCode = http.GET();
+  
+//   if (httpCode == 200) 
+//   {
+//     String payload = http.getString();
+//     int count = 0;
+//     int hitNum = offset*totalPerPage;
+
+//     // String totalKey = "total.value=";
+//     // int totalPos = payload.indexOf(totalKey);
+//     // String total = payload.substring(totalPos + totalKey.length(), payload.indexOf('\n', totalPos));
+//     // total.trim();
+//     // totalFiles = total.toInt();
+//     // logln("Total " + String(totalFiles) + " files in ZXDB");
+    
+//     // bucle de analisis
+//     while (true) 
+//     {
+//       String idKey = "hits." + String(hitNum) + "._id=";
+//       String titleKey = "hits." + String(hitNum) + ".title=";
+//       int idPos = payload.indexOf(idKey);
+//       int titlePos = payload.indexOf(titleKey);
+
+//       if (idPos == -1 || titlePos == -1) break;
+      
+//       int idValStart = idPos + idKey.length();
+//       int idValEnd = payload.indexOf('\n', idValStart);
+//       String id = payload.substring(idValStart, idValEnd);
+      
+//       int titleValStart = titlePos + titleKey.length();
+//       int titleValEnd = payload.indexOf('\n', titleValStart);
+//       String title = payload.substring(titleValStart, titleValEnd);
+      
+//       id.trim(); 
+//       title.trim();
+      
+//       if (id.length() == 0 || title.length() == 0) 
+//       {
+//         hitNum++;
+//         continue;
+//       }
+
+//       logln("Found: " + title + " (ID: " + id + ")");
+      
+//       // Escribimos el fichero _files.lst
+//       lst.print(String(hitNum));
+//       lst.print("|F|0|");
+//       lst.print(title);
+//       lst.print("|");
+//       lst.println(id);
+//       count++;
+//       hitNum++;
+//     }
+//   } 
+//   else 
+//   {
+//     Serial.print("Error HTTP: ");
+//     Serial.println(httpCode);
+//   }
+//   http.end();
+
+//   lst.flush();
+
+//   //return totalFiles;
+// }
+  
+// Descarga todas las rutas .zip de un juego ZXDB por ID y las guarda en _down.lst
+// void fetch_zxdb_zip_paths_to_file(const char* game_id) {
+
+//   String url = String("https://api.zxinfo.dk/v3/games/") + game_id + "?mode=compact&output=flat";
+//   HTTPClient http;
+//   http.begin(url);
+//   int httpCode = http.GET();
+//   if (httpCode == 200) {
+//     String payload = http.getString();
+//     File downlst = SD_MMC.open("/ONLINE/_down.lst", FILE_WRITE);
+//     if (!downlst) {
+//       Serial.println("No se pudo abrir _down.lst para escribir");
+//       http.end();
+//       return;
+//     }
+//     int pos = 0;
+//     while (true) {
+//       String key = "releases.0.files.";
+//       int pathIdx = payload.indexOf(key, pos);
+//       if (pathIdx == -1) break;
+//       int pathStart = payload.indexOf(".path=", pathIdx);
+//       if (pathStart == -1) { pos = pathIdx + key.length(); continue; }
+//       pathStart += 6; // length of ".path="
+//       int pathEnd = payload.indexOf('\n', pathStart);
+//       String path = payload.substring(pathStart, pathEnd);
+//       path.trim();
+//       if (path.endsWith(".zip")) {
+//         downlst.println(path);
+//       }
+//       pos = pathEnd;
+//     }
+//     downlst.close();
+//     Serial.println("_down.lst generado correctamente");
+//   } else {
+//     Serial.print("Error HTTP: ");
+//     Serial.println(httpCode);
+//   }
+//   http.end();
+// }
+
+// Descarga el CSV de World of Spectrum y genera _files.lst y _files.inf en /ONLINE
+// void generate_online_files_list() 
+// {
+// // Descarga el resultado plano de ZXDB (output=flat) y genera _files.lst y _files.inf en /ONLINE
+// const char* csv_url = "https://worldofspectrum.org/software/software_export?";
+//   HTTPClient http;
+
+//   File lst = SD_MMC.open("/ONLINE/_files.lst", FILE_WRITE);
+//   if (!lst) {
+//     Serial.println("No se pudo abrir _files.lst para escribir");
+//     return;
+//   }
+//   http.begin(csv_url);
+//   int httpCode = http.GET();
+//   if (httpCode == 200) {
+//     String payload = http.getString();
+//     int lineStart = 0;
+//     int lineEnd = payload.indexOf('\n');
+//     std::vector<String> lines;
+//     // Saltar cabecera
+//     if (lineEnd != -1) lineStart = lineEnd + 1;
+//     lineEnd = payload.indexOf('\n', lineStart);
+    
+//     while (lineEnd != -1) 
+//     {
+//       String line = payload.substring(lineStart, lineEnd);
+//       lines.push_back(line);
+//       lineStart = lineEnd + 1;
+//       lineEnd = payload.indexOf('\n', lineStart);
+//     }
+    
+//     // Última línea
+//     if (lineStart < payload.length()) 
+//     {
+//       lines.push_back(payload.substring(lineStart));
+//     }
+    
+//     int count = 0;
+    
+//     for (size_t i = 0; i < lines.size(); ++i) 
+//     {
+//       String line = lines[i];
+//       // Parseo robusto de CSV para dos primeros campos
+//       int len = line.length();
+//       int pos = 0;
+//       String id = "";
+//       String title = "";
+      
+//       // Campo 1 (ID)
+//       if (pos < len && line[pos] == '"') 
+//       {
+//         pos++;
+//         while (pos < len) {
+//           if (line[pos] == '"' && line[pos+1] == '"') { id += '"'; pos += 2; }
+//           else if (line[pos] == '"') { pos++; break; }
+//           else { id += line[pos++]; }
+//         }
+//         if (pos < len && line[pos] == ',') pos++;
+//       } 
+//       else 
+//       {
+//         while (pos < len && line[pos] != ',') id += line[pos++];
+//         if (pos < len && line[pos] == ',') pos++;
+//       }
+
+//       // Campo 2 (title)
+//       if (pos < len && line[pos] == '"') 
+//       {
+//         pos++;
+//         while (pos < len) {
+//           if (line[pos] == '"' && line[pos+1] == '"') { title += '"'; pos += 2; }
+//           else if (line[pos] == '"') { pos++; break; }
+//           else { title += line[pos++]; }
+//         }
+//         if (pos < len && line[pos] == ',') pos++;
+//       } 
+//       else 
+//       {
+//         while (pos < len && line[pos] != ',') title += line[pos++];
+//         if (pos < len && line[pos] == ',') pos++;
+//       }
+//       id.trim(); title.trim();
+//       if (id.length() == 0 || title.length() == 0) continue;
+//       lst.print(String(i));
+//       lst.print("|F|0|");
+//       lst.print(title);
+//       lst.print("|");
+//       lst.println(id);
+//       count++;
+//     }
+//     lst.close();
+//     // Crear _files.inf
+//     File inf = SD_MMC.open("/ONLINE/_files.inf", FILE_WRITE);
+//     if (inf) {
+//       inf.println("PATH=/ONLINE");
+//       inf.print("CFIL=");
+//       inf.println(count);
+//       inf.println("CDIR=0");
+//       inf.close();
+//     } else {
+//       Serial.println("No se pudo abrir _files.inf para escribir");
+//     }
+//     Serial.println("_files.lst y _files.inf generados correctamente");
+//     myNex.writeStr("zxdb.message.txt", "ZXDB catalogue captured");
+//     myNex.writeNum("zxdb.progress.val", 100);
+//   } else {
+//     Serial.print("Error HTTP: ");
+//     Serial.println(httpCode);
+//     myNex.writeStr("zxdb.message.txt", "Error HTTP " + String(httpCode));
+//   }
+//   http.end();
+// }
+// //
+
+// Helper: descarga un fichero binario desde URL a ruta local en SD (HTTPS, chunked)
+bool _downloadBinaryToSD(const String& url, const String& localPath)
+{
+  WiFiClientSecure secureClient;
+  secureClient.setInsecure();
+
+  HTTPClient http;
+  http.begin(secureClient, url);
+  http.setTimeout(60000);   // 60s max (evita overflow de uint16_t en algunas versiones)
+  http.setConnectTimeout(30000);
+  http.addHeader("User-Agent", "PowaDCR/" + String(VERSION));
+  http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
+
+  int httpCode = http.GET();
+  if (httpCode != HTTP_CODE_OK)
+  {
+    logln("HTTP error " + String(httpCode) + " downloading: " + url);
+    http.end();
+    return false;
+  }
+
+  File file = SD_MMC.open(localPath.c_str(), FILE_WRITE);
+  if (!file)
+  {
+    logln("No se pudo crear fichero: " + localPath);
+    http.end();
+    return false;
+  }
+
+  const size_t bufSize = 4096;
+  uint8_t* buf = (uint8_t*)malloc(bufSize);
+  if (!buf)
+  {
+    logln("No se pudo reservar buffer para descarga");
+    file.close();
+    http.end();
+    return false;
+  }
+
+  WiFiClient* stream = http.getStreamPtr();
+  int contentLength = http.getSize();
+  size_t total = 0;
+
+  while (http.connected() && (contentLength <= 0 || total < (size_t)contentLength))
+  {
+    size_t avail = stream->available();
+    if (avail == 0) { delay(10); continue; }
+    size_t toRead = min(avail, bufSize);
+    size_t bytesRead = stream->readBytes(buf, toRead);
+    if (bytesRead == 0) { delay(10); continue; }
+    file.write(buf, bytesRead);
+    total += bytesRead;
+  }
+
+  file.flush();
+  file.close();
+  free(buf);
+  http.end();
+
+  logln("Descargados " + String(total) + " bytes -> " + localPath);
+  return (total > 0);
+}
+
+// Extrae ficheros de juego de un ZIP (leído de SD) a destDir usando miniz
+// Retorna el número de ficheros extraídos
+int _unzipGameFilesToDir(const String& zipPath, const String& destDir)
+{
+  File zf = SD_MMC.open(zipPath.c_str(), FILE_READ);
+  if (!zf) { logln("_unzipGameFilesToDir: no se pudo abrir " + zipPath); return 0; }
+
+  size_t zipSize = zf.size();
+  uint8_t* zipBuf = (uint8_t*)ps_malloc(zipSize);
+  if (!zipBuf)
+  {
+    logln("_unzipGameFilesToDir: sin PSRAM para " + String(zipSize) + " bytes");
+    zf.close();
+    return 0;
+  }
+  zf.read(zipBuf, zipSize);
+  zf.close();
+
+  mz_zip_archive zip;
+  memset(&zip, 0, sizeof(zip));
+  if (!mz_zip_reader_init_mem(&zip, zipBuf, zipSize, 0))
+  {
+    logln("_unzipGameFilesToDir: ZIP inválido: " + zipPath);
+    free(zipBuf);
+    return 0;
+  }
+
+  int numEntries = (int)mz_zip_reader_get_num_files(&zip);
+  int extracted = 0;
+
+  for (int i = 0; i < numEntries; i++)
+  {
+    mz_zip_archive_file_stat fs;
+    if (!mz_zip_reader_file_stat(&zip, i, &fs)) continue;
+    if (mz_zip_reader_is_file_a_directory(&zip, i)) continue;
+
+    String entryName = String(fs.m_filename);
+    int slash = entryName.lastIndexOf('/');
+    if (slash != -1) entryName = entryName.substring(slash + 1);
+
+    String entryUpper = entryName;
+    entryUpper.toUpperCase();
+    bool isGameFile = entryUpper.endsWith(".TAP") || entryUpper.endsWith(".TZX") ||
+                      entryUpper.endsWith(".TSX") || entryUpper.endsWith(".PZX") ||
+                      entryUpper.endsWith(".CDT");
+    if (!isGameFile) continue;
+
+    size_t uncompSize = (size_t)fs.m_uncomp_size;
+    uint8_t* outBuf = (uint8_t*)ps_malloc(uncompSize);
+    if (!outBuf) { logln("Sin PSRAM para extraer: " + entryName); continue; }
+
+    if (mz_zip_reader_extract_to_mem(&zip, i, outBuf, uncompSize, 0))
+    {
+      String outPath = destDir + "/" + entryName;
+      File outFile = SD_MMC.open(outPath.c_str(), FILE_WRITE);
+      if (outFile)
+      {
+        outFile.write(outBuf, uncompSize);
+        outFile.flush();
+        outFile.close();
+        logln("Extraído: " + outPath + " (" + String(uncompSize) + " bytes)");
+        extracted++;
+      }
+      else { logln("Error creando: " + outPath); }
+    }
+    else { logln("Error extrayendo: " + entryName); }
+
+    free(outBuf);
+  }
+
+  mz_zip_reader_end(&zip);
+  free(zipBuf);
+  return extracted;
+}
+
+// Descarga los ficheros de juego de ZXDB por ID y los guarda en /DOWNLOAD/<title>/
+// game_id : ID de 7 dígitos almacenado en _files.lst
+// title   : nombre del juego (se usa para crear el subdirectorio)
+void downloadFromZXDB(String gameId, String title)
+{
+
+  LAST_MESSAGE = "Downloading: " + title;
+  myNex.writeStr("tape.g0.txt", LAST_MESSAGE);
+
+  if (!WIFI_CONNECTED || !WIFI_ENABLE)
+  {
+    logln("WiFi no disponible para descarga ZXDB");
+    myNex.writeStr("zxdb.message.txt", "No WiFi");
+    return;
+  }
+
+  // Sanitizar el título para nombre de directorio FAT32
+  String safeTitle = title;
+  safeTitle.replace("/",  "-");
+  safeTitle.replace("\\", "-");
+  safeTitle.replace(":",  "-");
+  safeTitle.replace("*",  "-");
+  safeTitle.replace("?",  "-");
+  safeTitle.replace("\"", "-");
+  safeTitle.replace("<",  "-");
+  safeTitle.replace(">",  "-");
+  safeTitle.replace("|",  "-");
+
+  String destDir = "/DOWNLOAD/" + safeTitle;
+
+  if (!SD_MMC.exists("/DOWNLOAD")) SD_MMC.mkdir("/DOWNLOAD");
+  if (!SD_MMC.exists(destDir))
+  {
+    if (!SD_MMC.mkdir(destDir))
+    {
+      logln("Error al crear directorio: " + destDir);
+      myNex.writeStr("tape.g0.txt", "Error creating dir");
+      return;
+    }
+  }
+
+  // Obtener metadata del juego de la API ZXDB
+  String metaUrl = "https://api.zxinfo.dk/v3/games/" + gameId + "?mode=compact&output=flat";
+  logln("Obteniendo metadata ZXDB: " + metaUrl);
+  myNex.writeStr("tape.g0.txt", "Fetching metadata...");
+
+  // Payload declarado fuera del bloque para usarlo luego al parsear
+  String payload;
+
+  // Si WiFi está reconectando tras RadioPlayer, esperar hasta 10 s antes de
+  // intentar la conexión SSL (que fallaría con WIFI_CONNECTED=false).
+  if (WIFI_ENABLE && !WIFI_CONNECTED) {
+    logln("Esperando reconexión WiFi antes de ZXDB...");
+    unsigned long twait = millis();
+    while (!WIFI_CONNECTED && millis() - twait < 10000) vTaskDelay(pdMS_TO_TICKS(200));
+    if (!WIFI_CONNECTED) {
+      logln("WiFi no disponible para descarga ZXDB");
+      myNex.writeStr("tape.g0.txt", "No WiFi");
+      return;
+    }
+  }
+
+  logln("Heap libre antes SSL ZXDB: " + String(ESP.getFreeHeap()) + " (min contiguous: " + String(ESP.getMaxAllocHeap()) + ")");
+  vTaskDelay(pdMS_TO_TICKS(200));
+
+  // Bloque de scope con retry: el WiFiClientSecure se destruye en cada iteración,
+  // liberando el contexto SSL antes de reintentar o de iniciar la descarga.
+  bool metaOK = false;
+  for (int attempt = 0; attempt < 3 && !metaOK; attempt++)
+  {
+    if (attempt > 0)
+    {
+      logln("Reintento metadata " + String(attempt) + " (fragmentacion de heap)...");
+      myNex.writeStr("tape.g0.txt", "Retry " + String(attempt) + "...");
+      vTaskDelay(pdMS_TO_TICKS(1500));
+    }
+
+    WiFiClientSecure secureClient;
+    secureClient.setInsecure();
+
+    HTTPClient http;
+    http.begin(secureClient, metaUrl);
+    http.setTimeout(30000);
+    http.addHeader("User-Agent", "PowaDCR/" + String(VERSION));
+
+    int httpCode = http.GET();
+    if (httpCode == 200)
+    {
+      payload = http.getString();
+      http.end();
+      metaOK = true;
+    }
+    else
+    {
+      logln("Error HTTP metadata [intento " + String(attempt + 1) + "]: " + String(httpCode));
+      myNex.writeStr("tape.g0.txt", "Error " + String(httpCode) + " (" + String(attempt + 1) + "/3)");
+      http.end();
+    }
+    // secureClient destruido aquí al salir del scope del for, liberando SSL context
+  }
+
+  if (!metaOK)
+  {
+    logln("Fallo al obtener metadata tras 3 intentos.");
+    myNex.writeStr("zxdb.message.txt", "Metadata error after retries");
+    //
+    LAST_MESSAGE = "Memory allocation error. Reboot ESP32";
+    myNex.writeStr("tape.g0.txt", LAST_MESSAGE);
+    return;
+  }
+  logln("Metadata recibida: " + String(payload.length()) + " bytes");
+
+  // Parsear releases.X.files.Y.path= buscando ficheros .zip
+  // Los ficheros en ZXDB son siempre .zip (ej: 1LineCaveAdventure.tzx.zip)
+  int filesDownloaded = 0;
+  int releaseIdx = 0;
+  const String tmpZip = "/tmp_zxdb.zip";
+
+  while (true)
+  {
+    String releasePrefix = "releases." + String(releaseIdx) + ".files.";
+    if (payload.indexOf(releasePrefix) == -1) break;
+
+    int fileIdx = 0;
+    while (true)
+    {
+      String pathKey = "releases." + String(releaseIdx) + ".files." + String(fileIdx) + ".path=";
+      int pathPos = payload.indexOf(pathKey);
+      if (pathPos == -1) break;
+
+      int pathStart = pathPos + pathKey.length();
+      int pathEnd   = payload.indexOf('\n', pathStart);
+      String filePath = payload.substring(pathStart, pathEnd);
+      filePath.trim();
+
+      // Solo ficheros .zip que contengan juego (tzx.zip, tap.zip, etc.)
+      String filePathUpper = filePath;
+      filePathUpper.toUpperCase();
+      if (filePathUpper.endsWith(".ZIP") && filePath.length() > 0)
+      {
+        int lastSlash = filePath.lastIndexOf('/');
+        String zipName = (lastSlash != -1) ? filePath.substring(lastSlash + 1) : filePath;
+        String downloadUrl = "https://spectrumcomputing.co.uk" + filePath;
+
+        logln("Descargando ZIP: " + downloadUrl);
+        myNex.writeStr("tape.g0.txt", "Downloading: " + zipName);
+
+        if (_downloadBinaryToSD(downloadUrl, tmpZip))
+        {
+          myNex.writeStr("tape.g0.txt", "Extracting: " + zipName);
+          int n = _unzipGameFilesToDir(tmpZip, destDir);
+          filesDownloaded += n;
+          SD_MMC.remove(tmpZip);  // borrar ZIP temporal
+          
+          LAST_MESSAGE = "Downloading done";
+          myNex.writeStr("tape.g0.txt", LAST_MESSAGE);
+
+
+        }
+        else 
+        { 
+          logln("Error descargando: " + zipName); 
+          LAST_MESSAGE = "Downloading error";
+          myNex.writeStr("tape.g0.txt", LAST_MESSAGE);
+        }
+      }
+
+      fileIdx++;
+    }
+    releaseIdx++;
+  }
+
+  if (filesDownloaded == 0)
+  {
+    logln("No se encontraron ficheros de juego para ID: " + gameId);
+    myNex.writeStr("zxdb.message.txt", "No game files found");
+  }
+  else
+  {
+    logln("Descargados " + String(filesDownloaded) + " fichero(s) en " + destDir);
+    myNex.writeStr("zxdb.message.txt", "Done: " + String(filesDownloaded) + " file(s)");
+  }
+}
+
+int get_total_files_ZXDB(const char* baseurl)
+{
+  HTTPClient http;
+  int totalFiles = 0;
+  
+  // Capturamos la información de ZXDB
+  String url = String(baseurl) + "&size=5&offset=0";
+  http.begin(url.c_str());
+  int httpCode = http.GET();
+  
+  if (httpCode == 200) 
+  {
+    String payload = http.getString();
+    int count = 0;
+    int hitNum = 0;
+
+    String totalKey = "total.value=";
+    int totalPos = payload.indexOf(totalKey);
+    String total = payload.substring(totalPos + totalKey.length(), payload.indexOf('\n', totalPos));
+    total.trim();
+    totalFiles = total.toInt();
+    
+  }
+  else 
+  {
+    Serial.print("Error HTTP: ");
+    Serial.println(httpCode);
+  }
+  http.end();
+  return totalFiles;  
+}
+
+void updateZXDB(String letter = "0")
+{
+    String searchChain = "#ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    String urlToSearch = "";
+    String dir = "";
+    int totalItemsFound = 0;
+    
+    if (WIFI_CONNECTED && WIFI_ENABLE)
+    {
+        // Reseteamos la barra de progreso
+        myNex.writeNum("zxdb.j0.val", 0);
+
+        logln("Capturing ZXDB catalogue from letter: " + letter);
+        //
+        // Recorremos una cadena de busqueda para obtener todo el catálogo de ZXDB usando la API v3
+        //
+        if (letter != "0")
+        {
+          searchChain = letter;
+        }
+
+        // Calculamos el total de items encontrados para mostrar una banda de progreso
+        // recorremos el catalogo propuesto o una letra concreta
+
+        for (int i = 0; i < searchChain.length(); i++)
+        {
+          char letter = searchChain.charAt(i);
+          logln("Capturing files list for letter: " + String(letter));
+          myNex.writeStr("zxdb.message.txt", "Capturing for letter: <" + String(letter) + ">");
+
+          // Componemos la URL de busqueda
+          if (letter == '#') 
+            // Buscamos juegos que empiezan por un número.
+            urlToSearch = "https://api.zxinfo.dk/v3/games/byletter/%23?contenttype=SOFTWARE&machinetype=ZXSPECTRUM&output=flat";
+          else
+            // Buscamos juegos que empiezan por letras
+            urlToSearch = "https://api.zxinfo.dk/v3/games/byletter/" + String(letter) + "?contenttype=SOFTWARE&machinetype=ZXSPECTRUM&output=flat";  
+
+            totalItemsFound += get_total_files_ZXDB(urlToSearch.c_str());
+        }
+
+        logln("Total " + String(totalItemsFound) + " files in ZXDB");
+
+        // Bucle principal
+        for (int i = 0; i < searchChain.length(); i++)
+        {
+          char letter = searchChain.charAt(i);
+          logln("Generating files list for letter: " + String(letter));
+          
+          // Buscamos. Actualizamos el subpath y ruta
+          const char* subpath = &letter;
+          dir = String(letter);
+
+          // Vemos si existe el subpath. Si no existe, lo creamos.
+          if (!SD_MMC.exists("/ONLINE/" + dir)) 
+          {
+            logln("Creating directory /ONLINE/" + dir);
+            if(!SD_MMC.mkdir("/ONLINE/" + dir))
+            {
+              logln("Error al crear /ONLINE/" + dir);
+              continue;
+            }
+          }
+
+          // Truncamos/creamos _files.lst (vacía) antes del bucle HTTP
+          {
+            File f = SD_MMC.open("/ONLINE/" + dir + "/_files.lst", FILE_WRITE);
+            if (!f)
+            {
+              logln("No se pudo crear _files.lst: /ONLINE/" + dir + "/_files.lst");
+              myNex.writeStr("zxdb.message.txt", "Error on _files.lst");
+              continue;
+            }
+            f.close();
+          }
+
+          // Truncamos/creamos _files.inf (vacía) antes del bucle HTTP, igual que _files.lst
+          {
+            File f = SD_MMC.open("/ONLINE/" + dir + "/_files.inf", FILE_WRITE);
+            if (!f)
+            {
+              logln("No se pudo crear _files.inf: /ONLINE/" + dir + "/_files.inf");
+              myNex.writeStr("zxdb.message.txt", "Error on _files.inf");
+              continue;
+            }
+            f.close();
+          }
+
+          // Inicializamos parametros
+          int nrows = 100;
+          int npages = 0;
+          int count = 0;
+          int lineNum = 0;  // Contador global de líneas a través de todas las páginas
+
+          // Componemos la URL de busqueda
+          if (letter == '#') 
+            // Buscamos juegos que empiezan por un número.
+            urlToSearch = "https://api.zxinfo.dk/v3/games/byletter/%23?contenttype=SOFTWARE&machinetype=ZXSPECTRUM&output=flat";
+          else
+            // Buscamos juegos que empiezan por letras
+            urlToSearch = "https://api.zxinfo.dk/v3/games/byletter/" + String(letter) + "?contenttype=SOFTWARE&machinetype=ZXSPECTRUM&output=flat";
+
+          // Cogemos el total de items
+          int total = get_total_files_ZXDB(urlToSearch.c_str());
+          logln("Total " + String(total) + " files in ZXDB");
+
+          //
+          // Ahora bucle para coger todos los items de cada letra
+          //
+          npages = total / nrows;
+          if (total % nrows > 0) npages++;
+          logln("Total pages to capture: " + String(npages));
+
+          while (count < npages)
+          {
+            logln("Page: " + String(count+1) + " of " + String(npages));
+
+            String linesBuffer = "";  // Buffer para acumular líneas antes de escribir en SD
+
+            HTTPClient http;
+            String url = String(urlToSearch.c_str()) + "&size=" + String(nrows) + "&offset=" + String(count);
+            http.begin(url.c_str());
+            int httpCode = http.GET();
+              
+            if (httpCode == 200) 
+            {
+              String payload = http.getString();
+              Serial.print("Payload length: ");
+              Serial.println(payload.length());
+
+              int pageHit = 0;  // Siempre empieza en 0 para cada página
+
+              while (true) 
+              {
+                String idKey = "hits." + String(pageHit) + "._id=";
+                String titleKey = "hits." + String(pageHit) + ".title=";
+                int idPos = payload.indexOf(idKey);
+                int titlePos = payload.indexOf(titleKey);
+
+                if (idPos == -1 || titlePos == -1) break;
+                  
+                int idValStart = idPos + idKey.length();
+                int idValEnd = payload.indexOf('\n', idValStart);
+                String id = payload.substring(idValStart, idValEnd);
+                  
+                int titleValStart = titlePos + titleKey.length();
+                int titleValEnd = payload.indexOf('\n', titleValStart);
+                String title = payload.substring(titleValStart, titleValEnd);
+                  
+                id.trim(); 
+                title.trim();
+                  
+                if (id.length() != 0 && title.length() != 0)
+                {
+                  logln("[" + String(lineNum) + "] Found: " + title + " (ID: " + id + ")");
+                  linesBuffer += String(lineNum) + "|F|0|" + title + ".zxdb|" + id + "\n";
+                  pageHit++;
+                  lineNum++;
+                }
+                else break;
+              }
+            } 
+            else 
+            {
+              Serial.print("Error HTTP: ");
+              Serial.println(httpCode);
+            }
+            http.end();  // Cerramos HTTP ANTES de escribir en SD
+
+            // Escribimos en SD una vez cerrada la conexión HTTP
+            if (linesBuffer.length() > 0)
+            {
+              File lst = SD_MMC.open("/ONLINE/" + dir + "/_files.lst", FILE_APPEND);
+              if (lst)
+              {
+                lst.print(linesBuffer);
+                lst.flush();
+                lst.close();
+                Serial.print("Written to _files.lst: ");
+                Serial.print(linesBuffer.length());
+                Serial.println(" bytes");
+              }
+              else
+              {
+                logln("Error al abrir _files.lst para FILE_APPEND");
+              }
+            }
+
+            // Banda de progreso
+            if (totalItemsFound > 0) myNex.writeNum("zxdb.j0.val", (count * nrows * 100) / totalItemsFound);  
+            count++;
+          }
+          
+          // Crear el fichero .inf (abrimos ahora, después del bucle HTTP)
+          {
+            File inf = SD_MMC.open("/ONLINE/" + dir + "/_files.inf", FILE_WRITE);
+            if (inf) 
+            {
+              inf.println("PATH=/ONLINE/" + dir + "/");
+              inf.print("CFIL=");
+              inf.println(total);
+              inf.println("CDIR=0");
+              inf.flush();
+              inf.close();
+              logln("Closed _files.inf");
+            } 
+            else 
+            {
+              logln("No se pudo abrir _files.inf para escribir: /ONLINE/" + dir + "/_files.inf");
+              myNex.writeStr("zxdb.message.txt", "Error on _files.inf");
+            }
+          }
+          logln("_files.lst y _files.inf generados correctamente desde ZXDB flat");
+
+          // Mensaje de finalización
+          myNex.writeStr("zxdb.message.txt", "Capturing finished");
+          myNex.writeNum("zxdb.j0.val", 100);
+        }
+    }
 }
