@@ -95,6 +95,7 @@ EasyNex myNex(SerialHW);
 
 // Definimos la placa de audio
 #include "AudioTools/AudioCodecs/CodecFLACFoxen.h"
+//#include "AudioTools/AudioCodecs/CodecFLAC.h"
 #include "AudioTools/AudioCodecs/CodecMP3Helix.h"
 #include "AudioTools/AudioCodecs/CodecWAV.h"
 #include "AudioTools/Communication/AudioHttp.h"
@@ -531,7 +532,11 @@ bool loadCfgFile() {
 
       strcpy(param, (getValueOfParam(CFGSYSTEM[15].cfgLine, "QUICKBOOT")).c_str());
       logln("QUICK Boot: " + String(param));
-      QUICK_BOOT = String(param) == "on" || String(param) == "1" ? true : false;; 
+      QUICK_BOOT = String(param) == "on" || String(param) == "1" ? true : false;
+
+      strcpy(param, (getValueOfParam(CFGSYSTEM[15].cfgLine, "BEEP")).c_str());
+      logln("BEEP: " + String(param));
+      BEEP = String(param) == "on" || String(param) == "1" ? true : false;
 
       logln("");
       logln(
@@ -567,6 +572,7 @@ bool loadCfgFile() {
         fCfg.println("<SPOTIFY_CID></SPOTIFY_CID>");
         fCfg.println("<SPOTIFY_CSE></SPOTIFY_CSE>");
         fCfg.println("<QUICKBOOT>off</QUICKBOOT>");
+        fCfg.println("<BEEP>on</BEEP>");
 
         #ifdef DEBUGMODE
                 logln("powadcr.cfg new file created");
@@ -2234,7 +2240,9 @@ struct RadioNetworkTaskParams {
   char url_buffer[256];
 };
 
-void radio_network_task(void *parameter) {
+void radio_network_task(void *parameter) 
+{
+  logln("Heap - NET" + String(ESP.getFreeHeap()) + " (max bloque: " + String(ESP.getMaxAllocHeap()) + ")");
   RadioNetworkTaskParams *params = (RadioNetworkTaskParams *)parameter;
   uint8_t networkBuffer[RADIO_NETWORK_BUFFER_SIZE];
 
@@ -2280,11 +2288,17 @@ void radio_network_task(void *parameter) {
   logln("Network task finished.");
   params->taskDone = true;  // marcar antes de autodestruirse
   vTaskDelete(NULL); // La tarea se autodestruye al salir
+  logln("Heap - NET: " + String(ESP.getFreeHeap()) + " (max bloque: " + String(ESP.getMaxAllocHeap()) + ")");
 }
 
 // ... (código existente, incluyendo radio_network_task) ...
 
 void RadioPlayer() {
+
+  logln("Heap: " + String(ESP.getFreeHeap()) + " (max bloque: " + String(ESP.getMaxAllocHeap()) + ")");
+  logln("[Radio INICIO] SRAM interna libre  : " + String(heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT)));
+  logln("[Radio INICIO] Max bloque SRAM int  : " + String(heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT)));
+
   rotate_enable = false;
   ENABLE_ROTATE_FILEBROWSER = false;
   REM_ENABLE = false;
@@ -2380,6 +2394,8 @@ void RadioPlayer() {
   
   isBuffering = false;
 
+  logln("Heap: " + String(ESP.getFreeHeap()) + " (max bloque: " + String(ESP.getMaxAllocHeap()) + ")");
+
   while (!EJECT) {
 
     // Gestión de botones FFWD/RWIND
@@ -2402,6 +2418,7 @@ void RadioPlayer() {
           networkTaskHandle = NULL;
           taskParams.taskDone = false;
           urlStream.end();              // Liberar contexto SSL/HTTP
+          logln("Network task stopped for station change.");
         }
 
         // 2. Detener y limpiar el pipeline de audio por completo.
@@ -2432,6 +2449,9 @@ void RadioPlayer() {
         taskParams.taskDone = false;
         strcpy(taskParams.url_buffer, radioUrlBuffer);
         taskParams.new_url = true;
+        // Dar tiempo al Idle task (Core 0) para liberar el stack del task
+        // anterior antes de alloc del nuevo: evita fragmentación de SRAM interna.
+        vTaskDelay(pdMS_TO_TICKS(50));
         xTaskCreatePinnedToCore(radio_network_task, "RadioNetworkTask", 8192, &taskParams, 1, &networkTaskHandle, 0);
 
       } else {
@@ -2497,6 +2517,9 @@ void RadioPlayer() {
           taskParams.taskDone = false;
           strcpy(taskParams.url_buffer, radioUrlBuffer);
           taskParams.new_url = true;
+          // Dar tiempo al Idle task (Core 0) para liberar el stack del task
+          // anterior antes de alloc del nuevo: evita fragmentación de SRAM interna.
+          vTaskDelay(pdMS_TO_TICKS(50));
           xTaskCreatePinnedToCore(radio_network_task, "RadioNetworkTask", 8192,
                                   &taskParams, 1, &networkTaskHandle, 0);
 
@@ -2571,6 +2594,9 @@ void RadioPlayer() {
         taskParams.running = true;
         taskParams.taskDone = false;
         taskParams.new_url = true;
+        // Dar tiempo al Idle task (Core 0) para liberar el stack del task
+        // anterior antes de alloc del nuevo: evita fragmentación de SRAM interna.
+        vTaskDelay(pdMS_TO_TICKS(50));
         xTaskCreatePinnedToCore(radio_network_task, "RadioNetworkTask", 8192,
                                 &taskParams, 1, &networkTaskHandle, 0);
 
@@ -2618,6 +2644,9 @@ void RadioPlayer() {
             taskParams.new_url = true;
             lastBufferSnapshot = 0;
             lastBufferGrowth = millis();
+            // Dar tiempo al Idle task (Core 0) para liberar el stack del task
+            // anterior antes de alloc del nuevo: evita fragmentación de SRAM interna.
+            vTaskDelay(pdMS_TO_TICKS(50));
             xTaskCreatePinnedToCore(radio_network_task, "RadioNetworkTask", 8192,
                                     &taskParams, 1, &networkTaskHandle, 0);
           }
@@ -2716,33 +2745,7 @@ void RadioPlayer() {
   hmi.writeString("tape.tm0.en=1");
   hmi.writeString("tape.tm1.en=1");
 
-  // Reconectar WiFi para desfragmentar el heap interno tras la sesión de streaming.
-  // Durante el streaming, el stack ESP-IDF TLS/TCP hace múltiples alloc/free en el
-  // heap interno dejándolo fragmentado: pequeñas allocs del stack lwIP quedan
-  // intercaladas entre los fragmentos liberados de los buffers TLS (2×16 KB).
-  // WiFi.disconnect() cierra todas las conexiones TCP activas, liberando esas
-  // allocs lwIP y permitiendo que el heap consolide. Sin esto, el siguiente
-  // handshake SSL (ej. ZXDB) falla con MBEDTLS_ERR_ECP_ALLOC_FAILED (-19840).
-  if (WIFI_ENABLE && WIFI_CONNECTED) {
-    logln("Reconectando WiFi para limpiar heap TLS tras RadioPlayer...");
-    WIFI_CONNECTED = false;
-    WiFi.disconnect(false, false); // baja STA sin borrar credenciales
-    vTaskDelay(pdMS_TO_TICKS(400)); // dar tiempo al lwIP para cerrar sockets
-    WiFi.begin(ssid.c_str(), password);
-    // Esperar reconexión hasta 10 s (bloquea aquí, el usuario está en EJECT)
-    unsigned long t_wifi = millis();
-    while (WiFi.status() != WL_CONNECTED && millis() - t_wifi < 10000) {
-      vTaskDelay(pdMS_TO_TICKS(200));
-    }
-    if (WiFi.status() == WL_CONNECTED) {
-      WIFI_CONNECTED = true;
-      logln("WiFi reconectado. Heap: " + String(ESP.getFreeHeap()) +
-            " (max bloque: " + String(ESP.getMaxAllocHeap()) + ")");
-    } else {
-      logln("WiFi no reconectó a tiempo (continuando sin red)");
-    }
-  }
-
+  vTaskDelay(pdMS_TO_TICKS(50));
   RADIO_IS_PLAYING = false;
 }
 // ... (resto del código) ...
@@ -2797,6 +2800,8 @@ void MediaPlayer() {
   bool isFLAC = false;
   uint8_t waitflag = 0;
 
+  int tmpoToRfsh = 1000;
+
   //-----------------------------------------------------------
   //
   // Declaramos y configuramos objetos necesarios
@@ -2826,6 +2831,12 @@ void MediaPlayer() {
 
   // Decodificador FLAC
   FLACDecoderFoxen decoderFLAC;
+  //FLACDecoder decoderFLAC;
+  // FLACDecoder hereda de StreamingDecoder, no de AudioDecoder.
+  // AudioPlayer::setDecoder solo acepta AudioDecoder -> envolver con DecoderAdapter.
+  //DecoderAdapter decoderFLACAdapter(decoderFLAC, 16384);
+
+  
 
   // Configuración del filtrado de metadatos para el codec MP3
   // ---------------------------------------------------------
@@ -2936,6 +2947,7 @@ void MediaPlayer() {
   case 'f':
     // FLAC
     isFLAC = true;
+    tmpoToRfsh = 2000;
     // measureFLAC.begin();
     FLAC_IS_PLAYING = true;
 
@@ -3107,7 +3119,10 @@ void MediaPlayer() {
   {
     // Actualizamos el volumen y el ecualizador si es necesario
     // Control del ecualizador
-    if (EQ_CHANGE) {
+    // if (!FLAC_IS_PLAYING) 
+    // {
+    if (EQ_CHANGE) 
+    {
       EQ_CHANGE = false;
       cfg = kitStream.audioInfo();
       cfg_eq.setAudioInfo(cfg);
@@ -3126,9 +3141,9 @@ void MediaPlayer() {
     if (AMP_CHANGE || SPK_CHANGE) {
       kitStream.setPAPower(ACTIVE_AMP && EN_SPEAKER);
       AMP_CHANGE = false;
-      SPK_CHANGE = false;
-      
+      SPK_CHANGE = false; 
     }
+  // }
 
     // Estados del reproductor
     switch (stateStreamplayer) {
@@ -3358,7 +3373,7 @@ void MediaPlayer() {
       // Actualizamos indicadores cada 2 segundos
       // En la actualización de indicadores cada segundo
 
-      if (millis() - lastUpdate > 1000) {
+      if (millis() - lastUpdate > tmpoToRfsh) {
         // Mostramos informacion del fichero.
         updateIndicators(totalFilesIdx, currentPointer + 1, fileSize,
                          bitRateRead, audiolist[currentPointer].filename);
@@ -5673,15 +5688,15 @@ void tapeControl() {
               }
             } else {
               // Abortamos proceso de analisis
-              LAST_MESSAGE = "No file inside the tape";
+              LAST_MESSAGE = "No file inside the tape or loading aborted.";
               TAPESTATE = 0;
               LOADING_STATE = 0;
             }
           } else {
 
-#ifdef DEBUGMODE
-            logAlert("No file selected or empty file.");
-#endif
+            #ifdef DEBUGMODE
+                        logAlert("No file selected or empty file.");
+            #endif
 
             LAST_MESSAGE = "No file inside the tape";
           }
@@ -5702,7 +5717,11 @@ void tapeControl() {
             FILE_PREPARED = false;
           }
 
-          LAST_MESSAGE = "No file inside the tape";
+          if (TYPE_FILE_LOAD != "ZIP-ZXDB")
+          {
+            LAST_MESSAGE = "No file inside the tape";
+          }
+          
         }
       }
 
@@ -8092,12 +8111,9 @@ void buttonsControl()
 void Task1code(void *pvParameters) {
   // setup();
 
-  for (;;) {
-    if (serialEventRun)
-      serialEventRun();
-
-    // esp_task_wdt_reset();
-    // remDetection();
+  for (;;) 
+  {
+    if (serialEventRun) serialEventRun();
     tapeControl();
   }
 }
@@ -8122,7 +8138,7 @@ void Task0code(void *pvParameters) {
   int ho = 0;
   int mi = 0;
   int se = 0;
-  int tScrRfsh = 125;
+  int tScrRfsh = 1000;
   int timeRTC = 1000;
   int timeKeyPoll = 250;
 
@@ -8149,18 +8165,21 @@ void Task0code(void *pvParameters) {
 
     // Control del FTP
     #ifdef FTP_SERVER_ENABLE
-      if (!IRADIO_EN && WIFI_ENABLE && WIFI_CONNECTED) 
+      if (!IRADIO_EN && WIFI_ENABLE && WIFI_CONNECTED && !FLAC_IS_PLAYING && !DOWNLOADING_ZXDB) 
       {
         ftpSrv.handleFTP();
       }
     #endif
 
     #ifdef WEB_SERVER_ENABLE
+    if (!FLAC_IS_PLAYING && WIFI_ENABLE && WIFI_CONNECTED && !DOWNLOADING_ZXDB)
+    {
       WiFiClient client = server.available();
       if (client) 
       {
         handleWebClient(client);
       }
+    }
     #endif
 
     #ifdef DEBUGMODE
@@ -8250,245 +8269,247 @@ void Task0code(void *pvParameters) {
           }
       }
 
-        // Actualizamos el RTC
-        if ((millis() - startTime4 > timeRTC) && NTP_AVAILABLE) 
-        {          
-          if (CURRENT_PAGE == 99) 
-          {
-
-            char buf[4];
-            uint8_t hour = rtc.getHour();
-            uint8_t minute = rtc.getMinute();
-            uint8_t second = rtc.getSecond();
-            String ampm = rtc.getAmPm(false);
-
-            
-            
-            //logln("RTC Time: " + String(hour) + ":" + String(minute) + ":" + String(second) + " " + ampm);
-
-            // 
-            if (ampm=="PM")
-            {
-                if (hour < 12) hour = hour + 12; // Convertir a formato 12 horas
-            }
-            else if (ampm=="AM")
-            {
-                if (hour == 12) hour = 0; // Ajustar medianoche
-            }
-
-            //logln("RTC Time (24h format): " + String(hour) + ":" + String(minute) + ":" + String(second));
-
-            // Pintamos en el HMI el reloj
-            if (hour != lasthour)
-            {
-              snprintf(buf, sizeof(buf), "%02u", hour);
-              myNex.writeStr("clock.timeH.txt", String(buf));
-              lasthour = hour;
-            }
-
-            if (minute != lastminute)
-            {
-              snprintf(buf, sizeof(buf), "%02u", minute);
-              myNex.writeStr("clock.timeM.txt", String(buf));
-              lastminute = minute;
-            }
-
-            if (second != lastsecond && !FLAC_IS_PLAYING)
-            {
-              snprintf(buf, sizeof(buf), "%02u", second);
-              myNex.writeStr("clock.timeS.txt", String(buf));
-
-              lastsecond = second;
-            }
-
-            // Fecha
-            if (lastTimeMessage != rtc.getDate(true))
-            {
-              lastTimeMessage = rtc.getDate(true);
-              myNex.writeStr("clock.timeMessage.txt", rtc.getDate(true));
-            }
-
-            if (MUSIC_IS_PLAYING != lastMusicIsPlaying)
-            {
-              lastMusicIsPlaying = MUSIC_IS_PLAYING;
-              if (MUSIC_IS_PLAYING)
-              {
-                //Encendido
-                myNex.writeNum("clock.m3.pco", CLOCK_ENABLE_INDICATOR_COLOR);
-                myNex.writeNum("clock.t3.pco", CLOCK_DISABLE_INDICATOR_COLOR);
-              }
-              else
-              {
-                //Apagado
-                myNex.writeNum("clock.m3.pco", CLOCK_DISABLE_INDICATOR_COLOR);
-
-              }
-            }
-
-            if (RADIO_IS_PLAYING != lastRadioIsPlaying)
-            {
-              lastRadioIsPlaying = RADIO_IS_PLAYING;
-              if (RADIO_IS_PLAYING)
-              {
-                //Encendido
-                myNex.writeNum("clock.t3.pco", CLOCK_ENABLE_INDICATOR_COLOR);
-                myNex.writeNum("clock.m3.pco", CLOCK_DISABLE_INDICATOR_COLOR);
-              }
-              else
-              {
-                //Apagado
-                myNex.writeNum("clock.t3.pco", CLOCK_DISABLE_INDICATOR_COLOR);
-              }
-            }            
-          }  
-          else
-          {
-            lasthour = 0;
-            lastminute = 0;
-            lastsecond = 0;
-            lastTimeMessage = "";
-            lastRadioIsPlaying = false;
-            lastMusicIsPlaying = false;
-            //
-            //hmi.writeString("page tape");
-          }                              
-
-          startTime4 = millis();           
-        }
-            
-        if ((millis() - startTime) > tScrRfsh) {
-          startTime = millis();
-          stackFreeCore1 = uxTaskGetStackHighWaterMark(Task1);
-          stackFreeCore0 = uxTaskGetStackHighWaterMark(Task0);
-          hmi.updateInformationMainPage();
-        }
-
-        if (!FLAC_IS_PLAYING)
+      // Actualizamos el RTC
+      if ((millis() - startTime4 > timeRTC) && NTP_AVAILABLE) 
+      {          
+        if (CURRENT_PAGE == 99) 
         {
-          // Control de SpotiFy
-          if (SPOTIFY_CONTROL)
-          {
-              if (millis() - startTimeSpotify > 2500) 
-              {
-                // El reloj
-                if (CURRENT_PAGE == 99)
-                {
-                  if (STOP)
-                  {
-                    hmi.verifyCommand("SP03");
-                  }
-                }
 
-                // La pagina de Spotify
-                if (CURRENT_PAGE == 6 && !ftpSrv.FTP_CONNECTED) 
-                {
-                    String currentArtist = sp->current_artist_names();
-                    String currentTrackname = sp->current_track_name();
-                    String currentAlbum = sp->current_album_name();
-                                  
-                    logln("Artist: " + currentArtist);
-                    myNex.writeStr("spotify.artist.txt",currentArtist);
-                    logln("Track: " + currentTrackname);
-                    myNex.writeStr("spotify.track.txt",currentTrackname);
-                    logln("Album: " + currentAlbum);
-                    myNex.writeStr("spotify.album.txt",currentAlbum);
-                }
-                startTimeSpotify = millis();
-              }
-          }
-          // Hacemos poll de la botonera
-          if (millis() - startTimeKey > timeKeyPoll)
+          char buf[4];
+          uint8_t hour = rtc.getHour();
+          uint8_t minute = rtc.getMinute();
+          uint8_t second = rtc.getSecond();
+          String ampm = rtc.getAmPm(false);
+
+          
+          
+          //logln("RTC Time: " + String(hour) + ":" + String(minute) + ":" + String(second) + " " + ampm);
+
+          // 
+          if (ampm=="PM")
           {
-            if (!FILE_BROWSER_OPEN) //(CURRENT_PAGE <= 1 || CURRENT_PAGE == 99) &&
-            {
-                buttonsControl();
-            }          
+              if (hour < 12) hour = hour + 12; // Convertir a formato 12 horas
+          }
+          else if (ampm=="AM")
+          {
+              if (hour == 12) hour = 0; // Ajustar medianoche
           }
 
-          if (rotate_enable || ENABLE_ROTATE_FILEBROWSER) 
+          //logln("RTC Time (24h format): " + String(hour) + ":" + String(minute) + ":" + String(second));
+
+          // Pintamos en el HMI el reloj
+          if (hour != lasthour)
           {
-            if ((millis() - startTime2) > tRotateNameRfsh && (FILE_LOAD.length() > windowNameLength || ((ROTATE_FILENAME.length() > windowNameLengthFB)) * ENABLE_ROTATE_FILEBROWSER)) 
+            snprintf(buf, sizeof(buf), "%02u", hour);
+            myNex.writeStr("clock.timeH.txt", String(buf));
+            lasthour = hour;
+          }
+
+          if (minute != lastminute)
+          {
+            snprintf(buf, sizeof(buf), "%02u", minute);
+            myNex.writeStr("clock.timeM.txt", String(buf));
+            lastminute = minute;
+          }
+
+          if (second != lastsecond && !FLAC_IS_PLAYING)
+          {
+            snprintf(buf, sizeof(buf), "%02u", second);
+            myNex.writeStr("clock.timeS.txt", String(buf));
+
+            lastsecond = second;
+          }
+
+          // Fecha
+          if (lastTimeMessage != rtc.getDate(true))
+          {
+            lastTimeMessage = rtc.getDate(true);
+            myNex.writeStr("clock.timeMessage.txt", rtc.getDate(true));
+          }
+
+          if (MUSIC_IS_PLAYING != lastMusicIsPlaying)
+          {
+            lastMusicIsPlaying = MUSIC_IS_PLAYING;
+            if (MUSIC_IS_PLAYING)
             {
-              // Capturamos el texto con tamaño de la ventana
-              if ((TYPE_FILE_LOAD == "WAV" || TYPE_FILE_LOAD == "MP3" || TYPE_FILE_LOAD == "FLAC")) 
+              //Encendido
+              myNex.writeNum("clock.m3.pco", CLOCK_ENABLE_INDICATOR_COLOR);
+              myNex.writeNum("clock.t3.pco", CLOCK_DISABLE_INDICATOR_COLOR);
+            }
+            else
+            {
+              //Apagado
+              myNex.writeNum("clock.m3.pco", CLOCK_DISABLE_INDICATOR_COLOR);
+
+            }
+          }
+
+          if (RADIO_IS_PLAYING != lastRadioIsPlaying)
+          {
+            lastRadioIsPlaying = RADIO_IS_PLAYING;
+            if (RADIO_IS_PLAYING)
+            {
+              //Encendido
+              myNex.writeNum("clock.t3.pco", CLOCK_ENABLE_INDICATOR_COLOR);
+              myNex.writeNum("clock.m3.pco", CLOCK_DISABLE_INDICATOR_COLOR);
+            }
+            else
+            {
+              //Apagado
+              myNex.writeNum("clock.t3.pco", CLOCK_DISABLE_INDICATOR_COLOR);
+            }
+          }            
+        }  
+        else
+        {
+          lasthour = 0;
+          lastminute = 0;
+          lastsecond = 0;
+          lastTimeMessage = "";
+          lastRadioIsPlaying = false;
+          lastMusicIsPlaying = false;
+          //
+          //hmi.writeString("page tape");
+        }                              
+
+        startTime4 = millis();           
+      }
+          
+      // Actualizamos el estado de la memoria y los cores
+      if ((millis() - startTime) > tScrRfsh) {
+        startTime = millis();
+        stackFreeCore1 = uxTaskGetStackHighWaterMark(Task1);
+        stackFreeCore0 = uxTaskGetStackHighWaterMark(Task0);
+        hmi.updateInformationMainPage();
+      }
+
+      // Hacemos poll de la botonera
+      if (millis() - startTimeKey > timeKeyPoll)
+      {
+        if (!FILE_BROWSER_OPEN) //(CURRENT_PAGE <= 1 || CURRENT_PAGE == 99) &&
+        {
+            buttonsControl();
+        }          
+      }        
+
+      if (!FLAC_IS_PLAYING)
+      {
+        // Control de SpotiFy
+        if (SPOTIFY_CONTROL)
+        {
+            if (millis() - startTimeSpotify > 2500) 
+            {
+              // El reloj
+              if (CURRENT_PAGE == 99)
               {
-                hmi.writeString("name.txt=\"" + FILE_LOAD.substring(posRotateName, posRotateName + windowNameLength) + "\"");
+                if (STOP)
+                {
+                  hmi.verifyCommand("SP03");
+                }
               }
-              else 
+
+              // La pagina de Spotify
+              if (CURRENT_PAGE == 6 && !ftpSrv.FTP_CONNECTED) 
               {
-                if (!ENABLE_ROTATE_FILEBROWSER) 
-                {
-                  PROGRAM_NAME = FILE_LOAD.substring( posRotateName, posRotateName + windowNameLength);
-                }
-                else 
-                {
-                  hmi.writeString("file.path.txt=\"" + ROTATE_FILENAME.substring(posRotateName,posRotateName + windowNameLengthFB) + "\"");
-                }
+                  String currentArtist = sp->current_artist_names();
+                  String currentTrackname = sp->current_track_name();
+                  String currentAlbum = sp->current_album_name();
+                                
+                  logln("Artist: " + currentArtist);
+                  myNex.writeStr("spotify.artist.txt",currentArtist);
+                  logln("Track: " + currentTrackname);
+                  myNex.writeStr("spotify.track.txt",currentTrackname);
+                  logln("Album: " + currentAlbum);
+                  myNex.writeStr("spotify.album.txt",currentAlbum);
               }
-              // Lo rotamos segun el sentido que toque
-              posRotateName += moveDirection;
-              // Comprobamos limites para ver si hay que cambiar sentido
+              startTimeSpotify = millis();
+            }
+        }
+
+        if (rotate_enable || ENABLE_ROTATE_FILEBROWSER) 
+        {
+          if ((millis() - startTime2) > tRotateNameRfsh && (FILE_LOAD.length() > windowNameLength || ((ROTATE_FILENAME.length() > windowNameLengthFB)) * ENABLE_ROTATE_FILEBROWSER)) 
+          {
+            // Capturamos el texto con tamaño de la ventana
+            if ((TYPE_FILE_LOAD == "WAV" || TYPE_FILE_LOAD == "MP3" || TYPE_FILE_LOAD == "FLAC")) 
+            {
+              hmi.writeString("name.txt=\"" + FILE_LOAD.substring(posRotateName, posRotateName + windowNameLength) + "\"");
+            }
+            else 
+            {
               if (!ENABLE_ROTATE_FILEBROWSER) 
               {
-                if (posRotateName > (FILE_LOAD.length() - windowNameLength)) 
-                {
-                  moveDirection = -1;
-                }
-
-                if (posRotateName < 0) 
-                {
-                  moveDirection = 1;
-                  posRotateName = 0;
-                }
-              } 
+                PROGRAM_NAME = FILE_LOAD.substring( posRotateName, posRotateName + windowNameLength);
+              }
               else 
               {
-                if (posRotateName > (ROTATE_FILENAME.length() - windowNameLengthFB)) 
-                {
-                  moveDirection = -1;
-                }
-
-                if (posRotateName < 0) 
-                {
-                  moveDirection = 1;
-                  posRotateName = 0;
-                }
+                hmi.writeString("file.path.txt=\"" + ROTATE_FILENAME.substring(posRotateName,posRotateName + windowNameLengthFB) + "\"");
               }
-
-              // Movemos el display de NAME
-              startTime2 = millis();
-            } 
-            else if (FILE_LOAD.length() <= windowNameLength && (TYPE_FILE_LOAD == "WAV" || TYPE_FILE_LOAD == "MP3" || TYPE_FILE_LOAD == "FLAC")) 
+            }
+            // Lo rotamos segun el sentido que toque
+            posRotateName += moveDirection;
+            // Comprobamos limites para ver si hay que cambiar sentido
+            if (!ENABLE_ROTATE_FILEBROWSER) 
             {
-              if (STOP) 
+              if (posRotateName > (FILE_LOAD.length() - windowNameLength)) 
               {
-                hmi.writeString("name.txt=\"" + FILE_LOAD + "\"");
+                moveDirection = -1;
+              }
+
+              if (posRotateName < 0) 
+              {
+                moveDirection = 1;
+                posRotateName = 0;
+              }
+            } 
+            else 
+            {
+              if (posRotateName > (ROTATE_FILENAME.length() - windowNameLengthFB)) 
+              {
+                moveDirection = -1;
+              }
+
+              if (posRotateName < 0) 
+              {
+                moveDirection = 1;
+                posRotateName = 0;
+              }
+            }
+
+            // Movemos el display de NAME
+            startTime2 = millis();
+          } 
+          else if (FILE_LOAD.length() <= windowNameLength && (TYPE_FILE_LOAD == "WAV" || TYPE_FILE_LOAD == "MP3" || TYPE_FILE_LOAD == "FLAC")) 
+          {
+            if (STOP) 
+            {
+              hmi.writeString("name.txt=\"" + FILE_LOAD + "\"");
+            }
+            else 
+            {
+              if (TYPE_FILE_LOAD == "TAP") 
+              {
+                PROGRAM_NAME = myTAP.descriptor[BLOCK_SELECTED].name;
+              }
+              else if (TYPE_FILE_LOAD == "TZX" || TYPE_FILE_LOAD == "CDT" || TYPE_FILE_LOAD == "TSX") 
+              {
+                PROGRAM_NAME = myTZX.descriptor[BLOCK_SELECTED].name;
+              } 
+              else if (TYPE_FILE_LOAD == "PZX") 
+              {
+                // PROGRAM_NAME = myPZX.descriptor[BLOCK_SELECTED].name;
               }
               else 
               {
-                if (TYPE_FILE_LOAD == "TAP") 
-                {
-                  PROGRAM_NAME = myTAP.descriptor[BLOCK_SELECTED].name;
-                }
-                else if (TYPE_FILE_LOAD == "TZX" || TYPE_FILE_LOAD == "CDT" || TYPE_FILE_LOAD == "TSX") 
-                {
-                  PROGRAM_NAME = myTZX.descriptor[BLOCK_SELECTED].name;
-                } 
-                else if (TYPE_FILE_LOAD == "PZX") 
-                {
-                  // PROGRAM_NAME = myPZX.descriptor[BLOCK_SELECTED].name;
-                }
-                else 
-                {
-                  // Para MP3 y WAV
-                  PROGRAM_NAME = FILE_LOAD;
-                }
-                //
-                hmi.writeString("name.txt=\"" + PROGRAM_NAME + "\"");
+                // Para MP3 y WAV
+                PROGRAM_NAME = FILE_LOAD;
               }
+              //
+              hmi.writeString("name.txt=\"" + PROGRAM_NAME + "\"");
             }
           }
         }
+      }
         
 
     #endif

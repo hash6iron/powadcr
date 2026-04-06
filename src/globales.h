@@ -830,6 +830,8 @@ String SPOTIFY_CLIENT_SECRET = "";
 
 //
 bool QUICK_BOOT = false;
+bool DOWNLOADING_ZXDB = false;
+bool BEEP = false;
 
 // Declaraciones de metodos
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -1626,12 +1628,12 @@ inline String getFormattedDateTime(String amPm, uint8_t day, uint8_t month, uint
 //       Serial.println("No se pudo abrir _files.inf para escribir");
 //     }
 //     Serial.println("_files.lst y _files.inf generados correctamente");
-//     myNex.writeStr("zxdb.message.txt", "ZXDB catalogue captured");
+//     myNex.writeStr("tape.g0.txt", "ZXDB catalogue captured");
 //     myNex.writeNum("zxdb.progress.val", 100);
 //   } else {
 //     Serial.print("Error HTTP: ");
 //     Serial.println(httpCode);
-//     myNex.writeStr("zxdb.message.txt", "Error HTTP " + String(httpCode));
+//     myNex.writeStr("tape.g0.txt", "Error HTTP " + String(httpCode));
 //   }
 //   http.end();
 // }
@@ -1781,13 +1783,17 @@ int _unzipGameFilesToDir(const String& zipPath, const String& destDir)
 void downloadFromZXDB(String gameId, String title)
 {
 
+  DOWNLOADING_ZXDB = true;
+  
+  TYPE_FILE_LOAD = "ZIP-ZXDB";
+
   LAST_MESSAGE = "Downloading: " + title;
   myNex.writeStr("tape.g0.txt", LAST_MESSAGE);
 
   if (!WIFI_CONNECTED || !WIFI_ENABLE)
   {
     logln("WiFi no disponible para descarga ZXDB");
-    myNex.writeStr("zxdb.message.txt", "No WiFi");
+    myNex.writeStr("tape.g0.txt", "No WiFi");
     return;
   }
 
@@ -1824,21 +1830,31 @@ void downloadFromZXDB(String gameId, String title)
   // Payload declarado fuera del bloque para usarlo luego al parsear
   String payload;
 
-  // Si WiFi está reconectando tras RadioPlayer, esperar hasta 10 s antes de
-  // intentar la conexión SSL (que fallaría con WIFI_CONNECTED=false).
-  if (WIFI_ENABLE && !WIFI_CONNECTED) {
-    logln("Esperando reconexión WiFi antes de ZXDB...");
-    unsigned long twait = millis();
-    while (!WIFI_CONNECTED && millis() - twait < 10000) vTaskDelay(pdMS_TO_TICKS(200));
-    if (!WIFI_CONNECTED) {
-      logln("WiFi no disponible para descarga ZXDB");
-      myNex.writeStr("tape.g0.txt", "No WiFi");
-      return;
-    }
+  // Verificación de conectividad: si RadioPlayer desconectó WiFi para limpiar
+  // el heap, necesitamos reconectar aquí. Esperamos hasta 15 s.
+  if (WIFI_ENABLE && WIFI_CONNECTED) 
+  {
+    logln("WiFi conectado para ZXDB");
+  }
+  else 
+  {
+    logln("WiFi no disponible para descarga ZXDB");
+    myNex.writeStr("tape.g0.txt", "No WiFi");
+
+    return;
   }
 
-  logln("Heap libre antes SSL ZXDB: " + String(ESP.getFreeHeap()) + " (min contiguous: " + String(ESP.getMaxAllocHeap()) + ")");
-  vTaskDelay(pdMS_TO_TICKS(200));
+  // Diagnóstico: el que importa es el bloque contiguo en SRAM interna
+  // (MALLOC_CAP_INTERNAL). mbedTLS usa SRAM interna exclusivamente.
+  size_t sramLibre = heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+  size_t maxBloque = heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+  logln("[ZXDB] WiFi conectado. Heap SRAM interna libre  : " + String(sramLibre));
+  logln("[ZXDB] Max bloque SRAM interna                  : " + String(maxBloque));
+  logln("[ZXDB] Heap total (incl PSRAM)                  : " + String(ESP.getFreeHeap()));
+  
+  if (maxBloque < 45000) {
+    logln("[ZXDB] ⚠ ADVERTENCIA: Max bloque < 45KB. SSL probable fail con ECP_ALLOC");
+  }
 
   // Bloque de scope con retry: el WiFiClientSecure se destruye en cada iteración,
   // liberando el contexto SSL antes de reintentar o de iniciar la descarga.
@@ -1879,7 +1895,7 @@ void downloadFromZXDB(String gameId, String title)
   if (!metaOK)
   {
     logln("Fallo al obtener metadata tras 3 intentos.");
-    myNex.writeStr("zxdb.message.txt", "Metadata error after retries");
+    myNex.writeStr("tape.g0.txt", "Metadata error after retries");
     //
     LAST_MESSAGE = "Memory allocation error. Reboot ESP32";
     myNex.writeStr("tape.g0.txt", LAST_MESSAGE);
@@ -1929,7 +1945,7 @@ void downloadFromZXDB(String gameId, String title)
           filesDownloaded += n;
           SD_MMC.remove(tmpZip);  // borrar ZIP temporal
           
-          LAST_MESSAGE = "Downloading done";
+          LAST_MESSAGE = "Downloading done. See /DOWNLOAD";
           myNex.writeStr("tape.g0.txt", LAST_MESSAGE);
 
 
@@ -1950,13 +1966,15 @@ void downloadFromZXDB(String gameId, String title)
   if (filesDownloaded == 0)
   {
     logln("No se encontraron ficheros de juego para ID: " + gameId);
-    myNex.writeStr("zxdb.message.txt", "No game files found");
+    myNex.writeStr("tao.message.txt", "No game files found");
   }
   else
   {
     logln("Descargados " + String(filesDownloaded) + " fichero(s) en " + destDir);
-    myNex.writeStr("zxdb.message.txt", "Done: " + String(filesDownloaded) + " file(s)");
+    myNex.writeStr("tape.g0.txt", "Done: " + String(filesDownloaded) + " file(s)");
   }
+
+  DOWNLOADING_ZXDB = false;
 }
 
 int get_total_files_ZXDB(const char* baseurl)
@@ -1991,6 +2009,7 @@ int get_total_files_ZXDB(const char* baseurl)
   return totalFiles;  
 }
 
+// Descarga y actualiza el catalogo de ZXDB en la SD
 void updateZXDB(String letter = "0")
 {
     String searchChain = "#ABCDEFGHIJKLMNOPQRSTUVWXYZ";
@@ -2003,23 +2022,25 @@ void updateZXDB(String letter = "0")
         // Reseteamos la barra de progreso
         myNex.writeNum("zxdb.j0.val", 0);
 
-        logln("Capturing ZXDB catalogue from letter: " + letter);
+        //logln("Capturing ZXDB catalogue from letter: " + letter);
         //
         // Recorremos una cadena de busqueda para obtener todo el catálogo de ZXDB usando la API v3
         //
         if (letter != "0")
         {
           searchChain = letter;
+          logln("Capturing ZXDB catalogue for letter: " + letter);
+        }
+        else
+        {
+          logln("Capturing entire ZXDB catalogue");
         }
 
         // Calculamos el total de items encontrados para mostrar una banda de progreso
         // recorremos el catalogo propuesto o una letra concreta
-
         for (int i = 0; i < searchChain.length(); i++)
         {
           char letter = searchChain.charAt(i);
-          logln("Capturing files list for letter: " + String(letter));
-          myNex.writeStr("zxdb.message.txt", "Capturing for letter: <" + String(letter) + ">");
 
           // Componemos la URL de busqueda
           if (letter == '#') 
@@ -2030,6 +2051,7 @@ void updateZXDB(String letter = "0")
             urlToSearch = "https://api.zxinfo.dk/v3/games/byletter/" + String(letter) + "?contenttype=SOFTWARE&machinetype=ZXSPECTRUM&output=flat";  
 
             totalItemsFound += get_total_files_ZXDB(urlToSearch.c_str());
+            myNex.writeStr("zxdb.message.txt", "Calculating total items: " + String(totalItemsFound));
         }
 
         logln("Total " + String(totalItemsFound) + " files in ZXDB");
@@ -2037,6 +2059,10 @@ void updateZXDB(String letter = "0")
         // Bucle principal
         for (int i = 0; i < searchChain.length(); i++)
         {
+
+          logln("Capturing files list for letter: " + String(letter));
+          myNex.writeStr("zxdb.message.txt", "Capturing for letter: <" + String(letter) + ">");
+
           char letter = searchChain.charAt(i);
           logln("Generating files list for letter: " + String(letter));
           
@@ -2145,7 +2171,7 @@ void updateZXDB(String letter = "0")
                   
                 if (id.length() != 0 && title.length() != 0)
                 {
-                  logln("[" + String(lineNum) + "] Found: " + title + " (ID: " + id + ")");
+                  //logln("[" + String(lineNum) + "] Found: " + title + " (ID: " + id + ")");
                   linesBuffer += String(lineNum) + "|F|0|" + title + ".zxdb|" + id + "\n";
                   pageHit++;
                   lineNum++;

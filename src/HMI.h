@@ -791,7 +791,7 @@ private:
                   logln("Registering files in path: " + path);   
               #endif
       
-              bool zxdb_search = FILE_LAST_DIR.indexOf("ONLINE") != -1 ? true : false;
+              bool zxdb_search = FILE_LAST_DIR.indexOf("/ONLINE/") != -1 ? true : false;
               if (zxdb_search)
               {
                   // Si la ruta es ONLINE, no intentamos cargar un _files.lst previo
@@ -1971,7 +1971,8 @@ private:
         }
         else if (strCmd.indexOf("RFSH") != -1) 
         {
-            if (!FB_READING_FILES)
+            // No se hace rescan en los subdirectorios de /ONLINE porque destruye el catalogo
+            if (!FB_READING_FILES && !(FILE_LAST_DIR.indexOf("/ONLINE/") != -1))
             {
               reloadDir();
               REGENERATE_IDX = true;
@@ -2380,10 +2381,9 @@ private:
 
               String recDirTmp = FILE_LAST_DIR;
               recDirTmp.toUpperCase();
-              if (recDirTmp == "/FAV/" || recDirTmp == "/REC/" || recDirTmp == "/WAV")
+              if (recDirTmp == "/FAV/" || recDirTmp == "/REC/" || recDirTmp == "/WAV" || recDirTmp == "/DOWNLOAD" || recDirTmp == "/ONLINE")
               {
                 getFilesFromSD(true,SOURCE_FILE_TO_MANAGE,SOURCE_FILE_INF_TO_MANAGE);
-
               }
               else
               {
@@ -3034,9 +3034,22 @@ private:
         }    
         else if (strCmd.indexOf("WWW") != -1) 
         {
-          // Activa audio internet.
-          // logln("Audio internet enabled.");
-          // IRADIO_EN = true;
+          // Salta al directorio de ZXDB online.
+          logln("Jumping to ZXDB dir.");
+          // Con este comando nos indica la pantalla que quiere
+          // le devolvamos ficheros en la posición actual del puntero
+          SOURCE_FILE_TO_MANAGE = "_files.lst";
+          SOURCE_FILE_INF_TO_MANAGE = "_files.inf"; 
+
+          LST_FILE_IS_OPEN = false;
+          if (fFileLST)
+          {
+            fFileLST.close();
+          }
+
+          jumpToDir("/ONLINE");
+          getFilesFromSD(true,SOURCE_FILE_TO_MANAGE,SOURCE_FILE_INF_TO_MANAGE);
+          refreshFiles();           
         }
         else if (strCmd.indexOf("RADI") != -1) 
         {

@@ -83,7 +83,7 @@
 #define TASK1_STACK_SIZE 32768 // Defecto 16384
 
 // Tarea del Core 1 - HMI (Task0code - HMI, FTP, etc.) - Más ligera
-#define TASK0_STACK_SIZE 16384 // Defecto 8192
+#define TASK0_STACK_SIZE 8192 // Defecto 8192
 
 // Definimos la ganancia de la entrada de linea (para RECORDING)
 #define WORKAROUND_ES8388_LINE1_GAIN MIC_GAIN_MAX
