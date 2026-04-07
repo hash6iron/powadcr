@@ -120,10 +120,10 @@ int GPIO_MSX_REMOTE_PAUSE = 19;
 
 // PORT A
 #define MCP_KEY_PLAY       5   // Pin +1 del MCP23017 para Key2
-#define MCP_KEY_STOP       1   // Pin +1 del MCP23017 para Key3
-#define MCP_KEY_PAUSE      2   // Pin +1 del MCP23017 para Key6
 #define MCP_KEY_RWD        4   // Pin +1 del MCP23017 para Key4
 #define MCP_KEY_FFWD       3   // Pin +1 del MCP23017 para Key5
+#define MCP_KEY_PAUSE      2   // Pin +1 del MCP23017 para Key6
+#define MCP_KEY_STOP       1   // Pin +1 del MCP23017 para Key3
 #define MCP_KEY_REC        6   // Pin +1 del MCP23017 para Key1
 #define MCP_KEY_EJECT      0   // Pin +1 del MCP23017 para Key1
 
@@ -207,11 +207,9 @@ int GPIO_MSX_REMOTE_PAUSE = 19;
 
 // Sampling rate TAP/TZX/..
 #define DEFAULT_MP3_SAMPLING_RATE 44100
-#define STANDARD_SR_8_BIT_MACHINE                                              \
-  96000.0 // 44304   //32407    //43750   // Sampling rate adecuado para
+#define STANDARD_SR_8_BIT_MACHINE 96000.0 // 44304   //32407    //43750   // Sampling rate adecuado para
           // maquinas de 8 bitsAjuste AZIMUT (Hz) - 22200 Hz
-#define STANDARD_SR_8_BIT_MACHINE_TAP                                          \
-  31250 // Sampling rate adecuado para maquinas de 8 bitsAjuste AZIMUT (Hz) -
+#define STANDARD_SR_8_BIT_MACHINE_TAP 31250 // Sampling rate adecuado para maquinas de 8 bitsAjuste AZIMUT (Hz) -
         // 22200 Hz
 #define PAUSE_TAIL_SAMPLES (0.002 / STANDARD_SR_8_BIT_MACHINE)
 #define PAUSE_TAIL_TSTATES 3500 * 2000 // Minimo debe ser 1S (3500000 TStates)

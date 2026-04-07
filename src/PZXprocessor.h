@@ -1026,8 +1026,7 @@ public:
       } else if (strcmp(_myPZX.descriptor[i].tag, "PAUS") == 0) {
         // logln(" - Playing PZX PAUS Block");
         //  El silencio está en TStates
-        double duration =
-            (_myPZX.descriptor[i].pause_duration / DfreqCPU) * 1000.0;
+        double duration = (_myPZX.descriptor[i].pause_duration / DfreqCPU) * 1000.0;
 
         // Aplicar el bit 31: nivel inicial del pulso de pausa
         // bit 31 = 0 -> pulso LOW, bit 31 = 1 -> pulso HIGH
@@ -1042,12 +1041,10 @@ public:
       } else if (strcmp(_myPZX.descriptor[i].tag, "CSW") == 0) {
 
         logln("Playing PZX CSW Block");
-        if (_myPZX.csw_sampling_rate > 0 &&
-            _myPZX.descriptor[i].csw_num_pulses > 0) {
+        if (_myPZX.csw_sampling_rate > 0 && _myPZX.descriptor[i].csw_num_pulses > 0) {
           // Factor para convertir la duración del pulso CSW a T-States
           // de 3.5MHz
-          float conversion_factor =
-              (float)DfreqCPU / (float)_myPZX.csw_sampling_rate;
+          float conversion_factor = (float)DfreqCPU / (float)_myPZX.csw_sampling_rate;
 
           // Usar _zxp.pulse() en un bucle
 

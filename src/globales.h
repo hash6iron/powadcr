@@ -126,7 +126,7 @@ struct tTimming {
   int *pulse_seq_array = nullptr;
   int bitcfg = 0;
   int bytecfg = 0;
-  int csw_sampling_rate;
+  uint32_t csw_sampling_rate;
   int csw_compression_type;
   int csw_num_pulses;        // ✅ AÑADIR: Número de pulsos en la secuencia RLE
   tRlePulse *csw_pulse_data; // ✅ AÑADIR: Puntero a la secuencia de pulsos RLE
@@ -1785,7 +1785,7 @@ void downloadFromZXDB(String gameId, String title)
 
   DOWNLOADING_ZXDB = true;
   
-  TYPE_FILE_LOAD = "ZIP-ZXDB";
+  TYPE_FILE_LOAD = "ZXDB";
 
   LAST_MESSAGE = "Downloading: " + title;
   myNex.writeStr("tape.g0.txt", LAST_MESSAGE);
