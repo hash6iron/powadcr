@@ -5717,7 +5717,7 @@ void tapeControl() {
             FILE_PREPARED = false;
           }
 
-          if (TYPE_FILE_LOAD != "ZIP-ZXDB")
+          if (TYPE_FILE_LOAD != "ZXDB")
           {
             LAST_MESSAGE = "No file inside the tape";
           }
@@ -7872,7 +7872,7 @@ void buttonsControl()
   uint8_t value = MCP23017_readGPIO(0x12);
 
   value = ~value;                               // Invertimos los bits porque el hardware devuelve 0 para tecla presionada
-  value = value & 0x3F;                         // Eliminamos los bits de salida (aplico mascara 00111111)
+  value = value & 0x7F;                         // Eliminamos los bits de salida (aplico mascara 00111111)
   
   uint8_t keyPressed = 0;
   
@@ -7883,7 +7883,7 @@ void buttonsControl()
   }
   else
   {
-    keyPressed = log2(value);                     // Obtenemos el índice del bit a 1, que corresponde a la tecla presionada (0-5)     
+    keyPressed = log2(value);                     // Obtenemos el índice del bit a 1, que corresponde a la tecla presionada (0-5)
   }
   
   // Control de estado botones.
@@ -7891,7 +7891,7 @@ void buttonsControl()
   {
     case 0:
     {
-      // Initial state, waiting for key press
+      // Estado inicial. Esperamos la pulsación de una tecla.
       if (keyPressed < 8)
       {
         keykp_count[keyPressed]=0;
@@ -7907,7 +7907,8 @@ void buttonsControl()
   
     case 1:
     {
-      // Determining if it's a short or long press
+      // Determinamos si es una pulsación corta o larga.
+      // para ello vamos contando el número de ciclos que se mantiene pulsada la tecla.
       if (keyPressed < 8)
       {
         keykp_count[keyPressed]++;
@@ -9236,7 +9237,10 @@ void setup() {
   //
   // -------------------------------------------------------------------------
   setupAudioKit();
+
+  #ifdef TEST_AUDIOKIT_ON_BOOT
   testingAudioKit();
+  #endif
 
   // Intento normal
   // setupSerialComHMI();

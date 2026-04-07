@@ -106,6 +106,10 @@ public:
 private:
   uint8_t _mask_last_byte = 8;
 
+  // Error accumulator for precise sample width calculation
+  // Distributes rounding error across multiple pulses
+  double ERROR_ACCUMULATOR = 0.0;
+
   // AudioKitStream m_kit;
   void tapeAnimationON() {
     // Activamos animacion cinta
@@ -397,10 +401,8 @@ private:
     EDGE_EAR_IS = initialLevelLow ? down : up;
     amplitude = getChannelAmplitude();
 
-    sample_R =
-        (uint16_t)(amplitude * (MAIN_VOL_R / 100.0) * (MAIN_VOL / 100.0));
-    sample_L =
-        (uint16_t)(amplitude * (MAIN_VOL_L / 100.0) * (MAIN_VOL / 100.0));
+    sample_R = (uint16_t)(amplitude * (MAIN_VOL_R / 100.0) * (MAIN_VOL / 100.0));
+    sample_L = (uint16_t)(amplitude * (MAIN_VOL_L / 100.0) * (MAIN_VOL / 100.0));
 
     // Pasamos los datos para el modo DEBUG
     DEBUG_AMP_R = sample_R;
@@ -414,14 +416,14 @@ private:
     // el minFrame será ese numero de muestras
     if (samples <= minFrame) {
 
-#ifdef DEBUGMODE
-      // log("SIMPLE PULSE");
-      // log(" --> samp:  " + String(samples));
-      // log(" --> bytes: " + String(bytes));
-      // log(" --> Chns:  " + String(channels));
-      // log(" --> T0:  " + String(T0));
-      // log(" --> T1:  " + String(T1));
-#endif
+      #ifdef DEBUGMODE
+            // log("SIMPLE PULSE");
+            // log(" --> samp:  " + String(samples));
+            // log(" --> bytes: " + String(bytes));
+            // log(" --> Chns:  " + String(channels));
+            // log(" --> T0:  " + String(T0));
+            // log(" --> T1:  " + String(T1));
+      #endif
       // Definimos el tamaño del buffer
       bytes = samples * 2 * channels;
       //
@@ -554,10 +556,8 @@ private:
     // Genera un pulso COMPLETO (dos semipulsos) con mayor precisión
     int chn = channels;
     int minFrame = MIN_FRAME_FOR_SILENCE_PULSE_GENERATION;
-    double tpulseWidth =
-        ((dwidth / freqCPU) * SAMPLING_RATE) + calibrationValue;
-    int s[2] = {(int)round(tpulseWidth),
-                (int)round((2 * tpulseWidth) - round(tpulseWidth))};
+    double tpulseWidth = ((dwidth / freqCPU) * SAMPLING_RATE) + calibrationValue;
+    int s[2] = {(int)round(tpulseWidth),(int)round((2 * tpulseWidth) - round(tpulseWidth))};
 
     for (int i = 0; i < 2; ++i) {
       int samples = s[i];
@@ -726,28 +726,23 @@ private:
     uint16_t sample_L = 0;
     uint16_t sample_R = 0;
 
-    // Calculamos el numero de samples
-    // double dwidth = width;
+    // Calculamos el numero de samples con alta precisión
+    // Usamos acumulador de error para distribuir fracciones uniformemente
     double rsamples = (((dwidth / freqCPU) * SAMPLING_RATE));
-    samples = (int)(round(rsamples));
-
-    //
-    // logln("Samples on semiPulse: dwidth = "  + String(dwidth) + " samples = "
-    // + String(samples) + " (rsamples = " + String(rsamples) + ")");
-
-    // Si hay que añadir un sample por el redondeo de muestras en un pulso
-    // completo, se indica para que se aplique en el proximo pulso.
-    if (ADD_ONE_SAMPLE_COMPENSATION) {
-      samples += 1;
-      ADD_ONE_SAMPLE_COMPENSATION = false;
-    } else {
-      // Si hay un residual que no se compensa con ROUND() lo compenso en el
-      // otro semi-pulso con +1 esto se da en los casoso de BIT_0 y BIT_1, y
-      // tono guia estandar.
-      if (rsamples >= samples) {
-        ADD_ONE_SAMPLE_COMPENSATION = true;
-      }
-    }
+    
+    // Acumular el valor exacto (incluyendo la parte fraccionaria)
+    ERROR_ACCUMULATOR += rsamples;
+    
+    // Tomar la parte entera del acumulador como samples
+    samples = (int)ERROR_ACCUMULATOR;
+    
+    // Mantener solo la parte fraccionaria para el próximo pulso
+    ERROR_ACCUMULATOR -= samples;
+    
+    #ifdef DEBUGMODE
+      logln(String(dwidth) + " / " + String(freqCPU) + " * " + String(SAMPLING_RATE) + " = " +
+        String(rsamples) + " (accumulated: " + String(ERROR_ACCUMULATOR + samples) + ") => " + String(samples));
+    #endif
 
     // Obtenemos la amplitud de la señal según la configuración de polarización,
     // nivel low, etc.
@@ -817,7 +812,10 @@ private:
     }
   }
 
-  void semiPulse(double dwidth) {
+
+
+  void semiPulse(double dwidth, double samples_compensation = 0) 
+  {
     // Amplitud de la señal
     double amplitude = 0;
     int bytes = 0; // Cada muestra ocupa 2 bytes (16 bits)
@@ -826,28 +824,23 @@ private:
     uint16_t sample_L = 0;
     uint16_t sample_R = 0;
 
-    // Calculamos el numero de samples
-    // double dwidth = width;
-    double rsamples = (((dwidth / freqCPU) * SAMPLING_RATE));
-    samples = (int)(round(rsamples));
+    // Calculamos el numero de samples con alta precisión
+    // Usamos acumulador de error para distribuir fracciones uniformemente
+    double rsamples = (((dwidth / freqCPU) * SAMPLING_RATE)) + samples_compensation;
+    
+    // Acumular el valor exacto (incluyendo la parte fraccionaria)
+    ERROR_ACCUMULATOR += rsamples;
+    
+    // Tomar la parte entera del acumulador como samples
+    samples = (int)ERROR_ACCUMULATOR;
+    
+    // Mantener solo la parte fraccionaria para el próximo pulso
+    ERROR_ACCUMULATOR -= samples;
 
-    //
-    // logln("Samples on semiPulse: dwidth = "  + String(dwidth) + " samples = "
-    // + String(samples) + " (rsamples = " + String(rsamples) + ")");
-
-    // Si hay que añadir un sample por el redondeo de muestras en un pulso
-    // completo, se indica para que se aplique en el proximo pulso.
-    if (ADD_ONE_SAMPLE_COMPENSATION) {
-      samples += 1;
-      ADD_ONE_SAMPLE_COMPENSATION = false;
-    } else {
-      // Si hay un residual que no se compensa con ROUND() lo compenso en el
-      // otro semi-pulso con +1 esto se da en los casoso de BIT_0 y BIT_1, y
-      // tono guia estandar.
-      if (rsamples >= samples) {
-        ADD_ONE_SAMPLE_COMPENSATION = true;
-      }
-    }
+    #ifdef DEBUGMODE
+      logln(String(dwidth) + " / " + String(freqCPU) + " * " + String(SAMPLING_RATE) + " = " +
+        String(rsamples) + " (accumulated: " + String(ERROR_ACCUMULATOR + samples) + ") => " + String(samples));
+    #endif
 
     // Obtenemos la amplitud de la señal según la configuración de polarización,
     // nivel low, etc.
@@ -1084,16 +1077,15 @@ public:
     int tStateSilenceOri = 0;
     double samples = 0;
 
-#ifdef DEBUGMODE
-    log("Silencio: " + String(duration) + " ms");
-#endif
+    #ifdef DEBUGMODE
+        log("Silencio: " + String(duration) + " ms");
+    #endif
 
     // El silencio siempre acaba en un pulso de nivel bajo
     // Si no hay silencio, se pasas tres kilos del silencio y salimos
-    if (duration > 0) {
-      // tStateSilenceOri = tStateSilence;
-      // tStateSilence = (duration / OneSecondTo_ms) * freqCPU;
-      // logln("Sampling rate for SILENCE: " + String(SAMPLING_RATE));
+    if (duration > 0) 
+    {
+
       samples = ((duration / 1000.0) * sr);
 
       if (duration < 500.0) {
@@ -1106,9 +1098,9 @@ public:
         }
       }
 
-#ifdef DEBUGMODE
-      log("Samples: " + String(samples));
-#endif
+      #ifdef DEBUGMODE
+            log("Samples: " + String(samples));
+      #endif
 
       // Generador de pulsos exclusivo para silencios
       int swidth = round(samples);
@@ -1124,34 +1116,36 @@ public:
         pulseSilence(swidth);
       }
 
-      // #ifdef DEBUGMODE
-      //     log("..ACU_ERROR: " + String(ACU_ERROR));
-      // #endif
-
-      // //insertamos el error de silencio calculado
-      // insertSamplesError(ACU_ERROR,false);
     } else {
       EDGE_EAR_IS ^= 1; // Alternamos el nivel del EAR para el siguiente pulso
     }
   }
 
-  void silence(double duration, bool changeNextEARedge = true,
-               bool pzxForzeLevel = false) {
+  void forceLevelLow() {
+    // Fuerza el nivel a LOW sin generar audio
+    EDGE_EAR_IS = down;
+  }
+
+  void silence(double duration, bool changeNextEARedge = true, bool pzxForzeLevel = false, double samplesCompensation = 0) 
+  {
     // la duracion se da en ms
     LAST_SILENCE_DURATION = duration;
     ACU_ERROR = 0;
     double samples = 0;
 
-#ifdef DEBUGMODE
-    logln("Silencio: " + String(duration) + " ms");
-    logln(" - Current EAR level: " +
-          String(EDGE_EAR_IS == down ? "LOW" : "HIGH"));
-#endif
+    #ifdef DEBUGMODE
+        logln("Silencio: " + String(duration) + " ms");
+        logln(" - Current EAR level: " +
+              String(EDGE_EAR_IS == down ? "LOW" : "HIGH"));
+    #endif
 
     // Generar silencio adicional si duration > 0
     if (duration > 0.0) {
       samples = (duration / 1000.0) * SAMPLING_RATE;
-      int swidth = (int)samples;
+
+      // 07/04/2026
+      // Añadido ROUND() para evitar problemas de truncado en silencios largos.
+      int swidth = (int)round(samples + samplesCompensation);
 
       // Esto es para máquinas como el 48K
       if (duration >= 1000) {
@@ -1183,31 +1177,22 @@ public:
     // ADD_ONE_SAMPLE_COMPENSATION = false;
     ACU_ERROR = 0;
 
-    // Paso la duración a T-States
-    // double parts = 0, fractPart, intPart, terminator_samples = 0;
-    // int lastPart = 0;
-    // int tStateSilence = 0;
-    // int tStateSilenceOri = 0;
     double samples = 0;
 
-#ifdef DEBUGMODE
-    log("Silencio: " + String(duration) + " ms");
-#endif
+    #ifdef DEBUGMODE
+        log("Silencio: " + String(duration) + " ms");
+    #endif
 
     // Generar silencio adicional si duration > 0
     if (duration > 0.0) {
-      // tStateSilenceOri = tStateSilence;
-      // tStateSilence = (duration / OneSecondTo_ms) * freqCPU;
-      // logln("Sampling rate for SILENCE: " + String(SAMPLING_RATE));
 
       // Calculamos el numero de samples
       samples = (duration / 1000.0) * SAMPLING_RATE;
 
       // Generador de pulsos exclusivo para silencios
-      int swidth = (int)samples;
+      int swidth = (int)round(samples + PZX_COMPENSATION_FACTOR);
       if (swidth > 0) {
-        logln("Samples of the SILENCE: " + String(duration) + " is " +
-              String(swidth));
+        logln("Samples of the SILENCE: " + String(duration) + " is " + String(swidth));
         pulseSilencePZX(swidth, initialLevelLow);
       }
     }
@@ -1223,14 +1208,14 @@ public:
   void pulse(int width) {
     // Para PZX
     ADD_ONE_SAMPLE_COMPENSATION = false;
-    semiPulse((double)width);
+    semiPulse((double)width, PZX_COMPENSATION_FACTOR);
     ACU_ERROR = 0;
   }
 
   void playPulse(int lenPulse) {
     // Para PZX
     ADD_ONE_SAMPLE_COMPENSATION = false;
-    semiPulse((double)lenPulse);
+    semiPulse((double)lenPulse, PZX_COMPENSATION_FACTOR);
     ACU_ERROR = 0;
   }
 

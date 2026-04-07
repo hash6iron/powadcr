@@ -102,6 +102,10 @@
 #define USE_AUDIO_LOGGING false
 // States of LOG_LEVEL: Debug, Info, Warning, Error
 #define LOG_LEVEL AudioLogger::Debug
+
+// Reproduce un BEEP al arrancar para comprobar que el audio funciona
+//#define TEST_AUDIOKIT_ON_BOOT
+
 // Definicion del puerto serie para la pantalla
 #define SerialHWDataBits 921600
 //  pinout
@@ -250,6 +254,9 @@ int GPIO_MSX_REMOTE_PAUSE = 19;
 
 // Maximo numero de ficheros capturados en la lista de audio por directorio
 #define MAX_FILES_AUDIO_LIST 128
+
+// Compensacion para precisar la señal 5%
+#define PZX_COMPENSATION_FACTOR 0
 
 // --------------------------------------------------------------
 // Radio Internet

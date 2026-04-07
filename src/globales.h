@@ -1334,17 +1334,10 @@ uint8_t MCP23017_readGPIO(uint8_t regGPIO, uint8_t i2c_addr = 0x20) {
 void remDetection() {
   bool isAvailableForREM = false;
 
-  if (TYPE_FILE_LOAD == "TAP") 
+  if (TYPE_FILE_LOAD == "TZX" || TYPE_FILE_LOAD == "TSX" || TYPE_FILE_LOAD == "CDT" || TYPE_FILE_LOAD == "TAP" ||
+      TYPE_FILE_LOAD == "WAV" || TYPE_FILE_LOAD == "PZX" || TYPE_FILE_LOAD == "FLAC" || TYPE_FILE_LOAD == "MP3") 
   {
-    isAvailableForREM = myTAP.availableForREM;
-  } 
-  else if (TYPE_FILE_LOAD == "TZX" || TYPE_FILE_LOAD == "TSX" || TYPE_FILE_LOAD == "CDT") 
-  {
-    isAvailableForREM = myTZX.availableForREM;
-  }
-  else if (TYPE_FILE_LOAD == "PZX") 
-  {
-    isAvailableForREM = myPZX.availableForREM;
+    isAvailableForREM = true;
   }
   else 
   {
