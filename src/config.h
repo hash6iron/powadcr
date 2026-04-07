@@ -104,7 +104,7 @@
 #define LOG_LEVEL AudioLogger::Debug
 
 // Reproduce un BEEP al arrancar para comprobar que el audio funciona
-//#define TEST_AUDIOKIT_ON_BOOT
+#define TEST_AUDIOKIT_ON_BOOT
 
 // Definicion del puerto serie para la pantalla
 #define SerialHWDataBits 921600
