@@ -4256,6 +4256,11 @@ void playingFile() {
     // Fichero virtual CPCDB - la descarga se gestiona desde HMI
     LAST_MESSAGE = "Wait for scanning end.";
     logln("Finish CPCDB playing file");
+  } else if (TYPE_FILE_LOAD == "MSXDB") {
+    logln("Type file load: " + TYPE_FILE_LOAD);
+    // Fichero virtual MSXDB - la descarga se gestiona desde HMI
+    LAST_MESSAGE = "Wait for scanning end.";
+    logln("Finish MSXDB playing file");
   } else {
     logAlert("Unknown type_file_load");
   }
@@ -4567,6 +4572,10 @@ void loadingFile(char *file_ch) {
       logln("CPCDB file to load: " + PATH_FILE_TO_LOAD);
       FILE_PREPARED = true;
       TYPE_FILE_LOAD = "CPCDB";
+    } else if (PATH_FILE_TO_LOAD.indexOf(".MSXDB", PATH_FILE_TO_LOAD.length() - 6) != -1) {
+      logln("MSXDB file to load: " + PATH_FILE_TO_LOAD);
+      FILE_PREPARED = true;
+      TYPE_FILE_LOAD = "MSXDB";
     }
   } else {
     #ifdef DEBUGMODE
@@ -5726,7 +5735,7 @@ void tapeControl() {
             FILE_PREPARED = false;
           }
 
-          if (TYPE_FILE_LOAD != "ZXDB" && TYPE_FILE_LOAD != "CPCDB")
+          if (TYPE_FILE_LOAD != "ZXDB" && TYPE_FILE_LOAD != "CPCDB" && TYPE_FILE_LOAD != "MSXDB")
           {
             LAST_MESSAGE = "No file inside the tape";
           }
@@ -8198,6 +8207,29 @@ void Task0code(void *pvParameters) {
         logln("[DBG] Downloading CPC CDT: " + cdtName);
         downloadFromCPCDB(cdtName, title);
       }
+      else if (dbgCmd == "msxdb_update")
+      {
+        logln("[DBG] Updating entire MSXDB catalogue...");
+        updateMSXDB("0");
+      }
+      else if (dbgCmd.startsWith("msxdb_update "))
+      {
+        String letter = dbgCmd.substring(13);
+        letter.trim();
+        logln("[DBG] Updating MSXDB for letter: " + letter);
+        updateMSXDB(letter);
+      }
+      else if (dbgCmd.startsWith("msxdb_download "))
+      {
+        // Ejemplo: msxdb_download Zakil Wood (1985)(Mr Micro)(ES)[!][BLOAD'CAS-',R][v0.8.5b].tsx
+        String tsxName = dbgCmd.substring(15);
+        tsxName.trim();
+        String title = tsxName;
+        int parenPos = title.indexOf(" (");
+        if (parenPos > 0) title = title.substring(0, parenPos);
+        logln("[DBG] Downloading MSX TSX: " + tsxName);
+        downloadFromMSXDB(tsxName, title);
+      }
       else if (dbgCmd == "zxdb_update")
       {
         logln("[DBG] Updating entire ZXDB catalogue...");
@@ -8209,14 +8241,14 @@ void Task0code(void *pvParameters) {
 
     // Control del FTP
     #ifdef FTP_SERVER_ENABLE
-      if (!IRADIO_EN && WIFI_ENABLE && WIFI_CONNECTED && !FLAC_IS_PLAYING && !DOWNLOADING_ZXDB && !DOWNLOADING_CPCDB)
+      if (!IRADIO_EN && WIFI_ENABLE && WIFI_CONNECTED && !FLAC_IS_PLAYING && !DOWNLOADING_ZXDB && !DOWNLOADING_CPCDB && !DOWNLOADING_MSXDB)
       {
         ftpSrv.handleFTP();
       }
     #endif
 
     #ifdef WEB_SERVER_ENABLE
-    if (!FLAC_IS_PLAYING && WIFI_ENABLE && WIFI_CONNECTED && !DOWNLOADING_ZXDB && !DOWNLOADING_CPCDB)
+    if (!FLAC_IS_PLAYING && WIFI_ENABLE && WIFI_CONNECTED && !DOWNLOADING_ZXDB && !DOWNLOADING_CPCDB && !DOWNLOADING_MSXDB)
     {
       WiFiClient client = server.available();
       if (client) 
@@ -9125,6 +9157,14 @@ void setupSDCard() {
     logln("SD Card mounted");
     hmi.writeString("statusLCD.txt=\"SD_MMC available\"");
     delay(125);
+
+    // Crear carpetas base para catálogos online y descargas
+    if (!SD_MMC.exists("/ONLINE"))      SD_MMC.mkdir("/ONLINE");
+    if (!SD_MMC.exists("/ONLINE_CPC"))  SD_MMC.mkdir("/ONLINE_CPC");
+    if (!SD_MMC.exists("/ONLINE_MSX"))  SD_MMC.mkdir("/ONLINE_MSX");
+    if (!SD_MMC.exists("/DOWNLOAD"))    SD_MMC.mkdir("/DOWNLOAD");
+    if (!SD_MMC.exists("/DOWNLOAD_CPC")) SD_MMC.mkdir("/DOWNLOAD_CPC");
+    if (!SD_MMC.exists("/DOWNLOAD_MSX")) SD_MMC.mkdir("/DOWNLOAD_MSX");
   }
 
   if (psramInit()) {
@@ -9525,7 +9565,7 @@ void setup() {
   //
   // -------------------------------------------------------------------------
   if (WIFI_CONNECTED && WIFI_ENABLE)
-  {  
+  {
     setupNTP();
   }
   // Connect to Spotify

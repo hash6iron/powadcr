@@ -832,6 +832,7 @@ String SPOTIFY_CLIENT_SECRET = "";
 bool QUICK_BOOT = false;
 bool DOWNLOADING_ZXDB = false;
 bool DOWNLOADING_CPCDB = false;
+bool DOWNLOADING_MSXDB = false;
 bool BEEP = false;
 
 // Declaraciones de metodos
@@ -1805,7 +1806,6 @@ void downloadFromZXDB(String gameId, String title)
 
   String destDir = "/DOWNLOAD/" + safeTitle;
 
-  if (!SD_MMC.exists("/DOWNLOAD")) SD_MMC.mkdir("/DOWNLOAD");
   if (!SD_MMC.exists(destDir))
   {
     if (!SD_MMC.mkdir(destDir))
@@ -2274,7 +2274,6 @@ void downloadFromCPCDB(String fileName, String title)
 
   String destDir = "/DOWNLOAD_CPC/" + safeTitle;
 
-  if (!SD_MMC.exists("/DOWNLOAD_CPC")) SD_MMC.mkdir("/DOWNLOAD_CPC");
   if (!SD_MMC.exists(destDir))
   {
     if (!SD_MMC.mkdir(destDir))
@@ -2543,6 +2542,317 @@ void updateCPCDB(String letter = "0")
 
         logln("CPCDB: " + String(totalFiles) + " ficheros catalogados");
         myNex.writeStr("zxdb.message.txt", "Done: " + String(totalFiles) + " CPC games");
+        myNex.writeNum("zxdb.j0.val", 100);
+    }
+}
+
+// MSXDB - Descarga de juegos MSX desde tsx.eslamejor.com
+// API: /index_back.php?page=N&idx=LETRA (JSON, 50 por página)
+// Descarga: /tsx-files/{TOSEC.NAME}.tsx
+// =====================================================================
+
+const char* MSXDB_HOST = "tsx.eslamejor.com";
+
+// Descarga un fichero TSX individual desde tsx.eslamejor.com
+// fileName : nombre TOSEC completo (e.g. "Zakil Wood (1985)(Mr Micro)(ES)[!].tsx")
+// title    : nombre corto del juego para el subdirectorio en /DOWNLOAD_MSX/
+void downloadFromMSXDB(String fileName, String title)
+{
+  DOWNLOADING_MSXDB = true;
+  TYPE_FILE_LOAD = "MSXDB";
+
+  LAST_MESSAGE = "Downloading: " + title;
+  myNex.writeStr("tape.g0.txt", LAST_MESSAGE);
+
+  if (!WIFI_CONNECTED || !WIFI_ENABLE)
+  {
+    logln("WiFi no disponible para descarga MSXDB");
+    myNex.writeStr("tape.g0.txt", "No WiFi");
+    DOWNLOADING_MSXDB = false;
+    return;
+  }
+
+  // Sanitizar el título para nombre de directorio FAT32
+  String safeTitle = title;
+  safeTitle.replace("/",  "-");
+  safeTitle.replace("\\", "-");
+  safeTitle.replace(":",  "-");
+  safeTitle.replace("*",  "-");
+  safeTitle.replace("?",  "-");
+  safeTitle.replace("\"", "-");
+  safeTitle.replace("<",  "-");
+  safeTitle.replace(">",  "-");
+  safeTitle.replace("|",  "-");
+
+  String destDir = "/DOWNLOAD_MSX/" + safeTitle;
+
+  if (!SD_MMC.exists(destDir))
+  {
+    if (!SD_MMC.mkdir(destDir))
+    {
+      logln("Error al crear directorio: " + destDir);
+      myNex.writeStr("tape.g0.txt", "Error creating dir");
+      DOWNLOADING_MSXDB = false;
+      return;
+    }
+  }
+
+  // Construir URL de descarga: /tsx-files/{fileName}
+  String encodedFileName = fileName;
+  encodedFileName.replace(" ", "%20");
+  encodedFileName.replace("(", "%28");
+  encodedFileName.replace(")", "%29");
+  encodedFileName.replace("'", "%27");
+  encodedFileName.replace("&", "%26");
+  encodedFileName.replace(",", "%2C");
+  encodedFileName.replace("[", "%5B");
+  encodedFileName.replace("]", "%5D");
+
+  String downloadUrl = "https://" + String(MSXDB_HOST) + "/tsx-files/" + encodedFileName;
+
+  logln("Descargando TSX: " + downloadUrl);
+  myNex.writeStr("tape.g0.txt", "Downloading: " + title);
+
+  String localPath = destDir + "/" + fileName;
+
+  {
+    WiFiClientSecure secureClient;
+    secureClient.setInsecure();
+
+    HTTPClient http;
+    http.begin(secureClient, downloadUrl);
+    http.setTimeout(60000);
+    http.setConnectTimeout(30000);
+    http.addHeader("User-Agent", "PowaDCR/" + String(VERSION));
+    http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
+
+    int httpCode = http.GET();
+    if (httpCode == HTTP_CODE_OK)
+    {
+      File file = SD_MMC.open(localPath.c_str(), FILE_WRITE);
+      if (file)
+      {
+        int written = http.writeToStream(&file);
+        file.flush();
+        file.close();
+        logln("Descargados " + String(written) + " bytes -> " + localPath);
+        LAST_MESSAGE = "Download done. See /DOWNLOAD_MSX";
+        myNex.writeStr("tape.g0.txt", LAST_MESSAGE);
+      }
+      else
+      {
+        logln("No se pudo crear fichero: " + localPath);
+        LAST_MESSAGE = "Error creating file";
+        myNex.writeStr("tape.g0.txt", LAST_MESSAGE);
+      }
+    }
+    else
+    {
+      logln("Error HTTP " + String(httpCode) + " descargando: " + downloadUrl);
+      LAST_MESSAGE = "Download error " + String(httpCode);
+      myNex.writeStr("tape.g0.txt", LAST_MESSAGE);
+    }
+    http.end();
+  }
+
+  DOWNLOADING_MSXDB = false;
+}
+
+// Consulta la API de tsx.eslamejor.com para generar
+// el catálogo /ONLINE_MSX/{letra}/_files.lst
+// La API devuelve JSON paginado: /index_back.php?page=N&idx=LETRA
+void updateMSXDB(String letter = "0")
+{
+    String searchChain = "#ABCDEFGHIJKLMNOPQRSTUVWXYZ0";
+
+    if (WIFI_CONNECTED && WIFI_ENABLE)
+    {
+        myNex.writeNum("zxdb.j0.val", 0);
+
+        if (letter != "0")
+        {
+          searchChain = letter;
+          logln("Capturing MSXDB catalogue for letter: " + letter);
+        }
+        else
+        {
+          logln("Capturing entire MSXDB catalogue");
+        }
+
+        logln("Fetching MSXDB from tsx.eslamejor.com...");
+        myNex.writeStr("zxdb.message.txt", "Fetching MSX catalog...");
+
+        int totalFiles = 0;
+
+        // Iterar por cada letra solicitada
+        for (int li = 0; li < searchChain.length(); li++)
+        {
+          char letterChar = searchChain.charAt(li);
+          String idxParam = String(letterChar);
+
+          // Determinar el índice para el array (0='#', 1='A'..26='Z')
+          // Para la API, '#' se envía como "0", las letras como sí mismas
+          String apiIdx = idxParam;
+          if (letterChar == '#') apiIdx = "0";
+
+          int letterIdx;
+          if (letterChar >= 'A' && letterChar <= 'Z')
+            letterIdx = 1 + (letterChar - 'A');
+          else
+            letterIdx = 0;  // '#' y '0' van al bucket numérico
+
+          String dir = (letterIdx == 0) ? "#" : String(letterChar);
+
+          if (!SD_MMC.exists("/ONLINE_MSX/" + dir))
+          {
+            SD_MMC.mkdir("/ONLINE_MSX/" + dir);
+          }
+
+          // Truncar ficheros existentes
+          File f = SD_MMC.open("/ONLINE_MSX/" + dir + "/_files.lst", FILE_WRITE);
+          if (f) f.close();
+          f = SD_MMC.open("/ONLINE_MSX/" + dir + "/_files.inf", FILE_WRITE);
+          if (f) f.close();
+
+          int lineCount = 0;
+          String buffer = "";
+          const int FLUSH_THRESHOLD = 4096;
+          int page = 0;
+          bool morePages = true;
+
+          while (morePages)
+          {
+            WiFiClientSecure secureClient;
+            secureClient.setInsecure();
+
+            HTTPClient http;
+            String apiUrl = "https://" + String(MSXDB_HOST)
+                          + "/index_back.php?page=" + String(page)
+                          + "&idx=" + apiIdx;
+
+            http.begin(secureClient, apiUrl);
+            http.setTimeout(60000);
+            http.setConnectTimeout(30000);
+            http.addHeader("User-Agent", "Mozilla/5.0");
+            http.addHeader("X-Requested-With", "XMLHttpRequest");
+            http.addHeader("Accept", "application/json");
+            http.addHeader("Referer", "https://" + String(MSXDB_HOST) + "/?idx=" + apiIdx);
+            http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
+
+            int httpCode = http.GET();
+            if (httpCode == 204 || httpCode != 200)
+            {
+              // No más datos o error
+              http.end();
+              morePages = false;
+              break;
+            }
+
+            // Parsear JSON respuesta línea a línea buscando TOSEC.NAME
+            // El JSON es grande, lo procesamos por stream buscando los campos que necesitamos
+            WiFiClient* stream = http.getStreamPtr();
+            String jsonChunk = "";
+
+            // Leemos toda la respuesta (puede ser grande pero paginada a 50 items)
+            while (http.connected() || stream->available())
+            {
+              if (!stream->available()) { delay(5); continue; }
+              char c = stream->read();
+              jsonChunk += c;
+            }
+            http.end();
+
+            if (jsonChunk.length() < 10)
+            {
+              morePages = false;
+              break;
+            }
+
+            // Buscar cada ocurrencia de "TOSEC.NAME":"..." en el JSON
+            int searchFrom = 0;
+            int foundInPage = 0;
+            while (true)
+            {
+              int tosecPos = jsonChunk.indexOf("\"TOSEC.NAME\":\"", searchFrom);
+              if (tosecPos == -1) break;
+
+              int nameStart = tosecPos + 14;  // después de "TOSEC.NAME":"
+              int nameEnd = jsonChunk.indexOf("\"", nameStart);
+              if (nameEnd == -1) break;
+
+              String tosecName = jsonChunk.substring(nameStart, nameEnd);
+
+              // El fichero TSX será tosecName + ".tsx"
+              String tsxFileName = tosecName + ".tsx";
+
+              // Título limpio: extraer solo el nombre del juego (antes del primer paréntesis)
+              String title = tosecName;
+              int parenPos = title.indexOf(" (");
+              if (parenPos > 0) title = title.substring(0, parenPos);
+
+              // Añadir al buffer: lineNum|F|0|title.msxdb|tsxFileName
+              buffer += String(lineCount) + "|F|0|" + title + ".msxdb|" + tsxFileName + "\n";
+              lineCount++;
+              totalFiles++;
+              foundInPage++;
+
+              searchFrom = nameEnd + 1;
+            }
+
+            // Flush si el buffer es grande
+            if (buffer.length() > FLUSH_THRESHOLD)
+            {
+              File lst = SD_MMC.open("/ONLINE_MSX/" + dir + "/_files.lst", FILE_APPEND);
+              if (lst)
+              {
+                lst.print(buffer);
+                lst.flush();
+                lst.close();
+              }
+              buffer = "";
+            }
+
+            // Si encontramos menos de 50 items, no hay más páginas
+            if (foundInPage < 50)
+            {
+              morePages = false;
+            }
+            else
+            {
+              page++;
+            }
+
+            // Progreso
+            myNex.writeStr("zxdb.message.txt", "Found " + String(totalFiles) + " MSX games...");
+          }
+
+          // Flush buffer restante
+          if (buffer.length() > 0)
+          {
+            File lst = SD_MMC.open("/ONLINE_MSX/" + dir + "/_files.lst", FILE_APPEND);
+            if (lst)
+            {
+              lst.print(buffer);
+              lst.flush();
+              lst.close();
+            }
+          }
+
+          // Generar _files.inf
+          File inf = SD_MMC.open("/ONLINE_MSX/" + dir + "/_files.inf", FILE_WRITE);
+          if (inf)
+          {
+            inf.println("PATH=/ONLINE_MSX/" + dir + "/");
+            inf.print("CFIL=");
+            inf.println(lineCount);
+            inf.println("CDIR=0");
+            inf.flush();
+            inf.close();
+          }
+        }
+
+        logln("MSXDB: " + String(totalFiles) + " ficheros catalogados");
+        myNex.writeStr("zxdb.message.txt", "Done: " + String(totalFiles) + " MSX games");
         myNex.writeNum("zxdb.j0.val", 100);
     }
 }
