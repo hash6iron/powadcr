@@ -757,7 +757,7 @@ public:
     // Para PZX, la polarización por defecto es LOW (0)
     // Según la especificación PZX, PULS comienza en LOW.
     // Si hay un pulso de duración 0 al inicio de PULS, puede hacer toggle a HIGH.
-    EDGE_EAR_IS = 1;  // Para que empiece en LOW
+    //EDGE_EAR_IS ^= 1;  // Para que empiece en LOW
 
     for (int i = firstBlockToBePlayed; i < _myPZX.numBlocks; ++i) 
     {
@@ -881,6 +881,7 @@ public:
 
       if (strcmp(_myPZX.descriptor[i].tag, "PULS") == 0) 
       {
+        EDGE_EAR_IS = down;
         // logln(" - Playing PZX PULS Block");
         // PULS comienza en LOW según especificación PZX
         // Un pulso de duración 0 al inicio puede hacer toggle a HIGH
@@ -897,8 +898,8 @@ public:
           // Se usa para ajustar la polaridad inicial
           if (pulse_len == 0) 
           {
-            // Cambiar el nivel sin generar audio
-            EDGE_EAR_IS ^= 1;
+            // Cambiar el nivel
+            EDGE_EAR_IS = up;
             continue;
           }
 
@@ -910,7 +911,7 @@ public:
         }
         
         // Asegurar que el bloque PULS termina en LOW
-        _zxp.forceLevelLow();
+        //_zxp.forceLevelLow();
         
       } 
       else if (strcmp(_myPZX.descriptor[i].tag, "DATA") == 0) 
@@ -925,13 +926,13 @@ public:
         {
           // Queremos que el primer semi-pulso sea HIGH
           // semiPulse invierte el nivel, así que EDGE_EAR_IS debe ser LOW (0)
-          EDGE_EAR_IS = 0;  // LOW (inverte -> HIGH)
+          EDGE_EAR_IS = up;  // El pulso es HIGH
         } 
         else 
         {
           // Queremos que el primer semi-pulso sea LOW
           // semiPulse invierte el nivel, así que EDGE_EAR_IS debe ser HIGH (1)
-          EDGE_EAR_IS = 1;  // HIGH (invierte -> LOW)
+          EDGE_EAR_IS = down;  // El pulso es LOW
         }
 
         // logln(" - Playing PZX DATA Block");
@@ -946,6 +947,9 @@ public:
           for (int bit_num = 0; bit_num < _myPZX.descriptor[i].data_bit_count; ++bit_num) 
           {
             if (STOP || EJECT || PAUSE) break;
+            
+            // Resetear flag para cada BIT para garantizar manejo correcto del nivel inicial
+            CHANGE_PZX_LEVEL = false;
             
             int byte_idx = bit_num / 8;
             int bit_idx = 7 - (bit_num % 8);
@@ -1023,7 +1027,7 @@ public:
           if (_myPZX.descriptor[i].initial_level == 1) 
           {
             KEEP_CURRENT_EDGE = true; // Mantener el nivel actual sin cambiarlo
-            EDGE_EAR_IS = 1;          // Asegurar que el nivel inicial es alto
+            EDGE_EAR_IS = up;          // Asegurar que el nivel inicial es alto
             _zxp.pulse(0);
           }
 

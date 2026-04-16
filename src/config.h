@@ -347,7 +347,6 @@ bool TEST_LINE_IN_OUT = false;
 // --------------------------------------------------------------
 //  HMI
 // --------------------------------------------------------------
-#define windowNameLength 32
 #define windowNameLengthFB 50
 #define tRotateNameRfsh 230
 

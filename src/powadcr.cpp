@@ -206,6 +206,7 @@ static String lastTrackname;
 //
 // -----------------------------------------------------------------------
 int posRotateName = 0; // Posicion del texto rotativo en tape.name.txt (HMI)
+int maxTextRotateName = 0; // Longitud del texto rotativo en tape.name.txt (HMI)
 int moveDirection = 1;
 bool rotate_enable = false;
 
@@ -813,10 +814,21 @@ void recAnimationFIXED_ON() {
 }
 
 void recAnimationFIXED_OFF() {
-  // Indicador LED fijo OFF
-  hmi.writeString("tape.recIndicator.bco=32768");
-  delay(250);
-  hmi.writeString("tape.recIndicator.bco=32768");
+
+  if (POWERLED_ON)
+  {
+      // Indicador LED fijo OFF en verde
+      hmi.writeString("tape.recIndicator.bco=6786");
+      delay(250);
+      hmi.writeString("tape.recIndicator.bco=6786");
+  }
+  else
+  {
+      // Indicador LED fijo OFF en rojo
+      hmi.writeString("tape.recIndicator.bco=32768");
+      delay(250);
+      hmi.writeString("tape.recIndicator.bco=32768");
+  }
   powerLedFixed = false;
 }
 
@@ -2226,8 +2238,16 @@ void dialIndicator(bool enable) {
     hmi.writeString("tape.recIndicator.bco=" +
                     String(RADIO_SYNTONIZATION_LED_COLOR));
   } else {
-    hmi.writeString("tape.recIndicator.bco=32768");
-    hmi.writeString("tape.recIndicator.bco=32768");
+    if (POWERLED_ON)
+    {
+      hmi.writeString("tape.recIndicator.bco=6786");
+      hmi.writeString("tape.recIndicator.bco=6786");
+    }
+    else
+    {
+      hmi.writeString("tape.recIndicator.bco=32768");
+      hmi.writeString("tape.recIndicator.bco=32768");
+    }
   }
 }
 
@@ -4042,7 +4062,7 @@ bool setAudioInfoSafe(audio_tools::AudioInfo newInfo,
 
 // Modificar MediaPlayer() - configuración inicial
 void playingFile() {
-  rotate_enable = true;
+  //rotate_enable = true;
   kitStream.setVolume(MAIN_VOL / 100.0);
   kitStream.setPAPower(ACTIVE_AMP);
 
@@ -5610,6 +5630,9 @@ void tapeControl() {
       // y entramos en el estado FILE_PREPARED (inside the tape)
       //
       EJECT = false;
+
+      // Si se ha seleccionado un fichero, habilitamos la rotacion del texto
+      rotate_enable = FILE_LOAD != "" ? true : false;
 
       if (UPDATE_FROM_REMOTE_CONTROL)
       {
@@ -8429,18 +8452,18 @@ void Task0code(void *pvParameters) {
 
         if (rotate_enable || ENABLE_ROTATE_FILEBROWSER) 
         {
-          if ((millis() - startTime2) > tRotateNameRfsh && (FILE_LOAD.length() > windowNameLength || ((ROTATE_FILENAME.length() > windowNameLengthFB)) * ENABLE_ROTATE_FILEBROWSER)) 
+          if ((millis() - startTime2) > tRotateNameRfsh && (FILE_LOAD.length() > maxTextRotateName || ((ROTATE_FILENAME.length() > windowNameLengthFB)) * ENABLE_ROTATE_FILEBROWSER)) 
           {
             // Capturamos el texto con tamaño de la ventana
             if ((TYPE_FILE_LOAD == "WAV" || TYPE_FILE_LOAD == "MP3" || TYPE_FILE_LOAD == "FLAC")) 
             {
-              hmi.writeString("name.txt=\"" + FILE_LOAD.substring(posRotateName, posRotateName + windowNameLength) + "\"");
+              hmi.writeString("name.txt=\"" + FILE_LOAD.substring(posRotateName, posRotateName + maxTextRotateName) + "\"");
             }
             else 
             {
               if (!ENABLE_ROTATE_FILEBROWSER) 
               {
-                PROGRAM_NAME = FILE_LOAD.substring( posRotateName, posRotateName + windowNameLength);
+                PROGRAM_NAME = FILE_LOAD.substring( posRotateName, posRotateName + maxTextRotateName);
               }
               else 
               {
@@ -8452,7 +8475,7 @@ void Task0code(void *pvParameters) {
             // Comprobamos limites para ver si hay que cambiar sentido
             if (!ENABLE_ROTATE_FILEBROWSER) 
             {
-              if (posRotateName > (FILE_LOAD.length() - windowNameLength)) 
+              if (posRotateName > (FILE_LOAD.length() - maxTextRotateName)) 
               {
                 moveDirection = -1;
               }
@@ -8465,7 +8488,7 @@ void Task0code(void *pvParameters) {
             } 
             else 
             {
-              if (posRotateName > (ROTATE_FILENAME.length() - windowNameLengthFB)) 
+              if (posRotateName > (ROTATE_FILENAME.length() - maxTextRotateName)) 
               {
                 moveDirection = -1;
               }
@@ -8480,7 +8503,7 @@ void Task0code(void *pvParameters) {
             // Movemos el display de NAME
             startTime2 = millis();
           } 
-          else if (FILE_LOAD.length() <= windowNameLength && (TYPE_FILE_LOAD == "WAV" || TYPE_FILE_LOAD == "MP3" || TYPE_FILE_LOAD == "FLAC")) 
+          else if (FILE_LOAD.length() <= maxTextRotateName && (TYPE_FILE_LOAD == "WAV" || TYPE_FILE_LOAD == "MP3" || TYPE_FILE_LOAD == "FLAC")) 
           {
             if (STOP) 
             {
@@ -9450,6 +9473,8 @@ void setup() {
   //
   // --------------------------------------------------------------------------
   loadHMICfgfromNVS();
+  maxTextRotateName = myNex.readNumber("tape.name.txt_maxl");
+  logln("Max text length for rotate: " + String(maxTextRotateName));
 
   // -------------------------------------------------------------------------
   // Cargamos configuración WiFi

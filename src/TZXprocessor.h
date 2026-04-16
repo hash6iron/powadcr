@@ -3554,7 +3554,9 @@ public:
             PROGRESS_BAR_BLOCK_VALUE = 0;
 
             // Inicializar offset para barra de progreso total
-            PRG_BAR_OFFSET_INI = _myTZX.descriptor[i].offsetData;
+            // Mantener un offset acumulativo para que el progreso nunca retroceda
+            static int GDB_NEXT_OFFSET = 0;
+            PRG_BAR_OFFSET_INI = GDB_NEXT_OFFSET;
             int gdbBlockSize = _myTZX.descriptor[i].size;
 
 #ifdef DEBUGMODE
@@ -3888,6 +3890,8 @@ public:
             // Actualizar progreso total al finalizar el bloque GDB
             PROGRESS_BAR_TOTAL_VALUE =
                 ((PRG_BAR_OFFSET_INI + gdbBlockSize) * 100) / BYTES_TOBE_LOAD;
+            // Actualizar el offset para el próximo bloque GDB
+            GDB_NEXT_OFFSET = PRG_BAR_OFFSET_INI + gdbBlockSize;
 
             // Pausa despues de bloque (el silencio mantiene el nivel actual)
             _zxp.silence(_myTZX.descriptor[i].pauseAfterThisBlock);
