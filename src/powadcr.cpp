@@ -4251,6 +4251,11 @@ void playingFile() {
     LAST_MESSAGE = "Wait for scanning end.";
     //ZXDBPlayer();
     logln("Finish ZXDB playing file");
+  } else if (TYPE_FILE_LOAD == "CPCDB") {
+    logln("Type file load: " + TYPE_FILE_LOAD);
+    // Fichero virtual CPCDB - la descarga se gestiona desde HMI
+    LAST_MESSAGE = "Wait for scanning end.";
+    logln("Finish CPCDB playing file");
   } else {
     logAlert("Unknown type_file_load");
   }
@@ -4558,6 +4563,10 @@ void loadingFile(char *file_ch) {
       logln("ZXDB file to load: " + PATH_FILE_TO_LOAD);
       FILE_PREPARED = true;
       TYPE_FILE_LOAD = "ZXDB";
+    } else if (PATH_FILE_TO_LOAD.indexOf(".CPCDB", PATH_FILE_TO_LOAD.length() - 6) != -1) {
+      logln("CPCDB file to load: " + PATH_FILE_TO_LOAD);
+      FILE_PREPARED = true;
+      TYPE_FILE_LOAD = "CPCDB";
     }
   } else {
     #ifdef DEBUGMODE
@@ -5717,7 +5726,7 @@ void tapeControl() {
             FILE_PREPARED = false;
           }
 
-          if (TYPE_FILE_LOAD != "ZXDB")
+          if (TYPE_FILE_LOAD != "ZXDB" && TYPE_FILE_LOAD != "CPCDB")
           {
             LAST_MESSAGE = "No file inside the tape";
           }
@@ -8162,18 +8171,52 @@ void Task0code(void *pvParameters) {
     hmi.readUART();
     //   startTime5 = millis();
     // }
+
+    // Mini consola de debug por Serial (UART0) para pruebas
+    if (Serial.available())
+    {
+      String dbgCmd = Serial.readStringUntil('\n');
+      dbgCmd.trim();
+      if (dbgCmd == "cpcdb_update")
+      {
+        logln("[DBG] Updating entire CPCDB catalogue...");
+        updateCPCDB("0");
+      }
+      else if (dbgCmd.startsWith("cpcdb_update "))
+      {
+        String letter = dbgCmd.substring(13);
+        letter.trim();
+        logln("[DBG] Updating CPCDB for letter: " + letter);
+        updateCPCDB(letter);
+      }
+      else if (dbgCmd.startsWith("cpcdb_download "))
+      {
+        // Ejemplo: cpcdb_download Ace (E).cdt
+        String cdtName = dbgCmd.substring(15);
+        cdtName.trim();
+        String title = cdtName.substring(0, cdtName.length() - 4);
+        logln("[DBG] Downloading CPC CDT: " + cdtName);
+        downloadFromCPCDB(cdtName, title);
+      }
+      else if (dbgCmd == "zxdb_update")
+      {
+        logln("[DBG] Updating entire ZXDB catalogue...");
+        updateZXDB("0");
+      }
+    }
+
     delay(25);
 
     // Control del FTP
     #ifdef FTP_SERVER_ENABLE
-      if (!IRADIO_EN && WIFI_ENABLE && WIFI_CONNECTED && !FLAC_IS_PLAYING && !DOWNLOADING_ZXDB) 
+      if (!IRADIO_EN && WIFI_ENABLE && WIFI_CONNECTED && !FLAC_IS_PLAYING && !DOWNLOADING_ZXDB && !DOWNLOADING_CPCDB)
       {
         ftpSrv.handleFTP();
       }
     #endif
 
     #ifdef WEB_SERVER_ENABLE
-    if (!FLAC_IS_PLAYING && WIFI_ENABLE && WIFI_CONNECTED && !DOWNLOADING_ZXDB)
+    if (!FLAC_IS_PLAYING && WIFI_ENABLE && WIFI_CONNECTED && !DOWNLOADING_ZXDB && !DOWNLOADING_CPCDB)
     {
       WiFiClient client = server.available();
       if (client) 
@@ -8387,7 +8430,7 @@ void Task0code(void *pvParameters) {
       // Hacemos poll de la botonera
       if (millis() - startTimeKey > timeKeyPoll)
       {
-        if (!FILE_BROWSER_OPEN) //(CURRENT_PAGE <= 1 || CURRENT_PAGE == 99) &&
+        if (!FILE_BROWSER_OPEN && MCP23017_AVAILABLE) //(CURRENT_PAGE <= 1 || CURRENT_PAGE == 99) &&
         {
             buttonsControl();
         }          
@@ -8901,6 +8944,23 @@ void prepareCardStructure() {
     if (!QUICK_BOOT) delay(750);
   }
 
+  // Creamos el directorio /ONLINE_CPC para catálogo Amstrad CPC
+  fDir = "/ONLINE_CPC";
+
+  if (createSpecialDirectory(fDir)) {
+    hmi.writeString("statusLCD.txt=\"Creating ONLINE_CPC directory\"");
+    hmi.reloadCustomDir("/");
+    if (!QUICK_BOOT) delay(750);
+  }
+
+  // Creamos el directorio /DOWNLOAD_CPC para descargas Amstrad CPC
+  fDir = "/DOWNLOAD_CPC";
+
+  if (createSpecialDirectory(fDir)) {
+    hmi.writeString("statusLCD.txt=\"Creating DOWNLOAD_CPC directory\"");
+    hmi.reloadCustomDir("/");
+    if (!QUICK_BOOT) delay(750);
+  }
 
   // Creamos el directorio /fav
   fDir = "/FAV";
