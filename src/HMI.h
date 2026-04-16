@@ -791,7 +791,7 @@ private:
                   logln("Registering files in path: " + path);   
               #endif
       
-              bool zxdb_search = FILE_LAST_DIR.indexOf("/ONLINE/") != -1 ? true : false;
+              bool zxdb_search = (FILE_LAST_DIR.indexOf("/ONLINE/") != -1 || FILE_LAST_DIR.indexOf("/ONLINE_CPC/") != -1 || FILE_LAST_DIR.indexOf("/ONLINE_MSX/") != -1) ? true : false;
               if (zxdb_search)
               {
                   // Si la ruta es ONLINE, no intentamos cargar un _files.lst previo
@@ -1125,7 +1125,7 @@ private:
               {
                 // Si el archivo no existe o se fuerza el rescan, lo generamos
                 // Si el directorio no es ONLINE, no forzamos el rescan aunque se haya pedido, para evitar destruirlo ya que es virtual
-                if (FILE_LAST_DIR.indexOf("ONLINE") == -1) force_rescan = false;
+                if (FILE_LAST_DIR.indexOf("ONLINE") == -1 && FILE_LAST_DIR.indexOf("ONLINE_CPC") == -1 && FILE_LAST_DIR.indexOf("ONLINE_MSX") == -1) force_rescan = false;
 
                 registerFiles(FILE_LAST_DIR, output_file, output_file_inf, search_pattern, force_rescan);
               }
@@ -1430,7 +1430,7 @@ private:
               {
                 color = DSC_FILE_COLOR;  // Negro - Indica que es un fichero DSC
               }
-              else if (type == ".TAP" || type == ".TZX" || type == ".TSX" || type == ".CDT" || type == ".PZX" || type == ".WAV" || type == ".MP3" || type == ".FLAC" || type == ".RADIO" || type == ".ZXDB")
+              else if (type == ".TAP" || type == ".TZX" || type == ".TSX" || type == ".CDT" || type == ".PZX" || type == ".WAV" || type == ".MP3" || type == ".FLAC" || type == ".RADIO" || type == ".ZXDB" || type == ".CPCDB" || type == ".MSXDB")
               {
                   //Ficheros
                   if (SD_MMC.exists("/fav/" + szName))
@@ -1972,7 +1972,7 @@ private:
         else if (strCmd.indexOf("RFSH") != -1) 
         {
             // No se hace rescan en los subdirectorios de /ONLINE porque destruye el catalogo
-            if (!FB_READING_FILES && !(FILE_LAST_DIR.indexOf("/ONLINE/") != -1))
+            if (!FB_READING_FILES && !(FILE_LAST_DIR.indexOf("/ONLINE/") != -1) && !(FILE_LAST_DIR.indexOf("/ONLINE_CPC/") != -1) && !(FILE_LAST_DIR.indexOf("/ONLINE_MSX/") != -1))
             {
               reloadDir();
               REGENERATE_IDX = true;
@@ -2381,7 +2381,7 @@ private:
 
               String recDirTmp = FILE_LAST_DIR;
               recDirTmp.toUpperCase();
-              if (recDirTmp == "/FAV/" || recDirTmp == "/REC/" || recDirTmp == "/WAV" || recDirTmp == "/DOWNLOAD" || recDirTmp == "/ONLINE")
+              if (recDirTmp == "/FAV/" || recDirTmp == "/REC/" || recDirTmp == "/WAV" || recDirTmp == "/DOWNLOAD" || recDirTmp == "/DOWNLOAD_CPC" || recDirTmp == "/DOWNLOAD_MSX" || recDirTmp == "/ONLINE" || recDirTmp == "/ONLINE_CPC" || recDirTmp == "/ONLINE_MSX")
               {
                 getFilesFromSD(true,SOURCE_FILE_TO_MANAGE,SOURCE_FILE_INF_TO_MANAGE);
               }
@@ -2593,8 +2593,8 @@ private:
 
               if (FILE_LOAD.indexOf(".zxdb") != -1)
               {
-                // Es un fichero virtual. Hay que descargarlo primero.
-                logln("File is a virtual file. Downloading ...");
+                // Es un fichero virtual ZXDB. Hay que descargarlo primero.
+                logln("File is a virtual ZXDB file. Downloading ...");
                 // Cogemos el nombre del fichero sin .zxdb
                 String tittle = FILE_LOAD.substring(0, FILE_LOAD.length() - 5);
                 // Buscamos en _files.lst el ID que le corresponde a ese fichero para descargarlo
@@ -2606,6 +2606,42 @@ private:
                   logln("Title of file to download: " + tittle);
                   logln("Starting download from ZXDB ...");
                   downloadFromZXDB(idFile, tittle);
+                }
+
+              }
+              else if (FILE_LOAD.indexOf(".cpcdb") != -1)
+              {
+                // Es un fichero virtual CPCDB. Hay que descargarlo primero.
+                logln("File is a virtual CPCDB file. Downloading ...");
+                // Cogemos el nombre del fichero sin .cpcdb
+                String tittle = FILE_LOAD.substring(0, FILE_LOAD.length() - 6);
+                // Buscamos en _files.lst el nombre real del CDT
+                String cdtFileName = getIdOfFileInLst(FILE_LAST_DIR + "/_files.lst", FILES_BUFF[FILE_IDX_SELECTED+1].path);
+
+                if (cdtFileName != "")
+                {
+                  logln("CDT file to download: " + cdtFileName);
+                  logln("Title of file to download: " + tittle);
+                  logln("Starting download from CPCDB ...");
+                  downloadFromCPCDB(cdtFileName, tittle);
+                }
+
+              }
+              else if (FILE_LOAD.indexOf(".msxdb") != -1)
+              {
+                // Es un fichero virtual MSXDB. Hay que descargarlo primero.
+                logln("File is a virtual MSXDB file. Downloading ...");
+                // Cogemos el nombre del fichero sin .msxdb
+                String tittle = FILE_LOAD.substring(0, FILE_LOAD.length() - 6);
+                // Buscamos en _files.lst la ruta real del CAS (e.g. "CLOAD/Game (EU).cas")
+                String casFileName = getIdOfFileInLst(FILE_LAST_DIR + "/_files.lst", FILES_BUFF[FILE_IDX_SELECTED+1].path);
+
+                if (casFileName != "")
+                {
+                  logln("CAS file to download: " + casFileName);
+                  logln("Title of file to download: " + tittle);
+                  logln("Starting download from MSXDB ...");
+                  downloadFromMSXDB(casFileName, tittle);
                 }
 
               }
@@ -3051,7 +3087,41 @@ private:
           getFilesFromSD(true,SOURCE_FILE_TO_MANAGE,SOURCE_FILE_INF_TO_MANAGE);
           refreshFiles();           
         }
-        else if (strCmd.indexOf("RADI") != -1) 
+        else if (strCmd.indexOf("CCPC") != -1)
+        {
+          // Salta al directorio de CPCDB online (Amstrad CPC).
+          logln("Jumping to CPCDB dir.");
+          SOURCE_FILE_TO_MANAGE = "_files.lst";
+          SOURCE_FILE_INF_TO_MANAGE = "_files.inf";
+
+          LST_FILE_IS_OPEN = false;
+          if (fFileLST)
+          {
+            fFileLST.close();
+          }
+
+          jumpToDir("/ONLINE_CPC");
+          getFilesFromSD(true,SOURCE_FILE_TO_MANAGE,SOURCE_FILE_INF_TO_MANAGE);
+          refreshFiles();
+        }
+        else if (strCmd.indexOf("CMSX") != -1)
+        {
+          // Salta al directorio de MSXDB online (MSX).
+          logln("Jumping to MSXDB dir.");
+          SOURCE_FILE_TO_MANAGE = "_files.lst";
+          SOURCE_FILE_INF_TO_MANAGE = "_files.inf";
+
+          LST_FILE_IS_OPEN = false;
+          if (fFileLST)
+          {
+            fFileLST.close();
+          }
+
+          jumpToDir("/ONLINE_MSX");
+          getFilesFromSD(true,SOURCE_FILE_TO_MANAGE,SOURCE_FILE_INF_TO_MANAGE);
+          refreshFiles();
+        }
+        else if (strCmd.indexOf("RADI") != -1)
         {
           // Salta al directorio de RADIO internet.
           logln("Jumping to internet radio dir.");
@@ -3908,7 +3978,7 @@ private:
           
           findTheTextInFiles();
         }
-        else if (strCmd.indexOf("ZXDB=") != -1) 
+        else if (strCmd.indexOf("ZXDB=") != -1)
         {
           //Cogemos el valor
           uint8_t buff[8];
@@ -3917,7 +3987,25 @@ private:
           //
           logln("Update ZXDB with letter: " + String(str));
           updateZXDB(String(str));
-        }        
+        }
+        else if (strCmd.indexOf("CPCD=") != -1)
+        {
+          // Actualizar catálogo CPCDB para una letra
+          uint8_t buff[8];
+          strCmd.getBytes(buff, 7);
+          char str = (char)buff[5];
+          logln("Update CPCDB with letter: " + String(str));
+          updateCPCDB(String(str));
+        }
+        else if (strCmd.indexOf("MSXD=") != -1)
+        {
+          // Actualizar catálogo MSXDB para una letra
+          uint8_t buff[8];
+          strCmd.getBytes(buff, 7);
+          char str = (char)buff[5];
+          logln("Update MSXDB with letter: " + String(str));
+          updateMSXDB(String(str));
+        }
         else if (strCmd.indexOf("PDEBUG") != -1)
         {
             // Estamos en la pantalla DEBUG
