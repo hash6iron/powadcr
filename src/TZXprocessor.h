@@ -85,6 +85,9 @@ private:
   // AudioInfo new_sr2;
 
   int CURRENT_LOADING_BLOCK = 0;
+  
+  // Offset acumulativo para mantener el progreso continuo entre bloques
+  int PLAYABLE_BLOCKS_ACCUMULATED_OFFSET = 0;
 
   bool stopOrPauseRequest() {
     //
@@ -2500,10 +2503,10 @@ public:
 
   void playBlock(tTZXBlockDescriptor descriptor) {
 
-#ifdef DEBUGMODE
-    log("Pulse len: " + String(descriptor.timming.pilot_len));
-    log("Pulse nums: " + String(descriptor.timming.pilot_num_pulses));
-#endif
+    #ifdef DEBUGMODE
+        log("Pulse len: " + String(descriptor.timming.pilot_len));
+        log("Pulse nums: " + String(descriptor.timming.pilot_num_pulses));
+    #endif
 
     uint8_t *bufferPlay = nullptr;
 
@@ -2520,14 +2523,14 @@ public:
       int blocks = totalSize / blockSizeSplit;
       int lastBlockSize = totalSize - (blocks * blockSizeSplit);
 
-#ifdef DEBUGMODE
-      logln("Partiendo la pana");
-      logln("");
-      log("> Offset DATA:         " + String(offsetBase));
-      log("> Total size del DATA: " + String(totalSize));
-      log("> Total blocks: " + String(blocks));
-      log("> Last block size: " + String(lastBlockSize));
-#endif
+      #ifdef DEBUGMODE
+            logln("Partiendo la pana");
+            logln("");
+            log("> Offset DATA:         " + String(offsetBase));
+            log("> Total size del DATA: " + String(totalSize));
+            log("> Total blocks: " + String(blocks));
+            log("> Last block size: " + String(lastBlockSize));
+      #endif
 
       if (!DIRECT_RECORDING) {
         // BTI 0
@@ -2539,17 +2542,18 @@ public:
       TOTAL_PARTS = blocks;
 
       // Recorremos el vector de particiones del bloque.
-      for (int n = 0; n < blocks; n++) {
+      for (int n = 0; n < blocks; n++) 
+      {
         PARTITION_BLOCK = n;
 
-#ifdef DEBUGMODE
-        logln("");
-        log("Sending partition");
-#endif
+        #ifdef DEBUGMODE
+                logln("");
+                log("Sending partition");
+        #endif
 
         // Calculamos el offset del bloque
         newOffset = offsetBase + (blockSizeSplit * n);
-        PRG_BAR_OFFSET_INI = newOffset;
+        PRG_BAR_OFFSET_INI = PLAYABLE_BLOCKS_ACCUMULATED_OFFSET + newOffset;
 
         // Accedemos a la SD y capturamos el bloque del fichero
         bufferPlay = (uint8_t *)ps_calloc(blockSizeSplit, sizeof(uint8_t));
@@ -2560,29 +2564,34 @@ public:
 
         // Reproducimos la partición n, del bloque.
         if (n == 0) {
-          if (!DIRECT_RECORDING) {
-            _zxp.playDataBegin(bufferPlay, blockSizeSplit,
-                               descriptor.timming.pilot_len,
-                               descriptor.timming.pilot_num_pulses);
-          } else {
-#ifdef DEBUGMODE
-            logln("");
-            log("> Playing DR block - Splitted - begin");
-#endif
+          if (!DIRECT_RECORDING) 
+          {
+            _zxp.playDataBegin(bufferPlay, blockSizeSplit, descriptor.timming.pilot_len, descriptor.timming.pilot_num_pulses);
+          } 
+          else 
+          {
+            #ifdef DEBUGMODE
+                        logln("");
+                        log("> Playing DR block - Splitted - begin");
+            #endif
             _zxp.playDRBlock(bufferPlay, blockSizeSplit, false);
           }
-        } else {
-          if (!DIRECT_RECORDING) {
+        } 
+        else 
+        {
+          if (!DIRECT_RECORDING) 
+          {
             _zxp.playDataPartition(bufferPlay, blockSizeSplit);
-          } else {
-#ifdef DEBUGMODE
-            logln("");
-            log("> Playing DR block - Splitted - middle");
-#endif
+          }
+          else 
+          {
+            #ifdef DEBUGMODE
+                        logln("");
+                        log("> Playing DR block - Splitted - middle");
+            #endif
             _zxp.playDRBlock(bufferPlay, blockSizeSplit, false);
           }
         }
-
         free(bufferPlay);
       }
 
@@ -2591,7 +2600,7 @@ public:
 
       // Calculamos el offset del último bloque
       newOffset = offsetBase + (blockSizeSplit * blocks);
-      PRG_BAR_OFFSET_INI = newOffset;
+      PRG_BAR_OFFSET_INI = PLAYABLE_BLOCKS_ACCUMULATED_OFFSET + newOffset;
 
       blockSizeSplit = lastBlockSize;
       // Accedemos a la SD y capturamos el bloque del fichero
@@ -2602,25 +2611,29 @@ public:
       // showBufferPlay(bufferPlay,blockSizeSplit,newOffset);
 
       // Reproducimos el ultimo bloque con su terminador y silencio si aplica
-      if (!DIRECT_RECORDING) {
+      if (!DIRECT_RECORDING) 
+      {
         _zxp.playDataEnd(bufferPlay, blockSizeSplit);
-      } else {
-#ifdef DEBUGMODE
-        logln("");
-        log("> Playing DR block - Splitted - Last");
-#endif
+      }
+      else 
+      {
+        #ifdef DEBUGMODE
+                logln("");
+                log("> Playing DR block - Splitted - Last");
+        #endif
 
         _zxp.playDRBlock(bufferPlay, blockSizeSplit, true);
       }
 
       free(bufferPlay);
-    } else {
-      PRG_BAR_OFFSET_INI = descriptor.offsetData;
+    } 
+    else 
+    {
+      PRG_BAR_OFFSET_INI = PLAYABLE_BLOCKS_ACCUMULATED_OFFSET + descriptor.offsetData;
 
       // Si es mas pequeño que el SPLIT, se reproduce completo.
       bufferPlay = (uint8_t *)ps_calloc(descriptor.size, sizeof(uint8_t));
-      readFileRange(_mFile, bufferPlay, descriptor.offsetData, descriptor.size,
-                    true);
+      readFileRange(_mFile, bufferPlay, descriptor.offsetData, descriptor.size, true);
 
       // showBufferPlay(bufferPlay,descriptor.size,descriptor.offsetData);
       // verifyChecksum(_mFile,descriptor.offsetData,descriptor.size);
@@ -2630,19 +2643,24 @@ public:
       // BIT1
       _zxp.BIT_1 = descriptor.timming.bit_1;
       //
-      if (!DIRECT_RECORDING) {
-        _zxp.playData(bufferPlay, descriptor.size, descriptor.timming.pilot_len,
-                      descriptor.timming.pilot_num_pulses);
-      } else {
-#ifdef DEBUGMODE
-        logln("> Playing DR block - Full");
-#endif
+      if (!DIRECT_RECORDING) 
+      {
+        _zxp.playData(bufferPlay, descriptor.size, descriptor.timming.pilot_len, descriptor.timming.pilot_num_pulses);
+      } 
+      else 
+      {
+        #ifdef DEBUGMODE
+                logln("> Playing DR block - Full");
+        #endif
 
         _zxp.playDRBlock(bufferPlay, descriptor.size, true);
       }
 
       free(bufferPlay);
     }
+    
+    // Actualizar offset acumulativo para el siguiente bloque
+    PLAYABLE_BLOCKS_ACCUMULATED_OFFSET += descriptor.size;
   }
 
   bool isPlayeable(int id) {
@@ -3185,9 +3203,9 @@ public:
             // Nos quedamos con el offset inicial
             offset = _myTZX.descriptor[i].offsetData;
 
-            // Informacion para la barra de progreso
-            PRG_BAR_OFFSET_INI = offset; // offset del DATA
-            PRG_BAR_OFFSET_END = offset + _myTZX.descriptor[i].lengthOfData;
+            // Informacion para la barra de progreso - usar offset acumulativo
+            PRG_BAR_OFFSET_INI = PLAYABLE_BLOCKS_ACCUMULATED_OFFSET; // offset acumulativo
+            PRG_BAR_OFFSET_END = PLAYABLE_BLOCKS_ACCUMULATED_OFFSET + _myTZX.descriptor[i].lengthOfData;
 
             bufferD = 1024; // Buffer de BYTES de datos convertidos a samples
 
@@ -3237,9 +3255,7 @@ public:
                 // Avanzamos el puntero por el fichero
                 offset += bufferD;
 
-                PROGRESS_BAR_BLOCK_VALUE =
-                    ((PRG_BAR_OFFSET_INI + (offset)) * 100) /
-                    PRG_BAR_OFFSET_END;
+                PROGRESS_BAR_BLOCK_VALUE = ((PRG_BAR_OFFSET_INI + (offset)) * 100) / PRG_BAR_OFFSET_END;
 
                 // Liberamos el array
                 free(_myTZX.descriptor[i].timming.pulse_seq_array);
@@ -3308,6 +3324,9 @@ public:
                 _zxp.silence(silence);
               }
             }
+            
+            // Actualizar offset acumulativo para el próximo bloque
+            PLAYABLE_BLOCKS_ACCUMULATED_OFFSET += _myTZX.descriptor[i].lengthOfData;
             break;
           }
 
@@ -3554,9 +3573,8 @@ public:
             PROGRESS_BAR_BLOCK_VALUE = 0;
 
             // Inicializar offset para barra de progreso total
-            // Mantener un offset acumulativo para que el progreso nunca retroceda
-            static int GDB_NEXT_OFFSET = 0;
-            PRG_BAR_OFFSET_INI = GDB_NEXT_OFFSET;
+            // Usar la misma variable de clase para offset acumulativo
+            PRG_BAR_OFFSET_INI = PLAYABLE_BLOCKS_ACCUMULATED_OFFSET;
             int gdbBlockSize = _myTZX.descriptor[i].size;
 
 #ifdef DEBUGMODE
@@ -3877,21 +3895,17 @@ public:
               if (TOTD > 0) {
                 PROGRESS_BAR_BLOCK_VALUE = (symbols_read * 100) / TOTD;
                 // Calcular bytes equivalentes procesados dentro del bloque GDB
-                int block_bytes_processed =
-                    (gdbBlockSize * symbols_read) / TOTD;
-                PROGRESS_BAR_TOTAL_VALUE =
-                    ((PRG_BAR_OFFSET_INI + block_bytes_processed) * 100) /
-                    BYTES_TOBE_LOAD;
+                int block_bytes_processed = (gdbBlockSize * symbols_read) / TOTD;
+                PROGRESS_BAR_TOTAL_VALUE = ((PRG_BAR_OFFSET_INI + block_bytes_processed) * 100) / BYTES_TOBE_LOAD;
               }
             }
 
             // ✅ ASEGURAR QUE LA BARRA LLEGUE AL 100% AL FINALIZAR
             PROGRESS_BAR_BLOCK_VALUE = 100;
             // Actualizar progreso total al finalizar el bloque GDB
-            PROGRESS_BAR_TOTAL_VALUE =
-                ((PRG_BAR_OFFSET_INI + gdbBlockSize) * 100) / BYTES_TOBE_LOAD;
-            // Actualizar el offset para el próximo bloque GDB
-            GDB_NEXT_OFFSET = PRG_BAR_OFFSET_INI + gdbBlockSize;
+            PROGRESS_BAR_TOTAL_VALUE = ((PRG_BAR_OFFSET_INI + gdbBlockSize) * 100) / BYTES_TOBE_LOAD;
+            // Actualizar el offset acumulativo para el próximo bloque
+            PLAYABLE_BLOCKS_ACCUMULATED_OFFSET = PRG_BAR_OFFSET_INI + gdbBlockSize;
 
             // Pausa despues de bloque (el silencio mantiene el nivel actual)
             _zxp.silence(_myTZX.descriptor[i].pauseAfterThisBlock);
@@ -3937,6 +3951,9 @@ public:
 
   void play() {
     LOOP_PLAYED = 0;
+    
+    // Resetear offset acumulativo para nueva reproducción
+    PLAYABLE_BLOCKS_ACCUMULATED_OFFSET = 0;
 
     int firstBlockToBePlayed = 0;
     int dly = 0;
