@@ -791,7 +791,7 @@ private:
                   logln("Registering files in path: " + path);   
               #endif
       
-              bool zxdb_search = (FILE_LAST_DIR.indexOf("/ONLINE/") != -1 || FILE_LAST_DIR.indexOf("/ONLINE_CPC/") != -1 || FILE_LAST_DIR.indexOf("/ONLINE_MSX/") != -1) ? true : false;
+              bool zxdb_search = (FILE_LAST_DIR.indexOf("/ONLINE/ZX/") != -1 || FILE_LAST_DIR.indexOf("/ONLINE/CPC/") != -1 || FILE_LAST_DIR.indexOf("/ONLINE/MSX/") != -1) ? true : false;
               if (zxdb_search)
               {
                   // Si la ruta es ONLINE, no intentamos cargar un _files.lst previo
@@ -1972,7 +1972,7 @@ private:
         else if (strCmd.indexOf("RFSH") != -1) 
         {
             // No se hace rescan en los subdirectorios de /ONLINE porque destruye el catalogo
-            if (!FB_READING_FILES && !(FILE_LAST_DIR.indexOf("/ONLINE/") != -1) && !(FILE_LAST_DIR.indexOf("/ONLINE_CPC/") != -1) && !(FILE_LAST_DIR.indexOf("/ONLINE_MSX/") != -1))
+            if (!FB_READING_FILES && !(FILE_LAST_DIR.indexOf("/ONLINE/ZX/") != -1) && !(FILE_LAST_DIR.indexOf("/ONLINE/CPC/") != -1) && !(FILE_LAST_DIR.indexOf("/ONLINE/MSX/") != -1))
             {
               reloadDir();
               REGENERATE_IDX = true;

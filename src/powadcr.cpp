@@ -206,6 +206,7 @@ static String lastTrackname;
 //
 // -----------------------------------------------------------------------
 int posRotateName = 0; // Posicion del texto rotativo en tape.name.txt (HMI)
+int maxTextRotateName = 0; // Longitud del texto rotativo en tape.name.txt (HMI)
 int moveDirection = 1;
 bool rotate_enable = false;
 
@@ -813,10 +814,21 @@ void recAnimationFIXED_ON() {
 }
 
 void recAnimationFIXED_OFF() {
-  // Indicador LED fijo OFF
-  hmi.writeString("tape.recIndicator.bco=32768");
-  delay(250);
-  hmi.writeString("tape.recIndicator.bco=32768");
+
+  if (POWERLED_ON)
+  {
+      // Indicador LED fijo OFF en verde
+      hmi.writeString("tape.recIndicator.bco=6786");
+      delay(250);
+      hmi.writeString("tape.recIndicator.bco=6786");
+  }
+  else
+  {
+      // Indicador LED fijo OFF en rojo
+      hmi.writeString("tape.recIndicator.bco=32768");
+      delay(250);
+      hmi.writeString("tape.recIndicator.bco=32768");
+  }
   powerLedFixed = false;
 }
 
@@ -2226,8 +2238,16 @@ void dialIndicator(bool enable) {
     hmi.writeString("tape.recIndicator.bco=" +
                     String(RADIO_SYNTONIZATION_LED_COLOR));
   } else {
-    hmi.writeString("tape.recIndicator.bco=32768");
-    hmi.writeString("tape.recIndicator.bco=32768");
+    if (POWERLED_ON)
+    {
+      hmi.writeString("tape.recIndicator.bco=6786");
+      hmi.writeString("tape.recIndicator.bco=6786");
+    }
+    else
+    {
+      hmi.writeString("tape.recIndicator.bco=32768");
+      hmi.writeString("tape.recIndicator.bco=32768");
+    }
   }
 }
 
@@ -4042,7 +4062,7 @@ bool setAudioInfoSafe(audio_tools::AudioInfo newInfo,
 
 // Modificar MediaPlayer() - configuración inicial
 void playingFile() {
-  rotate_enable = true;
+  //rotate_enable = true;
   kitStream.setVolume(MAIN_VOL / 100.0);
   kitStream.setPAPower(ACTIVE_AMP);
 
@@ -4251,16 +4271,6 @@ void playingFile() {
     LAST_MESSAGE = "Wait for scanning end.";
     //ZXDBPlayer();
     logln("Finish ZXDB playing file");
-  } else if (TYPE_FILE_LOAD == "CPCDB") {
-    logln("Type file load: " + TYPE_FILE_LOAD);
-    // Fichero virtual CPCDB - la descarga se gestiona desde HMI
-    LAST_MESSAGE = "Wait for scanning end.";
-    logln("Finish CPCDB playing file");
-  } else if (TYPE_FILE_LOAD == "MSXDB") {
-    logln("Type file load: " + TYPE_FILE_LOAD);
-    // Fichero virtual MSXDB - la descarga se gestiona desde HMI
-    LAST_MESSAGE = "Wait for scanning end.";
-    logln("Finish MSXDB playing file");
   } else {
     logAlert("Unknown type_file_load");
   }
@@ -4568,14 +4578,6 @@ void loadingFile(char *file_ch) {
       logln("ZXDB file to load: " + PATH_FILE_TO_LOAD);
       FILE_PREPARED = true;
       TYPE_FILE_LOAD = "ZXDB";
-    } else if (PATH_FILE_TO_LOAD.indexOf(".CPCDB", PATH_FILE_TO_LOAD.length() - 6) != -1) {
-      logln("CPCDB file to load: " + PATH_FILE_TO_LOAD);
-      FILE_PREPARED = true;
-      TYPE_FILE_LOAD = "CPCDB";
-    } else if (PATH_FILE_TO_LOAD.indexOf(".MSXDB", PATH_FILE_TO_LOAD.length() - 6) != -1) {
-      logln("MSXDB file to load: " + PATH_FILE_TO_LOAD);
-      FILE_PREPARED = true;
-      TYPE_FILE_LOAD = "MSXDB";
     }
   } else {
     #ifdef DEBUGMODE
@@ -5629,6 +5631,9 @@ void tapeControl() {
       //
       EJECT = false;
 
+      // Si se ha seleccionado un fichero, habilitamos la rotacion del texto
+      rotate_enable = FILE_LOAD != "" ? true : false;
+
       if (UPDATE_FROM_REMOTE_CONTROL)
       {
         logln("Loading file from REMOTE CONTROL: " + FILE_LOAD);
@@ -5735,7 +5740,7 @@ void tapeControl() {
             FILE_PREPARED = false;
           }
 
-          if (TYPE_FILE_LOAD != "ZXDB" && TYPE_FILE_LOAD != "CPCDB" && TYPE_FILE_LOAD != "MSXDB")
+          if (TYPE_FILE_LOAD != "ZXDB")
           {
             LAST_MESSAGE = "No file inside the tape";
           }
@@ -8180,75 +8185,18 @@ void Task0code(void *pvParameters) {
     hmi.readUART();
     //   startTime5 = millis();
     // }
-
-    // Mini consola de debug por Serial (UART0) para pruebas
-    if (Serial.available())
-    {
-      String dbgCmd = Serial.readStringUntil('\n');
-      dbgCmd.trim();
-      if (dbgCmd == "cpcdb_update")
-      {
-        logln("[DBG] Updating entire CPCDB catalogue...");
-        updateCPCDB("0");
-      }
-      else if (dbgCmd.startsWith("cpcdb_update "))
-      {
-        String letter = dbgCmd.substring(13);
-        letter.trim();
-        logln("[DBG] Updating CPCDB for letter: " + letter);
-        updateCPCDB(letter);
-      }
-      else if (dbgCmd.startsWith("cpcdb_download "))
-      {
-        // Ejemplo: cpcdb_download Ace (E).cdt
-        String cdtName = dbgCmd.substring(15);
-        cdtName.trim();
-        String title = cdtName.substring(0, cdtName.length() - 4);
-        logln("[DBG] Downloading CPC CDT: " + cdtName);
-        downloadFromCPCDB(cdtName, title);
-      }
-      else if (dbgCmd == "msxdb_update")
-      {
-        logln("[DBG] Updating entire MSXDB catalogue...");
-        updateMSXDB("0");
-      }
-      else if (dbgCmd.startsWith("msxdb_update "))
-      {
-        String letter = dbgCmd.substring(13);
-        letter.trim();
-        logln("[DBG] Updating MSXDB for letter: " + letter);
-        updateMSXDB(letter);
-      }
-      else if (dbgCmd.startsWith("msxdb_download "))
-      {
-        // Ejemplo: msxdb_download Zakil Wood (1985)(Mr Micro)(ES)[!][BLOAD'CAS-',R][v0.8.5b].tsx
-        String tsxName = dbgCmd.substring(15);
-        tsxName.trim();
-        String title = tsxName;
-        int parenPos = title.indexOf(" (");
-        if (parenPos > 0) title = title.substring(0, parenPos);
-        logln("[DBG] Downloading MSX TSX: " + tsxName);
-        downloadFromMSXDB(tsxName, title);
-      }
-      else if (dbgCmd == "zxdb_update")
-      {
-        logln("[DBG] Updating entire ZXDB catalogue...");
-        updateZXDB("0");
-      }
-    }
-
     delay(25);
 
     // Control del FTP
     #ifdef FTP_SERVER_ENABLE
-      if (!IRADIO_EN && WIFI_ENABLE && WIFI_CONNECTED && !FLAC_IS_PLAYING && !DOWNLOADING_ZXDB && !DOWNLOADING_CPCDB && !DOWNLOADING_MSXDB)
+      if (!IRADIO_EN && WIFI_ENABLE && WIFI_CONNECTED && !FLAC_IS_PLAYING && !DOWNLOADING_ZXDB) 
       {
         ftpSrv.handleFTP();
       }
     #endif
 
     #ifdef WEB_SERVER_ENABLE
-    if (!FLAC_IS_PLAYING && WIFI_ENABLE && WIFI_CONNECTED && !DOWNLOADING_ZXDB && !DOWNLOADING_CPCDB && !DOWNLOADING_MSXDB)
+    if (!FLAC_IS_PLAYING && WIFI_ENABLE && WIFI_CONNECTED && !DOWNLOADING_ZXDB)
     {
       WiFiClient client = server.available();
       if (client) 
@@ -8462,7 +8410,7 @@ void Task0code(void *pvParameters) {
       // Hacemos poll de la botonera
       if (millis() - startTimeKey > timeKeyPoll)
       {
-        if (!FILE_BROWSER_OPEN && MCP23017_AVAILABLE) //(CURRENT_PAGE <= 1 || CURRENT_PAGE == 99) &&
+        if (!FILE_BROWSER_OPEN) //(CURRENT_PAGE <= 1 || CURRENT_PAGE == 99) &&
         {
             buttonsControl();
         }          
@@ -8504,18 +8452,18 @@ void Task0code(void *pvParameters) {
 
         if (rotate_enable || ENABLE_ROTATE_FILEBROWSER) 
         {
-          if ((millis() - startTime2) > tRotateNameRfsh && (FILE_LOAD.length() > windowNameLength || ((ROTATE_FILENAME.length() > windowNameLengthFB)) * ENABLE_ROTATE_FILEBROWSER)) 
+          if ((millis() - startTime2) > tRotateNameRfsh && (FILE_LOAD.length() > maxTextRotateName || ((ROTATE_FILENAME.length() > windowNameLengthFB)) * ENABLE_ROTATE_FILEBROWSER)) 
           {
             // Capturamos el texto con tamaño de la ventana
             if ((TYPE_FILE_LOAD == "WAV" || TYPE_FILE_LOAD == "MP3" || TYPE_FILE_LOAD == "FLAC")) 
             {
-              hmi.writeString("name.txt=\"" + FILE_LOAD.substring(posRotateName, posRotateName + windowNameLength) + "\"");
+              hmi.writeString("name.txt=\"" + FILE_LOAD.substring(posRotateName, posRotateName + maxTextRotateName) + "\"");
             }
             else 
             {
               if (!ENABLE_ROTATE_FILEBROWSER) 
               {
-                PROGRAM_NAME = FILE_LOAD.substring( posRotateName, posRotateName + windowNameLength);
+                PROGRAM_NAME = FILE_LOAD.substring( posRotateName, posRotateName + maxTextRotateName);
               }
               else 
               {
@@ -8527,7 +8475,7 @@ void Task0code(void *pvParameters) {
             // Comprobamos limites para ver si hay que cambiar sentido
             if (!ENABLE_ROTATE_FILEBROWSER) 
             {
-              if (posRotateName > (FILE_LOAD.length() - windowNameLength)) 
+              if (posRotateName > (FILE_LOAD.length() - maxTextRotateName)) 
               {
                 moveDirection = -1;
               }
@@ -8540,7 +8488,7 @@ void Task0code(void *pvParameters) {
             } 
             else 
             {
-              if (posRotateName > (ROTATE_FILENAME.length() - windowNameLengthFB)) 
+              if (posRotateName > (ROTATE_FILENAME.length() - maxTextRotateName)) 
               {
                 moveDirection = -1;
               }
@@ -8555,7 +8503,7 @@ void Task0code(void *pvParameters) {
             // Movemos el display de NAME
             startTime2 = millis();
           } 
-          else if (FILE_LOAD.length() <= windowNameLength && (TYPE_FILE_LOAD == "WAV" || TYPE_FILE_LOAD == "MP3" || TYPE_FILE_LOAD == "FLAC")) 
+          else if (FILE_LOAD.length() <= maxTextRotateName && (TYPE_FILE_LOAD == "WAV" || TYPE_FILE_LOAD == "MP3" || TYPE_FILE_LOAD == "FLAC")) 
           {
             if (STOP) 
             {
@@ -8966,7 +8914,7 @@ void prepareCardStructure() {
 
   logln("> Preparing initial directory structure on SD Card.");
 
-  // Creamos el directorio /fav
+    // Creamos el directorio /fav
   String fDir = "/ONLINE";
 
   // Esto lo hacemos para ver si el directorio existe
@@ -8976,23 +8924,45 @@ void prepareCardStructure() {
     if (!QUICK_BOOT) delay(750);
   }
 
-  // Creamos el directorio /ONLINE_CPC para catálogo Amstrad CPC
-  fDir = "/ONLINE_CPC";
+  // Creamos el directorio /fav
+  fDir = "/ONLINE/ZX";
 
+  // Esto lo hacemos para ver si el directorio existe
   if (createSpecialDirectory(fDir)) {
-    hmi.writeString("statusLCD.txt=\"Creating ONLINE_CPC directory\"");
+    hmi.writeString("statusLCD.txt=\"Creating ONLINE/ZX directory\"");
     hmi.reloadCustomDir("/");
     if (!QUICK_BOOT) delay(750);
   }
 
-  // Creamos el directorio /DOWNLOAD_CPC para descargas Amstrad CPC
-  fDir = "/DOWNLOAD_CPC";
+  // Creamos el directorio /ONLINE_CPC
+  fDir = "/ONLINE/CPC";
 
+  // Esto lo hacemos para ver si el directorio existe
   if (createSpecialDirectory(fDir)) {
-    hmi.writeString("statusLCD.txt=\"Creating DOWNLOAD_CPC directory\"");
+    hmi.writeString("statusLCD.txt=\"Creating ONLINE/CPC directory\"");
     hmi.reloadCustomDir("/");
     if (!QUICK_BOOT) delay(750);
   }
+
+  // Creamos el directorio /ONLINE_MSX
+  fDir = "/ONLINE/MSX";
+
+  // Esto lo hacemos para ver si el directorio existe
+  if (createSpecialDirectory(fDir)) {
+    hmi.writeString("statusLCD.txt=\"Creating ONLINE/MSX directory\"");
+    hmi.reloadCustomDir("/");
+    if (!QUICK_BOOT) delay(750);
+  }  
+
+  // Creamos el directorio /DOWNLOAD
+  fDir = "/DOWNLOAD";
+
+  // Esto lo hacemos para ver si el directorio existe
+  if (createSpecialDirectory(fDir)) {
+    hmi.writeString("statusLCD.txt=\"Creating DOWNLOAD directory\"");
+    hmi.reloadCustomDir("/");
+    if (!QUICK_BOOT) delay(750);
+  } 
 
   // Creamos el directorio /fav
   fDir = "/FAV";
@@ -9157,14 +9127,6 @@ void setupSDCard() {
     logln("SD Card mounted");
     hmi.writeString("statusLCD.txt=\"SD_MMC available\"");
     delay(125);
-
-    // Crear carpetas base para catálogos online y descargas
-    if (!SD_MMC.exists("/ONLINE"))      SD_MMC.mkdir("/ONLINE");
-    if (!SD_MMC.exists("/ONLINE_CPC"))  SD_MMC.mkdir("/ONLINE_CPC");
-    if (!SD_MMC.exists("/ONLINE_MSX"))  SD_MMC.mkdir("/ONLINE_MSX");
-    if (!SD_MMC.exists("/DOWNLOAD"))    SD_MMC.mkdir("/DOWNLOAD");
-    if (!SD_MMC.exists("/DOWNLOAD_CPC")) SD_MMC.mkdir("/DOWNLOAD_CPC");
-    if (!SD_MMC.exists("/DOWNLOAD_MSX")) SD_MMC.mkdir("/DOWNLOAD_MSX");
   }
 
   if (psramInit()) {
@@ -9550,6 +9512,8 @@ void setup() {
   //
   // --------------------------------------------------------------------------
   loadHMICfgfromNVS();
+  maxTextRotateName = myNex.readNumber("tape.name.txt_maxl");
+  logln("Max text length for rotate: " + String(maxTextRotateName));
 
   // -------------------------------------------------------------------------
   // Cargamos configuración WiFi
@@ -9565,7 +9529,7 @@ void setup() {
   //
   // -------------------------------------------------------------------------
   if (WIFI_CONNECTED && WIFI_ENABLE)
-  {
+  {  
     setupNTP();
   }
   // Connect to Spotify

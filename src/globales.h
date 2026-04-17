@@ -1405,235 +1405,6 @@ inline String getFormattedDateTime(String amPm, uint8_t day, uint8_t month, uint
 }
 
 
-
-// void generate_zxdb_files_list_flat(File lst, const char* baseurl, int totalPerPage, int offset) 
-// {
-// // Descarga todas las páginas de ZXDB (output=flat) y genera _files.lst y _files.inf en /ONLINE
-//   HTTPClient http;
-  
-//   // Capturamos la información de ZXDB
-//   String url = String(baseurl) + "&size=" + String(totalPerPage) + "&offset=" + String(offset);
-//   http.begin(url.c_str());
-//   int httpCode = http.GET();
-  
-//   if (httpCode == 200) 
-//   {
-//     String payload = http.getString();
-//     int count = 0;
-//     int hitNum = offset*totalPerPage;
-
-//     // String totalKey = "total.value=";
-//     // int totalPos = payload.indexOf(totalKey);
-//     // String total = payload.substring(totalPos + totalKey.length(), payload.indexOf('\n', totalPos));
-//     // total.trim();
-//     // totalFiles = total.toInt();
-//     // logln("Total " + String(totalFiles) + " files in ZXDB");
-    
-//     // bucle de analisis
-//     while (true) 
-//     {
-//       String idKey = "hits." + String(hitNum) + "._id=";
-//       String titleKey = "hits." + String(hitNum) + ".title=";
-//       int idPos = payload.indexOf(idKey);
-//       int titlePos = payload.indexOf(titleKey);
-
-//       if (idPos == -1 || titlePos == -1) break;
-      
-//       int idValStart = idPos + idKey.length();
-//       int idValEnd = payload.indexOf('\n', idValStart);
-//       String id = payload.substring(idValStart, idValEnd);
-      
-//       int titleValStart = titlePos + titleKey.length();
-//       int titleValEnd = payload.indexOf('\n', titleValStart);
-//       String title = payload.substring(titleValStart, titleValEnd);
-      
-//       id.trim(); 
-//       title.trim();
-      
-//       if (id.length() == 0 || title.length() == 0) 
-//       {
-//         hitNum++;
-//         continue;
-//       }
-
-//       logln("Found: " + title + " (ID: " + id + ")");
-      
-//       // Escribimos el fichero _files.lst
-//       lst.print(String(hitNum));
-//       lst.print("|F|0|");
-//       lst.print(title);
-//       lst.print("|");
-//       lst.println(id);
-//       count++;
-//       hitNum++;
-//     }
-//   } 
-//   else 
-//   {
-//     Serial.print("Error HTTP: ");
-//     Serial.println(httpCode);
-//   }
-//   http.end();
-
-//   lst.flush();
-
-//   //return totalFiles;
-// }
-  
-// Descarga todas las rutas .zip de un juego ZXDB por ID y las guarda en _down.lst
-// void fetch_zxdb_zip_paths_to_file(const char* game_id) {
-
-//   String url = String("https://api.zxinfo.dk/v3/games/") + game_id + "?mode=compact&output=flat";
-//   HTTPClient http;
-//   http.begin(url);
-//   int httpCode = http.GET();
-//   if (httpCode == 200) {
-//     String payload = http.getString();
-//     File downlst = SD_MMC.open("/ONLINE/_down.lst", FILE_WRITE);
-//     if (!downlst) {
-//       Serial.println("No se pudo abrir _down.lst para escribir");
-//       http.end();
-//       return;
-//     }
-//     int pos = 0;
-//     while (true) {
-//       String key = "releases.0.files.";
-//       int pathIdx = payload.indexOf(key, pos);
-//       if (pathIdx == -1) break;
-//       int pathStart = payload.indexOf(".path=", pathIdx);
-//       if (pathStart == -1) { pos = pathIdx + key.length(); continue; }
-//       pathStart += 6; // length of ".path="
-//       int pathEnd = payload.indexOf('\n', pathStart);
-//       String path = payload.substring(pathStart, pathEnd);
-//       path.trim();
-//       if (path.endsWith(".zip")) {
-//         downlst.println(path);
-//       }
-//       pos = pathEnd;
-//     }
-//     downlst.close();
-//     Serial.println("_down.lst generado correctamente");
-//   } else {
-//     Serial.print("Error HTTP: ");
-//     Serial.println(httpCode);
-//   }
-//   http.end();
-// }
-
-// Descarga el CSV de World of Spectrum y genera _files.lst y _files.inf en /ONLINE
-// void generate_online_files_list() 
-// {
-// // Descarga el resultado plano de ZXDB (output=flat) y genera _files.lst y _files.inf en /ONLINE
-// const char* csv_url = "https://worldofspectrum.org/software/software_export?";
-//   HTTPClient http;
-
-//   File lst = SD_MMC.open("/ONLINE/_files.lst", FILE_WRITE);
-//   if (!lst) {
-//     Serial.println("No se pudo abrir _files.lst para escribir");
-//     return;
-//   }
-//   http.begin(csv_url);
-//   int httpCode = http.GET();
-//   if (httpCode == 200) {
-//     String payload = http.getString();
-//     int lineStart = 0;
-//     int lineEnd = payload.indexOf('\n');
-//     std::vector<String> lines;
-//     // Saltar cabecera
-//     if (lineEnd != -1) lineStart = lineEnd + 1;
-//     lineEnd = payload.indexOf('\n', lineStart);
-    
-//     while (lineEnd != -1) 
-//     {
-//       String line = payload.substring(lineStart, lineEnd);
-//       lines.push_back(line);
-//       lineStart = lineEnd + 1;
-//       lineEnd = payload.indexOf('\n', lineStart);
-//     }
-    
-//     // Última línea
-//     if (lineStart < payload.length()) 
-//     {
-//       lines.push_back(payload.substring(lineStart));
-//     }
-    
-//     int count = 0;
-    
-//     for (size_t i = 0; i < lines.size(); ++i) 
-//     {
-//       String line = lines[i];
-//       // Parseo robusto de CSV para dos primeros campos
-//       int len = line.length();
-//       int pos = 0;
-//       String id = "";
-//       String title = "";
-      
-//       // Campo 1 (ID)
-//       if (pos < len && line[pos] == '"') 
-//       {
-//         pos++;
-//         while (pos < len) {
-//           if (line[pos] == '"' && line[pos+1] == '"') { id += '"'; pos += 2; }
-//           else if (line[pos] == '"') { pos++; break; }
-//           else { id += line[pos++]; }
-//         }
-//         if (pos < len && line[pos] == ',') pos++;
-//       } 
-//       else 
-//       {
-//         while (pos < len && line[pos] != ',') id += line[pos++];
-//         if (pos < len && line[pos] == ',') pos++;
-//       }
-
-//       // Campo 2 (title)
-//       if (pos < len && line[pos] == '"') 
-//       {
-//         pos++;
-//         while (pos < len) {
-//           if (line[pos] == '"' && line[pos+1] == '"') { title += '"'; pos += 2; }
-//           else if (line[pos] == '"') { pos++; break; }
-//           else { title += line[pos++]; }
-//         }
-//         if (pos < len && line[pos] == ',') pos++;
-//       } 
-//       else 
-//       {
-//         while (pos < len && line[pos] != ',') title += line[pos++];
-//         if (pos < len && line[pos] == ',') pos++;
-//       }
-//       id.trim(); title.trim();
-//       if (id.length() == 0 || title.length() == 0) continue;
-//       lst.print(String(i));
-//       lst.print("|F|0|");
-//       lst.print(title);
-//       lst.print("|");
-//       lst.println(id);
-//       count++;
-//     }
-//     lst.close();
-//     // Crear _files.inf
-//     File inf = SD_MMC.open("/ONLINE/_files.inf", FILE_WRITE);
-//     if (inf) {
-//       inf.println("PATH=/ONLINE");
-//       inf.print("CFIL=");
-//       inf.println(count);
-//       inf.println("CDIR=0");
-//       inf.close();
-//     } else {
-//       Serial.println("No se pudo abrir _files.inf para escribir");
-//     }
-//     Serial.println("_files.lst y _files.inf generados correctamente");
-//     myNex.writeStr("tape.g0.txt", "ZXDB catalogue captured");
-//     myNex.writeNum("zxdb.progress.val", 100);
-//   } else {
-//     Serial.print("Error HTTP: ");
-//     Serial.println(httpCode);
-//     myNex.writeStr("tape.g0.txt", "Error HTTP " + String(httpCode));
-//   }
-//   http.end();
-// }
-// //
-
 // Helper: descarga un fichero binario desde URL a ruta local en SD (HTTPS, chunked)
 bool _downloadBinaryToSD(const String& url, const String& localPath)
 {
@@ -1804,7 +1575,7 @@ void downloadFromZXDB(String gameId, String title)
   safeTitle.replace(">",  "-");
   safeTitle.replace("|",  "-");
 
-  String destDir = "/DOWNLOAD/" + safeTitle;
+  String destDir = "/DOWNLOAD/ZX" + safeTitle;
 
   if (!SD_MMC.exists(destDir))
   {
@@ -2065,22 +1836,22 @@ void updateZXDB(String letter = "0")
           dir = String(letter);
 
           // Vemos si existe el subpath. Si no existe, lo creamos.
-          if (!SD_MMC.exists("/ONLINE/" + dir)) 
+          if (!SD_MMC.exists("/ONLINE/ZX/" + dir)) 
           {
-            logln("Creating directory /ONLINE/" + dir);
-            if(!SD_MMC.mkdir("/ONLINE/" + dir))
+            logln("Creating directory /ONLINE/ZX/" + dir);
+            if(!SD_MMC.mkdir("/ONLINE/ZX/" + dir))
             {
-              logln("Error al crear /ONLINE/" + dir);
+              logln("Error al crear /ONLINE/ZX/" + dir);
               continue;
             }
           }
 
           // Truncamos/creamos _files.lst (vacía) antes del bucle HTTP
           {
-            File f = SD_MMC.open("/ONLINE/" + dir + "/_files.lst", FILE_WRITE);
+            File f = SD_MMC.open("/ONLINE/ZX/" + dir + "/_files.lst", FILE_WRITE);
             if (!f)
             {
-              logln("No se pudo crear _files.lst: /ONLINE/" + dir + "/_files.lst");
+              logln("No se pudo crear _files.lst: /ONLINE/ZX/" + dir + "/_files.lst");
               myNex.writeStr("zxdb.message.txt", "Error on _files.lst");
               continue;
             }
@@ -2089,10 +1860,10 @@ void updateZXDB(String letter = "0")
 
           // Truncamos/creamos _files.inf (vacía) antes del bucle HTTP, igual que _files.lst
           {
-            File f = SD_MMC.open("/ONLINE/" + dir + "/_files.inf", FILE_WRITE);
+            File f = SD_MMC.open("/ONLINE/ZX/" + dir + "/_files.inf", FILE_WRITE);
             if (!f)
             {
-              logln("No se pudo crear _files.inf: /ONLINE/" + dir + "/_files.inf");
+              logln("No se pudo crear _files.inf: /ONLINE/ZX/" + dir + "/_files.inf");
               myNex.writeStr("zxdb.message.txt", "Error on _files.inf");
               continue;
             }
@@ -2183,7 +1954,7 @@ void updateZXDB(String letter = "0")
             // Escribimos en SD una vez cerrada la conexión HTTP
             if (linesBuffer.length() > 0)
             {
-              File lst = SD_MMC.open("/ONLINE/" + dir + "/_files.lst", FILE_APPEND);
+              File lst = SD_MMC.open("/ONLINE/ZX/" + dir + "/_files.lst", FILE_APPEND);
               if (lst)
               {
                 lst.print(linesBuffer);
@@ -2206,10 +1977,10 @@ void updateZXDB(String letter = "0")
           
           // Crear el fichero .inf (abrimos ahora, después del bucle HTTP)
           {
-            File inf = SD_MMC.open("/ONLINE/" + dir + "/_files.inf", FILE_WRITE);
+            File inf = SD_MMC.open("/ONLINE/ZX/" + dir + "/_files.inf", FILE_WRITE);
             if (inf) 
             {
-              inf.println("PATH=/ONLINE/" + dir + "/");
+              inf.println("PATH=/ONLINE/ZX/" + dir + "/");
               inf.print("CFIL=");
               inf.println(total);
               inf.println("CDIR=0");
@@ -2219,7 +1990,7 @@ void updateZXDB(String letter = "0")
             } 
             else 
             {
-              logln("No se pudo abrir _files.inf para escribir: /ONLINE/" + dir + "/_files.inf");
+              logln("No se pudo abrir _files.inf para escribir: /ONLINE/ZX/" + dir + "/_files.inf");
               myNex.writeStr("zxdb.message.txt", "Error on _files.inf");
             }
           }
@@ -2272,7 +2043,7 @@ void downloadFromCPCDB(String fileName, String title)
   safeTitle.replace(">",  "-");
   safeTitle.replace("|",  "-");
 
-  String destDir = "/DOWNLOAD_CPC/" + safeTitle;
+  String destDir = "/DOWNLOAD/CPC/" + safeTitle;
 
   if (!SD_MMC.exists(destDir))
   {
@@ -2351,7 +2122,7 @@ void downloadFromCPCDB(String fileName, String title)
 }
 
 // Descarga y parsea el listado de CDTs de Archive.org para generar
-// el catálogo /ONLINE_CPC/{letra}/_files.lst
+// el catálogo /ONLINE/CPC/{letra}/_files.lst
 // El listado se obtiene del HTML de view_archive.php
 void updateCPCDB(String letter = "0")
 {
@@ -2413,15 +2184,15 @@ void updateCPCDB(String letter = "0")
           char ch = searchChain.charAt(i);
           String dir = String(ch);
 
-          if (!SD_MMC.exists("/ONLINE_CPC/" + dir))
+          if (!SD_MMC.exists("/ONLINE/CPC/" + dir))
           {
-            SD_MMC.mkdir("/ONLINE_CPC/" + dir);
+            SD_MMC.mkdir("/ONLINE/CPC/" + dir);
           }
 
           // Truncar _files.lst y _files.inf
-          File f = SD_MMC.open("/ONLINE_CPC/" + dir + "/_files.lst", FILE_WRITE);
+          File f = SD_MMC.open("/ONLINE/CPC/" + dir + "/_files.lst", FILE_WRITE);
           if (f) f.close();
-          f = SD_MMC.open("/ONLINE_CPC/" + dir + "/_files.inf", FILE_WRITE);
+          f = SD_MMC.open("/ONLINE/CPC/" + dir + "/_files.inf", FILE_WRITE);
           if (f) f.close();
         }
 
@@ -2489,7 +2260,7 @@ void updateCPCDB(String letter = "0")
           if (buffers[letterIdx].length() > FLUSH_THRESHOLD)
           {
             String dir = (letterIdx == 0) ? "#" : String(letterChar);
-            File lst = SD_MMC.open("/ONLINE_CPC/" + dir + "/_files.lst", FILE_APPEND);
+            File lst = SD_MMC.open("/ONLINE/CPC/" + dir + "/_files.lst", FILE_APPEND);
             if (lst)
             {
               lst.print(buffers[letterIdx]);
@@ -2518,7 +2289,7 @@ void updateCPCDB(String letter = "0")
 
           if (buffers[i].length() > 0)
           {
-            File lst = SD_MMC.open("/ONLINE_CPC/" + dir + "/_files.lst", FILE_APPEND);
+            File lst = SD_MMC.open("/ONLINE/CPC/" + dir + "/_files.lst", FILE_APPEND);
             if (lst)
             {
               lst.print(buffers[i]);
@@ -2528,10 +2299,10 @@ void updateCPCDB(String letter = "0")
           }
 
           // Generar _files.inf
-          File inf = SD_MMC.open("/ONLINE_CPC/" + dir + "/_files.inf", FILE_WRITE);
+          File inf = SD_MMC.open("/ONLINE/CPC/" + dir + "/_files.inf", FILE_WRITE);
           if (inf)
           {
-            inf.println("PATH=/ONLINE_CPC/" + dir + "/");
+            inf.println("PATH=/ONLINE/CPC/" + dir + "/");
             inf.print("CFIL=");
             inf.println(lineCount[i]);
             inf.println("CDIR=0");
@@ -2584,7 +2355,7 @@ void downloadFromMSXDB(String fileName, String title)
   safeTitle.replace(">",  "-");
   safeTitle.replace("|",  "-");
 
-  String destDir = "/DOWNLOAD_MSX/" + safeTitle;
+  String destDir = "/DOWNLOAD/MSX/" + safeTitle;
 
   if (!SD_MMC.exists(destDir))
   {
@@ -2659,7 +2430,7 @@ void downloadFromMSXDB(String fileName, String title)
 }
 
 // Consulta la API de tsx.eslamejor.com para generar
-// el catálogo /ONLINE_MSX/{letra}/_files.lst
+// el catálogo /ONLINE/MSX/{letra}/_files.lst
 // La API devuelve JSON paginado: /index_back.php?page=N&idx=LETRA
 void updateMSXDB(String letter = "0")
 {
@@ -2703,15 +2474,15 @@ void updateMSXDB(String letter = "0")
 
           String dir = (letterIdx == 0) ? "#" : String(letterChar);
 
-          if (!SD_MMC.exists("/ONLINE_MSX/" + dir))
+          if (!SD_MMC.exists("/ONLINE/MSX/" + dir))
           {
-            SD_MMC.mkdir("/ONLINE_MSX/" + dir);
+            SD_MMC.mkdir("/ONLINE/MSX/" + dir);
           }
 
           // Truncar ficheros existentes
-          File f = SD_MMC.open("/ONLINE_MSX/" + dir + "/_files.lst", FILE_WRITE);
+          File f = SD_MMC.open("/ONLINE/MSX/" + dir + "/_files.lst", FILE_WRITE);
           if (f) f.close();
-          f = SD_MMC.open("/ONLINE_MSX/" + dir + "/_files.inf", FILE_WRITE);
+          f = SD_MMC.open("/ONLINE/MSX/" + dir + "/_files.inf", FILE_WRITE);
           if (f) f.close();
 
           int lineCount = 0;
@@ -2802,7 +2573,7 @@ void updateMSXDB(String letter = "0")
             // Flush si el buffer es grande
             if (buffer.length() > FLUSH_THRESHOLD)
             {
-              File lst = SD_MMC.open("/ONLINE_MSX/" + dir + "/_files.lst", FILE_APPEND);
+              File lst = SD_MMC.open("/ONLINE/MSX/" + dir + "/_files.lst", FILE_APPEND);
               if (lst)
               {
                 lst.print(buffer);
@@ -2829,7 +2600,7 @@ void updateMSXDB(String letter = "0")
           // Flush buffer restante
           if (buffer.length() > 0)
           {
-            File lst = SD_MMC.open("/ONLINE_MSX/" + dir + "/_files.lst", FILE_APPEND);
+            File lst = SD_MMC.open("/ONLINE/MSX/" + dir + "/_files.lst", FILE_APPEND);
             if (lst)
             {
               lst.print(buffer);
@@ -2839,10 +2610,10 @@ void updateMSXDB(String letter = "0")
           }
 
           // Generar _files.inf
-          File inf = SD_MMC.open("/ONLINE_MSX/" + dir + "/_files.inf", FILE_WRITE);
+          File inf = SD_MMC.open("/ONLINE/MSX/" + dir + "/_files.inf", FILE_WRITE);
           if (inf)
           {
-            inf.println("PATH=/ONLINE_MSX/" + dir + "/");
+            inf.println("PATH=/ONLINE/MSX/" + dir + "/");
             inf.print("CFIL=");
             inf.println(lineCount);
             inf.println("CDIR=0");
