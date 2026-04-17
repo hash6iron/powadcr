@@ -123,15 +123,15 @@ int GPIO_MSX_REMOTE_PAUSE = 19;
 #define I2C_GRP_LCD_ADDR  0x27  // 0x27
 
 // PORT A
-#define MCP_KEY_PLAY       5   // Pin +1 del MCP23017 para Key2
-#define MCP_KEY_RWD        4   // Pin +1 del MCP23017 para Key4
-#define MCP_KEY_FFWD       3   // Pin +1 del MCP23017 para Key5
-#define MCP_KEY_PAUSE      2   // Pin +1 del MCP23017 para Key6
-#define MCP_KEY_STOP       1   // Pin +1 del MCP23017 para Key3
-#define MCP_KEY_REC        6   // Pin +1 del MCP23017 para Key1
-#define MCP_KEY_EJECT      0   // Pin +1 del MCP23017 para Key1
+// #define MCP_KEY_PLAY       4   // Pin +1 del MCP23017 para Key2
+// #define MCP_KEY_RWD        3   // Pin +1 del MCP23017 para Key4
+// #define MCP_KEY_FFWD       2   // Pin +1 del MCP23017 para Key5
+// #define MCP_KEY_PAUSE      1   // Pin +1 del MCP23017 para Key6
+// #define MCP_KEY_STOP       0   // Pin +1 del MCP23017 para Key3
+// #define MCP_KEY_REC        5   // Pin +1 del MCP23017 para Key1
+// #define MCP_KEY_EJECT      6   // Pin +1 del MCP23017 para Key1
 
-#define MCP_LED_IO_PIN     7   // Pin del MCP23017 para Power LED
+// #define MCP_LED_IO_PIN     7   // Pin del MCP23017 para Power LED
 
 
 

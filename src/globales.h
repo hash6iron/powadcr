@@ -835,6 +835,26 @@ bool DOWNLOADING_CPCDB = false;
 bool DOWNLOADING_MSXDB = false;
 bool BEEP = false;
 
+// const uint8_t MCP_KEY_PLAY       = 4;   // Pin +1 del MCP23017 para Key2
+// const uint8_t MCP_KEY_RWD        = 3;   // Pin +1 del MCP23017 para Key4
+// const uint8_t MCP_KEY_FFWD       = 2;   // Pin +1 del MCP23017 para Key5
+// const uint8_t MCP_KEY_PAUSE      = 1;   // Pin +1 del MCP23017 para Key6
+// const uint8_t MCP_KEY_STOP       = 0;   // Pin +1 del MCP23017 para Key3
+// const uint8_t MCP_KEY_REC        = 5;   // Pin +1 del MCP23017 para Key1
+// const uint8_t MCP_KEY_EJECT      = 6;   // Pin +1 del MCP23017 para Key1
+
+// const uint8_t MCP_LED_IO_PIN     = 7;   // Pin del MCP23017 para Power LED
+
+uint8_t MCP_KEY_PLAY       = 5;   // Pin +1 del MCP23017 para Key2
+uint8_t MCP_KEY_RWD        = 4;   // Pin +1 del MCP23017 para Key4
+uint8_t MCP_KEY_FFWD       = 3;   // Pin +1 del MCP23017 para Key5
+uint8_t MCP_KEY_PAUSE      = 2;   // Pin +1 del MCP23017 para Key6
+uint8_t MCP_KEY_STOP       = 1;   // Pin +1 del MCP23017 para Key3
+uint8_t MCP_KEY_REC        = 6;   // Pin +1 del MCP23017 para Key1
+uint8_t MCP_KEY_EJECT      = 0;   // Pin +1 del MCP23017 para Key1
+
+uint8_t MCP_LED_IO_PIN     = 7;   // Pin del MCP23017 para Power LED
+
 // Declaraciones de metodos
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 // void save();

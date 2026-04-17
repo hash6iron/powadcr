@@ -539,6 +539,55 @@ bool loadCfgFile() {
       logln("BEEP: " + String(param));
       BEEP = String(param) == "on" || String(param) == "1" ? true : false;
 
+      strcpy(param, (getValueOfParam(CFGSYSTEM[16].cfgLine, "KEYPLAY")).c_str());
+      if (String(param) != "null")
+      {
+        MCP_KEY_PLAY = (uint8_t)(String(param).toInt());
+        logln("KEYPLAY: " + String(MCP_KEY_PLAY));
+      }
+
+      strcpy(param, (getValueOfParam(CFGSYSTEM[17].cfgLine, "KEYRWD")).c_str());
+      if (String(param) != "null")
+      {
+        MCP_KEY_RWD = (uint8_t)(String(param).toInt());
+        logln("KEYRWD: " + String(MCP_KEY_RWD));    
+      }
+      
+      strcpy(param, (getValueOfParam(CFGSYSTEM[18].cfgLine, "KEYFFWD")).c_str());
+      if (String(param) != "null")
+      {
+        MCP_KEY_FFWD = (uint8_t)(String(param).toInt());
+        logln("KEYFFWD: " + String(MCP_KEY_FFWD));      
+      }
+
+      strcpy(param, (getValueOfParam(CFGSYSTEM[19].cfgLine, "KEYPAUSE")).c_str());
+      if (String(param) != "null")
+      {
+        MCP_KEY_PAUSE = (uint8_t)(String(param).toInt());
+        logln("KEYPAUSE: " + String(MCP_KEY_PAUSE));
+      }
+
+      strcpy(param, (getValueOfParam(CFGSYSTEM[20].cfgLine, "KEYSTOP")).c_str());
+      if (String(param) != "null")
+      {
+        MCP_KEY_STOP = (uint8_t)(String(param).toInt());
+        logln("KEYSTOP: " + String(MCP_KEY_STOP));
+      }
+
+      strcpy(param, (getValueOfParam(CFGSYSTEM[21].cfgLine, "KEYREC")).c_str());
+      if (String(param) != "null")
+      {
+        MCP_KEY_REC = (uint8_t)(String(param).toInt());
+        logln("KEYREC: " + String(MCP_KEY_REC));
+      }
+
+      strcpy(param, (getValueOfParam(CFGSYSTEM[22].cfgLine, "KEYEJECT")).c_str());
+      if (String(param) != "null")
+      {
+        MCP_KEY_EJECT = (uint8_t)(String(param).toInt());
+        logln("KEYEJECT: " + String(MCP_KEY_EJECT));
+      }
+
       logln("");
       logln(
           "------------------------------------------------------------------");
@@ -574,6 +623,13 @@ bool loadCfgFile() {
         fCfg.println("<SPOTIFY_CSE></SPOTIFY_CSE>");
         fCfg.println("<QUICKBOOT>off</QUICKBOOT>");
         fCfg.println("<BEEP>on</BEEP>");
+        fCfg.println("<KEYPLAY>5</KEYPLAY>");
+        fCfg.println("<KEYRWD>4</KEYRWD>");
+        fCfg.println("<KEYFFWD>3</KEYFFWD>");
+        fCfg.println("<KEYPAUSE>2</KEYPAUSE>");
+        fCfg.println("<KEYSTOP>1</KEYSTOP>");
+        fCfg.println("<KEYREC>6</KEYREC>");
+        fCfg.println("<KEYEJECT>0</KEYEJECT>");
 
         #ifdef DEBUGMODE
                 logln("powadcr.cfg new file created");
@@ -4924,6 +4980,8 @@ void rewindAnimation(int direction) {
   int frames = 19;
   int fdelay = 5;
 
+  logln("Rewind animation - Direction: " + String(direction));
+
   while (p < frames) {
 
     POS_ROTATE_CASSETTE += direction;
@@ -7960,152 +8018,124 @@ void buttonsControl()
     {
       // Short pressed
 
-      switch (lastKeyValue)
+      if (lastKeyValue == 8)
       {
-        case 8:
-          {
-            logln("Unknow key - Short press");
-            keyStatus = 5;       
-          }
-          break;
-        
-        case MCP_KEY_PLAY:
-          {
-            logln("PLAY/STOP button pressed - Value: " + String(keyPressed));
-            hmi.verifyCommand("PLAY");   
-            keyStatus = 5;       
-          }
-          break;
-        
-        case MCP_KEY_STOP:
-          {
+        logln("Unknow key - Short press");
+        keyStatus = 5;       
+      }
+      else if (lastKeyValue == MCP_KEY_PLAY)
+      {
+        logln("PLAY button pressed - Value: " + String(keyPressed));
+        hmi.verifyCommand("PLAY");   
+        keyStatus = 5;       
+      }
+      else if (lastKeyValue == MCP_KEY_STOP)
+      {
+        if (!STOP)
+        {
             hmi.verifyCommand("STOP");
             logln("STOP button pressed - Value: " + String(keyPressed));
             keyStatus = 5;       
-          }
-          break;
-
-        case MCP_KEY_PAUSE:
-          {
-            hmi.verifyCommand("PAUSE");
-            logln("PAUSE button pressed - Value: " + String(keyPressed));
-            keyStatus = 5;       
-          }
-          break;
-
-        case MCP_KEY_FFWD:
-          {
-            hmi.verifyCommand("FFWD");
-            logln("FFWD button pressed - Value: " + String(keyPressed));
-            keyStatus = 5;       
-          }
-          break;
-
-        case MCP_KEY_RWD:
-          {
-            hmi.verifyCommand("RWD");
-            logln("RWD button pressed - Value: " + String(keyPressed));
-            keyStatus = 5;       
-          }
-          break;
-
-        case MCP_KEY_REC:
-          {
-            hmi.verifyCommand("REC");
-            logln("REC button pressed - Value: " + String(keyPressed));
-            keyStatus = 5;       
-          }
-          break;
-
-        case MCP_KEY_EJECT:
-          {
+        }
+        else 
+        {
             hmi.verifyCommand("EJECT");
-            logln("EJECT button pressed - Value: " + String(keyPressed));
-            keyStatus = 5;       
-          }
-          break;
-
-        default:
-            logln("Unknow key pressed");
-            keyStatus = 0;       
-          break;
-      }    
+            logln("STOP is active, then EJECT");
+            keyStatus = 5;
+        }
+      }
+      else if (lastKeyValue == MCP_KEY_PAUSE)
+      {
+        hmi.verifyCommand("PAUSE");
+        logln("PAUSE button pressed - Value: " + String(keyPressed));
+        keyStatus = 5;       
+      }
+      else if (lastKeyValue == MCP_KEY_FFWD)
+      {
+        hmi.verifyCommand("FFWD");
+        logln("FFWD button pressed - Value: " + String(keyPressed));
+        keyStatus = 5;       
+      }
+      else if (lastKeyValue == MCP_KEY_RWD)
+      {
+        hmi.verifyCommand("RWD");
+        logln("RWD button pressed - Value: " + String(keyPressed));
+        keyStatus = 5;       
+      }
+      else if (lastKeyValue == MCP_KEY_REC)
+      {
+        hmi.verifyCommand("REC");
+        logln("REC button pressed - Value: " + String(keyPressed));
+        keyStatus = 5;       
+      }
+      else if (lastKeyValue == MCP_KEY_EJECT)
+      {
+        hmi.verifyCommand("EJECT");
+        logln("EJECT button pressed - Value: " + String(keyPressed));
+        keyStatus = 5;       
+      }
+      else
+      {
+        logln("Unknow key pressed");
+        keyStatus = 0;       
+      }
     }
     break;
 
     case 3:
     {
       // Long pressed
-      switch (keyPressed)
+      if (keyPressed == 8)
       {
-        case 8:
-          // Release button, do nothing
-          {
-            logln("Key released: " + String(keyPressed) + " - Value: " + String(keyPressed));
-            if (KEEP_FFWIND || KEEP_RWIND)
-            {
-              KEEP_FFWIND = false;
-              KEEP_RWIND = false;
-              // Esto lo hacemos para salir del modo fast wind
-              hmi.verifyCommand("FFWD");
-            }
-            // Cambiamos de estado
-            keyStatus = 0;
-            //
-          }
-          break;
-        
-        case MCP_KEY_PLAY:
-          {
-            logln("PLAY/STOP button LONG pressed");
-          }
-          break;
-        
-        case MCP_KEY_STOP:
-          {
-            logln("STOP button LONG pressed");
-          }
-          break;
-
-        case MCP_KEY_PAUSE:
-          {
-            logln("PAUSE button LONG pressed");
-          }
-          break;
-        
-        case MCP_KEY_RWD:
-          {
-            hmi.verifyCommand("TTWD");
-            logln("RWD button LONG pressed");
-          }
-          break;
-
-        case MCP_KEY_FFWD:
-          {
-            hmi.verifyCommand("SFWD");
-            logln("FFWD button LONG pressed");
-          }
-          break;
-
-        case MCP_KEY_REC:
-          {
-            logln("REC button LONG pressed");
-          }
-          break;
-          
-        case MCP_KEY_EJECT:
-          {
-            hmi.writeString("page mainmenu");
-            logln("EJECT button LONG pressed");
-            // Forzamos salida para no repetir mas el comando
-            keyStatus = 5;
-          }
-          break;
-
-        default:
-          keyStatus = 0;
-          break;
-      }          
+        // Release button, do nothing
+        logln("Key released: " + String(keyPressed) + " - Value: " + String(keyPressed));
+        if (KEEP_FFWIND || KEEP_RWIND)
+        {
+          KEEP_FFWIND = false;
+          KEEP_RWIND = false;
+          // Esto lo hacemos para salir del modo fast wind
+          hmi.verifyCommand("FFWD");
+        }
+        // Cambiamos de estado
+        keyStatus = 0;
+      }
+      else if (lastKeyValue == MCP_KEY_PLAY)
+      {
+        logln("PLAY/STOP button LONG pressed");
+      }
+      else if (lastKeyValue == MCP_KEY_STOP)
+      {
+        logln("STOP button LONG pressed");
+      }
+      else if (lastKeyValue == MCP_KEY_PAUSE)
+      {
+        logln("PAUSE button LONG pressed");
+      }
+      else if (lastKeyValue == MCP_KEY_RWD)
+      {
+        hmi.verifyCommand("TTWD");
+        logln("RWD button LONG pressed");
+      }
+      else if (lastKeyValue == MCP_KEY_FFWD)
+      {
+        hmi.verifyCommand("SFWD");
+        logln("FFWD button LONG pressed");
+      }
+      else if (lastKeyValue == MCP_KEY_REC)
+      {
+        logln("REC button LONG pressed");
+      }
+      else if (lastKeyValue == MCP_KEY_EJECT)
+      {
+        hmi.writeString("page mainmenu");
+        logln("EJECT button LONG pressed");
+        // Forzamos salida para no repetir mas el comando
+        keyStatus = 5;
+      }
+      else
+      {
+        keyStatus = 0;
+      }
     }
     break;
 
