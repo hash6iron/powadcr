@@ -2474,6 +2474,17 @@ void RadioPlayer() {
 
   while (!EJECT) {
 
+    // Dentro del while (!EJECT) {
+    if (EQ_CHANGE) 
+    {
+      EQ_CHANGE = false;
+      cfg_eq.setAudioInfo(cfg);
+      cfg_eq.gain_low = EQ_LOW;
+      cfg_eq.gain_medium = EQ_MID;
+      cfg_eq.gain_high = EQ_HIGH;
+      eq.begin(cfg_eq);  // Reconfigura el ecualizador
+    }
+    
     // Gestión de botones FFWD/RWIND
     if (!isBuffering && (FFWIND || RWIND)) {
       dialIndicator(false);
@@ -3661,7 +3672,15 @@ void MediaPlayer() {
     // Control de avance/retroceso
     if ((FFWIND || RWIND) && !was_pressed_wd) {
       // LAST_MESSAGE = "Searching...";
-      rewindAnimation(FFWIND ? 1 : -1);
+      if (FFWIND) 
+      {
+        rewindAnimation(1);
+      }
+      else if (RWIND) 
+      {
+        rewindAnimation(-1);
+      }
+      
 
       if (FFWIND) {
         if ((currentPointer + 1) >= (TOTAL_BLOCKS - 1)) {
@@ -3691,11 +3710,11 @@ void MediaPlayer() {
           }
         }
         // Avanzamos al siguiente bloque
-#ifdef DEBUG
-        logln("FFWIND pressed. Moving to next track.");
-        logln("Next file: " + String(currentPointer + " - " +
-                                     audiolist[currentPointer + 1].filename));
-#endif
+        #ifdef DEBUG
+                logln("FFWIND pressed. Moving to next track.");
+                logln("Next file: " + String(currentPointer + " - " +
+                                            audiolist[currentPointer + 1].filename));
+        #endif
 
         // 26/11/2025
         fileSize = getStreamfileSize(pFile, true);
@@ -3856,18 +3875,23 @@ void MediaPlayer() {
 
     // Avance rapido y retroceso rapido
     if (KEEP_FFWIND || KEEP_RWIND) {
-      if (KEEP_FFWIND && ((currentPointer + 1) <= TOTAL_BLOCKS)) {
+      if (KEEP_FFWIND && ((currentPointer + 1) <= TOTAL_BLOCKS)) 
+      {
         // Avance rapido (acelerado)
-        if (fast_wind_status == 0) {
+        if (fast_wind_status == 0) 
+        {
           osr = kitStream.audioInfo().sample_rate;
           // Ajustamos al SR mas alto para avance rapido
           AudioInfo info = kitStream.audioInfo();
           info.sample_rate = 352800;
           kitStream.setAudioInfo(info);
+
+          // Animación del FFWIND
           hmi.writeString("tape.stepTape.val=4");
           //
           p_file_seek = (File *)player.getStream();
-          if (p_file_seek != nullptr) {
+          if (p_file_seek != nullptr) 
+          {
             p_file_seek_pos = p_file_seek->position();
           }
 
@@ -3876,22 +3900,29 @@ void MediaPlayer() {
 
           //
           fast_wind_status = 1;
-        } else {
-          if (millis() - t_button_pressed > TIME_TO_FAST_FORWRD) {
-            if (fast_wind_status == 1) {
+        } 
+        else 
+        {
+          if (millis() - t_button_pressed > TIME_TO_FAST_FORWRD) 
+          {
+            if (fast_wind_status == 1) 
+            {
               fileSize = getStreamfileSize(pFile);
               logln("Avance ultra rapido");
 
               fast_wind_status = 2;
-            } else if (fast_wind_status == 2) {
+            }
+            else if (fast_wind_status == 2) 
+            {
               // Avance ultra-rapido
-              if (p_file_seek != nullptr) {
-                if (p_file_seek_pos <
-                    (p_file_seek->size() -
-                     (p_file_seek->size() * FAST_FORWARD_PER))) {
+              if (p_file_seek != nullptr) 
+              {
+                if (p_file_seek_pos < (p_file_seek->size() - (p_file_seek->size() * FAST_FORWARD_PER))) 
+                {
                   p_file_seek_pos += (p_file_seek->size() * FAST_FORWARD_PER);
                   p_file_seek->seek(p_file_seek_pos);
-                  if (p_file_seek != nullptr) {
+                  if (p_file_seek != nullptr) 
+                  {
                     fileread = p_file_seek->position();
                     fileSize = p_file_seek->size();
                   }
@@ -3901,9 +3932,12 @@ void MediaPlayer() {
             }
           }
         }
-      } else if (KEEP_RWIND && ((currentPointer + 1) <= TOTAL_BLOCKS)) {
+      } 
+      else if (KEEP_RWIND && ((currentPointer + 1) <= TOTAL_BLOCKS)) 
+      {
         // Retroceso rapido
-        if (fast_wind_status == 0) {
+        if (fast_wind_status == 0) 
+        {
           // Capturamos el sample rate original antes de cambiarlo
           osr = kitStream.audioInfo().sample_rate;
           //
@@ -3911,6 +3945,9 @@ void MediaPlayer() {
           if (p_file_seek != nullptr) {
             p_file_seek_pos = p_file_seek->position();
           }
+          // Animación del RWD
+          hmi.writeString("tape.stepTape.val=-4");
+          //
           logln("Retroceso rapido");
           fileSize = getStreamfileSize(pFile);
           // Entramos en modo retroceder
@@ -3933,10 +3970,10 @@ void MediaPlayer() {
               fileSize = p_file_seek->size();
             }
 
-#ifdef DEBUG
-            logln("Retroceso: " + String(rewind_amount) + " bytes");
-            logln("Posicion retroceso: " + String(p_file_seek_pos));
-#endif
+            #ifdef DEBUG
+                        logln("Retroceso: " + String(rewind_amount) + " bytes");
+                        logln("Posicion retroceso: " + String(p_file_seek_pos));
+            #endif
 
             delay(DELAY_ON_EACH_STEP_FAST_REWIND);
           }
@@ -4975,7 +5012,7 @@ void getRandomFilenameWAV(char *&currentPath, String currentFileBaseName) {
   strcat(currentPath, extPath);
 }
 
-void rewindAnimation(int direction) {
+void  rewindAnimation(int direction) {
   int p = 0;
   int frames = 19;
   int fdelay = 5;
@@ -9653,6 +9690,47 @@ hmi.writeString("statusLCD.txt=\"Preparing environment\"");
 
   myNex.writeStr("tape.lblFreq.txt", "32KHz");
   hmi.refreshPulseIcons(INVERSETRAIN, ZEROLEVEL);
+
+  // -------------------------------------------------------------------------
+  //
+  // Configuramos el skin
+  //
+  // -------------------------------------------------------------------------
+  logln("SKIN_SELECTED = " + String(SKIN_SELECTED));
+
+  // Ponemos todos a cero para luego activar el que corresponda
+  myNex.writeNum("menu2.c1.val", 0);
+  myNex.writeNum("menu2.c2.val", 0);
+  myNex.writeNum("menu2.c3.val", 0);
+  myNex.writeNum("menu2.c4.val", 0);
+  myNex.writeNum("menu2.c5.val", 0);
+
+  switch (SKIN_SELECTED)
+  {
+    case 1:
+      //Powa skin
+      myNex.writeNum("menu2.c1.val", 1);
+      break;
+    case 2:
+      // Amstrad
+      myNex.writeNum("menu2.c2.val", 1);
+      break;
+    case 3:
+      // Commodore
+      myNex.writeNum("menu2.c3.val", 1);
+      break;            
+    case 4:
+      // Spectrum
+      myNex.writeNum("menu2.c4.val", 1);
+      break;
+    case 5:
+      // MSX
+      myNex.writeNum("menu2.c5.val", 1);
+      break;
+    default:
+      // Powa skin
+      myNex.writeNum("menu2.c1.val", 1);
+  }
 
   // -------------------------------------------------------------------------
   //

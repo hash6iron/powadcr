@@ -4183,7 +4183,47 @@ private:
           {IGNORE_DSC = true;}
           else  
           {IGNORE_DSC = false;}
-        }        
+        }    
+        else if (strCmd.indexOf("SKN=") != -1) 
+        {
+          //Cogemos el valor
+          uint8_t buff[8];
+          strCmd.getBytes(buff, 7);
+          int valEn = (int)buff[4];
+          //
+          switch (valEn)
+          {
+            case 49:
+              //Powa skin
+              SKIN_SELECTED = 1;
+              break;
+            case 50:
+              // Amstrad
+              SKIN_SELECTED = 2;
+              break;
+            case 51:
+              // Commodore
+              SKIN_SELECTED = 3;
+              break;            
+            case 52:
+              // Spectrum
+              SKIN_SELECTED = 4;
+              break;
+            case 53:
+              // MSX
+              SKIN_SELECTED = 5;
+              break;              
+            default:
+              // Powa skin
+              SKIN_SELECTED = 1;
+          }
+
+          saveHMIcfg("SKINopt");
+
+          logln("");
+          logln("Skin selection=" + String(valEn));
+
+        }            
         else if (strCmd.indexOf("UPDATE") != -1)
         {
           //-------------------------------------------------------------------------

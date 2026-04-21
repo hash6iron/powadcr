@@ -854,6 +854,8 @@ uint8_t MCP_KEY_REC        = 6;   // Pin +1 del MCP23017 para Key1
 uint8_t MCP_KEY_EJECT      = 0;   // Pin +1 del MCP23017 para Key1
 
 uint8_t MCP_LED_IO_PIN     = 7;   // Pin del MCP23017 para Power LED
+//
+uint8_t SKIN_SELECTED = 1;
 
 // Declaraciones de metodos
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -883,6 +885,7 @@ ConfigEntry configEntries[] = {
     {"DHCPFopt", CONFIG_TYPE_BOOL, &DHCP_ENABLE},
     {"MCPAVAIL", CONFIG_TYPE_BOOL, &MCP23017_AVAILABLE},
     {"WIFIopt", CONFIG_TYPE_BOOL, &WIFI_ENABLE},
+    {"SKINopt", CONFIG_TYPE_UINT8, &SKIN_SELECTED},
 };
 
 //           s.end());
