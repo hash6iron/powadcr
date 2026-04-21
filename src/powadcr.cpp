@@ -228,6 +228,7 @@ void isGroupEnd();
 void getRandomFilenameWAV(char *&currentPath, String currentFileBaseName);
 void rewindAnimation(int direction);
 void showOption(String id, String value);
+void setupNTP();
 String getFileNameFromPath(const String &filePath);
 String removeExtension(const String &filename);
 
@@ -8407,6 +8408,7 @@ void Task0code(void *pvParameters) {
   int startTime5 = millis();
   int startTimeKey = millis();
   int startTimeSpotify = millis();
+  int startNTPRetry = millis();
 
   int tClock = millis();
   int ho = 0;
@@ -8436,6 +8438,17 @@ void Task0code(void *pvParameters) {
     //   startTime5 = millis();
     // }
     delay(25);
+
+    if(!NTP_AVAILABLE)
+    {
+      // Si no tenemos NTP, actualizamos el RTC cada 30 segundos con la hora del sistema
+      if ((millis() - startNTPRetry) > 60000) 
+      {
+        startNTPRetry = millis();
+        logln("Trying to setup NTP again...");
+        setupNTP();
+      }
+    }
 
     // Control del FTP
     #ifdef FTP_SERVER_ENABLE
@@ -9061,7 +9074,9 @@ void setupNTP()
   struct tm timeinfo;
   if (!getLocalTime(&timeinfo)) {
     logln("NTP. Failed to obtain time");
+    myNex.writeStr("tape.clkInd.txt", "");
     hmi.writeString("statusLCD.txt=\"NTP pool failed\"");
+    
     NTP_AVAILABLE = false;
     return;
   }
@@ -9073,6 +9088,9 @@ void setupNTP()
     hmi.writeString("statusLCD.txt=\"" + rtc.getTime("%A, %B %d %Y %H:%M:%S") + "\"");
   }
   NTP_AVAILABLE = true;
+  // Mostramos el indicador NTP
+  myNex.writeStr("tape.clkInd.txt", "R");
+  myNex.writeNum("clock.ntp.val", 1);
   if (!QUICK_BOOT) delay(2000);
   //struct tm timeinfo = rtc.getTimeStruct();
 }
@@ -9291,20 +9309,6 @@ void prepareCardStructure() {
   logln("Directory structure ready.");
 }
 
-void dateTimeSD(uint16_t* date, uint16_t* time) {
-    
-    struct tm tm;
-    // Aquí pones la fecha/hora deseada
-    tm.tm_year = 2026 - 1900;
-    tm.tm_mon = 1; // Febrero (0-based)
-    tm.tm_mday = 14;
-    tm.tm_hour = 12;
-    tm.tm_min = 34;
-    tm.tm_sec = 56;
-    *date = FS_DATE(tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday);
-    *time = FS_TIME(tm.tm_hour, tm.tm_min, tm.tm_sec);
-}
-
 void resetHMI()
 {
   // Forzamos un reinicio de la pantalla
@@ -9491,37 +9495,6 @@ void loadHMICfgfromNVS() {
   kitStream.setPAPower(ACTIVE_AMP && EN_SPEAKER);
   //
   if (!QUICK_BOOT) delay(500);
-}
-
-void I2C_ScannerWire() {
-  byte error, address;
-  int nDevices;
-
-  logln("Scanning...");
-
-  nDevices = 0;
-  for (address = 1; address < 127; address++) {
-    Wire1.beginTransmission(address);
-    error = Wire1.endTransmission();
-
-    if (error == 0) {
-      logln("I2C device found at address 0x" + String(address, HEX));
-      if (address < 16)
-        logln("0");
-      logln(String(address, HEX));
-      logln("  !");
-      nDevices++;
-    } else if (error == 4) {
-      logln("Unknown error at address 0x");
-      if (address < 16)
-        logln("0");
-      logln(String(address, HEX));
-    }
-  }
-  if (nDevices == 0)
-    logln("No I2C devices found\n");
-  else
-    logln("done\n");
 }
 
 void setup() {
