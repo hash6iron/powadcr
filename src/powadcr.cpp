@@ -238,8 +238,11 @@ bool statusPoweLed = false;
 bool powerLedFixed = false;
 
 uint8_t lastKeyValue = 0;
+uint8_t lastKeyValuePB = 0;
 uint8_t keyStatus = 0;
+uint8_t keyStatusPB = 0;
 int keykp_count[7];
+int keykp_countPB[4];
 
 
 // Bluetooth
@@ -2472,7 +2475,8 @@ void RadioPlayer() {
 
   logln("Heap: " + String(ESP.getFreeHeap()) + " (max bloque: " + String(ESP.getMaxAllocHeap()) + ")");
 
-  while (!EJECT) {
+  while (!EJECT) 
+  {
 
     // Dentro del while (!EJECT) {
     if (EQ_CHANGE) 
@@ -2484,7 +2488,7 @@ void RadioPlayer() {
       cfg_eq.gain_high = EQ_HIGH;
       eq.begin(cfg_eq);  // Reconfigura el ecualizador
     }
-    
+
     // Gestión de botones FFWD/RWIND
     if (!isBuffering && (FFWIND || RWIND)) {
       dialIndicator(false);
@@ -2563,9 +2567,9 @@ void RadioPlayer() {
       if (BLOCK_SELECTED > 0 && BLOCK_SELECTED <= TOTAL_BLOCKS) 
       {
         int currentPointer = BLOCK_SELECTED - 1;
-        currentRadioStation = nextRadioStation(
-            PATH_FILE_TO_LOAD, radioName, radioUrlBuffer,
-            sizeof(radioUrlBuffer), true, currentPointer, true);
+        currentRadioStation = nextRadioStation( PATH_FILE_TO_LOAD, radioName, radioUrlBuffer, sizeof(radioUrlBuffer), true, currentPointer, true);
+        //
+        updateDialIndicator(currentRadioStation);
 
         // Si ya estábamos reproduciendo, cambiamos de emisora
         if (PLAY) 
@@ -2630,17 +2634,24 @@ void RadioPlayer() {
     // Máquina de estados del reproductor
     switch (playerState) {
     case 10: // Estado inicial esperando PLAY
-      if (PLAY) {
+      if (PLAY) 
+      {
         playerState = 0;
         if (!dialIndicatorIsShown) {
           dialIndicator(true);
           dialIndicatorIsShown = true;
         }
       }
+      else if (STOP)
+      {
+        playerState = 0;
+        isBuffering = false;
+      }
       break;
 
     case 0: // Conectando a la emisora
-      if (PLAY) {
+      if (PLAY) 
+      {
         bufferw = 0;
         statusSignalOk = false;
         isBuffering = true;
@@ -2694,7 +2705,8 @@ void RadioPlayer() {
       break;
 
     case 1: // ESTADO PRINCIPAL: REPRODUCCIÓN (CONSUMIDOR)
-      if (PLAY) {
+      if (PLAY) 
+      {
         if (isBuffering) {
           size_t bufAvail = radioBuffer.getAvailable();
           LAST_MESSAGE =
@@ -2765,7 +2777,9 @@ void RadioPlayer() {
           dialIndicator(true);
 
         }
-      } else if (STOP || PAUSE) {
+      } 
+      else if (STOP || PAUSE) 
+      {
         playerState = 10;
         PLAY = false;
         bufferw = 0;
@@ -2778,7 +2792,8 @@ void RadioPlayer() {
         urlStream.end();
 
         LAST_MESSAGE = "Radio stopped.";
-        STOP = PAUSE = false;
+        PAUSE = false;
+        STOP = true;
       }
       break;
     }
@@ -3235,7 +3250,7 @@ void MediaPlayer() {
     // Estados del reproductor
     switch (stateStreamplayer) {
     case 0: // Esperando reproducción
-
+    {
       if (PLAY) {
         // Iniciamos el reproductor
         if (WAVFILE_PRELOAD)
@@ -3316,11 +3331,11 @@ void MediaPlayer() {
         PAUSE = false;
         fileread = 0;
       }
-
+    }
       break;
 
     case 1: // Reproduciendo PLAY
-
+    {
       // Salida inesperada desde MediaPlayer.
       if (!AUDIO_FORMART_IS_VALID) {
         LAST_MESSAGE = "Audio format error.";
@@ -3533,25 +3548,25 @@ void MediaPlayer() {
             stime_total = fileSize / bytesPerSecond;
             stime_elapsed = pFile->position() / bytesPerSecond;
 
-#ifdef DEBUG
-            logln("MP3 Fallback calculation:");
-            logln("Estimated bitrate: " + String(mp3_bitrate) + " bps");
-            logln("Bytes per second: " + String(bytesPerSecond));
-            logln("File size: " + String(fileSize) + " bytes");
-            logln("Calculated duration: " + String(stime_total) + " seconds");
-#endif
+            #ifdef DEBUG
+                        logln("MP3 Fallback calculation:");
+                        logln("Estimated bitrate: " + String(mp3_bitrate) + " bps");
+                        logln("Bytes per second: " + String(bytesPerSecond));
+                        logln("File size: " + String(fileSize) + " bytes");
+                        logln("Calculated duration: " + String(stime_total) + " seconds");
+            #endif
           }
 
-#ifdef DEBUG
-          AudioInfo info = decoderMP3.audioInfo();
-          logln("MP3 Decoder Info:");
-          logln("Sample Rate: " + String(info.sample_rate) + " Hz");
-          logln("Channels: " + String(info.channels));
-          logln("Bits per sample: " + String(info.bits_per_sample));
-          logln("Calculated total time: " + String(stime_total) + " seconds");
-          logln("Calculated elapsed time: " + String(stime_elapsed) +
-                " seconds");
-#endif
+          #ifdef DEBUG
+                    AudioInfo info = decoderMP3.audioInfo();
+                    logln("MP3 Decoder Info:");
+                    logln("Sample Rate: " + String(info.sample_rate) + " Hz");
+                    logln("Channels: " + String(info.channels));
+                    logln("Bits per sample: " + String(info.bits_per_sample));
+                    logln("Calculated total time: " + String(stime_total) + " seconds");
+                    logln("Calculated elapsed time: " + String(stime_elapsed) +
+                          " seconds");
+          #endif
 
           // Validar que los tiempos sean razonables
           if (stime_total >
@@ -3621,9 +3636,11 @@ void MediaPlayer() {
           lastCurrentPointer = -1; // Reset también el tracking de canciones
         }
       }
-      break;
+    }
+    break;
 
     case 2: // PAUSE
+    {
       if (PAUSE || PLAY) {
         stateStreamplayer = 1; // Reproduciendo
         tapeAnimationON();
@@ -3633,9 +3650,11 @@ void MediaPlayer() {
         fileread = 0;
         tapeAnimationOFF();
       }
-      break;
+    }
+    break;
 
     case 4: // Auto-stop
+    {
       player.stop();
       tapeAnimationOFF();
 
@@ -3663,27 +3682,32 @@ void MediaPlayer() {
           player.stop();
         }
       }
-      break;
+    }
+    break;
 
     default:
       break;
     }
 
     // Control de avance/retroceso
-    if ((FFWIND || RWIND) && !was_pressed_wd) {
+    if ((FFWIND || RWIND) && !was_pressed_wd) 
+    {
       // LAST_MESSAGE = "Searching...";
       if (FFWIND) 
       {
+        // Animación de avance de pista
         rewindAnimation(1);
       }
       else if (RWIND) 
       {
+        // Animación de retroceso de pista
         rewindAnimation(-1);
       }
       
-
-      if (FFWIND) {
-        if ((currentPointer + 1) >= (TOTAL_BLOCKS - 1)) {
+      if (FFWIND) 
+      {
+        if ((currentPointer + 1) >= (TOTAL_BLOCKS - 1)) 
+        {
           currentPointer = currentIdx = 0; // Reiniciamos el índice
 
           waitflag = 0;
@@ -3693,8 +3717,9 @@ void MediaPlayer() {
             }
             delay(125);
           }
-
-        } else {
+        } 
+        else 
+        {
           currentPointer++; // = source.index();
           currentIdx = currentPointer;
           // currentIdx =
@@ -3719,18 +3744,23 @@ void MediaPlayer() {
         // 26/11/2025
         fileSize = getStreamfileSize(pFile, true);
 
-      } else {
+      } 
+      else 
+      {
         // Modo origen solo se hace en reproducción. Si se pulsa RWD dentro del
         // tiempo TIME_MAX_TO_PREVIOUS_TRACK se pasa al fichero anterior, en
         // otro caso se reproduce desde el principio.
-        if ((millis() - twiceRWDTime > TIME_MAX_TO_PREVIOUS_TRACK) && PLAY) {
+        if ((millis() - twiceRWDTime > TIME_MAX_TO_PREVIOUS_TRACK) && PLAY) 
+        {
           // Empiezo desde el principio
           currentIdx = currentPointer;
           player.stop();
           waitflag = 0;
 
-          while (!player.begin(currentIdx)) {
-            if (waitflag++ > 255) {
+          while (!player.begin(currentIdx)) 
+          {
+            if (waitflag++ > 255) 
+            {
               player.stop();
             }
           }
@@ -3741,14 +3771,18 @@ void MediaPlayer() {
           // 26/11/2025
           fileSize = getStreamfileSize(pFile, true);
 
-        } else {
+        } 
+        else 
+        {
           // Volvemos al inicio de la pista
           prevAudio(currentPointer, audioListSize);
           // LAST_MESSAGE = "Searching...";
           currentIdx = currentPointer;
           waitflag = 0;
-          while (!source.selectStream(currentIdx)) {
-            if (waitflag++ > 255) {
+          while (!source.selectStream(currentIdx)) 
+          {
+            if (waitflag++ > 255) 
+            {
               player.stop();
             }
             delay(125);
@@ -3760,9 +3794,15 @@ void MediaPlayer() {
       }
 
       // Control de EOF
-      if (fileread >= fileSize) {
+      if (fileread >= fileSize) 
+      {
+        //
+        // Caso de avance rapido.
+        //
+        
         // Fin de la lista
-        if ((currentPointer + 1) >= (TOTAL_BLOCKS - 1)) {
+        if ((currentPointer + 1) >= (TOTAL_BLOCKS - 1)) 
+        {
           BLOCK_SELECTED = 0;
           currentPointer = 0; // Reiniciamos el índice
           currentIdx = currentPointer;
@@ -3784,8 +3824,15 @@ void MediaPlayer() {
           STOP = true;
           PLAY = false;
         }
-      } else {
-        if ((currentPointer + 1) > (TOTAL_BLOCKS)) {
+      } 
+      else 
+      {
+        //
+        // Case de cambio de pista
+        // 
+
+        if ((currentPointer + 1) > (TOTAL_BLOCKS)) 
+        {
           BLOCK_SELECTED = 0;
           currentPointer = 0; // Reiniciamos el índice
           currentIdx = currentPointer;
@@ -3851,7 +3898,9 @@ void MediaPlayer() {
 
       player.setAutoNext(AUTO_NEXT);
 
-    } else if ((FFWIND || RWIND) && was_pressed_wd) {
+    } 
+    else if ((FFWIND || RWIND) && was_pressed_wd) 
+    {
       // Tras despulsar Avance rapido o Retroceso rapido
       was_pressed_wd = false;
       KEEP_FFWIND = false;
@@ -3928,6 +3977,14 @@ void MediaPlayer() {
                   }
                   delay(DELAY_ON_EACH_STEP_FAST_FORWARD);
                 }
+                else
+                {
+                  // Hemos llegado al final del fichero, no hay mas fichero.
+                  // continuamos haciendo FFWD si está pulsado
+                  fast_wind_status = 0;
+                  KEEP_FFWIND = false;
+                  //hmi.writeString("tape.stepTape.val=1");
+                }
               }
             }
           }
@@ -3952,15 +4009,20 @@ void MediaPlayer() {
           fileSize = getStreamfileSize(pFile);
           // Entramos en modo retroceder
           fast_wind_status = 1;
-        } else if (fast_wind_status == 1) {
+        } 
+        else if (fast_wind_status == 1) 
+        {
           if (p_file_seek != nullptr) {
             size_t rewind_amount = p_file_seek->size() * FAST_REWIND_PER;
 
             if (p_file_seek_pos > rewind_amount) {
               p_file_seek_pos -= rewind_amount;
-            } else {
+            } 
+            else 
+            {
               // Si no hay suficiente para retroceder, ir al inicio
               p_file_seek_pos = 0;
+              hmi.writeString("tape.stepTape.val=0");
             }
 
             p_file_seek->seek(p_file_seek_pos);
@@ -4123,8 +4185,7 @@ void MediaPlayer() {
 }
 
 // Función helper para cambiar configuración de audio de manera segura
-bool setAudioInfoSafe(audio_tools::AudioInfo newInfo,
-                      const String &context = "") {
+bool setAudioInfoSafe(audio_tools::AudioInfo newInfo, const String &context = "") {
   static audio_tools::AudioInfo lastConfig;
   static bool firstTime = true;
 
@@ -7988,11 +8049,17 @@ void buttonsControl()
   const int timeToLongPress = 28;             // Número de ciclos para considerar una pulsación larga
   
   uint8_t value = MCP23017_readGPIO(0x12);
+  uint8_t valuePB = MCP23017_readGPIO(0x13);
 
   value = ~value;                               // Invertimos los bits porque el hardware devuelve 0 para tecla presionada
   value = value & 0x7F;                         // Eliminamos los bits de salida (aplico mascara 00111111)
+
+  valuePB = ~valuePB;                           // Invertimos los bits porque el hardware devuelve 0 para tecla presionada
+  valuePB = valuePB & 0x0F;                     // Eliminamos los bits de salida (aplico mascara 00001111)
+
   
   uint8_t keyPressed = 0;
+  uint8_t keyPressedPB = 0;
   
   // Determinamos si hay tecla pulsada o no.
   if (value==0)
@@ -8002,6 +8069,123 @@ void buttonsControl()
   else
   {
     keyPressed = log2(value);                     // Obtenemos el índice del bit a 1, que corresponde a la tecla presionada (0-5)
+  }
+
+  // Determinamos si hay tecla pulsada o no. PUERTOA
+  if (value==0)
+  {
+    keyPressed = 8;
+  }
+  else
+  {
+    keyPressed = log2(value);                     // Obtenemos el índice del bit a 1, que corresponde a la tecla presionada (0-5)
+  }
+
+  // Determinamos si hay tecla pulsada o no PUERTOB
+  if (valuePB==0)
+  {
+    keyPressedPB = 8;
+  }
+  else
+  {
+    keyPressedPB = log2(valuePB);                     // Obtenemos el índice del bit a 1, que corresponde a la tecla presionada (0-5)
+  }
+
+  switch (keyStatusPB)
+  {
+  case 0:
+    {
+      // Estado inicial. Esperamos la pulsación de una tecla.
+      if (keyPressedPB < 8)
+      {
+        keykp_countPB[keyPressedPB]=0;
+        keykp_countPB[keyPressedPB]++;
+        keyStatusPB = 1;
+      }
+      else
+      {
+        keyStatusPB = 0;          
+      }
+    }
+    /* code */
+    break;
+
+  case 1:
+    {
+      // Determinamos si es una pulsación corta o larga.
+      // para ello vamos contando el número de ciclos que se mantiene pulsada la tecla.
+      if (keyPressedPB < 8)
+      {
+        keykp_countPB[keyPressedPB]++;
+        // Si pulsamos sin soltar es larga
+        if (keykp_countPB[keyPressedPB] > timeToLongPress)
+        {
+          // Long pressed
+          keyStatusPB = 3;
+        }
+        lastKeyValuePB = keyPressedPB;
+      }      
+      else
+      {
+        // Short pressed
+        // Si pulsamos y hemos soltado antes de ser larga
+        if (keykp_countPB[lastKeyValuePB] > 0)
+        {
+          keyStatusPB = 2;
+          logln("SHORT!! Detected PB");
+        }
+      }
+    }
+    break;
+
+  case 2:
+    {
+      // Short pressed
+      if (lastKeyValuePB == 8)
+      {
+        logln("Unknow key - Short press");
+        keyStatusPB = 5;       
+      }
+      else if (lastKeyValuePB == MCP_KEY_VOLUP)
+      {
+        logln("VOL+ button pressed - Value: " + String(keyPressedPB));
+        hmi.verifyCommand("VOLUP");   
+        keyStatusPB = 5;       
+      }
+      else if (lastKeyValuePB == MCP_KEY_VOLDOWN)
+      {
+        logln("VOL- button pressed - Value: " + String(keyPressedPB));
+        hmi.verifyCommand("VOLDW");   
+        keyStatusPB = 5;       
+      }
+      else
+      {
+        logln("Unknow key pressed");
+        keyStatusPB = 0;       
+      }
+    }
+    break;
+
+  case 3:
+    {
+      // Long pressed
+      // Aquí puedes manejar la lógica para una pulsación larga en el puerto B
+    }
+    break;
+
+    case 5:
+    {
+      // Esperamos soltar el botón
+      if (keyPressedPB == 8)
+      {
+        keyStatusPB = 0;
+        logln("Key released");      
+      }
+    }
+    break;    
+
+  default:
+    break;
   }
   
   // Control de estado botones.
@@ -8054,7 +8238,6 @@ void buttonsControl()
     case 2:
     {
       // Short pressed
-
       if (lastKeyValue == 8)
       {
         logln("Unknow key - Short press");
@@ -8138,34 +8321,34 @@ void buttonsControl()
       }
       else if (lastKeyValue == MCP_KEY_PLAY)
       {
-        logln("PLAY/STOP button LONG pressed");
+        //logln("PLAY/STOP button LONG pressed");
       }
       else if (lastKeyValue == MCP_KEY_STOP)
       {
-        logln("STOP button LONG pressed");
+        //logln("STOP button LONG pressed");
       }
       else if (lastKeyValue == MCP_KEY_PAUSE)
       {
-        logln("PAUSE button LONG pressed");
+        //logln("PAUSE button LONG pressed");
       }
       else if (lastKeyValue == MCP_KEY_RWD)
       {
         hmi.verifyCommand("TTWD");
-        logln("RWD button LONG pressed");
+        //logln("RWD button LONG pressed");
       }
       else if (lastKeyValue == MCP_KEY_FFWD)
       {
         hmi.verifyCommand("SFWD");
-        logln("FFWD button LONG pressed");
+        //logln("FFWD button LONG pressed");
       }
       else if (lastKeyValue == MCP_KEY_REC)
       {
-        logln("REC button LONG pressed");
+        //logln("REC button LONG pressed");
       }
       else if (lastKeyValue == MCP_KEY_EJECT)
       {
         hmi.writeString("page mainmenu");
-        logln("EJECT button LONG pressed");
+        //logln("EJECT button LONG pressed");
         // Forzamos salida para no repetir mas el comando
         keyStatus = 5;
       }
@@ -8803,7 +8986,13 @@ bool setupMCP23017() {
     // Puerto B
     Wire1.beginTransmission(I2C_MCP23017_ADDR);
       Wire1.write(0x01); // Reg. IODIRB
-      Wire1.write(0x00); // Configuramos el puerto B como salida
+      Wire1.write(0x0F); // Configuramos GPIOB como entrada PB0..PB3 y salida pin PB4 .. PB7
+    Wire1.endTransmission();    //
+
+    // Puerto B pull-up
+    Wire1.beginTransmission(I2C_MCP23017_ADDR);
+      Wire1.write(0x0D);   // Reg. GPPUB
+      Wire1.write(0x0F);   // Activamos pull-up en PB0 .. PB3
     Wire1.endTransmission();    //
 
     //

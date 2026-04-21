@@ -2752,14 +2752,14 @@ private:
         }
         else if (strCmd.indexOf("SFWD") != -1) 
         {
-            logln("S_FFWD pressed");
+            //logln("S_FFWD pressed");
             FFWIND = false;
             RWIND = false;
             KEEP_FFWIND = true;
         }
         else if (strCmd.indexOf("TTWD") != -1) 
         {
-            logln("S_RWD pressed");
+            //logln("S_RWD pressed");
             FFWIND = false;
             RWIND = false;
             KEEP_RWIND = true;
