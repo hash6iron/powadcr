@@ -1604,7 +1604,7 @@ void downloadFromZXDB(String gameId, String title)
   safeTitle.replace(">",  "-");
   safeTitle.replace("|",  "-");
 
-  String destDir = "/DOWNLOAD/ZX" + safeTitle;
+  String destDir = "/DOWNLOAD/ZX/" + safeTitle;
 
   if (!SD_MMC.exists(destDir))
   {
