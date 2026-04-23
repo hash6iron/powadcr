@@ -8132,7 +8132,7 @@ void buttonsControl()
   case 2:
     {
       
-      logln("key pressed: keycode: " + String(lastKeyValuePB));
+      logln("> PORTB: Short key pressed: keycode: " + String(lastKeyValuePB));
       
       // Short pressed
       if (lastKeyValuePB == 8)
@@ -8164,7 +8164,7 @@ void buttonsControl()
     {
       // Long pressed
       // Aquí puedes manejar la lógica para una pulsación larga en el puerto B
-      logln("key LONG pressed: keycode: " + String(lastKeyValuePB));
+      logln("> PORTB: LONG key pressed: keycode: " + String(lastKeyValuePB));
       keyStatusPB = 0;
     }
     break;
