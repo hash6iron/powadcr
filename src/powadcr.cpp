@@ -8061,16 +8061,6 @@ void buttonsControl()
   
   uint8_t keyPressed = 0;
   uint8_t keyPressedPB = 0;
-  
-  // Determinamos si hay tecla pulsada o no.
-  if (value==0)
-  {
-    keyPressed = 8;
-  }
-  else
-  {
-    keyPressed = log2(value);                     // Obtenemos el índice del bit a 1, que corresponde a la tecla presionada (0-5)
-  }
 
   // Determinamos si hay tecla pulsada o no. PUERTOA
   if (value==0)
@@ -8141,6 +8131,9 @@ void buttonsControl()
 
   case 2:
     {
+      
+      logln("key pressed: keycode: " + String(lastKeyValuePB));
+      
       // Short pressed
       if (lastKeyValuePB == 8)
       {
@@ -8171,6 +8164,8 @@ void buttonsControl()
     {
       // Long pressed
       // Aquí puedes manejar la lógica para una pulsación larga en el puerto B
+      logln("key LONG pressed: keycode: " + String(lastKeyValuePB));
+      keyStatusPB = 0;
     }
     break;
 
@@ -8246,7 +8241,7 @@ void buttonsControl()
       }
       else if (lastKeyValue == MCP_KEY_PLAY)
       {
-        logln("PLAY button pressed - Value: " + String(keyPressed));
+        logln("PLAY button pressed - Value: " + String(lastKeyValue));
         hmi.verifyCommand("PLAY");   
         keyStatus = 5;       
       }
@@ -8255,7 +8250,7 @@ void buttonsControl()
         if (!STOP)
         {
             hmi.verifyCommand("STOP");
-            logln("STOP button pressed - Value: " + String(keyPressed));
+            logln("STOP button pressed - Value: " + String(lastKeyValue));
             keyStatus = 5;       
         }
         else 
@@ -8268,31 +8263,31 @@ void buttonsControl()
       else if (lastKeyValue == MCP_KEY_PAUSE)
       {
         hmi.verifyCommand("PAUSE");
-        logln("PAUSE button pressed - Value: " + String(keyPressed));
+        logln("PAUSE button pressed - Value: " + String(lastKeyValue));
         keyStatus = 5;       
       }
       else if (lastKeyValue == MCP_KEY_FFWD)
       {
         hmi.verifyCommand("FFWD");
-        logln("FFWD button pressed - Value: " + String(keyPressed));
+        logln("FFWD button pressed - Value: " + String(lastKeyValue));
         keyStatus = 5;       
       }
       else if (lastKeyValue == MCP_KEY_RWD)
       {
         hmi.verifyCommand("RWD");
-        logln("RWD button pressed - Value: " + String(keyPressed));
+        logln("RWD button pressed - Value: " + String(lastKeyValue));
         keyStatus = 5;       
       }
       else if (lastKeyValue == MCP_KEY_REC)
       {
         hmi.verifyCommand("REC");
-        logln("REC button pressed - Value: " + String(keyPressed));
+        logln("REC button pressed - Value: " + String(lastKeyValue));
         keyStatus = 5;       
       }
       else if (lastKeyValue == MCP_KEY_EJECT)
       {
         hmi.verifyCommand("EJECT");
-        logln("EJECT button pressed - Value: " + String(keyPressed));
+        logln("EJECT button pressed - Value: " + String(lastKeyValue));
         keyStatus = 5;       
       }
       else
