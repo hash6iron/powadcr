@@ -8142,19 +8142,19 @@ void buttonsControl()
       }
       else if (lastKeyValuePB == MCP_KEY_VOLUP)
       {
-        logln("VOL+ button pressed - Value: " + String(keyPressedPB));
+        logln("VOL+ button pressed - Value: " + String(lastKeyValuePB));
         hmi.verifyCommand("VOLUP");   
         keyStatusPB = 5;       
       }
       else if (lastKeyValuePB == MCP_KEY_VOLDOWN)
       {
-        logln("VOL- button pressed - Value: " + String(keyPressedPB));
+        logln("VOL- button pressed - Value: " + String(lastKeyValuePB));
         hmi.verifyCommand("VOLDW");   
         keyStatusPB = 5;       
       }
       else
       {
-        logln("Unknow key pressed");
+        logln("Unknow key pressed - Value: " + String(lastKeyValuePB));
         keyStatusPB = 0;       
       }
     }
