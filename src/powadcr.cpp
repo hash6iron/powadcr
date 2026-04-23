@@ -8165,8 +8165,27 @@ void buttonsControl()
       // Long pressed
       // Aquí puedes manejar la lógica para una pulsación larga en el puerto B
       logln("> PORTB: LONG key pressed: keycode: " + String(lastKeyValuePB));
-      keyStatusPB = 0;
-    }
+      // Short pressed
+      if (lastKeyValuePB == 8)
+      {
+        logln("Release long pressed");
+        keyStatusPB = 0;       
+      }
+      else if (lastKeyValuePB == MCP_KEY_VOLUP)
+      {
+        logln("VOL+ button keeps pressed - Value: " + String(lastKeyValuePB));
+        hmi.verifyCommand("VOLUP");   
+      }
+      else if (lastKeyValuePB == MCP_KEY_VOLDOWN)
+      {
+        logln("VOL- button keeps pressed - Value: " + String(lastKeyValuePB));
+        hmi.verifyCommand("VOLDW");   
+      }
+      else
+      {
+        logln("Unknow key pressed - Value: " + String(lastKeyValuePB));
+        keyStatusPB = 0;       
+      }    }
     break;
 
     case 5:
