@@ -8073,6 +8073,7 @@ void buttonsControl()
   }
 
   // Determinamos si hay tecla pulsada o no PUERTOB
+  //logln("PORTB value: " + String(valuePB));
   if (valuePB==0)
   {
     keyPressedPB = 8;
@@ -8175,11 +8176,13 @@ void buttonsControl()
       {
         logln("VOL+ button keeps pressed - Value: " + String(lastKeyValuePB));
         hmi.verifyCommand("VOLUP");   
+        keyStatusPB = 0;       
       }
       else if (lastKeyValuePB == MCP_KEY_VOLDOWN)
       {
         logln("VOL- button keeps pressed - Value: " + String(lastKeyValuePB));
         hmi.verifyCommand("VOLDW");   
+        keyStatusPB = 0;       
       }
       else
       {
@@ -8194,7 +8197,8 @@ void buttonsControl()
       if (keyPressedPB == 8)
       {
         keyStatusPB = 0;
-        logln("Key released");      
+        logln("Key released");
+              
       }
     }
     break;    
