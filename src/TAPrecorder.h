@@ -601,7 +601,7 @@ public:
     blockStartOffset = lastByteCount;
 
     // Enviamos info a HMI
-    if (CURRENT_PAGE == 3) {
+    if (CURRENT_PAGE == PAGE_DEBUG) {
       hmi.refreshInfoDebug();
     }
 

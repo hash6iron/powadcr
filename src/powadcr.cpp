@@ -774,7 +774,7 @@ void sendStatus(int action, int value = 0) {
     // + "\"");
     logln("HMI ACK received. LCD is ready.");
     hmi.writeString("page tape0");
-    CURRENT_PAGE = 0;
+    CURRENT_PAGE = PAGE_TAPE0;
     break;
 
   case RESET:
@@ -851,25 +851,25 @@ void tapeAnimationOFF() {
 
 void recAnimationON() {
   // Indicador REC parpadea
-  hmi.writeString("tape.RECst.val=1");
-  delay(250);
-  hmi.writeString("tape.RECst.val=1");
+  //hmi.writeString("tape.RECst.val=1");
+  //delay(250);
+  //hmi.writeString("tape.RECst.val=1");
   powerLedFixed = false;
 }
 
 void recAnimationOFF() {
   // Indicador REC deja de parpadear
-  hmi.writeString("tape.RECst.val=0");
-  delay(250);
-  hmi.writeString("tape.RECst.val=0");
+  //hmi.writeString("tape.RECst.val=0");
+  //delay(250);
+  //hmi.writeString("tape.RECst.val=0");
   powerLedFixed = true;
 }
 
 void recAnimationFIXED_ON() {
   // Indicador LED fijo ON
-  hmi.writeString("tape.recIndicator.bco=63848");
-  delay(250);
-  hmi.writeString("tape.recIndicator.bco=63848");
+  //hmi.writeString("tape.recIndicator.bco=63848");
+  //delay(250);
+  //hmi.writeString("tape.recIndicator.bco=63848");
   powerLedFixed = true;
 }
 
@@ -885,9 +885,9 @@ void recAnimationFIXED_OFF() {
   else
   {
       // Indicador LED fijo OFF en rojo
-      hmi.writeString("tape.recIndicator.bco=32768");
-      delay(250);
-      hmi.writeString("tape.recIndicator.bco=32768");
+      //hmi.writeString("tape.recIndicator.bco=32768");
+      //delay(250);
+      //hmi.writeString("tape.recIndicator.bco=32768");
   }
   powerLedFixed = false;
 }
@@ -2266,7 +2266,7 @@ void updateDialIndicator(int pos)
 
   // Con el reloj abierto mejor no hacemos nada con la barra del dial
   // ya que se superpone en el reloj.
-  if (CURRENT_PAGE != 99)
+  if (CURRENT_PAGE != PAGE_CLOCK)
   {
       const int xini = 130;  // x ini of dial
       const int width = 232; // dial range pixels
@@ -6041,7 +6041,12 @@ void tapeControl() {
       LOADING_STATE = 0;
       RECORDING_ERROR = 0;
       REC = false;
-      STOP = false;
+      //
+      //
+      // Quitado el 24/04/2026 porque al pulsar STOP en REC se cancela pero despues no se entra en EJECT (botones externos)
+      //STOP = false;
+      //
+      //
       recAnimationOFF();
       recAnimationFIXED_OFF();
       LAST_MESSAGE = "Recording canceled.";
@@ -8327,7 +8332,7 @@ void buttonsControl()
       if (keyPressed == 8)
       {
         // Release button, do nothing
-        logln("Key released: " + String(keyPressed) + " - Value: " + String(keyPressed));
+        logln("Key released: " + String(lastKeyValue) + " - Value: " + String(keyPressed));
         if (KEEP_FFWIND || KEEP_RWIND)
         {
           KEEP_FFWIND = false;
@@ -8341,14 +8346,17 @@ void buttonsControl()
       else if (lastKeyValue == MCP_KEY_PLAY)
       {
         //logln("PLAY/STOP button LONG pressed");
+        keyStatus = 0;
       }
       else if (lastKeyValue == MCP_KEY_STOP)
       {
         //logln("STOP button LONG pressed");
+        keyStatus = 0;
       }
       else if (lastKeyValue == MCP_KEY_PAUSE)
       {
         //logln("PAUSE button LONG pressed");
+        keyStatus = 0;
       }
       else if (lastKeyValue == MCP_KEY_RWD)
       {
@@ -8363,13 +8371,14 @@ void buttonsControl()
       else if (lastKeyValue == MCP_KEY_REC)
       {
         //logln("REC button LONG pressed");
+        keyStatus = 0;
       }
       else if (lastKeyValue == MCP_KEY_EJECT)
       {
-        hmi.writeString("page mainmenu");
+        //hmi.writeString("page tape");
         //logln("EJECT button LONG pressed");
         // Forzamos salida para no repetir mas el comando
-        keyStatus = 5;
+        keyStatus = 0;
       }
       else
       {
@@ -8524,7 +8533,7 @@ void Task0code(void *pvParameters) {
         if (POWER_LED_MODE==0)
         {
             // LED: encendido durante playback/loading/recording, apagado en standby
-            if (PLAY || LOADING_STATE == 1 || LOADING_STATE == 4) {
+            if (PLAY || LOADING_STATE == 1 || LOADING_STATE == 4 || REC) {
               if (REC && !IRADIO_EN) {
                 // Modo grabacion: parpadeo
                 if ((millis() - startTime3) > 500) {
@@ -8577,7 +8586,7 @@ void Task0code(void *pvParameters) {
       // Actualizamos el RTC
       if ((millis() - startTime4 > timeRTC) && NTP_AVAILABLE) 
       {          
-        if (CURRENT_PAGE == 99) 
+        if (CURRENT_PAGE == PAGE_CLOCK) 
         {
 
           char buf[4];
@@ -8705,7 +8714,7 @@ void Task0code(void *pvParameters) {
             if (millis() - startTimeSpotify > 2500) 
             {
               // El reloj
-              if (CURRENT_PAGE == 99)
+              if (CURRENT_PAGE == PAGE_CLOCK)
               {
                 if (STOP)
                 {
@@ -8714,7 +8723,7 @@ void Task0code(void *pvParameters) {
               }
 
               // La pagina de Spotify
-              if (CURRENT_PAGE == 6 && !ftpSrv.FTP_CONNECTED) 
+              if (CURRENT_PAGE == PAGE_SPOTIFY && !ftpSrv.FTP_CONNECTED) 
               {
                   String currentArtist = sp->current_artist_names();
                   String currentTrackname = sp->current_track_name();
@@ -9991,7 +10000,7 @@ hmi.writeString("statusLCD.txt=\"Preparing environment\"");
     delay(250);
   }
 
-  CURRENT_PAGE = 0;
+  CURRENT_PAGE = PAGE_TAPE0;
   //
   tapeAnimationOFF();
 

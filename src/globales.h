@@ -659,7 +659,7 @@ bool IN_THE_SAME_DIR = false;
 
 String FILE_TXT_TO_SEARCH = "";
 // bool waitingRecMessageShown = false;
-int CURRENT_PAGE = 0;
+int CURRENT_PAGE = PAGE_TAPE0;
 bool TAPE0_PAGE_SHOWN = false;
 bool TAPE_PAGE_SHOWN = false;
 bool RADIO_PAGE_SHOWN = false;
@@ -846,20 +846,20 @@ bool BEEP = false;
 // const uint8_t MCP_LED_IO_PIN     = 7;   // Pin del MCP23017 para Power LED
 
 // Puerto A
-uint8_t MCP_KEY_PLAY       = 5;   // Pin +1 del MCP23017 para Key2
-uint8_t MCP_KEY_RWD        = 4;   // Pin +1 del MCP23017 para Key4
-uint8_t MCP_KEY_FFWD       = 3;   // Pin +1 del MCP23017 para Key5
-uint8_t MCP_KEY_PAUSE      = 2;   // Pin +1 del MCP23017 para Key6
-uint8_t MCP_KEY_STOP       = 1;   // Pin +1 del MCP23017 para Key3
-uint8_t MCP_KEY_REC        = 6;   // Pin +1 del MCP23017 para Key1
-uint8_t MCP_KEY_EJECT      = 0;   // Pin +1 del MCP23017 para Key1
+uint8_t MCP_KEY_PLAY       = 5;   // Pin 5 del PA del MCP23017 para Key2
+uint8_t MCP_KEY_RWD        = 4;   // Pin 4 del PA del MCP23017 para Key4
+uint8_t MCP_KEY_FFWD       = 3;   // Pin 3 del PA del MCP23017 para Key5
+uint8_t MCP_KEY_PAUSE      = 2;   // Pin 2 del PA del MCP23017 para Key6
+uint8_t MCP_KEY_STOP       = 1;   // Pin 1 del PA del MCP23017 para Key3
+uint8_t MCP_KEY_REC        = 6;   // Pin 6 del PA del MCP23017 para Key1
+uint8_t MCP_KEY_EJECT      = 0;   // Pin 0 del MCP23017 para Key1
 
 // Puerto B
-uint8_t MCP_KEY_VOLUP      = 0;   // Pin del VOLUP
-uint8_t MCP_KEY_VOLDOWN    = 1;   // Pin del VOLDOWN
+uint8_t MCP_KEY_VOLUP      = 0;   // Pin 0 del PB del VOLUP
+uint8_t MCP_KEY_VOLDOWN    = 1;   // Pin 1 del PB del VOLDOWN
 
 // Puerto A
-uint8_t MCP_LED_IO_PIN     = 7;   // Pin del MCP23017 para Power LED
+uint8_t MCP_LED_IO_PIN     = 7;   // Pin 7 del PA del MCP23017 para Power LED
 //
 uint8_t SKIN_SELECTED = 1;
 

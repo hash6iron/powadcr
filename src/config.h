@@ -408,3 +408,18 @@ bool TEST_LINE_IN_OUT = false;
 #ifndef FS_TIME
 #define FS_TIME(hour, min, sec)     (((hour) << 11) | ((min) << 5) | ((sec) >> 1))
 #endif
+
+
+//
+// Definición de los flags de paginas mostradas por el HMI
+// se usan para saber donde estamos
+//
+#define PAGE_TAPE0                     0
+#define PAGE_TAPE                      1
+#define PAGE_MENU_GENERAL_SETTINGS     2
+#define PAGE_DEBUG                     3
+#define PAGE_EQ                        4
+#define PAGE_MENU_GENERAL_SETTINGS_EXT 5
+#define PAGE_SPOTIFY                   6
+#define PAGE_RADIO                     7
+#define PAGE_CLOCK                     99

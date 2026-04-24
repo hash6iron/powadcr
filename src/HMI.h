@@ -2732,7 +2732,7 @@ private:
             RWIND = false;
             KEEP_FFWIND = false;
 
-            if (CURRENT_PAGE == 6)
+            if (CURRENT_PAGE == PAGE_SPOTIFY)
             {
               verifyCommand("SPO4");
             }
@@ -2744,7 +2744,7 @@ private:
             RWIND = true;
             KEEP_RWIND = false;
 
-            if (CURRENT_PAGE == 6)
+            if (CURRENT_PAGE == PAGE_SPOTIFY)
             {
               verifyCommand("SPO1");
             }
@@ -2781,7 +2781,7 @@ private:
           BTN_PLAY_PRESSED = true;  
           writeString("BBOK.val=1");
 
-          if (CURRENT_PAGE == 6)
+          if (CURRENT_PAGE == PAGE_SPOTIFY)
           {
             verifyCommand("SPO2");
           }
@@ -2795,12 +2795,27 @@ private:
             logAlert("REC pressed.");
           #endif
 
-          if (IRADIO_EN)
+          // Pagina del TAPE
+          if (CURRENT_PAGE == PAGE_TAPE)
           {
-            REC = true;
-          }
-          else
+            if (IRADIO_EN)
+            {
+              REC = true;
+            }
+            else
+            {
+              PLAY = false;
+              PAUSE = false;
+              STOP = false;
+              REC = true;
+              ABORT = false;
+              EJECT = false;
+              BTNREC_PRESSED = true;
+            }    
+          }        
+          else if (CURRENT_PAGE == PAGE_TAPE0)
           {
+            //
             PLAY = false;
             PAUSE = false;
             STOP = false;
@@ -2808,7 +2823,10 @@ private:
             ABORT = false;
             EJECT = false;
             BTNREC_PRESSED = true;
+            writeString("page tape");
           }
+          
+
           
         }
         else if (strCmd.indexOf("PAUSE") != -1) 
@@ -2843,7 +2861,7 @@ private:
           BLOCK_SELECTED = 0;
           BYTES_LOADED = 0;
 
-          if (CURRENT_PAGE == 6)
+          if (CURRENT_PAGE == PAGE_SPOTIFY)
           {
             verifyCommand("SPO3");
           }
@@ -2889,7 +2907,7 @@ private:
             // Si estamos en el tape pasamos a tape0
             delay(300);
             writeString("page tape0");
-            CURRENT_PAGE = 0;
+            CURRENT_PAGE = PAGE_TAPE0;
           }
           delay(500);          
           // Entramos en el file browser
@@ -4012,21 +4030,21 @@ private:
             #ifdef DEBUGMODE
               logAlert("PAGE DEBUG");
             #endif
-            CURRENT_PAGE = 3;
+            CURRENT_PAGE = PAGE_DEBUG;
         }
         else if (strCmd.indexOf("PMENU1") != -1)
         {
-            if (CURRENT_PAGE == 2) {
+            if (CURRENT_PAGE == PAGE_MENU_GENERAL_SETTINGS) {
               return;
             }
-            CURRENT_PAGE = 2;
+            CURRENT_PAGE = PAGE_MENU_GENERAL_SETTINGS;
             delay(500);
             myNex.writeNum("menu.dhcp.val", int(DHCP_ENABLE));
         }
         else if (strCmd.indexOf("PMENU0") != -1)
         {
             // Estamos en la pantalla MENU
-            CURRENT_PAGE = 5;
+            CURRENT_PAGE = PAGE_MENU_GENERAL_SETTINGS_EXT;
             writeString("mainmenu.verFirmware.txt=\" powadcr " + String(VERSION) + "\"");     
         }  
         else if (strCmd.indexOf("PMENU2") != -1)
@@ -4035,7 +4053,7 @@ private:
             #ifdef DEBUGMODE
               logAlert("PAGE MENU(Eq)");
             #endif
-            CURRENT_PAGE = 4;
+            CURRENT_PAGE = PAGE_EQ;
             delay(500);          
             myNex.writeNum("menuEq.eqHigh.val", int(EQ_HIGH*100));
             myNex.writeNum("menuEq.eqMid.val", int(EQ_MID*100));
@@ -4089,7 +4107,7 @@ private:
             #ifdef DEBUGMODE
               logAlert("PAGE SPOTIFY");
             #endif
-            CURRENT_PAGE = 6;
+            CURRENT_PAGE = PAGE_SPOTIFY;
         }
         else if (strCmd.indexOf("0TAPE") != -1)
         {
@@ -4097,7 +4115,7 @@ private:
             #ifdef DEBUGMODE
               logAlert("PAGE TAPE0");
             #endif
-            CURRENT_PAGE = 0;
+            CURRENT_PAGE = PAGE_TAPE0;
             //updateInformationMainPage(true);
             TAPE_PAGE_SHOWN = false;
             RADIO_PAGE_SHOWN = false;
@@ -4109,7 +4127,7 @@ private:
             #ifdef DEBUGMODE
               logAlert("PAGE CLOCK");
             #endif
-            CURRENT_PAGE = 99;
+            CURRENT_PAGE = PAGE_CLOCK;
             //updateInformationMainPage(true);
             TAPE_PAGE_SHOWN = false;
             RADIO_PAGE_SHOWN = false;
@@ -4553,7 +4571,7 @@ private:
 
                 if (PLAY)
                 {
-                  if (CURRENT_PAGE == 3)
+                  if (CURRENT_PAGE == PAGE_DEBUG)
                   {
                       refreshInfoDebug();
                   }
@@ -4680,7 +4698,7 @@ private:
           lastPr2 = PROGRESS_BAR_TOTAL_VALUE;
 
                             
-          if (CURRENT_PAGE == 2)
+          if (CURRENT_PAGE == PAGE_MENU_GENERAL_SETTINGS)
           {
             updateMem();
           }
