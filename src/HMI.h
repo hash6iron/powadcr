@@ -2804,13 +2804,14 @@ private:
             }
             else
             {
+              REC = true;
+              BTNREC_PRESSED = true;
+
               PLAY = false;
               PAUSE = false;
               STOP = false;
-              REC = true;
               ABORT = false;
               EJECT = false;
-              BTNREC_PRESSED = true;
             }    
           }        
           else if (CURRENT_PAGE == PAGE_TAPE0)

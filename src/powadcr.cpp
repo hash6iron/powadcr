@@ -5344,10 +5344,11 @@ void tapeControl() {
         logAlert("Tape state 0");
     #endif
 
-        if (EJECT && !STOP_OR_PAUSE_REQUEST) {
-    #ifdef DEBUGMODE
-          logAlert("EJECT state in TAPESTATE = " + String(TAPESTATE));
-    #endif
+    if (EJECT && !STOP_OR_PAUSE_REQUEST) 
+    {
+      #ifdef DEBUGMODE
+            logAlert("EJECT state in TAPESTATE = " + String(TAPESTATE));
+      #endif
 
       // Inicializamos la polarizacion
       EDGE_EAR_IS = INVERSETRAIN ? POLARIZATION ^ 1 : POLARIZATION;
@@ -5399,6 +5400,8 @@ void tapeControl() {
       EJECT = false;
       PLAY = false;
       REC = false;
+      STOP = true;  //26/04/2026 - Lo ponemos para que cuando cargue el ultimo fichero reproducido y después EJECT, 
+                    // se haga EJECT, porque la cinta está parada.
       // Esto se usa para reproducir
       FILE_SELECTED = true;
       FILE_PREPARED = false;
@@ -5498,7 +5501,9 @@ void tapeControl() {
         wavfile.close();
         encoderOutWAV.end();
       }
-    } else if (STOP) {
+    } 
+    else if (STOP) 
+    {
       // Desactivamos la animación
       // esta condicion evita solicitar la parada de manera infinita
       logln("");
@@ -5517,10 +5522,13 @@ void tapeControl() {
       BLOCK_SELECTED = 0; // 29/11
 
       // Reproducimos el fichero
-      if (!AUTO_STOP) {
+      if (!AUTO_STOP) 
+      {
         LAST_MESSAGE = "Stop playing.";
         STOP_OR_PAUSE_REQUEST = false;
-      } else {
+      }
+      else 
+      {
         LAST_MESSAGE = "Auto-Stop playing.";
         AUTO_STOP = false;
         PLAY = false;
@@ -5531,22 +5539,29 @@ void tapeControl() {
       }
 
       setPolarization();
-      STOP = false; // 28/11
+      //STOP = false; // 28/11
+      STOP = true;  //26/04/2026
 
       if (TYPE_FILE_LOAD != "WAV" && TYPE_FILE_LOAD != "MP3" &&
-          TYPE_FILE_LOAD != "FLAC" && TYPE_FILE_LOAD != "RADIO") {
+          TYPE_FILE_LOAD != "FLAC" && TYPE_FILE_LOAD != "RADIO") 
+      {
         getTheFirstPlayeableBlock();
       }
 
-      if (OUT_TO_WAV) {
+      if (OUT_TO_WAV) 
+      {
         wavfile.flush();
         wavfile.close();
         encoderOutWAV.end();
       }
-    } else if (REC) {
+    } 
+    else if (REC) 
+    {
       // Expulsamos la cinta
-      if (LOADING_STATE == 0 || LOADING_STATE == 2) {
-        if (FILE_PREPARED) {
+      if (LOADING_STATE == 0 || LOADING_STATE == 2) 
+      {
+        if (FILE_PREPARED) 
+        {
           logln("Now ejecting file - Step 4");
           ejectingFile();
         }
@@ -5557,43 +5572,51 @@ void tapeControl() {
         tapeAnimationOFF();
         recAnimationON();
 
-        if (MODEWAV) {
+        if (MODEWAV) 
+        {
           LAST_MESSAGE = "Press PAUSE to start WAV recording.";
           TAPESTATE = 120;
-        } else {
+        } 
+        else 
+        {
           LAST_MESSAGE = "Press PAUSE to start TAP recording.";
           TAPESTATE = 220;
         }
       }
 
-      if (OUT_TO_WAV) {
+      if (OUT_TO_WAV) 
+      {
         wavfile.flush();
         wavfile.close();
         encoderOutWAV.end();
       }
-    } else {
+    } 
+    else 
+    {
       TAPESTATE = 1;
     }
   } break;
 
   // STOP
-  case 2: {
-#ifdef DEBUGMODE
-    logAlert("Tape state 2");
-#endif
+  case 2: 
+  {
+    #ifdef DEBUGMODE
+        logAlert("Tape state 2");
+    #endif
 
     TAPESTATE = 1;
     //
   } break;
 
   // PAUSE
-  case 3: {
-//
-// PAUSE
-//
-#ifdef DEBUGMODE
-    logAlert("Tape state 3");
-#endif
+  case 3: 
+  {
+    //
+    // PAUSE
+    //
+    #ifdef DEBUGMODE
+        logAlert("Tape state 3");
+    #endif
 
     LOADING_STATE = 3;
     // Activamos la animación
@@ -7196,7 +7219,8 @@ void textBoxcss(WiFiClient client) {
   client.println("}");
 }
 
-void readyPlayFile() {
+void readyPlayFile() 
+{
   UPDATE_FROM_REMOTE_CONTROL = true;
   FILE_PREPARED = true;
   PLAY = true;
@@ -7207,7 +7231,8 @@ void readyPlayFile() {
   TAPESTATE = 100;
 }
 
-void handleWebClient(WiFiClient client) {
+void handleWebClient(WiFiClient client) 
+{
   if (client) {
     currentTime = millis();
     previousTime = currentTime;

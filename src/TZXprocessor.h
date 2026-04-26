@@ -2501,7 +2501,14 @@ public:
     // _myTZX.descriptor = nullptr;
   }
 
-  void playBlock(tTZXBlockDescriptor descriptor) {
+  void playBlock(tTZXBlockDescriptor descriptor) 
+  {
+
+    // ----------------------------------------------------------------
+    //
+    // Proceso para reproducir bloque ID 0x10 y 0x11 de TZX
+    //
+    // ----------------------------------------------------------------
 
     #ifdef DEBUGMODE
         log("Pulse len: " + String(descriptor.timming.pilot_len));
@@ -2532,7 +2539,8 @@ public:
             log("> Last block size: " + String(lastBlockSize));
       #endif
 
-      if (!DIRECT_RECORDING) {
+      if (!DIRECT_RECORDING) 
+      {
         // BTI 0
         _zxp.BIT_0 = descriptor.timming.bit_0;
         // BIT1
@@ -2553,7 +2561,7 @@ public:
 
         // Calculamos el offset del bloque
         newOffset = offsetBase + (blockSizeSplit * n);
-        PRG_BAR_OFFSET_INI = PLAYABLE_BLOCKS_ACCUMULATED_OFFSET + newOffset;
+        PRG_BAR_OFFSET_INI = newOffset;
 
         // Accedemos a la SD y capturamos el bloque del fichero
         bufferPlay = (uint8_t *)ps_calloc(blockSizeSplit, sizeof(uint8_t));
@@ -2563,7 +2571,8 @@ public:
         // showBufferPlay(bufferPlay,blockSizeSplit,newOffset);
 
         // Reproducimos la partición n, del bloque.
-        if (n == 0) {
+        if (n == 0) 
+        {
           if (!DIRECT_RECORDING) 
           {
             _zxp.playDataBegin(bufferPlay, blockSizeSplit, descriptor.timming.pilot_len, descriptor.timming.pilot_num_pulses);
@@ -2600,7 +2609,7 @@ public:
 
       // Calculamos el offset del último bloque
       newOffset = offsetBase + (blockSizeSplit * blocks);
-      PRG_BAR_OFFSET_INI = PLAYABLE_BLOCKS_ACCUMULATED_OFFSET + newOffset;
+      PRG_BAR_OFFSET_INI = newOffset;
 
       blockSizeSplit = lastBlockSize;
       // Accedemos a la SD y capturamos el bloque del fichero
@@ -2629,7 +2638,7 @@ public:
     } 
     else 
     {
-      PRG_BAR_OFFSET_INI = PLAYABLE_BLOCKS_ACCUMULATED_OFFSET + descriptor.offsetData;
+      PRG_BAR_OFFSET_INI = descriptor.offsetData;
 
       // Si es mas pequeño que el SPLIT, se reproduce completo.
       bufferPlay = (uint8_t *)ps_calloc(descriptor.size, sizeof(uint8_t));
@@ -2660,16 +2669,18 @@ public:
     }
     
     // Actualizar offset acumulativo para el siguiente bloque
-    PLAYABLE_BLOCKS_ACCUMULATED_OFFSET += descriptor.size;
+    //PLAYABLE_BLOCKS_ACCUMULATED_OFFSET += descriptor.size;
   }
 
-  bool isPlayeable(int id) {
+  bool isPlayeable(int id) 
+  {
     // Definimos los ID playeables (en decimal)
     bool res = false;
-    int playeableListID[] = {16, 17, 18, 19, 20, 21, 24, 25, 32, 35,
-                             36, 37, 38, 39, 40, 42, 43, 75, 90};
-    for (int i = 0; i < 19; i++) {
-      if (playeableListID[i] == id) {
+    int playeableListID[] = {16, 17, 18, 19, 20, 21, 24, 25, 32, 35,36, 37, 38, 39, 40, 42, 43, 75, 90};
+    for (int i = 0; i < 19; i++) 
+    {
+      if (playeableListID[i] == id) 
+      {
         res = true; // Inidicamos que lo hemos encontrado
         break;
       }
@@ -2678,9 +2689,7 @@ public:
     return res;
   }
 
-  void prepareID4B(int currentBlock, File mFile, int nlb, int vlb, int ntb,
-                   int vtb, int pzero, int pone, int offset, int ldatos,
-                   bool begin) {
+  void prepareID4B(int currentBlock, File mFile, int nlb, int vlb, int ntb,int vtb, int pzero, int pone, int offset, int ldatos,bool begin) {
     // Generamos la señal de salida
     int pulsosmaximos;
     int npulses[2];
@@ -2695,41 +2704,38 @@ public:
         ((npulses[vlb] * nlb) + 128 + (npulses[vtb] * ntb)) * ldatos;
 
     // Reservamos memoria dinamica
-    _myTZX.descriptor[currentBlock].timming.pulse_seq_array =
-        (int *)ps_calloc(pulsosmaximos + 1, sizeof(int));
-    // _myTZX.descriptor[currentBlock].timming.pulse_seq_array = new
-    // int[pulsosmaximos + 1];
+    _myTZX.descriptor[currentBlock].timming.pulse_seq_array = (int *)ps_calloc(pulsosmaximos + 1, sizeof(int));
 
-#ifdef DEBUGMODE
-    logln("");
-    log(" - Numero de pulsos: " +
-        String(_myTZX.descriptor[currentBlock].timming.pilot_num_pulses));
-    logln("");
-    log(" - Pulsos maximos: " + String(pulsosmaximos));
-    logln("");
-    log(" - Longitud de los datos: " + String(ldatos));
-#endif
+    #ifdef DEBUGMODE
+        logln("");
+        log(" - Numero de pulsos: " +
+            String(_myTZX.descriptor[currentBlock].timming.pilot_num_pulses));
+        logln("");
+        log(" - Pulsos maximos: " + String(pulsosmaximos));
+        logln("");
+        log(" - Longitud de los datos: " + String(ldatos));
+    #endif
 
     // metemos el pilot SOLO AL PRINCIPIO
     int i;
     int p;
 
     if (begin) {
-      for (p = 0;
-           p < (_myTZX.descriptor[currentBlock].timming.pilot_num_pulses);
-           p++) {
-        _myTZX.descriptor[currentBlock].timming.pulse_seq_array[p] =
-            _myTZX.descriptor[currentBlock].timming.pilot_len;
+      for (p = 0;p < (_myTZX.descriptor[currentBlock].timming.pilot_num_pulses);p++) 
+      {
+        _myTZX.descriptor[currentBlock].timming.pulse_seq_array[p] = _myTZX.descriptor[currentBlock].timming.pilot_len;
       }
 
       i = p;
-    } else {
+    } 
+    else 
+    {
       i = 0;
     }
 
-#ifdef DEBUGMODE
-    log(">> Bucle del pilot - Iteraciones: " + String(p));
-#endif
+    #ifdef DEBUGMODE
+        log(">> Bucle del pilot - Iteraciones: " + String(p));
+    #endif
 
     // metemos los datos
     uint8_t *bRead = (uint8_t *)ps_calloc(ldatos + 1, sizeof(uint8_t));
@@ -2762,27 +2768,21 @@ public:
         // Si el bit leido del BYTE es un "1"
         if (bitMasked == 1) {
           // Procesamos "1"
-          for (int b1 = 0; b1 < npulses[1]; b1++) {
-            _myTZX.descriptor[currentBlock].timming.pulse_seq_array[i] =
-                vpulse[1];
-
+          for (int b1 = 0; b1 < npulses[1]; b1++) 
+          {
+            _myTZX.descriptor[currentBlock].timming.pulse_seq_array[i] = vpulse[1];
             i++;
-            _myTZX.descriptor[currentBlock].timming.pulse_seq_array[i] =
-                vpulse[1];
-
+            _myTZX.descriptor[currentBlock].timming.pulse_seq_array[i] = vpulse[1];
             i++;
           }
         } else {
           // En otro caso
           // procesamos "0"
-          for (int b0 = 0; b0 < npulses[0]; b0++) {
-            _myTZX.descriptor[currentBlock].timming.pulse_seq_array[i] =
-                vpulse[0];
-
+          for (int b0 = 0; b0 < npulses[0]; b0++) 
+          {
+            _myTZX.descriptor[currentBlock].timming.pulse_seq_array[i] = vpulse[0];
             i++;
-            _myTZX.descriptor[currentBlock].timming.pulse_seq_array[i] =
-                vpulse[0];
-
+            _myTZX.descriptor[currentBlock].timming.pulse_seq_array[i] = vpulse[0];
             i++;
           }
         }
@@ -2803,13 +2803,13 @@ public:
 
     _myTZX.descriptor[currentBlock].timming.pulse_seq_num_pulses = i;
 
-#ifdef DEBUGMODE
-    logln("datos: " + String(ldatos));
-    logln("pulsos: " + String(i));
+    #ifdef DEBUGMODE
+        logln("datos: " + String(ldatos));
+        logln("pulsos: " + String(i));
 
-    logln("--------------------------------------------------------------------"
-          "-");
-#endif
+        logln("--------------------------------------------------------------------"
+              "-");
+    #endif
 
     free(bRead);
   }
@@ -2875,10 +2875,6 @@ public:
       }
 
       //
-      // logln("Value in TZX srate: " +
-      // String(_myTZX.descriptor[i].samplingRate)); logln("Custom sampling
-      // rate: " + String(sr));
-
       // Si el sampling rate es menor de 8kHz, lo cambiamos a default
       // if (sr < 8000)
       // {
@@ -2914,10 +2910,10 @@ public:
         int bytes_left = data_size;
         int current_offset = _myTZX.descriptor[i].offsetData;
 
-        while (bytes_left > 0) {
+        while (bytes_left > 0) 
+        {
           int bytes_to_read = min(bytes_left, chunk_size);
-          readFileRange(_mFile, chunk_buffer, current_offset, bytes_to_read,
-                        true);
+          readFileRange(_mFile, chunk_buffer, current_offset, bytes_to_read,true);
 
           bool is_last_chunk = (bytes_to_read == bytes_left);
 
@@ -2946,7 +2942,8 @@ public:
 
       // **********************************************************
 
-    case 36: { // Loop start ID 0x24
+    case 36: 
+    { // Loop start ID 0x24
       // El loop controla el cursor de bloque por tanto debe estar el primero
       LOOP_PLAYED = 0;
       // El primer bloque a repetir es el siguiente, pero ponemos "i" porque el
@@ -2956,12 +2953,13 @@ public:
       LOOP_COUNT = _myTZX.descriptor[i].loop_count;
       break;
     }
-    case 37: {
+    case 37: 
+    {
       // Loop end ID 0x25
-#ifdef DEBUGMODE
-      log("LOOP: " + String(LOOP_PLAYED) + " / " + String(LOOP_COUNT));
-      log("------------------------------------------------------");
-#endif
+      #ifdef DEBUGMODE
+            log("LOOP: " + String(LOOP_PLAYED) + " / " + String(LOOP_COUNT));
+            log("------------------------------------------------------");
+      #endif
 
       if (LOOP_PLAYED < LOOP_COUNT) {
         // Volvemos al primner bloque dentro del loop
@@ -2971,7 +2969,8 @@ public:
       }
       break;
     }
-    case 32: {
+    case 32: 
+    {
       // ******************************************************************************
       // ID 0x20 - Pause (silence) or 'Stop the Tape' command
       // ******************************************************************************
@@ -3023,14 +3022,16 @@ public:
       }
       break;
     }
-    case 33: {
+    case 33: 
+    {
       // Comienza multigrupo
       LAST_GROUP = "[META BLK: " + String(_myTZX.descriptor[i].group) + "]";
       LAST_BLOCK_WAS_GROUP_START = true;
       LAST_BLOCK_WAS_GROUP_END = false;
       break;
     }
-    case 34: {
+    case 34: 
+    {
       // LAST_GROUP = &INITCHAR[0];
       //  Finaliza el multigrupo
       LAST_GROUP = "...";
@@ -3038,7 +3039,8 @@ public:
       LAST_BLOCK_WAS_GROUP_START = false;
       break;
     }
-    case 43: {
+    case 43: 
+    {
       // Inversion de señal
       if (INVERSETRAIN) {
         // Para que empiece en DOWN tiene que ser POLARIZATION = UP
@@ -3085,26 +3087,29 @@ public:
         LAST_SIZE = _myTZX.descriptor[i].size;
         strncpy(LAST_TYPE, _myTZX.descriptor[i].typeName, 35);
 
-#ifdef DEBUGMODE
-        logln("Bl: " + String(i) + "Playeable block");
-        logln("Bl: " + String(i) + "Name: " + LAST_NAME);
-        logln("Bl: " + String(i) + "Type name: " + LAST_TYPE);
-        logln("Bl: " + String(i) +
-              "pauseAfterThisBlock: " + String(_zxp.silent));
-        logln("Bl: " + String(i) + "Sync1: " + String(_zxp.SYNC1));
-        logln("Bl: " + String(i) + "Sync2: " + String(_zxp.SYNC2));
-        logln("Bl: " + String(i) +
-              "Pilot pulse len: " + String(_zxp.PILOT_PULSE_LEN));
-        logln("Bl: " + String(i) + "Bit0: " + String(_zxp.BIT_0));
-        logln("Bl: " + String(i) + "Bit1: " + String(_zxp.BIT_1));
-#endif
+        #ifdef DEBUGMODE
+                logln("Bl: " + String(i) + "Playeable block");
+                logln("Bl: " + String(i) + "Name: " + LAST_NAME);
+                logln("Bl: " + String(i) + "Type name: " + LAST_TYPE);
+                logln("Bl: " + String(i) +
+                      "pauseAfterThisBlock: " + String(_zxp.silent));
+                logln("Bl: " + String(i) + "Sync1: " + String(_zxp.SYNC1));
+                logln("Bl: " + String(i) + "Sync2: " + String(_zxp.SYNC2));
+                logln("Bl: " + String(i) +
+                      "Pilot pulse len: " + String(_zxp.PILOT_PULSE_LEN));
+                logln("Bl: " + String(i) + "Bit0: " + String(_zxp.BIT_0));
+                logln("Bl: " + String(i) + "Bit1: " + String(_zxp.BIT_1));
+        #endif
 
         // Almacenmas el bloque en curso para un posible PAUSE
-        if (LOADING_STATE != 2) {
+        if (LOADING_STATE != 2) 
+        {
           CURRENT_BLOCK_IN_PROGRESS = i;
           BLOCK_SELECTED = i;
           PROGRESS_BAR_BLOCK_VALUE = 0;
-        } else {
+        } 
+        else 
+        {
           // Paramos la reproducción.
 
           PAUSE = false;
@@ -3134,20 +3139,27 @@ public:
         if (_myTZX.descriptor[i].type == 0 || _myTZX.descriptor[i].type == 1 ||
             _myTZX.descriptor[i].type == 7 || _myTZX.descriptor[i].type == 4) {
           //
-          switch (_myTZX.descriptor[i].ID) {
-          case 16: {
-            // Standard data - ID-10
-            _myTZX.descriptor[i].timming.pilot_len = DPILOT_LEN;
-            playBlock(_myTZX.descriptor[i]);
-            break;
+          switch (_myTZX.descriptor[i].ID) 
+          {
+            case 16: 
+            {
+              // Standard data - ID-10
+              _myTZX.descriptor[i].timming.pilot_len = DPILOT_LEN;
+              PLAYABLE_BLOCKS_ACCUMULATED_OFFSET = 0;
+              playBlock(_myTZX.descriptor[i]);
+              break;
+            }
+            case 17: 
+            {
+              // Speed data - ID-11
+              playBlock(_myTZX.descriptor[i]);
+              PLAYABLE_BLOCKS_ACCUMULATED_OFFSET = 0;
+              break;
+            }
           }
-          case 17: {
-            // Speed data - ID-11
-            playBlock(_myTZX.descriptor[i]);
-            break;
-          }
-          }
-        } else if (_myTZX.descriptor[i].type == 99) {
+        } 
+        else if (_myTZX.descriptor[i].type == 99) 
+        {
           //
           // Son bloques especiales de TONO GUIA o SECUENCIAS para SYNC
           //
@@ -3171,235 +3183,271 @@ public:
 
           bool begin = false;
 
-          switch (_myTZX.descriptor[i].ID) {
+          switch (_myTZX.descriptor[i].ID) 
+          {
 
-          // Bloque 0x4B - MSX
-          case 75: {
-            BYTES_TOBE_LOAD = _myTZX.size;
+            // Bloque 0x4B - MSX
+            case 75: 
+            {
+              PLAYABLE_BLOCKS_ACCUMULATED_OFFSET = 0;
+              BYTES_TOBE_LOAD = _myTZX.size;
 
-            // configuracion del byte
-            pzero = ((_myTZX.descriptor[i].timming.bitcfg & 0b11110000) >> 4);
-            pone = ((_myTZX.descriptor[i].timming.bitcfg & 0b00001111));
-            nlb = ((_myTZX.descriptor[i].timming.bytecfg & 0b11000000) >> 6);
-            vlb = ((_myTZX.descriptor[i].timming.bytecfg & 0b00100000) >> 5);
-            ntb = ((_myTZX.descriptor[i].timming.bytecfg & 0b00011000) >> 3);
-            vtb = ((_myTZX.descriptor[i].timming.bitcfg & 0b00000100) >> 2);
+              // configuracion del byte
+              pzero = ((_myTZX.descriptor[i].timming.bitcfg & 0b11110000) >> 4);
+              pone = ((_myTZX.descriptor[i].timming.bitcfg & 0b00001111));
+              nlb = ((_myTZX.descriptor[i].timming.bytecfg & 0b11000000) >> 6);
+              vlb = ((_myTZX.descriptor[i].timming.bytecfg & 0b00100000) >> 5);
+              ntb = ((_myTZX.descriptor[i].timming.bytecfg & 0b00011000) >> 3);
+              vtb = ((_myTZX.descriptor[i].timming.bitcfg & 0b00000100) >> 2);
 
-#ifdef DEBUGMODE
-            logln("");
-            log("ID 0x4B:");
-            log("PULSES FOR ZERO = " + String(pzero));
-            log(" - " + String(_myTZX.descriptor[i].timming.bit_0) + " - ");
-            log(",PULSES FOR ONE = " + String(pone));
-            log(" - " + String(_myTZX.descriptor[i].timming.bit_1) + " - ");
-            log(",NUMBERS OF LEADING BITS = " + String(nlb));
-            log(",VALUE OF LEADING BITS = " + String(vlb));
-            log(",NUMBER OF TRAILING BITS = " + String(ntb));
-            log(",VALUE OF TRAILING BITS = " + String(vtb));
-#endif
+              #ifdef DEBUGMODE
+                          logln("");
+                          log("ID 0x4B:");
+                          log("PULSES FOR ZERO = " + String(pzero));
+                          log(" - " + String(_myTZX.descriptor[i].timming.bit_0) + " - ");
+                          log(",PULSES FOR ONE = " + String(pone));
+                          log(" - " + String(_myTZX.descriptor[i].timming.bit_1) + " - ");
+                          log(",NUMBERS OF LEADING BITS = " + String(nlb));
+                          log(",VALUE OF LEADING BITS = " + String(vlb));
+                          log(",NUMBER OF TRAILING BITS = " + String(ntb));
+                          log(",VALUE OF TRAILING BITS = " + String(vtb));
+              #endif
 
-            // Conocemos la longitud total del bloque de datos a reproducir
-            ldatos = _myTZX.descriptor[i].lengthOfData;
-            // Nos quedamos con el offset inicial
-            offset = _myTZX.descriptor[i].offsetData;
+              // Conocemos la longitud total del bloque de datos a reproducir
+              ldatos = _myTZX.descriptor[i].lengthOfData;
+              // Nos quedamos con el offset inicial
+              offset = _myTZX.descriptor[i].offsetData;
 
-            // Informacion para la barra de progreso - usar offset acumulativo
-            PRG_BAR_OFFSET_INI = PLAYABLE_BLOCKS_ACCUMULATED_OFFSET; // offset acumulativo
-            PRG_BAR_OFFSET_END = PLAYABLE_BLOCKS_ACCUMULATED_OFFSET + _myTZX.descriptor[i].lengthOfData;
+              // Informacion para la barra de progreso - usar offset acumulativo
+              PRG_BAR_OFFSET_INI = PLAYABLE_BLOCKS_ACCUMULATED_OFFSET; // offset acumulativo
+              PRG_BAR_OFFSET_END = PLAYABLE_BLOCKS_ACCUMULATED_OFFSET + _myTZX.descriptor[i].lengthOfData;
 
-            bufferD = 1024; // Buffer de BYTES de datos convertidos a samples
+              bufferD = 1024; // Buffer de BYTES de datos convertidos a samples
 
-            partitions = ldatos / bufferD;
-            lastPartitionSize = ldatos - (partitions * bufferD);
+              partitions = ldatos / bufferD;
+              lastPartitionSize = ldatos - (partitions * bufferD);
 
-            silence = _myTZX.descriptor[i].pauseAfterThisBlock;
+              silence = _myTZX.descriptor[i].pauseAfterThisBlock;
 
-#ifdef DEBUGMODE
-            log(",SILENCE = " + String(silence) + " ms");
+  #ifdef DEBUGMODE
+              log(",SILENCE = " + String(silence) + " ms");
 
-            logln("");
-            log("Total data parts: " + String(partitions));
-            logln("");
-            log("----------------------------------------");
-#endif
+              logln("");
+              log("Total data parts: " + String(partitions));
+              logln("");
+              log("----------------------------------------");
+  #endif
 
-            // TSX_PARTITIONED = false;
-            PROGRESS_BAR_BLOCK_VALUE = 0;
+              // TSX_PARTITIONED = false;
+              PROGRESS_BAR_BLOCK_VALUE = 0;
 
-            if (ldatos > bufferD) {
-              // TSX_PARTITIONED = true;
-              for (int n = 0; n < partitions && !STOP && !PAUSE; n++) {
-                if (n == 0) {
-                  begin = true;
-                } else {
-                  begin = false;
+              if (ldatos > bufferD) {
+                // TSX_PARTITIONED = true;
+                for (int n = 0; n < partitions && !STOP && !PAUSE; n++) {
+                  if (n == 0) {
+                    begin = true;
+                  } else {
+                    begin = false;
+                  }
+
+  #ifdef DEBUGMODE
+                  logln("");
+                  log("Part [" + String(n) + "] - offset: ");
+                  logHEX(offset);
+  #endif
+
+                  prepareID4B(i, _mFile, nlb, vlb, ntb, vtb, pzero, pone, offset,
+                              bufferD, begin);
+                  // ID 0x4B - Reproducimos una secuencia. Pulsos de longitud
+                  // contenidos en un array y repetición
+
+                  PRG_BAR_OFFSET_INI = 0;
+                  PRG_BAR_OFFSET_END = ldatos;
+
+                  _zxp.playCustomSequence(
+                      _myTZX.descriptor[i].timming.pulse_seq_array,
+                      _myTZX.descriptor[i].timming.pulse_seq_num_pulses, 0.0);
+                  // Avanzamos el puntero por el fichero
+                  offset += bufferD;
+
+                  PROGRESS_BAR_BLOCK_VALUE = ((PRG_BAR_OFFSET_INI + (offset)) * 100) / PRG_BAR_OFFSET_END;
+
+                  // Liberamos el array
+                  free(_myTZX.descriptor[i].timming.pulse_seq_array);
+                  // delete[] _myTZX.descriptor[i].timming.pulse_seq_array;
                 }
 
-#ifdef DEBUGMODE
-                logln("");
-                log("Part [" + String(n) + "] - offset: ");
-                logHEX(offset);
-#endif
+                if (!STOP && !PAUSE) {
+                  // Ultima particion
+                  PRG_BAR_OFFSET_INI = 0;
+                  PRG_BAR_OFFSET_END = ldatos;
 
-                prepareID4B(i, _mFile, nlb, vlb, ntb, vtb, pzero, pone, offset,
-                            bufferD, begin);
-                // ID 0x4B - Reproducimos una secuencia. Pulsos de longitud
-                // contenidos en un array y repetición
+                  PROGRESS_BAR_BLOCK_VALUE = 0;
 
-                PRG_BAR_OFFSET_INI = 0;
-                PRG_BAR_OFFSET_END = ldatos;
+                  prepareID4B(i, _mFile, nlb, vlb, ntb, vtb, pzero, pone, offset,
+                              lastPartitionSize, false);
+                  // ID 0x4B - Reproducimos una secuencia. Pulsos de longitud
+                  // contenidos en un array y repetición
 
-                _zxp.playCustomSequence(
-                    _myTZX.descriptor[i].timming.pulse_seq_array,
-                    _myTZX.descriptor[i].timming.pulse_seq_num_pulses, 0.0);
-                // Avanzamos el puntero por el fichero
-                offset += bufferD;
+                  _zxp.playCustomSequence(
+                      _myTZX.descriptor[i].timming.pulse_seq_array,
+                      _myTZX.descriptor[i].timming.pulse_seq_num_pulses, 0.0);
+                  // Liberamos el array
+                  free(_myTZX.descriptor[i].timming.pulse_seq_array);
+                  // delete[] _myTZX.descriptor[i].timming.pulse_seq_array;
+                  PROGRESS_BAR_BLOCK_VALUE =
+                      ((PRG_BAR_OFFSET_INI + (ldatos)) * 100) /
+                      PRG_BAR_OFFSET_END;
+                  // Pausa despues de bloque
+                  _zxp.silence(silence);
+                }
 
-                PROGRESS_BAR_BLOCK_VALUE = ((PRG_BAR_OFFSET_INI + (offset)) * 100) / PRG_BAR_OFFSET_END;
+                #ifdef DEBUGMODE
+                              logln("Finish");
+                #endif
 
-                // Liberamos el array
-                free(_myTZX.descriptor[i].timming.pulse_seq_array);
-                // delete[] _myTZX.descriptor[i].timming.pulse_seq_array;
+                            } else {
+                #ifdef DEBUGMODE
+                              logln(" - Only one data part");
+                #endif
+
+                if (!STOP && !PAUSE) {
+
+                  PRG_BAR_OFFSET_INI = 0;
+                  PRG_BAR_OFFSET_END = ldatos;
+                  PROGRESS_BAR_BLOCK_VALUE = 0;
+
+                  // Una sola partiase 43ion
+                  PRG_BAR_OFFSET_INI = _myTZX.descriptor[i].offsetData;
+
+                  prepareID4B(i, _mFile, nlb, vlb, ntb, vtb, pzero, pone, offset,ldatos, true);
+
+                  // ID 0x4B - Reproducimos una secuencia. Pulsos de longitud
+                  // contenidos en un array y repetición
+                  _zxp.playCustomSequence(
+                      _myTZX.descriptor[i].timming.pulse_seq_array,
+                      _myTZX.descriptor[i].timming.pulse_seq_num_pulses, 0);
+                  PROGRESS_BAR_BLOCK_VALUE =
+                      ((PRG_BAR_OFFSET_INI + (ldatos)) * 100) /
+                      PRG_BAR_OFFSET_END;
+
+                  // Liberamos el array
+                  free(_myTZX.descriptor[i].timming.pulse_seq_array);
+                  // delete[] _myTZX.descriptor[i].timming.pulse_seq_array;
+                  // Pausa despues de bloque
+                  _zxp.silence(silence);
+                }
               }
+              
+              // Actualizar offset acumulativo para el próximo bloque
+              PLAYABLE_BLOCKS_ACCUMULATED_OFFSET += _myTZX.descriptor[i].lengthOfData;
+              break;
+            }
 
-              if (!STOP && !PAUSE) {
-                // Ultima particion
-                PRG_BAR_OFFSET_INI = 0;
-                PRG_BAR_OFFSET_END = ldatos;
+            case 18: 
+            {
+              // ID 0x12 - Reproducimos un tono puro. Pulso repetido n veces
+              #ifdef DEBUGMODE
+                          log("ID 0x12:");
+              #endif
+              _zxp.playPureTone(_myTZX.descriptor[i].timming.pure_tone_len, _myTZX.descriptor[i].timming.pure_tone_num_pulses);
+              break;
+            }
 
-                PROGRESS_BAR_BLOCK_VALUE = 0;
+            case 19: 
+            {
+              // ID 0x13 - Reproducimos una secuencia. Pulsos de longitud
+              // contenidos en un array y repetición
+              #ifdef DEBUGMODE
+                          logln("ID 0x13:");
+                          logln("Num. pulses: " +
+                                String(_myTZX.descriptor[i].timming.pulse_seq_num_pulses));
+                          for (int j = 0;
+                              j < _myTZX.descriptor[i].timming.pulse_seq_num_pulses; j++) {
+                            SerialHW.print(_myTZX.descriptor[i].timming.pulse_seq_array[j],
+                                          HEX);
+                            SerialHW.print(",");
+                          }
+              #endif
+              _zxp.playCustomSequence(_myTZX.descriptor[i].timming.pulse_seq_array, _myTZX.descriptor[i].timming.pulse_seq_num_pulses);
+              break;
+            }
 
-                prepareID4B(i, _mFile, nlb, vlb, ntb, vtb, pzero, pone, offset,
-                            lastPartitionSize, false);
-                // ID 0x4B - Reproducimos una secuencia. Pulsos de longitud
-                // contenidos en un array y repetición
+            case 20: 
+            {
+              // ID 0x14
+              int blockSizeSplit = SIZE_FOR_SPLIT;
 
-                _zxp.playCustomSequence(
-                    _myTZX.descriptor[i].timming.pulse_seq_array,
-                    _myTZX.descriptor[i].timming.pulse_seq_num_pulses, 0.0);
-                // Liberamos el array
-                free(_myTZX.descriptor[i].timming.pulse_seq_array);
-                // delete[] _myTZX.descriptor[i].timming.pulse_seq_array;
-                PROGRESS_BAR_BLOCK_VALUE =
-                    ((PRG_BAR_OFFSET_INI + (ldatos)) * 100) /
-                    PRG_BAR_OFFSET_END;
-                // Pausa despues de bloque
-                _zxp.silence(silence);
-              }
+              if (_myTZX.descriptor[i].size > blockSizeSplit) 
+              {
 
-#ifdef DEBUGMODE
-              logln("Finish");
-#endif
+                int totalSize = _myTZX.descriptor[i].size;
+                PLAYABLE_BLOCKS_ACCUMULATED_OFFSET = 0;
 
-            } else {
-#ifdef DEBUGMODE
-              logln(" - Only one data part");
-#endif
+                PARTITION_SIZE = totalSize;
 
-              if (!STOP && !PAUSE) {
+                int offsetBase = _myTZX.descriptor[i].offsetData;
+                int newOffset = 0;
+                double blocks = totalSize / blockSizeSplit;
+                int lastBlockSize = totalSize - (blocks * blockSizeSplit);
 
-                PRG_BAR_OFFSET_INI = 0;
-                PRG_BAR_OFFSET_END = ldatos;
-                PROGRESS_BAR_BLOCK_VALUE = 0;
+                // BTI 0
+                _zxp.BIT_0 = _myTZX.descriptor[i].timming.bit_0;
+                // BIT1
+                _zxp.BIT_1 = _myTZX.descriptor[i].timming.bit_1;
 
-                // Una sola partiase 43ion
                 PRG_BAR_OFFSET_INI = _myTZX.descriptor[i].offsetData;
+                // BYTES_BASE = _myTZX.descriptor[i].offsetData;
 
-                prepareID4B(i, _mFile, nlb, vlb, ntb, vtb, pzero, pone, offset,
-                            ldatos, true);
+                // Recorremos el vector de particiones del bloque.
+                for (int n = 0; n < blocks; n++) 
+                {
+                  // Calculamos el offset del bloque
+                  newOffset = offsetBase + (blockSizeSplit * n);
+                  // Accedemos a la SD y capturamos el bloque del fichero
+                  bufferPlay =
+                      (uint8_t *)ps_calloc(blockSizeSplit, sizeof(uint8_t));
+                  readFileRange(_mFile, bufferPlay, newOffset, blockSizeSplit,
+                                true);
+                  // Mostramos en la consola los primeros y últimos bytes
+                  // showBufferPlay(bufferPlay,blockSizeSplit,newOffset);
 
-                // ID 0x4B - Reproducimos una secuencia. Pulsos de longitud
-                // contenidos en un array y repetición
-                _zxp.playCustomSequence(
-                    _myTZX.descriptor[i].timming.pulse_seq_array,
-                    _myTZX.descriptor[i].timming.pulse_seq_num_pulses, 0);
-                PROGRESS_BAR_BLOCK_VALUE =
-                    ((PRG_BAR_OFFSET_INI + (ldatos)) * 100) /
-                    PRG_BAR_OFFSET_END;
+                  PRG_BAR_OFFSET_INI = newOffset;
 
-                // Liberamos el array
-                free(_myTZX.descriptor[i].timming.pulse_seq_array);
-                // delete[] _myTZX.descriptor[i].timming.pulse_seq_array;
-                // Pausa despues de bloque
-                _zxp.silence(silence);
-              }
-            }
-            
-            // Actualizar offset acumulativo para el próximo bloque
-            PLAYABLE_BLOCKS_ACCUMULATED_OFFSET += _myTZX.descriptor[i].lengthOfData;
-            break;
-          }
+                  #ifdef DEBUGMODE
+                                  log("Block. " + String(n));
+                                  SerialHW.print(newOffset, HEX);
+                                  SerialHW.print(" - ");
+                                  SerialHW.print(newOffset + blockSizeSplit, HEX);
+                                  log("");
+                                  for (int j = 0; j < blockSizeSplit; j++) {
+                                    SerialHW.print(bufferPlay[j], HEX);
+                                    SerialHW.print(",");
+                                  }
+                                  // (añadido el 26/03/2024)
+                                  // Reproducimos la partición n, del bloque.
+                                  _zxp.playDataPartition(bufferPlay, blockSizeSplit);
 
-          case 18: {
-// ID 0x12 - Reproducimos un tono puro. Pulso repetido n veces
-#ifdef DEBUGMODE
-            log("ID 0x12:");
-#endif
-            _zxp.playPureTone(
-                _myTZX.descriptor[i].timming.pure_tone_len,
-                _myTZX.descriptor[i].timming.pure_tone_num_pulses);
-            break;
-          }
+                  #else
+                  // Reproducimos la partición n, del bloque.
+                  _zxp.playDataPartition(bufferPlay, blockSizeSplit);
+                  #endif
 
-          case 19: {
-            // ID 0x13 - Reproducimos una secuencia. Pulsos de longitud
-            // contenidos en un array y repetición
-#ifdef DEBUGMODE
-            logln("ID 0x13:");
-            logln("Num. pulses: " +
-                  String(_myTZX.descriptor[i].timming.pulse_seq_num_pulses));
-            for (int j = 0;
-                 j < _myTZX.descriptor[i].timming.pulse_seq_num_pulses; j++) {
-              SerialHW.print(_myTZX.descriptor[i].timming.pulse_seq_array[j],
-                             HEX);
-              SerialHW.print(",");
-            }
-#endif
-            _zxp.playCustomSequence(
-                _myTZX.descriptor[i].timming.pulse_seq_array,
-                _myTZX.descriptor[i].timming.pulse_seq_num_pulses);
-            break;
-          }
-            // case 19:
-            // {
-            //   // ID 0x19 - Generalized Data Block
-            //   #ifdef DEBUGMODE
-            //       logln("ID 0x19: Generalized Data Block");
-            //       logln("TOTP: " + String(_myTZX.descriptor[i].symbol.TOTP));
-            //       logln("TOTD: " + String(_myTZX.descriptor[i].symbol.TOTD));
-            //   #endif
-            //   _zxp.playGDB(&_myTZX.descriptor[i].symbol);
-            //   _zxp.silence(_myTZX.descriptor[i].pauseAfterThisBlock);
-            //   break;
-            // }
+                  free(bufferPlay);
+                }
 
-          case 20: {
-            // ID 0x14
-            int blockSizeSplit = SIZE_FOR_SPLIT;
+                // Ultimo bloque
+                // Calculamos el offset del último bloque
+                newOffset = offsetBase + (blockSizeSplit * blocks);
+                blockSizeSplit = lastBlockSize;
+                PRG_BAR_OFFSET_INI = newOffset;
+                // BYTES_BASE = _myTZX.descriptor[i].offsetData;
 
-            if (_myTZX.descriptor[i].size > blockSizeSplit) {
+                // PROGRESS_BAR_TOTAL_VALUE = (PRG_BAR_OFFSET_INI * 100 ) /
+                // BYTES_TOBE_LOAD ; PROGRESS_BAR_BLOCK_VALUE =
+                // (PRG_BAR_OFFSET_INI * 100 ) / (_myTZX.descriptor[i].offset +
+                // BYTES_IN_THIS_BLOCK);
 
-              int totalSize = _myTZX.descriptor[i].size;
-
-              PARTITION_SIZE = totalSize;
-
-              int offsetBase = _myTZX.descriptor[i].offsetData;
-              int newOffset = 0;
-              double blocks = totalSize / blockSizeSplit;
-              int lastBlockSize = totalSize - (blocks * blockSizeSplit);
-
-              // BTI 0
-              _zxp.BIT_0 = _myTZX.descriptor[i].timming.bit_0;
-              // BIT1
-              _zxp.BIT_1 = _myTZX.descriptor[i].timming.bit_1;
-
-              PRG_BAR_OFFSET_INI = _myTZX.descriptor[i].offsetData;
-              // BYTES_BASE = _myTZX.descriptor[i].offsetData;
-
-              // Recorremos el vector de particiones del bloque.
-              for (int n = 0; n < blocks; n++) {
-                // Calculamos el offset del bloque
-                newOffset = offsetBase + (blockSizeSplit * n);
                 // Accedemos a la SD y capturamos el bloque del fichero
                 bufferPlay =
                     (uint8_t *)ps_calloc(blockSizeSplit, sizeof(uint8_t));
@@ -3408,511 +3456,484 @@ public:
                 // Mostramos en la consola los primeros y últimos bytes
                 // showBufferPlay(bufferPlay,blockSizeSplit,newOffset);
 
-                PRG_BAR_OFFSET_INI = newOffset;
-                // BYTES_BASE = _myTZX.descriptor[i].offsetData;
-
-                // PROGRESS_BAR_TOTAL_VALUE = (PRG_BAR_OFFSET_INI * 100 ) /
-                // BYTES_TOBE_LOAD ; PROGRESS_BAR_BLOCK_VALUE =
-                // (PRG_BAR_OFFSET_INI * 100 ) / (BYTES_BASE +
-                // BYTES_IN_THIS_BLOCK);
-
-#ifdef DEBUGMODE
-                log("Block. " + String(n));
-                SerialHW.print(newOffset, HEX);
-                SerialHW.print(" - ");
-                SerialHW.print(newOffset + blockSizeSplit, HEX);
-                log("");
-                for (int j = 0; j < blockSizeSplit; j++) {
-                  SerialHW.print(bufferPlay[j], HEX);
-                  SerialHW.print(",");
-                }
-                // (añadido el 26/03/2024)
-                // Reproducimos la partición n, del bloque.
-                _zxp.playDataPartition(bufferPlay, blockSizeSplit);
-
-#else
-                // Reproducimos la partición n, del bloque.
-                _zxp.playDataPartition(bufferPlay, blockSizeSplit);
-#endif
+                #ifdef DEBUGMODE
+                              log("Block. LAST");
+                              SerialHW.print(newOffset, HEX);
+                              SerialHW.print(" - ");
+                              SerialHW.print(newOffset + blockSizeSplit, HEX);
+                              log("");
+                              for (int j = 0; j < blockSizeSplit; j++) {
+                                SerialHW.print(bufferPlay[j], HEX);
+                                SerialHW.print(",");
+                              }
+                #else
+                // Reproducimos el ultimo bloque con su terminador y silencio si
+                // aplica
+                _zxp.playPureData(bufferPlay, blockSizeSplit);
+                #endif
 
                 free(bufferPlay);
+              } 
+              else 
+              {
+                bufferPlay = (uint8_t *)ps_calloc(_myTZX.descriptor[i].size,sizeof(uint8_t));
+                readFileRange(_mFile, bufferPlay, _myTZX.descriptor[i].offsetData,_myTZX.descriptor[i].size, true);
+
+                // showBufferPlay(bufferPlay,_myTZX.descriptor[i].size,_myTZX.descriptor[i].offsetData);
+                // verifyChecksum(_mFile,_myTZX.descriptor[i].offsetData,_myTZX.descriptor[i].size);
+
+                // BTI 0
+                _zxp.BIT_0 = _myTZX.descriptor[i].timming.bit_0;
+                // BIT1
+                _zxp.BIT_1 = _myTZX.descriptor[i].timming.bit_1;
+                //
+                _zxp.playPureData(bufferPlay, _myTZX.descriptor[i].size);
+                free(bufferPlay);
               }
-
-              // Ultimo bloque
-              // Calculamos el offset del último bloque
-              newOffset = offsetBase + (blockSizeSplit * blocks);
-              blockSizeSplit = lastBlockSize;
-              PRG_BAR_OFFSET_INI = newOffset;
-              // BYTES_BASE = _myTZX.descriptor[i].offsetData;
-
-              // PROGRESS_BAR_TOTAL_VALUE = (PRG_BAR_OFFSET_INI * 100 ) /
-              // BYTES_TOBE_LOAD ; PROGRESS_BAR_BLOCK_VALUE =
-              // (PRG_BAR_OFFSET_INI * 100 ) / (_myTZX.descriptor[i].offset +
-              // BYTES_IN_THIS_BLOCK);
-
-              // Accedemos a la SD y capturamos el bloque del fichero
-              bufferPlay =
-                  (uint8_t *)ps_calloc(blockSizeSplit, sizeof(uint8_t));
-              readFileRange(_mFile, bufferPlay, newOffset, blockSizeSplit,
-                            true);
-              // Mostramos en la consola los primeros y últimos bytes
-              // showBufferPlay(bufferPlay,blockSizeSplit,newOffset);
-
-#ifdef DEBUGMODE
-              log("Block. LAST");
-              SerialHW.print(newOffset, HEX);
-              SerialHW.print(" - ");
-              SerialHW.print(newOffset + blockSizeSplit, HEX);
-              log("");
-              for (int j = 0; j < blockSizeSplit; j++) {
-                SerialHW.print(bufferPlay[j], HEX);
-                SerialHW.print(",");
-              }
-#else
-              // Reproducimos el ultimo bloque con su terminador y silencio si
-              // aplica
-              _zxp.playPureData(bufferPlay, blockSizeSplit);
-#endif
-
-              free(bufferPlay);
-            } else {
-              bufferPlay = (uint8_t *)ps_calloc(_myTZX.descriptor[i].size,
-                                                sizeof(uint8_t));
-              readFileRange(_mFile, bufferPlay, _myTZX.descriptor[i].offsetData,
-                            _myTZX.descriptor[i].size, true);
-
-              // showBufferPlay(bufferPlay,_myTZX.descriptor[i].size,_myTZX.descriptor[i].offsetData);
-              // verifyChecksum(_mFile,_myTZX.descriptor[i].offsetData,_myTZX.descriptor[i].size);
-
-              // BTI 0
-              _zxp.BIT_0 = _myTZX.descriptor[i].timming.bit_0;
-              // BIT1
-              _zxp.BIT_1 = _myTZX.descriptor[i].timming.bit_1;
-              //
-              _zxp.playPureData(bufferPlay, _myTZX.descriptor[i].size);
-              free(bufferPlay);
-            }
-            break;
-          }
-
-          case 24: {
-            logln("Playing CSW Block (ID 0x18)");
-            int num_pulses = _myTZX.descriptor[i].timming.csw_num_pulses;
-            tRlePulse *pulse_data = _myTZX.descriptor[i].timming.csw_pulse_data;
-            float csw_sampling_rate =
-                (float)_myTZX.descriptor[i].timming.csw_sampling_rate;
-
-            if (csw_sampling_rate == 0) {
-              logln("ERROR: CSW block has a sampling rate of 0.");
               break;
             }
 
-            // FÓRMULA DE CONVERSIÓN UNIVERSAL
-            // Calcula el factor para convertir la unidad de duración del CSW a
-            // T-States de 3.5MHz.
-            float conversion_factor = (float)DfreqCPU / csw_sampling_rate;
-            logln("  - CSW Conversion Factor to T-States: " +
-                  String(conversion_factor));
+            case 24: 
+            {
+              logln("Playing CSW Block (ID 0x18)");
+              int num_pulses = _myTZX.descriptor[i].timming.csw_num_pulses;
+              tRlePulse *pulse_data = _myTZX.descriptor[i].timming.csw_pulse_data;
+              float csw_sampling_rate = (float)_myTZX.descriptor[i].timming.csw_sampling_rate;
 
-            if (pulse_data && num_pulses > 0) {
+              if (csw_sampling_rate == 0) 
+              {
+                logln("ERROR: CSW block has a sampling rate of 0.");
+                break;
+              }
+
+              // FÓRMULA DE CONVERSIÓN UNIVERSAL
+              // Calcula el factor para convertir la unidad de duración del CSW a
+              // T-States de 3.5MHz.
+              float conversion_factor = (float)DfreqCPU / csw_sampling_rate;
+              logln("  - CSW Conversion Factor to T-States: " + String(conversion_factor));
+
+              if (pulse_data && num_pulses > 0) 
+              {
+
+                ADD_ONE_SAMPLE_COMPENSATION = false;
+
+                for (int p = 0; p < num_pulses; p++) 
+                {
+                  if (stopOrPauseRequest())
+                    break;
+
+                  uint16_t repeat = pulse_data[p].repeat;
+
+                  // Aplica el factor para obtener los T-States normalizados.
+                  uint32_t pulse_len_tstates = (uint32_t)round((float)pulse_data[p].pulse_len * conversion_factor);
+
+                  if (pulse_len_tstates == 0)
+                    continue;
+
+                  // Llama a playCustomSymbol con el valor en T-States.
+                  // ZXProcessor se encargará de la conversión final a muestras de
+                  // audio para 32150Hz.
+                  _zxp.playCustomSymbol(pulse_len_tstates, repeat);
+                }
+              }
+
+              _zxp.silence(_myTZX.descriptor[i].pauseAfterThisBlock);
+              break;
+            }
+
+            case 25: 
+            {
+              // ID 0x19 - Generalized data block
+              logln("");
+              logln("Playing generalized data block - ID 0x19");
+              logln("Size: " + String(_myTZX.descriptor[i].size) + " bytes");
+
+              // Para ID 0x19
+              int TOTP = 0;
+              int NPP = 0;
+              int ASP = 0;
+              // Para data
+              int TOTD = 0;
+              int NPD = 0;
+              int ASD = 0;
+
+              int symbolID = 0;
+              int polarity = 0;
+              int pulseLength = 0;
+              int repeat = 0;
+
+              // Para pilot y sync
+              TOTP = _myTZX.descriptor[i].symbol.TOTP;
+              NPP = _myTZX.descriptor[i].symbol.NPP;
+              ASP = _myTZX.descriptor[i].symbol.ASP;
+
+              int totalSteps =
+                  TOTP + TOTD; // El trabajo total es la suma de ambas fases
+              int completedSteps = 0;
+              PROGRESS_BAR_BLOCK_VALUE = 0;
+
+              // Inicializar offset para barra de progreso total
+              // Usar la misma variable de clase para offset acumulativo
+              PRG_BAR_OFFSET_INI = PLAYABLE_BLOCKS_ACCUMULATED_OFFSET;
+              int gdbBlockSize = _myTZX.descriptor[i].size;
+
+              #ifdef DEBUGMODE
+                          logln("");
+                          logln("Symbol definitions:");
+                          logln("TOTP: " + String(TOTP));
+                          logln("NPP: " + String(NPP));
+                          logln("ASP: " + String(ASP));
+              #endif
+
+              // Para data
+              TOTD = _myTZX.descriptor[i].symbol.TOTD;
+              NPD = _myTZX.descriptor[i].symbol.NPD;
+              ASD = _myTZX.descriptor[i].symbol.ASD;
+
+              // #ifdef DEBUGMODE
+              logln("");
+              logln("Data definitions:");
+              logln("TOTD: " + String(TOTD));
+              logln("NPD: " + String(NPD));
+              logln("ASD: " + String(ASD));
+              logln("");
+  // #endif
+
+              // Mostramos las definiciones de simbolos
+              #ifdef DEBUGMODE
+                          logln("Symbol definitions table:");
+                          for (int k1 = 0; k1 < ASP; k1++) {
+                            logln(
+                                "Symbol Def [" + String(k1) + "]: Polarity: " +
+                                String(
+                                    _myTZX.descriptor[i].symbol.symDefPilot[k1].symbolFlag));
+                            for (int s1 = 0; s1 < NPP; s1++) {
+                              logln("  Pulse [" + String(s1) + "]: Length: " +
+                                    String(_myTZX.descriptor[i]
+                                              .symbol.symDefPilot[k1]
+                                              .pulse_array[s1]));
+                            }
+                          }
+
+                          for (int m1 = 0; m1 < TOTP; m1++) {
+                            log(String(_myTZX.descriptor[i].symbol.pilotStream[m1].symbol) +
+                                "," +
+                                String(_myTZX.descriptor[i].symbol.pilotStream[m1].repeat) +
+                                "; ");
+                          }
+                          logln("");
+              #endif
+
+              // PILOT / SYNC
+              // Recorremos el array de pulsos para
+              // -------------------------------------------------------------
 
               ADD_ONE_SAMPLE_COMPENSATION = false;
 
-              for (int p = 0; p < num_pulses; p++) {
-                if (stopOrPauseRequest())
+              // El nivel inicial del bloque GDB depende del nivel final del
+              // bloque anterior. Solo se fuerza si el símbolo tiene polarity=2
+              // (force LOW) o polarity=3 (force HIGH). Con polarity=0 (opposite
+              // to current), simplemente alterna desde el nivel actual.
+
+              for (int j1 = 0; j1 < TOTP; j1++) 
+              {
+                // Cojo el ID del simbolo que necesito
+                symbolID = _myTZX.descriptor[i].symbol.pilotStream[j1].symbol;
+                // y las veces que se repite el SIMBOLO COMPLETO
+                repeat = _myTZX.descriptor[i].symbol.pilotStream[j1].repeat;
+
+                if (STOP || PAUSE)
+                  break; // Comprobar parada/pausa antes de cada byte
+
+                // Verificamos que el simbolo es correcto
+                if (symbolID < ASP) {
+                  // Ahora leo el simbolo de la tabla de definiciones
+                  // para obtener sus características
+
+                  // Obtenemos el tipo de polarización (solo bits 0-1 son válidos)
+                  polarity = _myTZX.descriptor[i].symbol.symDefPilot[symbolID].symbolFlag & 0x03;
+
+                  #ifdef DEBUGMODE
+                                  logln("[" + String(j1) + "] Symbol ID: " + String(symbolID) +
+                                        " - Repeat: " + String(repeat) +
+                                        " - Polarity: " + String(polarity));
+                  #endif
+
+                  // ******************************************************************************
+                  // CORRECCIÓN GDB: El símbolo COMPLETO se repite 'repeat' veces
+                  // No cada pulso individual
+                  // ******************************************************************************
+                  for (int rep = 0; rep < repeat; rep++) 
+                  {
+                    // CORRECCIÓN: La polaridad solo se aplica al PRIMER pulso de
+                    // cada repetición
+                    bool firstPulseOfSymbol = true;
+
+                    // Cada definición puede tener varios semi-pulsos
+                    // Leemos cada semi-pulso del simbolo
+                    for (int r = 0; r < NPP; r++) 
+                    {
+                      // Cogemos la definición del ancho del pulso identificado en
+                      // el array
+                      pulseLength = _myTZX.descriptor[i].symbol.symDefPilot[symbolID].pulse_array[r];
+
+                      // Si el pulso es 0, indica fin del símbolo (spec TZX)
+                      if (pulseLength == 0)
+                        break;
+
+                      #ifdef DEBUGMODE
+                                          logln("Pulse Length: " + String(pulseLength));
+                      #endif
+
+                      // La polaridad solo afecta al primer pulso de cada
+                      // repetición del símbolo
+                      if (firstPulseOfSymbol) 
+                      {
+                        switch (polarity) 
+                        {
+                          case 0: 
+                          {
+                            // Toggle: cambiar nivel
+                            KEEP_CURRENT_EDGE = false;
+                            _zxp.playCustomSymbol(pulseLength, 1);
+                          } break;
+
+                          case 1: 
+                          {
+                            // Same: mantener nivel actual
+                            KEEP_CURRENT_EDGE = true;
+                            _zxp.playCustomSymbol(pulseLength, 1);
+                          } break;
+
+                          case 2: 
+                          {
+                            // Force low
+                            KEEP_CURRENT_EDGE = true;
+                            EDGE_EAR_IS = down;
+                            _zxp.playCustomSymbol(pulseLength, 1);
+                          } break;
+
+                          case 3: {
+                            // Force high
+                            KEEP_CURRENT_EDGE = true;
+                            EDGE_EAR_IS = up;
+                            _zxp.playCustomSymbol(pulseLength, 1);
+                          } break;
+                        }
+                        firstPulseOfSymbol = false;
+                      } 
+                      else 
+                      {
+                        // Pulsos siguientes: siempre alternar
+                        KEEP_CURRENT_EDGE = false;
+                        _zxp.playCustomSymbol(pulseLength, 1);
+                      }
+                    }
+                  }
+                }
+              }
+
+              // ------------------------------------------------------------------
+              // DATA STREAM
+              //
+              // Recorremos el data stream bit a bit según NB (bits por símbolo)
+              // -------------------------------------------------------------------
+
+              // Calculamos cuántos bits necesita cada símbolo (mínimo NB tal que
+              // 2^NB >= ASD)
+              int NB = 0;
+              int tmpASD = ASD - 1;
+              while (tmpASD > 0) 
+              {
+                NB++;
+                tmpASD >>= 1;
+              }
+              int DS = ceil((float)(NB * TOTD) / 8.0);
+
+              #ifdef DEBUGMODE
+                          logln("Data stream:");
+                          logln("  NB (bits per symbol): " + String(NB));
+                          logln("  DS (stream bytes): " + String(DS));
+                          logln("  TOTD (total symbols): " + String(TOTD));
+              #endif
+
+              // Variables para lectura de bitstream
+              int current_byte_idx = 0;
+              int current_bit_pos = 7; // Comenzamos desde el MSB
+              int symbols_read = 0;
+              int max_bits = NB * TOTD; // Total bits a leer
+              int bit_index = 0;        // Índice global de bit
+
+              // Iteramos hasta leer TOTD símbolos (NO todos los bits del stream)
+
+              ADD_ONE_SAMPLE_COMPENSATION = false;
+
+              while (symbols_read < TOTD && bit_index < max_bits) 
+              {
+                if (STOP || PAUSE)
                   break;
 
-                uint16_t repeat = pulse_data[p].repeat;
+                #ifdef DEBUGMODE
+                              logln("Leyendo símbolo #" + String(symbols_read) + ":");
+                #endif
 
-                // Aplica el factor para obtener los T-States normalizados.
-                uint32_t pulse_len_tstates = (uint32_t)round(
-                    (float)pulse_data[p].pulse_len * conversion_factor);
+                symbolID = 0;
+                for (int bit = 0; bit < NB && bit_index < max_bits; bit++) 
+                {
+                  int byte_idx = bit_index / 8;
+                  int bit_pos = 7 - (bit_index % 8); // MSB first from byte
+                  uint8_t current_byte =
+                      _myTZX.descriptor[i].symbol.dataStream[byte_idx];
+                  uint8_t bit_value = (current_byte >> bit_pos) & 1;
 
-                if (pulse_len_tstates == 0)
-                  continue;
+                  #ifdef DEBUGMODE
+                                  logln("  Byte[" + String(byte_idx) + "] = 0x" +
+                                        String(current_byte, HEX) + ", bit " + String(bit_pos) +
+                                        " = " + String(bit_value));
+                  #endif
+                  
+                  // CORRECCIÓN: El primer bit leído es el MSB del símbolo
+                  // Desplazar symbolID a la izquierda y añadir el nuevo bit como
+                  // LSB
+                  symbolID = (symbolID << 1) | bit_value;
+                  bit_index++;
+                }
 
-                // Llama a playCustomSymbol con el valor en T-States.
-                // ZXProcessor se encargará de la conversión final a muestras de
-                // audio para 32150Hz.
-                _zxp.playCustomSymbol(pulse_len_tstates, repeat);
-              }
-            }
+                #ifdef DEBUGMODE
+                  logln("  symbolID = " + String(symbolID));
+                #endif
 
-            _zxp.silence(_myTZX.descriptor[i].pauseAfterThisBlock);
-            break;
-          }
+                // DEBUG: Mostrar bytes del datastream según se procesan
+                // -------------------------------------------------------------
+                #ifdef DEBUGMODE
+                              if (bit_index % 8 == 0 && bit_index > 0) {
+                                int completed_byte_idx = (bit_index / 8) - 1;
+                                uint8_t original_byte =
+                                    _myTZX.descriptor[i].symbol.dataStream[completed_byte_idx];
+                                String hex = String(original_byte, HEX);
+                                if (hex.length() == 1)
+                                  hex = "0" + hex;
+                                log("0x" + hex + ",");
+                              }
+                              // -------------------------------------------------------------
+                #endif
 
-          case 25: {
-            // ID 0x19 - Generalized data block
-            logln("");
-            logln("Playing generalized data block - ID 0x19");
-            logln("Size: " + String(_myTZX.descriptor[i].size) + " bytes");
+                // Verificamos que el símbolo es válido
+                if (symbolID < ASD) {
+                  // Obtenemos la polaridad del símbolo
+                  polarity = _myTZX.descriptor[i].symbol.symDefData[symbolID].symbolFlag & 0x03;
 
-            // Para ID 0x19
-            int TOTP = 0;
-            int NPP = 0;
-            int ASP = 0;
-            // Para data
-            int TOTD = 0;
-            int NPD = 0;
-            int ASD = 0;
+                  #ifdef DEBUGMODE
+                                  logln("Symbol #" + String(symbols_read) + ": ID=" +
+                                        String(symbolID) + ", Polarity=" + String(polarity));
+                  #endif
 
-            int symbolID = 0;
-            int polarity = 0;
-            int pulseLength = 0;
-            int repeat = 0;
+                  // CORRECCIÓN: La polaridad solo se aplica al PRIMER pulso del
+                  // símbolo Los pulsos siguientes alternan automáticamente (como
+                  // polarity=0) Spec TZX: "The polarity of the first pulse of the
+                  // first symbol of a block
+                  //           is the polarity of the last pulse of the previous
+                  //           block"
 
-            // Para pilot y sync
-            TOTP = _myTZX.descriptor[i].symbol.TOTP;
-            NPP = _myTZX.descriptor[i].symbol.NPP;
-            ASP = _myTZX.descriptor[i].symbol.ASP;
+                  // Leemos cada semi-pulso que define el símbolo
+                  for (int r1 = 0; r1 < NPD; r1++) 
+                  {
+                    if (STOP || PAUSE)
+                      break;
 
-            int totalSteps =
-                TOTP + TOTD; // El trabajo total es la suma de ambas fases
-            int completedSteps = 0;
-            PROGRESS_BAR_BLOCK_VALUE = 0;
-
-            // Inicializar offset para barra de progreso total
-            // Usar la misma variable de clase para offset acumulativo
-            PRG_BAR_OFFSET_INI = PLAYABLE_BLOCKS_ACCUMULATED_OFFSET;
-            int gdbBlockSize = _myTZX.descriptor[i].size;
-
-#ifdef DEBUGMODE
-            logln("");
-            logln("Symbol definitions:");
-            logln("TOTP: " + String(TOTP));
-            logln("NPP: " + String(NPP));
-            logln("ASP: " + String(ASP));
-#endif
-
-            // Para data
-            TOTD = _myTZX.descriptor[i].symbol.TOTD;
-            NPD = _myTZX.descriptor[i].symbol.NPD;
-            ASD = _myTZX.descriptor[i].symbol.ASD;
-
-            // #ifdef DEBUGMODE
-            logln("");
-            logln("Data definitions:");
-            logln("TOTD: " + String(TOTD));
-            logln("NPD: " + String(NPD));
-            logln("ASD: " + String(ASD));
-            logln("");
-// #endif
-
-// Mostramos las definiciones de simbolos
-#ifdef DEBUGMODE
-            logln("Symbol definitions table:");
-            for (int k1 = 0; k1 < ASP; k1++) {
-              logln(
-                  "Symbol Def [" + String(k1) + "]: Polarity: " +
-                  String(
-                      _myTZX.descriptor[i].symbol.symDefPilot[k1].symbolFlag));
-              for (int s1 = 0; s1 < NPP; s1++) {
-                logln("  Pulse [" + String(s1) + "]: Length: " +
-                      String(_myTZX.descriptor[i]
-                                 .symbol.symDefPilot[k1]
-                                 .pulse_array[s1]));
-              }
-            }
-
-            for (int m1 = 0; m1 < TOTP; m1++) {
-              log(String(_myTZX.descriptor[i].symbol.pilotStream[m1].symbol) +
-                  "," +
-                  String(_myTZX.descriptor[i].symbol.pilotStream[m1].repeat) +
-                  "; ");
-            }
-            logln("");
-#endif
-
-            // PILOT / SYNC
-            // Recorremos el array de pulsos para
-            // -------------------------------------------------------------
-
-            ADD_ONE_SAMPLE_COMPENSATION = false;
-
-            // El nivel inicial del bloque GDB depende del nivel final del
-            // bloque anterior. Solo se fuerza si el símbolo tiene polarity=2
-            // (force LOW) o polarity=3 (force HIGH). Con polarity=0 (opposite
-            // to current), simplemente alterna desde el nivel actual.
-
-            for (int j1 = 0; j1 < TOTP; j1++) {
-              // Cojo el ID del simbolo que necesito
-              symbolID = _myTZX.descriptor[i].symbol.pilotStream[j1].symbol;
-              // y las veces que se repite el SIMBOLO COMPLETO
-              repeat = _myTZX.descriptor[i].symbol.pilotStream[j1].repeat;
-
-              if (STOP || PAUSE)
-                break; // Comprobar parada/pausa antes de cada byte
-
-              // Verificamos que el simbolo es correcto
-              if (symbolID < ASP) {
-                // Ahora leo el simbolo de la tabla de definiciones
-                // para obtener sus características
-
-                // Obtenemos el tipo de polarización (solo bits 0-1 son válidos)
-                polarity = _myTZX.descriptor[i]
-                               .symbol.symDefPilot[symbolID]
-                               .symbolFlag &
-                           0x03;
-#ifdef DEBUGMODE
-                logln("[" + String(j1) + "] Symbol ID: " + String(symbolID) +
-                      " - Repeat: " + String(repeat) +
-                      " - Polarity: " + String(polarity));
-#endif
-
-                // ******************************************************************************
-                // CORRECCIÓN GDB: El símbolo COMPLETO se repite 'repeat' veces
-                // No cada pulso individual
-                // ******************************************************************************
-                for (int rep = 0; rep < repeat; rep++) {
-                  // CORRECCIÓN: La polaridad solo se aplica al PRIMER pulso de
-                  // cada repetición
-                  bool firstPulseOfSymbol = true;
-
-                  // Cada definición puede tener varios semi-pulsos
-                  // Leemos cada semi-pulso del simbolo
-                  for (int r = 0; r < NPP; r++) {
-                    // Cogemos la definición del ancho del pulso identificado en
-                    // el array
-                    pulseLength = _myTZX.descriptor[i]
-                                      .symbol.symDefPilot[symbolID]
-                                      .pulse_array[r];
+                    bool firstPulseOfSymbol = true;
+                    // Cogemos la longitud del pulso
+                    pulseLength = _myTZX.descriptor[i].symbol.symDefData[symbolID].pulse_array[r1];
 
                     // Si el pulso es 0, indica fin del símbolo (spec TZX)
                     if (pulseLength == 0)
                       break;
 
-#ifdef DEBUGMODE
-                    logln("Pulse Length: " + String(pulseLength));
-#endif
+                    #ifdef DEBUGMODE
+                                      log("  Pulse[" + String(r1) + "]: " + String(pulseLength) +
+                                          "T");
+                    #endif
 
-                    // La polaridad solo afecta al primer pulso de cada
-                    // repetición del símbolo
-                    if (firstPulseOfSymbol) {
-                      switch (polarity) {
-                      case 0: {
-                        // Toggle: cambiar nivel
-                        KEEP_CURRENT_EDGE = false;
-                        _zxp.playCustomSymbol(pulseLength, 1);
-                      } break;
+                    // Reproducimos el pulso
+                    // La polaridad solo afecta al primer pulso del símbolo
+                    if (firstPulseOfSymbol) 
+                    {
+                      switch (polarity) 
+                      {
+                        case 0: 
+                        {
+                          // Toggle: cambiar nivel respecto al actual
+                          KEEP_CURRENT_EDGE = false;
+                          _zxp.playCustomSymbol(pulseLength, 1);
+                        } break;
 
-                      case 1: {
-                        // Same: mantener nivel actual
-                        KEEP_CURRENT_EDGE = true;
-                        _zxp.playCustomSymbol(pulseLength, 1);
-                      } break;
+                        case 1: 
+                        {
+                          // Same: mantener el nivel actual (sin cambio)
+                          KEEP_CURRENT_EDGE = true;
+                          _zxp.playCustomSymbol(pulseLength, 1);
+                        } break;
 
-                      case 2: {
-                        // Force low
-                        KEEP_CURRENT_EDGE = true;
-                        EDGE_EAR_IS = down;
-                        _zxp.playCustomSymbol(pulseLength, 1);
-                      } break;
+                        case 2: 
+                        {
+                          // Force low: forzar nivel bajo para el primer pulso
+                          KEEP_CURRENT_EDGE = true;
+                          EDGE_EAR_IS = down;
+                          _zxp.playCustomSymbol(pulseLength, 1);
+                        } break;
 
-                      case 3: {
-                        // Force high
-                        KEEP_CURRENT_EDGE = true;
-                        EDGE_EAR_IS = up;
-                        _zxp.playCustomSymbol(pulseLength, 1);
-                      } break;
+                        case 3: 
+                        {
+                          // Force high: forzar nivel alto para el primer pulso
+                          KEEP_CURRENT_EDGE = true;
+                          EDGE_EAR_IS = up;
+                          _zxp.playCustomSymbol(pulseLength, 1);
+                        } break;
                       }
                       firstPulseOfSymbol = false;
-                    } else {
-                      // Pulsos siguientes: siempre alternar
+                    } 
+                    else 
+                    {
+                      // Pulsos siguientes: siempre alternar (toggle)
                       KEEP_CURRENT_EDGE = false;
                       _zxp.playCustomSymbol(pulseLength, 1);
                     }
                   }
+                } 
+                else 
+                {
+                  #ifdef DEBUGMODE
+                      logln("WARNING: Invalid symbolID " + String(symbolID) +
+                            " (ASD=" + String(ASD) + ")");
+                  #endif
+                }
+
+                symbols_read++;
+
+                // Actualizamos la barra de progreso
+                if (TOTD > 0) {
+                  PROGRESS_BAR_BLOCK_VALUE = (symbols_read * 100) / TOTD;
+                  // Calcular bytes equivalentes procesados dentro del bloque GDB
+                  int block_bytes_processed = (gdbBlockSize * symbols_read) / TOTD;
+                  PROGRESS_BAR_TOTAL_VALUE = ((PRG_BAR_OFFSET_INI + block_bytes_processed) * 100) / BYTES_TOBE_LOAD;
                 }
               }
+
+              // ✅ ASEGURAR QUE LA BARRA LLEGUE AL 100% AL FINALIZAR
+              PROGRESS_BAR_BLOCK_VALUE = 100;
+              // Actualizar progreso total al finalizar el bloque GDB
+              PROGRESS_BAR_TOTAL_VALUE = ((PRG_BAR_OFFSET_INI + gdbBlockSize) * 100) / BYTES_TOBE_LOAD;
+              // Actualizar el offset acumulativo para el próximo bloque
+              PLAYABLE_BLOCKS_ACCUMULATED_OFFSET = PRG_BAR_OFFSET_INI + gdbBlockSize;
+
+              // Pausa despues de bloque (el silencio mantiene el nivel actual)
+              _zxp.silence(_myTZX.descriptor[i].pauseAfterThisBlock);
+              break;
             }
-
-            // ------------------------------------------------------------------
-            // DATA STREAM
-            //
-            // Recorremos el data stream bit a bit según NB (bits por símbolo)
-            // -------------------------------------------------------------------
-
-            // Calculamos cuántos bits necesita cada símbolo (mínimo NB tal que
-            // 2^NB >= ASD)
-            int NB = 0;
-            int tmpASD = ASD - 1;
-            while (tmpASD > 0) {
-              NB++;
-              tmpASD >>= 1;
-            }
-            int DS = ceil((float)(NB * TOTD) / 8.0);
-
-#ifdef DEBUGMODE
-            logln("Data stream:");
-            logln("  NB (bits per symbol): " + String(NB));
-            logln("  DS (stream bytes): " + String(DS));
-            logln("  TOTD (total symbols): " + String(TOTD));
-#endif
-
-            // Variables para lectura de bitstream
-            int current_byte_idx = 0;
-            int current_bit_pos = 7; // Comenzamos desde el MSB
-            int symbols_read = 0;
-            int max_bits = NB * TOTD; // Total bits a leer
-            int bit_index = 0;        // Índice global de bit
-
-            // Iteramos hasta leer TOTD símbolos (NO todos los bits del stream)
-
-            ADD_ONE_SAMPLE_COMPENSATION = false;
-
-            while (symbols_read < TOTD && bit_index < max_bits) {
-              if (STOP || PAUSE)
-                break;
-
-#ifdef DEBUGMODE
-              logln("Leyendo símbolo #" + String(symbols_read) + ":");
-#endif
-              symbolID = 0;
-              for (int bit = 0; bit < NB && bit_index < max_bits; bit++) {
-                int byte_idx = bit_index / 8;
-                int bit_pos = 7 - (bit_index % 8); // MSB first from byte
-                uint8_t current_byte =
-                    _myTZX.descriptor[i].symbol.dataStream[byte_idx];
-                uint8_t bit_value = (current_byte >> bit_pos) & 1;
-#ifdef DEBUGMODE
-                logln("  Byte[" + String(byte_idx) + "] = 0x" +
-                      String(current_byte, HEX) + ", bit " + String(bit_pos) +
-                      " = " + String(bit_value));
-#endif
-                // CORRECCIÓN: El primer bit leído es el MSB del símbolo
-                // Desplazar symbolID a la izquierda y añadir el nuevo bit como
-                // LSB
-                symbolID = (symbolID << 1) | bit_value;
-                bit_index++;
-              }
-#ifdef DEBUGMODE
-              logln("  symbolID = " + String(symbolID));
-#endif
-
-// DEBUG: Mostrar bytes del datastream según se procesan
-// -------------------------------------------------------------
-#ifdef DEBUGMODE
-              if (bit_index % 8 == 0 && bit_index > 0) {
-                int completed_byte_idx = (bit_index / 8) - 1;
-                uint8_t original_byte =
-                    _myTZX.descriptor[i].symbol.dataStream[completed_byte_idx];
-                String hex = String(original_byte, HEX);
-                if (hex.length() == 1)
-                  hex = "0" + hex;
-                log("0x" + hex + ",");
-              }
-              // -------------------------------------------------------------
-#endif
-
-              // Verificamos que el símbolo es válido
-              if (symbolID < ASD) {
-                // Obtenemos la polaridad del símbolo
-                polarity = _myTZX.descriptor[i]
-                               .symbol.symDefData[symbolID]
-                               .symbolFlag &
-                           0x03;
-
-#ifdef DEBUGMODE
-                logln("Symbol #" + String(symbols_read) + ": ID=" +
-                      String(symbolID) + ", Polarity=" + String(polarity));
-#endif
-
-                // CORRECCIÓN: La polaridad solo se aplica al PRIMER pulso del
-                // símbolo Los pulsos siguientes alternan automáticamente (como
-                // polarity=0) Spec TZX: "The polarity of the first pulse of the
-                // first symbol of a block
-                //           is the polarity of the last pulse of the previous
-                //           block"
-
-                // Leemos cada semi-pulso que define el símbolo
-                for (int r1 = 0; r1 < NPD; r1++) {
-                  if (STOP || PAUSE)
-                    break;
-
-                  bool firstPulseOfSymbol = true;
-                  // Cogemos la longitud del pulso
-                  pulseLength = _myTZX.descriptor[i]
-                                    .symbol.symDefData[symbolID]
-                                    .pulse_array[r1];
-
-                  // Si el pulso es 0, indica fin del símbolo (spec TZX)
-                  if (pulseLength == 0)
-                    break;
-
-#ifdef DEBUGMODE
-                  log("  Pulse[" + String(r1) + "]: " + String(pulseLength) +
-                      "T");
-#endif
-
-                  // Reproducimos el pulso
-                  // La polaridad solo afecta al primer pulso del símbolo
-                  if (firstPulseOfSymbol) {
-                    switch (polarity) {
-                    case 0: {
-                      // Toggle: cambiar nivel respecto al actual
-                      KEEP_CURRENT_EDGE = false;
-                      _zxp.playCustomSymbol(pulseLength, 1);
-                    } break;
-
-                    case 1: {
-                      // Same: mantener el nivel actual (sin cambio)
-                      KEEP_CURRENT_EDGE = true;
-                      _zxp.playCustomSymbol(pulseLength, 1);
-                    } break;
-
-                    case 2: {
-                      // Force low: forzar nivel bajo para el primer pulso
-                      KEEP_CURRENT_EDGE = true;
-                      EDGE_EAR_IS = down;
-                      _zxp.playCustomSymbol(pulseLength, 1);
-                    } break;
-
-                    case 3: {
-                      // Force high: forzar nivel alto para el primer pulso
-                      KEEP_CURRENT_EDGE = true;
-                      EDGE_EAR_IS = up;
-                      _zxp.playCustomSymbol(pulseLength, 1);
-                    } break;
-                    }
-                    firstPulseOfSymbol = false;
-                  } else {
-                    // Pulsos siguientes: siempre alternar (toggle)
-                    KEEP_CURRENT_EDGE = false;
-                    _zxp.playCustomSymbol(pulseLength, 1);
-                  }
-                }
-              } else {
-#ifdef DEBUGMODE
-                logln("WARNING: Invalid symbolID " + String(symbolID) +
-                      " (ASD=" + String(ASD) + ")");
-#endif
-              }
-
-              symbols_read++;
-
-              // Actualizamos la barra de progreso
-              if (TOTD > 0) {
-                PROGRESS_BAR_BLOCK_VALUE = (symbols_read * 100) / TOTD;
-                // Calcular bytes equivalentes procesados dentro del bloque GDB
-                int block_bytes_processed = (gdbBlockSize * symbols_read) / TOTD;
-                PROGRESS_BAR_TOTAL_VALUE = ((PRG_BAR_OFFSET_INI + block_bytes_processed) * 100) / BYTES_TOBE_LOAD;
-              }
-            }
-
-            // ✅ ASEGURAR QUE LA BARRA LLEGUE AL 100% AL FINALIZAR
-            PROGRESS_BAR_BLOCK_VALUE = 100;
-            // Actualizar progreso total al finalizar el bloque GDB
-            PROGRESS_BAR_TOTAL_VALUE = ((PRG_BAR_OFFSET_INI + gdbBlockSize) * 100) / BYTES_TOBE_LOAD;
-            // Actualizar el offset acumulativo para el próximo bloque
-            PLAYABLE_BLOCKS_ACCUMULATED_OFFSET = PRG_BAR_OFFSET_INI + gdbBlockSize;
-
-            // Pausa despues de bloque (el silencio mantiene el nivel actual)
-            _zxp.silence(_myTZX.descriptor[i].pauseAfterThisBlock);
-            break;
           }
-          }
-        } else {
+        } 
+        else 
+        {
           //
           // Otros bloques de datos SIN cabecera no contemplados anteriormente -
           // DATA
@@ -3920,27 +3941,32 @@ public:
 
           int blockSize = _myTZX.descriptor[i].size;
 
-          switch (_myTZX.descriptor[i].ID) {
-          case 16: {
-            // BASE_SR = STANDARD_SR_8_BIT_MACHINE;
-            //  ID 0x10
-            _myTZX.descriptor[i].timming.pilot_len = DPILOT_LEN;
-            playBlock(_myTZX.descriptor[i]);
-            break;
-          }
-          case 17: {
-            // ID 0x11
-            playBlock(_myTZX.descriptor[i]);
-            break;
-          }
+          switch (_myTZX.descriptor[i].ID) 
+          {
+            case 16: 
+            {
+              // BASE_SR = STANDARD_SR_8_BIT_MACHINE;
+              //  ID 0x10
+              _myTZX.descriptor[i].timming.pilot_len = DPILOT_LEN;
+              playBlock(_myTZX.descriptor[i]);
+              break;
+            }
+            case 17: 
+            {
+              // ID 0x11
+              playBlock(_myTZX.descriptor[i]);
+              break;
+            }
           }
         }
-      } else {
-#ifdef DEBUGMODE
-        logln("");
-        logln("Bl: " + String(i) + " - Not playeable block");
-        logln("");
-#endif
+      } 
+      else 
+      {
+        #ifdef DEBUGMODE
+                logln("");
+                logln("Bl: " + String(i) + " - Not playeable block");
+                logln("");
+        #endif
       }
 
       break;
@@ -3977,24 +4003,24 @@ public:
       BYTES_TOBE_LOAD = _rlen;
       BYTES_LOADED = 0;
 
-// Recorremos ahora todos los bloques que hay en el descriptor
-//-------------------------------------------------------------
-#ifdef DEBUGMODE
-      logln("Total blocks " + String(_myTZX.numBlocks));
-      logln("First block " + String(firstBlockToBePlayed));
-      logln("");
-#endif
+      // Recorremos ahora todos los bloques que hay en el descriptor
+      //-------------------------------------------------------------
+      #ifdef DEBUGMODE
+            logln("Total blocks " + String(_myTZX.numBlocks));
+            logln("First block " + String(firstBlockToBePlayed));
+            logln("");
+      #endif
 
       // Inicializamos el nivel de la señal según la polarización seleccionada
       // EDGE_EAR_IS = INVERSETRAIN ? POLARIZATION ^ 1: POLARIZATION;
 
-      for (int i = firstBlockToBePlayed; i < _myTZX.numBlocks; i++) {
+      for (int i = firstBlockToBePlayed; i < _myTZX.numBlocks; i++) 
+      {
 
-        KEEP_CURRENT_EDGE =
-            false; // Por defecto, cada bloque puede cambiar el nivel de la
-                   // señal. Solo se mantiene si el bloque lo indica
-                   // expresamente (polarity 1 en GDB o flag correspondiente en
-                   // otros bloques)
+        KEEP_CURRENT_EDGE = false; // Por defecto, cada bloque puede cambiar el nivel de la
+                                   // señal. Solo se mantiene si el bloque lo indica
+                                   // expresamente (polarity 1 en GDB o flag correspondiente en
+                                  // otros bloques)
 
         ADD_ONE_SAMPLE_COMPENSATION = false;
 
@@ -4003,19 +4029,22 @@ public:
 
         BLOCK_SELECTED = i;
 
-        if (BLOCK_SELECTED == 0) {
+        if (BLOCK_SELECTED == 0) 
+        {
           PRG_BAR_OFFSET_INI = 0;
-        } else {
+        } 
+        else 
+        {
           PRG_BAR_OFFSET_INI = _myTZX.descriptor[BLOCK_SELECTED].offset;
         }
 
-        _hmi.setBasicFileInformation(
-            _myTZX.descriptor[i].ID, _myTZX.descriptor[i].group,
-            _myTZX.descriptor[i].name, _myTZX.descriptor[i].typeName,
+        _hmi.setBasicFileInformation(_myTZX.descriptor[i].ID, _myTZX.descriptor[i].group,_myTZX.descriptor[i].name, _myTZX.descriptor[i].typeName,
             _myTZX.descriptor[i].size, _myTZX.descriptor[i].playeable);
+
         int new_i = getIDAndPlay(i);
         // Entonces viene cambiada de un loop
-        if (new_i != -1) {
+        if (new_i != -1) 
+        {
           i = new_i;
         }
 
@@ -4023,7 +4052,8 @@ public:
           break;
         }
 
-        if (stopOrPauseRequest()) {
+        if (stopOrPauseRequest()) 
+        {
           // Forzamos la salida
           i = _myTZX.numBlocks + 1;
           break;
@@ -4033,7 +4063,8 @@ public:
 
       // En el caso de no haber parado manualmente, es por finalizar
       // la reproducción
-      if (LOADING_STATE == 1) {
+      if (LOADING_STATE == 1) 
+      {
         // ******************************************************************************
         // HACK TZX: Tail pulse para el último bloque de la cinta
         // "Sometimes a tape might have its last tail pulse missing.
@@ -4051,13 +4082,13 @@ public:
           _zxp.silence((int)round((PAUSE_TAIL_TSTATES / DfreqCPU)) * 1000);
         }
 
-// Inicializamos la polarización de la señal
-// EDGE_EAR_IS = POLARIZATION;
+        // Inicializamos la polarización de la señal
+        // EDGE_EAR_IS = POLARIZATION;
 
-// Paramos
-#ifdef DEBUGMODE
-        logAlert("AUTO STOP launch.");
-#endif
+        // Paramos
+        #ifdef DEBUGMODE
+                logAlert("AUTO STOP launch.");
+        #endif
 
         PLAY = false;
         PAUSE = false;

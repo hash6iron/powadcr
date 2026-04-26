@@ -1552,10 +1552,8 @@ public:
 
       ptrOffset = i;
       // Esto lo hacemos para asegurarnos que la barra se llena entera
-      PROGRESS_BAR_TOTAL_VALUE =
-          ((PRG_BAR_OFFSET_INI + (ptrOffset + 1)) * 100) / BYTES_TOBE_LOAD;
-      PROGRESS_BAR_BLOCK_VALUE =
-          ((PRG_BAR_OFFSET_INI + (ptrOffset + 1)) * 100) / PRG_BAR_OFFSET_END;
+      PROGRESS_BAR_TOTAL_VALUE = ((PRG_BAR_OFFSET_INI + (ptrOffset + 1)) * 100) / BYTES_TOBE_LOAD;
+      PROGRESS_BAR_BLOCK_VALUE = ((PRG_BAR_OFFSET_INI + (ptrOffset + 1)) * 100) / PRG_BAR_OFFSET_END;
     }
   }
 
