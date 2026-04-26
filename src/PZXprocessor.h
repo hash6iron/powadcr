@@ -568,8 +568,7 @@ public:
     int pzxt_block_data_size = getNBYTE(mFile, 4, 4);
     startOffset = 8 + pzxt_block_data_size;
 
-    logln("PZXT header found. Next block starts at offset: " +
-          String(startOffset));
+    logln("PZXT header found. Next block starts at offset: " + String(startOffset));
 
     int currentOffset = startOffset;
     int blockCount = 0;
@@ -601,29 +600,29 @@ public:
 
     // 3. Reservar memoria para el número correcto de bloques
     _myPZX.numBlocks = blockCount;
-    _myPZX.descriptor = (tPZXBlockDescriptor *)ps_calloc(
-        blockCount, sizeof(tPZXBlockDescriptor));
-    if (_myPZX.descriptor == nullptr) {
-      logln("FATAL: Failed to allocate memory for PZX descriptors. ESP will "
-            "likely restart.");
+    _myPZX.descriptor = (tPZXBlockDescriptor *)ps_calloc(blockCount, sizeof(tPZXBlockDescriptor));
+    if (_myPZX.descriptor == nullptr) 
+    {
+      logln("FATAL: Failed to allocate memory for PZX descriptors. ESP will likely restart.");
       return;
     }
 
     // 4. Segundo paso: analizar cada bloque y rellenar el descriptor
     currentOffset =
         startOffset; // Reiniciar el offset al primer bloque de datos
-    for (int i = 0; i < blockCount; ++i) {
+    for (int i = 0; i < blockCount; ++i) 
+    {
       // if (STOP || ABORT) break;
 
       analyzePZXBlock(mFile, currentOffset, _myPZX.descriptor[i]);
 
-      logln("TAg analyzed: " + String(_myPZX.descriptor[i].tag));
-      logln("Offset: ");
-      logHEX(_myPZX.descriptor[i].offset);
-      logln("Size: " + String(_myPZX.descriptor[i].size));
-      logln("Analyzed PZX Block " + String(i + 1) + "/" + String(blockCount) +
-            ": " + String(_myPZX.descriptor[i].typeName));
-
+      #ifdef DEBUG
+        logln("TAg analyzed: " + String(_myPZX.descriptor[i].tag));
+        logln("Offset: ");
+        logHEX(_myPZX.descriptor[i].offset);
+        logln("Size: " + String(_myPZX.descriptor[i].size));
+        logln("Analyzed PZX Block " + String(i + 1) + "/" + String(blockCount) + ": " + String(_myPZX.descriptor[i].typeName));
+      #endif
       // Avanzar al siguiente bloque
       currentOffset += 8 + _myPZX.descriptor[i].size;
     }
@@ -767,7 +766,9 @@ public:
       // Lo guardo por si hago PAUSE y vuelvo a reproducir el bloque
       _myPZX.descriptor[i].edge = EDGE_EAR_IS;
 
-      logln("Processing PZX Block " + String(i + 1) + "/" + String(_myPZX.numBlocks) + ": " + String(_myPZX.descriptor[i].typeName));
+      #ifdef DEBUG
+        logln("Processing PZX Block " + String(i + 1) + "/" + String(_myPZX.numBlocks) + ": " + String(_myPZX.descriptor[i].typeName));
+      #endif
 
       if (STOP || EJECT) break;
 
