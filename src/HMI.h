@@ -50,6 +50,27 @@ class HMI
 {
 public:
 
+    void setVolumenOutput(bool mute = false)
+    {
+        // Ajustamos el volumen del DAC de audio usando MAIN_VOL, MAIN_VOL_L y MAIN_VOL_R
+        kitStream.setVolume(float(MAIN_VOL) / 100.0f); // Volumen general al 100% para que el control de volumen lo haga el potenciómetro;
+        if (mute) 
+        {
+            volumeStream.setVolume(0,0);
+            volumeStream.setVolume(0,1);
+        } 
+        else 
+        { 
+            volumeStream.setVolume(float(MAIN_VOL_L) / 100.0f,0);
+            volumeStream.setVolume(float(MAIN_VOL_R) / 100.0f,1);  
+          }
+        //
+        logln("Volume set to: " + String(MAIN_VOL) + "%, Left: " + String(MAIN_VOL_L) + "%, Right: " + String(MAIN_VOL_R) + "%");
+        logln("Real volume: " + String(volumeStream.volume(0)) + ", " + String(volumeStream.volume(1)));
+        logln("Real audioStream volume: " + String(kitStream.getVolume()));
+        logln("Booster volume: " + String(BOOSTER_VOLUME) + ", Booster factor: " + String(BOOSTER_FACTOR));
+    }
+
     // Lee la ruta almacenada en _last.txt y la devuelve como String
     inline String loadLastMedia() {
       File lastFile = SD_MMC.open("/_last.txt", FILE_READ);
@@ -2961,8 +2982,58 @@ private:
           saveHMIcfg("VLIopt");
           saveVolSliders();
 
-          kitStream.setVolume(MAIN_VOL / 100);
+          setVolumenOutput();
 
+        }
+        // Ajuste del volumen
+        else if (strCmd.indexOf("BOS=") != -1) 
+        {
+          //Cogemos el valor
+          uint8_t buff[8];
+          strCmd.getBytes(buff, 7);
+          int valVol = (int)buff[4];
+          BOOSTER_VOLUME = valVol==1 ? true : false;
+          logln("Booster volume: " + String(BOOSTER_VOLUME));
+          VolumeStreamConfig volumeCfg;
+          volumeCfg.copyFrom(volumeStream.audioInfo());
+          volumeCfg.allow_boost = BOOSTER_VOLUME;
+          volumeStream.setAudioInfo(volumeCfg);
+          saveHMIcfg("BOSopt");
+        }
+        else if (strCmd.indexOf("BAL=") != -1) 
+        {
+          //Cogemos el valor
+          uint8_t buff[8];
+          strCmd.getBytes(buff, 7);
+          int valVol = (int)buff[4];
+          BALANCE_VOL = valVol;
+
+          float b = (BALANCE_VOL - 50) / 50;
+          float factor_L = cos((b + 1) * 3.1415 / 4);    
+          float factor_R = sin((b + 1) * 3.1415 / 4);
+          
+          //Primero los ponemos al máximo para poder operar correctamente
+          //MAIN_VOL_L = MAIN_VOL_R = 100;
+
+          int salida_L = MAIN_VOL_L * factor_L;
+          int salida_R = MAIN_VOL_R * factor_R;
+
+          myNex.writeNum("menuAudio.volL.val", int(salida_L));
+          myNex.writeNum("menuAudio.volR.val", int(salida_R));
+          myNex.writeNum("menuAudio.volLevelL.val", int(salida_L));
+          myNex.writeNum("menuAudio.volLevel.val", int(salida_R));
+
+          //
+          MAIN_VOL_L = salida_L;
+          MAIN_VOL_R = salida_R;
+
+          // Aplicamos el balance en la salida
+          setVolumenOutput();
+
+          //MASTER_VOL = valVol;
+          saveHMIcfg("BALopt");
+          //
+          logln("Balance: " + String(BALANCE_VOL / 100));
         }
         // Ajuste del volumen
         else if (strCmd.indexOf("VOL=") != -1) 
@@ -2980,12 +3051,17 @@ private:
                 MAIN_VOL = MAX_VOL_FOR_HEADPHONE_LIMIT;
               }                 
           }
-          MASTER_VOL = valVol;
+          //MASTER_VOL = valVol;
           saveHMIcfg("VOLMopt");
           myNex.writeStr("tape.tapeVol.txt",String(int(MAIN_VOL)) + "%");
 
-          kitStream.setVolume(MAIN_VOL / 100);
-          
+          kitStream.setVolume(MAIN_VOL / 100.0f);
+          //setVolumenOutput();
+
+          //
+          VOL_CHANGE = true;
+          //
+          logln("Master Volume: " + String(MAIN_VOL / 100));
         }
         // Ajuste el vol canal R
         else if (strCmd.indexOf("VRR=") != -1) 
@@ -3005,6 +3081,9 @@ private:
           }          
 
           saveVolSliders();
+          setVolumenOutput();
+       
+          VOL_CHANGE = true;
 
         }
         // Ajuste el vol canal L
@@ -3028,11 +3107,15 @@ private:
           // Ajustamos el volumen
           #ifdef DEBUGMODE
             logln("");
-            logln("L-Channel volume value=" + String(MAIN_VOL_L));
+            logln("L-Channel volume value=" + String(MAIN_VOL * MAIN_VOL_L / 100));
             logln("");
           #endif
 
           saveVolSliders();
+          
+          setVolumenOutput();
+     
+          VOL_CHANGE = true;
 
         }
         else if (strCmd.indexOf("EQH=") != -1) 
@@ -3936,8 +4019,10 @@ private:
           myNex.writeNum("menuAudio.volM.val", int(MAIN_VOL));
           myNex.writeNum("menuAudio.volLevelM.val", int(MAIN_VOL));
           myNex.writeStr("tape.tapeVol.txt",String(int(MAIN_VOL)) + "%");
+          
+          //kitStream.setVolume(MAIN_VOL / 100);
+          setVolumenOutput();
 
-          kitStream.setVolume(MAIN_VOL / 100);
 
         }        
         else if (strCmd.indexOf("VOLDW") != -1) 
@@ -3954,7 +4039,10 @@ private:
           myNex.writeStr("tape.tapeVol.txt",String(int(MAIN_VOL)) + "%");
 
 
-          kitStream.setVolume(MAIN_VOL / 100);
+          //kitStream.setVolume(MAIN_VOL / 100);
+          setVolumenOutput();
+
+
           // logln("");
           // logln("VOL DOWN");
           // logln("");

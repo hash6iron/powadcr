@@ -386,7 +386,8 @@ class AudioPlayer : public AudioInfoSupport, public VolumeSupport {
   }
 
   /// Sets volume in range [0.0, 1.0]; updates VolumeStream
-  bool setVolume(float volume) override {
+  bool setVolume(float volume) override 
+  {
     bool result = true;
     if (volume >= 0.0f && volume <= 1.0f) {
       if (abs(volume - current_volume) > 0.01f) {

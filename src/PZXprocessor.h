@@ -608,11 +608,21 @@ public:
     }
 
     // 4. Segundo paso: analizar cada bloque y rellenar el descriptor
-    currentOffset =
-        startOffset; // Reiniciar el offset al primer bloque de datos
+    currentOffset = startOffset; // Reiniciar el offset al primer bloque de datos
+
+    //Nos preparamos para poder cancelar el proceso cuando queramos.
+    STOP = false;
+
     for (int i = 0; i < blockCount; ++i) 
     {
-      // if (STOP || ABORT) break;
+      if (STOP || ABORT)
+      {
+        LAST_MESSAGE = "Aborting PZX analysis...";
+        _myPZX.descriptor = nullptr;
+        _myPZX.numBlocks = 0;
+        return;
+      }
+      LAST_MESSAGE = "Analyzing PZX block " + String(i + 1) + " / " + String(blockCount);
 
       analyzePZXBlock(mFile, currentOffset, _myPZX.descriptor[i]);
 
@@ -632,25 +642,17 @@ public:
 
     LAST_MESSAGE = "Analyzing file. Capturing blocks";
 
-    // if (SD_MMC.exists(pathDSC))
-    // {
-    //   SD_MMC.remove(pathDSC);
-    // }
-
-    //_blDscTZX.createBlockDescriptorFileTZX(dscFile,pathDSC);
     // creamos un objeto TZXproccesor
     set_file(pzxFile, _rlen);
     // Lo procesamos y creamos DSC
     getBlockDescriptor(pzxFile);
-    // Cerramos para guardar los cambios
-    // dscFile.close();
 
+    // Cerramos para guardar los cambios
     if (_myPZX.descriptor != nullptr) {
       // Entregamos información por consola
-      // strcpy(LAST_NAME,"              ");
       LAST_MESSAGE = "PZX ready.";
     } else {
-      LAST_MESSAGE = "Error in PZX not supported";
+      LAST_MESSAGE = "Error in PZX OR aborted.";
     }
   }
 

@@ -97,7 +97,7 @@ enum ConfigType {
   CONFIG_TYPE_INT8,
   CONFIG_TYPE_UINT32,
   CONFIG_TYPE_DOUBLE,
-  CONFIG_TYPE_FLOAT
+  CONFIG_TYPE_FLOAT,
 };
 
 struct ConfigEntry {
@@ -714,10 +714,13 @@ const int RESET = 6;
 bool SAMPLINGTEST = false;
 //
 
-uint8_t MASTER_VOL = 90;
+//uint8_t MASTER_VOL = 90;
+bool BOOSTER_VOLUME = false;
+float BOOSTER_FACTOR = 1.5;
+float BALANCE_VOL = 0;
 float MAIN_VOL = 90;
 float MAIN_VOL_R = 90;
-float MAIN_VOL_L = 90;
+float MAIN_VOL_L = 5;
 float EQ_HIGH = 0.9;
 float EQ_MID = 0.5;
 float EQ_LOW = 0.7;
@@ -737,7 +740,7 @@ bool CHANGE_TRACK_FILTER = false;
 float MAX_MAIN_VOL = 100;
 float MAX_MAIN_VOL_R = 100;
 float MAX_MAIN_VOL_L = 100;
-int EN_STEREO = 0;
+bool EN_STEREO = false;
 bool ACTIVE_AMP = false;
 bool EN_SPEAKER = false;
 bool wasHeadphoneDetected = false;
@@ -817,7 +820,7 @@ bool RADIO_IS_PLAYING = false;
 bool MUSIC_IS_PLAYING = false;
 bool FLAC_IS_PLAYING = false;
 bool NTP_AVAILABLE = false;
-
+bool DATA_IS_PLAYING = false;
 // bool PZX_EJECT_RQT = false;
 
 // Auto-update
@@ -876,7 +879,7 @@ ConfigEntry configEntries[] = {
     {"STEopt", CONFIG_TYPE_BOOL, &EN_STEREO},
     {"MAMopt", CONFIG_TYPE_BOOL, &ACTIVE_AMP},
     {"VLIopt", CONFIG_TYPE_BOOL, &VOL_LIMIT_HEADPHONE},
-    {"VOLMopt", CONFIG_TYPE_FLOAT, &MASTER_VOL},
+    {"VOLMopt", CONFIG_TYPE_FLOAT, &MAIN_VOL},
     {"VOLLopt", CONFIG_TYPE_FLOAT, &MAIN_VOL_L},
     {"VOLRopt", CONFIG_TYPE_FLOAT, &MAIN_VOL_R},
     {"EQHopt", CONFIG_TYPE_FLOAT, &EQ_HIGH},
@@ -2656,3 +2659,6 @@ void updateMSXDB(String letter = "0")
         myNex.writeNum("zxdb.j0.val", 100);
     }
 }
+
+
+

@@ -101,7 +101,7 @@
 // Enable / Disable Audiokit logging
 #define USE_AUDIO_LOGGING false
 // States of LOG_LEVEL: Debug, Info, Warning, Error
-#define LOG_LEVEL AudioLogger::Debug
+#define LOG_LEVEL AudioLogger::Info
 
 // Reproduce un BEEP al arrancar para comprobar que el audio funciona
 #define TEST_AUDIOKIT_ON_BOOT
@@ -225,7 +225,7 @@ int GPIO_MSX_REMOTE_PAUSE = 19;
 
 // Sampling rate para WAV y REC WAV (pero ojo, no para PLAY TO WAV)
 #define DEFAULT_WAV_SAMPLING_RATE 44100
-#define DEFAULT_WAV_SAMPLING_RATE_REC 44100
+#define DEFAULT_WAV_SAMPLING_RATE_REC 96000
 // #define DEFAULT_WAV_SAMPLING_RATE_REC_TO_TAP          44100
 // #define DEFAULT_WAV_SAMPLING_RATE_REC_PLAY_TO_WAV     44100
 #define DEFAULT_8BIT_WAV_SAMPLING_RATE_REC 22050

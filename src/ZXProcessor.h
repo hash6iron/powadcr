@@ -178,21 +178,21 @@ private:
       amplitude = maxAmplitude;
     }
 
-    sample_R = amplitude * (MAIN_VOL_R / 100) * (MAIN_VOL / 100);
-    sample_L = amplitude * (MAIN_VOL_L / 100) * (MAIN_VOL / 100);
+    sample_R = amplitude * (MAIN_VOL_R / 100);
+    sample_L = amplitude * (MAIN_VOL_L / 100);
     // }
 
     // Escribimos el tren de pulsos en el procesador de Audio
     // Generamos la señal en el buffer del chip de audio.
     for (int j = 0; j < samples; j++) {
-      // R-OUT - Right channel output (Amplified output)
-      *ptr++ = sample_R;
       // L-OUT - Left channel output (Speaker)
       if (ACTIVE_AMP) {
         *ptr++ = sample_L * EN_SPEAKER;
       } else {
         *ptr++ = sample_L;
       }
+      // R-OUT - Right channel output (Amplified output)
+      *ptr++ = sample_R;
 
       result += 2 * channels;
 
@@ -221,7 +221,8 @@ private:
   double getChannelAmplitude() {
 
     // Cambiamos el edge
-    if (!KEEP_CURRENT_EDGE) {
+    if (!KEEP_CURRENT_EDGE) 
+    {
       EDGE_EAR_IS ^= 1;
     }
 
@@ -284,6 +285,28 @@ private:
 
   public: 
 
+  void createSample(uint16_t sample_R, uint16_t sample_L)
+  {
+    // El buffer se dimensiona para 16 bits
+    uint8_t buffer[2 * channels];
+    uint16_t *ptr = (uint16_t *)buffer;
+
+    // L-OUT - Left channel output (Speaker)
+    if (ACTIVE_AMP) {
+      *ptr++ = sample_L * EN_SPEAKER;
+    } else {
+      *ptr++ = sample_L;
+    }
+    // R-OUT - Right channel output (Amplified output)
+    *ptr++ = sample_R;
+
+    if (OUT_TO_WAV) {
+      encoderOutWAV.write(buffer, 2 * channels);
+    } else {
+      kitStream.write(buffer, 2 * channels);
+    }
+  }
+
   void createPulse(int width, int bytes, uint16_t sample_R, uint16_t sample_L) {
     size_t result = 0;
     uint8_t buffer[bytes + 4];
@@ -293,43 +316,26 @@ private:
 
     LAST_PULSE_WIDTH = width;
 
-    for (int j = 0; j < width; j++) {
-      if (stopOrPauseRequest()) {
+    for (int j = 0; j < width; j++) 
+    {
+      if (stopOrPauseRequest()) 
+      {
         // Salimos
         return;
       }
 
-      // R-OUT - Right channel output (Amplified output) and current output.
-      *ptr++ = sample_R;
       // L-OUT - Left channel output (Speaker)
       if (ACTIVE_AMP) {
         *ptr++ = sample_L * EN_SPEAKER;
       } else {
         *ptr++ = sample_L;
       }
+      // R-OUT - Right channel output (Amplified output) and current output.
+      *ptr++ = sample_R;
       //
 
       result += 2 * chn;
     }
-
-    // int sr_parts = (MOTOR_DELAY_MS * (SAMPLING_RATE / 1000) * 2 * channels);
-    
-
-    // if (REM_DETECTED && (firstBytes_REM < sr_parts))
-    // {
-    //   // Si se ha detectado el REM y no se han escrito los primeros 4 bytes, insertamos un pulso de error
-    //   AudioInfo info = kitStream.audioInfo();
-    //   info.sample_rate = (SAMPLING_RATE / sr_parts)*firstBytes_REM;
-    //   kitStream.setAudioInfo(info);
-    //   firstBytes_REM++;
-    //   if (firstBytes_REM >= sr_parts) 
-    //   {
-    //     // Una vez insertados los primeros 4 bytes, restauramos el sample rate original
-    //     AudioInfo info = kitStream.audioInfo();
-    //     info.sample_rate = SAMPLING_RATE;
-    //     kitStream.setAudioInfo(info);
-    //   }
-    // }
 
     // Volcamos en el buffer
     if (OUT_TO_WAV) {
@@ -341,7 +347,7 @@ private:
 
   private: 
   
-  void sampleDR(int samples, int amp) {
+  void sampleDR(int amp) {
     // Calculamos el tamaño del buffer
     int bytes = 0; // Cada muestra ocupa 2 bytes (16 bits)
     int chn = channels;
@@ -360,15 +366,11 @@ private:
 
     // Ajustamos el volumen
 
-    sample_R = (uint16_t)(amp * (MAIN_VOL_R / 100.0) * (MAIN_VOL / 100.0));
-    sample_L = (uint16_t)(amp * (MAIN_VOL_L / 100.0) * (MAIN_VOL / 100.0));
-    // }
+    sample_R = (uint16_t)(amp * (MAIN_VOL_R / 100.0f));
+    sample_L = (uint16_t)(amp * (MAIN_VOL_L / 100.0f));
 
-    bytes = (int)samples * 2 * channels;
-    //
-
-    // Generamos la onda
-    createPulse(samples, bytes, sample_R, sample_L);
+    // Generamos el sample
+    createSample(sample_R, sample_L);
 
     if (stopOrPauseRequest()) {
       // Salimos
@@ -401,8 +403,8 @@ private:
     EDGE_EAR_IS = initialLevelLow ? down : up;
     amplitude = getChannelAmplitude();
 
-    sample_R = (uint16_t)(amplitude * (MAIN_VOL_R / 100.0) * (MAIN_VOL / 100.0));
-    sample_L = (uint16_t)(amplitude * (MAIN_VOL_L / 100.0) * (MAIN_VOL / 100.0));
+    sample_R = (uint16_t)(amplitude * (MAIN_VOL_R / 100.0f));
+    sample_L = (uint16_t)(amplitude * (MAIN_VOL_L / 100.0f));
 
     // Pasamos los datos para el modo DEBUG
     DEBUG_AMP_R = sample_R;
@@ -491,10 +493,8 @@ private:
     // }
     // else
     // {
-    sample_R =
-        (uint16_t)(amplitude * (MAIN_VOL_R / 100.0) * (MAIN_VOL / 100.0));
-    sample_L =
-        (uint16_t)(amplitude * (MAIN_VOL_L / 100.0) * (MAIN_VOL / 100.0));
+    sample_R = (uint16_t)(amplitude * (MAIN_VOL_R / 100.0f));
+    sample_L = (uint16_t)(amplitude * (MAIN_VOL_L / 100.0f));
     // }
 
     // Pasamos los datos para el modo DEBUG
@@ -507,31 +507,36 @@ private:
     // Si el semi-pulso tiene un numero
     // menor de muestras que el minFrame, entonces
     // el minFrame será ese numero de muestras
-    if (samples <= minFrame) {
+    if (samples <= minFrame) 
+    {
 
-#ifdef DEBUGMODE
-      // log("SIMPLE PULSE");
-      // log(" --> samp:  " + String(samples));
-      // log(" --> bytes: " + String(bytes));
-      // log(" --> Chns:  " + String(channels));
-      // log(" --> T0:  " + String(T0));
-      // log(" --> T1:  " + String(T1));
-#endif
+      #ifdef DEBUGMODE
+            // log("SIMPLE PULSE");
+            // log(" --> samp:  " + String(samples));
+            // log(" --> bytes: " + String(bytes));
+            // log(" --> Chns:  " + String(channels));
+            // log(" --> T0:  " + String(T0));
+            // log(" --> T1:  " + String(T1));
+      #endif
       // Definimos el tamaño del buffer
       bytes = samples * 2 * channels;
       // Generamos la onda
       createPulse(samples, bytes, sample_R, sample_L);
-    } else {
+    } 
+    else 
+    {
       // Caso de un silencio o pulso muy largo
       // -------------------------------------
       int frameSlot = samples;
       bytes = minFrame * 2 * channels;
       int pass = 0;
-      while (frameSlot >= minFrame) {
+      while (frameSlot >= minFrame) 
+      {
         createPulse(minFrame, bytes, sample_R, sample_L);
         frameSlot = frameSlot - minFrame;
         pass++;
-        if (stopOrPauseRequest()) {
+        if (stopOrPauseRequest()) 
+        {
           return;
         }
       }
@@ -542,14 +547,17 @@ private:
         createPulse(frameSlot, bytes, sample_R, sample_L);
       }
 
-#ifdef DEBUGMODE
-      // log("ACU_ERROR: "+ String(ACU_ERROR));
-#endif
+      #ifdef DEBUGMODE
+            // log("ACU_ERROR: "+ String(ACU_ERROR));
+      #endif
     }
 
     if (stopOrPauseRequest()) {
       return;
     }
+
+    //
+    logln("(Silence END) -> EDGE is: " + String(EDGE_EAR_IS == down ? "DOWN" : "UP"));
   }
 
   void fullPulse(double dwidth, double calibrationValue = 0.0) {
@@ -566,10 +574,8 @@ private:
       amplitude = getChannelAmplitude();
 
       // double amplitude = getChannelAmplitude(true);
-      uint16_t sample_R =
-          (uint16_t)(amplitude * (MAIN_VOL_R / 100) * (MAIN_VOL / 100));
-      uint16_t sample_L =
-          (uint16_t)(amplitude * (MAIN_VOL_L / 100) * (MAIN_VOL / 100));
+      uint16_t sample_R = (uint16_t)(amplitude * (MAIN_VOL_R / 100.0f));
+      uint16_t sample_L = (uint16_t)(amplitude * (MAIN_VOL_L / 100.0f));
       DEBUG_AMP_R = sample_R;
       DEBUG_AMP_L = sample_L;
 
@@ -760,8 +766,8 @@ private:
       amplitude = getChannelAmplitude();
     }
 
-    sample_R = (uint16_t)(amplitude * (MAIN_VOL_R / 100) * (MAIN_VOL / 100));
-    sample_L = (uint16_t)(amplitude * (MAIN_VOL_L / 100) * (MAIN_VOL / 100));
+    sample_R = (uint16_t)(amplitude * (MAIN_VOL_R / 100.0f));
+    sample_L = (uint16_t)(amplitude * (MAIN_VOL_L / 100.0f));
 
     // Pasamos los datos para el modo DEBUG
     DEBUG_AMP_R = sample_R;
@@ -846,8 +852,8 @@ private:
     // nivel low, etc.
     amplitude = getChannelAmplitude();
 
-    sample_R = (uint16_t)(amplitude * (MAIN_VOL_R / 100) * (MAIN_VOL / 100));
-    sample_L = (uint16_t)(amplitude * (MAIN_VOL_L / 100) * (MAIN_VOL / 100));
+    sample_R = (uint16_t)(amplitude * (MAIN_VOL_R / 100.0f));
+    sample_L = (uint16_t)(amplitude * (MAIN_VOL_L / 100.0f));
 
     // Pasamos los datos para el modo DEBUG
     DEBUG_AMP_R = sample_R;
@@ -1082,10 +1088,10 @@ public:
     // Si no hay silencio, se pasas tres kilos del silencio y salimos
     if (duration > 0) 
     {
-
       samples = ((duration / 1000.0) * sr);
 
-      if (duration < 500.0) {
+      if (duration < 500.0) 
+      {
         // Calculamos el error y agregamos una muestra si es necesario
         int samples_int = (int)samples;
         double duration_int = samples_int / sr * 1000.0;
@@ -1101,10 +1107,11 @@ public:
 
       // Generador de pulsos exclusivo para silencios
       int swidth = round(samples);
-      if (swidth > 0) {
-
+      if (swidth > 0) 
+      {
         // Esto es para máquinas como el 48K
-        if (duration >= 1000) {
+        if (duration >= 1000) 
+        {
           // Añadimos ms extras para maquinas como el 48K
           int addsmp = (int)(SILENCE_COMPENSATION_48K * SAMPLING_RATE);
           swidth += addsmp;
@@ -1112,9 +1119,10 @@ public:
         //
         pulseSilence(swidth);
       }
-
-    } else {
-      EDGE_EAR_IS ^= 1; // Alternamos el nivel del EAR para el siguiente pulso
+    } 
+    else 
+    {
+      //EDGE_EAR_IS ^= 1; // Alternamos el nivel del EAR para el siguiente pulso
     }
   }
 
@@ -1135,6 +1143,11 @@ public:
         logln(" - Current EAR level: " +
               String(EDGE_EAR_IS == down ? "LOW" : "HIGH"));
     #endif
+        
+    //Metemos un tail de 1ms para el ultimo pulso y cambio el flanco
+    double samples1ms = (1 / 1000.0) * SAMPLING_RATE;
+    pulseSilence(samples1ms); // Generamos un pulso de silencio de 1 muestra (ajustable)
+    duration -= 1.0; // Restamos 1ms al tiempo total de silencio
 
     // Generar silencio adicional si duration > 0
     if (duration > 0.0) {
@@ -1163,7 +1176,7 @@ public:
 
       // Opcion 2: simplemente alternamos el nivel del EAR para el siguiente
       // pulso, sin generar un pulso de silencio adicional
-      // EDGE_EAR_IS ^= 1; // Alternamos el nivel del EAR para el siguiente
+      //EDGE_EAR_IS ^= 1; // Alternamos el nivel del EAR para el siguiente
       // pulso
     }
   }
@@ -1375,9 +1388,16 @@ public:
   }
 
   // ✅ FUNCIÓN playDRBlock MODIFICADA PARA MANEJAR EL ÚLTIMO BYTE
-  void playDRBlock2(uint8_t *bBlock, int size, bool isThelastDataPart) {
+  void playDRBlock_new(uint8_t *bBlock, int size, bool isThelastDataPart) {
     if (!bBlock || size == 0)
       return;
+
+    // ✅ CRÍTICO: Limpiar estado de transición entre bloques
+    // El bloque anterior (0x11) puede haber dejado acumuladores y estado de flancos
+    // Por seguridad, reiniciamos para evitar pulsos extraños en la transición
+    ERROR_ACCUMULATOR = 0.0;
+    ACU_ERROR = 0;
+    KEEP_CURRENT_EDGE = false;  // Permitir que los flancos se alteren normalmente
 
     // 1. Calcular cuántos bits totales procesar en este trozo
     int total_bits_to_process = size * 8;
@@ -1402,14 +1422,10 @@ public:
     int samples_in_buffer = 0;
 
     // Pre-calcular amplitudes ajustadas por volumen
-    uint16_t sample_up_R =
-        (uint16_t)(maxLevelUp * (MAIN_VOL_R / 100.0) * (MAIN_VOL / 100.0));
-    uint16_t sample_up_L =
-        (uint16_t)(maxLevelUp * (MAIN_VOL_L / 100.0) * (MAIN_VOL / 100.0));
-    uint16_t sample_down_R =
-        (uint16_t)(maxLevelDown * (MAIN_VOL_R / 100.0) * (MAIN_VOL / 100.0));
-    uint16_t sample_down_L =
-        (uint16_t)(maxLevelDown * (MAIN_VOL_L / 100.0) * (MAIN_VOL / 100.0));
+    uint16_t sample_up_R = (uint16_t)(float(maxLevelUp) * (MAIN_VOL_R / 100.0f));
+    uint16_t sample_up_L = (uint16_t)(float(maxLevelUp) * (MAIN_VOL_L / 100.0f));
+    uint16_t sample_down_R = (uint16_t)(float(maxLevelDown) * (MAIN_VOL_R / 100.0f));
+    uint16_t sample_down_L = (uint16_t)(float(maxLevelDown) * (MAIN_VOL_L / 100.0f));
 
     // Ajustar canal L si ACTIVE_AMP está activo
     if (ACTIVE_AMP) {
@@ -1434,12 +1450,13 @@ public:
         uint8_t bit_value = (current_byte >> bit_idx) & 1;
 
         // Añadir muestra al buffer
+        // se añade siempre el canal L antes que el R para mantener la coherencia con el resto de funciones
         if (bit_value == 1) {
-          *ptr++ = sample_up_R;
           *ptr++ = sample_up_L;
+          *ptr++ = sample_up_R;
         } else {
-          *ptr++ = sample_down_R;
           *ptr++ = sample_down_L;
+          *ptr++ = sample_down_R;
         }
 
         samples_in_buffer++;
@@ -1482,78 +1499,149 @@ public:
     }
   }
 
-  void playDRBlock(uint8_t *bBlock, int size, bool isThelastDataPart) {
-    // Aqui ponemos el byte de mascara del bloque ID 0x15 -
-    // importante porque esto dice cuantos bits de cada bytes se reproducen
+  // ✅ VERSIÓN CON REMUESTREO: Genera muestras adaptadas al SR actual del I2S
+  // Si el bloque DR está a 45454 Hz pero I2S está a 96000 Hz,
+  // repite automáticamente cada muestra ~2.11 veces para mantener la velocidad correcta
+  void playDRBlock(uint8_t *bBlock, int size, bool isThelastDataPart, double dr_sr = 44100.0,
+                   int bytes_accumulated = 0, int total_block_size = 0) {
+    if (!bBlock || size == 0) return;
+
+    // ✅ Limpiar estado de transición entre bloques
+    ERROR_ACCUMULATOR = 0.0;
+    ACU_ERROR = 0;
+    KEEP_CURRENT_EDGE = false;
+
+    // Obtener SR actual del I2S
+    AudioInfo current_info = kitStream.audioInfo();
+    double i2s_sr = current_info.sample_rate;
+    
+    // Calcular ratio de remuestreo
+    double resample_ratio = i2s_sr / dr_sr;  // 96000 / 45454 = 2.111
+    
+    #ifdef DEBUGMODE
+      logln("DR Block resampling: dr_sr=" + String(dr_sr) + " Hz, i2s_sr=" + String(i2s_sr) + " Hz, ratio=" + String(resample_ratio, 3));
+    #endif
+
+    const int DR_CHUNK_SIZE = 512;
+    const int BUFFER_BYTES = DR_CHUNK_SIZE * 2 * channels;
+    uint8_t audio_buffer[BUFFER_BYTES];
+    
+    // Pre-calcular amplitudes con volumen
+    uint16_t sample_up_R = (uint16_t)(maxLevelUp * (MAIN_VOL_R / 100.0f));
+    uint16_t sample_up_L = (uint16_t)(maxLevelUp * (MAIN_VOL_L / 100.0f));
+    uint16_t sample_down_R = (uint16_t)(maxLevelDown * (MAIN_VOL_R / 100.0f));
+    uint16_t sample_down_L = (uint16_t)(maxLevelDown * (MAIN_VOL_L / 100.0f));
+
+    int samples_in_buffer = 0;
+    double resample_accumulator = 0.0;  // Acumula la posición de remuestreo
     uint8_t _mask = 8;
     uint8_t bRead = 0x00;
     int bytes_in_this_block = 0;
     int ptrOffset = 0;
 
     for (int i = 0; i < size; i++) {
-      // Por cada byte creamos un createPulse
       bRead = bBlock[i];
-      // Descomponemos el byte
-
-      // log("Dato: " + String(i) + " - " + String(data[i]));
-
-      // Para la protección con mascara ID 0x11 - 0x0C
-      // ---------------------------------------------
-      // "Used bits in the last uint8_t (other bits should be 0) {8}
-      //(e.g. if this is 6, then the bits used (x) in the last uint8_t are:
-      // xxxxxx00, wh///ere MSb is the leftmost bit, LSb is the rightmost bit)"
-
-      // ¿Es el ultimo BYTE?. Si se ha aplicado mascara entonces
-      // se modifica el numero de bits a transmitir
 
       if (LOADING_STATE == 1 || TEST_RUNNING) {
-        // Vemos si es el ultimo byte de la ultima partición de datos del bloque
+        // Determinar máscara para este byte
         if ((i == size - 1) && isThelastDataPart) {
-          // Aplicamos la mascara
           _mask = _mask_last_byte;
         } else {
-          // En otro caso todo el byte es valido.
-          // se anula la mascara.
           _mask = 8;
         }
 
-#ifdef DEBUGMODE
-        logln("Audio is Out");
-        logln("Mask: " + String(_mask));
-#endif
+        #ifdef DEBUGMODE
+          logln("Audio is Out");
+          logln("Mask: " + String(_mask));
+        #endif
 
-        // Ahora vamos a descomponer el byte leido
-        // y le aplicamos la mascara. Es decir SOLO SE TRANSMITE el nº de bits
-        // que indica la mascara, para el último byte del bloque
-
+        // Procesar cada bit del byte
         for (int n = 0; n < _mask; n++) {
-          // Obtenemos el bit a transmitir
           uint8_t bitMasked = bitRead(bRead, 7 - n);
-
-          // Si el bit leido del BYTE es un "1"
+          
+          // Determinar nivel de la muestra
+          uint16_t sample_R, sample_L;
           if (bitMasked == 1) {
-            // bit "1"
-            sampleDR(1, maxLevelUp);
-          } else {
-            // bit "0"
-            sampleDR(1, maxLevelDown);
+            sample_L = sample_up_L;
+            sample_R = sample_up_R;
+            
+            // Esto lo hacemos para asegurar que se continua el tren de pulsos despues de un bloque DR
+            // a otro bloque no es DR.
+            EDGE_EAR_IS = up;
+
+          } 
+          else 
+          {
+            sample_L = sample_down_L;
+            sample_R = sample_down_R;
+          
+            // Esto lo hacemos para asegurar que se continua el tren de pulsos despues de un bloque DR
+            // a otro bloque no es DR.
+            EDGE_EAR_IS = down;
+          }
+          
+          // ✅ REMUESTREO: Repetir la muestra según el ratio
+          // Acumolar el error para mantener precisión
+          resample_accumulator += resample_ratio;
+          int repeat_count = (int)resample_accumulator;
+          resample_accumulator -= repeat_count;
+          
+          // Escribir la muestra 'repeat_count' veces en el buffer I2S
+          for (int rep = 0; rep < repeat_count; rep++) {
+            int16_t *ptr = (int16_t *)audio_buffer + (samples_in_buffer * channels);
+            *ptr++ = (int16_t)sample_L;
+            *ptr++ = (int16_t)sample_R;
+            samples_in_buffer++;
+
+            // Escribir al I2S cuando el buffer está lleno
+            if (samples_in_buffer >= DR_CHUNK_SIZE) {
+              size_t bytes_to_write = samples_in_buffer * 2 * channels;
+              if (OUT_TO_WAV) {
+                encoderOutWAV.write(audio_buffer, bytes_to_write);
+              } else {
+                kitStream.write(audio_buffer, bytes_to_write);
+              }
+              samples_in_buffer = 0;
+            }
+          }
+
+          if (stopOrPauseRequest()) {
+            return;
           }
         }
 
-        // Hemos cargado +1 byte. Seguimos
+        // Actualizar tracking
         if (!TEST_RUNNING) {
           BYTES_LOADED++;
           bytes_in_this_block++;
           BYTES_LAST_BLOCK = bytes_in_this_block;
         }
+        
+        // ✅ Actualizar barra de progreso POR CADA BYTE (no por bit) para evitar spam
+        ptrOffset = i;
+        
+        // Si se proporcionó bytes_accumulated (para bloques 0x15 particionados),
+        // usar el progreso acumulado para que la barra no se reinicie en cada chunk
+        int total_bytes_for_bar = (total_block_size > 0) ? (bytes_accumulated + ptrOffset + 1) : (ptrOffset + 1);
+        
+        PROGRESS_BAR_TOTAL_VALUE = ((PRG_BAR_OFFSET_INI + total_bytes_for_bar) * 100) / BYTES_TOBE_LOAD;
+        PROGRESS_BAR_BLOCK_VALUE = ((PRG_BAR_OFFSET_INI + total_bytes_for_bar) * 100) / PRG_BAR_OFFSET_END;
+        
       } else {
         return;
       }
 
-      ptrOffset = i;
-      // Esto lo hacemos para asegurarnos que la barra se llena entera
-      PROGRESS_BAR_TOTAL_VALUE = ((PRG_BAR_OFFSET_INI + (ptrOffset + 1)) * 100) / BYTES_TOBE_LOAD;
-      PROGRESS_BAR_BLOCK_VALUE = ((PRG_BAR_OFFSET_INI + (ptrOffset + 1)) * 100) / PRG_BAR_OFFSET_END;
+      _mask_last_byte = 8;
+    }
+
+    // ✅ Escribir las muestras restantes del último chunk
+    if (samples_in_buffer > 0) {
+      size_t bytes_to_write = samples_in_buffer * 2 * channels;
+      if (OUT_TO_WAV) {
+        encoderOutWAV.write(audio_buffer, bytes_to_write);
+      } else {
+        kitStream.write(audio_buffer, bytes_to_write);
+      }
     }
   }
 
@@ -1644,8 +1732,8 @@ public:
     uint16_t sample_L = 0;
     uint16_t sample_R = 0;
 
-    sample_R = (uint16_t)(32768 * (MAIN_VOL_R / 100.0) * (MAIN_VOL / 100.0));
-    sample_L = (uint16_t)(32768 * (MAIN_VOL_L / 100.0) * (MAIN_VOL / 100.0));
+    sample_R = (uint16_t)(32768 * (MAIN_VOL_R / 100.0f));
+    sample_L = (uint16_t)(32768 * (MAIN_VOL_L / 100.0f));
 
     bytes = samples * 2 * channels;
 
