@@ -622,7 +622,8 @@ public:
         _myPZX.numBlocks = 0;
         return;
       }
-      LAST_MESSAGE = "Analyzing PZX block " + String(i + 1) + " / " + String(blockCount);
+      int progress_pct = (int)(((double)(i + 1) / blockCount) * 100.0);
+      LAST_MESSAGE = "Analyzing PZX block " + String(i + 1) + " / " + String(blockCount) + " (" + String(progress_pct) + "%)";
 
       analyzePZXBlock(mFile, currentOffset, _myPZX.descriptor[i]);
 
@@ -754,6 +755,58 @@ public:
     PROGRAM_NAME_2 = "...";
 
     bool pause_from_stop_block = false;
+
+    // ============================================
+    // CÁLCULO DE TAMAÑO TOTAL DE TRABAJO
+    // ============================================
+    // Calcular unidades de trabajo totales (pulsos, bits, duración, etc.)
+    int64_t total_work_units = 0;
+    int64_t work_units_per_block[_myPZX.numBlocks];
+    memset(work_units_per_block, 0, sizeof(work_units_per_block));
+
+    for (int j = firstBlockToBePlayed; j < _myPZX.numBlocks; ++j) 
+    {
+      if (!_myPZX.descriptor[j].playeable) continue;
+
+      if (strcmp(_myPZX.descriptor[j].tag, "PULS") == 0) 
+      {
+        // Contar pulsos totales considerando repeats
+        int64_t total_puls = 0;
+        for (int p = 0; p < _myPZX.descriptor[j].timming.pzx_num_pulses; ++p) 
+        {
+          total_puls += _myPZX.descriptor[j].timming.pzx_pulse_data[p].repeat;
+        }
+        work_units_per_block[j] = total_puls > 0 ? total_puls : 1;
+        total_work_units += work_units_per_block[j];
+      }
+      else if (strcmp(_myPZX.descriptor[j].tag, "DATA") == 0) 
+      {
+        // Usar bits como unidades de trabajo
+        work_units_per_block[j] = _myPZX.descriptor[j].data_bit_count > 0 ? _myPZX.descriptor[j].data_bit_count : 1;
+        total_work_units += work_units_per_block[j];
+      }
+      else if (strcmp(_myPZX.descriptor[j].tag, "CSW") == 0) 
+      {
+        // Contar pulsos totales considerando repeats
+        int64_t total_csw = 0;
+        for (int p = 0; p < _myPZX.descriptor[j].csw_num_pulses; ++p) 
+        {
+          total_csw += _myPZX.descriptor[j].csw_pulse_data[p].repeat;
+        }
+        work_units_per_block[j] = total_csw > 0 ? total_csw : 1;
+        total_work_units += work_units_per_block[j];
+      }
+      else if (strcmp(_myPZX.descriptor[j].tag, "PAUS") == 0 || strcmp(_myPZX.descriptor[j].tag, "STOP") == 0) 
+      {
+        // Bloques instantáneos: 1 unidad
+        work_units_per_block[j] = 1;
+        total_work_units += 1;
+      }
+    }
+
+    if (total_work_units == 0) total_work_units = 1; // Evitar división por cero
+
+    int64_t cumulative_work_units = 0;
 
     // Para PZX, la polarización por defecto es LOW (0)
     // Según la especificación PZX, PULS comienza en LOW.
@@ -890,6 +943,7 @@ public:
         // Un pulso de duración 0 al inicio puede hacer toggle a HIGH
         // No forzamos el nivel aquí, lo detectamos procesando los pulsos
         
+        int64_t pulses_processed_in_block = 0;
         for (int p = 0; p < _myPZX.descriptor[i].timming.pzx_num_pulses; ++p) 
         {
           if (STOP || EJECT || PAUSE) break;
@@ -910,8 +964,23 @@ public:
           {
             if (STOP || EJECT || PAUSE) break;
             _zxp.pulse(pulse_len);
+            pulses_processed_in_block++;
           }
+          
+          // Actualizar barra de progreso del bloque
+          int64_t total_puls = work_units_per_block[i];
+          if (total_puls > 0) 
+          {
+            PROGRESS_BAR_BLOCK_VALUE = (int)(((double)pulses_processed_in_block / total_puls) * 100.0);
+          }
+          
+          // Actualizar barra de progreso total
+          int64_t total_processed = cumulative_work_units + pulses_processed_in_block;
+          PROGRESS_BAR_TOTAL_VALUE = (int)(((double)total_processed / total_work_units) * 100.0);
         }
+        
+        // Actualizar unidades acumuladas para el siguiente bloque
+        cumulative_work_units += work_units_per_block[i];
         
         // Asegurar que el bloque PULS termina en LOW
         //_zxp.forceLevelLow();
@@ -979,9 +1048,14 @@ public:
             }
 
             // BYTES_LOADED = BYTES_LOADED + (bit_num / 8);
+            // Actualizar barras de progreso
             PROGRESS_BAR_BLOCK_VALUE = (int)(((double)(bit_num + 1) / _myPZX.descriptor[i].data_bit_count) * 100.0);
+            
+            int64_t total_processed = cumulative_work_units + (bit_num + 1);
+            PROGRESS_BAR_TOTAL_VALUE = (int)(((double)total_processed / total_work_units) * 100.0);
           }
           free(data_buffer);
+          cumulative_work_units += work_units_per_block[i];
 
           if (_myPZX.descriptor[i].data_tail_pulse > 0) 
           {
@@ -1009,6 +1083,11 @@ public:
         logln(" - PZX PAUS Block: duration (ms): " + String(duration) + " initial level: " + String(_myPZX.descriptor[i].initial_level));
 
         _zxp.silence(duration);
+        
+        // Actualizar barras de progreso para bloque PAUS (instantáneo)
+        PROGRESS_BAR_BLOCK_VALUE = 100;
+        cumulative_work_units += work_units_per_block[i];
+        PROGRESS_BAR_TOTAL_VALUE = (int)(((double)cumulative_work_units / total_work_units) * 100.0);
 
       } 
       else if (strcmp(_myPZX.descriptor[i].tag, "CSW") == 0) 
@@ -1035,6 +1114,7 @@ public:
           }
 
           // 1. Iterar a través de los pulsos decodificados del RLE
+          int64_t pulses_processed_in_csw = 0;
           for (int p = 0; p < _myPZX.descriptor[i].csw_num_pulses; ++p) 
           {
             if (STOP) break;
@@ -1049,12 +1129,22 @@ public:
             {
               if (STOP) break;
               _zxp.pulse(pulse_len_tstates);
+              pulses_processed_in_csw++;
             }
 
-            // Actualizar barra de progreso aquí:
-            PROGRESS_BAR_BLOCK_VALUE = (int)(((double)(p + 1) / _myPZX.descriptor[i].csw_num_pulses) * 100.0);
+            // Actualizar barra de progreso del bloque
+            int64_t total_csw = work_units_per_block[i];
+            if (total_csw > 0) 
+            {
+              PROGRESS_BAR_BLOCK_VALUE = (int)(((double)pulses_processed_in_csw / total_csw) * 100.0);
+            }
+            
+            // Actualizar barra de progreso total
+            int64_t total_processed = cumulative_work_units + pulses_processed_in_csw;
+            PROGRESS_BAR_TOTAL_VALUE = (int)(((double)total_processed / total_work_units) * 100.0);
           }
           // ✅ FIN DE LA CORRECCIÓN
+          cumulative_work_units += work_units_per_block[i];
         }
         _zxp.silence((double)_myPZX.descriptor[i].pause_duration);
 
@@ -1065,10 +1155,12 @@ public:
         pause_from_stop_block = true;
         PLAY = false;
         // PAUSE = true;
+        
+        // Actualizar barras de progreso para bloque STOP (instantáneo)
+        PROGRESS_BAR_BLOCK_VALUE = 100;
+        cumulative_work_units += work_units_per_block[i];
+        PROGRESS_BAR_TOTAL_VALUE = (int)(((double)cumulative_work_units / total_work_units) * 100.0);
       }
-
-      // Actualizamos el progreso total
-      PROGRESS_BAR_TOTAL_VALUE = (int)(((double)(i + 1) / _myPZX.numBlocks) * 100.0);
     }
 
     // En el caso de no haber parado manualmente, es por finalizar
