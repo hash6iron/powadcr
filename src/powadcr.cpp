@@ -2719,7 +2719,8 @@ void RadioPlayer() {
               "%";
 
           // Si el buffer ha crecido, actualizar el timestamp
-          if (bufAvail > lastBufferSnapshot) {
+          if (bufAvail > lastBufferSnapshot) 
+          {
             lastBufferSnapshot = bufAvail;
             lastBufferGrowth = millis();
           }
@@ -2728,8 +2729,11 @@ void RadioPlayer() {
           if (millis() - lastBufferGrowth > RADIO_BUFFER_TIMEOUT_MS) {
             logln("[Radio] Timeout buffering - reintentando conexion...");
             LAST_MESSAGE = "Timeout - Retrying...";
+            // Reiniciar todo el proceso de conexión y buffering
+            isBuffering = true;
 
-            if (networkTaskHandle != NULL) {
+            if (networkTaskHandle != NULL) 
+            {
               taskParams.running = false;
               unsigned long t0 = millis();
               while (!taskParams.taskDone && millis() - t0 < 200) vTaskDelay(pdMS_TO_TICKS(10));
@@ -2798,18 +2802,18 @@ void RadioPlayer() {
         LAST_MESSAGE = "Radio stopped.";
         PAUSE = false;
         STOP = true;
+        isBuffering = false;
       }
       break;
     }
 
     // Actualización de la interfaz de usuario
-    if ((millis() - trefresh > 1000)) {
-      float bufferUsage =
-          (radioBuffer.getAvailable() * 100.0) / RADIO_BUFFER_SIZE;
+    if ((millis() - trefresh > 1000)) 
+    {
+      float bufferUsage = (radioBuffer.getAvailable() * 100.0) / RADIO_BUFFER_SIZE;
       PROGRESS_BAR_TOTAL_VALUE = bufferUsage;
       PROGRESS_BAR_BLOCK_VALUE = bufferUsage;
-      updateIndicators(TOTAL_BLOCKS, currentRadioStation, bufferw,
-                       decoder.audioInfoEx().bitrate, radioName);
+      updateIndicators(TOTAL_BLOCKS, currentRadioStation, bufferw, decoder.audioInfoEx().bitrate, radioName);
       hmi.writeString("name.txt=\"" + radioName + "\"");
       trefresh = millis();
     }
