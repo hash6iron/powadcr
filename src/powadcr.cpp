@@ -3088,11 +3088,11 @@ void MediaPlayer() {
     break;
   }
 
-#ifdef BLUETOOTH_ENABLE
-  if (BLUETOOTH_ACTIVE) {
-    player.setOutput(outbt);
-  }
-#endif
+  #ifdef BLUETOOTH_ENABLE
+    if (BLUETOOTH_ACTIVE) {
+      player.setOutput(outbt);
+    }
+  #endif
 
   LAST_MESSAGE = "Scanning files ...";
 
@@ -3286,17 +3286,14 @@ void MediaPlayer() {
             player.stop();
           }
         }
+        kitStream.setVolume(0);
         player.setAutoNext(false);
         player.setMuted(true);
-        delay(125);
+        delay(250);
         // Recorremos varias muestras para saber como son
         // y obtener sus características y poder controlar el volumen de muestras
-        for (int i = 0; i < 10; i++)
-        {
-          player.copy();
-          player.copy();
-        }
-
+        player.copy();
+        delay(125);
         pFile->seek(0); // Nos aseguramos de que el nuevo track comience desde el principio
         delay(250);
         player.setMuted(false);
@@ -3387,13 +3384,8 @@ void MediaPlayer() {
           kitStream.setVolume(0);
           player.setMuted(true);
           delay(250);
-
-          for (int i = 0; i < 10; i++)
-          {
-            player.copy();
-            player.copy();
-          }
-
+          player.copy();
+          delay(125);
           pFile->seek(0); // Nos aseguramos de que el nuevo track comience desde el principio
           delay(250);
           player.setMuted(false);
@@ -3462,6 +3454,10 @@ void MediaPlayer() {
             delay(125);
 
             waitflag = 0;
+
+            kitStream.setVolume(0);
+            player.setMuted(true);            
+
             while (!player.setIndex(currentIdx)) 
             {
               if (waitflag++ > 255) 
@@ -3472,12 +3468,8 @@ void MediaPlayer() {
 
             // Recorremos varias muestras para saber como son
             // y obtener sus características y poder controlar el volumen de muestras
-            for (int i = 0; i < 10; i++)
-            {
-              player.copy();
-              player.copy();
-            }
-
+            player.copy();
+            delay(125);
             pFile->seek(0); // Nos aseguramos de que el nuevo track comience desde el principio
             delay(250);
             player.setMuted(false);
@@ -3505,8 +3497,10 @@ void MediaPlayer() {
           waitflag = 0;
           // Iniciamos el reproductor
           // Cambio de pista
-          player.setMuted(true);
-          player.stop();
+          kitStream.setVolume(0);
+          player.setMuted(true); 
+          player.stop();           
+
 
           while (!player.setIndex(currentIdx)) 
           {
@@ -3518,11 +3512,8 @@ void MediaPlayer() {
 
           // Recorremos varias muestras para saber como son
           // y obtener sus características
-          for (int i = 0; i < 10; i++)
-          {
-            player.copy();
-            player.copy();
-          }
+          player.copy();
+          delay(125);
 
           pFile->seek(0); // Nos aseguramos de que el nuevo track comience desde el principio
           delay(250);
@@ -3706,12 +3697,12 @@ void MediaPlayer() {
           // Mostrar ambos tiempos
           LAST_MESSAGE = "Time: " + tiempoElapsedStr + " /  " + tiempoTotalStr;
 
-#ifdef DEBUG
-          logln("Elapsed seconds: " + String(stime_elapsed) +
-                " Total seconds: " + String(stime_total));
-          logln("File size: " + String(fileSize) +
-                " File read: " + String(fileread));
-#endif
+          #ifdef DEBUG
+                    logln("Elapsed seconds: " + String(stime_elapsed) +
+                          " Total seconds: " + String(stime_total));
+                    logln("File size: " + String(fileSize) +
+                          " File read: " + String(fileread));
+          #endif
         } else {
           // Mostrar mensaje de espera durante los primeros 40 segundos
           // int secondsRemaining = TIME_TO_SHOW_ESTIMATED_TIME - (elapsedTime /
