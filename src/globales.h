@@ -2159,6 +2159,9 @@ void downloadFromCPCDB(String fileName, String title)
 void updateCPCDB(String letter = "0")
 {
     String searchChain = "#ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    int nrows = 100;
+    int count = 0;
+    int totalItemsFound = 0;
 
     if (WIFI_CONNECTED && WIFI_ENABLE)
     {
@@ -2303,6 +2306,9 @@ void updateCPCDB(String letter = "0")
           }
 
           // Progreso
+          if (totalFiles > 0) myNex.writeNum("zxdb.j0.val", (count * nrows * 100) / totalFiles);  
+          count++;
+
           if (totalFiles % 100 == 0)
           {
             myNex.writeStr("zxdb.message.txt", "Found " + String(totalFiles) + " CPC games...");
@@ -2467,6 +2473,9 @@ void downloadFromMSXDB(String fileName, String title)
 void updateMSXDB(String letter = "0")
 {
     String searchChain = "#ABCDEFGHIJKLMNOPQRSTUVWXYZ0";
+    int count = 0;
+    int totalItemsFound = 0;
+    int nrows = 100;
 
     if (WIFI_CONNECTED && WIFI_ENABLE)
     {
@@ -2627,6 +2636,9 @@ void updateMSXDB(String letter = "0")
 
             // Progreso
             myNex.writeStr("zxdb.message.txt", "Found " + String(totalFiles) + " MSX games...");
+            // Banda de progreso
+            if (totalItemsFound > 0) myNex.writeNum("zxdb.j0.val", (count * nrows * 100) / totalItemsFound);  
+            count++;            
           }
 
           // Flush buffer restante
