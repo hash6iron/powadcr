@@ -1952,6 +1952,14 @@ public:
     if (i >= (size_t)rleSize) {
       logln("playRLEBlockFromBuffer: Playback complete (" + String(pulseCount) + " RLE sequences)");
       if (playback_position) *playback_position = 0;  // Reset para siguiente reproducción
+      
+      // ✅ Auto-stop cuando CSW llega al final
+      STOP = true;
+      PAUSE = false;
+      LOADING_STATE = 2;  // Estado STOP
+      TAPESTATE = 0;
+      logln("playRLEBlockFromBuffer: Auto-stop activated (CSW reached end)");
+      LAST_MESSAGE = "Auto-stop playing.";
     }
   }
 
