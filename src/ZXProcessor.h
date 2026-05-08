@@ -1769,6 +1769,192 @@ public:
     STOP_OR_PAUSE_REQUEST = false;
   }
 
+  // ================================================================
+  // Reproducción de bloques RLE (CSW y TZX 0x18)
+  // ================================================================
+  void playRLEBlock(tRlePulse *pulseData, int numPulses, uint32_t cswSamplingRate, uint8_t initialLevel = 0) {
+    // Reproducir un bloque de datos RLE (Compressed Square Wave o TZX 0x18)
+    // 
+    // Parámetros:
+    // - pulseData: Array de pulsos RLE
+    // - numPulses: Número de elementos en el array
+    // - cswSamplingRate: Sampling rate en Hz (ej: 44100)
+    // - initialLevel: Nivel inicial de la señal (0=LOW, 1=HIGH)
+    
+    logln("playRLEBlock: Playing " + String(numPulses) + " pulses at " + String(cswSamplingRate) + "Hz");
+
+    if (!pulseData || numPulses == 0) {
+      logln("ERROR: playRLEBlock - No pulse data or zero pulses");
+      return;
+    }
+
+    // Calcular el factor de conversión de unidades CSW a T-States
+    // Formula: factor = CPU_Freq / CSW_Sample_Rate
+    float conversion_factor = (float)DfreqCPU / cswSamplingRate;
+    
+    logln("  - Conversion Factor to T-States: " + String(conversion_factor));
+    logln("  - Initial Level: " + String(initialLevel));
+
+    // Establecer el nivel inicial si se especifica
+    if (initialLevel) {
+      EDGE_EAR_IS = 1;  // HIGH
+    } else {
+      EDGE_EAR_IS = 0;  // LOW
+    }
+
+    ADD_ONE_SAMPLE_COMPENSATION = false;
+    
+    // Reproducir cada pulso
+    for (int p = 0; p < numPulses; p++) {
+      if (stopOrPauseRequest()) {
+        logln("playRLEBlock: Stop or pause requested");
+        break;
+      }
+
+      uint16_t repeat = pulseData[p].repeat;
+      uint32_t pulseLenTStates = (uint32_t)round((float)pulseData[p].pulse_len * conversion_factor);
+
+      if (pulseLenTStates == 0) {
+        continue;  // Skip zero-length pulses
+      }
+
+      // Reproducir el pulso 'repeat' veces
+      for (int r = 0; r < repeat; r++) {
+        ADD_ONE_SAMPLE_COMPENSATION = false;
+        semiPulse((double)pulseLenTStates);
+        ACU_ERROR = 0;
+      }
+
+      // Actualizar barra de progreso
+      BYTES_LOADED = p;
+      PROGRESS_BAR_BLOCK_VALUE = (100 * p) / numPulses;
+    }
+
+    logln("playRLEBlock: Playback complete");
+  }
+
+  // ✅ NUEVA FUNCIÓN: Reproducir datos RLE con soporte PAUSE/RESUME/FFWD/RWD
+  void playRLEBlockFromBuffer(uint8_t *rleBuffer, int rleSize, uint32_t cswSamplingRate, int *playback_position, uint8_t initialLevel = 0) {
+    if (!rleBuffer || rleSize == 0) {
+      logln("ERROR: playRLEBlockFromBuffer - No RLE buffer or zero size");
+      return;
+    }
+
+    // ✅ VERIFICACIÓN CRÍTICA: playback_position debe ser válido
+    if (!playback_position) {
+      logln("ERROR: playRLEBlockFromBuffer - playback_position is NULL");
+      return;
+    }
+
+    // Determinar si es inicio o reanudación
+    bool isResume = (*playback_position > 0);
+    if (isResume) {
+      logln("playRLEBlockFromBuffer: RESUMING from position " + String(*playback_position) + " / " + String(rleSize));
+    } else {
+      logln("playRLEBlockFromBuffer: Starting RLE playback (" + String(rleSize) + " bytes) at " + String(cswSamplingRate) + "Hz");
+    }
+
+    float conversion_factor = (float)DfreqCPU / cswSamplingRate;
+    
+    logln("  - Conversion Factor to T-States: " + String(conversion_factor));
+    logln("  - Initial Level: " + String(initialLevel));
+
+    if (initialLevel) {
+      EDGE_EAR_IS = 1;  // HIGH
+    } else {
+      EDGE_EAR_IS = 0;  // LOW
+    }
+
+    ADD_ONE_SAMPLE_COMPENSATION = false;
+    
+    // Comenzar desde la posición guardada (o desde 0 si es nuevo)
+    size_t i = (*playback_position > 0) ? *playback_position : 0;
+    int pulseCount = 0;
+    
+    // Parsear datos RLE on-demand y reproducir
+    for (; i < (size_t)rleSize;) {
+      // ✅ Soporte para FFWD/RWD (con verificación de null pointer)
+      if (FFWIND && playback_position) {
+        int jump_bytes = (int)((float)rleSize * CSW_FFWD_SPEED);
+        int new_pos = (int)i + jump_bytes;
+        if (new_pos >= rleSize) new_pos = rleSize - 2;  // Avoid overshoot
+        // Alinear a límite par para no saltar a mitad de escape sequence
+        new_pos = (new_pos / 2) * 2;
+        *playback_position = new_pos;
+        i = new_pos;
+        CSW_SEEK_MODE = 1;  // Indicar FFWD en UI
+        logln("CSW FFWD: Jump from " + String((int)i - jump_bytes) + " to " + String(new_pos) + " (+" + String(jump_bytes) + " bytes)");
+        FFWIND = false;  // ✅ Desactivar FFWIND después de procesar
+        delay(100);  // Debounce
+        continue;
+      }
+      
+      if (RWIND && playback_position) {
+        int jump_bytes = (int)((float)rleSize * CSW_RWD_SPEED);
+        int current_i = (int)i;  // ✅ Convertir a signed int primero para evitar overflow
+        int new_pos = current_i - jump_bytes;
+        if (new_pos < 0) new_pos = 0;
+        // Alinear a límite par para no saltar a mitad de escape sequence
+        new_pos = (new_pos / 2) * 2;
+        *playback_position = new_pos;
+        i = new_pos;
+        CSW_SEEK_MODE = 2;  // Indicar RWD en UI
+        logln("CSW RWD: Jump from " + String(current_i) + " to " + String(new_pos) + " (-" + String(jump_bytes) + " bytes)");
+        RWIND = false;  // ✅ Desactivar RWIND después de procesar
+        delay(100);  // Debounce
+        continue;
+      }
+      CSW_SEEK_MODE = 0;  // Volver a modo normal
+      
+      if (stopOrPauseRequest()) {
+        logln("playRLEBlockFromBuffer: Pause/Stop requested at position " + String(i) + " / " + String(rleSize));
+        // ✅ Guardar posición actual para reanudación
+        if (playback_position && PAUSE && !STOP) {
+          *playback_position = i;
+          logln("  - Saved playback position for RESUME: " + String(*playback_position));
+        } else if (STOP) {
+          // Reset posición al detener completamente
+          if (playback_position) *playback_position = 0;
+          logln("  - Reset playback position due to STOP");
+        }
+        break;
+      }
+
+      uint8_t pulseLenByte = rleBuffer[i];
+      uint16_t repeat = 1;
+
+      // Formato RLE: 0x00 seguido de repeat count
+      if (pulseLenByte == 0x00 && i + 1 < (size_t)rleSize) {
+        repeat = rleBuffer[i + 1];
+        i += 2;
+      } else {
+        i += 1;
+      }
+
+      // Convertir byte de duración a T-States
+      uint32_t pulseLenTStates = (uint32_t)round((float)pulseLenByte * conversion_factor);
+
+      if (pulseLenTStates > 0) {
+        for (int r = 0; r < repeat; r++) {
+          ADD_ONE_SAMPLE_COMPENSATION = false;
+          semiPulse((double)pulseLenTStates);
+          ACU_ERROR = 0;
+        }
+      }
+
+      // Actualizar barra de progreso
+      BYTES_LOADED = i;
+      PROGRESS_BAR_BLOCK_VALUE = (100 * i) / rleSize;
+      pulseCount++;
+    }
+
+    // Si completó la reproducción sin pausar
+    if (i >= (size_t)rleSize) {
+      logln("playRLEBlockFromBuffer: Playback complete (" + String(pulseCount) + " RLE sequences)");
+      if (playback_position) *playback_position = 0;  // Reset para siguiente reproducción
+    }
+  }
+
   // Constructor
   ZXProcessor() {
     // Constructor de la clase

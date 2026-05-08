@@ -2156,6 +2156,294 @@ private:
     return finalBuffer;
   }
 
+  // ================================================================
+  // FUNCIONES PARA PROCESAMIENTO DE FICHEROS CSW COMPLETOS
+  // ================================================================
+  
+  bool isHeaderCSW(File cswFile) {
+    if (cswFile == 0) return false;
+
+    // Capturamos la cabecera (mínimo 0x24 bytes)
+    uint8_t *bBlock = (uint8_t *)ps_calloc(0x24 + 1, sizeof(uint8_t));
+    readFileRange(cswFile, bBlock, 0, 0x24, false);
+
+    // Verificamos la firma: "Compressed Square Wave" (22 bytes ASCII)
+    String signStr = "";
+    for (int n = 0; n < 22; n++) {
+      signStr += (char)bBlock[n];
+    }
+
+    free(bBlock);
+
+    if (signStr == "Compressed Square Wave") {
+      return true;
+    }
+    return false;
+  }
+
+  bool isFileCSW(File mfile) {
+    if (!mfile) return false;
+
+    // Verificar extensión
+    String fileName = String(mfile.name());
+    fileName.toUpperCase();
+
+    if (fileName.indexOf(".CSW") != -1) {
+      // Verificar que el header sea válido
+      if (isHeaderCSW(mfile)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  bool parseCSWHeader(File mFile, tCSW &cswData, int &dataOffset) {
+    // Lee la cabecera CSW v1.01 o v2.0
+    // CSW v1.01:
+    //   0x00-0x15: "Compressed Square Wave" (22 bytes)
+    //   0x16:      0x1A (terminador)
+    //   0x17:      Mayor version (0x01)
+    //   0x18:      Minor version (0x01)
+    //   0x19-0x1A: Pause after block (WORD, little-endian, ms)
+    //   0x1B-0x1E: Sample rate (DWORD, little-endian)
+    //   0x1F:      Compression type (1=RLE, 2=Z-RLE)
+    //   0x20:      Flags (bit 0 = initial polarity)
+    //   Datos comienzan en 0x21
+    //
+    // CSW v2.0:
+    //   0x00-0x15: "Compressed Square Wave" (22 bytes)
+    //   0x16:      0x1A (terminador)
+    //   0x17:      Mayor version (0x02)
+    //   0x18:      Minor version (0x00)
+    //   0x19-0x1A: Pause after block (WORD, little-endian, ms)
+    //   0x1B-0x1E: Sample rate (DWORD, little-endian)
+    //   0x1F:      Compression type (1=RLE, 2=Z-RLE)
+    //   0x20:      Flags (bit 0 = initial polarity)
+    //   0x21:      Header extension length
+    //   0x22-0x31: Encoding app (ASCIIZ[16])
+    //   Datos comienzan en 0x32 + hdrExtLen
+
+    logln("Parsing CSW header...");
+
+    // ✅ DEBUG: Leer primeros 50 bytes del archivo para diagnóstico
+    uint8_t headerBuffer[50];
+    mFile.seek(0);
+    int bytesRead = mFile.read(headerBuffer, 50);
+    logln("DEBUG: Read " + String(bytesRead) + " bytes from file");
+    
+    String hexDump = "First 20 bytes (hex): ";
+    for (int i = 0; i < 20 && i < bytesRead; i++) {
+      if (headerBuffer[i] < 16) hexDump += "0";
+      hexDump += String(headerBuffer[i], HEX) + " ";
+    }
+    logln(hexDump);
+
+    // Verificar firma
+    if (!isHeaderCSW(mFile)) {
+      logln("ERROR: CSW header signature not found");
+      return false;
+    }
+
+    // ✅ DEBUG: Imprimir signature detectada
+    String sig = "";
+    for (int i = 0; i < 22; i++) {
+      sig += (char)headerBuffer[i];
+    }
+    logln("DEBUG: Detected signature: '" + sig + "'");
+
+    // Leer y validar versión
+    uint8_t majorVersion = getBYTE(mFile, 0x17);
+    uint8_t minorVersion = getBYTE(mFile, 0x18);
+
+    logln("DEBUG: Major version byte: 0x" + String(majorVersion, HEX) + " (" + String(majorVersion) + ")");
+    logln("DEBUG: Minor version byte: 0x" + String(minorVersion, HEX) + " (" + String(minorVersion) + ")");
+
+    if (majorVersion != 1 && majorVersion != 2) {
+      logln("ERROR: CSW version not supported (found v" + String(majorVersion) +
+            "." + String(minorVersion) + ")");
+      return false;
+    }
+
+    logln("  - CSW Version: " + String(majorVersion) + "." + String(minorVersion));
+
+    // ✅ OFFSETS CORRECTOS (basados en archivo real test.csw):
+    // 0x00-0x15: "Compressed Square Wave"
+    // 0x16: Terminator (0x1A)
+    // 0x17: Major version
+    // 0x18: Minor version
+    // 0x19-0x1A: Sampling rate (WORD - 2 bytes, little-endian)
+    // 0x1B: Compression type (1 byte)
+    // 0x1C: Flags (1 byte)
+    // 0x1D-0x1F: Reserved (3 bytes)
+    // 0x20+: Data
+    
+    // Sampling rate (0x19-0x1A) - WORD, not DWORD!
+    uint16_t sampleRate = getWORD(mFile, 0x19);
+    logln("DEBUG: Sample rate (0x19-0x1A): " + String(sampleRate) + " Hz");
+    
+    // Compression type (0x1B) - single byte
+    uint8_t compressionType = getBYTE(mFile, 0x1B);
+    logln("DEBUG: Compression type (0x1B): " + String(compressionType) + " (0x" + String(compressionType, HEX) + ")");
+    
+    // Flags (0x1C) - single byte
+    uint8_t flags = getBYTE(mFile, 0x1C);
+    logln("DEBUG: Flags (0x1C): 0x" + String(flags, HEX));
+    
+    // Validar compresión
+    if (compressionType != 1 && compressionType != 2) {
+      logln("ERROR: Compression type not supported: " + String(compressionType) + " (0x" + String(compressionType, HEX) + ")");
+      logln("WARNING: Expected 1 (RLE) or 2 (Z-RLE)");
+      return false;
+    }
+
+    // Configurar CSW data
+    cswData.numBlocks = 1;
+    cswData.descriptor[0].sampling_rate = sampleRate;
+    cswData.descriptor[0].compression_type = compressionType;
+    cswData.descriptor[0].initial_level = (flags & 0x01);
+    cswData.descriptor[0].timming.csw_sampling_rate = sampleRate;
+    cswData.descriptor[0].timming.csw_compression_type = compressionType;
+    cswData.descriptor[0].playeable = true;
+
+    // Calcular dataOffset según versión
+    if (majorVersion == 1) {
+      dataOffset = 0x20; // v1.01: datos comienzan en 0x20
+      logln("  - CSW v1.01 format detected");
+      logln("  - Data offset: 0x" + String(dataOffset, HEX));
+    } else {
+      // v2.0: puede haber más campos después de 0x1F
+      dataOffset = 0x20; // por defecto v2 también comienza en 0x20
+      logln("  - CSW v2.0 format detected");
+      logln("  - Data offset: 0x" + String(dataOffset, HEX));
+    }
+
+    logln("  - Sample Rate: " + String(sampleRate) + " Hz");
+    logln("  - Compression: " + String(compressionType == 1 ? "RLE" : "Z-RLE"));
+    logln("  - Initial Level: " + String(cswData.descriptor[0].initial_level));
+
+    return true;
+  }
+
+  public: 
+  bool processCSWFile(File cswFile) {
+    logln("");
+    logln("Processing CSW file: " + String(cswFile.name()));
+    logln("================================");
+
+    // Obtener tamaño total del fichero
+    uint32_t fileSize = cswFile.size();
+    _mFile = cswFile;
+    _sizeTZX = fileSize;
+
+    // Asignar descriptor si no lo está
+    if (!myCSW.descriptor) {
+      myCSW.descriptor = (tCSWBlockDescriptor *)ps_calloc(1, sizeof(tCSWBlockDescriptor));
+      if (!myCSW.descriptor) {
+        logln("ERROR: Failed to allocate CSW descriptor");
+        return false;
+      }
+    }
+
+    // Inicializar descriptor
+    myCSW.descriptor[0].playeable = false;
+    myCSW.descriptor[0].num_pulses = 0;
+    myCSW.descriptor[0].pulse_data = nullptr;
+    myCSW.size = fileSize;
+    strncpy(myCSW.name, cswFile.name(), 10);
+
+    // Parsear cabecera
+    int dataOffset = 0;
+    if (!parseCSWHeader(cswFile, myCSW, dataOffset)) {
+      logln("ERROR: Failed to parse CSW header");
+      return false;
+    }
+
+    // Leer datos comprimidos
+    int compressedDataSize = fileSize - dataOffset;
+    uint8_t *compressedData = (uint8_t *)ps_malloc(compressedDataSize);
+    if (!compressedData) {
+      logln("ERROR: Failed to allocate compressed data buffer");
+      return false;
+    }
+
+    cswFile.seek(dataOffset);
+    int bytesRead = cswFile.read(compressedData, compressedDataSize);
+    if (bytesRead != compressedDataSize) {
+      logln("ERROR: Failed to read compressed data (expected " + String(compressedDataSize) +
+            ", got " + String(bytesRead) + ")");
+      free(compressedData);
+      return false;
+    }
+
+    logln("  - Compressed data size: " + String(compressedDataSize) + " bytes");
+
+    // Descomprimir
+    int decompressedSize = 0;
+    uint8_t *rleData = nullptr;
+
+    if (myCSW.descriptor[0].compression_type == 2) {
+      // Z-RLE: descomprimir con miniz
+      logln("  - Decompressing Z-RLE data...");
+      mz_ulong mz_decompressed_size = compressedDataSize * 10;
+      uint8_t *mz_buffer = (uint8_t *)ps_malloc(mz_decompressed_size);
+      if (!mz_buffer) {
+        logln("ERROR: Failed to allocate miniz decompression buffer");
+        free(compressedData);
+        return false;
+      }
+
+      int result = mz_uncompress(mz_buffer, &mz_decompressed_size, compressedData, compressedDataSize);
+      if (result == MZ_OK) {
+        decompressedSize = mz_decompressed_size;
+        rleData = (uint8_t *)ps_realloc(mz_buffer, decompressedSize);
+        if (!rleData) rleData = mz_buffer;
+        logln("  - Decompressed to " + String(decompressedSize) + " bytes of RLE data");
+      } else {
+        logln("ERROR: miniz decompression failed with code: " + String(result));
+        free(mz_buffer);
+        free(compressedData);
+        return false;
+      }
+    } else {
+      // RLE: usar directamente
+      logln("  - Using RLE data directly");
+      decompressedSize = compressedDataSize;
+      rleData = (uint8_t *)ps_malloc(decompressedSize);
+      if (!rleData) {
+        logln("ERROR: Failed to allocate RLE buffer");
+        free(compressedData);
+        return false;
+      }
+      memcpy(rleData, compressedData, decompressedSize);
+    }
+
+    free(compressedData);
+
+    if (!rleData || decompressedSize == 0) {
+      logln("ERROR: No RLE data to process");
+      if (rleData) free(rleData);
+      return false;
+    }
+
+    // ✅ OPCIÓN A: Guardar datos RLE crudos sin parsear
+    // No contamos pulsos, solo guardamos el buffer para reproducción on-demand
+    logln("  - RLE buffer size: " + String(decompressedSize) + " bytes");
+    
+    myCSW.descriptor[0].rle_data = rleData;
+    myCSW.descriptor[0].rle_size = decompressedSize;
+    myCSW.descriptor[0].num_pulses = 0;  // Se calculará al reproducir
+    myCSW.descriptor[0].pulse_data = nullptr;  // No se usa array pre-allocado
+    myCSW.descriptor[0].playeable = true;
+    
+    logln("  - CSW file ready for playback");
+
+
+    free(rleData);
+
+    logln("CSW processing complete!");
+    return true;
+  }
+
   // ... (después de la función decompressCSW) ...
   /**
    * @brief Descomprime un fichero CSW (RLE o Z-RLE) a otro fichero.
@@ -2211,6 +2499,7 @@ private:
     return true;
   }
 
+  private:
   void getBlockDescriptor(File mFile, int sizeTZX, bool hasGroupBlocks) {
     // Para ello tenemos que ir leyendo el TZX poco a poco
     // Detectaremos los IDs a partir del byte 9 (empezando por offset = 0)
@@ -2408,6 +2697,8 @@ public:
   void setDescriptorNull() { _myTZX.descriptor = nullptr; }
 
   void setTZX(tTZX tzx) { _myTZX = tzx; }
+
+  void setCSW(tCSW csw) { myCSW = csw; }
 
   void set_HMI(HMI hmi) { _hmi = hmi; }
 
@@ -4190,6 +4481,47 @@ public:
                                    _myTZX.descriptor[BLOCK_SELECTED].size,
                                    _myTZX.descriptor[BLOCK_SELECTED].playeable);
     }
+  }
+
+  void playCSW(tCSWBlockDescriptor &descriptor) {
+    // Reproducción de un bloque CSW
+    logln("Playing CSW block...");
+    logln("  - Sample Rate: " + String(descriptor.sampling_rate) + " Hz");
+
+    // Inicializar offset para barra de progreso
+    PRG_BAR_OFFSET_INI = 0;
+    PARTITION_SIZE = descriptor.rle_size;
+
+    // ✅ OPCIÓN A: Reproducir desde buffer RLE sin array pre-allocado
+    if (descriptor.rle_data && descriptor.rle_size > 0) {
+      logln("  - RLE buffer size: " + String(descriptor.rle_size) + " bytes");
+      PRG_BAR_OFFSET_END = descriptor.rle_size;
+      
+      // ✅ Pasar puntero a posición de reproducción para soporte PAUSE/RESUME
+      _zxp.playRLEBlockFromBuffer(
+          descriptor.rle_data,
+          descriptor.rle_size,
+          descriptor.sampling_rate,
+          &descriptor.rle_playback_position,  // ← Posición de reproducción (se actualiza en pausa)
+          descriptor.initial_level
+      );
+    } else if (descriptor.pulse_data && descriptor.num_pulses > 0) {
+      // Fallback: usar array pre-allocado si existe
+      logln("  - Pulses: " + String(descriptor.num_pulses));
+      PRG_BAR_OFFSET_END = descriptor.num_pulses;
+      
+      _zxp.playRLEBlock(
+          descriptor.pulse_data,
+          descriptor.num_pulses,
+          descriptor.sampling_rate,
+          descriptor.initial_level
+      );
+    } else {
+      logln("ERROR: No RLE data available");
+    }
+
+    logln("CSW playback complete!");
+    BYTES_LOADED = descriptor.rle_size;
   }
 
   TZXprocessor() {

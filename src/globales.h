@@ -289,12 +289,43 @@ struct tTAP {
   bool availableForREM = true;
 };
 
+// ========================================
+// Estructura para ficheros CSW completos
+// ========================================
+struct tCSWBlockDescriptor {
+  char name[11];
+  int offset = 0;
+  int size = 0;
+  bool playeable = false;
+  char typeName[36];
+  uint8_t initial_level = 0;       // 0 para low, 1 para high
+  uint32_t sampling_rate = 0;      // Sample rate en Hz
+  int compression_type = 0;        // 1=RLE, 2=Z-RLE
+  int num_pulses = 0;              // Número de pulsos después de descompresión
+  tRlePulse *pulse_data = nullptr; // Puntero a la secuencia de pulsos
+  uint8_t *rle_data = nullptr;     // ✅ Buffer con datos RLE descomprimidos crudos
+  int rle_size = 0;                // ✅ Tamaño del buffer RLE
+  int rle_playback_position = 0;   // ✅ Posición actual de reproducción en el buffer (para PAUSE/RESUME)
+  tTimming timming;                // Para compatibilidad con reproducción
+  uint8_t edge = POLARIZATION;     // Edge of the beginning of the block
+};
+
+struct tCSW {
+  char name[11];                   // Nombre del fichero CSW
+  uint32_t size = 0;               // Tamaño del fichero
+  int numBlocks = 1;               // CSW tiene 1 bloque lógico
+  tCSWBlockDescriptor *descriptor; // Descriptor
+  bool availableForREM = false;
+};
+
 // Procesador de TAP
 tTAP myTAP;
 // Procesador de TZX/TSX/CDT
 tTZX myTZX;
 // Procesador de PZX
 tPZX myPZX;
+// Procesador de CSW
+tCSW myCSW;
 
 // tMediaDescriptor myMediaDescriptor[256]; // Descriptor de ficheros multimedia
 
@@ -323,7 +354,7 @@ struct tConfig {
 //
 bool myTAPmemoryReserved = false;
 bool myTZXmemoryReserved = false;
-// bool bitChStrMemoryReserved = false;
+bool myCSWmemoryReserved = false;
 // bool datablockMemoryReserved = false;
 // bool bufferRecMemoryReserved = false;
 
@@ -647,6 +678,12 @@ int FILE_STATUS = 0;
 
 String FILE_PATH_SELECTED = "";
 bool FILE_DIR_OPEN_FAILED = false;
+
+// ✅ CSW FFWD/RWD Control Variables
+float CSW_FFWD_SPEED = CSW_REWIND_SPEED;  // 2% skip per FFWD press (configurable 0.01-0.10)
+float CSW_RWD_SPEED = CSW_REWIND_SPEED;   // 2% skip per RWD press (configurable 0.01-0.10)
+uint8_t CSW_SEEK_MODE = 0;    // 0=normal play, 1=ffwd, 2=rwd (for UI animation)
+
 bool FILE_BROWSER_OPEN = false;
 bool UPDATE = false;
 bool START_FFWD_ANIMATION = false;
@@ -1368,8 +1405,8 @@ uint8_t MCP23017_readGPIO(uint8_t regGPIO, uint8_t i2c_addr = 0x20) {
 void remDetection() {
   bool isAvailableForREM = false;
 
-  if (TYPE_FILE_LOAD == "TZX" || TYPE_FILE_LOAD == "TSX" || TYPE_FILE_LOAD == "CDT" || TYPE_FILE_LOAD == "TAP" ||
-      TYPE_FILE_LOAD == "WAV" || TYPE_FILE_LOAD == "PZX" || TYPE_FILE_LOAD == "FLAC" || TYPE_FILE_LOAD == "MP3") 
+  if (TYPE_FILE_LOAD == "TZX" || TYPE_FILE_LOAD == "TSX" || TYPE_FILE_LOAD == "CDT" || TYPE_FILE_LOAD == "TAP" || TYPE_FILE_LOAD == "CSW" ||
+      TYPE_FILE_LOAD == "PZX" || TYPE_FILE_LOAD == "WAV" || TYPE_FILE_LOAD == "FLAC" || TYPE_FILE_LOAD == "MP3") 
   {
     isAvailableForREM = true;
   }
@@ -1544,7 +1581,7 @@ int _unzipGameFilesToDir(const String& zipPath, const String& destDir)
     entryUpper.toUpperCase();
     bool isGameFile = entryUpper.endsWith(".TAP") || entryUpper.endsWith(".TZX") ||
                       entryUpper.endsWith(".TSX") || entryUpper.endsWith(".PZX") ||
-                      entryUpper.endsWith(".CDT");
+                      entryUpper.endsWith(".CDT") || entryUpper.endsWith(".CSW");
     if (!isGameFile) continue;
 
     size_t uncompSize = (size_t)fs.m_uncomp_size;
@@ -1572,6 +1609,134 @@ int _unzipGameFilesToDir(const String& zipPath, const String& destDir)
 
   mz_zip_reader_end(&zip);
   free(zipBuf);
+  return extracted;
+}
+
+// Extrae todos los ficheros de un ZIP a un directorio.
+// Crea el directorio automáticamente en la misma ruta que el ZIP
+// zipPath: ruta del archivo ZIP
+// Retorna el número de ficheros extraídos
+int _unzipAllFilesToDir(const String& zipPath)
+{
+  // Obtener la ruta sin el nombre del archivo
+  int lastSlash = zipPath.lastIndexOf('/');
+  String dirPath = (lastSlash != -1) ? zipPath.substring(0, lastSlash) : "/";
+  
+  // Obtener el nombre del archivo sin extensión
+  String zipName = (lastSlash != -1) ? zipPath.substring(lastSlash + 1) : zipPath;
+  int dotPos = zipName.lastIndexOf('.');
+  if (dotPos != -1) zipName = zipName.substring(0, dotPos);
+  
+  // Crear el directorio de destino
+  String destDir = dirPath + "/" + zipName;
+  if (!SD_MMC.exists(destDir.c_str()))
+  {
+    if (!SD_MMC.mkdir(destDir.c_str()))
+    {
+      logln("_unzipAllFilesToDir: Error al crear directorio: " + destDir);
+      return 0;
+    }
+    logln("_unzipAllFilesToDir: Directorio creado: " + destDir);
+  }
+  
+  // Abrir y leer el ZIP
+  File zf = SD_MMC.open(zipPath.c_str(), FILE_READ);
+  if (!zf) { logln("_unzipAllFilesToDir: no se pudo abrir " + zipPath); return 0; }
+
+  size_t zipSize = zf.size();
+  uint8_t* zipBuf = (uint8_t*)ps_malloc(zipSize);
+  if (!zipBuf)
+  {
+    logln("_unzipAllFilesToDir: sin PSRAM para " + String(zipSize) + " bytes");
+    zf.close();
+    return 0;
+  }
+  zf.read(zipBuf, zipSize);
+  zf.close();
+
+  mz_zip_archive zip;
+  memset(&zip, 0, sizeof(zip));
+  if (!mz_zip_reader_init_mem(&zip, zipBuf, zipSize, 0))
+  {
+    logln("_unzipAllFilesToDir: ZIP inválido: " + zipPath);
+    free(zipBuf);
+    return 0;
+  }
+
+  int numEntries = (int)mz_zip_reader_get_num_files(&zip);
+  int extracted = 0;
+  unsigned long lastUpdateTime = millis();
+
+  logln("_unzipAllFilesToDir: Iniciando extracción de " + String(numEntries) + " archivo(s)");
+  LAST_MESSAGE = "Extracting ZIP: 0/" + String(numEntries);
+
+  // Extraer todos los archivos
+  for (int i = 0; i < numEntries; i++)
+  {
+    mz_zip_archive_file_stat fs;
+    if (!mz_zip_reader_file_stat(&zip, i, &fs)) continue;
+    if (mz_zip_reader_is_file_a_directory(&zip, i)) continue;
+
+    // Obtener solo el nombre del archivo (sin rutas)
+    String entryName = String(fs.m_filename);
+    int slash = entryName.lastIndexOf('/');
+    if (slash != -1) entryName = entryName.substring(slash + 1);
+    
+    // Ignorar archivos vacíos o con nombre vacío
+    if (entryName.length() == 0) continue;
+
+    size_t uncompSize = (size_t)fs.m_uncomp_size;
+    uint8_t* outBuf = (uint8_t*)ps_malloc(uncompSize);
+    if (!outBuf) { 
+      logln("Sin PSRAM para extraer: " + entryName); 
+      LAST_MESSAGE = "Memory error extracting: " + entryName.substring(0, 20);
+      continue; 
+    }
+
+    // Mostrar que está extrayendo este archivo
+    LAST_MESSAGE = "Extracting: " + entryName.substring(0, 25);
+    if ((millis() - lastUpdateTime) > 500) {  // Actualizar cada 500ms
+      lastUpdateTime = millis();
+    }
+
+    if (mz_zip_reader_extract_to_mem(&zip, i, outBuf, uncompSize, 0))
+    {
+      String outPath = destDir + "/" + entryName;
+      File outFile = SD_MMC.open(outPath.c_str(), FILE_WRITE);
+      if (outFile)
+      {
+        outFile.write(outBuf, uncompSize);
+        outFile.flush();
+        outFile.close();
+        logln("Extraído: " + outPath + " (" + String(uncompSize) + " bytes)");
+        extracted++;
+        
+        // Actualizar progreso
+        LAST_MESSAGE = "Extracted: " + String(extracted) + "/" + String(numEntries) + " (" + entryName.substring(0, 20) + ")";
+      }
+      else { 
+        logln("Error creando: " + outPath); 
+        LAST_MESSAGE = "Error creating file: " + entryName.substring(0, 20);
+      }
+    }
+    else { 
+      logln("Error extrayendo: " + entryName); 
+      LAST_MESSAGE = "Error extracting: " + entryName.substring(0, 20);
+    }
+
+    free(outBuf);
+  }
+
+  mz_zip_reader_end(&zip);
+  free(zipBuf);
+  
+  if (extracted > 0) {
+    logln("_unzipAllFilesToDir: " + String(extracted) + " archivos extraídos a: " + destDir);
+    LAST_MESSAGE = "ZIP extracted: " + String(extracted) + " file(s)";
+  } else {
+    LAST_MESSAGE = "ZIP extraction: No files extracted";
+  }
+  
   return extracted;
 }
 
@@ -2306,8 +2471,8 @@ void updateCPCDB(String letter = "0")
           }
 
           // Progreso
-          if (totalFiles > 0) myNex.writeNum("zxdb.j0.val", (count * nrows * 100) / totalFiles);  
-          count++;
+          // if (totalFiles > 0) myNex.writeNum("zxdb.j0.val", (count * nrows * 100) / totalFiles);  
+          // count++;
 
           if (totalFiles % 100 == 0)
           {
@@ -2637,8 +2802,8 @@ void updateMSXDB(String letter = "0")
             // Progreso
             myNex.writeStr("zxdb.message.txt", "Found " + String(totalFiles) + " MSX games...");
             // Banda de progreso
-            if (totalItemsFound > 0) myNex.writeNum("zxdb.j0.val", (count * nrows * 100) / totalItemsFound);  
-            count++;            
+            // if (totalItemsFound > 0) myNex.writeNum("zxdb.j0.val", (count * nrows * 100) / totalItemsFound);  
+            // count++;            
           }
 
           // Flush buffer restante

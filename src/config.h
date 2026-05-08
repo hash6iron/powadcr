@@ -198,7 +198,8 @@ int GPIO_MSX_REMOTE_PAUSE = 19;
 // Colores del browser
 #define DEFAULT_COLOR 65535
 #define DIR_COLOR 60868
-#define DSC_FILE_COLOR 0
+#define DSC_FILE_COLOR 0              // Negro - Indica que es un fichero DSC
+#define ZIP_FILE_COLOR 48639           // Ficheros .ZIP
 #define FAVORITE_FILE_COLOR 34815
 #define SPECIAL_FILE_COLOR 44405
 #define OTHER_FILES_COLOR 44405
@@ -233,6 +234,7 @@ int GPIO_MSX_REMOTE_PAUSE = 19;
 // Porcentaje de avance rapido
 #define FAST_FORWARD_PER 0.02
 #define FAST_REWIND_PER 0.02
+#define CSW_REWIND_SPEED 0.02
 
 // Demora en ms para saltar a avance super-rapido
 #define TIME_TO_FAST_FORWRD 1500

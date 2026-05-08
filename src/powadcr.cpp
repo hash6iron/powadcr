@@ -732,6 +732,225 @@ void proccesingPZX(char *file_ch) {
   }
 }
 
+void proccesingCSW(char *file_ch) {
+  // Procesamos ficheros CSW (Compressed Square Wave)
+  logln("");
+  logln("========================================");
+  logln("Processing CSW file...");
+  logln("========================================");
+
+  if (!PLAY) {
+    File cswFile = SD_MMC.open(file_ch, FILE_READ);
+    
+    if (!cswFile) {
+      logln("ERROR: Cannot open CSW file: " + String(file_ch));
+      FILE_PREPARED = false;
+      return;
+    }
+
+    // Validar que sea un fichero CSW válido
+    // if (!pTZX.isFileCSW(cswFile)) {
+    //   logln("ERROR: Invalid CSW file or header not recognized");
+    //   cswFile.close();
+    //   FILE_PREPARED = false;
+    //   return;
+    // }
+
+    // Procesar el fichero CSW
+    if (pTZX.processCSWFile(cswFile)) 
+    {
+      cswFile.close();
+      
+      // Obtener información del CSW procesado
+      TOTAL_BLOCKS = myCSW.numBlocks;
+      FILE_PREPARED = true;
+
+      logln("");
+      logln("CSW file prepared successfully!");
+      logln("  - Sample Rate: " + String(myCSW.descriptor[0].sampling_rate) + " Hz");
+      logln("  - Pulses: " + String(myCSW.descriptor[0].num_pulses));
+      logln("  - Compression: " + String(myCSW.descriptor[0].compression_type == 1 ? "RLE" : "Z-RLE"));
+      logln("");
+
+#ifdef DEBUGMODE
+      logAlert("CSW prepared");
+#endif
+    } else {
+      cswFile.close();
+      logln("ERROR: Failed to process CSW file");
+      FILE_PREPARED = false;
+    }
+  } else {
+    LAST_MESSAGE = "Error. PLAY in progress. Try select file again.";
+    delay(2000);
+    FILE_PREPARED = false;
+  }
+}
+
+// ✅ Forward declaration
+void verifyConfigFileForSelection();
+
+void proccesingZIP(char *file_ch) {
+  // Procesamos ficheros ZIP - Descomprimen el contenido
+  logln("");
+  logln("========================================");
+  logln("Processing ZIP file...");
+  logln("========================================");
+
+  LAST_MESSAGE = "Decompressing ZIP...";
+  int filesExtracted = _unzipAllFilesToDir(String(file_ch));
+  
+  if (filesExtracted > 0) {
+    logln("");
+    logln("ZIP extracted successfully!");
+    logln("  - Files extracted: " + String(filesExtracted));
+    logln("");
+
+    LAST_MESSAGE = "Searching for valid file...";
+
+    // ✅ PASO 1: Obtener la ruta del directorio extraído
+    String zipPath = String(file_ch);
+    int lastSlash = zipPath.lastIndexOf('/');
+    String dirPath = (lastSlash != -1) ? zipPath.substring(0, lastSlash) : "/";
+    
+    String zipName = (lastSlash != -1) ? zipPath.substring(lastSlash + 1) : zipPath;
+    int dotPos = zipName.lastIndexOf('.');
+    if (dotPos != -1) zipName = zipName.substring(0, dotPos);
+    
+    String extractedDir = dirPath + "/" + zipName;
+    logln("Extracted directory: " + extractedDir);
+    
+    // ✅ PASO 2: Buscar el primer archivo válido en el directorio extraído
+    File folder = SD_MMC.open(extractedDir.c_str());
+    if (!folder || !folder.isDirectory()) {
+      logln("ERROR: Could not open extracted directory");
+      LAST_MESSAGE = "Error: Could not open extracted directory";
+      hmi.writeString("tape.g0.txt=\"Error opening directory\"");
+      FILE_PREPARED = false;
+      folder.close();
+      return;
+    }
+
+    String firstValidFile = "";
+    String validExtensions[] = {".TAP", ".tap", ".TZX", ".tzx", ".CSW", ".csw", 
+                               ".PZX", ".pzx", ".CDT", ".cdt", ".TSX", ".tsx"};
+    
+    File entry = folder.openNextFile();
+    while (entry && firstValidFile == "") {
+      if (!entry.isDirectory()) {
+        String fileName = String(entry.name());
+        String upperName = fileName;
+        upperName.toUpperCase();
+        
+        // Buscar extensión válida
+        for (const auto& ext : validExtensions) {
+          if (upperName.endsWith(ext)) {
+            firstValidFile = String(entry.name());
+            logln("Found valid file: " + firstValidFile);
+            break;
+          }
+        }
+      }
+      entry.close();
+      entry = folder.openNextFile();
+    }
+    folder.close();
+
+    if (firstValidFile == "") {
+      logln("ERROR: No valid Spectrum files found in extracted directory");
+      LAST_MESSAGE = "Error: No valid files in ZIP";
+      hmi.writeString("tape.g0.txt=\"No valid files found\"");
+      FILE_PREPARED = false;
+      return;
+    }
+
+    // ✅ PASO 3: Cambiar el directorio actual y cargar el archivo
+    LAST_MESSAGE = "Loading: " + firstValidFile;
+    FILE_LAST_DIR = extractedDir;
+    PATH_FILE_TO_LOAD = extractedDir + "/" + firstValidFile;
+    
+    logln("Will load: " + PATH_FILE_TO_LOAD);
+    logln("File size to load: " + String(firstValidFile.length()));
+    
+    // Copiar el path a file_ch para procesamiento posterior
+    PATH_FILE_TO_LOAD.toCharArray(file_ch, 256);
+    
+    // ✅ PASO 4: Procesar el archivo según su tipo
+    if (PATH_FILE_TO_LOAD.indexOf(".TAP", PATH_FILE_TO_LOAD.length() - 4) != -1 ||
+        PATH_FILE_TO_LOAD.indexOf(".tap", PATH_FILE_TO_LOAD.length() - 4) != -1) {
+      
+      LAST_MESSAGE = "Processing TAP file...";
+      proccesingTAP(file_ch);
+      TYPE_FILE_LOAD = "TAP";
+      BYTES_TOBE_LOAD = myTAP.size;
+      
+    } else if (PATH_FILE_TO_LOAD.indexOf(".CSW", PATH_FILE_TO_LOAD.length() - 4) != -1 ||
+               PATH_FILE_TO_LOAD.indexOf(".csw", PATH_FILE_TO_LOAD.length() - 4) != -1) {
+      
+      LAST_MESSAGE = "Processing CSW file...";
+      verifyConfigFileForSelection();
+      if (!myCSWmemoryReserved) {
+        myCSW.descriptor = (tCSWBlockDescriptor *)ps_calloc(1, sizeof(struct tCSWBlockDescriptor));
+        myCSWmemoryReserved = true;
+      }
+      pTZX.setCSW(myCSW);
+      proccesingCSW(file_ch);
+      TYPE_FILE_LOAD = "CSW";
+      BYTES_TOBE_LOAD = myCSW.size;
+      
+    } else if (PATH_FILE_TO_LOAD.indexOf(".PZX", PATH_FILE_TO_LOAD.length() - 4) != -1 ||
+               PATH_FILE_TO_LOAD.indexOf(".pzx", PATH_FILE_TO_LOAD.length() - 4) != -1) {
+      
+      LAST_MESSAGE = "Processing PZX file...";
+      proccesingPZX(file_ch);
+      TYPE_FILE_LOAD = "PZX";
+      BYTES_TOBE_LOAD = myPZX.size;
+      
+    } else if ((PATH_FILE_TO_LOAD.indexOf(".TZX", PATH_FILE_TO_LOAD.length() - 4) != -1) ||
+               (PATH_FILE_TO_LOAD.indexOf(".tzx", PATH_FILE_TO_LOAD.length() - 4) != -1) ||
+               (PATH_FILE_TO_LOAD.indexOf(".TSX", PATH_FILE_TO_LOAD.length() - 4) != -1) ||
+               (PATH_FILE_TO_LOAD.indexOf(".tsx", PATH_FILE_TO_LOAD.length() - 4) != -1) ||
+               (PATH_FILE_TO_LOAD.indexOf(".CDT", PATH_FILE_TO_LOAD.length() - 4) != -1) ||
+               (PATH_FILE_TO_LOAD.indexOf(".cdt", PATH_FILE_TO_LOAD.length() - 4) != -1)) {
+      
+      LAST_MESSAGE = "Processing TZX/CDT/TSX file...";
+      verifyConfigFileForSelection();
+      if (!myTZXmemoryReserved) {
+        myTZX.descriptor = (tTZXBlockDescriptor *)ps_calloc(MAX_BLOCKS_IN_TZX, sizeof(struct tTZXBlockDescriptor));
+        myTZXmemoryReserved = true;
+      }
+      pTZX.setTZX(myTZX);
+      proccesingTZX(file_ch);
+      
+      if (PATH_FILE_TO_LOAD.indexOf(".TZX", PATH_FILE_TO_LOAD.length() - 4) != -1 ||
+          PATH_FILE_TO_LOAD.indexOf(".tzx", PATH_FILE_TO_LOAD.length() - 4) != -1) {
+        TYPE_FILE_LOAD = "TZX";
+      } else if (PATH_FILE_TO_LOAD.indexOf(".TSX", PATH_FILE_TO_LOAD.length() - 4) != -1 ||
+                 PATH_FILE_TO_LOAD.indexOf(".tsx", PATH_FILE_TO_LOAD.length() - 4) != -1) {
+        TYPE_FILE_LOAD = "TSX";
+      } else {
+        TYPE_FILE_LOAD = "CDT";
+      }
+      BYTES_TOBE_LOAD = myTZX.size;
+    }
+
+    LAST_MESSAGE = "Extracted & loaded: " + firstValidFile;
+    hmi.writeString("tape.g0.txt=\"" + firstValidFile + " loaded\"");
+    FILE_PREPARED = true;
+
+#ifdef DEBUGMODE
+    logAlert("ZIP extracted and file loaded");
+#endif
+  } else {
+    logln("");
+    logln("ERROR: ZIP extraction failed or no files found");
+    logln("");
+    LAST_MESSAGE = "Error: ZIP extraction failed";
+    hmi.writeString("tape.g0.txt=\"ZIP extraction failed\"");
+    FILE_PREPARED = false;
+  }
+}
+
 void sendStatus(int action, int value = 0) {
 
   switch (action) 
@@ -4472,6 +4691,65 @@ void playingFile() {
 
     DATA_IS_PLAYING = false;    
   } 
+  else if (TYPE_FILE_LOAD == "CSW") 
+  {
+    // Reproducción de ficheros CSW (Compressed Square Wave)
+    DATA_IS_PLAYING = true;
+
+    logln("New sampling rate = " + String(SAMPLING_RATE));
+
+    if (!setAudioInfoSafe(new_sr, "CSW playback")) {
+      LAST_MESSAGE = "Error configuring audio for CSW";
+      STOP = true;
+      PLAY = false;
+      return;
+    }
+
+    if (OUT_TO_WAV) {
+      AudioInfo wavencodercfg(DEFAULT_WAV_SAMPLING_RATE_REC, 2, 16);
+      encoderOutWAV.begin(wavencodercfg);
+
+      logln("Sampling rate changed for CSW format file: " +
+            String(DEFAULT_WAV_SAMPLING_RATE_REC) + "Hz");
+      logln("WAV encoder - Out to WAV: " +
+            String(encoderOutWAV.audioInfo().sample_rate) +
+            "Hz, Bits: " + String(encoderOutWAV.audioInfo().bits_per_sample) +
+            ", Channels: " + String(encoderOutWAV.audioInfo().channels));
+
+      LAST_MESSAGE = "Now output will be muted.";
+      delay(2000);
+    }
+
+    // Indicamos el sampling rate
+    hmi.writeString("tape.lblFreq.txt=\"" + String(int(myCSW.descriptor[0].sampling_rate / 1000)) + "KHz\"");
+    
+    sendStatus(REC_ST, 0);
+    TOTAL_PARTS = 0;
+    PARTITION_BLOCK = 0;
+    
+    // ✅ Aplicar ajuste de TONE_ADJUST al sampling rate para pitch control
+    // SAMPLES_ADJUST afecta al pitch (rango típico: -5 a +5)
+    uint32_t original_sr = myCSW.descriptor[0].sampling_rate;
+    uint32_t adjusted_sr = (uint32_t)round(original_sr * (1.0 + SAMPLES_ADJUST / 100.0));
+    logln("Original SR: " + String(original_sr) + " Hz, SAMPLES_ADJUST: " + String(SAMPLES_ADJUST) + ", Adjusted SR: " + String(adjusted_sr) + " Hz");
+    
+    // Modificar SR temporalmente en el descriptor para reproducción
+    myCSW.descriptor[0].sampling_rate = adjusted_sr;
+    
+    // Reproducir el bloque CSW con SR ajustado (por referencia, la posición se guardará en pausas)
+    pTZX.playCSW(myCSW.descriptor[0]);
+    
+    // Restaurar SR original después de reproducción
+    myCSW.descriptor[0].sampling_rate = original_sr;
+    
+    tapeAnimationOFF();
+    
+    if (OUT_TO_WAV) {
+      encoderOutWAV.end();
+    }
+
+    DATA_IS_PLAYING = false;    
+  }
   else if (TYPE_FILE_LOAD == "PZX") 
   {
     // Ajustamos la salida de audio al valor estandar de las maquinas de 8 bits
@@ -4830,6 +5108,28 @@ void loadingFile(char *file_ch) {
       TYPE_FILE_LOAD = "PZX";
       BYTES_TOBE_LOAD = myPZX.size;
     } 
+    else if (PATH_FILE_TO_LOAD.indexOf(".CSW", PATH_FILE_TO_LOAD.length() - 4) != -1)
+    {
+      logln("");
+      logln("CSW file");
+      logln("");
+
+      // Verificamos si hay fichero de configuracion para este archivo
+      verifyConfigFileForSelection();
+      // Reservamos memoria
+      if (!myCSWmemoryReserved) {
+        myCSW.descriptor = (tCSWBlockDescriptor *)ps_calloc(
+            1, sizeof(struct tCSWBlockDescriptor));
+        myCSWmemoryReserved = true;
+      }
+
+      // Pasamos el control a la clase
+      pTZX.setCSW(myCSW);
+      // Lo procesamos
+      proccesingCSW(file_ch);
+      TYPE_FILE_LOAD = "CSW";
+      BYTES_TOBE_LOAD = myCSW.size;
+    }
     else if ((PATH_FILE_TO_LOAD.indexOf(".TZX", PATH_FILE_TO_LOAD.length() - 4) != -1) ||
                (PATH_FILE_TO_LOAD.indexOf(".TSX", PATH_FILE_TO_LOAD.length() - 4) != -1) ||
                (PATH_FILE_TO_LOAD.indexOf(".CDT", PATH_FILE_TO_LOAD.length() - 4) != -1)) 
@@ -4881,6 +5181,12 @@ void loadingFile(char *file_ch) {
       logln("ZXDB file to load: " + PATH_FILE_TO_LOAD);
       FILE_PREPARED = true;
       TYPE_FILE_LOAD = "ZXDB";
+    } else if (PATH_FILE_TO_LOAD.indexOf(".ZIP", PATH_FILE_TO_LOAD.length() - 4) != -1) {
+      logln("");
+      logln("ZIP file");
+      logln("");
+      // Descomprimimos el ZIP
+      proccesingZIP(file_ch);
     }
   } else {
     #ifdef DEBUGMODE
@@ -5251,7 +5557,7 @@ void  rewindAnimation(int direction) {
 void getTheFirstPlayeableBlock() {
   // Buscamos ahora el primer bloque playeable
 
-  if (TYPE_FILE_LOAD != "TAP" && TYPE_FILE_LOAD != "PZX") {
+  if (TYPE_FILE_LOAD != "TAP" && TYPE_FILE_LOAD != "PZX" && TYPE_FILE_LOAD != "CSW") {
     int i = 0;
 
     while (!myTZX.descriptor[i].playeable) {
@@ -5283,7 +5589,7 @@ void getTheFirstPlayeableBlock() {
 void setFWIND() {
   logln("Set FFWD - " + String(LAST_BLOCK_WAS_GROUP_START));
 
-  if (TYPE_FILE_LOAD != "TAP" && TYPE_FILE_LOAD != "PZX") {
+  if (TYPE_FILE_LOAD != "TAP" && TYPE_FILE_LOAD != "PZX" && TYPE_FILE_LOAD != "CSW") {
     if (LAST_BLOCK_WAS_GROUP_START) {
       // Si el ultimo bloque fue un GroupStart entonces busco un Group End y
       // avanzo 1
@@ -5298,7 +5604,7 @@ void setFWIND() {
     BLOCK_SELECTED++;
   }
 
-  if (TYPE_FILE_LOAD != "TAP" && TYPE_FILE_LOAD != "PZX") {
+  if (TYPE_FILE_LOAD != "TAP" && TYPE_FILE_LOAD != "PZX" && TYPE_FILE_LOAD != "CSW") {
     // Para las estructuras TZX, CDT y TSX
     if (BLOCK_SELECTED > (TOTAL_BLOCKS - 1)) {
       BLOCK_SELECTED = 1;
@@ -5319,8 +5625,8 @@ void setFWIND() {
   logln("TOTAL_BLOCKS: " + String(TOTAL_BLOCKS));
   logln("BLOCK_SELECTED: " + String(BLOCK_SELECTED));
 
-  if (TYPE_FILE_LOAD != "TAP" && TYPE_FILE_LOAD != "PZX") {
-    // Forzamos un refresco de los indicadores
+  if (TYPE_FILE_LOAD != "TAP" && TYPE_FILE_LOAD != "PZX" && TYPE_FILE_LOAD != "CSW") {
+    // Para TZX, CDT, TSX
     hmi.setBasicFileInformation(myTZX.descriptor[BLOCK_SELECTED].ID,
                                 myTZX.descriptor[BLOCK_SELECTED].group,
                                 myTZX.descriptor[BLOCK_SELECTED].name,
@@ -5328,17 +5634,23 @@ void setFWIND() {
                                 myTZX.descriptor[BLOCK_SELECTED].size,
                                 myTZX.descriptor[BLOCK_SELECTED].playeable);
   } else if (TYPE_FILE_LOAD == "PZX") {
-    // Forzamos un refresco de los indicadores
+    // Para PZX
     hmi.setBasicFileInformation(0, 0, myPZX.descriptor[BLOCK_SELECTED].name,
                                 myPZX.descriptor[BLOCK_SELECTED].typeName,
                                 myPZX.descriptor[BLOCK_SELECTED].size,
                                 myPZX.descriptor[BLOCK_SELECTED].playeable);
   } else if (TYPE_FILE_LOAD == "TAP") {
-    // Forzamos un refresco de los indicadores
+    // Para TAP
     hmi.setBasicFileInformation(0, 0, myTAP.descriptor[BLOCK_SELECTED].name,
                                 myTAP.descriptor[BLOCK_SELECTED].typeName,
                                 myTAP.descriptor[BLOCK_SELECTED].size,
                                 myTAP.descriptor[BLOCK_SELECTED].playeable);
+  } else if (TYPE_FILE_LOAD == "CSW") {
+    // Para CSW
+    // hmi.setBasicFileInformation(0, 0, myCSW.descriptor[BLOCK_SELECTED].name,
+    //                             myCSW.descriptor[BLOCK_SELECTED].typeName,
+    //                             myCSW.descriptor[BLOCK_SELECTED].size,
+    //                             myCSW.descriptor[BLOCK_SELECTED].playeable);
   }
 
   hmi.updateInformationMainPage(true);
@@ -5350,7 +5662,7 @@ void setRWIND() {
 
   logln("Set RWD - " + String(LAST_BLOCK_WAS_GROUP_END));
 
-  if (TYPE_FILE_LOAD != "TAP" && TYPE_FILE_LOAD != "PZX") {
+  if (TYPE_FILE_LOAD != "TAP" && TYPE_FILE_LOAD != "PZX" && TYPE_FILE_LOAD != "CSW") {
     if (LAST_BLOCK_WAS_GROUP_END) {
       // Si el ultimo bloque fue un Group End entonces busco un Group Start y
       // avanzo 1
@@ -5365,7 +5677,7 @@ void setRWIND() {
   }
 
   // Para las estructuras TZX, CDT y TSX
-  if (TYPE_FILE_LOAD != "TAP" && TYPE_FILE_LOAD != "PZX") {
+  if (TYPE_FILE_LOAD != "TAP" && TYPE_FILE_LOAD != "PZX" && TYPE_FILE_LOAD != "CSW") {
     if (BLOCK_SELECTED < 1) {
       BLOCK_SELECTED = (TOTAL_BLOCKS - 1);
       isGroupEnd();
@@ -5382,8 +5694,8 @@ void setRWIND() {
     }
   }
 
-  if (TYPE_FILE_LOAD != "TAP" && TYPE_FILE_LOAD != "PZX") {
-    // Forzamos un refresco de los indicadores
+  if (TYPE_FILE_LOAD != "TAP" && TYPE_FILE_LOAD != "PZX" && TYPE_FILE_LOAD != "CSW") {
+    // Para TZX, CDT, TSX
     hmi.setBasicFileInformation(myTZX.descriptor[BLOCK_SELECTED].ID,
                                 myTZX.descriptor[BLOCK_SELECTED].group,
                                 myTZX.descriptor[BLOCK_SELECTED].name,
@@ -5391,18 +5703,18 @@ void setRWIND() {
                                 myTZX.descriptor[BLOCK_SELECTED].size,
                                 myTZX.descriptor[BLOCK_SELECTED].playeable);
   } else if (TYPE_FILE_LOAD == "PZX") {
-    // Forzamos un refresco de los indicadores
+    // Para PZX
     hmi.setBasicFileInformation(0, 0, myPZX.descriptor[BLOCK_SELECTED].name,
                                 myPZX.descriptor[BLOCK_SELECTED].typeName,
                                 myPZX.descriptor[BLOCK_SELECTED].size,
                                 myPZX.descriptor[BLOCK_SELECTED].playeable);
   } else if (TYPE_FILE_LOAD == "TAP") {
-    // Forzamos un refresco de los indicadores
+    // Para TAP
     hmi.setBasicFileInformation(0, 0, myTAP.descriptor[BLOCK_SELECTED].name,
                                 myTAP.descriptor[BLOCK_SELECTED].typeName,
                                 myTAP.descriptor[BLOCK_SELECTED].size,
                                 myTAP.descriptor[BLOCK_SELECTED].playeable);
-  }
+  } 
 
   hmi.updateInformationMainPage(true);
 
@@ -5816,7 +6128,7 @@ void tapeControl() {
     } else if (FFWIND || RWIND) {
 
       if (TYPE_FILE_LOAD != "WAV" && TYPE_FILE_LOAD != "MP3" &&
-          TYPE_FILE_LOAD != "FLAC" && TYPE_FILE_LOAD != "RADIO") {
+          TYPE_FILE_LOAD != "FLAC" && TYPE_FILE_LOAD != "RADIO" && TYPE_FILE_LOAD != "CSW") {
         logln("Cambio de bloque");
         // Actuamos sobre el cassette
         if (FFWIND) {
@@ -5885,7 +6197,7 @@ void tapeControl() {
     } else if (FFWIND || RWIND) {
       // Actuamos sobre el cassette
       if (TYPE_FILE_LOAD != "WAV" && TYPE_FILE_LOAD != "MP3" &&
-          TYPE_FILE_LOAD != "FLAC" && TYPE_FILE_LOAD != "RADIO") {
+          TYPE_FILE_LOAD != "FLAC" && TYPE_FILE_LOAD != "RADIO" && TYPE_FILE_LOAD != "CSW") {
         logln("Cambio de bloque - CASE 10");
         // Actuamos sobre el cassette
         if (FFWIND) {
@@ -6501,21 +6813,43 @@ void jsUpdateTextBoxWithFileList(WiFiClient client) {
                  "changeDirectory(item.name));");
   client.println("          } else {");
   client.println("            let filePrefix = '';");
+  client.println("            let fileColor = '#fff';");
   client.println("            if (item.name.toUpperCase().endsWith('.MP3')) "
-                 "filePrefix = 'MP3';");
+                 "{ filePrefix = 'MP3'; fileColor = '#fff'; }");
   client.println(
       "            else if (item.name.toUpperCase().endsWith('.WAV')) "
-      "filePrefix = 'WAV';");
+      "{ filePrefix = 'WAV'; fileColor = '#fff'; }");
   client.println(
       "            else if (item.name.toUpperCase().endsWith('.FLAC')) "
-      "filePrefix = 'FLAC';");
+      "{ filePrefix = 'FLAC'; fileColor = '#fff'; }");
   client.println(
       "            else if (item.name.toUpperCase().endsWith('.RADIO')) "
-      "filePrefix = 'RADIO';");
+      "{ filePrefix = 'RADIO'; fileColor = '#fff'; }");
+  client.println(
+      "            else if (item.name.toUpperCase().endsWith('.TAP')) "
+      "{ filePrefix = 'TAP'; fileColor = '#00ff00'; }");
+  client.println(
+      "            else if (item.name.toUpperCase().endsWith('.TZX')) "
+      "{ filePrefix = 'TZX'; fileColor = '#00ff00'; }");
+  client.println(
+      "            else if (item.name.toUpperCase().endsWith('.CSW')) "
+      "{ filePrefix = 'CSW'; fileColor = '#ffff00'; }");
+  client.println(
+      "            else if (item.name.toUpperCase().endsWith('.PZX')) "
+      "{ filePrefix = 'PZX'; fileColor = '#00ffff'; }");
+  client.println(
+      "            else if (item.name.toUpperCase().endsWith('.CDT')) "
+      "{ filePrefix = 'CDT'; fileColor = '#00ff00'; }");
+  client.println(
+      "            else if (item.name.toUpperCase().endsWith('.TSX')) "
+      "{ filePrefix = 'TSX'; fileColor = '#00ff00'; }");
+  client.println(
+      "            else if (item.name.toUpperCase().endsWith('.ZIP')) "
+      "{ filePrefix = 'ZIP'; fileColor = '#ff69b4'; }");
   client.println("            else filePrefix = 'AUDIO';");
   client.println("            itemElement.innerHTML = `[${item.index + 1}] "
                  "${filePrefix}: ${item.name}`;");
-  client.println("            itemElement.style.color = '#fff';");
+  client.println("            itemElement.style.color = fileColor;");;
   client.println("            itemElement.classList.add('file');");
   client.println("            itemElement.addEventListener('click', () => "
                  "selectFile(item.name, item.index));");
@@ -7616,6 +7950,44 @@ void handleWebClient(WiFiClient client)
                 logln("Not in /RADIO directory, skipping .RADIO file search");
               }
 
+              // ✅ PASO 4: BUSCAR ARCHIVOS SPECTRUM (TAP, TZX, CSW, PZX, CDT, TSX) Y ZIP
+              logln("Searching for Spectrum files and ZIP archives");
+              File specDir = SD_MMC.open(parentDir.c_str());
+              if (specDir && specDir.isDirectory()) {
+                File specFile = specDir.openNextFile();
+                while (specFile) {
+                  if (!specFile.isDirectory()) {
+                    String fileName = specFile.name();
+                    String fileNameUpper = fileName;
+                    fileNameUpper.toUpperCase();
+
+                    // Verificar extensiones: TAP, TZX, CSW, PZX, CDT, TSX, ZIP
+                    bool isSpecFile = fileNameUpper.endsWith(".TAP") ||
+                                      fileNameUpper.endsWith(".TZX") ||
+                                      fileNameUpper.endsWith(".CSW") ||
+                                      fileNameUpper.endsWith(".PZX") ||
+                                      fileNameUpper.endsWith(".CDT") ||
+                                      fileNameUpper.endsWith(".TSX") ||
+                                      fileNameUpper.endsWith(".ZIP");
+
+                    if (isSpecFile) {
+                      if (!firstItem)
+                        client.println(",");
+                      client.println("{\"name\":\"" + fileName +
+                                     "\",\"type\":\"file\",\"index\":" +
+                                     String(itemIndex) + "}");
+                      firstItem = false;
+                      itemIndex++;
+                      logln("Added Spectrum/ZIP file: " + fileName);
+                    }
+                  }
+                  specFile = specDir.openNextFile();
+                }
+                specDir.close();
+              } else {
+                logln("Could not open directory for Spectrum file search");
+              }
+
               client.println("]}");
               logln("File list response completed with " + String(itemIndex) +
                     " items");
@@ -7752,14 +8124,22 @@ void handleWebClient(WiFiClient client)
                 logln("File selected from web: " + selectedFile +
                       " at position: " + String(position));
 
-                // ✅ VERIFICAR QUE ES UN ARCHIVO DE AUDIO SOPORTADO
+                // ✅ VERIFICAR QUE ES UN ARCHIVO SOPORTADO (AUDIO, SPECTRUM O ZIP)
                 String fileUpper = selectedFile;
                 fileUpper.toUpperCase();
 
-                if (fileUpper.endsWith(".WAV") || fileUpper.endsWith(".MP3") ||
+                bool isSupportedFile = fileUpper.endsWith(".WAV") || fileUpper.endsWith(".MP3") ||
                     fileUpper.endsWith(".FLAC") ||
-                    fileUpper.endsWith(".RADIO")) {
+                    fileUpper.endsWith(".RADIO") ||
+                    fileUpper.endsWith(".TAP") ||
+                    fileUpper.endsWith(".TZX") ||
+                    fileUpper.endsWith(".CSW") ||
+                    fileUpper.endsWith(".PZX") ||
+                    fileUpper.endsWith(".CDT") ||
+                    fileUpper.endsWith(".TSX") ||
+                    fileUpper.endsWith(".ZIP");
 
+                if (isSupportedFile) {
                   if (fileUpper.endsWith(".MP3"))
                     TYPE_FILE_LOAD = "MP3";
                   else if (fileUpper.endsWith(".WAV"))
@@ -7768,6 +8148,20 @@ void handleWebClient(WiFiClient client)
                     TYPE_FILE_LOAD = "FLAC";
                   else if (fileUpper.endsWith(".RADIO"))
                     TYPE_FILE_LOAD = "RADIO";
+                  else if (fileUpper.endsWith(".TAP"))
+                    TYPE_FILE_LOAD = "TAP";
+                  else if (fileUpper.endsWith(".TZX"))
+                    TYPE_FILE_LOAD = "TZX";
+                  else if (fileUpper.endsWith(".CSW"))
+                    TYPE_FILE_LOAD = "CSW";
+                  else if (fileUpper.endsWith(".PZX"))
+                    TYPE_FILE_LOAD = "PZX";
+                  else if (fileUpper.endsWith(".CDT"))
+                    TYPE_FILE_LOAD = "CDT";
+                  else if (fileUpper.endsWith(".TSX"))
+                    TYPE_FILE_LOAD = "TSX";
+                  else if (fileUpper.endsWith(".ZIP"))
+                    TYPE_FILE_LOAD = "ZIP";
 
                   // ✅ INTERRUMPIR PLAYERS ACTIVOS ANTES DE CARGAR EL NUEVO
                   // ARCHIVO Interrumpir MediaPlayer

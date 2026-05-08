@@ -71,6 +71,22 @@ public:
         logln("Booster volume: " + String(BOOSTER_VOLUME) + ", Booster factor: " + String(BOOSTER_FACTOR));
     }
 
+    // ✅ Configurar velocidades de FFWD/RWD para CSW
+    void setCSWSeekSpeed(float ffwd_speed = 0.02, float rwd_speed = 0.02)
+    {
+        // Limitar valores a rango razonable (0.01 = 1%, 0.10 = 10%)
+        if (ffwd_speed < 0.01) ffwd_speed = 0.01;
+        if (ffwd_speed > 0.10) ffwd_speed = 0.10;
+        if (rwd_speed < 0.01) rwd_speed = 0.01;
+        if (rwd_speed > 0.10) rwd_speed = 0.10;
+        
+        CSW_FFWD_SPEED = ffwd_speed;
+        CSW_RWD_SPEED = rwd_speed;
+        
+        logln("CSW Seek Speed set: FFWD=" + String(ffwd_speed * 100, 1) + "%, RWD=" + String(rwd_speed * 100, 1) + "%");
+        writeString("tape.lblFFWDSpeed.txt=\"FF: " + String(int(ffwd_speed * 100)) + "%\"");
+    }
+
     // Lee la ruta almacenada en _last.txt y la devuelve como String
     inline String loadLastMedia() {
       File lastFile = SD_MMC.open("/_last.txt", FILE_READ);
@@ -644,7 +660,8 @@ private:
                               strcmp(ext, "wav") == 0 || strcmp(ext, "mp3") == 0 ||
                               strcmp(ext, "flac") == 0 || strcmp(ext, "lst") == 0 ||
                               strcmp(ext, "dsc") == 0 || strcmp(ext, "inf") == 0 ||
-                              strcmp(ext, "txt") == 0 || strcmp(ext, "radio") == 0 || strcmp(ext, "zxdb") || strcmp(ext, "zip") == 0)
+                              strcmp(ext, "txt") == 0 || strcmp(ext, "radio") == 0 || 
+                              strcmp(ext, "zxdb") == 0 || strcmp(ext, "csw") == 0 || strcmp(ext, "zip") == 0)
                           {
                               fout.print(String(lpos)); fout.print(separator);
                               fout.print("F"); fout.print(separator);
@@ -1451,7 +1468,11 @@ private:
               {
                 color = DSC_FILE_COLOR;  // Negro - Indica que es un fichero DSC
               }
-              else if (type == ".TAP" || type == ".TZX" || type == ".TSX" || type == ".CDT" || type == ".PZX" || type == ".WAV" || type == ".MP3" || type == ".FLAC" || type == ".RADIO" || type == ".ZXDB" || type == ".CPCDB" || type == ".MSXDB")
+              else if (type == ".ZIP")
+              {
+                color = ZIP_FILE_COLOR;
+              }
+              else if (type == ".TAP" || type == ".TZX" || type == ".TSX" || type == ".CDT" || type == ".PZX" || type == ".WAV" || type == ".MP3" || type == ".FLAC" || type == ".RADIO" || type == ".ZXDB" || type == ".CPCDB" || type == ".MSXDB" || type == ".ZIP" || type == ".CSW")
               {
                   //Ficheros
                   if (SD_MMC.exists("/fav/" + szName))
@@ -1785,6 +1806,32 @@ private:
 
           logln("Radio buffered: " + String(RADIO_BUFFERED));
           saveHMIcfg("RBUFopt");
+        }
+        // ✅ CSW FFWD Speed: CSW_FFWD=XX (XX = 01 a 10 = 1% a 10%)
+        else if (strCmd.indexOf("CSW_FFWD=") != -1)
+        {
+          uint8_t buff[12];
+          strCmd.getBytes(buff, 11);
+          int ffwd_pct = ((int)buff[9] - 48) * 10 + ((int)buff[10] - 48);  // Two digits
+          if (ffwd_pct < 1) ffwd_pct = 1;
+          if (ffwd_pct > 10) ffwd_pct = 10;
+          
+          float ffwd_speed = (float)ffwd_pct / 100.0;
+          setCSWSeekSpeed(ffwd_speed, CSW_RWD_SPEED);
+          logln("CSW FFWD Speed set to: " + String(ffwd_pct) + "%");
+        }
+        // ✅ CSW RWD Speed: CSW_RWD=XX (XX = 01 a 10 = 1% a 10%)
+        else if (strCmd.indexOf("CSW_RWD=") != -1)
+        {
+          uint8_t buff[12];
+          strCmd.getBytes(buff, 10);
+          int rwd_pct = ((int)buff[8] - 48) * 10 + ((int)buff[9] - 48);  // Two digits
+          if (rwd_pct < 1) rwd_pct = 1;
+          if (rwd_pct > 10) rwd_pct = 10;
+          
+          float rwd_speed = (float)rwd_pct / 100.0;
+          setCSWSeekSpeed(CSW_FFWD_SPEED, rwd_speed);
+          logln("CSW RWD Speed set to: " + String(rwd_pct) + "%");
         }   
         else if (strCmd.indexOf("DHCP=") != -1) 
         {
@@ -3168,6 +3215,11 @@ private:
           TONE_ADJUST = 0;
           SAMPLES_ADJUST = (TONE_ADJUSTMENT_ZX_SPECTRUM + (valVol-TONE_ADJUSTMENT_ZX_SPECTRUM_LIMIT));
           logln("TONE: " + String(TONE_ADJUST) + " Hz"); 
+
+          if ((AZIMUT != 0) && !WAV_8BIT_MONO && !REM_DETECTED)
+          {
+            myNex.writeStr("tape.wavind.txt", "AZI");
+          }
           //saveHMIcfg("EQLopt");
         }    
         else if (strCmd.indexOf("WWW") != -1) 
