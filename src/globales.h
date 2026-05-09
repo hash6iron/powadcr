@@ -2836,6 +2836,3 @@ void updateMSXDB(String letter = "0")
         myNex.writeNum("zxdb.j0.val", 100);
     }
 }
-
-
-
