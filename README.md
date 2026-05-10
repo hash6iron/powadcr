@@ -127,8 +127,7 @@ How PowaDCR parts are connected?
 >- RX GPIO on Audiokit - Pin IO22
 >- REM keeps on IO19
 
-<img width="1280" height="920" alt="image" src="https://github.com/user-attachments/assets/77e06446-dde5-4437-8531-cd3ba4e0e63d" />
-
+<img width="1280" height="920" alt="MCP23017" src="https://github.com/user-attachments/assets/1e935bbd-0edf-4f6b-a468-11352350deed" />
 
 Audiokit DIP switch configuration
 -----
