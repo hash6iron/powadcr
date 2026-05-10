@@ -9908,7 +9908,6 @@ void setupNTP()
 {
   logln("> Setting NTP Client.");
   // NTP Client
-  hmi.writeString("statusLCD.txt=\"NTP and RTC settings\"");
   const char* ntpServer1 = NTPSERVER;
   const char* ntpServer2 = "pool.ntp.org";
   const char* ntpServer3 = "time.google.com";
@@ -9917,30 +9916,24 @@ void setupNTP()
   const int daylightOffset_sec = SUMMERTIME ? 3600 : 0;
   configTime(gmtOffset_sec, daylightOffset_sec, ntpServer1, ntpServer2, ntpServer3);
   struct tm timeinfo;
-  if (!getLocalTime(&timeinfo)) {
+
+  if (!getLocalTime(&timeinfo)) 
+  {
     logln("NTP. Failed to obtain time");
-    myNex.writeNum("tape.clkInd.pco", 23275);
-    hmi.writeString("statusLCD.txt=\"NTP pool failed\"");
-    
+    myNex.writeNum("tape.clkInd.pco", 23275);   
     NTP_AVAILABLE = false;
     return;
   }
   rtc.setTimeStruct(timeinfo);
-  //rtc.setTime(30, 24, 15, 17, 1, 2021);
   logln(rtc.getTime("%A, %B %d %Y %H:%M:%S"));
-  if (!QUICK_BOOT)
-  {
-    hmi.writeString("statusLCD.txt=\"" + rtc.getTime("%A, %B %d %Y %H:%M:%S") + "\"");
-  }
+
   NTP_AVAILABLE = true;
+
   // Mostramos el indicador NTP
+  myNex.writeNum("tape.clkInd.pco", 60868);
   myNex.writeNum("tape.clkInd.pco", 60868);
   myNex.writeNum("clock.ntp.val", 1);
   myNex.writeNum("clock.ntp.val", 1);
-  myNex.writeNum("clock.ntp.val", 1);
-  myNex.writeNum("clock.ntp.val", 1);
-  if (!QUICK_BOOT) delay(2000);
-  //struct tm timeinfo = rtc.getTimeStruct();
 }
 
 void setupSpotify() 
