@@ -2705,11 +2705,7 @@ void RadioPlayer() {
   const size_t BUFFER_STOP_THRESHOLD = RADIO_BUFFER_SIZE * 0.25;
   bool isBuffering = true;
   bool dialIndicatorIsShown = false;
-  // Paramos los timers y animaciones
-  hmi.writeString("tape.tm0.en=0");
-  hmi.writeString("tape.tm1.en=0");
-  tapeAnimationOFF();
-  showRadioDial();
+
 
   // Configuración del pipeline de audio
   tAudioList *audiolist = nullptr;
@@ -4913,6 +4909,12 @@ void playingFile() {
   else if (TYPE_FILE_LOAD == "RADIO") 
   {
     logln("Type file load: " + TYPE_FILE_LOAD);
+    //
+    // Paramos los timers y animaciones
+    hmi.writeString("tape.tm0.en=0");
+    hmi.writeString("tape.tm1.en=0");
+    tapeAnimationOFF();
+    showRadioDial();
     // Reproducimos el FLAC file
     if (WIFI_CONNECTED) 
     {
@@ -4922,6 +4924,8 @@ void playingFile() {
     else 
     {
       LAST_MESSAGE = "WIFI not connected.";
+      STOP = true;
+      TAPESTATE = 0;
     }
   } 
   else if (TYPE_FILE_LOAD == "ZXDB") 
