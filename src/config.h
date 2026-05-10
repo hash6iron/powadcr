@@ -424,4 +424,5 @@ bool TEST_LINE_IN_OUT = false;
 #define PAGE_MENU_GENERAL_SETTINGS_EXT 5
 #define PAGE_SPOTIFY                   6
 #define PAGE_RADIO                     7
+#define PAGE_KEYDEBUG                  8
 #define PAGE_CLOCK                     99

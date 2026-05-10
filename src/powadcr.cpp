@@ -223,8 +223,14 @@ String plLastName = "";
 
 bool statusTXLine = false;
 bool statusRXLine = false;
+
+//
 // -----------------------------------------------------------------------
-// Prototype function
+//
+//                         Prototype function
+//
+// -----------------------------------------------------------------------
+//
 
 void ejectingFile();
 void isGroupStart();
@@ -233,10 +239,10 @@ void getRandomFilenameWAV(char *&currentPath, String currentFileBaseName);
 void rewindAnimation(int direction);
 void showOption(String id, String value);
 void setupNTP();
+void setupWifi();
 String getFileNameFromPath(const String &filePath);
 String removeExtension(const String &filename);
 
-// -----------------------------------------------------------------------
 
 // -----------------------------------------------------------------------
 bool statusPoweLed = false;
@@ -1538,59 +1544,110 @@ void stopRecording() {
   //
 }
 
-bool wifiSetup() {
+bool wifiSetup() 
+{
   bool wifiActive = true;
   
-  wl_status_t wifiStatus = WL_DISCONNECTED;
+  wl_status_t wifiStatus = WiFi.status();
   
-  WiFi.mode(WIFI_STA);
-  wifiStatus = WiFi.begin(ssid, password);
+  uint8_t tryconnection = 60;
 
-  if (wifiStatus == WL_NO_SSID_AVAIL) 
-  {
-    WIFI_ENABLE = false;
-    hmi.writeString("statusLCD.txt=\"Wifi SSID missing or too long\"");
-    delay(2000);
-    wifiActive = false;
-  }
-  else if (wifiStatus != WL_CONNECTED) 
-  {
-    WIFI_ENABLE = false;
-    hmi.writeString("statusLCD.txt=\"WiFi connection failed\"");
-    wifiActive = false;
+  logln("Attempting to connect to WiFi SSID: [" + String(ssid) + "]");
+  // Esperamos la respuesta
+  while (wifiStatus != WL_CONNECTED && tryconnection != 0) 
+  {  
+    //hmi.writeString("statusLCD.txt=\"Connecting to WiFi ... " + String(tryconnection/4) + "s \"");
+    logln("Connecting to WiFi ... " + String(tryconnection/4) + "s");
+    delay(250);
+    //WiFi.reconnect();
+    //wifiStatus = WiFi.begin(ssid, password);
+    tryconnection--;
   }
 
-  hmi.writeString("statusLCD.txt=\"SSID: [" + String(ssid) + "]\"");
-  delay(1500);
+  if (wifiStatus == WL_NO_SSID_AVAIL || wifiStatus == WL_NO_SSID_AVAIL) 
+  {
+    WIFI_ENABLE = false;
+    //hmi.writeString("statusLCD.txt=\"Wifi SSID missing or too long\"");
+    logln("WiFi SSID missing or too long");
+    //delay(1500);
+    wifiActive = false;
+  }
+  else if (wifiStatus == WL_CONNECTED) 
+  {
+    //
+    // Si enlazamos con el AP entonces
+    // solicitamos la IP bien estatica o DHCP.
+    //
+    //hmi.writeString("statusLCD.txt=\"SSID: [" + String(ssid) + "]\"");
+    logln("WiFi connected to SSID: [" + String(ssid) + "]");
+    wifiActive = true;
 
-  // Configures Static IP Address
-  if (!DHCP_ENABLE) {
-    if (!WiFi.config(local_IP, gateway, subnet, primaryDNS, secondaryDNS)) {
-      hmi.writeString("statusLCD.txt=\"WiFi-STA setting failed!\"");
+    //delay(1500);
+    // Configures Static IP Address
+    if (!DHCP_ENABLE) 
+    {
+      if (!WiFi.config(local_IP, gateway, subnet, primaryDNS, secondaryDNS)) 
+      {
+        //hmi.writeString("statusLCD.txt=\"Static IP setting failed!\"");
+        logln("Static IP setting failed!");
+        wifiActive = false;
+      }
+      else
+      {
+        wifiActive = true;
+      }
+    }
+    else
+    {
+      wifiActive = true;
+    }
+
+    if (WiFi.waitForConnectResult() != WL_CONNECTED) 
+    {
+      //hmi.writeString("statusLCD.txt=\"WiFi Connection failed!");
+      logln("WiFi Connection failed!");
       wifiActive = false;
     }
+    else 
+    {
+      wifiActive = true;
+    }    
   }
-
-  if (WiFi.waitForConnectResult() != WL_CONNECTED) 
+  else
   {
-    hmi.writeString("statusLCD.txt=\"WiFi Connection failed!");
+    // Error segun esto:
+    // WL_NO_SHIELD        = 255,   // for compatibility with WiFi Shield library
+    // WL_IDLE_STATUS      = 0,
+    // WL_NO_SSID_AVAIL    = 1,
+    // WL_SCAN_COMPLETED   = 2,
+    // WL_CONNECTED        = 3,
+    // WL_CONNECT_FAILED   = 4,
+    // WL_CONNECTION_LOST  = 5,
+    // WL_DISCONNECTED     = 6
+
+    //hmi.writeString("statusLCD.txt=\"Wifi error: " + String(wifiStatus) + "\"");
+    //delay(1500);
+    logln("WiFi connection error. Status code: " + String(wifiStatus));
     wifiActive = false;
   }
-  else 
-  {
-    wifiActive = true;
-  }
 
+  // Segun el resultado de la conexión concluimos
   if (wifiActive) 
   {
-    hmi.writeString("statusLCD.txt=\"IP " + WiFi.localIP().toString() + "\"");
-    delay(50);
+    //hmi.writeString("statusLCD.txt=\"IP " + WiFi.localIP().toString() + "\"");
+    logln("WiFi connected. IP: " + WiFi.localIP().toString());
+    hmi.writeString("tape.wifiInd.pco=60868");
+    hmi.writeString("tape0.g0.txt=\"Wifi connected. IP: " + WiFi.localIP().toString() + "\"");
+    //delay(50);
   }
   else 
   {
-    hmi.writeString("statusLCD.txt=\"Wifi disabled\"");
+    //hmi.writeString("statusLCD.txt=\"Wifi disabled\"");
+    logln("WiFi disabled.");
+    hmi.writeString("tape.wifiInd.pco=23275");   
     wifiActive = false;
-    delay(750);
+    
+    //delay(750);
   }
 
   return wifiActive;
@@ -8647,8 +8704,29 @@ void buttonsControl()
   uint8_t value = MCP23017_readGPIO(0x12);
   uint8_t valuePB = MCP23017_readGPIO(0x13);
 
+  // DEBUG: Ver valor bruto del registro
+  // static uint8_t lastValue = 0xFF;
+
+  // if (value != lastValue && value != 0x7F) 
+  // {
+  //   // Pressed
+  //   logln("> DEBUG PA RAW: 0x" + String(value, HEX) + " (" + String(value, BIN) + ")");
+  //   lastValue = value;
+  //   uint8_t changedBits = ~value;
+  //   logln(" - DEBUG PA INVERTED: 0x" + String(changedBits, HEX) + " (" + String(changedBits, BIN) + ")");
+  //   changedBits = changedBits & 0x7F; // Aplicar máscara para solo los bits de entrada
+  //   logln(" - DEBUG PA CHANGED: 0x" + String(changedBits, HEX) + " (" + String(changedBits, BIN) + ")");
+  // }
+  // else if (value != lastValue && value == 0x7F)
+  // {
+  //   logln("> Key released: " + String(lastValue, HEX) + " (" + String(lastValue, BIN) + ")");
+  // }
+
   value = ~value;                               // Invertimos los bits porque el hardware devuelve 0 para tecla presionada
   value = value & 0x7F;                         // Eliminamos los bits de salida (aplico mascara 00111111)
+
+  // DEBUG: Ver valor después de máscara
+  //logln("DEBUG PA MASKED: 0x" + String(value, HEX) + " (" + String(value, BIN) + ")");
 
   valuePB = ~valuePB;                           // Invertimos los bits porque el hardware devuelve 0 para tecla presionada
   valuePB = valuePB & 0x0F;                     // Eliminamos los bits de salida (aplico mascara 00001111)
@@ -8665,6 +8743,7 @@ void buttonsControl()
   else
   {
     keyPressed = log2(value);                     // Obtenemos el índice del bit a 1, que corresponde a la tecla presionada (0-5)
+    //logln("DEBUG keyPressed index: " + String(keyPressed));
   }
 
   // Determinamos si hay tecla pulsada o no PUERTOB
@@ -8678,321 +8757,406 @@ void buttonsControl()
     keyPressedPB = log2(valuePB);                     // Obtenemos el índice del bit a 1, que corresponde a la tecla presionada (0-5)
   }
 
-  switch (keyStatusPB)
+  if (CURRENT_PAGE == PAGE_KEYDEBUG)
   {
-  case 0:
+    //PA0
+    if ((value & 0x01) == 1)
     {
-      // Estado inicial. Esperamos la pulsación de una tecla.
-      if (keyPressedPB < 8)
-      {
-        keykp_countPB[keyPressedPB]=0;
-        keykp_countPB[keyPressedPB]++;
-        keyStatusPB = 1;
-      }
-      else
-      {
-        keyStatusPB = 0;          
-      }
+      hmi.writeString("keypad.PA0.txt=\"" + String(keyPressed) + "\"");
+      logln("Key pressed on PORTA: " + String(keyPressed) + " (value: 0x" + String(value, HEX) + ")");
     }
-    /* code */
-    break;
-
-  case 1:
+    else
     {
-      // Determinamos si es una pulsación corta o larga.
-      // para ello vamos contando el número de ciclos que se mantiene pulsada la tecla.
-      if (keyPressedPB < 8)
-      {
-        keykp_countPB[keyPressedPB]++;
-        // Si pulsamos sin soltar es larga
-        if (keykp_countPB[keyPressedPB] > timeToLongPress)
-        {
-          // Long pressed
-          keyStatusPB = 3;
-        }
-        lastKeyValuePB = keyPressedPB;
-      }      
-      else
-      {
-        // Short pressed
-        // Si pulsamos y hemos soltado antes de ser larga
-        if (keykp_countPB[lastKeyValuePB] > 0)
-        {
-          keyStatusPB = 2;
-          logln("SHORT!! Detected PB");
-        }
-      }
+      hmi.writeString("keypad.PA0.txt=\"\"");
     }
-    break;
 
-  case 2:
+    //PA1
+    if ((value & 0x02) == 2)
     {
-      
-      logln("> PORTB: Short key pressed: keycode: " + String(lastKeyValuePB));
-      
-      // Short pressed
-      if (lastKeyValuePB == 8)
-      {
-        logln("Unknow key - Short press");
-        keyStatusPB = 5;       
-      }
-      else if (lastKeyValuePB == MCP_KEY_VOLUP)
-      {
-        logln("VOL+ button pressed - Value: " + String(lastKeyValuePB));
-        hmi.verifyCommand("VOLUP");   
-        keyStatusPB = 5;       
-      }
-      else if (lastKeyValuePB == MCP_KEY_VOLDOWN)
-      {
-        logln("VOL- button pressed - Value: " + String(lastKeyValuePB));
-        hmi.verifyCommand("VOLDW");   
-        keyStatusPB = 5;       
-      }
-      else
-      {
-        logln("Unknow key pressed - Value: " + String(lastKeyValuePB));
-        keyStatusPB = 0;       
-      }
+      hmi.writeString("keypad.PA1.txt=\"" + String(keyPressed) + "\"");
+      logln("Key pressed on PORTA: " + String(keyPressed) + " (value: 0x" + String(value, HEX) + ")");
     }
-    break;
-
-  case 3:
+    else
     {
-      // Long pressed
-      // Aquí puedes manejar la lógica para una pulsación larga en el puerto B
-      //logln("> PORTB: LONG key pressed: keycode: " + String(lastKeyValuePB));
-      // Short pressed
-      if (keyPressedPB == 8)
-      {
-        logln("PORTB: Releasing long pressed");
-        keyStatusPB = 0;       
-      }
-      else if (lastKeyValuePB == MCP_KEY_VOLUP)
-      {
-        //logln("VOL+ button keeps pressed - Value: " + String(lastKeyValuePB));
-        hmi.verifyCommand("VOLUP");   
-        //keyStatusPB = 0;       
-      }
-      else if (lastKeyValuePB == MCP_KEY_VOLDOWN)
-      {
-        //logln("VOL- button keeps pressed - Value: " + String(lastKeyValuePB));
-        hmi.verifyCommand("VOLDW");   
-        //keyStatusPB = 0;       
-      }
-      else
-      {
-        logln("Unknow key pressed - Value: " + String(lastKeyValuePB));
-        keyStatusPB = 0;       
-      }    }
-    break;
-
-    case 5:
-    {
-      // Esperamos soltar el botón
-      if (keyPressedPB == 8)
-      {
-        keyStatusPB = 0;
-        logln("Key released");
-              
-      }
+      hmi.writeString("keypad.PA1.txt=\"\"");
     }
-    break;    
 
-  default:
-    break;
+    //PA2
+    if ((value & 0x04) == 4)
+    {
+      hmi.writeString("keypad.PA2.txt=\"" + String(keyPressed) + "\"");
+      logln("Key pressed on PORTA: " + String(keyPressed) + " (value: 0x" + String(value, HEX) + ")");
+    }
+    else
+    {
+      hmi.writeString("keypad.PA2.txt=\"\"");
+    }
+
+    //PA3
+    if ((value & 0x08) == 8)
+    {
+      hmi.writeString("keypad.PA3.txt=\"" + String(keyPressed) + "\"");
+      logln("Key pressed on PORTA: " + String(keyPressed) + " (value: 0x" + String(value, HEX) + ")");
+    }
+    else
+    {
+      hmi.writeString("keypad.PA3.txt=\"\"");
+    }
+
+    //PA4
+    if ((value & 0x10) == 0x10)
+    {
+      hmi.writeString("keypad.PA4.txt=\"" + String(keyPressed) + "\"");
+      logln("Key pressed on PORTA: " + String(keyPressed) + " (value: 0x" + String(value, HEX) + ")");
+    }
+    else
+    {
+      hmi.writeString("keypad.PA4.txt=\"\"");
+    }
+
+    //PA5
+    if ((value & 0x20) == 0x20)
+    {
+      hmi.writeString("keypad.PA5.txt=\"" + String(keyPressed) + "\"");
+      logln("Key pressed on PORTA: " + String(keyPressed) + " (value: 0x" + String(value, HEX) + ")");
+    }
+    else
+    {
+      hmi.writeString("keypad.PA5.txt=\"\"");
+    }
+
+    //PA6
+    if ((value & 0x40) == 0x40)
+    {
+      hmi.writeString("keypad.PA6.txt=\"" + String(keyPressed) + "\"");
+      logln("Key pressed on PORTA: " + String(keyPressed) + " (value: 0x" + String(value, HEX) + ")");
+    }
+    else
+    {
+      hmi.writeString("keypad.PA6.txt=\"\"");
+    }
+
+
   }
-  
-  // Control de estado botones.
-  switch (keyStatus)
+  else
   {
-    case 0:
-    {
-      // Estado inicial. Esperamos la pulsación de una tecla.
-      if (keyPressed < 8)
-      {
-        keykp_count[keyPressed]=0;
-        keykp_count[keyPressed]++;
-        keyStatus = 1;
-      }
-      else
-      {
-        keyStatus = 0;          
-      }
-    }
-    break;
-  
-    case 1:
-    {
-      // Determinamos si es una pulsación corta o larga.
-      // para ello vamos contando el número de ciclos que se mantiene pulsada la tecla.
-      if (keyPressed < 8)
-      {
-        keykp_count[keyPressed]++;
-        // Si pulsamos sin soltar es larga
-        if (keykp_count[keyPressed] > timeToLongPress)
+      switch (keyStatusPB)
         {
-          // Long pressed
-          keyStatus = 3;
-        }
-        lastKeyValue = keyPressed;
-      }      
-      else
-      {
-        // Short pressed
-        // Si pulsamos y hemos soltado antes de ser larga
-        if (keykp_count[lastKeyValue] > 0)
-        {
-          keyStatus = 2;
-          logln("SHORT!! Detected");
-        }
-      }
-    }
-    break;
+        case 0:
+          {
+            // Estado inicial. Esperamos la pulsación de una tecla.
+            if (keyPressedPB < 8)
+            {
+              keykp_countPB[keyPressedPB]=0;
+              keykp_countPB[keyPressedPB]++;
+              keyStatusPB = 1;
+            }
+            else
+            {
+              keyStatusPB = 0;          
+            }
+          }
+          /* code */
+          break;
 
-    case 2:
-    {
-      // Short pressed
-      if (lastKeyValue == 8)
+        case 1:
+          {
+            // Determinamos si es una pulsación corta o larga.
+            // para ello vamos contando el número de ciclos que se mantiene pulsada la tecla.
+            if (keyPressedPB < 8)
+            {
+              keykp_countPB[keyPressedPB]++;
+              // Si pulsamos sin soltar es larga
+              if (keykp_countPB[keyPressedPB] > timeToLongPress)
+              {
+                // Long pressed
+                keyStatusPB = 3;
+              }
+              lastKeyValuePB = keyPressedPB;
+            }      
+            else
+            {
+              // Short pressed
+              // Si pulsamos y hemos soltado antes de ser larga
+              if (keykp_countPB[lastKeyValuePB] > 0)
+              {
+                keyStatusPB = 2;
+                logln("SHORT!! Detected PB");
+              }
+            }
+          }
+          break;
+
+        case 2:
+          {
+            
+            logln("> PORTB: Short key pressed: keycode: " + String(lastKeyValuePB));
+            
+            // Short pressed
+            if (lastKeyValuePB == 8)
+            {
+              logln("Unknow key - Short press");
+              keyStatusPB = 5;       
+            }
+            else if (lastKeyValuePB == MCP_KEY_VOLUP)
+            {
+              logln("VOL+ button pressed - Value: " + String(lastKeyValuePB));
+              hmi.verifyCommand("VOLUP");   
+              keyStatusPB = 5;       
+            }
+            else if (lastKeyValuePB == MCP_KEY_VOLDOWN)
+            {
+              logln("VOL- button pressed - Value: " + String(lastKeyValuePB));
+              hmi.verifyCommand("VOLDW");   
+              keyStatusPB = 5;       
+            }
+            else
+            {
+              logln("Unknow key pressed - Value: " + String(lastKeyValuePB));
+              keyStatusPB = 0;       
+            }
+          }
+          break;
+
+        case 3:
+          {
+            // Long pressed
+            // Aquí puedes manejar la lógica para una pulsación larga en el puerto B
+            //logln("> PORTB: LONG key pressed: keycode: " + String(lastKeyValuePB));
+            // Short pressed
+            if (keyPressedPB == 8)
+            {
+              logln("PORTB: Releasing long pressed");
+              keyStatusPB = 0;       
+            }
+            else if (lastKeyValuePB == MCP_KEY_VOLUP)
+            {
+              //logln("VOL+ button keeps pressed - Value: " + String(lastKeyValuePB));
+              hmi.verifyCommand("VOLUP");   
+              //keyStatusPB = 0;       
+            }
+            else if (lastKeyValuePB == MCP_KEY_VOLDOWN)
+            {
+              //logln("VOL- button keeps pressed - Value: " + String(lastKeyValuePB));
+              hmi.verifyCommand("VOLDW");   
+              //keyStatusPB = 0;       
+            }
+            else
+            {
+              logln("Unknow key pressed - Value: " + String(lastKeyValuePB));
+              keyStatusPB = 0;       
+            }    }
+          break;
+
+          case 5:
+          {
+            // Esperamos soltar el botón
+            if (keyPressedPB == 8)
+            {
+              keyStatusPB = 0;
+              logln("Key released");
+                    
+            }
+          }
+          break;    
+
+        default:
+          break;
+        }
+        
+      // Control de estado botones.
+      switch (keyStatus)
       {
-        logln("Unknow key - Short press");
-        keyStatus = 5;       
-      }
-      else if (lastKeyValue == MCP_KEY_PLAY)
-      {
-        logln("PLAY button pressed - Value: " + String(lastKeyValue));
-        hmi.verifyCommand("PLAY");   
-        keyStatus = 5;       
-      }
-      else if (lastKeyValue == MCP_KEY_STOP)
-      {
-        if (!STOP)
+        case 0:
         {
-            hmi.verifyCommand("STOP");
-            logln("STOP button pressed - Value: " + String(lastKeyValue));
+          // Estado inicial. Esperamos la pulsación de una tecla.
+          if (keyPressed < 8)
+          {
+            keykp_count[keyPressed]=0;
+            keykp_count[keyPressed]++;
+            keyStatus = 1;
+          }
+          else
+          {
+            keyStatus = 0;          
+          }
+        }
+        break;
+      
+        case 1:
+        {
+          // Determinamos si es una pulsación corta o larga.
+          // para ello vamos contando el número de ciclos que se mantiene pulsada la tecla.
+          if (keyPressed < 8)
+          {
+            keykp_count[keyPressed]++;
+            // Si pulsamos sin soltar es larga
+            if (keykp_count[keyPressed] > timeToLongPress)
+            {
+              // Long pressed
+              keyStatus = 3;
+            }
+            lastKeyValue = keyPressed;
+          }      
+          else
+          {
+            // Short pressed
+            // Si pulsamos y hemos soltado antes de ser larga
+            if (keykp_count[lastKeyValue] > 0)
+            {
+              keyStatus = 2;
+              logln("SHORT!! Detected");
+            }
+          }
+        }
+        break;
+
+        case 2:
+        {
+          // Short pressed
+          if (lastKeyValue == 8)
+          {
+            logln("Unknow key - Short press");
             keyStatus = 5;       
-        }
-        else 
-        {
+          }
+          else if (lastKeyValue == MCP_KEY_PLAY)
+          {
+            logln("PLAY button pressed - Value: " + String(lastKeyValue));
+            hmi.verifyCommand("PLAY");   
+            keyStatus = 5;       
+          }
+          else if (lastKeyValue == MCP_KEY_STOP)
+          {
+            if (!STOP)
+            {
+                hmi.verifyCommand("STOP");
+                logln("STOP button pressed - Value: " + String(lastKeyValue));
+                keyStatus = 5;       
+            }
+            else 
+            {
+                hmi.verifyCommand("EJECT");
+                logln("STOP is active, then EJECT");
+                keyStatus = 5;
+            }
+          }
+          else if (lastKeyValue == MCP_KEY_PAUSE)
+          {
+            hmi.verifyCommand("PAUSE");
+            logln("PAUSE button pressed - Value: " + String(lastKeyValue));
+            keyStatus = 5;       
+          }
+          else if (lastKeyValue == MCP_KEY_FFWD)
+          {
+            hmi.verifyCommand("FFWD");
+            logln("FFWD button pressed - Value: " + String(lastKeyValue));
+            keyStatus = 5;       
+          }
+          else if (lastKeyValue == MCP_KEY_RWD)
+          {
+            hmi.verifyCommand("RWD");
+            logln("RWD button pressed - Value: " + String(lastKeyValue));
+            keyStatus = 5;       
+          }
+          else if (lastKeyValue == MCP_KEY_REC)
+          {
+            hmi.verifyCommand("REC");
+            logln("REC button pressed - Value: " + String(lastKeyValue));
+            keyStatus = 5;       
+          }
+          else if (lastKeyValue == MCP_KEY_EJECT)
+          {
             hmi.verifyCommand("EJECT");
-            logln("STOP is active, then EJECT");
-            keyStatus = 5;
+            logln("EJECT button pressed - Value: " + String(lastKeyValue));
+            keyStatus = 5;       
+          }
+          else
+          {
+            logln("Unknow key pressed");
+            keyStatus = 0;       
+          }
         }
-      }
-      else if (lastKeyValue == MCP_KEY_PAUSE)
-      {
-        hmi.verifyCommand("PAUSE");
-        logln("PAUSE button pressed - Value: " + String(lastKeyValue));
-        keyStatus = 5;       
-      }
-      else if (lastKeyValue == MCP_KEY_FFWD)
-      {
-        hmi.verifyCommand("FFWD");
-        logln("FFWD button pressed - Value: " + String(lastKeyValue));
-        keyStatus = 5;       
-      }
-      else if (lastKeyValue == MCP_KEY_RWD)
-      {
-        hmi.verifyCommand("RWD");
-        logln("RWD button pressed - Value: " + String(lastKeyValue));
-        keyStatus = 5;       
-      }
-      else if (lastKeyValue == MCP_KEY_REC)
-      {
-        hmi.verifyCommand("REC");
-        logln("REC button pressed - Value: " + String(lastKeyValue));
-        keyStatus = 5;       
-      }
-      else if (lastKeyValue == MCP_KEY_EJECT)
-      {
-        hmi.verifyCommand("EJECT");
-        logln("EJECT button pressed - Value: " + String(lastKeyValue));
-        keyStatus = 5;       
-      }
-      else
-      {
-        logln("Unknow key pressed");
-        keyStatus = 0;       
-      }
-    }
-    break;
+        break;
 
-    case 3:
-    {
-      // Long pressed
-      if (keyPressed == 8)
-      {
-        // Release button, do nothing
-        logln("Key released: " + String(lastKeyValue) + " - Value: " + String(keyPressed));
-        if (KEEP_FFWIND || KEEP_RWIND)
+        case 3:
         {
-          KEEP_FFWIND = false;
-          KEEP_RWIND = false;
-          // Esto lo hacemos para salir del modo fast wind
-          hmi.verifyCommand("FFWD");
+          // Long pressed
+          if (keyPressed == 8)
+          {
+            // Release button, do nothing
+            logln("Key released: " + String(lastKeyValue) + " - Value: " + String(keyPressed));
+            if (KEEP_FFWIND || KEEP_RWIND)
+            {
+              KEEP_FFWIND = false;
+              KEEP_RWIND = false;
+              // Esto lo hacemos para salir del modo fast wind
+              hmi.verifyCommand("FFWD");
+            }
+            // Cambiamos de estado
+            keyStatus = 0;
+          }
+          else if (lastKeyValue == MCP_KEY_PLAY)
+          {
+            //logln("PLAY/STOP button LONG pressed");
+            keyStatus = 0;
+          }
+          else if (lastKeyValue == MCP_KEY_STOP)
+          {
+            //logln("STOP button LONG pressed");
+            keyStatus = 0;
+          }
+          else if (lastKeyValue == MCP_KEY_PAUSE)
+          {
+            //logln("PAUSE button LONG pressed");
+            keyStatus = 0;
+          }
+          else if (lastKeyValue == MCP_KEY_RWD)
+          {
+            hmi.verifyCommand("TTWD");
+            //logln("RWD button LONG pressed");
+          }
+          else if (lastKeyValue == MCP_KEY_FFWD)
+          {
+            hmi.verifyCommand("SFWD");
+            //logln("FFWD button LONG pressed");
+          }
+          else if (lastKeyValue == MCP_KEY_REC)
+          {
+            //logln("REC button LONG pressed");
+            keyStatus = 0;
+          }
+          else if (lastKeyValue == MCP_KEY_EJECT)
+          {
+            //hmi.writeString("page tape");
+            //logln("EJECT button LONG pressed");
+            // Forzamos salida para no repetir mas el comando
+            keyStatus = 0;
+          }
+          else
+          {
+            keyStatus = 0;
+          }
         }
-        // Cambiamos de estado
-        keyStatus = 0;
-      }
-      else if (lastKeyValue == MCP_KEY_PLAY)
-      {
-        //logln("PLAY/STOP button LONG pressed");
-        keyStatus = 0;
-      }
-      else if (lastKeyValue == MCP_KEY_STOP)
-      {
-        //logln("STOP button LONG pressed");
-        keyStatus = 0;
-      }
-      else if (lastKeyValue == MCP_KEY_PAUSE)
-      {
-        //logln("PAUSE button LONG pressed");
-        keyStatus = 0;
-      }
-      else if (lastKeyValue == MCP_KEY_RWD)
-      {
-        hmi.verifyCommand("TTWD");
-        //logln("RWD button LONG pressed");
-      }
-      else if (lastKeyValue == MCP_KEY_FFWD)
-      {
-        hmi.verifyCommand("SFWD");
-        //logln("FFWD button LONG pressed");
-      }
-      else if (lastKeyValue == MCP_KEY_REC)
-      {
-        //logln("REC button LONG pressed");
-        keyStatus = 0;
-      }
-      else if (lastKeyValue == MCP_KEY_EJECT)
-      {
-        //hmi.writeString("page tape");
-        //logln("EJECT button LONG pressed");
-        // Forzamos salida para no repetir mas el comando
-        keyStatus = 0;
-      }
-      else
-      {
-        keyStatus = 0;
-      }
-    }
-    break;
+        break;
 
-    case 5:
-    {
-      // Esperamos soltar el botón
-      if (keyPressed == 8)
-      {
-        keyStatus = 0;
-        logln("Key released");      
-      }
-    }
-    break;
+        case 5:
+        {
+          // Esperamos soltar el botón
+          if (keyPressed == 8)
+          {
+            keyStatus = 0;
+            logln("Key released");      
+          }
+        }
+        break;
 
-    default:
-    break;
+        default:
+        break;
+      }
+
   }
 
-}
+  }
 
 // ******************************************************************
 //
@@ -9025,6 +9189,7 @@ void Task0code(void *pvParameters) {
   int startTime5 = millis();
   int startTimeKey = millis();
   int startTimeSpotify = millis();
+  int startTimeToWifi = millis();
   int startNTPRetry = millis();
 
   int tClock = millis();
@@ -9055,6 +9220,16 @@ void Task0code(void *pvParameters) {
     //   startTime5 = millis();
     // }
     delay(25);
+
+    if (WIFI_ENABLE && !WIFI_CONNECTED)
+    {
+      if ((millis() - startTimeToWifi) > 5000) 
+      {
+        startTimeToWifi = millis();
+        logln("Trying to connect to WiFI...");
+        setupWifi();
+      }
+    }
 
     // Si la configuración NTP no se consiguió en el boot
     // se solicita aqui cada 30s hasta conseguirse.
@@ -9690,6 +9865,7 @@ bool setupMCP23017() {
 }
 
 void setupWifi() {
+  //
   logln("> Setting WiFi.");
   // if (loadWifiCfgFile()) {
   //  Si la conexión es correcta se actualiza el estado del HMI
@@ -9706,8 +9882,8 @@ void setupWifi() {
     delay(125);
     hmi.writeString("menu.wifiIP.txt=\"" + WiFi.localIP().toString() + "\"");
     delay(125);
-    hmi.writeString("menu.wifiEn.val=1");
-    delay(125);
+    //hmi.writeString("menu.wifiEn.val=1");
+    //delay(125);
 
     // FTP Server
     #ifdef FTP_SERVER_ENABLE
@@ -9721,7 +9897,7 @@ void setupWifi() {
   } else {
     WIFI_CONNECTED = false;
     logln("Wifi FAILED");
-    hmi.writeString("menu.wifiEn.val=0");
+    //hmi.writeString("menu.wifiEn.val=0");
     delay(125);
   }
 
@@ -9743,7 +9919,7 @@ void setupNTP()
   struct tm timeinfo;
   if (!getLocalTime(&timeinfo)) {
     logln("NTP. Failed to obtain time");
-    myNex.writeStr("tape.clkInd.txt", "");
+    myNex.writeNum("tape.clkInd.pco", 23275);
     hmi.writeString("statusLCD.txt=\"NTP pool failed\"");
     
     NTP_AVAILABLE = false;
@@ -9758,7 +9934,7 @@ void setupNTP()
   }
   NTP_AVAILABLE = true;
   // Mostramos el indicador NTP
-  myNex.writeStr("tape.clkInd.txt", "R");
+  myNex.writeNum("tape.clkInd.pco", 60868);
   myNex.writeNum("clock.ntp.val", 1);
   myNex.writeNum("clock.ntp.val", 1);
   myNex.writeNum("clock.ntp.val", 1);
@@ -10419,10 +10595,16 @@ void setup() {
   // -------------------------------------------------------------------------
   // Cargamos configuración WiFi
   // -------------------------------------------------------------------------
+
+  
   // Si hay configuración activamos el wifi
+  // y ya lo gestionamos despues
   if (WIFI_ENABLE)
   {
-    setupWifi();
+    WiFi.mode(WIFI_STA);
+    WiFi.setAutoReconnect(true);
+    // Conectamos a la red wifi
+    WiFi.begin(ssid, password);
   }
   // -------------------------------------------------------------------------
   //

@@ -1623,8 +1623,7 @@ private:
               //delay(125);
               //LAST_MESSAGE = "Wifi enabled";
               //
-              writeString("tape.wifiInd.pic=38");
-              writeString("tape0.wifiInd.pic=38");
+              writeString("tape.wifiInd.pco=60868");
             }
           }
           else
@@ -1636,8 +1635,7 @@ private:
             //delay(2000);
             //LAST_MESSAGE = "Wifi disabled";
             //
-            writeString("tape.wifiInd.pic=37");
-            writeString("tape0.wifiInd.pic=37");
+            writeString("tape.wifiInd.pco=23275");
           }
       }
 
@@ -4173,6 +4171,14 @@ private:
             #endif
             CURRENT_PAGE = PAGE_DEBUG;
         }
+        else if (strCmd.indexOf("KEYDB") != -1)
+        {
+            // Estamos en la pantalla DEBUG
+            #ifdef DEBUGMODE
+              logAlert("PAGE KEYPAD Debug");
+            #endif
+            CURRENT_PAGE = PAGE_KEYDEBUG;
+        }        
         else if (strCmd.indexOf("PMENU1") != -1)
         {
             if (CURRENT_PAGE == PAGE_MENU_GENERAL_SETTINGS) {
