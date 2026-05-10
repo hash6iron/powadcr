@@ -2778,7 +2778,7 @@ void RadioPlayer() {
 
   logln("Heap: " + String(ESP.getFreeHeap()) + " (max bloque: " + String(ESP.getMaxAllocHeap()) + ")");
 
-  while (!EJECT) 
+  while (!EJECT && WIFI_CONNECTED) 
   {
 
     // Dentro del while (!EJECT) {
@@ -2799,7 +2799,7 @@ void RadioPlayer() {
       // ✅ CORRECCIÓN DEFINITIVA: Parada y reinicio completo del pipeline de
       // audio
       logln("Avance / Retroceso de emisoras - ");
-      if (PLAY && WIFI_CONNECTED) 
+      if (PLAY) 
       {
         // 1. Detener la tarea de red para que no escriba más en el buffer.
         if (networkTaskHandle != NULL) 
@@ -2827,7 +2827,7 @@ void RadioPlayer() {
       currentRadioStation = nextRadioStation(PATH_FILE_TO_LOAD, radioName, radioUrlBuffer, sizeof(radioUrlBuffer), FFWIND);
       updateDialIndicator(currentRadioStation);
 
-      if (PLAY && WIFI_CONNECTED) 
+      if (PLAY) 
       {
         isBuffering = true;
         LAST_MESSAGE = "Tuning to " + radioName + "...";
@@ -2875,7 +2875,7 @@ void RadioPlayer() {
         updateDialIndicator(currentRadioStation);
 
         // Si ya estábamos reproduciendo, cambiamos de emisora
-        if (PLAY && WIFI_CONNECTED) 
+        if (PLAY) 
         {
           bufferw = 0;
           dialIndicator(false);
@@ -2937,7 +2937,7 @@ void RadioPlayer() {
     // Máquina de estados del reproductor
     switch (playerState) {
     case 10: // Estado inicial esperando PLAY
-      if (PLAY && WIFI_CONNECTED) 
+      if (PLAY) 
       {
         playerState = 0;
         if (!dialIndicatorIsShown) {
@@ -2953,7 +2953,7 @@ void RadioPlayer() {
       break;
 
     case 0: // Conectando a la emisora
-      if (PLAY && WIFI_CONNECTED) 
+      if (PLAY) 
       {
         bufferw = 0;
         statusSignalOk = false;
@@ -3008,7 +3008,7 @@ void RadioPlayer() {
       break;
 
     case 1: // ESTADO PRINCIPAL: REPRODUCCIÓN (CONSUMIDOR)
-      if (PLAY && WIFI_CONNECTED) 
+      if (PLAY) 
       {
         if (isBuffering) {
           size_t bufAvail = radioBuffer.getAvailable();

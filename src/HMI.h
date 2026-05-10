@@ -1618,11 +1618,6 @@ private:
             {
               WiFi.mode(WIFI_STA);
               WiFi.begin(ssid, password);
-              //btStart();
-              //LAST_MESSAGE = "Connecting wifi radio";
-              //delay(125);
-              //LAST_MESSAGE = "Wifi enabled";
-              //
               writeString("tape.wifiInd.pco=60868");
             }
           }
