@@ -463,12 +463,15 @@ bool loadCfgFile() {
       logln(HOSTNAME);
       // SSID - Wifi
       ssid = (getValueOfParam(CFGSYSTEM[1].cfgLine, "ssid")).c_str();
+      logln("SSID in cfg file: " + ssid);
+
       if (ssid.length() == 0) 
       {
         WIFI_ENABLE = false;
+        SKIP_WIFI_SETUP = true;
+        logln("SSID is empty. WiFi disabled.");
         saveHMIcfg("WIFIopt");
       }
-      logln(ssid);
       // Password - WiFi
       strcpy(password, (getValueOfParam(CFGSYSTEM[2].cfgLine, "password")).c_str());
       logln(password);
@@ -647,6 +650,9 @@ bool loadCfgFile() {
         cfgloaded = false;
 
         hmi.writeString("statusLCD.txt=\"powadcr.cfg not found.\"");
+        
+        SKIP_WIFI_SETUP = true;
+
         delay(2000);
       }
     }
@@ -1538,9 +1544,25 @@ void stopRecording() {
 
 bool wifiSetup() {
   bool wifiActive = true;
-
+  
+  wl_status_t wifiStatus = WL_DISCONNECTED;
+  
   WiFi.mode(WIFI_STA);
-  WiFi.begin(ssid, password);
+  wifiStatus = WiFi.begin(ssid, password);
+
+  if (wifiStatus == WL_NO_SSID_AVAIL) 
+  {
+    WIFI_ENABLE = false;
+    hmi.writeString("statusLCD.txt=\"Wifi SSID missing or too long\"");
+    delay(2000);
+    wifiActive = false;
+  }
+  else if (wifiStatus != WL_CONNECTED) 
+  {
+    WIFI_ENABLE = false;
+    hmi.writeString("statusLCD.txt=\"WiFi connection failed\"");
+    wifiActive = false;
+  }
 
   hmi.writeString("statusLCD.txt=\"SSID: [" + String(ssid) + "]\"");
   delay(1500);
@@ -1553,18 +1575,23 @@ bool wifiSetup() {
     }
   }
 
-  if (WiFi.waitForConnectResult() != WL_CONNECTED) {
+  if (WiFi.waitForConnectResult() != WL_CONNECTED) 
+  {
     hmi.writeString("statusLCD.txt=\"WiFi Connection failed!");
     wifiActive = false;
-  } else {
+  }
+  else 
+  {
     wifiActive = true;
   }
 
-  if (wifiActive) {
-
+  if (wifiActive) 
+  {
     hmi.writeString("statusLCD.txt=\"IP " + WiFi.localIP().toString() + "\"");
     delay(50);
-  } else {
+  }
+  else 
+  {
     hmi.writeString("statusLCD.txt=\"Wifi disabled\"");
     wifiActive = false;
     delay(750);
@@ -9033,7 +9060,7 @@ void Task0code(void *pvParameters) {
     // }
     delay(25);
 
-    if(!NTP_AVAILABLE)
+    if(!NTP_AVAILABLE && WIFI_ENABLE)    
     {
       // Si no tenemos NTP, actualizamos el RTC cada 30 segundos con la hora del sistema
       if ((millis() - startNTPRetry) > 60000) 
@@ -9414,14 +9441,24 @@ bool createSpecialDirectory(String fDir) {
   if (!SD_MMC.open(fDir)) {
     // En ese caso. Saco la pantalla de pregunta.
     hmi.writeString("page create");
+      myNex.writeNum("create.res.val", 2);
+      myNex.writeNum("create.res.val", 2);    
+    delay(125);
+    hmi.writeString("page create");
+      myNex.writeNum("create.res.val", 2);
+      myNex.writeNum("create.res.val", 2);    
+    delay(125);
 
-    int res = -1; // Valor inicial alto
+    int res = 2; // Valor inicial alto
 
     // Mientras no haya respuesta continuo ahí
     // el -1 se va a recibir como 77777 por eso res > 1
-    while (res != 0 && res != 1) {
+    res = myNex.readNumber("create.res.val");
+    while (res > 1) 
+    {
       hmi.writeString("create.statusLCD.txt=\"Create " + fDir + "?\"");
       res = myNex.readNumber("create.res.val");
+      // Ahora reseteamos la variable para que no acepte de manera infinita ni SI(1) ni NO(0)
       logln("Response for create dir " + fDir + ": " + String(res));
       delay(500);
     }
@@ -9431,22 +9468,38 @@ bool createSpecialDirectory(String fDir) {
 
     hmi.writeString("page screen"); // Vuelvo a la pantalla principal
 
-    if (res == 1) {
-      if (!SD_MMC.mkdir(fDir)) {
-#ifdef DEBUGMODE
-        logln("");
-        log("Error! Directory exists or wasn't created");
-#endif
+    if (res == 1) 
+    {
+      // Respuesta YES
+      myNex.writeNum("create.res.val", 2);
+      myNex.writeNum("create.res.val", 2);
+      if (!SD_MMC.mkdir(fDir)) 
+      {
+        #ifdef DEBUGMODE
+                logln("");
+                log("Error! Directory exists or wasn't created");
+        #endif
         return false;
-      } else {
+      }
+      else 
+      {
         return true;
       }
     }
-  } else {
-#ifdef DEBUGMODE
-    logln("");
-    log("Directory exists.");
-#endif
+    else
+    {
+      // Respuesta NO
+      myNex.writeNum("create.res.val", 2);
+      myNex.writeNum("create.res.val", 2);
+      return false;
+    }
+  } 
+  else 
+  {
+    #ifdef DEBUGMODE
+        logln("");
+        log("Directory exists.");
+    #endif
     return false;
   }
 
@@ -10365,7 +10418,7 @@ void setup() {
   // Cargamos configuración WiFi
   // -------------------------------------------------------------------------
   // Si hay configuración activamos el wifi
-  if (WIFI_ENABLE)
+  if (WIFI_ENABLE && !SKIP_WIFI_SETUP)
   {
     setupWifi();
   }
@@ -10374,7 +10427,7 @@ void setup() {
   // Configuramos el reloj interno del sistema
   //
   // -------------------------------------------------------------------------
-  if (WIFI_CONNECTED && WIFI_ENABLE)
+  if (WIFI_CONNECTED && WIFI_ENABLE && !SKIP_WIFI_SETUP)
   {  
     setupNTP();
   }
@@ -10382,7 +10435,7 @@ void setup() {
   // Leer el token de Spotify si existe en la SD
 
   #ifdef SPOTIFY_CONTROL_ENABLE
-    if (WIFI_CONNECTED && WIFI_ENABLE && SPOTIFY_EN)
+    if (WIFI_CONNECTED && WIFI_ENABLE && SPOTIFY_EN && !SKIP_WIFI_SETUP)
     {  
       setupSpotify();
     }

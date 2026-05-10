@@ -526,7 +526,8 @@ int RECORDING_ERROR = 0;
 
 // int RECORDING_ERROR = 0;
 bool REC_AUDIO_LOOP = true;
-bool WIFI_ENABLE = true;
+bool WIFI_ENABLE = false;
+bool SKIP_WIFI_SETUP = false;
 bool WIFI_CONNECTED = false;
 bool DHCP_ENABLE = false;
 //
