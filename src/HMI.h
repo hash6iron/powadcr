@@ -1630,10 +1630,7 @@ private:
           {
             WiFi.disconnect(true);
             WiFi.mode(WIFI_OFF);
-            //btStop();          
-            //LAST_MESSAGE = "Disconnecting wifi radio";
-            //delay(2000);
-            //LAST_MESSAGE = "Wifi disabled";
+            WIFI_CONNECTED = false;
             //
             writeString("tape.wifiInd.pco=23275");
           }
