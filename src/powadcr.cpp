@@ -468,7 +468,6 @@ bool loadCfgFile() {
       if (ssid.length() == 0) 
       {
         WIFI_ENABLE = false;
-        SKIP_WIFI_SETUP = true;
         logln("SSID is empty. WiFi disabled.");
         saveHMIcfg("WIFIopt");
       }
@@ -650,9 +649,6 @@ bool loadCfgFile() {
         cfgloaded = false;
 
         hmi.writeString("statusLCD.txt=\"powadcr.cfg not found.\"");
-        
-        SKIP_WIFI_SETUP = true;
-
         delay(2000);
       }
     }
@@ -9060,10 +9056,12 @@ void Task0code(void *pvParameters) {
     // }
     delay(25);
 
-    if(!NTP_AVAILABLE && WIFI_ENABLE)    
+    // Si la configuración NTP no se consiguió en el boot
+    // se solicita aqui cada 30s hasta conseguirse.
+    if(!NTP_AVAILABLE && WIFI_CONNECTED)    
     {
       // Si no tenemos NTP, actualizamos el RTC cada 30 segundos con la hora del sistema
-      if ((millis() - startNTPRetry) > 60000) 
+      if ((millis() - startNTPRetry) > 30000) 
       {
         startNTPRetry = millis();
         logln("Trying to setup NTP again...");
@@ -9695,7 +9693,8 @@ void setupWifi() {
   logln("> Setting WiFi.");
   // if (loadWifiCfgFile()) {
   //  Si la conexión es correcta se actualiza el estado del HMI
-  if (wifiSetup()) {
+  if (wifiSetup()) 
+  {
 
     WIFI_CONNECTED = true;
     logln("Wifi OK");
@@ -9760,6 +9759,9 @@ void setupNTP()
   NTP_AVAILABLE = true;
   // Mostramos el indicador NTP
   myNex.writeStr("tape.clkInd.txt", "R");
+  myNex.writeNum("clock.ntp.val", 1);
+  myNex.writeNum("clock.ntp.val", 1);
+  myNex.writeNum("clock.ntp.val", 1);
   myNex.writeNum("clock.ntp.val", 1);
   if (!QUICK_BOOT) delay(2000);
   //struct tm timeinfo = rtc.getTimeStruct();
@@ -10418,7 +10420,7 @@ void setup() {
   // Cargamos configuración WiFi
   // -------------------------------------------------------------------------
   // Si hay configuración activamos el wifi
-  if (WIFI_ENABLE && !SKIP_WIFI_SETUP)
+  if (WIFI_ENABLE)
   {
     setupWifi();
   }
@@ -10427,15 +10429,15 @@ void setup() {
   // Configuramos el reloj interno del sistema
   //
   // -------------------------------------------------------------------------
-  if (WIFI_CONNECTED && WIFI_ENABLE && !SKIP_WIFI_SETUP)
-  {  
-    setupNTP();
-  }
+  // if (WIFI_CONNECTED && WIFI_ENABLE)
+  // {  
+  //   setupNTP();
+  // }
   // Connect to Spotify
   // Leer el token de Spotify si existe en la SD
 
   #ifdef SPOTIFY_CONTROL_ENABLE
-    if (WIFI_CONNECTED && WIFI_ENABLE && SPOTIFY_EN && !SKIP_WIFI_SETUP)
+    if (WIFI_CONNECTED && WIFI_ENABLE && SPOTIFY_EN)
     {  
       setupSpotify();
     }
