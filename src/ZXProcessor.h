@@ -8,14 +8,17 @@
 
     Descripción:
     Clase que implementa metodos y parametrizado para todas las señales que
- necesita el ZX Spectrum para la carga de programas.
+ necesita el ZX Spectrum y Commodore C64 para la carga de programas.
 
     NOTA: Esta clase necesita de la libreria Audio-kit de Phil Schatzmann -
  https://github.com/pschatzmann/arduino-audiokit
 
-    Version: 1.0
+    Version: 1.1
 
     Historico de versiones
+    ----------------------
+    v.1.0 - Version inicial (ZX Spectrum)
+    v.1.1 - Agregado soporte Commodore C64 con C64_MODE
 
 
     Derechos de autor y distribución
@@ -38,10 +41,11 @@
 
 // #include <stdint.h>
 #include <math.h>
+#include "config.h"
 
 #pragma once
 
-// Clase para generar todo el conjunto de señales que necesita el ZX Spectrum
+// Clase para generar todo el conjunto de señales que necesita el ZX Spectrum y C64
 class ZXProcessor {
 
 private:
@@ -77,6 +81,9 @@ public:
   bool forzeLowLevel = false;
   bool forzeHighLevel = false;
 
+  // ============================================================================
+  // ZX SPECTRUM PARAMETERS
+  // ============================================================================
   // Parametrizado para el ZX Spectrum - Timming de la ROM
   // Esto es un factor para el calculo de la duración de onda
   const double alpha = 4.0;
@@ -103,12 +110,86 @@ public:
   double silent = DSILENT;
   double m_time = 0;
 
+  // ============================================================================
+  // COMMODORE C64 PARAMETERS (always available, used when C64_MODE = true)
+  // ============================================================================
+  // Commodore 64 CPU frequency and timing parameters
+  const double c64_freqCPU = C64_CPU_FREQ_MHZ * 1000000.0; // ~985,248 Hz
+  const double c64_tState = (1.0 / c64_freqCPU);           // CPU cycle period in seconds
+  
+  // C64 pulse timing unit: 1/8 of CPU cycle
+  const double c64_timingUnit = (1.0 / (c64_freqCPU * 8.0));
+  
+  // C64 pulse thresholds (in timing units)
+  // These determine bit discrimination for different loaders
+  const int c64_pulseThreshold = C64_PULSE_THRESHOLD; // ~1024 timing units
+  const int c64_leadInPulse = 0x48;                   // Typical lead-in pulse duration
+  const int c64_syncPulse = 0x09;                     // Typical sync pulse
+
 private:
   uint8_t _mask_last_byte = 8;
 
   // Error accumulator for precise sample width calculation
   // Distributes rounding error across multiple pulses
   double ERROR_ACCUMULATOR = 0.0;
+
+  // ============================================================================
+  // C64 PULSE PROCESSING HELPERS (always compiled, runtime controlled)
+  // ============================================================================
+  /**
+   * Convierte un valor de pulso C64 (en timing units de 1/8 de ciclo CPU)
+   * a la cantidad de muestras de audio correspondientes.
+   * 
+   * @param pulseValue Valor del pulso en timing units (1 byte típicamente)
+   * @return Número de muestras de audio para este pulso
+   */
+  int c64PulseToSamples(uint8_t pulseValue)
+  {
+    if (!C64_MODE)
+      return 0;
+      
+    // El valor del pulso representa unidades de 1/8 de ciclo CPU de C64
+    // Convertir a segundos
+    double pulseSeconds = pulseValue * c64_timingUnit;
+    
+    // Convertir a muestras usando sampling rate del hardware (96 kHz)
+    int samples = (int)(pulseSeconds * STANDARD_SR_8_BIT_MACHINE + 0.5);
+    
+    return (samples > 0) ? samples : 1; // Al menos 1 muestra
+  }
+
+  /**
+   * Detecta si un pulso C64 representa un bit 0 o un bit 1
+   * basado en el threshold configurado.
+   * 
+   * @param pulseValue Valor del pulso en timing units
+   * @return true si es un bit 1, false si es un bit 0
+   */
+  bool c64PulseIsBitOne(uint8_t pulseValue)
+  {
+    if (!C64_MODE)
+      return false;
+      
+    // Pulsos cortos = 0, pulsos largos = 1 (o viceversa, depende del loader)
+    return (pulseValue >= (C64_PULSE_THRESHOLD >> 8));
+  }
+
+  /**
+   * Maneja el byte 0x00 especial en TAP v1 de C64
+   * que indica un pulso de 3 bytes (precisión extendida)
+   * 
+   * @param byte1 Segundo byte
+   * @param byte2 Tercer byte  
+   * @return Valor del pulso combinado (24 bits)
+   */
+  int c64ExtendedPulseValue(uint8_t byte1, uint8_t byte2)
+  {
+    if (!C64_MODE)
+      return 0;
+      
+    // Combinar 3 bytes en un valor de pulso de precisión completa
+    return (byte2 << 16) | (byte1 << 8) | 0x00;
+  }
 
   // AudioKitStream m_kit;
   void tapeAnimationON() {
@@ -1110,11 +1191,14 @@ public:
       if (swidth > 0) 
       {
         // Esto es para máquinas como el 48K
-        if (duration >= 1000) 
+        if (SILENCE_COMPENSATION_48K_EN)
         {
-          // Añadimos ms extras para maquinas como el 48K
-          int addsmp = (int)(SILENCE_COMPENSATION_48K * SAMPLING_RATE);
-          swidth += addsmp;
+            if (duration >= 1000) 
+            {
+              // Añadimos ms extras para maquinas como el 48K
+              int addsmp = (int)(SILENCE_COMPENSATION_48K * SAMPLING_RATE);
+              swidth += addsmp;
+            }
         }
         //
         pulseSilence(swidth);
@@ -1331,6 +1415,295 @@ public:
       ACU_ERROR = 0;
     }
   }
+
+  // ============================================================================
+  // C64 PLAYBACK - Reproducción directa de pulsos C64
+  // ============================================================================
+  void playC64Data(uint8_t *bBlock, int lenBlock, int *playback_position = nullptr) {
+    bool isExtendedPulse = false;
+    //
+    // Reproduce datos C64 .TAP directamente
+    // Cada byte es un valor de pulso en unidades de timing de C64
+    // Soporta PAUSE, RWD, FFWD como en CSW
+    //
+
+    if (!bBlock || lenBlock == 0) {
+      logln("ERROR: playC64Data - No data buffer or zero size");
+      return;
+    }
+
+    // C64 TAP utiliza siempre la frecuencia real del hardware (96kHz).
+    // playingFile() establece SAMPLING_RATE = BASE_SR (87500 Hz para ZX) antes
+    // de llamar a pTAP.play(), pero el hardware AudioKit permanece a 96kHz
+    // porque no soporta 87500 Hz. Si usamos 87500 para calcular muestras y el
+    // hardware reproduce a 96000 Hz, los pulsos saldrían con el ancho erróneo.
+    double savedSamplingRate = SAMPLING_RATE;
+    SAMPLING_RATE = STANDARD_SR_8_BIT_MACHINE;  // 96000.0
+
+    PROGRESS_BAR_BLOCK_VALUE = 0;
+    ADD_ONE_SAMPLE_COMPENSATION = false;
+    ERROR_ACCUMULATOR = 0.0;  // Initialize error accumulator for C64 playback
+
+    // Determinar si es inicio o reanudación
+    bool isResume = (playback_position && *playback_position > 0);
+
+    int i = (playback_position && *playback_position > 0) ? *playback_position : 0;
+    int pulseCount = 0;
+    
+    // DEBUG: Log primeros bytes para diagnóstico
+    if (i == 0) {
+      logln("C64 PLAYBACK START - Block size: " + String(lenBlock));
+      if (lenBlock >= 10) {
+        String debugBytes = "First 10 bytes: ";
+        for (int j = 0; j < 10; j++) {
+          debugBytes += String(bBlock[j], HEX) + " ";
+        }
+        logln(debugBytes);
+      }
+    }
+
+    // Recorremos todos los pulsos del buffer C64
+    for (; i < lenBlock; i++) {
+
+      // ✅ Soporte para FFWD
+      if (FFWIND && playback_position) {
+        int jump_pulses = (int)((float)lenBlock * C64_FFWD_SPEED);
+        int new_pos = i + jump_pulses;
+        if (new_pos >= lenBlock) new_pos = lenBlock - 1;
+        *playback_position = new_pos;
+        // i = new_pos - 1 porque el for hará i++ al salir del continue,
+        // dejando i en new_pos (igual que el bucle CSW con incremento manual)
+        i = new_pos - 1;
+        CSW_SEEK_MODE = 1;  // Indicar FFWD en UI
+        logln("C64 TAP FFWD: Jump to " + String(new_pos) + " / " + String(lenBlock) +
+              " (+" + String(jump_pulses) + " bytes)");
+        FFWIND = false;
+        delay(100);
+        continue;
+      }
+
+      // ✅ Soporte para RWD
+      if (RWIND && playback_position) {
+        int jump_pulses = (int)((float)lenBlock * C64_RWD_SPEED);
+        int new_pos = i - jump_pulses;
+        if (new_pos < 0) new_pos = 0;
+        *playback_position = new_pos;
+        // i = new_pos - 1 porque el for hará i++ al salir del continue
+        i = new_pos - 1;
+        CSW_SEEK_MODE = 2;  // Indicar RWD en UI
+        logln("C64 TAP RWD: Jump to " + String(new_pos) + " / " + String(lenBlock) +
+              " (-" + String(jump_pulses) + " bytes)");
+        RWIND = false;
+        delay(100);
+        continue;
+      }
+      CSW_SEEK_MODE = 0;
+
+      if (LOADING_STATE == 2) {
+        if (playback_position) *playback_position = 0;
+        SAMPLING_RATE = savedSamplingRate;
+        return;
+      }
+
+      // Verificar pausa/stop
+      if (stopOrPauseRequest()) {
+        // ✅ Guardar posición actual para reanudación
+        if (playback_position && PAUSE && !STOP) {
+          *playback_position = i;
+        } else if (STOP) {
+          // Reset posición al detener completamente
+          if (playback_position) *playback_position = 0;
+        }
+        SAMPLING_RATE = savedSamplingRate;
+        return;
+      }
+
+      // Obtenemos el valor del pulso C64
+      uint8_t pulseValue = bBlock[i];
+      uint32_t pulseCycles = 0;
+
+      // Manejo del byte 0x00 según versión del TAP:
+      // - TAP v0: 0x00 = overflow (pulso muy largo), se ignora
+      // - TAP v1: 0x00 = seguido de 3 bytes que son ciclos directos (sin *8)
+      if (pulseValue == 0x00) {
+        if (C64_TAP_VERSION == 1 && (i + 3) < lenBlock) {
+          // TAP v1: leer 3 bytes como ciclos directos en little-endian
+          uint8_t b1 = bBlock[i + 1];
+          uint8_t b2 = bBlock[i + 2];
+          uint8_t b3 = bBlock[i + 3];
+          pulseCycles = (uint32_t)b1 | ((uint32_t)b2 << 8) | ((uint32_t)b3 << 16);
+          i += 3;  // Saltar los 3 bytes (el for hará i++ adicional)
+          isExtendedPulse = true;
+          if (pulseCount < 5) {
+            logln("TAP v1 Extended (SILENCIO): bytes=" + String(b1) + "," + String(b2) + "," + String(b3) + 
+                  " -> cycles=" + String(pulseCycles));
+          }
+          // Extended pulse = silencio entre bloques: nivel 0 durante su duración
+          double silSeconds = pulseCycles / 985248.0;
+          int silSamples = (int)(silSeconds * SAMPLING_RATE);
+          if (pulseCount < 5) logln("  -> silencio: " + String(silSeconds, 6) + "s = " + String(silSamples) + " samples");
+          _silenceC64(silSamples);
+          BYTES_LOADED = i;
+          PROGRESS_BAR_BLOCK_VALUE = (int)(((i + 1) * 100) / lenBlock);
+          pulseCount++;
+          if (stopOrPauseRequest()) { SAMPLING_RATE = savedSamplingRate; return; }
+          continue;
+        } else {
+          // TAP v0: overflow - sin duración definida, omitir
+          if (pulseCount < 5) logln("TAP v0 Overflow byte 0x00 (skip)");
+          pulseCount++;
+          BYTES_LOADED = i;
+          PROGRESS_BAR_BLOCK_VALUE = (int)(((i + 1) * 100) / lenBlock);
+          continue;
+        }
+      } else {
+        // Pulso normal (v0 y v1): byte representa 1/8 de ciclo CPU
+        pulseCycles = pulseValue;
+        if (pulseCount < 5) {
+          logln("Pulse " + String(pulseCount) + ": byte=0x" + String(pulseValue, HEX) + " (" + String(pulseValue) + ")");
+        }
+      }
+
+      // Convertir a segundos: pulso normal (v0 y v1): (byte * 8) / 985248
+      double pulseSeconds = (pulseCycles * 8.0) / 985248.0;
+
+      // DEBUG: Log conversion
+      if (pulseCount < 5) {
+        logln("  -> seconds=" + String(pulseSeconds, 10));
+      }
+
+      // Generar el pulso (ciclo completo HIGH+LOW)
+      if (pulseSeconds > 0) {
+        ADD_ONE_SAMPLE_COMPENSATION = false;
+        semiPulseC64(pulseSeconds);
+        ACU_ERROR = 0;
+      }
+
+      // Actualizar progreso
+      BYTES_LOADED = i;
+      PROGRESS_BAR_BLOCK_VALUE = (int)(((i + 1) * 100) / lenBlock);
+      pulseCount++;
+    }
+
+    // Si completó la reproducción sin pausar
+    if (i >= lenBlock) {
+      if (playback_position) *playback_position = 0;  // Reset para siguiente reproducción
+      
+      // ✅ Auto-stop cuando C64 llega al final
+      STOP = true;
+      PAUSE = false;
+      LOADING_STATE = 2;  // Estado STOP
+      TAPESTATE = 0;
+      LAST_MESSAGE = "Auto-stop playing.";
+    }
+
+    // Restaurar sampling rate original (ZX Spectrum)
+    SAMPLING_RATE = savedSamplingRate;
+
+    // Silencio final
+    ACU_ERROR = 0;
+    silence(silent);
+  }
+
+  // ============================================================================
+  // C64 SEMI-PULSE GENERATION - Generación directa de semi-pulsos C64
+  // ============================================================================
+  // Cada byte TAP = UN PERÍODO COMPLETO (HIGH t/2 + LOW t/2), siempre empieza en HIGH.
+  // La fórmula spec da la duración del período completo: (byte*8) / 985248
+  void semiPulseC64(double pulseSeconds)
+  {
+    if (pulseSeconds <= 0)
+      return;
+
+    // Calcular muestras totales del período completo con acumulador de error
+    ERROR_ACCUMULATOR += pulseSeconds * SAMPLING_RATE;
+    int total_samples = (int)ERROR_ACCUMULATOR;
+    ERROR_ACCUMULATOR -= total_samples;
+
+    if (total_samples <= 0)
+      return;
+
+    // Dividir en dos mitades iguales: HIGH y LOW
+    int hi_samples = total_samples / 2;
+    int lo_samples = total_samples - hi_samples;  // absorbe el impar
+
+    // DEBUG: Log (primeras 10 llamadas)
+    static int c64_semi_pulse_count = 0;
+    if (c64_semi_pulse_count < 10) {
+      logln("C64 pulse #" + String(c64_semi_pulse_count) + ": " + String(pulseSeconds, 8) +
+            "s total=" + String(total_samples) + " hi=" + String(hi_samples) + " lo=" + String(lo_samples));
+      c64_semi_pulse_count++;
+    }
+
+    // Muestras HIGH (siempre la primera mitad)
+    uint16_t hi_R = (uint16_t)(maxLevelUp  * (MAIN_VOL_R / 100.0f));
+    uint16_t hi_L = (uint16_t)(maxLevelUp  * (MAIN_VOL_L / 100.0f));
+    // Muestras LOW
+    uint16_t lo_R = (uint16_t)(maxLevelDown * (MAIN_VOL_R / 100.0f));
+    uint16_t lo_L = (uint16_t)(maxLevelDown * (MAIN_VOL_L / 100.0f));
+
+    DEBUG_AMP_R = hi_R;
+    DEBUG_AMP_L = hi_L;
+
+    // Generar mitad HIGH
+    _generateC64Half(hi_samples, hi_R, hi_L);
+    if (stopOrPauseRequest()) return;
+
+    // Generar mitad LOW
+    _generateC64Half(lo_samples, lo_R, lo_L);
+    if (stopOrPauseRequest()) return;
+  }
+
+  // Helper: genera 'samples' muestras a nivel CERO (silencio real entre bloques)
+  void _silenceC64(int samples)
+  {
+    if (samples <= 0) return;
+
+    uint16_t zero = 0;
+    if (samples <= MIN_FRAME_FOR_SILENCE_PULSE_GENERATION) {
+      createPulse(samples, samples * 2 * channels, zero, zero);
+    } else {
+      int frame_bytes = MIN_FRAME_FOR_SILENCE_PULSE_GENERATION * 2 * channels;
+      int frameSlot = MIN_FRAME_FOR_SILENCE_PULSE_GENERATION;
+      int framesCounter = 0;
+      while (frameSlot <= samples) {
+        createPulse(MIN_FRAME_FOR_SILENCE_PULSE_GENERATION, frame_bytes, zero, zero);
+        frameSlot += MIN_FRAME_FOR_SILENCE_PULSE_GENERATION;
+        if (stopOrPauseRequest()) return;
+        framesCounter++;
+      }
+      int remaining = samples - framesCounter * MIN_FRAME_FOR_SILENCE_PULSE_GENERATION;
+      if (remaining > 0)
+        createPulse(remaining, remaining * 2 * channels, zero, zero);
+    }
+  }
+
+  // Helper: genera 'samples' muestras al nivel dado, con frame-splitting si es necesario
+  void _generateC64Half(int samples, uint16_t sample_R, uint16_t sample_L)
+  {
+    if (samples <= 0) return;
+
+    if (samples <= MIN_FRAME_FOR_SILENCE_PULSE_GENERATION) {
+      createPulse(samples, samples * 2 * channels, sample_R, sample_L);
+    } else {
+      int frameSlot = MIN_FRAME_FOR_SILENCE_PULSE_GENERATION;
+      int frame_bytes = MIN_FRAME_FOR_SILENCE_PULSE_GENERATION * 2 * channels;
+      int framesCounter = 0;
+
+      while (frameSlot <= samples) {
+        createPulse(MIN_FRAME_FOR_SILENCE_PULSE_GENERATION, frame_bytes, sample_R, sample_L);
+        frameSlot += MIN_FRAME_FOR_SILENCE_PULSE_GENERATION;
+        if (stopOrPauseRequest()) return;
+        framesCounter++;
+      }
+
+      int remaining = samples - framesCounter * MIN_FRAME_FOR_SILENCE_PULSE_GENERATION;
+      if (remaining > 0) {
+        createPulse(remaining, remaining * 2 * channels, sample_R, sample_L);
+      }
+    }
+  }
+
 
   void playData(uint8_t *bBlock, int lenBlock, int pulse_len, int num_pulses) {
     //

@@ -3324,29 +3324,52 @@ private:
         //   logln("Offset value=" + String(PULSE_OFFSET));
         // }                        
         // Habilitar terminadores para forzar siguiente pulso a HIGH
-        else if (strCmd.indexOf("TER=") != -1) 
+        else if (strCmd.indexOf("C64=") != -1) 
         {
-          // //Cogemos el valor
-          // uint8_t buff[8];
-          // strCmd.getBytes(buff, 7);
-          // int valEn = (int)buff[4];
-          // //
-          // if (valEn==1)
-          // {
-          //     // Habilita terminadores
-          //     APPLY_END = true;
-          // }
-          // else
-          // {
-          //     // Deshabilita terminadores
-          //     APPLY_END = false;
-          // }
+          //Cogemos el valor
+          uint8_t buff[8];
+          strCmd.getBytes(buff, 7);
+          int valEn = (int)buff[4];
+          //
+          if (valEn==1)
+          {
+              // Habilita terminadores
+              C64_MODE = true;
+          }
+          else
+          {
+              // Deshabilita terminadores
+              C64_MODE = false;
+          }
 
-          // // #ifdef DEBUGMODE
-          //   //logln("");
-          //   logln("Terminadores ENABLE =" + String(APPLY_END));
-          // // #endif
+          // #ifdef DEBUGMODE
+            //logln("");
+            logln("C64 Mode ENABLE =" + String(C64_MODE));
+          // #endif
         }
+        else if (strCmd.indexOf("48K=") != -1) 
+        {
+          //Cogemos el valor
+          uint8_t buff[8];
+          strCmd.getBytes(buff, 7);
+          int valEn = (int)buff[4];
+          //
+          if (valEn==1)
+          {
+              // Habilita terminadores
+              SILENCE_COMPENSATION_48K_EN = true;
+          }
+          else
+          {
+              // Deshabilita terminadores
+              SILENCE_COMPENSATION_48K_EN = false;
+          }
+
+          // #ifdef DEBUGMODE
+            //logln("");
+            logln("48K Silence Compensation ENABLE =" + String(SILENCE_COMPENSATION_48K_EN));
+          // #endif
+        }        
         // Polarización de la señal
         else if (strCmd.indexOf("PLZ=") != -1) 
         {
@@ -3437,7 +3460,7 @@ private:
           }
 
           logln("");
-          logln("Enable EAR inversion=" + String(EN_SCHMITT_CHANGE));
+          logln("Enable EAR inversion=" + String(EN_EAR_INVERSION));
 
         }        
         // Mutea la salida amplificada
@@ -4177,9 +4200,12 @@ private:
               return;
             }
             CURRENT_PAGE = PAGE_MENU_GENERAL_SETTINGS;
-            delay(500);
+            delay(125);
             myNex.writeNum("menu.dhcp.val", int(DHCP_ENABLE));
+            delay(125);
+            myNex.writeNum("menu.dhcp.val", int(DHCP_ENABLE));           
         }
+        
         else if (strCmd.indexOf("PMENU0") != -1)
         {
             // Estamos en la pantalla MENU

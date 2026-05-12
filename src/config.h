@@ -52,7 +52,7 @@
 // |-- SD_MMC @ 2.0.0
 // |-- Wire @ 2.0.0
 // |-- Update @ 2.0.0
-
+#pragma once
 // --------------------------------------------------------------
 // Configuración de la versión del software
 // --------------------------------------------------------------
@@ -231,6 +231,9 @@ int GPIO_MSX_REMOTE_PAUSE = 19;
 // #define DEFAULT_WAV_SAMPLING_RATE_REC_PLAY_TO_WAV     44100
 #define DEFAULT_8BIT_WAV_SAMPLING_RATE_REC 22050
 
+// Sampling rate para C64 TAP files - C64 CPU es 3.55x más lenta que ZX (0.985248 MHz
+#define C64_PULSE_SCALE_FACTOR (3.5 / 0.985248)
+
 // Porcentaje de avance rapido
 #define FAST_FORWARD_PER 0.02
 #define FAST_REWIND_PER 0.02
@@ -318,8 +321,7 @@ int GPIO_MSX_REMOTE_PAUSE = 19;
 #define USE_ZX_SPECTRUM_SR 0
 // #define STANDARD_SR_REC_ZX_SPECTRUM                 32800   // Sampling rate
 // adecuado para ZX Spectrum (recorder) - Ajuste AZIMUT (Hz) - 22200 Hz
-#define STANDARD_SR_REC_ZX_SPECTRUM                                            \
-  87500 // Sampling rate adecuado para ZX Spectrum (recorder) - Ajuste AZIMUT
+#define STANDARD_SR_REC_ZX_SPECTRUM 87500 // Sampling rate adecuado para ZX Spectrum (recorder) - Ajuste AZIMUT
         // (Hz) - 22200 Hz
 //
 // ----------------------------------------------------------------------------------------------

@@ -47,6 +47,25 @@ File global_dir;
 
 extern bool FTP_CONNECTED;
 
+// ======================================================================
+// C64 MODE - Runtime switchable via HMI menu
+// ======================================================================
+bool C64_MODE = false;  // Set to true for Commodore C64, false for ZX Spectrum (default)
+uint8_t C64_TAP_VERSION = 0;  // TAP version: 0=original (overflow on 0x00), 1=updated (extended on 0x00)
+
+// ======================================================================
+// C64 TAP SUPPORT - Switch between ZX Spectrum and Commodore C64 formats
+// ======================================================================
+// C64 mode can be changed at runtime from HMI menu
+// extern bool C64_MODE;  (defined in globales.h)
+
+// C64-specific constants (always available for runtime use)
+const double C64_CPU_FREQ_MHZ = 0.985248;
+const double C64_TIMING_UNIT = (1.0 / (C64_CPU_FREQ_MHZ * 1000000.0 * 8.0));
+const int C64_PULSE_THRESHOLD = 1024;       // ~8.3ms - separates 0 bits from 1 bits
+const uint8_t C64_LEAD_IN_BYTE = 0x02;      // Standard C64 lead-in byte (loader dependent)
+const uint8_t C64_SYNC_BYTE = 0x09;         // Standard C64 sync byte (loader dependent)
+
 int stackFreeCore0 = 0;
 int stackFreeCore1 = 0;
 int lst_stackFreeCore0 = 0;
@@ -179,6 +198,7 @@ struct tTAPBlockDescriptor {
   int type = 0;
   char typeName[15];
   bool playeable = true;
+  int playback_position = 0;  // Para C64: posición actual de reproducción (soporte PAUSE/RESUME/FFWD/RWD)
 };
 
 // Estructura de un descriptor de TZX
@@ -629,6 +649,7 @@ int BL_LOOP_END = 0;
 bool WAITING_FOR_USER_ACTION = false;
 int LAST_SILENCE_DURATION = 0;
 int LAST_RSAMPLES_CALC = 0;
+bool SILENCE_COMPENSATION_48K_EN = false;
 
 // Screen
 bool SCREEN_LOADING = 0;
@@ -683,6 +704,10 @@ bool FILE_DIR_OPEN_FAILED = false;
 float CSW_FFWD_SPEED = CSW_REWIND_SPEED;  // 2% skip per FFWD press (configurable 0.01-0.10)
 float CSW_RWD_SPEED = CSW_REWIND_SPEED;   // 2% skip per RWD press (configurable 0.01-0.10)
 uint8_t CSW_SEEK_MODE = 0;    // 0=normal play, 1=ffwd, 2=rwd (for UI animation)
+
+// ✅ C64 FFWD/RWD Control Variables (same as CSW)
+float C64_FFWD_SPEED = CSW_REWIND_SPEED;  // 2% skip per FFWD press (configurable 0.01-0.10)
+float C64_RWD_SPEED = CSW_REWIND_SPEED;   // 2% skip per RWD press (configurable 0.01-0.10)
 
 bool FILE_BROWSER_OPEN = false;
 bool UPDATE = false;
@@ -1273,7 +1298,9 @@ void readFileRange(File &file, uint8_t *buffer, int offset, int size,
   // ✅ ACTUALIZAR BARRA DE PROGRESO SI APLICA
   if (usePrgBar) {
     BYTES_LOADED = offset + bytesRead;
-    PROGRESS_BAR_TOTAL_VALUE = (BYTES_LOADED * 100) / BYTES_TOBE_LOAD;
+    if (BYTES_TOBE_LOAD > 0) {
+      PROGRESS_BAR_TOTAL_VALUE = (BYTES_LOADED * 100) / BYTES_TOBE_LOAD;
+    }
   }
 }
 

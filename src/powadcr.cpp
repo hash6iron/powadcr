@@ -5568,6 +5568,10 @@ void putLogo() {
     // MSX
     hmi.writeString("tape.logo.pic=40");
     delay(5);
+  } else if (TYPE_FILE_LOAD == "CSW") {
+    // MSX
+    hmi.writeString("tape.logo.pic=61");
+    delay(5);
   } else {
     // En blanco
     hmi.writeString("tape.logo.pic=42");
@@ -9237,10 +9241,10 @@ void Task0code(void *pvParameters) {
 
     // Si la configuración NTP no se consiguió en el boot
     // se solicita aqui cada 30s hasta conseguirse.
-    if(!NTP_AVAILABLE && WIFI_CONNECTED)    
+    if(!NTP_AVAILABLE && WIFI_CONNECTED && !PLAY)    
     {
       // Si no tenemos NTP, actualizamos el RTC cada 30 segundos con la hora del sistema
-      if ((millis() - startNTPRetry) > 30000) 
+      if ((millis() - startNTPRetry) > 60000) 
       {
         startNTPRetry = millis();
         logln("Trying to setup NTP again...");
