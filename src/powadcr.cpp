@@ -770,7 +770,8 @@ void proccesingCSW(char *file_ch) {
       cswFile.close();
       
       // Obtener información del CSW procesado
-      TOTAL_BLOCKS = myCSW.numBlocks;
+      TOTAL_BLOCKS = myCSW.numBlocks + 1;
+      BLOCK_SELECTED = myCSW.numBlocks;
       FILE_PREPARED = true;
 
       logln("");
@@ -4659,6 +4660,17 @@ void playingFile() {
     // new_sr = kitStream.defaultConfig();
 
     DATA_IS_PLAYING = true;
+
+    // C64 TAP usa 96kHz: el hardware DEBE estar a la misma frecuencia que
+    // SAMPLING_RATE o los pulsos saldrán con el ancho incorrecto.
+    // BASE_SR (87500 Hz para ZX) ya fue aplicado al hardware arriba, pero el
+    // ES8388 redondeará a una tasa estándar. Para C64 forzamos hardware y
+    // variable a 96000 Hz antes de configurar el stream.
+    if (C64_TAP_INSIDE) {
+      SAMPLING_RATE = STANDARD_SR_8_BIT_MACHINE;      // 96000.0
+      new_sr.sample_rate = (uint32_t)STANDARD_SR_8_BIT_MACHINE;  // 96000
+      logln("C64 TAP: forcing hardware + SAMPLING_RATE to 96000 Hz");
+    }
 
     if (!setAudioInfoSafe(new_sr, "TAP playback")) 
     {

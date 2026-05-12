@@ -1535,14 +1535,18 @@ public:
           i += 3;  // Saltar los 3 bytes (el for hará i++ adicional)
           isExtendedPulse = true;
           if (pulseCount < 5) {
-            logln("TAP v1 Extended (SILENCIO): bytes=" + String(b1) + "," + String(b2) + "," + String(b3) + 
+            logln("TAP v1 Extended: bytes=" + String(b1) + "," + String(b2) + "," + String(b3) + 
                   " -> cycles=" + String(pulseCycles));
           }
-          // Extended pulse = silencio entre bloques: nivel 0 durante su duración
-          double silSeconds = pulseCycles / 985248.0;
-          int silSamples = (int)(silSeconds * SAMPLING_RATE);
-          if (pulseCount < 5) logln("  -> silencio: " + String(silSeconds, 6) + "s = " + String(silSamples) + " samples");
-          _silenceC64(silSamples);
+          // Pulso extendido: ciclos directos sin multiplicar por 8
+          // Es un pulso normal (HIGH+LOW), NO silencio
+          double pulseSeconds = pulseCycles / C64_CLK_CYCLES;
+          if (pulseCount < 5) logln("  -> pulso extendido: " + String(pulseSeconds, 8) + "s");
+          if (pulseSeconds > 0) {
+            ADD_ONE_SAMPLE_COMPENSATION = false;
+            semiPulseC64(pulseSeconds);
+            ACU_ERROR = 0;
+          }
           BYTES_LOADED = i;
           PROGRESS_BAR_BLOCK_VALUE = (int)(((i + 1) * 100) / lenBlock);
           pulseCount++;
@@ -1564,8 +1568,8 @@ public:
         }
       }
 
-      // Convertir a segundos: pulso normal (v0 y v1): (byte * 8) / 985248
-      double pulseSeconds = (pulseCycles * 8.0) / 985248.0;
+      // Convertir a segundos: pulso normal (v0 y v1): (byte * 8) / C64_CLK_CYCLES
+      double pulseSeconds = (pulseCycles * 8.0) / C64_CLK_CYCLES;
 
       // DEBUG: Log conversion
       if (pulseCount < 5) {
@@ -1609,7 +1613,7 @@ public:
   // C64 SEMI-PULSE GENERATION - Generación directa de semi-pulsos C64
   // ============================================================================
   // Cada byte TAP = UN PERÍODO COMPLETO (HIGH t/2 + LOW t/2), siempre empieza en HIGH.
-  // La fórmula spec da la duración del período completo: (byte*8) / 985248
+  // La fórmula spec da la duración del período completo: (byte*8) / C64_CLK_CYCLES
   void semiPulseC64(double pulseSeconds)
   {
     if (pulseSeconds <= 0)
@@ -1636,21 +1640,21 @@ public:
     }
 
     // Muestras HIGH (siempre la primera mitad)
-    uint16_t hi_R = (uint16_t)(maxLevelUp  * (MAIN_VOL_R / 100.0f));
-    uint16_t hi_L = (uint16_t)(maxLevelUp  * (MAIN_VOL_L / 100.0f));
+    uint16_t hi_R = (uint16_t)(65535  * (MAIN_VOL_R / 100.0f));
+    uint16_t hi_L = (uint16_t)(65535  * (MAIN_VOL_L / 100.0f));
     // Muestras LOW
-    uint16_t lo_R = (uint16_t)(maxLevelDown * (MAIN_VOL_R / 100.0f));
-    uint16_t lo_L = (uint16_t)(maxLevelDown * (MAIN_VOL_L / 100.0f));
+    uint16_t lo_R = (uint16_t)(-65535  * (MAIN_VOL_R / 100.0f));
+    uint16_t lo_L = (uint16_t)(-65535  * (MAIN_VOL_L / 100.0f));
 
     DEBUG_AMP_R = hi_R;
     DEBUG_AMP_L = hi_L;
 
     // Generar mitad HIGH
-    _generateC64Half(hi_samples, hi_R, hi_L);
+    _generateC64Half(hi_samples-1, hi_R, hi_L);
     if (stopOrPauseRequest()) return;
 
     // Generar mitad LOW
-    _generateC64Half(lo_samples, lo_R, lo_L);
+    _generateC64Half(lo_samples-1, lo_R, lo_L);
     if (stopOrPauseRequest()) return;
   }
 
