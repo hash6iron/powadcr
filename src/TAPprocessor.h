@@ -732,9 +732,9 @@ class TAPprocessor
             if (_mFile == 0 || _sizeTAP < 4)
                 return false;
 
-            // Leer primeros 3 bytes
-            uint8_t* header = (uint8_t*)ps_calloc(3, sizeof(uint8_t));
-            readFileRange(_mFile, header, 0, 3, false);
+            // Leer primeros 12 bytes
+            uint8_t* header = (uint8_t*)ps_calloc(12, sizeof(uint8_t));
+            readFileRange(_mFile, header, 0, 12, false);
 
             // ZX Spectrum: SIEMPRE comienza con signature [19, 0, 0]
             // bool isZXHeader = (header[0] == 19 && header[1] == 0 && header[2] == 0);
@@ -742,7 +742,12 @@ class TAPprocessor
             bool isC64 = header[0] == 67 && header[1] == 54 && header[2] == 52 && header[3] == 45 && 
                          header[4] == 84 && header[5] == 65 && header[6] == 80 && header[7] == 69 && 
                          header[8] == 45 && header[9] == 82 && header[10] == 65 && header[11] == 87; // "C64-TAPE-RAW" en ASCII
-                        
+            
+            logln("C64 Format Detection: " + String(isC64 ? "C64 format detected" : "Not C64 format") + 
+                  " - Header bytes: [" + String(header[0]) + String(header[1]) + String(header[2]) + String(header[3])
+                                       + String(header[4]) + String(header[5]) + String(header[6]) + String(header[7])
+                                       + String(header[8]) + String(header[9]) + String(header[10]) + String(header[11]) + "]");
+
             // Fallback: verificar size word como segundo criterio
             if (!isC64)
             {
