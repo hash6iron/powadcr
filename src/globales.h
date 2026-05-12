@@ -51,6 +51,7 @@ extern bool FTP_CONNECTED;
 // C64 MODE - Runtime switchable via HMI menu
 // ======================================================================
 bool C64_MODE = false;  // Set to true for Commodore C64, false for ZX Spectrum (default)
+bool C64_TAP_INSIDE = false; // Flag to indicate if we're currently processing a C64 TAP file (used for conditional logic in various functions)
 uint8_t C64_TAP_VERSION = 0;  // TAP version: 0=original (overflow on 0x00), 1=updated (extended on 0x00)
 
 // ======================================================================

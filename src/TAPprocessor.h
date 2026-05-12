@@ -1006,6 +1006,7 @@ class TAPprocessor
             if (_isC64Format)
             {
                 //C64_MODE = true;
+                C64_TAP_INSIDE = true;
                 hmi.writeString("tape.wavind.txt=\"C64\"");
                 hmi.writeString("tape.logo.pic=62");                
                 LAST_MESSAGE = "Processing C64 TAP format...";

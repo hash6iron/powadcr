@@ -4669,7 +4669,8 @@ void playingFile() {
     }
 
     //
-    if (OUT_TO_WAV) {
+    if (OUT_TO_WAV) 
+    {
       // Configuramos el encoder WAV directament
       AudioInfo wavencodercfg(DEFAULT_WAV_SAMPLING_RATE_REC, 2, 16);
       // Iniciamos el stream
@@ -5548,9 +5549,13 @@ void putLogo() {
     // WAV file
     hmi.writeString("tape.logo.pic=46");
     delay(5);
-  } else if (TYPE_FILE_LOAD == "TAP") {
+  } else if (TYPE_FILE_LOAD == "TAP" && !C64_TAP_INSIDE) {
     // Spectrum
     hmi.writeString("tape.logo.pic=41");
+    delay(5);
+  } else if (TYPE_FILE_LOAD == "TAP" && C64_TAP_INSIDE) {
+    // C64
+    hmi.writeString("tape.logo.pic=62");
     delay(5);
   } else if (TYPE_FILE_LOAD == "TZX") {
     // TZX file

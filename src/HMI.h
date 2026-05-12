@@ -2946,6 +2946,8 @@ private:
           ABORT = false;
           EJECT = true;
 
+          C64_TAP_INSIDE = false;
+
           // Esto lo hacemos así porque el EJECT lanza un comando en paralelo
           // al control del tape (tapeControl)
           // no quitar!!
