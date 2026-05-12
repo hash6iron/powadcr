@@ -145,8 +145,8 @@ private:
    */
   int c64PulseToSamples(uint8_t pulseValue)
   {
-    if (!C64_MODE)
-      return 0;
+    // if (!C64_MODE)
+    //   return 0;
       
     // El valor del pulso representa unidades de 1/8 de ciclo CPU de C64
     // Convertir a segundos
@@ -167,8 +167,8 @@ private:
    */
   bool c64PulseIsBitOne(uint8_t pulseValue)
   {
-    if (!C64_MODE)
-      return false;
+    // if (!C64_MODE)
+    //   return false;
       
     // Pulsos cortos = 0, pulsos largos = 1 (o viceversa, depende del loader)
     return (pulseValue >= (C64_PULSE_THRESHOLD >> 8));
@@ -184,8 +184,8 @@ private:
    */
   int c64ExtendedPulseValue(uint8_t byte1, uint8_t byte2)
   {
-    if (!C64_MODE)
-      return 0;
+    // if (!C64_MODE)
+    //   return 0;
       
     // Combinar 3 bytes en un valor de pulso de precisión completa
     return (byte2 << 16) | (byte1 << 8) | 0x00;

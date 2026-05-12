@@ -727,8 +727,6 @@ class TAPprocessor
             // Si NO comienza así, probablemente sea C64
             
             if (C64_MODE)
-                hmi.writeString("tape.wavind.txt=\"C64\"");
-                hmi.writeString("tape.logo.pic=62");
                 return true;
                 
             if (_mFile == 0 || _sizeTAP < 4)
@@ -776,8 +774,8 @@ class TAPprocessor
             // [1 byte]      Version (0 o 1)
             // [N bytes]     Datos crudos de pulsos
             
-            if (!C64_MODE)
-                return false;
+            // if (!C64_MODE)
+            //     return false;
                 
             bool blockDescriptorOk = true;
             char nameTAP[11] = "";
@@ -996,25 +994,31 @@ class TAPprocessor
             // Procesamos el fichero .TAP - Detecta automáticamente formato ZX o C64
             
             // Detectar formato
-            if (C64_MODE)
+            // if (C64_MODE)
+            // {
+            _isC64Format = detectC64Format();
+            
+            if (_isC64Format)
             {
-                _isC64Format = detectC64Format();
-                
-                if (_isC64Format)
+                //C64_MODE = true;
+                hmi.writeString("tape.wavind.txt=\"C64\"");
+                hmi.writeString("tape.logo.pic=62");                
+                LAST_MESSAGE = "Processing C64 TAP format...";
+                if (!getBlockDescriptorC64())
                 {
-                    LAST_MESSAGE = "Processing C64 TAP format...";
-                    if (!getBlockDescriptorC64())
-                    {
-                        FILE_CORRUPTED = true;
-                        return false;
-                    }
-                    else
-                    {
-                        FILE_CORRUPTED = false;
-                        return true;
-                    }
+                    FILE_CORRUPTED = true;
+                    return false;
+                }
+                else
+                {
+                    FILE_CORRUPTED = false;
+                    return true;
                 }
             }
+
+            // reseteamos
+            //C64_MODE = false;
+            // }
             
             // Procesar como ZX Spectrum (formato por defecto)
             // Analizamos el .TAP y obtenemos el descriptor de bloques
