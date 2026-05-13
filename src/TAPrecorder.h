@@ -558,12 +558,12 @@ private:
       // y unimos el fichero al path
       strcat(cPath, newFileName);
 
-#ifdef DEBUGMODE
-      logln("");
-      logln("Filename for rename: ");
-      log(cPath);
-      logln("");
-#endif
+      #ifdef DEBUGMODE
+            logln("");
+            logln("Filename for rename: ");
+            log(cPath);
+            logln("");
+      #endif
     }
 
     logln("Nueva Ruta del REC para rename: " + String(cPath));
@@ -1067,7 +1067,8 @@ public:
     return true;
   }
 
-  bool recording() {
+  bool recording() 
+  {
     // Reestablece todas las variables críticas de estado
     resetRecordingState();
 
@@ -1134,9 +1135,9 @@ public:
     strcpy(recDir, dirR.c_str());
 
     if (!SD_MMC.mkdir(RECORDING_DIR)) {
-#ifdef DEBUGMODE
-      log("Error! Directory exists or wasn't created");
-#endif
+    #ifdef DEBUGMODE
+          log("Error! Directory exists or wasn't created");
+    #endif
     } else {
       // Actualizamos el sistema de ficheros.
       _hmi.reloadCustomDir("/");

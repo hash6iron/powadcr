@@ -1540,8 +1540,7 @@ void stopRecording() {
 
   // Paramos la animación del indicador de recording
   tapeAnimationOFF();
-  //
-  hmi.activateWifi(true);
+
   //
 }
 
@@ -6678,7 +6677,8 @@ void tapeControl() {
     //
     // After recording. Fast PLAY
     //
-    if (EJECT && !STOP_OR_PAUSE_REQUEST) {
+    if (EJECT && !STOP_OR_PAUSE_REQUEST) 
+    {
       //
       stopRecording();
       recAnimationFIXED_OFF();
@@ -6690,9 +6690,16 @@ void tapeControl() {
       TAPESTATE = 0;
       LOADING_STATE = 0;
       RECORDING_ERROR = 0;
-    } else if (REC) {
+      //
+      // recuperamos la conexion wifi
+      hmi.activateWifi(true);
+    } 
+    else if (REC) 
+    {
       recCondition();
-    } else if (PLAY) {
+    } 
+    else if (PLAY) 
+    {
       if (REC_FILENAME != "") {
         char fileRecPath[100];
         strcpy(fileRecPath, REC_FILENAME.c_str());
