@@ -325,9 +325,12 @@ private:
 
   // Obtiene la amplitud del siguiente semi-pulso C64, alternando el flanco propio.
   // No toca EDGE_EAR_IS ni ningún estado compartido con ZX/CSW.
-  double getC64Amplitude() {
+  double getC64Amplitude() 
+  {
     _c64EdgeIsHigh = !_c64EdgeIsHigh;
-    return _c64EdgeIsHigh ? maxAmplitude : minAmplitude;
+
+    bool high = INVERSETRAIN ? !_c64EdgeIsHigh : _c64EdgeIsHigh;
+    return high ? maxAmplitude : minAmplitude;
   }
 
   int firFilter(int data) {
