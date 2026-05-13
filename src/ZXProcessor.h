@@ -1481,8 +1481,8 @@ public:
     for (; i < lenBlock; i++) 
     {
 
-      // ✅ Soporte para FFWD
-      if (FFWIND && playback_position) 
+      // ✅ Soporte para FFWD - Continuo mientras KEEP_FFWIND esté pulsado
+      if ((FFWIND || KEEP_FFWIND) && playback_position) 
       {
         int jump_pulses = (int)((float)lenBlock * C64_FFWD_SPEED);
         int new_pos = i + jump_pulses;
@@ -1492,15 +1492,20 @@ public:
         // dejando i en new_pos (igual que el bucle CSW con incremento manual)
         i = new_pos - 1;
         CSW_SEEK_MODE = 1;  // Indicar FFWD en UI
+        // Actualizar barra de progreso para mostrar posición actual
+        PROGRESS_BAR_BLOCK_VALUE = (int)(((new_pos + 1) * 100) / lenBlock);
         logln("C64 TAP FFWD: Jump to " + String(new_pos) + " / " + String(lenBlock) +
               " (+" + String(jump_pulses) + " bytes)");
-        FFWIND = false;
+        // Solo resetear FFWIND si no hay "hold down" activo
+        if (!KEEP_FFWIND) {
+          FFWIND = false;
+        }
         delay(100);
         continue;
       }
 
-      // ✅ Soporte para RWD
-      if (RWIND && playback_position) {
+      // ✅ Soporte para RWD - Continuo mientras KEEP_RWIND esté pulsado
+      if ((RWIND || KEEP_RWIND) && playback_position) {
         int jump_pulses = (int)((float)lenBlock * C64_RWD_SPEED);
         int new_pos = i - jump_pulses;
         if (new_pos < 0) new_pos = 0;
@@ -1508,9 +1513,14 @@ public:
         // i = new_pos - 1 porque el for hará i++ al salir del continue
         i = new_pos - 1;
         CSW_SEEK_MODE = 2;  // Indicar RWD en UI
+        // Actualizar barra de progreso para mostrar posición actual
+        PROGRESS_BAR_BLOCK_VALUE = (int)(((new_pos + 1) * 100) / lenBlock);
         logln("C64 TAP RWD: Jump to " + String(new_pos) + " / " + String(lenBlock) +
               " (-" + String(jump_pulses) + " bytes)");
-        RWIND = false;
+        // Solo resetear RWIND si no hay "hold down" activo
+        if (!KEEP_RWIND) {
+          RWIND = false;
+        }
         delay(100);
         continue;
       }
@@ -2256,8 +2266,8 @@ public:
     
     // Parsear datos RLE on-demand y reproducir
     for (; i < (size_t)rleSize;) {
-      // ✅ Soporte para FFWD/RWD (con verificación de null pointer)
-      if (FFWIND && playback_position) {
+      // ✅ Soporte para FFWD/RWD - Continuo mientras KEEP_FFWD/KEEP_RWIND esté pulsado
+      if ((FFWIND || KEEP_FFWIND) && playback_position) {
         int jump_bytes = (int)((float)rleSize * CSW_FFWD_SPEED);
         int new_pos = (int)i + jump_bytes;
         if (new_pos >= rleSize) new_pos = rleSize - 2;  // Avoid overshoot
@@ -2266,13 +2276,18 @@ public:
         *playback_position = new_pos;
         i = new_pos;
         CSW_SEEK_MODE = 1;  // Indicar FFWD en UI
+        // Actualizar barra de progreso para mostrar posición actual
+        PROGRESS_BAR_BLOCK_VALUE = (100 * new_pos) / rleSize;
         logln("CSW FFWD: Jump from " + String((int)i - jump_bytes) + " to " + String(new_pos) + " (+" + String(jump_bytes) + " bytes)");
-        FFWIND = false;  // ✅ Desactivar FFWIND después de procesar
+        // Solo resetear FFWIND si no hay "hold down" activo
+        if (!KEEP_FFWIND) {
+          FFWIND = false;  // ✅ Desactivar FFWIND después de procesar
+        }
         delay(100);  // Debounce
         continue;
       }
       
-      if (RWIND && playback_position) {
+      if ((RWIND || KEEP_RWIND) && playback_position) {
         int jump_bytes = (int)((float)rleSize * CSW_RWD_SPEED);
         int current_i = (int)i;  // ✅ Convertir a signed int primero para evitar overflow
         int new_pos = current_i - jump_bytes;
@@ -2282,8 +2297,13 @@ public:
         *playback_position = new_pos;
         i = new_pos;
         CSW_SEEK_MODE = 2;  // Indicar RWD en UI
+        // Actualizar barra de progreso para mostrar posición actual
+        PROGRESS_BAR_BLOCK_VALUE = (100 * new_pos) / rleSize;
         logln("CSW RWD: Jump from " + String(current_i) + " to " + String(new_pos) + " (-" + String(jump_bytes) + " bytes)");
-        RWIND = false;  // ✅ Desactivar RWIND después de procesar
+        // Solo resetear RWIND si no hay "hold down" activo
+        if (!KEEP_RWIND) {
+          RWIND = false;  // ✅ Desactivar RWIND después de procesar
+        }
         delay(100);  // Debounce
         continue;
       }
