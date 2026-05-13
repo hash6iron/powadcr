@@ -1555,15 +1555,15 @@ bool wifiSetup()
 
   logln("Attempting to connect to WiFi SSID: [" + String(ssid) + "]");
   // Esperamos la respuesta
-  while (wifiStatus != WL_CONNECTED && tryconnection != 0) 
-  {  
-    //hmi.writeString("statusLCD.txt=\"Connecting to WiFi ... " + String(tryconnection/4) + "s \"");
-    logln("Connecting to WiFi ... " + String(tryconnection/4) + "s");
-    delay(250);
-    //WiFi.reconnect();
-    //wifiStatus = WiFi.begin(ssid, password);
-    tryconnection--;
-  }
+  // while (wifiStatus != WL_CONNECTED && tryconnection != 0) 
+  // {  
+  //   //hmi.writeString("statusLCD.txt=\"Connecting to WiFi ... " + String(tryconnection/4) + "s \"");
+  //   logln("Connecting to WiFi ... " + String(tryconnection/4) + "s");
+  //   delay(250);
+  //   //WiFi.reconnect();
+  //   //wifiStatus = WiFi.begin(ssid, password);
+  //   tryconnection--;
+  // }
 
   if (wifiStatus == WL_NO_SSID_AVAIL || wifiStatus == WL_NO_SSID_AVAIL) 
   {
@@ -5115,8 +5115,7 @@ void verifyConfigFileForSelection() {
           AZIMUT = getValueOfParam(fileCfg[i].cfgLine, "azimut").toInt();
           // TONE_ADJUST = (-210)*(TONE_ADJUSTMENT_ZX_SPECTRUM +
           // (AZIMUT-TONE_ADJUSTMENT_ZX_SPECTRUM_LIMIT));
-          SAMPLES_ADJUST = (TONE_ADJUSTMENT_ZX_SPECTRUM +
-                            (AZIMUT - TONE_ADJUSTMENT_ZX_SPECTRUM_LIMIT));
+          SAMPLES_ADJUST = (TONE_ADJUSTMENT_ZX_SPECTRUM + (AZIMUT - TONE_ADJUSTMENT_ZX_SPECTRUM_LIMIT));
           // Movemos el slide
           myNex.writeNum("menuAudio2.tone.val", AZIMUT);
           myNex.writeNum("menuAudio2.toneL.val", AZIMUT - 5);
@@ -9246,7 +9245,7 @@ void Task0code(void *pvParameters) {
     // }
     delay(25);
 
-    if (WIFI_ENABLE && !WIFI_CONNECTED)
+    if (WIFI_ENABLE && !WIFI_CONNECTED && !REC)
     {
       if ((millis() - startTimeToWifi) > 5000) 
       {
@@ -9258,7 +9257,7 @@ void Task0code(void *pvParameters) {
 
     // Si la configuración NTP no se consiguió en el boot
     // se solicita aqui cada 30s hasta conseguirse.
-    if(!NTP_AVAILABLE && WIFI_CONNECTED && !PLAY)    
+    if(!NTP_AVAILABLE && WIFI_CONNECTED && !PLAY && !REC)    
     {
       // Si no tenemos NTP, actualizamos el RTC cada 30 segundos con la hora del sistema
       if ((millis() - startNTPRetry) > 60000) 
@@ -9271,14 +9270,14 @@ void Task0code(void *pvParameters) {
 
     // Control del FTP
     #ifdef FTP_SERVER_ENABLE
-      if (!IRADIO_EN && WIFI_ENABLE && WIFI_CONNECTED && !FLAC_IS_PLAYING && !DOWNLOADING_ZXDB && !DATA_IS_PLAYING) 
+      if (!IRADIO_EN && WIFI_ENABLE && WIFI_CONNECTED && !FLAC_IS_PLAYING && !DOWNLOADING_ZXDB && !DATA_IS_PLAYING && !REC) 
       {
         ftpSrv.handleFTP();
       }
     #endif
 
     #ifdef WEB_SERVER_ENABLE
-    if (!FLAC_IS_PLAYING && WIFI_ENABLE && WIFI_CONNECTED && !DOWNLOADING_ZXDB && !DATA_IS_PLAYING)
+    if (!FLAC_IS_PLAYING && WIFI_ENABLE && WIFI_CONNECTED && !DOWNLOADING_ZXDB && !DATA_IS_PLAYING && !REC)
     {
       WiFiClient client = server.available();
       if (client) 
@@ -9377,7 +9376,7 @@ void Task0code(void *pvParameters) {
       }
 
       // Actualizamos el RTC
-      if ((millis() - startTime4 > timeRTC) && NTP_AVAILABLE && !DATA_IS_PLAYING) 
+      if ((millis() - startTime4 > timeRTC) && NTP_AVAILABLE && !DATA_IS_PLAYING && !REC) 
       {          
         if (CURRENT_PAGE == PAGE_CLOCK) 
         {
