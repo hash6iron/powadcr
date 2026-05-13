@@ -1650,11 +1650,11 @@ public:
     DEBUG_AMP_L = hi_L;
 
     // Generar mitad HIGH
-    _generateC64Half(hi_samples-1, hi_R, hi_L);
+    _generateC64Half(hi_samples - 0.5, hi_R, hi_L);
     if (stopOrPauseRequest()) return;
 
     // Generar mitad LOW
-    _generateC64Half(lo_samples-1, lo_R, lo_L);
+    _generateC64Half(lo_samples - 0.5, lo_R, lo_L);
     if (stopOrPauseRequest()) return;
   }
 
