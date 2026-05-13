@@ -716,6 +716,11 @@ float CSW_FFWD_SPEED = CSW_REWIND_SPEED;  // 2% skip per FFWD press (configurabl
 float CSW_RWD_SPEED = CSW_REWIND_SPEED;   // 2% skip per RWD press (configurable 0.01-0.10)
 uint8_t CSW_SEEK_MODE = 0;    // 0=normal play, 1=ffwd, 2=rwd (for UI animation)
 
+// ✅ CSW Silence Control
+// Cuando true: los pulsos largos (0x00+4bytes en el RLE) se omiten.
+// Cuando false: se generan como semi-pulsos normales (silencios reales entre bloques).
+bool REMOVE_SILENCES_CSW = false;
+
 // ✅ C64 FFWD/RWD Control Variables (same as CSW)
 float C64_FFWD_SPEED = CSW_REWIND_SPEED;  // 2% skip per FFWD press (configurable 0.01-0.10)
 float C64_RWD_SPEED = CSW_REWIND_SPEED;   // 2% skip per RWD press (configurable 0.01-0.10)

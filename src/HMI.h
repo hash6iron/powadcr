@@ -2947,6 +2947,7 @@ private:
           EJECT = true;
 
           C64_TAP_INSIDE = false;
+          myNex.writeStr("tape.wavind.txt", ""); // Limpiamos el texto de warning FFWD/RWD del tape
 
           // Esto lo hacemos así porque el EJECT lanza un comando en paralelo
           // al control del tape (tapeControl)
@@ -4429,6 +4430,7 @@ private:
           BLOCK_SELECTED = 0;
           BYTES_LOADED = 0;
           myNex.writeStr("update.status.txt","Stop player ...");
+          
           delay(1000);
           
           // Actualizamos

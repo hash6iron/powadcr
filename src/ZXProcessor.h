@@ -133,6 +133,11 @@ private:
   // Distributes rounding error across multiple pulses
   double ERROR_ACCUMULATOR = 0.0;
 
+  // Estado de flanco exclusivo para reproducción C64 TAP.
+  // Independiente de EDGE_EAR_IS (ZX/CSW) para evitar interferencias.
+  // false = LOW, true = HIGH. Empieza en false → primer toggle → HIGH.
+  bool _c64EdgeIsHigh = false;
+
   // ============================================================================
   // C64 PULSE PROCESSING HELPERS (always compiled, runtime controlled)
   // ============================================================================
@@ -316,6 +321,13 @@ private:
     }
 
     return (A);
+  }
+
+  // Obtiene la amplitud del siguiente semi-pulso C64, alternando el flanco propio.
+  // No toca EDGE_EAR_IS ni ningún estado compartido con ZX/CSW.
+  double getC64Amplitude() {
+    _c64EdgeIsHigh = !_c64EdgeIsHigh;
+    return _c64EdgeIsHigh ? maxAmplitude : minAmplitude;
   }
 
   int firFilter(int data) {
@@ -1538,12 +1550,13 @@ public:
             logln("TAP v1 Extended: bytes=" + String(b1) + "," + String(b2) + "," + String(b3) + 
                   " -> cycles=" + String(pulseCycles));
           }
-          // Pulso extendido v1: ciclos directos (sin *8) → silencio plano (amplitud 0)
+          // Pulso extendido v1: los 3 bytes son ciclos directos → período completo = cycles/F_CPU.
+          // Igual que pulso normal: HIGH para la primera mitad, LOW para la segunda.
           double silSeconds = pulseCycles / C64_CLK_CYCLES;
-          int silSamples = (int)(silSeconds * SAMPLING_RATE);
-          if (pulseCount < 5) logln("  -> silencio: " + String(silSeconds, 8) + "s = " + String(silSamples) + " samples");
-          if (silSamples > 0) {
-            _silenceC64(silSamples);
+          if (pulseCount < 5) logln("  -> extended full-period: " + String(silSeconds, 8) + "s");
+          if (silSeconds > 0) {
+            semiPulseC64(silSeconds / 2.0);  // primera mitad
+            semiPulseC64(silSeconds / 2.0);  // segunda mitad
           }
           BYTES_LOADED = i;
           PROGRESS_BAR_BLOCK_VALUE = (int)(((i + 1) * 100) / lenBlock);
@@ -1566,7 +1579,9 @@ public:
         }
       }
 
-      // Convertir a segundos: pulso normal (v0 y v1): (byte * 8) / C64_CLK_CYCLES
+      // Convertir a segundos: pulso normal (v0 y v1):
+      // Spec: pulse = (8 * byte) / F_CPU  → duración exacta del semi-pulso.
+      // Cada byte TAP representa UN semi-pulso (tiempo entre dos triggers consecutivos).
       double pulseSeconds = (pulseCycles * 8.0) / C64_CLK_CYCLES;
 
       // DEBUG: Log conversion
@@ -1574,10 +1589,12 @@ public:
         logln("  -> seconds=" + String(pulseSeconds, 10));
       }
 
-      // Generar el pulso (ciclo completo HIGH+LOW)
+      // Cada byte TAP C64 = período completo (la CIA mide entre flancos descendentes).
+      // → Generar HIGH para la primera mitad, LOW para la segunda.
       if (pulseSeconds > 0) {
         ADD_ONE_SAMPLE_COMPENSATION = false;
-        semiPulseC64(pulseSeconds);
+        semiPulseC64(pulseSeconds / 2.0);  // primera mitad (HIGH)
+        semiPulseC64(pulseSeconds / 2.0);  // segunda mitad (LOW)
         ACU_ERROR = 0;
       }
 
@@ -1610,55 +1627,32 @@ public:
   // ============================================================================
   // C64 SEMI-PULSE GENERATION - Generación directa de semi-pulsos C64
   // ============================================================================
-  // Cada byte TAP = UN PERÍODO COMPLETO (HIGH t/2 + LOW t/2), siempre empieza en HIGH.
-  // La fórmula spec da la duración del período completo: (byte*8) / C64_CLK_CYCLES
+  // Spec: pulse = (8*byte)/F_CPU  (v0/v1 normal) ó cycles/F_CPU (v1 extended).
+  // Cada byte TAP = UN semi-pulso (transición de flanco).
+  // Esta función recibe la duración exacta del semi-pulso según la spec.
+  // Usa getC64Amplitude() (flanco propio C64, independiente de EDGE_EAR_IS/ZX/CSW).
   void semiPulseC64(double pulseSeconds)
   {
     if (pulseSeconds <= 0)
       return;
 
-    // Calcular muestras totales del período completo con acumulador de error
-    // La corrección C64_TIMING_BIAS permite compensar errores del reloj hardware:
-    // valor negativo → menos samples → mayor baudrate (corrección por reloj lento)
-    //C64_TIMING_BIAS = AZIMUT * (BIAS_FACTOR_TAP_C64);
-    //logln("C64_TIMING_BIAS: " + String(C64_TIMING_BIAS, 8) + " samples");
+    // Calcular muestras con acumulador de error (igual que semiPulse() ZX)
+    ERROR_ACCUMULATOR += pulseSeconds * SAMPLING_RATE;
+    int samples = (int)ERROR_ACCUMULATOR;
+    ERROR_ACCUMULATOR -= samples;
 
-    ERROR_ACCUMULATOR += pulseSeconds * SAMPLING_RATE + C64_TIMING_BIAS;
-    int total_samples = (int)ERROR_ACCUMULATOR;
-    ERROR_ACCUMULATOR -= total_samples;
-
-    if (total_samples <= 0)
+    if (samples <= 0)
       return;
 
-    // Dividir en dos mitades iguales: HIGH y LOW
-    int hi_samples = total_samples / 2;
-    int lo_samples = total_samples - hi_samples;  // absorbe el impar
+    // Toggle de flanco C64 y obtención de amplitud (HIGH o LOW según turno)
+    double amplitude = getC64Amplitude();
+    uint16_t sample_R = (uint16_t)(amplitude * (MAIN_VOL_R / 100.0f));
+    uint16_t sample_L = (uint16_t)(amplitude * (MAIN_VOL_L / 100.0f));
 
-    // DEBUG: Log (primeras 10 llamadas)
-    static int c64_semi_pulse_count = 0;
-    if (c64_semi_pulse_count < 10) {
-      logln("C64 pulse #" + String(c64_semi_pulse_count) + ": " + String(pulseSeconds, 8) +
-            "s total=" + String(total_samples) + " hi=" + String(hi_samples) + " lo=" + String(lo_samples));
-      c64_semi_pulse_count++;
-    }
+    DEBUG_AMP_R = sample_R;
+    DEBUG_AMP_L = sample_L;
 
-    // Muestras HIGH (siempre la primera mitad)
-    uint16_t hi_R = (uint16_t)(maxLevelUp  * (MAIN_VOL_R / 100.0f));
-    uint16_t hi_L = (uint16_t)(maxLevelUp  * (MAIN_VOL_L / 100.0f));
-    // Muestras LOW
-    uint16_t lo_R = (uint16_t)(maxLevelDown  * (MAIN_VOL_R / 100.0f));
-    uint16_t lo_L = (uint16_t)(maxLevelDown  * (MAIN_VOL_L / 100.0f));
-
-    DEBUG_AMP_R = hi_R;
-    DEBUG_AMP_L = hi_L;
-
-    // Generar mitad HIGH
-    _generateC64Half(hi_samples, hi_R, hi_L);
-    if (stopOrPauseRequest()) return;
-
-    // Generar mitad LOW
-    _generateC64Half(lo_samples, lo_R, lo_L);
-    if (stopOrPauseRequest()) return;
+    _generateC64Half(samples, sample_R, sample_L);
   }
 
   // Helper: genera 'samples' muestras a nivel CERO (silencio real entre bloques)
@@ -2301,21 +2295,32 @@ public:
       }
 
       uint8_t pulseLenByte = rleBuffer[i];
-      uint16_t repeat = 1;
+      uint32_t pulseLen = pulseLenByte;  // en sample periods del CSW
+      bool isLongPulse = false;          // true si viene del escape 0x00+4bytes
 
-      // Formato RLE: 0x00 seguido de repeat count
-      if (pulseLenByte == 0x00 && i + 1 < (size_t)rleSize) {
-        repeat = rleBuffer[i + 1];
-        i += 2;
+      // Formato CSW RLE:
+      //   byte != 0x00 → duración = byte  (1 sample period)
+      //   byte == 0x00 → seguido de 4 bytes LE que dan la duración exacta
+      if (pulseLenByte == 0x00 && (i + 4) < (size_t)rleSize) {
+        pulseLen = (uint32_t)rleBuffer[i + 1]
+                 | ((uint32_t)rleBuffer[i + 2] << 8)
+                 | ((uint32_t)rleBuffer[i + 3] << 16)
+                 | ((uint32_t)rleBuffer[i + 4] << 24);
+        i += 5;  // consumir 0x00 + 4 bytes
+        isLongPulse = true;
       } else {
         i += 1;
       }
 
-      // Convertir byte de duración a T-States
-      uint32_t pulseLenTStates = (uint32_t)round((float)pulseLenByte * conversion_factor);
+      // Convertir sample periods CSW → T-States
+      uint32_t pulseLenTStates = (uint32_t)round((float)pulseLen * conversion_factor);
 
       if (pulseLenTStates > 0) {
-        for (int r = 0; r < repeat; r++) {
+        if (isLongPulse && REMOVE_SILENCES_CSW) {
+          // Silencio: omitir las muestras pero NO alternar el flanco
+          // (el siguiente semi-pulso arrancará desde el nivel actual).
+          // No se llama a semiPulse() → EDGE_EAR_IS no cambia.
+        } else {
           ADD_ONE_SAMPLE_COMPENSATION = false;
           semiPulse((double)pulseLenTStates);
           ACU_ERROR = 0;
