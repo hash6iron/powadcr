@@ -62,7 +62,7 @@ uint8_t C64_TAP_VERSION = 0;  // TAP version: 0=original (overflow on 0x00), 1=u
 //  <0.0  = reduce muestras por período → sube el baudrate  (reloj hardware lento)
 //  >0.0  = aumenta muestras por período → baja el baudrate  (reloj hardware rápido)
 // Rango útil: ±1.0 (equivale a ±1 sample por período en media)
-double C64_TIMING_BIAS = 0.0;
+double C64_TIMING_BIAS = -0.1;
 
 // ======================================================================
 // C64 TAP SUPPORT - Switch between ZX Spectrum and Commodore C64 formats

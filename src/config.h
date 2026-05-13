@@ -322,6 +322,7 @@ int GPIO_MSX_REMOTE_PAUSE = 19;
 // #define STANDARD_SR_REC_ZX_SPECTRUM                 32800   // Sampling rate
 // adecuado para ZX Spectrum (recorder) - Ajuste AZIMUT (Hz) - 22200 Hz
 #define STANDARD_SR_REC_ZX_SPECTRUM 87500 // Sampling rate adecuado para ZX Spectrum (recorder) - Ajuste AZIMUT
+#define BIAS_FACTOR_TAP_C64 -0.2
         // (Hz) - 22200 Hz
 //
 // ----------------------------------------------------------------------------------------------

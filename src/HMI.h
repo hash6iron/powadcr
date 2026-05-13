@@ -3203,6 +3203,9 @@ private:
           // Le cambiamos el signo para que cuando seleccionemos -1 sea bajar tono en vez de quitar una muestra que es todo lo contrario (aumentar frecuencia)
           // y lo mismo con el +1
           AZIMUT = valVol;
+          C64_TIMING_BIAS = AZIMUT * (BIAS_FACTOR_TAP_C64);
+          logln("C64_TIMING_BIAS: " + String(C64_TIMING_BIAS, 8) + " samples");
+
           //TONE_ADJUST = (-210)*(TONE_ADJUSTMENT_ZX_SPECTRUM + (valVol-TONE_ADJUSTMENT_ZX_SPECTRUM_LIMIT));         
           TONE_ADJUST = 0;
           SAMPLES_ADJUST = (TONE_ADJUSTMENT_ZX_SPECTRUM + (valVol-TONE_ADJUSTMENT_ZX_SPECTRUM_LIMIT));

@@ -1620,6 +1620,9 @@ public:
     // Calcular muestras totales del período completo con acumulador de error
     // La corrección C64_TIMING_BIAS permite compensar errores del reloj hardware:
     // valor negativo → menos samples → mayor baudrate (corrección por reloj lento)
+    //C64_TIMING_BIAS = AZIMUT * (BIAS_FACTOR_TAP_C64);
+    //logln("C64_TIMING_BIAS: " + String(C64_TIMING_BIAS, 8) + " samples");
+
     ERROR_ACCUMULATOR += pulseSeconds * SAMPLING_RATE + C64_TIMING_BIAS;
     int total_samples = (int)ERROR_ACCUMULATOR;
     ERROR_ACCUMULATOR -= total_samples;
