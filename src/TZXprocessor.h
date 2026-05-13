@@ -1080,17 +1080,16 @@ private:
     }
 
     // 3. PARSEAR LOS DATOS RLE Y CREAR LA SECUENCIA DE PULSOS
-    // (El resto de la función no necesita cambios)
-    // ... (código de parseo de RLE existente) ...
+    // Formato CSW RLE:
+    //   byte != 0x00 → este byte es la duración del semi-pulso (en sample periods)
+    //   byte == 0x00 → seguido de 4 bytes LE que dan la duración exacta (pulso largo/silencio)
     int pulseCount = 0;
-    uint8_t last_pulse = 0;
     for (size_t i = 0; i < rleDataSize;) {
       pulseCount++;
       uint8_t value = rleData[i];
-      if (value == 0x00) {
-        i += 2;
+      if (value == 0x00 && (i + 4) < rleDataSize) {
+        i += 5;  // 0x00 + 4 bytes LE
       } else {
-        last_pulse = value;
         i += 1;
       }
     }
@@ -1108,23 +1107,26 @@ private:
       }
 
       int currentPulse = 0;
-      last_pulse = 0;
       for (size_t i = 0; i < rleDataSize && currentPulse < pulseCount;) {
         uint8_t value = rleData[i];
-        if (value == 0x00) {
-          uint8_t repeat = rleData[i + 1];
+        if (value == 0x00 && (i + 4) < rleDataSize) {
+          // Pulso largo (silencio): 4 bytes LE dan la duración exacta
+          uint32_t longLen = (uint32_t)rleData[i + 1]
+                           | ((uint32_t)rleData[i + 2] << 8)
+                           | ((uint32_t)rleData[i + 3] << 16)
+                           | ((uint32_t)rleData[i + 4] << 24);
           _myTZX.descriptor[currentBlock]
               .timming.csw_pulse_data[currentPulse]
-              .pulse_len = last_pulse;
+              .pulse_len = longLen;
           _myTZX.descriptor[currentBlock]
               .timming.csw_pulse_data[currentPulse]
-              .repeat = repeat;
-          i += 2;
+              .repeat = 1;
+          i += 5;
         } else {
-          last_pulse = value;
+          // Pulso normal: el byte es la duración
           _myTZX.descriptor[currentBlock]
               .timming.csw_pulse_data[currentPulse]
-              .pulse_len = last_pulse;
+              .pulse_len = value;
           _myTZX.descriptor[currentBlock]
               .timming.csw_pulse_data[currentPulse]
               .repeat = 1;
@@ -3855,6 +3857,7 @@ public:
                     break;
 
                   uint16_t repeat = pulse_data[p].repeat;
+                  bool isLongPulse = (pulse_data[p].pulse_len > 0xFF);  // escape 0x00+4B
 
                   // Aplica el factor para obtener los T-States normalizados.
                   uint32_t pulse_len_tstates = (uint32_t)round((float)pulse_data[p].pulse_len * conversion_factor);
@@ -3862,9 +3865,11 @@ public:
                   if (pulse_len_tstates == 0)
                     continue;
 
+                  // Pulso largo = silencio entre bloques: respetar REMOVE_SILENCES_CSW
+                  if (isLongPulse && REMOVE_SILENCES_CSW)
+                    continue;
+
                   // Llama a playCustomSymbol con el valor en T-States.
-                  // ZXProcessor se encargará de la conversión final a muestras de
-                  // audio para 32150Hz.
                   _zxp.playCustomSymbol(pulse_len_tstates, repeat);
                 }
               }

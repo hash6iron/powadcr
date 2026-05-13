@@ -3353,6 +3353,33 @@ private:
             logln("C64 Mode ENABLE =" + String(C64_MODE));
           // #endif
         }
+        else if (strCmd.indexOf("RS1=") != -1) 
+        {
+          //
+          // Remove CSW silences (for C64 FPGA with REM patched)
+          //
+
+          //Cogemos el valor
+          uint8_t buff[8];
+          strCmd.getBytes(buff, 7);
+          int valEn = (int)buff[4];
+          //
+          if (valEn==1)
+          {
+              // Habilita terminadores
+              REMOVE_SILENCES_CSW = true;
+          }
+          else
+          {
+              // Deshabilita terminadores
+              REMOVE_SILENCES_CSW = false;
+          }
+
+          // #ifdef DEBUGMODE
+            //logln("");
+            logln("Remove CSW silences ENABLE =" + String(REMOVE_SILENCES_CSW));
+          // #endif
+        }        
         else if (strCmd.indexOf("48K=") != -1) 
         {
           //Cogemos el valor
