@@ -1640,11 +1640,11 @@ public:
     }
 
     // Muestras HIGH (siempre la primera mitad)
-    uint16_t hi_R = (uint16_t)(65535  * (MAIN_VOL_R / 100.0f));
-    uint16_t hi_L = (uint16_t)(65535  * (MAIN_VOL_L / 100.0f));
+    uint16_t hi_R = (uint16_t)(maxLevelUp  * (MAIN_VOL_R / 100.0f));
+    uint16_t hi_L = (uint16_t)(maxLevelUp  * (MAIN_VOL_L / 100.0f));
     // Muestras LOW
-    uint16_t lo_R = (uint16_t)(-65535  * (MAIN_VOL_R / 100.0f));
-    uint16_t lo_L = (uint16_t)(-65535  * (MAIN_VOL_L / 100.0f));
+    uint16_t lo_R = (uint16_t)(maxLevelDown  * (MAIN_VOL_R / 100.0f));
+    uint16_t lo_L = (uint16_t)(maxLevelDown  * (MAIN_VOL_L / 100.0f));
 
     DEBUG_AMP_R = hi_R;
     DEBUG_AMP_L = hi_L;
