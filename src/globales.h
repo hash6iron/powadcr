@@ -55,6 +55,15 @@ bool C64_TAP_INSIDE = false; // Flag to indicate if we're currently processing a
 double C64_CLK_CYCLES = 985248.0; // C64 CPU clock cycles per second (985248 Hz)
 uint8_t C64_TAP_VERSION = 0;  // TAP version: 0=original (overflow on 0x00), 1=updated (extended on 0x00)
 
+// Corrección de sesgo temporal para pulsos C64.
+// Se añade al acumulador de error ANTES del truncamiento integer, por lo que
+// afecta proporcionalmente a todos los pulsos sin bias de redondeo:
+//   0.0  = sin corrección (acumulador exacto si el hardware es 96000 Hz exactos)
+//  <0.0  = reduce muestras por período → sube el baudrate  (reloj hardware lento)
+//  >0.0  = aumenta muestras por período → baja el baudrate  (reloj hardware rápido)
+// Rango útil: ±1.0 (equivale a ±1 sample por período en media)
+double C64_TIMING_BIAS = 0.0;
+
 // ======================================================================
 // C64 TAP SUPPORT - Switch between ZX Spectrum and Commodore C64 formats
 // ======================================================================

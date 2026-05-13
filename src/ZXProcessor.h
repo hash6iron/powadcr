@@ -1538,14 +1538,12 @@ public:
             logln("TAP v1 Extended: bytes=" + String(b1) + "," + String(b2) + "," + String(b3) + 
                   " -> cycles=" + String(pulseCycles));
           }
-          // Pulso extendido: ciclos directos sin multiplicar por 8
-          // Es un pulso normal (HIGH+LOW), NO silencio
-          double pulseSeconds = pulseCycles / C64_CLK_CYCLES;
-          if (pulseCount < 5) logln("  -> pulso extendido: " + String(pulseSeconds, 8) + "s");
-          if (pulseSeconds > 0) {
-            ADD_ONE_SAMPLE_COMPENSATION = false;
-            semiPulseC64(pulseSeconds);
-            ACU_ERROR = 0;
+          // Pulso extendido v1: ciclos directos (sin *8) → silencio plano (amplitud 0)
+          double silSeconds = pulseCycles / C64_CLK_CYCLES;
+          int silSamples = (int)(silSeconds * SAMPLING_RATE);
+          if (pulseCount < 5) logln("  -> silencio: " + String(silSeconds, 8) + "s = " + String(silSamples) + " samples");
+          if (silSamples > 0) {
+            _silenceC64(silSamples);
           }
           BYTES_LOADED = i;
           PROGRESS_BAR_BLOCK_VALUE = (int)(((i + 1) * 100) / lenBlock);
@@ -1620,7 +1618,9 @@ public:
       return;
 
     // Calcular muestras totales del período completo con acumulador de error
-    ERROR_ACCUMULATOR += pulseSeconds * SAMPLING_RATE;
+    // La corrección C64_TIMING_BIAS permite compensar errores del reloj hardware:
+    // valor negativo → menos samples → mayor baudrate (corrección por reloj lento)
+    ERROR_ACCUMULATOR += pulseSeconds * SAMPLING_RATE + C64_TIMING_BIAS;
     int total_samples = (int)ERROR_ACCUMULATOR;
     ERROR_ACCUMULATOR -= total_samples;
 
@@ -1650,11 +1650,11 @@ public:
     DEBUG_AMP_L = hi_L;
 
     // Generar mitad HIGH
-    _generateC64Half(hi_samples - 0.25, hi_R, hi_L);
+    _generateC64Half(hi_samples, hi_R, hi_L);
     if (stopOrPauseRequest()) return;
 
     // Generar mitad LOW
-    _generateC64Half(lo_samples - 0.25, lo_R, lo_L);
+    _generateC64Half(lo_samples, lo_R, lo_L);
     if (stopOrPauseRequest()) return;
   }
 
