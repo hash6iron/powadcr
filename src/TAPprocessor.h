@@ -78,6 +78,9 @@ class TAPprocessor
         // C64 format detection flag
         bool _isC64Format = false;
 
+        // Ruta del fichero TAP actualmente abierto (para poder reabrirlo en play())
+        char _tapFilePath[257] = {0};
+
         // ============================================================================
         // ZX SPECTRUM FORMAT DETECTION AND PROCESSING
         // ============================================================================
@@ -813,7 +816,7 @@ class TAPprocessor
             _myTAP.descriptor[0].offset = headerSize;  // Saltamos el header
             _myTAP.descriptor[0].size = _sizeTAP - headerSize;  // Solo datos de pulsos
             _myTAP.descriptor[0].chk = 0; // C64 puede no tener checksum simple
-            strncpy(_myTAP.descriptor[0].name, "C64 DATA", 10);
+            strcpy(_myTAP.descriptor[0].name, ""); // Usamos el nombre del archivo como nombre del bloque
             _myTAP.descriptor[0].nameDetected = true;
             _myTAP.descriptor[0].header = false;
             _myTAP.descriptor[0].type = C64_DATA_BLOCK;
@@ -991,7 +994,11 @@ class TAPprocessor
             strncpy(_myTAP.name,"",1);
             _myTAP.numBlocks = 0;
             _myTAP.size = 0; 
-            _myTAP.descriptor = nullptr;    
+            _myTAP.descriptor = nullptr;
+            // Cerramos el fichero al terminar para liberar el handle de SD
+            if (_mFile) {
+                _mFile.close();
+            }
         }
 
         bool proccess_tap(File tapFileName)
@@ -1053,7 +1060,18 @@ class TAPprocessor
             
             LAST_MESSAGE = "Analyzing file";
             delay(500);
-            
+
+            // Cerramos el fichero anterior antes de abrir el nuevo.
+            // Esto garantiza que no quedan handles abiertos de ficheros previos
+            // y evita el bug donde el 3er fichero C64 TAP reproduce el contenido del 2o.
+            if (_mFile) {
+                _mFile.close();
+            }
+
+            // Guardamos la ruta del fichero para poder reabrirlo en play()
+            strncpy(_tapFilePath, path, 256);
+            _tapFilePath[256] = '\0';
+
             // Abrimos el fichero
             tapFile = SD_MMC.open(path,FILE_READ);
             
@@ -1248,6 +1266,14 @@ class TAPprocessor
             
                     // Inicializamos el buffer de reproducción. Memoria dinamica
                     uint8_t* bufferPlay;
+
+                    // Si el fichero no está abierto (fue cerrado en eject o terminate),
+                    // lo reabrimos desde la ruta guardada. Esto corrige el bug donde el 3er
+                    // fichero C64 TAP reproducía el contenido del 2o fichero.
+                    if (!_mFile && _tapFilePath[0] != '\0') {
+                        logln("TAP play(): reabriendo fichero: " + String(_tapFilePath));
+                        _mFile = SD_MMC.open(_tapFilePath, FILE_READ);
+                    }
 
                     // Entregamos información por consola
                     // PROGRAM_NAME = FILE_LOAD;

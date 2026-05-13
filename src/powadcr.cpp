@@ -3162,6 +3162,12 @@ void MediaPlayer() {
   // Reproductor de medios
   //
   // ---------------------------------------------------------
+  // Deshabilitamos INVERSETRAIN CHECKBOX porque el efecto de inversión de polaridad se aplica directamente antes de entrar aqui durante
+  // la reproducción de WAVs, no a todo el sistema de audio.
+  // hmi.writeString("menuAudio2.polValue.style=0");
+  // hmi.writeString("menuAudio2.polValue.bco=0");
+  // hmi.writeString("menuAudio2.t5.pco=23275");
+
   LAST_MESSAGE = "Waiting...";
   // resetOutputCodec();
 
@@ -3272,6 +3278,14 @@ void MediaPlayer() {
   cfg_eq.gain_high = EQ_HIGH;
   eq.begin(cfg_eq);
 
+  // Inversión de polaridad para WAV (INVERSETRAIN)
+  // AudioEffectStream se inserta entre el player y eq solo en el caso WAV.
+  // Nota: AudioEffectStreamT promedia canales estéreo a mono antes de aplicar
+  // el efecto — correcto para WAVs de cinta (mono o mono-compatible).
+  Boost wavBoostInvert(INVERSETRAIN ? -1.0f : 1.0f);
+  AudioEffectStream wavEffectStream(eq);
+  wavEffectStream.addEffect(wavBoostInvert);
+
   // Esto nos permite propagación del setting del fichero, sampling, bits,
   // canales.
   // WAV
@@ -3315,6 +3329,15 @@ void MediaPlayer() {
       STOP = true;
       PLAY = false;
       return;
+    }
+    // Solo insertar el efecto de inversión si INVERSETRAIN está activo.
+    // AudioEffectStream colapsa estéreo a mono, por lo que se evita cuando
+    // no es necesario para preservar el audio estéreo original.
+    if (INVERSETRAIN) 
+    {
+      wavEffectStream.begin(tempConfig);
+      player.setOutput(wavEffectStream);
+      hmi.refreshPulseIcons(INVERSETRAIN, ZEROLEVEL);
     }
     // decoderWAV.setOutput(eq);
     //  Configuramos el player con el decoder
@@ -4595,10 +4618,15 @@ void MediaPlayer() {
     p_file_seek->close();
   }
 
+  // hmi.writeString("menuAudio2.polValue.style=3");
+  // hmi.writeString("menuAudio2.polValue.bco=65535");
+  // hmi.writeString("menuAudio2.t5.pco=60868");
+  
   // Liberamos la memoria del audiolist
   free(audiolist);
   MUSIC_IS_PLAYING = false;
   FLAC_IS_PLAYING = false;
+  MEDIA_PLAYER_EN = false;
 }
 
 // Función helper para cambiar configuración de audio de manera segura
@@ -5346,10 +5374,12 @@ void ejectingFile() {
     if (myTAPmemoryReserved) {
       LAST_MESSAGE = "Preparing structure";
       free(pTAP.getDescriptor());
-      // Finalizamos
+      // Finalizamos (también cierra _mFile)
       pTAP.terminate();
       myTAPmemoryReserved = false;
     }
+    // Reseteamos el flag C64 para que la próxima selección detecte correctamente
+    C64_TAP_INSIDE = false;
   } else if (TYPE_FILE_LOAD == "TZX" || TYPE_FILE_LOAD == "CDT" ||
              TYPE_FILE_LOAD == "TSX") {
     // Solicitamos el puntero _myTZX de la clase

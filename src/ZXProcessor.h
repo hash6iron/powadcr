@@ -1478,10 +1478,12 @@ public:
     }
 
     // Recorremos todos los pulsos del buffer C64
-    for (; i < lenBlock; i++) {
+    for (; i < lenBlock; i++) 
+    {
 
       // ✅ Soporte para FFWD
-      if (FFWIND && playback_position) {
+      if (FFWIND && playback_position) 
+      {
         int jump_pulses = (int)((float)lenBlock * C64_FFWD_SPEED);
         int new_pos = i + jump_pulses;
         if (new_pos >= lenBlock) new_pos = lenBlock - 1;
@@ -1514,16 +1516,19 @@ public:
       }
       CSW_SEEK_MODE = 0;
 
-      if (LOADING_STATE == 2) {
+      if (LOADING_STATE == 2) 
+      {
         if (playback_position) *playback_position = 0;
         SAMPLING_RATE = savedSamplingRate;
         return;
       }
 
       // Verificar pausa/stop
-      if (stopOrPauseRequest()) {
+      if (stopOrPauseRequest()) 
+      {
         // ✅ Guardar posición actual para reanudación
-        if (playback_position && PAUSE && !STOP) {
+        if (playback_position && PAUSE && !STOP) 
+        {
           *playback_position = i;
         } else if (STOP) {
           // Reset posición al detener completamente
@@ -1540,7 +1545,8 @@ public:
       // Manejo del byte 0x00 según versión del TAP:
       // - TAP v0: 0x00 = overflow (pulso muy largo), se ignora
       // - TAP v1: 0x00 = seguido de 3 bytes que son ciclos directos (sin *8)
-      if (pulseValue == 0x00) {
+      if (pulseValue == 0x00) 
+      {
         if (C64_TAP_VERSION == 1 && (i + 3) < lenBlock) {
           // TAP v1: leer 3 bytes como ciclos directos en little-endian
           uint8_t b1 = bBlock[i + 1];
@@ -1612,11 +1618,11 @@ public:
       if (playback_position) *playback_position = 0;  // Reset para siguiente reproducción
       
       // ✅ Auto-stop cuando C64 llega al final
-      STOP = true;
-      PAUSE = false;
-      LOADING_STATE = 2;  // Estado STOP
-      TAPESTATE = 0;
-      LAST_MESSAGE = "Auto-stop playing.";
+      //STOP = true;
+      //PAUSE = false;
+      //LOADING_STATE = 2;  // Estado STOP
+      //TAPESTATE = 0;
+      //LAST_MESSAGE = "Auto-stop playing.";
     }
 
     // Restaurar sampling rate original (ZX Spectrum)

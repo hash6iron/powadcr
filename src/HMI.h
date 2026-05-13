@@ -3430,6 +3430,12 @@ private:
           logln("");
           logln("Polarization =" + String(INVERSETRAIN));
 
+          if (TYPE_FILE_LOAD == "WAV" || TYPE_FILE_LOAD == "TAP" || TYPE_FILE_LOAD == "TZX")
+          {
+            LAST_MESSAGE = "Polarization changed. Please, reload the file.";
+            EJECT = true;
+          }
+
         }
         // Nivel LOW a cero
         else if (strCmd.indexOf("ZER=") != -1) 
@@ -4763,7 +4769,15 @@ private:
                         else
                         {
                             // Si no hay nombre, ponemos "..."
-                            PROGRAM_NAME = LAST_PROGRAM_NAME + " [code]";
+                            if (C64_TAP_INSIDE)
+                            {
+                              PROGRAM_NAME = FILE_LOAD;
+                            }
+                            else
+                            {
+                              PROGRAM_NAME = LAST_PROGRAM_NAME + " [code]";
+                            }
+                            
                         }       
                       }                                
                 }                  
