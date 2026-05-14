@@ -1,5 +1,5 @@
 # POWADCR
-TAP/TZX/TSX/CDT Digital cassette recorder for 8-bit machines, and WAV/MP3 player recorder.
+TAP/TZX/TSX/CDT/CSW Digital cassette recorder for 8-bit machines, and WAV/MP3 player recorder.
 <p align="center">
   <img width="400" height="400" src="/doc/powadcr.png" />
 </p>
@@ -221,22 +221,51 @@ Is possible to connect directly to the machine audio output line-out, anyway, if
 - ESPectrum can connecto directly without adaptation circuit.
 - N-Go needs a special cable to get the output channel (+3 output) to stereo jack for powadcr (you can repeat the output channel in both left/right channels of the stereo jack or only get left channel and right to ground)
 
+**Files suppoerted by powadcr**
+
+|  File extension | Description/Notes                    |
+|-----------------|--------------------------------------|
+| TAP             | Standard ZX Spectrum digital file    |
+|-----------------|--------------------------------------|
+| TZX             |                                      |
+|-----------------|--------------------------------------|
+| PZX             |                                      |
+|-----------------|--------------------------------------|
+| TSX             | For MSX                              |
+|-----------------|--------------------------------------|
+| CDT             |                                      |
+|-----------------|--------------------------------------|
+| TAP (C64)       | v1.0 and v1.1                        |
+|-----------------|--------------------------------------|
+| CSW             | v1.1 and 2.0                         |
+|-----------------|--------------------------------------|
+| WAV             | At 96KHz, 16/8 bits                  |
+|-----------------|--------------------------------------|
+| MP3             | At 320Kbps                           |
+|-----------------|--------------------------------------|
+| FLAC            | At 44KHz                             |
+|-----------------|--------------------------------------|
+| ZIP             | Compress file                        |
+|-----------------|--------------------------------------|
+
+
 **Supported machines by powadcr**
 
-|   Microcomputer  |  Play format  | Record format |
-| ---------------- | ------------- | ------------- |
-| Spectrum         | TAP, TZX, WAV | TAP, WAV      |
-| CPC Amstrad      | CDT(TZX), WAV | WAV           |
-| MSX              | TSX, WAV      | WAV           |
-| ORIC             | TZX (DR), WAV | WAV           |
-| Enterprise       | TZX (DR), WAV | WAV           |
-| Apple IIe        | TZX (DR), WAV | WAV           |
-| Mattel Aquarious | TZX (DR), WAV | WAV           |
-| Lynx             | TZX (DR), WAV | WAV           |
-| TRS-80 (COCO)    | TZX (DR), WAV | WAV           |
-| THOMPSON MO5     | TZX (DR), WAV | WAV           |
-| TI99             | TZX (DR), WAV | WAV           |
-| JUPITER          | TZX (DR), WAV | WAV           |
+|   Microcomputer  |  Play format       | Record format |
+| ---------------- | -------------------| ------------- |
+| Spectrum         | TAP, TZX, CSW, WAV | TAP, WAV      |
+| CPC Amstrad      | CDT(TZX), WAV      | WAV           |
+| MSX              | TSX, WAV           | WAV           |
+| ORIC             | TZX (DR), WAV      | WAV           |
+| Enterprise       | TZX (DR), WAV      | WAV           |
+| Apple IIe        | TZX (DR), WAV      | WAV           |
+| Mattel Aquarious | TZX (DR), WAV      | WAV           |
+| Lynx             | TZX (DR), WAV      | WAV           |
+| TRS-80 (COCO)    | TZX (DR), WAV      | WAV           |
+| THOMPSON MO5     | TZX (DR), WAV      | WAV           |
+| TI99             | TZX (DR), WAV      | WAV           |
+| JUPITER          | TZX (DR), WAV      | WAV           |
+| Commodore C64    | CSW, TAP, WAV      |               |
 
 
 
