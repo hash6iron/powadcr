@@ -6,15 +6,15 @@
       @hash6iron / https://powagames.itch.io/
     
     Descripción:
-    Conjunto de recursos para la gestión de ficheros .TAP de ZX Spectrum
+    Conjunto de recursos para la gestión de ficheros .TAP de ZX Spectrum y Commodore C64
 
-    Version: 0.2
+    Version: 0.3
 
     Historico de versiones
     ----------------------
     v.0.1 - Version inicial
     v.0.2 - Se han hecho modificaciones relativas al resto de clases para HMI y SDmanager. Se ha incluido la reproducción y analisis de bloques que estaba antes en el powadcr.ino
-    v.0.3 - New update to develp branch
+    v.0.3 - Agregado soporte para Commodore C64 .TAP con C64_MODE
 
     Derechos de autor y distribución
     --------------------------------
@@ -46,6 +46,9 @@
 #define SCRN 3                      //Bloque de datos Screen$
 #define CODE 4                      //Bloque de datps CM (BYTE)
 
+// C64 block types (placeholder - to be defined based on C64 loaders)
+#define C64_DATA_BLOCK 0xFF         //C64 Data block marker
+
 class TAPprocessor
 {
 
@@ -71,6 +74,16 @@ class TAPprocessor
         // Gestión de bloques
         int _startBlock = 0;
         int _lastStartBlock = 0;
+        
+        // C64 format detection flag
+        bool _isC64Format = false;
+
+        // Ruta del fichero TAP actualmente abierto (para poder reabrirlo en play())
+        char _tapFilePath[257] = {0};
+
+        // ============================================================================
+        // ZX SPECTRUM FORMAT DETECTION AND PROCESSING
+        // ============================================================================
 
         bool isHeaderTAP(File tapFileName)
         {
@@ -706,6 +719,123 @@ class TAPprocessor
             }      
         }
 
+        // ============================================================================
+        // COMMODORE C64 FORMAT DETECTION AND PROCESSING
+        // ============================================================================
+
+        bool detectC64Format()
+        {
+            // Detecta si es un formato C64 .TAP
+            // Estrategia: ZX Spectrum SIEMPRE comienza con [19, 0, 0]
+            // Si NO comienza así, probablemente sea C64
+            
+            if (C64_MODE)
+                return true;
+                
+            if (_mFile == 0 || _sizeTAP < 4)
+                return false;
+
+            // Leer primeros 12 bytes
+            uint8_t* header = (uint8_t*)ps_calloc(12, sizeof(uint8_t));
+            readFileRange(_mFile, header, 0, 12, false);
+
+            // ZX Spectrum: SIEMPRE comienza con signature [19, 0, 0]
+            // bool isZXHeader = (header[0] == 19 && header[1] == 0 && header[2] == 0);
+
+            bool isC64 = header[0] == 67 && header[1] == 54 && header[2] == 52 && header[3] == 45 && 
+                         header[4] == 84 && header[5] == 65 && header[6] == 80 && header[7] == 69 && 
+                         header[8] == 45 && header[9] == 82 && header[10] == 65 && header[11] == 87; // "C64-TAPE-RAW" en ASCII
+            
+            logln("C64 Format Detection: " + String(isC64 ? "C64 format detected" : "Not C64 format") + 
+                  " - Header bytes: [" + String(header[0]) + String(header[1]) + String(header[2]) + String(header[3])
+                                       + String(header[4]) + String(header[5]) + String(header[6]) + String(header[7])
+                                       + String(header[8]) + String(header[9]) + String(header[10]) + String(header[11]) + "]");
+
+            // Fallback: verificar size word como segundo criterio
+            if (!isC64)
+            {
+                // Leer byte adicional para size word
+                uint8_t byte4 = 0;
+                uint8_t* temp = (uint8_t*)ps_calloc(1, sizeof(uint8_t));
+                readFileRange(_mFile, temp, 3, 1, false);
+                byte4 = temp[0];
+                free(temp);
+                
+                uint16_t possibleSize = (byte4 << 8) | header[1];
+                
+                // Si el size es inválido, podría ser C64 incluso con [19, 0, 0]
+                if (possibleSize > _sizeTAP || (possibleSize < 50 && possibleSize > 0))
+                {
+                    isC64 = true;
+                }
+            }
+            
+            free(header);
+            return isC64;
+        }
+
+        bool getBlockDescriptorC64()
+        {
+            // Procesa bloques C64 .TAP
+            // Estructura del archivo C64 .TAP:
+            // [11-12 bytes] "64-TAPE-RAW" o "C64-TAPE-RAW"
+            // [1 byte]      Version (0 o 1)
+            // [N bytes]     Datos crudos de pulsos
+            
+            // if (!C64_MODE)
+            //     return false;
+                
+            bool blockDescriptorOk = true;
+            char nameTAP[11] = "";
+            int numBlocks = 0;
+            int startBlock = 0;
+            int currentPos = 0;
+            
+            // La reserva de memoria para el descriptor se hace en powadcr.cpp
+            // Inicializamos el descriptor para un bloque C64 por ahora
+            if (_myTAP.descriptor == nullptr)
+                return false;
+
+            // Header TAP de C64 es SIEMPRE 20 bytes (0x14):
+            // Bytes 0-11:  "C64-TAPE-RAW" (12 bytes)
+            // Byte  12:    Version (0x00 o 0x01)
+            // Bytes 13-15: Reservados (3 bytes, siempre 0x00)
+            // Bytes 16-19: Tamaño datos (4 bytes little-endian)
+            // Byte  20+:   Datos de pulsos
+            int headerSize = 20;  // 0x14 - siempre fijo según spec
+            
+            // Leer versión del TAP (byte 12)
+            uint8_t headerBuffer[20];
+            _mFile.seek(0);
+            if (_mFile.read(headerBuffer, 20) == 20) {
+              C64_TAP_VERSION = headerBuffer[12];  // Guardar versión para uso en playback
+              logln("C64 TAP Version: " + String(C64_TAP_VERSION) + 
+                    ", data size: " + String(headerBuffer[16] | (headerBuffer[17]<<8) | (headerBuffer[18]<<16) | (headerBuffer[19]<<24)));
+            }
+            
+            _myTAP.descriptor[0].offset = headerSize;  // Saltamos el header
+            _myTAP.descriptor[0].size = _sizeTAP - headerSize;  // Solo datos de pulsos
+            _myTAP.descriptor[0].chk = 0; // C64 puede no tener checksum simple
+            strcpy(_myTAP.descriptor[0].name, ""); // Usamos el nombre del archivo como nombre del bloque
+            _myTAP.descriptor[0].nameDetected = true;
+            _myTAP.descriptor[0].header = false;
+            _myTAP.descriptor[0].type = C64_DATA_BLOCK;
+            strncpy(_myTAP.descriptor[0].typeName, "C64.DATA", 15);
+            _myTAP.descriptor[0].playeable = true;
+            _myTAP.descriptor[0].playback_position = 0;  // Iniciar desde el principio
+
+            numBlocks = 1;
+            _myTAP.numBlocks = numBlocks;
+            
+            #ifdef DEBUGMODE
+                logln("C64 Descriptor: offset=" + String(_myTAP.descriptor[0].offset) + 
+                      ", size=" + String(_myTAP.descriptor[0].size) +
+                      ", total file size=" + String(_sizeTAP));
+            #endif
+            
+            return blockDescriptorOk;
+        }
+
 
     public:
     
@@ -864,15 +994,46 @@ class TAPprocessor
             strncpy(_myTAP.name,"",1);
             _myTAP.numBlocks = 0;
             _myTAP.size = 0; 
-            _myTAP.descriptor = nullptr;    
+            _myTAP.descriptor = nullptr;
+            // Cerramos el fichero al terminar para liberar el handle de SD
+            if (_mFile) {
+                _mFile.close();
+            }
         }
 
         bool proccess_tap(File tapFileName)
         {
-            // Procesamos el fichero .TAP
-            // Verificamos que sea un TAP correcto.
-            // if (isFileTAP(tapFileName))
+            // Procesamos el fichero .TAP - Detecta automáticamente formato ZX o C64
+            
+            // Detectar formato
+            // if (C64_MODE)
             // {
+            _isC64Format = detectC64Format();
+            
+            if (_isC64Format)
+            {
+                //C64_MODE = true;
+                C64_TAP_INSIDE = true;
+                hmi.writeString("tape.wavind.txt=\"C64\"");
+                hmi.writeString("tape.logo.pic=62");                
+                LAST_MESSAGE = "Processing C64 TAP format...";
+                if (!getBlockDescriptorC64())
+                {
+                    FILE_CORRUPTED = true;
+                    return false;
+                }
+                else
+                {
+                    FILE_CORRUPTED = false;
+                    return true;
+                }
+            }
+
+            // reseteamos
+            //C64_MODE = false;
+            // }
+            
+            // Procesar como ZX Spectrum (formato por defecto)
             // Analizamos el .TAP y obtenemos el descriptor de bloques
             if (!getBlockDescriptor(_mFile, _sizeTAP))
             {
@@ -886,13 +1047,6 @@ class TAPprocessor
             }
 
             return true;
-            // }
-            // else
-            // {
-            //     LAST_MESSAGE = "is not file TAP.";
-            //     delay(1500);
-            //     return false;
-            // }
         }
 
         void getInfoFileTAP(char* path) 
@@ -906,7 +1060,18 @@ class TAPprocessor
             
             LAST_MESSAGE = "Analyzing file";
             delay(500);
-            
+
+            // Cerramos el fichero anterior antes de abrir el nuevo.
+            // Esto garantiza que no quedan handles abiertos de ficheros previos
+            // y evita el bug donde el 3er fichero C64 TAP reproduce el contenido del 2o.
+            if (_mFile) {
+                _mFile.close();
+            }
+
+            // Guardamos la ruta del fichero para poder reabrirlo en play()
+            strncpy(_tapFilePath, path, 256);
+            _tapFilePath[256] = '\0';
+
             // Abrimos el fichero
             tapFile = SD_MMC.open(path,FILE_READ);
             
@@ -1102,6 +1267,14 @@ class TAPprocessor
                     // Inicializamos el buffer de reproducción. Memoria dinamica
                     uint8_t* bufferPlay;
 
+                    // Si el fichero no está abierto (fue cerrado en eject o terminate),
+                    // lo reabrimos desde la ruta guardada. Esto corrige el bug donde el 3er
+                    // fichero C64 TAP reproducía el contenido del 2o fichero.
+                    if (!_mFile && _tapFilePath[0] != '\0') {
+                        logln("TAP play(): reabriendo fichero: " + String(_tapFilePath));
+                        _mFile = SD_MMC.open(_tapFilePath, FILE_READ);
+                    }
+
                     // Entregamos información por consola
                     // PROGRAM_NAME = FILE_LOAD;
                     TOTAL_BLOCKS = _myTAP.numBlocks + 1;
@@ -1228,6 +1401,18 @@ class TAPprocessor
                             // Liberamos el buffer de reproducción
                             free(bufferPlay);
                         } 
+                        else if (_myTAP.descriptor[i].type == C64_DATA_BLOCK) 
+                        {
+                            // *** Bloque C64 - Reproducción directa de pulsos
+                            bufferPlay = (uint8_t*)(ps_calloc(_myTAP.descriptor[i].size, sizeof(uint8_t)));
+                            readFileRange(_mFile, bufferPlay, _myTAP.descriptor[i].offset, _myTAP.descriptor[i].size, false);
+
+                            // Llamamos a la función de reproducción C64 con soporte PAUSE/RESUME/FFWD/RWD
+                            _zxp.playC64Data(bufferPlay, _myTAP.descriptor[i].size, &_myTAP.descriptor[i].playback_position);
+
+                            // Liberamos el buffer de reproducción
+                            free(bufferPlay);
+                        }
                         else 
                         {
                             // *** Bloque de DATA / BASIC

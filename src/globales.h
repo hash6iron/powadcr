@@ -38,12 +38,44 @@
 #include <inttypes.h>
 #include <stdio.h>
 #include <string>
+#include <miniz.h>
 
 #define up 1
 #define down 0
 
 File global_dir;
-// File global_file;
+
+extern bool FTP_CONNECTED;
+
+// ======================================================================
+// C64 MODE - Runtime switchable via HMI menu
+// ======================================================================
+bool C64_MODE = false;  // Set to true for Commodore C64, false for ZX Spectrum (default)
+bool C64_TAP_INSIDE = false; // Flag to indicate if we're currently processing a C64 TAP file (used for conditional logic in various functions)
+double C64_CLK_CYCLES = 985248.0; // C64 CPU clock cycles per second (985248 Hz)
+uint8_t C64_TAP_VERSION = 0;  // TAP version: 0=original (overflow on 0x00), 1=updated (extended on 0x00)
+
+// Corrección de sesgo temporal para pulsos C64.
+// Se añade al acumulador de error ANTES del truncamiento integer, por lo que
+// afecta proporcionalmente a todos los pulsos sin bias de redondeo:
+//   0.0  = sin corrección (acumulador exacto si el hardware es 96000 Hz exactos)
+//  <0.0  = reduce muestras por período → sube el baudrate  (reloj hardware lento)
+//  >0.0  = aumenta muestras por período → baja el baudrate  (reloj hardware rápido)
+// Rango útil: ±1.0 (equivale a ±1 sample por período en media)
+double C64_TIMING_BIAS = 0.0;
+
+// ======================================================================
+// C64 TAP SUPPORT - Switch between ZX Spectrum and Commodore C64 formats
+// ======================================================================
+// C64 mode can be changed at runtime from HMI menu
+// extern bool C64_MODE;  (defined in globales.h)
+
+// C64-specific constants (always available for runtime use)
+const double C64_CPU_FREQ_MHZ = 0.985248;
+const double C64_TIMING_UNIT = (1.0 / (C64_CPU_FREQ_MHZ * 1000000.0 * 8.0));
+const int C64_PULSE_THRESHOLD = 1024;       // ~8.3ms - separates 0 bits from 1 bits
+const uint8_t C64_LEAD_IN_BYTE = 0x02;      // Standard C64 lead-in byte (loader dependent)
+const uint8_t C64_SYNC_BYTE = 0x09;         // Standard C64 sync byte (loader dependent)
 
 int stackFreeCore0 = 0;
 int stackFreeCore1 = 0;
@@ -95,7 +127,7 @@ enum ConfigType {
   CONFIG_TYPE_INT8,
   CONFIG_TYPE_UINT32,
   CONFIG_TYPE_DOUBLE,
-  CONFIG_TYPE_FLOAT
+  CONFIG_TYPE_FLOAT,
 };
 
 struct ConfigEntry {
@@ -124,7 +156,7 @@ struct tTimming {
   int *pulse_seq_array = nullptr;
   int bitcfg = 0;
   int bytecfg = 0;
-  int csw_sampling_rate;
+  uint32_t csw_sampling_rate;
   int csw_compression_type;
   int csw_num_pulses;        // ✅ AÑADIR: Número de pulsos en la secuencia RLE
   tRlePulse *csw_pulse_data; // ✅ AÑADIR: Puntero a la secuencia de pulsos RLE
@@ -177,6 +209,7 @@ struct tTAPBlockDescriptor {
   int type = 0;
   char typeName[15];
   bool playeable = true;
+  int playback_position = 0;  // Para C64: posición actual de reproducción (soporte PAUSE/RESUME/FFWD/RWD)
 };
 
 // Estructura de un descriptor de TZX
@@ -287,12 +320,43 @@ struct tTAP {
   bool availableForREM = true;
 };
 
+// ========================================
+// Estructura para ficheros CSW completos
+// ========================================
+struct tCSWBlockDescriptor {
+  char name[11];
+  int offset = 0;
+  int size = 0;
+  bool playeable = false;
+  char typeName[36];
+  uint8_t initial_level = 0;       // 0 para low, 1 para high
+  uint32_t sampling_rate = 0;      // Sample rate en Hz
+  int compression_type = 0;        // 1=RLE, 2=Z-RLE
+  int num_pulses = 0;              // Número de pulsos después de descompresión
+  tRlePulse *pulse_data = nullptr; // Puntero a la secuencia de pulsos
+  uint8_t *rle_data = nullptr;     // ✅ Buffer con datos RLE descomprimidos crudos
+  int rle_size = 0;                // ✅ Tamaño del buffer RLE
+  int rle_playback_position = 0;   // ✅ Posición actual de reproducción en el buffer (para PAUSE/RESUME)
+  tTimming timming;                // Para compatibilidad con reproducción
+  uint8_t edge = POLARIZATION;     // Edge of the beginning of the block
+};
+
+struct tCSW {
+  char name[11];                   // Nombre del fichero CSW
+  uint32_t size = 0;               // Tamaño del fichero
+  int numBlocks = 1;               // CSW tiene 1 bloque lógico
+  tCSWBlockDescriptor *descriptor; // Descriptor
+  bool availableForREM = false;
+};
+
 // Procesador de TAP
 tTAP myTAP;
 // Procesador de TZX/TSX/CDT
 tTZX myTZX;
 // Procesador de PZX
 tPZX myPZX;
+// Procesador de CSW
+tCSW myCSW;
 
 // tMediaDescriptor myMediaDescriptor[256]; // Descriptor de ficheros multimedia
 
@@ -321,7 +385,7 @@ struct tConfig {
 //
 bool myTAPmemoryReserved = false;
 bool myTZXmemoryReserved = false;
-// bool bitChStrMemoryReserved = false;
+bool myCSWmemoryReserved = false;
 // bool datablockMemoryReserved = false;
 // bool bufferRecMemoryReserved = false;
 
@@ -493,7 +557,7 @@ int RECORDING_ERROR = 0;
 
 // int RECORDING_ERROR = 0;
 bool REC_AUDIO_LOOP = true;
-bool WIFI_ENABLE = true;
+bool WIFI_ENABLE = false;
 bool WIFI_CONNECTED = false;
 bool DHCP_ENABLE = false;
 //
@@ -596,6 +660,7 @@ int BL_LOOP_END = 0;
 bool WAITING_FOR_USER_ACTION = false;
 int LAST_SILENCE_DURATION = 0;
 int LAST_RSAMPLES_CALC = 0;
+bool SILENCE_COMPENSATION_48K_EN = false;
 
 // Screen
 bool SCREEN_LOADING = 0;
@@ -645,6 +710,21 @@ int FILE_STATUS = 0;
 
 String FILE_PATH_SELECTED = "";
 bool FILE_DIR_OPEN_FAILED = false;
+
+// ✅ CSW FFWD/RWD Control Variables
+float CSW_FFWD_SPEED = CSW_REWIND_SPEED;  // 2% skip per FFWD press (configurable 0.01-0.10)
+float CSW_RWD_SPEED = CSW_REWIND_SPEED;   // 2% skip per RWD press (configurable 0.01-0.10)
+uint8_t CSW_SEEK_MODE = 0;    // 0=normal play, 1=ffwd, 2=rwd (for UI animation)
+
+// ✅ CSW Silence Control
+// Cuando true: los pulsos largos (0x00+4bytes en el RLE) se omiten.
+// Cuando false: se generan como semi-pulsos normales (silencios reales entre bloques).
+bool REMOVE_SILENCES_CSW = false;
+
+// ✅ C64 FFWD/RWD Control Variables (same as CSW)
+float C64_FFWD_SPEED = CSW_REWIND_SPEED;  // 2% skip per FFWD press (configurable 0.01-0.10)
+float C64_RWD_SPEED = CSW_REWIND_SPEED;   // 2% skip per RWD press (configurable 0.01-0.10)
+
 bool FILE_BROWSER_OPEN = false;
 bool UPDATE = false;
 bool START_FFWD_ANIMATION = false;
@@ -657,7 +737,7 @@ bool IN_THE_SAME_DIR = false;
 
 String FILE_TXT_TO_SEARCH = "";
 // bool waitingRecMessageShown = false;
-int CURRENT_PAGE = 0;
+int CURRENT_PAGE = PAGE_TAPE0;
 bool TAPE0_PAGE_SHOWN = false;
 bool TAPE_PAGE_SHOWN = false;
 bool RADIO_PAGE_SHOWN = false;
@@ -712,10 +792,13 @@ const int RESET = 6;
 bool SAMPLINGTEST = false;
 //
 
-uint8_t MASTER_VOL = 90;
+//uint8_t MASTER_VOL = 90;
+bool BOOSTER_VOLUME = false;
+float BOOSTER_FACTOR = 1.5;
+float BALANCE_VOL = 0;
 float MAIN_VOL = 90;
 float MAIN_VOL_R = 90;
-float MAIN_VOL_L = 90;
+float MAIN_VOL_L = 5;
 float EQ_HIGH = 0.9;
 float EQ_MID = 0.5;
 float EQ_LOW = 0.7;
@@ -735,7 +818,7 @@ bool CHANGE_TRACK_FILTER = false;
 float MAX_MAIN_VOL = 100;
 float MAX_MAIN_VOL_R = 100;
 float MAX_MAIN_VOL_L = 100;
-int EN_STEREO = 0;
+bool EN_STEREO = false;
 bool ACTIVE_AMP = false;
 bool EN_SPEAKER = false;
 bool wasHeadphoneDetected = false;
@@ -815,11 +898,51 @@ bool RADIO_IS_PLAYING = false;
 bool MUSIC_IS_PLAYING = false;
 bool FLAC_IS_PLAYING = false;
 bool NTP_AVAILABLE = false;
-
+bool DATA_IS_PLAYING = false;
 // bool PZX_EJECT_RQT = false;
 
 // Auto-update
 String HMI_MODEL = "";
+
+bool SPOTIFY_CONTROL = false;
+bool SPOTIFY_EN = false;
+String SPOTIFY_CLIENT_ID = "";
+String SPOTIFY_CLIENT_SECRET = "";
+
+//
+bool QUICK_BOOT = false;
+bool DOWNLOADING_ZXDB = false;
+bool DOWNLOADING_CPCDB = false;
+bool DOWNLOADING_MSXDB = false;
+bool BEEP = false;
+
+// const uint8_t MCP_KEY_PLAY       = 4;   // Pin +1 del MCP23017 para Key2
+// const uint8_t MCP_KEY_RWD        = 3;   // Pin +1 del MCP23017 para Key4
+// const uint8_t MCP_KEY_FFWD       = 2;   // Pin +1 del MCP23017 para Key5
+// const uint8_t MCP_KEY_PAUSE      = 1;   // Pin +1 del MCP23017 para Key6
+// const uint8_t MCP_KEY_STOP       = 0;   // Pin +1 del MCP23017 para Key3
+// const uint8_t MCP_KEY_REC        = 5;   // Pin +1 del MCP23017 para Key1
+// const uint8_t MCP_KEY_EJECT      = 6;   // Pin +1 del MCP23017 para Key1
+
+// const uint8_t MCP_LED_IO_PIN     = 7;   // Pin del MCP23017 para Power LED
+
+// Puerto A
+uint8_t MCP_KEY_REC        = 6;   // Pin 6 del PA del MCP23017 para Key1
+uint8_t MCP_KEY_PLAY       = 5;   // Pin 5 del PA del MCP23017 para Key2
+uint8_t MCP_KEY_RWD        = 4;   // Pin 4 del PA del MCP23017 para Key4
+uint8_t MCP_KEY_FFWD       = 3;   // Pin 3 del PA del MCP23017 para Key5
+uint8_t MCP_KEY_PAUSE      = 2;   // Pin 2 del PA del MCP23017 para Key6
+uint8_t MCP_KEY_STOP       = 1;   // Pin 1 del PA del MCP23017 para Key3
+uint8_t MCP_KEY_EJECT      = 0;   // Pin 0 del MCP23017 para Key1
+
+// Puerto B
+uint8_t MCP_KEY_VOLUP      = 0;   // Pin 0 del PB del VOLUP
+uint8_t MCP_KEY_VOLDOWN    = 1;   // Pin 1 del PB del VOLDOWN
+
+// Puerto A
+uint8_t MCP_LED_IO_PIN     = 7;   // Pin 7 del PA del MCP23017 para Power LED
+//
+uint8_t SKIN_SELECTED = 1;
 
 // Declaraciones de metodos
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -834,7 +957,7 @@ ConfigEntry configEntries[] = {
     {"STEopt", CONFIG_TYPE_BOOL, &EN_STEREO},
     {"MAMopt", CONFIG_TYPE_BOOL, &ACTIVE_AMP},
     {"VLIopt", CONFIG_TYPE_BOOL, &VOL_LIMIT_HEADPHONE},
-    {"VOLMopt", CONFIG_TYPE_FLOAT, &MASTER_VOL},
+    {"VOLMopt", CONFIG_TYPE_FLOAT, &MAIN_VOL},
     {"VOLLopt", CONFIG_TYPE_FLOAT, &MAIN_VOL_L},
     {"VOLRopt", CONFIG_TYPE_FLOAT, &MAIN_VOL_R},
     {"EQHopt", CONFIG_TYPE_FLOAT, &EQ_HIGH},
@@ -848,6 +971,8 @@ ConfigEntry configEntries[] = {
     {"RBUFopt", CONFIG_TYPE_BOOL, &RADIO_BUFFERED},
     {"DHCPFopt", CONFIG_TYPE_BOOL, &DHCP_ENABLE},
     {"MCPAVAIL", CONFIG_TYPE_BOOL, &MCP23017_AVAILABLE},
+    {"WIFIopt", CONFIG_TYPE_BOOL, &WIFI_ENABLE},
+    {"SKINopt", CONFIG_TYPE_UINT8, &SKIN_SELECTED},
 };
 
 //           s.end());
@@ -1108,6 +1233,11 @@ void logln(String txt) {
   Serial.println("");
 }
 
+void loglnf(const char *format, String txt)
+{
+  Serial.printf(format,txt);
+}
+
 String lastAlertTxt = "";
 
 void logAlert(String txt) {
@@ -1184,7 +1314,9 @@ void readFileRange(File &file, uint8_t *buffer, int offset, int size,
   // ✅ ACTUALIZAR BARRA DE PROGRESO SI APLICA
   if (usePrgBar) {
     BYTES_LOADED = offset + bytesRead;
-    PROGRESS_BAR_TOTAL_VALUE = (BYTES_LOADED * 100) / BYTES_TOBE_LOAD;
+    if (BYTES_TOBE_LOAD > 0) {
+      PROGRESS_BAR_TOTAL_VALUE = (BYTES_LOADED * 100) / BYTES_TOBE_LOAD;
+    }
   }
 }
 
@@ -1193,10 +1325,14 @@ bool isDirectoryPath(const char *path) {
 
   int lastSlash = spath.lastIndexOf('/');
   int lastDot = spath.lastIndexOf('.');
+  String spathWithoutDots = spath;
+  spathWithoutDots.replace(".", "");
+  int countDots = spath.length() - spathWithoutDots.length();
 
   // ¿Hay un punto después del último slash y al menos un carácter después del
   // punto?
-  if (lastDot > lastSlash && lastDot < spath.length() - 1) {
+  if (countDots == 1 && lastDot > lastSlash && lastDot < spath.length() - 1) 
+  {
     // Asumimos que es un fichero
     return false;
   }
@@ -1312,17 +1448,10 @@ uint8_t MCP23017_readGPIO(uint8_t regGPIO, uint8_t i2c_addr = 0x20) {
 void remDetection() {
   bool isAvailableForREM = false;
 
-  if (TYPE_FILE_LOAD == "TAP") 
+  if (TYPE_FILE_LOAD == "TZX" || TYPE_FILE_LOAD == "TSX" || TYPE_FILE_LOAD == "CDT" || TYPE_FILE_LOAD == "TAP" || TYPE_FILE_LOAD == "CSW" ||
+      TYPE_FILE_LOAD == "PZX" || TYPE_FILE_LOAD == "WAV" || TYPE_FILE_LOAD == "FLAC" || TYPE_FILE_LOAD == "MP3") 
   {
-    isAvailableForREM = myTAP.availableForREM;
-  } 
-  else if (TYPE_FILE_LOAD == "TZX" || TYPE_FILE_LOAD == "TSX" || TYPE_FILE_LOAD == "CDT") 
-  {
-    isAvailableForREM = myTZX.availableForREM;
-  }
-  else if (TYPE_FILE_LOAD == "PZX") 
-  {
-    isAvailableForREM = myPZX.availableForREM;
+    isAvailableForREM = true;
   }
   else 
   {
@@ -1385,4 +1514,1368 @@ inline String getFormattedDateTime(String amPm, uint8_t day, uint8_t month, uint
         snprintf(buf, sizeof(buf), "%02u/%02u/%04u - %02u:%02u:%02u", day, month, year, hour, minute, second);
     }
     return String(buf);
+}
+
+
+// Helper: descarga un fichero binario desde URL a ruta local en SD (HTTPS, chunked)
+bool _downloadBinaryToSD(const String& url, const String& localPath)
+{
+  WiFiClientSecure secureClient;
+  secureClient.setInsecure();
+
+  HTTPClient http;
+  http.begin(secureClient, url);
+  http.setTimeout(60000);   // 60s max (evita overflow de uint16_t en algunas versiones)
+  http.setConnectTimeout(30000);
+  http.addHeader("User-Agent", "PowaDCR/" + String(VERSION));
+  http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
+
+  int httpCode = http.GET();
+  if (httpCode != HTTP_CODE_OK)
+  {
+    logln("HTTP error " + String(httpCode) + " downloading: " + url);
+    http.end();
+    return false;
+  }
+
+  File file = SD_MMC.open(localPath.c_str(), FILE_WRITE);
+  if (!file)
+  {
+    logln("No se pudo crear fichero: " + localPath);
+    http.end();
+    return false;
+  }
+
+  const size_t bufSize = 4096;
+  uint8_t* buf = (uint8_t*)malloc(bufSize);
+  if (!buf)
+  {
+    logln("No se pudo reservar buffer para descarga");
+    file.close();
+    http.end();
+    return false;
+  }
+
+  WiFiClient* stream = http.getStreamPtr();
+  int contentLength = http.getSize();
+  size_t total = 0;
+
+  while (http.connected() && (contentLength <= 0 || total < (size_t)contentLength))
+  {
+    size_t avail = stream->available();
+    if (avail == 0) { delay(10); continue; }
+    size_t toRead = min(avail, bufSize);
+    size_t bytesRead = stream->readBytes(buf, toRead);
+    if (bytesRead == 0) { delay(10); continue; }
+    file.write(buf, bytesRead);
+    total += bytesRead;
+  }
+
+  file.flush();
+  file.close();
+  free(buf);
+  http.end();
+
+  logln("Descargados " + String(total) + " bytes -> " + localPath);
+  return (total > 0);
+}
+
+// Extrae ficheros de juego de un ZIP (leído de SD) a destDir usando miniz
+// Retorna el número de ficheros extraídos
+int _unzipGameFilesToDir(const String& zipPath, const String& destDir)
+{
+  File zf = SD_MMC.open(zipPath.c_str(), FILE_READ);
+  if (!zf) { logln("_unzipGameFilesToDir: no se pudo abrir " + zipPath); return 0; }
+
+  size_t zipSize = zf.size();
+  uint8_t* zipBuf = (uint8_t*)ps_malloc(zipSize);
+  if (!zipBuf)
+  {
+    logln("_unzipGameFilesToDir: sin PSRAM para " + String(zipSize) + " bytes");
+    zf.close();
+    return 0;
+  }
+  zf.read(zipBuf, zipSize);
+  zf.close();
+
+  mz_zip_archive zip;
+  memset(&zip, 0, sizeof(zip));
+  if (!mz_zip_reader_init_mem(&zip, zipBuf, zipSize, 0))
+  {
+    logln("_unzipGameFilesToDir: ZIP inválido: " + zipPath);
+    free(zipBuf);
+    return 0;
+  }
+
+  int numEntries = (int)mz_zip_reader_get_num_files(&zip);
+  int extracted = 0;
+
+  for (int i = 0; i < numEntries; i++)
+  {
+    mz_zip_archive_file_stat fs;
+    if (!mz_zip_reader_file_stat(&zip, i, &fs)) continue;
+    if (mz_zip_reader_is_file_a_directory(&zip, i)) continue;
+
+    String entryName = String(fs.m_filename);
+    int slash = entryName.lastIndexOf('/');
+    if (slash != -1) entryName = entryName.substring(slash + 1);
+
+    String entryUpper = entryName;
+    entryUpper.toUpperCase();
+    bool isGameFile = entryUpper.endsWith(".TAP") || entryUpper.endsWith(".TZX") ||
+                      entryUpper.endsWith(".TSX") || entryUpper.endsWith(".PZX") ||
+                      entryUpper.endsWith(".CDT") || entryUpper.endsWith(".CSW");
+    if (!isGameFile) continue;
+
+    size_t uncompSize = (size_t)fs.m_uncomp_size;
+    uint8_t* outBuf = (uint8_t*)ps_malloc(uncompSize);
+    if (!outBuf) { logln("Sin PSRAM para extraer: " + entryName); continue; }
+
+    if (mz_zip_reader_extract_to_mem(&zip, i, outBuf, uncompSize, 0))
+    {
+      String outPath = destDir + "/" + entryName;
+      File outFile = SD_MMC.open(outPath.c_str(), FILE_WRITE);
+      if (outFile)
+      {
+        outFile.write(outBuf, uncompSize);
+        outFile.flush();
+        outFile.close();
+        logln("Extraído: " + outPath + " (" + String(uncompSize) + " bytes)");
+        extracted++;
+      }
+      else { logln("Error creando: " + outPath); }
+    }
+    else { logln("Error extrayendo: " + entryName); }
+
+    free(outBuf);
+  }
+
+  mz_zip_reader_end(&zip);
+  free(zipBuf);
+  return extracted;
+}
+
+// Extrae todos los ficheros de un ZIP a un directorio.
+// Crea el directorio automáticamente en la misma ruta que el ZIP
+// zipPath: ruta del archivo ZIP
+// Retorna el número de ficheros extraídos
+int _unzipAllFilesToDir(const String& zipPath)
+{
+  // Obtener la ruta sin el nombre del archivo
+  int lastSlash = zipPath.lastIndexOf('/');
+  String dirPath = (lastSlash != -1) ? zipPath.substring(0, lastSlash) : "/";
+  
+  // Obtener el nombre del archivo sin extensión
+  String zipName = (lastSlash != -1) ? zipPath.substring(lastSlash + 1) : zipPath;
+  int dotPos = zipName.lastIndexOf('.');
+  if (dotPos != -1) zipName = zipName.substring(0, dotPos);
+  
+  // Crear el directorio de destino
+  String destDir = dirPath + "/" + zipName;
+  if (!SD_MMC.exists(destDir.c_str()))
+  {
+    if (!SD_MMC.mkdir(destDir.c_str()))
+    {
+      logln("_unzipAllFilesToDir: Error al crear directorio: " + destDir);
+      return 0;
+    }
+    logln("_unzipAllFilesToDir: Directorio creado: " + destDir);
+  }
+  
+  // Abrir y leer el ZIP
+  File zf = SD_MMC.open(zipPath.c_str(), FILE_READ);
+  if (!zf) { logln("_unzipAllFilesToDir: no se pudo abrir " + zipPath); return 0; }
+
+  size_t zipSize = zf.size();
+  uint8_t* zipBuf = (uint8_t*)ps_malloc(zipSize);
+  if (!zipBuf)
+  {
+    logln("_unzipAllFilesToDir: sin PSRAM para " + String(zipSize) + " bytes");
+    zf.close();
+    return 0;
+  }
+  zf.read(zipBuf, zipSize);
+  zf.close();
+
+  mz_zip_archive zip;
+  memset(&zip, 0, sizeof(zip));
+  if (!mz_zip_reader_init_mem(&zip, zipBuf, zipSize, 0))
+  {
+    logln("_unzipAllFilesToDir: ZIP inválido: " + zipPath);
+    free(zipBuf);
+    return 0;
+  }
+
+  int numEntries = (int)mz_zip_reader_get_num_files(&zip);
+  int extracted = 0;
+  unsigned long lastUpdateTime = millis();
+
+  logln("_unzipAllFilesToDir: Iniciando extracción de " + String(numEntries) + " archivo(s)");
+  LAST_MESSAGE = "Extracting ZIP: 0/" + String(numEntries);
+
+  // Extraer todos los archivos
+  for (int i = 0; i < numEntries; i++)
+  {
+    mz_zip_archive_file_stat fs;
+    if (!mz_zip_reader_file_stat(&zip, i, &fs)) continue;
+    if (mz_zip_reader_is_file_a_directory(&zip, i)) continue;
+
+    // Obtener solo el nombre del archivo (sin rutas)
+    String entryName = String(fs.m_filename);
+    int slash = entryName.lastIndexOf('/');
+    if (slash != -1) entryName = entryName.substring(slash + 1);
+    
+    // Ignorar archivos vacíos o con nombre vacío
+    if (entryName.length() == 0) continue;
+
+    size_t uncompSize = (size_t)fs.m_uncomp_size;
+    uint8_t* outBuf = (uint8_t*)ps_malloc(uncompSize);
+    if (!outBuf) { 
+      logln("Sin PSRAM para extraer: " + entryName); 
+      LAST_MESSAGE = "Memory error extracting: " + entryName.substring(0, 20);
+      continue; 
+    }
+
+    // Mostrar que está extrayendo este archivo
+    LAST_MESSAGE = "Extracting: " + entryName.substring(0, 25);
+    if ((millis() - lastUpdateTime) > 500) {  // Actualizar cada 500ms
+      lastUpdateTime = millis();
+    }
+
+    if (mz_zip_reader_extract_to_mem(&zip, i, outBuf, uncompSize, 0))
+    {
+      String outPath = destDir + "/" + entryName;
+      File outFile = SD_MMC.open(outPath.c_str(), FILE_WRITE);
+      if (outFile)
+      {
+        outFile.write(outBuf, uncompSize);
+        outFile.flush();
+        outFile.close();
+        logln("Extraído: " + outPath + " (" + String(uncompSize) + " bytes)");
+        extracted++;
+        
+        // Actualizar progreso
+        LAST_MESSAGE = "Extracted: " + String(extracted) + "/" + String(numEntries) + " (" + entryName.substring(0, 20) + ")";
+      }
+      else { 
+        logln("Error creando: " + outPath); 
+        LAST_MESSAGE = "Error creating file: " + entryName.substring(0, 20);
+      }
+    }
+    else { 
+      logln("Error extrayendo: " + entryName); 
+      LAST_MESSAGE = "Error extracting: " + entryName.substring(0, 20);
+    }
+
+    free(outBuf);
+  }
+
+  mz_zip_reader_end(&zip);
+  free(zipBuf);
+  
+  if (extracted > 0) {
+    logln("_unzipAllFilesToDir: " + String(extracted) + " archivos extraídos a: " + destDir);
+    LAST_MESSAGE = "ZIP extracted: " + String(extracted) + " file(s)";
+  } else {
+    LAST_MESSAGE = "ZIP extraction: No files extracted";
+  }
+  
+  return extracted;
+}
+
+// Descarga los ficheros de juego de ZXDB por ID y los guarda en /DOWNLOAD/<title>/
+// game_id : ID de 7 dígitos almacenado en _files.lst
+// title   : nombre del juego (se usa para crear el subdirectorio)
+void downloadFromZXDB(String gameId, String title)
+{
+
+  DOWNLOADING_ZXDB = true;
+  
+  TYPE_FILE_LOAD = "ZXDB";
+
+  LAST_MESSAGE = "Downloading: " + title;
+  myNex.writeStr("tape.g0.txt", LAST_MESSAGE);
+
+  if (!WIFI_CONNECTED || !WIFI_ENABLE)
+  {
+    logln("WiFi no disponible para descarga ZXDB");
+    myNex.writeStr("tape.g0.txt", "No WiFi");
+    return;
+  }
+
+  // Sanitizar el título para nombre de directorio FAT32
+  String safeTitle = title;
+  safeTitle.replace("/",  "-");
+  safeTitle.replace("\\", "-");
+  safeTitle.replace(":",  "-");
+  safeTitle.replace("*",  "-");
+  safeTitle.replace("?",  "-");
+  safeTitle.replace("\"", "-");
+  safeTitle.replace("<",  "-");
+  safeTitle.replace(">",  "-");
+  safeTitle.replace("|",  "-");
+
+  String destDir = "/DOWNLOAD/ZX/" + safeTitle;
+
+  if (!SD_MMC.exists(destDir))
+  {
+    if (!SD_MMC.mkdir(destDir))
+    {
+      logln("Error al crear directorio: " + destDir);
+      myNex.writeStr("tape.g0.txt", "Error creating dir");
+      return;
+    }
+  }
+
+  // Obtener metadata del juego de la API ZXDB
+  String metaUrl = "https://api.zxinfo.dk/v3/games/" + gameId + "?mode=compact&output=flat";
+  logln("Obteniendo metadata ZXDB: " + metaUrl);
+  myNex.writeStr("tape.g0.txt", "Fetching metadata...");
+
+  // Payload declarado fuera del bloque para usarlo luego al parsear
+  String payload;
+
+  // Verificación de conectividad: si RadioPlayer desconectó WiFi para limpiar
+  // el heap, necesitamos reconectar aquí. Esperamos hasta 15 s.
+  if (WIFI_ENABLE && WIFI_CONNECTED) 
+  {
+    logln("WiFi conectado para ZXDB");
+  }
+  else 
+  {
+    logln("WiFi no disponible para descarga ZXDB");
+    myNex.writeStr("tape.g0.txt", "No WiFi");
+
+    return;
+  }
+
+  // Diagnóstico: el que importa es el bloque contiguo en SRAM interna
+  // (MALLOC_CAP_INTERNAL). mbedTLS usa SRAM interna exclusivamente.
+  size_t sramLibre = heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+  size_t maxBloque = heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+  logln("[ZXDB] WiFi conectado. Heap SRAM interna libre  : " + String(sramLibre));
+  logln("[ZXDB] Max bloque SRAM interna                  : " + String(maxBloque));
+  logln("[ZXDB] Heap total (incl PSRAM)                  : " + String(ESP.getFreeHeap()));
+  
+  if (maxBloque < 45000) {
+    logln("[ZXDB] ⚠ ADVERTENCIA: Max bloque < 45KB. SSL probable fail con ECP_ALLOC");
+  }
+
+  // Bloque de scope con retry: el WiFiClientSecure se destruye en cada iteración,
+  // liberando el contexto SSL antes de reintentar o de iniciar la descarga.
+  bool metaOK = false;
+  for (int attempt = 0; attempt < 3 && !metaOK; attempt++)
+  {
+    if (attempt > 0)
+    {
+      logln("Reintento metadata " + String(attempt) + " (fragmentacion de heap)...");
+      myNex.writeStr("tape.g0.txt", "Retry " + String(attempt) + "...");
+      vTaskDelay(pdMS_TO_TICKS(1500));
+    }
+
+    WiFiClientSecure secureClient;
+    secureClient.setInsecure();
+
+    HTTPClient http;
+    http.begin(secureClient, metaUrl);
+    http.setTimeout(30000);
+    http.addHeader("User-Agent", "PowaDCR/" + String(VERSION));
+
+    int httpCode = http.GET();
+    if (httpCode == 200)
+    {
+      payload = http.getString();
+      http.end();
+      metaOK = true;
+    }
+    else
+    {
+      logln("Error HTTP metadata [intento " + String(attempt + 1) + "]: " + String(httpCode));
+      myNex.writeStr("tape.g0.txt", "Error " + String(httpCode) + " (" + String(attempt + 1) + "/3)");
+      http.end();
+    }
+    // secureClient destruido aquí al salir del scope del for, liberando SSL context
+  }
+
+  if (!metaOK)
+  {
+    logln("Fallo al obtener metadata tras 3 intentos.");
+    myNex.writeStr("tape.g0.txt", "Metadata error after retries");
+    //
+    LAST_MESSAGE = "Memory allocation error. Reboot ESP32";
+    myNex.writeStr("tape.g0.txt", LAST_MESSAGE);
+    return;
+  }
+  logln("Metadata recibida: " + String(payload.length()) + " bytes");
+
+  // Parsear releases.X.files.Y.path= buscando ficheros .zip
+  // Los ficheros en ZXDB son siempre .zip (ej: 1LineCaveAdventure.tzx.zip)
+  int filesDownloaded = 0;
+  int releaseIdx = 0;
+  const String tmpZip = "/tmp_zxdb.zip";
+
+  while (true)
+  {
+    String releasePrefix = "releases." + String(releaseIdx) + ".files.";
+    if (payload.indexOf(releasePrefix) == -1) break;
+
+    int fileIdx = 0;
+    while (true)
+    {
+      String pathKey = "releases." + String(releaseIdx) + ".files." + String(fileIdx) + ".path=";
+      int pathPos = payload.indexOf(pathKey);
+      if (pathPos == -1) break;
+
+      int pathStart = pathPos + pathKey.length();
+      int pathEnd   = payload.indexOf('\n', pathStart);
+      String filePath = payload.substring(pathStart, pathEnd);
+      filePath.trim();
+
+      // Solo ficheros .zip que contengan juego (tzx.zip, tap.zip, etc.)
+      String filePathUpper = filePath;
+      filePathUpper.toUpperCase();
+      if (filePathUpper.endsWith(".ZIP") && filePath.length() > 0)
+      {
+        int lastSlash = filePath.lastIndexOf('/');
+        String zipName = (lastSlash != -1) ? filePath.substring(lastSlash + 1) : filePath;
+        String downloadUrl = "https://spectrumcomputing.co.uk" + filePath;
+
+        logln("Descargando ZIP: " + downloadUrl);
+        myNex.writeStr("tape.g0.txt", "Downloading: " + zipName);
+
+        if (_downloadBinaryToSD(downloadUrl, tmpZip))
+        {
+          myNex.writeStr("tape.g0.txt", "Extracting: " + zipName);
+          int n = _unzipGameFilesToDir(tmpZip, destDir);
+          filesDownloaded += n;
+          SD_MMC.remove(tmpZip);  // borrar ZIP temporal
+          
+          LAST_MESSAGE = "Downloading done. See /DOWNLOAD";
+          myNex.writeStr("tape.g0.txt", LAST_MESSAGE);
+
+
+        }
+        else 
+        { 
+          logln("Error descargando: " + zipName); 
+          LAST_MESSAGE = "Downloading error";
+          myNex.writeStr("tape.g0.txt", LAST_MESSAGE);
+        }
+      }
+
+      fileIdx++;
+    }
+    releaseIdx++;
+  }
+
+  if (filesDownloaded == 0)
+  {
+    logln("No se encontraron ficheros de juego para ID: " + gameId);
+    myNex.writeStr("tao.message.txt", "No game files found");
+  }
+  else
+  {
+    logln("Descargados " + String(filesDownloaded) + " fichero(s) en " + destDir);
+    myNex.writeStr("tape.g0.txt", "Done: " + String(filesDownloaded) + " file(s)");
+  }
+
+  DOWNLOADING_ZXDB = false;
+}
+
+int get_total_files_ZXDB(const char* baseurl)
+{
+  HTTPClient http;
+  int totalFiles = 0;
+  
+  // Capturamos la información de ZXDB
+  String url = String(baseurl) + "&size=5&offset=0";
+  http.begin(url.c_str());
+  int httpCode = http.GET();
+  
+  if (httpCode == 200) 
+  {
+    String payload = http.getString();
+    int count = 0;
+    int hitNum = 0;
+
+    String totalKey = "total.value=";
+    int totalPos = payload.indexOf(totalKey);
+    String total = payload.substring(totalPos + totalKey.length(), payload.indexOf('\n', totalPos));
+    total.trim();
+    totalFiles = total.toInt();
+    
+  }
+  else 
+  {
+    Serial.print("Error HTTP: ");
+    Serial.println(httpCode);
+  }
+  http.end();
+  return totalFiles;  
+}
+
+// Descarga y actualiza el catalogo de ZXDB en la SD
+void updateZXDB(String letter = "0")
+{
+    String searchChain = "#ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    String urlToSearch = "";
+    String dir = "";
+    int totalItemsFound = 0;
+    
+    if (WIFI_CONNECTED && WIFI_ENABLE)
+    {
+        // Reseteamos la barra de progreso
+        myNex.writeNum("zxdb.j0.val", 0);
+
+        //logln("Capturing ZXDB catalogue from letter: " + letter);
+        //
+        // Recorremos una cadena de busqueda para obtener todo el catálogo de ZXDB usando la API v3
+        //
+        if (letter != "0")
+        {
+          searchChain = letter;
+          logln("Capturing ZXDB catalogue for letter: " + letter);
+        }
+        else
+        {
+          logln("Capturing entire ZXDB catalogue");
+        }
+
+        // Calculamos el total de items encontrados para mostrar una banda de progreso
+        // recorremos el catalogo propuesto o una letra concreta
+        for (int i = 0; i < searchChain.length(); i++)
+        {
+          char letter = searchChain.charAt(i);
+
+          // Componemos la URL de busqueda
+          if (letter == '#') 
+            // Buscamos juegos que empiezan por un número.
+            urlToSearch = "https://api.zxinfo.dk/v3/games/byletter/%23?contenttype=SOFTWARE&machinetype=ZXSPECTRUM&output=flat";
+          else
+            // Buscamos juegos que empiezan por letras
+            urlToSearch = "https://api.zxinfo.dk/v3/games/byletter/" + String(letter) + "?contenttype=SOFTWARE&machinetype=ZXSPECTRUM&output=flat";  
+
+            totalItemsFound += get_total_files_ZXDB(urlToSearch.c_str());
+            myNex.writeStr("zxdb.message.txt", "Calculating total items: " + String(totalItemsFound));
+        }
+
+        logln("Total " + String(totalItemsFound) + " files in ZXDB");
+
+        // Bucle principal
+        for (int i = 0; i < searchChain.length(); i++)
+        {
+
+          logln("Capturing files list for letter: " + String(letter));
+          myNex.writeStr("zxdb.message.txt", "Capturing for letter: <" + String(letter) + ">");
+
+          char letter = searchChain.charAt(i);
+          logln("Generating files list for letter: " + String(letter));
+          
+          // Buscamos. Actualizamos el subpath y ruta
+          const char* subpath = &letter;
+          dir = String(letter);
+
+          // Vemos si existe el subpath. Si no existe, lo creamos.
+          if (!SD_MMC.exists("/ONLINE/ZX/" + dir)) 
+          {
+            logln("Creating directory /ONLINE/ZX/" + dir);
+            if(!SD_MMC.mkdir("/ONLINE/ZX/" + dir))
+            {
+              logln("Error al crear /ONLINE/ZX/" + dir);
+              continue;
+            }
+          }
+
+          // Truncamos/creamos _files.lst (vacía) antes del bucle HTTP
+          {
+            File f = SD_MMC.open("/ONLINE/ZX/" + dir + "/_files.lst", FILE_WRITE);
+            if (!f)
+            {
+              logln("No se pudo crear _files.lst: /ONLINE/ZX/" + dir + "/_files.lst");
+              myNex.writeStr("zxdb.message.txt", "Error on _files.lst");
+              continue;
+            }
+            f.close();
+          }
+
+          // Truncamos/creamos _files.inf (vacía) antes del bucle HTTP, igual que _files.lst
+          {
+            File f = SD_MMC.open("/ONLINE/ZX/" + dir + "/_files.inf", FILE_WRITE);
+            if (!f)
+            {
+              logln("No se pudo crear _files.inf: /ONLINE/ZX/" + dir + "/_files.inf");
+              myNex.writeStr("zxdb.message.txt", "Error on _files.inf");
+              continue;
+            }
+            f.close();
+          }
+
+          // Inicializamos parametros
+          int nrows = 100;
+          int npages = 0;
+          int count = 0;
+          int lineNum = 0;  // Contador global de líneas a través de todas las páginas
+
+          // Componemos la URL de busqueda
+          if (letter == '#') 
+            // Buscamos juegos que empiezan por un número.
+            urlToSearch = "https://api.zxinfo.dk/v3/games/byletter/%23?contenttype=SOFTWARE&machinetype=ZXSPECTRUM&output=flat";
+          else
+            // Buscamos juegos que empiezan por letras
+            urlToSearch = "https://api.zxinfo.dk/v3/games/byletter/" + String(letter) + "?contenttype=SOFTWARE&machinetype=ZXSPECTRUM&output=flat";
+
+          // Cogemos el total de items
+          int total = get_total_files_ZXDB(urlToSearch.c_str());
+          logln("Total " + String(total) + " files in ZXDB");
+
+          //
+          // Ahora bucle para coger todos los items de cada letra
+          //
+          npages = total / nrows;
+          if (total % nrows > 0) npages++;
+          logln("Total pages to capture: " + String(npages));
+
+          while (count < npages)
+          {
+            logln("Page: " + String(count+1) + " of " + String(npages));
+
+            String linesBuffer = "";  // Buffer para acumular líneas antes de escribir en SD
+
+            HTTPClient http;
+            String url = String(urlToSearch.c_str()) + "&size=" + String(nrows) + "&offset=" + String(count);
+            http.begin(url.c_str());
+            int httpCode = http.GET();
+              
+            if (httpCode == 200) 
+            {
+              String payload = http.getString();
+              Serial.print("Payload length: ");
+              Serial.println(payload.length());
+
+              int pageHit = 0;  // Siempre empieza en 0 para cada página
+
+              while (true) 
+              {
+                String idKey = "hits." + String(pageHit) + "._id=";
+                String titleKey = "hits." + String(pageHit) + ".title=";
+                int idPos = payload.indexOf(idKey);
+                int titlePos = payload.indexOf(titleKey);
+
+                if (idPos == -1 || titlePos == -1) break;
+                  
+                int idValStart = idPos + idKey.length();
+                int idValEnd = payload.indexOf('\n', idValStart);
+                String id = payload.substring(idValStart, idValEnd);
+                  
+                int titleValStart = titlePos + titleKey.length();
+                int titleValEnd = payload.indexOf('\n', titleValStart);
+                String title = payload.substring(titleValStart, titleValEnd);
+                  
+                id.trim(); 
+                title.trim();
+                  
+                if (id.length() != 0 && title.length() != 0)
+                {
+                  //logln("[" + String(lineNum) + "] Found: " + title + " (ID: " + id + ")");
+                  linesBuffer += String(lineNum) + "|F|0|" + title + ".zxdb|" + id + "\n";
+                  pageHit++;
+                  lineNum++;
+                }
+                else break;
+              }
+            } 
+            else 
+            {
+              Serial.print("Error HTTP: ");
+              Serial.println(httpCode);
+            }
+            http.end();  // Cerramos HTTP ANTES de escribir en SD
+
+            // Escribimos en SD una vez cerrada la conexión HTTP
+            if (linesBuffer.length() > 0)
+            {
+              File lst = SD_MMC.open("/ONLINE/ZX/" + dir + "/_files.lst", FILE_APPEND);
+              if (lst)
+              {
+                lst.print(linesBuffer);
+                lst.flush();
+                lst.close();
+                Serial.print("Written to _files.lst: ");
+                Serial.print(linesBuffer.length());
+                Serial.println(" bytes");
+              }
+              else
+              {
+                logln("Error al abrir _files.lst para FILE_APPEND");
+              }
+            }
+
+            // Banda de progreso
+            if (totalItemsFound > 0) myNex.writeNum("zxdb.j0.val", (count * nrows * 100) / totalItemsFound);  
+            count++;
+          }
+          
+          // Crear el fichero .inf (abrimos ahora, después del bucle HTTP)
+          {
+            File inf = SD_MMC.open("/ONLINE/ZX/" + dir + "/_files.inf", FILE_WRITE);
+            if (inf) 
+            {
+              inf.println("PATH=/ONLINE/ZX/" + dir + "/");
+              inf.print("CFIL=");
+              inf.println(total);
+              inf.println("CDIR=0");
+              inf.flush();
+              inf.close();
+              logln("Closed _files.inf");
+            } 
+            else 
+            {
+              logln("No se pudo abrir _files.inf para escribir: /ONLINE/ZX/" + dir + "/_files.inf");
+              myNex.writeStr("zxdb.message.txt", "Error on _files.inf");
+            }
+          }
+          logln("_files.lst y _files.inf generados correctamente desde ZXDB flat");
+
+          // Mensaje de finalización
+          myNex.writeStr("zxdb.message.txt", "Capturing finished");
+          myNex.writeNum("zxdb.j0.val", 100);
+        }
+    }
+}
+
+// =====================================================================
+// CPCDB - Descarga de juegos Amstrad CPC desde Archive.org
+// Colección: amstrad-cpc-cdt-collection (CDTs individuales dentro de ZIP)
+// =====================================================================
+
+// URL base para listar el contenido del ZIP en Archive.org
+const char* CPCDB_ARCHIVE_ID = "amstrad-cpc-cdt-collection";
+const char* CPCDB_ZIP_NAME   = "AmstradCPC-CDT_Collection.zip";
+
+// Descarga un fichero CDT individual desde Archive.org
+// fileName : nombre exacto del CDT dentro del ZIP (e.g. "Ace (E).cdt")
+// title    : nombre del juego para crear el subdirectorio en /DOWNLOAD/
+void downloadFromCPCDB(String fileName, String title)
+{
+  DOWNLOADING_CPCDB = true;
+  TYPE_FILE_LOAD = "CPCDB";
+
+  LAST_MESSAGE = "Downloading: " + title;
+  myNex.writeStr("tape.g0.txt", LAST_MESSAGE);
+
+  if (!WIFI_CONNECTED || !WIFI_ENABLE)
+  {
+    logln("WiFi no disponible para descarga CPCDB");
+    myNex.writeStr("tape.g0.txt", "No WiFi");
+    DOWNLOADING_CPCDB = false;
+    return;
+  }
+
+  // Sanitizar el título para nombre de directorio FAT32
+  String safeTitle = title;
+  safeTitle.replace("/",  "-");
+  safeTitle.replace("\\", "-");
+  safeTitle.replace(":",  "-");
+  safeTitle.replace("*",  "-");
+  safeTitle.replace("?",  "-");
+  safeTitle.replace("\"", "-");
+  safeTitle.replace("<",  "-");
+  safeTitle.replace(">",  "-");
+  safeTitle.replace("|",  "-");
+
+  String destDir = "/DOWNLOAD/CPC/" + safeTitle;
+
+  if (!SD_MMC.exists(destDir))
+  {
+    if (!SD_MMC.mkdir(destDir))
+    {
+      logln("Error al crear directorio: " + destDir);
+      myNex.writeStr("tape.g0.txt", "Error creating dir");
+      DOWNLOADING_CPCDB = false;
+      return;
+    }
+  }
+
+  // Construir URL de descarga directa del CDT dentro del ZIP de Archive.org
+  // Los ficheros están dentro del subdirectorio CDT/ en el ZIP
+  String encodedFileName = fileName;
+  encodedFileName.replace(" ", "%20");
+  encodedFileName.replace("(", "%28");
+  encodedFileName.replace(")", "%29");
+  encodedFileName.replace("'", "%27");
+  encodedFileName.replace("&", "%26");
+  encodedFileName.replace(",", "%2C");
+
+  String downloadUrl = "https://archive.org/download/"
+                       + String(CPCDB_ARCHIVE_ID) + "/"
+                       + String(CPCDB_ZIP_NAME) + "/CDT/"
+                       + encodedFileName;
+
+  logln("Descargando CDT: " + downloadUrl);
+  myNex.writeStr("tape.g0.txt", "Downloading: " + fileName);
+
+  String localPath = destDir + "/" + fileName;
+
+  // Descarga específica para Archive.org: usamos writeToStream para que
+  // HTTPClient decodifique chunked transfer-encoding correctamente
+  {
+    WiFiClientSecure secureClient;
+    secureClient.setInsecure();
+
+    HTTPClient http;
+    http.begin(secureClient, downloadUrl);
+    http.setTimeout(60000);
+    http.setConnectTimeout(30000);
+    http.addHeader("User-Agent", "PowaDCR/" + String(VERSION));
+    http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
+
+    int httpCode = http.GET();
+    if (httpCode == HTTP_CODE_OK)
+    {
+      File file = SD_MMC.open(localPath.c_str(), FILE_WRITE);
+      if (file)
+      {
+        int written = http.writeToStream(&file);
+        file.flush();
+        file.close();
+        logln("Descargados " + String(written) + " bytes -> " + localPath);
+        LAST_MESSAGE = "Download done. See /DOWNLOAD_CPC";
+        myNex.writeStr("tape.g0.txt", LAST_MESSAGE);
+      }
+      else
+      {
+        logln("No se pudo crear fichero: " + localPath);
+        LAST_MESSAGE = "Error creating file";
+        myNex.writeStr("tape.g0.txt", LAST_MESSAGE);
+      }
+    }
+    else
+    {
+      logln("Error HTTP " + String(httpCode) + " descargando: " + downloadUrl);
+      LAST_MESSAGE = "Download error " + String(httpCode);
+      myNex.writeStr("tape.g0.txt", LAST_MESSAGE);
+    }
+    http.end();
+  }
+
+  DOWNLOADING_CPCDB = false;
+}
+
+// Descarga y parsea el listado de CDTs de Archive.org para generar
+// el catálogo /ONLINE/CPC/{letra}/_files.lst
+// El listado se obtiene del HTML de view_archive.php
+void updateCPCDB(String letter = "0")
+{
+    String searchChain = "#ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    int nrows = 100;
+    int count = 0;
+    int totalItemsFound = 0;
+
+    if (WIFI_CONNECTED && WIFI_ENABLE)
+    {
+        myNex.writeNum("zxdb.j0.val", 0);
+
+        if (letter != "0")
+        {
+          searchChain = letter;
+          logln("Capturing CPCDB catalogue for letter: " + letter);
+        }
+        else
+        {
+          logln("Capturing entire CPCDB catalogue");
+        }
+
+        // Primero descargamos la lista completa de ficheros del ZIP
+        // usando la API de metadata de Archive.org
+        logln("Fetching CPCDB file list from Archive.org...");
+        myNex.writeStr("zxdb.message.txt", "Fetching CPC catalog...");
+
+        WiFiClientSecure secureClient;
+        secureClient.setInsecure();
+
+        HTTPClient http;
+        // Usamos view_archive para obtener el listado HTML del ZIP
+        String listUrl = "https://archive.org/download/"
+                         + String(CPCDB_ARCHIVE_ID) + "/"
+                         + String(CPCDB_ZIP_NAME) + "/";
+
+        http.begin(secureClient, listUrl);
+        http.setTimeout(60000);
+        http.setConnectTimeout(30000);
+        http.addHeader("User-Agent", "PowaDCR/" + String(VERSION));
+        http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
+
+        int httpCode = http.GET();
+        if (httpCode != 200)
+        {
+          logln("Error HTTP al obtener listado CPCDB: " + String(httpCode));
+          myNex.writeStr("zxdb.message.txt", "Error " + String(httpCode));
+          http.end();
+          return;
+        }
+
+        // Procesamos el HTML línea a línea buscando enlaces a .cdt
+        // Formato esperado en el HTML: <a href="...">NombreJuego.cdt</a>
+        WiFiClient* stream = http.getStreamPtr();
+
+        // Estructuras temporales: arrays por letra
+        // Para no usar demasiada RAM, procesamos línea a línea y escribimos directamente
+
+        // Preparar directorios y ficheros por letra
+        for (int i = 0; i < searchChain.length(); i++)
+        {
+          char ch = searchChain.charAt(i);
+          String dir = String(ch);
+
+          if (!SD_MMC.exists("/ONLINE/CPC/" + dir))
+          {
+            SD_MMC.mkdir("/ONLINE/CPC/" + dir);
+          }
+
+          // Truncar _files.lst y _files.inf
+          File f = SD_MMC.open("/ONLINE/CPC/" + dir + "/_files.lst", FILE_WRITE);
+          if (f) f.close();
+          f = SD_MMC.open("/ONLINE/CPC/" + dir + "/_files.inf", FILE_WRITE);
+          if (f) f.close();
+        }
+
+        // Contadores por letra (A-Z + #)
+        int lineCount[27] = {0};  // 0='#', 1='A', ..., 26='Z'
+        int totalFiles = 0;
+
+        // Buffer para acumular líneas por letra antes de escribir
+        String buffers[27];
+        const int FLUSH_THRESHOLD = 4096;  // Flush cada 4KB aprox
+
+        // Leemos el stream HTML línea a línea
+        // Formato real: <tr><td><a href="...">CDT/NombreJuego.cdt</a><td>...
+        String htmlLine = "";
+        while (http.connected() || stream->available())
+        {
+          if (!stream->available()) { delay(10); continue; }
+
+          htmlLine = stream->readStringUntil('\n');
+
+          // Buscamos filas con enlaces a .cdt
+          if (htmlLine.indexOf(".cdt</a>") == -1 && htmlLine.indexOf(".cdt<") == -1) continue;
+
+          // Extraer el texto visible del enlace: lo que hay entre > y </a>
+          // Formato: <a href="...">CDT/NombreJuego.cdt</a>
+          int aClose = htmlLine.indexOf("</a>");
+          if (aClose == -1) continue;
+          // Buscamos el > justo antes del texto del enlace
+          int textStart = htmlLine.lastIndexOf('>', aClose - 1);
+          if (textStart == -1) continue;
+          textStart++; // saltar el '>'
+
+          String cdtPath = htmlLine.substring(textStart, aClose);
+          cdtPath.trim();
+
+          if (!cdtPath.endsWith(".cdt")) continue;
+
+          // Quitar el prefijo "CDT/" si existe
+          String cdtName = cdtPath;
+          if (cdtName.startsWith("CDT/")) cdtName = cdtName.substring(4);
+
+          // Determinar la letra inicial
+          char firstChar = cdtName.charAt(0);
+          if (firstChar >= 'a' && firstChar <= 'z') firstChar -= 32;  // mayúscula
+
+          int letterIdx;
+          if (firstChar >= 'A' && firstChar <= 'Z')
+            letterIdx = 1 + (firstChar - 'A');
+          else
+            letterIdx = 0;  // '#' para números y símbolos
+
+          // Verificar si esta letra está en searchChain
+          char letterChar = (letterIdx == 0) ? '#' : ('A' + letterIdx - 1);
+          if (searchChain.indexOf(letterChar) == -1) continue;
+
+          // Generar título limpio (sin extensión .cdt)
+          String title = cdtName.substring(0, cdtName.length() - 4);
+
+          // Añadir al buffer: lineNum|F|0|title.cpcdb|cdtFileName
+          buffers[letterIdx] += String(lineCount[letterIdx]) + "|F|0|" + title + ".cpcdb|" + cdtName + "\n";
+          lineCount[letterIdx]++;
+          totalFiles++;
+
+          // Flush si el buffer es grande
+          if (buffers[letterIdx].length() > FLUSH_THRESHOLD)
+          {
+            String dir = (letterIdx == 0) ? "#" : String(letterChar);
+            File lst = SD_MMC.open("/ONLINE/CPC/" + dir + "/_files.lst", FILE_APPEND);
+            if (lst)
+            {
+              lst.print(buffers[letterIdx]);
+              lst.flush();
+              lst.close();
+            }
+            buffers[letterIdx] = "";
+          }
+
+          // Progreso
+          // if (totalFiles > 0) myNex.writeNum("zxdb.j0.val", (count * nrows * 100) / totalFiles);  
+          // count++;
+
+          if (totalFiles % 100 == 0)
+          {
+            myNex.writeStr("zxdb.message.txt", "Found " + String(totalFiles) + " CPC games...");
+          }
+        }
+
+        http.end();
+
+        // Flush de buffers restantes y generar _files.inf
+        for (int i = 0; i < 27; i++)
+        {
+          char letterChar = (i == 0) ? '#' : ('A' + i - 1);
+          if (searchChain.indexOf(letterChar) == -1) continue;
+
+          String dir = String(letterChar);
+
+          if (buffers[i].length() > 0)
+          {
+            File lst = SD_MMC.open("/ONLINE/CPC/" + dir + "/_files.lst", FILE_APPEND);
+            if (lst)
+            {
+              lst.print(buffers[i]);
+              lst.flush();
+              lst.close();
+            }
+          }
+
+          // Generar _files.inf
+          File inf = SD_MMC.open("/ONLINE/CPC/" + dir + "/_files.inf", FILE_WRITE);
+          if (inf)
+          {
+            inf.println("PATH=/ONLINE/CPC/" + dir + "/");
+            inf.print("CFIL=");
+            inf.println(lineCount[i]);
+            inf.println("CDIR=0");
+            inf.flush();
+            inf.close();
+          }
+        }
+
+        logln("CPCDB: " + String(totalFiles) + " ficheros catalogados");
+        myNex.writeStr("zxdb.message.txt", "Done: " + String(totalFiles) + " CPC games");
+        myNex.writeNum("zxdb.j0.val", 100);
+    }
+}
+
+// MSXDB - Descarga de juegos MSX desde tsx.eslamejor.com
+// API: /index_back.php?page=N&idx=LETRA (JSON, 50 por página)
+// Descarga: /tsx-files/{TOSEC.NAME}.tsx
+// =====================================================================
+
+const char* MSXDB_HOST = "tsx.eslamejor.com";
+
+// Descarga un fichero TSX individual desde tsx.eslamejor.com
+// fileName : nombre TOSEC completo (e.g. "Zakil Wood (1985)(Mr Micro)(ES)[!].tsx")
+// title    : nombre corto del juego para el subdirectorio en /DOWNLOAD_MSX/
+void downloadFromMSXDB(String fileName, String title)
+{
+  DOWNLOADING_MSXDB = true;
+  TYPE_FILE_LOAD = "MSXDB";
+
+  LAST_MESSAGE = "Downloading: " + title;
+  myNex.writeStr("tape.g0.txt", LAST_MESSAGE);
+
+  if (!WIFI_CONNECTED || !WIFI_ENABLE)
+  {
+    logln("WiFi no disponible para descarga MSXDB");
+    myNex.writeStr("tape.g0.txt", "No WiFi");
+    DOWNLOADING_MSXDB = false;
+    return;
+  }
+
+  // Sanitizar el título para nombre de directorio FAT32
+  String safeTitle = title;
+  safeTitle.replace("/",  "-");
+  safeTitle.replace("\\", "-");
+  safeTitle.replace(":",  "-");
+  safeTitle.replace("*",  "-");
+  safeTitle.replace("?",  "-");
+  safeTitle.replace("\"", "-");
+  safeTitle.replace("<",  "-");
+  safeTitle.replace(">",  "-");
+  safeTitle.replace("|",  "-");
+
+  String destDir = "/DOWNLOAD/MSX/" + safeTitle;
+
+  if (!SD_MMC.exists(destDir))
+  {
+    if (!SD_MMC.mkdir(destDir))
+    {
+      logln("Error al crear directorio: " + destDir);
+      myNex.writeStr("tape.g0.txt", "Error creating dir");
+      DOWNLOADING_MSXDB = false;
+      return;
+    }
+  }
+
+  // Construir URL de descarga: /tsx-files/{fileName}
+  String encodedFileName = fileName;
+  encodedFileName.replace(" ", "%20");
+  encodedFileName.replace("(", "%28");
+  encodedFileName.replace(")", "%29");
+  encodedFileName.replace("'", "%27");
+  encodedFileName.replace("&", "%26");
+  encodedFileName.replace(",", "%2C");
+  encodedFileName.replace("[", "%5B");
+  encodedFileName.replace("]", "%5D");
+
+  String downloadUrl = "https://" + String(MSXDB_HOST) + "/tsx-files/" + encodedFileName;
+
+  logln("Descargando TSX: " + downloadUrl);
+  myNex.writeStr("tape.g0.txt", "Downloading: " + title);
+
+  String localPath = destDir + "/" + fileName;
+
+  {
+    WiFiClientSecure secureClient;
+    secureClient.setInsecure();
+
+    HTTPClient http;
+    http.begin(secureClient, downloadUrl);
+    http.setTimeout(60000);
+    http.setConnectTimeout(30000);
+    http.addHeader("User-Agent", "PowaDCR/" + String(VERSION));
+    http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
+
+    int httpCode = http.GET();
+    if (httpCode == HTTP_CODE_OK)
+    {
+      File file = SD_MMC.open(localPath.c_str(), FILE_WRITE);
+      if (file)
+      {
+        int written = http.writeToStream(&file);
+        file.flush();
+        file.close();
+        logln("Descargados " + String(written) + " bytes -> " + localPath);
+        LAST_MESSAGE = "Download done. See /DOWNLOAD_MSX";
+        myNex.writeStr("tape.g0.txt", LAST_MESSAGE);
+      }
+      else
+      {
+        logln("No se pudo crear fichero: " + localPath);
+        LAST_MESSAGE = "Error creating file";
+        myNex.writeStr("tape.g0.txt", LAST_MESSAGE);
+      }
+    }
+    else
+    {
+      logln("Error HTTP " + String(httpCode) + " descargando: " + downloadUrl);
+      LAST_MESSAGE = "Download error " + String(httpCode);
+      myNex.writeStr("tape.g0.txt", LAST_MESSAGE);
+    }
+    http.end();
+  }
+
+  DOWNLOADING_MSXDB = false;
+}
+
+// Consulta la API de tsx.eslamejor.com para generar
+// el catálogo /ONLINE/MSX/{letra}/_files.lst
+// La API devuelve JSON paginado: /index_back.php?page=N&idx=LETRA
+void updateMSXDB(String letter = "0")
+{
+    String searchChain = "#ABCDEFGHIJKLMNOPQRSTUVWXYZ0";
+    int count = 0;
+    int totalItemsFound = 0;
+    int nrows = 100;
+
+    if (WIFI_CONNECTED && WIFI_ENABLE)
+    {
+        myNex.writeNum("zxdb.j0.val", 0);
+
+        if (letter != "0")
+        {
+          searchChain = letter;
+          logln("Capturing MSXDB catalogue for letter: " + letter);
+        }
+        else
+        {
+          logln("Capturing entire MSXDB catalogue");
+        }
+
+        logln("Fetching MSXDB from tsx.eslamejor.com...");
+        myNex.writeStr("zxdb.message.txt", "Fetching MSX catalog...");
+
+        int totalFiles = 0;
+
+        // Iterar por cada letra solicitada
+        for (int li = 0; li < searchChain.length(); li++)
+        {
+          char letterChar = searchChain.charAt(li);
+          String idxParam = String(letterChar);
+
+          // Determinar el índice para el array (0='#', 1='A'..26='Z')
+          // Para la API, '#' se envía como "0", las letras como sí mismas
+          String apiIdx = idxParam;
+          if (letterChar == '#') apiIdx = "0";
+
+          int letterIdx;
+          if (letterChar >= 'A' && letterChar <= 'Z')
+            letterIdx = 1 + (letterChar - 'A');
+          else
+            letterIdx = 0;  // '#' y '0' van al bucket numérico
+
+          String dir = (letterIdx == 0) ? "#" : String(letterChar);
+
+          if (!SD_MMC.exists("/ONLINE/MSX/" + dir))
+          {
+            SD_MMC.mkdir("/ONLINE/MSX/" + dir);
+          }
+
+          // Truncar ficheros existentes
+          File f = SD_MMC.open("/ONLINE/MSX/" + dir + "/_files.lst", FILE_WRITE);
+          if (f) f.close();
+          f = SD_MMC.open("/ONLINE/MSX/" + dir + "/_files.inf", FILE_WRITE);
+          if (f) f.close();
+
+          int lineCount = 0;
+          String buffer = "";
+          const int FLUSH_THRESHOLD = 4096;
+          int page = 0;
+          bool morePages = true;
+
+          while (morePages)
+          {
+            WiFiClientSecure secureClient;
+            secureClient.setInsecure();
+
+            HTTPClient http;
+            String apiUrl = "https://" + String(MSXDB_HOST)
+                          + "/index_back.php?page=" + String(page)
+                          + "&idx=" + apiIdx;
+
+            http.begin(secureClient, apiUrl);
+            http.setTimeout(60000);
+            http.setConnectTimeout(30000);
+            http.addHeader("User-Agent", "Mozilla/5.0");
+            http.addHeader("X-Requested-With", "XMLHttpRequest");
+            http.addHeader("Accept", "application/json");
+            http.addHeader("Referer", "https://" + String(MSXDB_HOST) + "/?idx=" + apiIdx);
+            http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
+
+            int httpCode = http.GET();
+            if (httpCode == 204 || httpCode != 200)
+            {
+              // No más datos o error
+              http.end();
+              morePages = false;
+              break;
+            }
+
+            // Parsear JSON respuesta línea a línea buscando TOSEC.NAME
+            // El JSON es grande, lo procesamos por stream buscando los campos que necesitamos
+            WiFiClient* stream = http.getStreamPtr();
+            String jsonChunk = "";
+
+            // Leemos toda la respuesta (puede ser grande pero paginada a 50 items)
+            while (http.connected() || stream->available())
+            {
+              if (!stream->available()) { delay(5); continue; }
+              char c = stream->read();
+              jsonChunk += c;
+            }
+            http.end();
+
+            if (jsonChunk.length() < 10)
+            {
+              morePages = false;
+              break;
+            }
+
+            // Buscar cada ocurrencia de "TOSEC.NAME":"..." en el JSON
+            int searchFrom = 0;
+            int foundInPage = 0;
+            while (true)
+            {
+              int tosecPos = jsonChunk.indexOf("\"TOSEC.NAME\":\"", searchFrom);
+              if (tosecPos == -1) break;
+
+              int nameStart = tosecPos + 14;  // después de "TOSEC.NAME":"
+              int nameEnd = jsonChunk.indexOf("\"", nameStart);
+              if (nameEnd == -1) break;
+
+              String tosecName = jsonChunk.substring(nameStart, nameEnd);
+
+              // El fichero TSX será tosecName + ".tsx"
+              String tsxFileName = tosecName + ".tsx";
+
+              // Título limpio: extraer solo el nombre del juego (antes del primer paréntesis)
+              String title = tosecName;
+              int parenPos = title.indexOf(" (");
+              if (parenPos > 0) title = title.substring(0, parenPos);
+
+              // Añadir al buffer: lineNum|F|0|title.msxdb|tsxFileName
+              buffer += String(lineCount) + "|F|0|" + title + ".msxdb|" + tsxFileName + "\n";
+              lineCount++;
+              totalFiles++;
+              foundInPage++;
+
+              searchFrom = nameEnd + 1;
+            }
+
+            // Flush si el buffer es grande
+            if (buffer.length() > FLUSH_THRESHOLD)
+            {
+              File lst = SD_MMC.open("/ONLINE/MSX/" + dir + "/_files.lst", FILE_APPEND);
+              if (lst)
+              {
+                lst.print(buffer);
+                lst.flush();
+                lst.close();
+              }
+              buffer = "";
+            }
+
+            // Si encontramos menos de 50 items, no hay más páginas
+            if (foundInPage < 50)
+            {
+              morePages = false;
+            }
+            else
+            {
+              page++;
+            }
+
+            // Progreso
+            myNex.writeStr("zxdb.message.txt", "Found " + String(totalFiles) + " MSX games...");
+            // Banda de progreso
+            // if (totalItemsFound > 0) myNex.writeNum("zxdb.j0.val", (count * nrows * 100) / totalItemsFound);  
+            // count++;            
+          }
+
+          // Flush buffer restante
+          if (buffer.length() > 0)
+          {
+            File lst = SD_MMC.open("/ONLINE/MSX/" + dir + "/_files.lst", FILE_APPEND);
+            if (lst)
+            {
+              lst.print(buffer);
+              lst.flush();
+              lst.close();
+            }
+          }
+
+          // Generar _files.inf
+          File inf = SD_MMC.open("/ONLINE/MSX/" + dir + "/_files.inf", FILE_WRITE);
+          if (inf)
+          {
+            inf.println("PATH=/ONLINE/MSX/" + dir + "/");
+            inf.print("CFIL=");
+            inf.println(lineCount);
+            inf.println("CDIR=0");
+            inf.flush();
+            inf.close();
+          }
+        }
+
+        logln("MSXDB: " + String(totalFiles) + " ficheros catalogados");
+        myNex.writeStr("zxdb.message.txt", "Done: " + String(totalFiles) + " MSX games");
+        myNex.writeNum("zxdb.j0.val", 100);
+    }
 }

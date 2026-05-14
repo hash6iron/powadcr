@@ -558,12 +558,12 @@ private:
       // y unimos el fichero al path
       strcat(cPath, newFileName);
 
-#ifdef DEBUGMODE
-      logln("");
-      logln("Filename for rename: ");
-      log(cPath);
-      logln("");
-#endif
+      #ifdef DEBUGMODE
+            logln("");
+            logln("Filename for rename: ");
+            log(cPath);
+            logln("");
+      #endif
     }
 
     logln("Nueva Ruta del REC para rename: " + String(cPath));
@@ -601,7 +601,7 @@ public:
     blockStartOffset = lastByteCount;
 
     // Enviamos info a HMI
-    if (CURRENT_PAGE == 3) {
+    if (CURRENT_PAGE == PAGE_DEBUG) {
       hmi.refreshInfoDebug();
     }
 
@@ -999,20 +999,20 @@ public:
     // --- Preparar bloque Direct Recording (ID 0x15) ---
     tzxFile.write(0x15); // ID
 
-    uint32_t blockLen = 0x0A + dataSize; // longitud del bloque (sin el ID)
-    tzxFile.write((uint8_t *)&blockLen, 3); // 3 bytes, little endian
+      uint32_t blockLen = 0x0A + dataSize; // longitud del bloque (sin el ID)
+      tzxFile.write((uint8_t *)&blockLen, 3); // 3 bytes, little endian
 
-    // Duración de cada bit en T-states (aprox. para ZX Spectrum)
-    uint16_t tstates = (uint16_t)(3500000.0 / header.sampleRate); // 3.5MHz clock
-    tzxFile.write((uint8_t *)&tstates, 2);
+      // Duración de cada bit en T-states (aprox. para ZX Spectrum)
+      uint16_t tstates = (uint16_t)(3500000.0 / header.sampleRate); // 3.5MHz clock
+      tzxFile.write((uint8_t *)&tstates, 2);
 
-    tzxFile.write(header.bitsPerSample); // Bits por muestra
+      tzxFile.write(header.bitsPerSample); // Bits por muestra
 
-    // Número de muestras (4 bytes, little endian)
-    uint32_t numSamples = dataSize / (header.bitsPerSample / 8);
-    tzxFile.write((uint8_t *)&numSamples, 4);
+      // Número de muestras (4 bytes, little endian)
+      uint32_t numSamples = dataSize / (header.bitsPerSample / 8);
+      tzxFile.write((uint8_t *)&numSamples, 4);
 
-    tzxFile.write(0x80); // Valor de nivel alto (por defecto 0x80)
+      tzxFile.write(0x80); // Valor de nivel alto (por defecto 0x80)
 
     // --- Escribir datos PCM ---
     // const size_t BUF_SIZE = 8192; // Buffer grande para acelerar E/S
@@ -1067,7 +1067,8 @@ public:
     return true;
   }
 
-  bool recording() {
+  bool recording() 
+  {
     // Reestablece todas las variables críticas de estado
     resetRecordingState();
 
@@ -1134,9 +1135,9 @@ public:
     strcpy(recDir, dirR.c_str());
 
     if (!SD_MMC.mkdir(RECORDING_DIR)) {
-#ifdef DEBUGMODE
-      log("Error! Directory exists or wasn't created");
-#endif
+    #ifdef DEBUGMODE
+          log("Error! Directory exists or wasn't created");
+    #endif
     } else {
       // Actualizamos el sistema de ficheros.
       _hmi.reloadCustomDir("/");
@@ -1742,15 +1743,18 @@ public:
 
           // if (REC_AUDIO_LOOP)
           // {
-          // R-OUT
-          *ptrOut++ = (audioOutValue * k) * (MAIN_VOL_R / 100);
           //
-          if (EN_SPEAKER) {
+          if (EN_SPEAKER) 
+          {
             // L-OUT (Speaker channel)
             *ptrOut++ = (audioOutValue * k) * (MAIN_VOL_L / 100);
-          } else {
+          }
+          else 
+          {
             *ptrOut++ = 0;
           }
+          // R-OUT
+          *ptrOut++ = (audioOutValue * k) * (MAIN_VOL_R / 100);
           // }
         }
 

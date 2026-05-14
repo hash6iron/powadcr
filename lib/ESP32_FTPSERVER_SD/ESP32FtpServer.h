@@ -55,6 +55,7 @@ class FtpServer {
     FtpServer();
     void    begin(fs::SDMMCFS* sdf, String uname, String pword);
     int     handleFTP();
+    bool    FTP_CONNECTED;
 
   private:
     fs::SDMMCFS* _sdf;

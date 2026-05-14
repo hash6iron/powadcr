@@ -52,11 +52,11 @@
 // |-- SD_MMC @ 2.0.0
 // |-- Wire @ 2.0.0
 // |-- Update @ 2.0.0
-
+#pragma once
 // --------------------------------------------------------------
 // Configuración de la versión del software
 // --------------------------------------------------------------
-#define VERSION "v1.0r7.12" // Formato: vX.YrW.Z (X=major, Y=minor, W=revision, Z=revision_minor)
+#define VERSION "v1.0r7.13" // Formato: vX.YrW.Z (X=major, Y=minor, W=revision, Z=revision_minor)
 
 // --------------------------------------------------------------
 // Configuración de memoria optimizada
@@ -101,7 +101,11 @@
 // Enable / Disable Audiokit logging
 #define USE_AUDIO_LOGGING false
 // States of LOG_LEVEL: Debug, Info, Warning, Error
-#define LOG_LEVEL AudioLogger::Debug
+#define LOG_LEVEL AudioLogger::Info
+
+// Reproduce un BEEP al arrancar para comprobar que el audio funciona
+#define TEST_AUDIOKIT_ON_BOOT
+
 // Definicion del puerto serie para la pantalla
 #define SerialHWDataBits 921600
 //  pinout
@@ -119,15 +123,15 @@ int GPIO_MSX_REMOTE_PAUSE = 19;
 #define I2C_GRP_LCD_ADDR  0x27  // 0x27
 
 // PORT A
-#define MCP_KEY_PLAY       5   // Pin +1 del MCP23017 para Key2
-#define MCP_KEY_STOP       1   // Pin +1 del MCP23017 para Key3
-#define MCP_KEY_PAUSE      2   // Pin +1 del MCP23017 para Key6
-#define MCP_KEY_RWD        4   // Pin +1 del MCP23017 para Key4
-#define MCP_KEY_FFWD       3   // Pin +1 del MCP23017 para Key5
-#define MCP_KEY_REC        6   // Pin +1 del MCP23017 para Key1
-#define MCP_KEY_EJECT      0   // Pin +1 del MCP23017 para Key1
+// #define MCP_KEY_PLAY       4   // Pin +1 del MCP23017 para Key2
+// #define MCP_KEY_RWD        3   // Pin +1 del MCP23017 para Key4
+// #define MCP_KEY_FFWD       2   // Pin +1 del MCP23017 para Key5
+// #define MCP_KEY_PAUSE      1   // Pin +1 del MCP23017 para Key6
+// #define MCP_KEY_STOP       0   // Pin +1 del MCP23017 para Key3
+// #define MCP_KEY_REC        5   // Pin +1 del MCP23017 para Key1
+// #define MCP_KEY_EJECT      6   // Pin +1 del MCP23017 para Key1
 
-#define MCP_LED_IO_PIN     7   // Pin del MCP23017 para Power LED
+// #define MCP_LED_IO_PIN     7   // Pin del MCP23017 para Power LED
 
 
 
@@ -194,7 +198,8 @@ int GPIO_MSX_REMOTE_PAUSE = 19;
 // Colores del browser
 #define DEFAULT_COLOR 65535
 #define DIR_COLOR 60868
-#define DSC_FILE_COLOR 0
+#define DSC_FILE_COLOR 0              // Negro - Indica que es un fichero DSC
+#define ZIP_FILE_COLOR 48639           // Ficheros .ZIP
 #define FAVORITE_FILE_COLOR 34815
 #define SPECIAL_FILE_COLOR 44405
 #define OTHER_FILES_COLOR 44405
@@ -207,11 +212,9 @@ int GPIO_MSX_REMOTE_PAUSE = 19;
 
 // Sampling rate TAP/TZX/..
 #define DEFAULT_MP3_SAMPLING_RATE 44100
-#define STANDARD_SR_8_BIT_MACHINE                                              \
-  96000.0 // 44304   //32407    //43750   // Sampling rate adecuado para
+#define STANDARD_SR_8_BIT_MACHINE 96000.0 // 44304   //32407    //43750   // Sampling rate adecuado para
           // maquinas de 8 bitsAjuste AZIMUT (Hz) - 22200 Hz
-#define STANDARD_SR_8_BIT_MACHINE_TAP                                          \
-  31250 // Sampling rate adecuado para maquinas de 8 bitsAjuste AZIMUT (Hz) -
+#define STANDARD_SR_8_BIT_MACHINE_TAP 31250 // Sampling rate adecuado para maquinas de 8 bitsAjuste AZIMUT (Hz) -
         // 22200 Hz
 #define PAUSE_TAIL_SAMPLES (0.002 / STANDARD_SR_8_BIT_MACHINE)
 #define PAUSE_TAIL_TSTATES 3500 * 2000 // Minimo debe ser 1S (3500000 TStates)
@@ -223,14 +226,18 @@ int GPIO_MSX_REMOTE_PAUSE = 19;
 
 // Sampling rate para WAV y REC WAV (pero ojo, no para PLAY TO WAV)
 #define DEFAULT_WAV_SAMPLING_RATE 44100
-#define DEFAULT_WAV_SAMPLING_RATE_REC 44100
+#define DEFAULT_WAV_SAMPLING_RATE_REC 96000
 // #define DEFAULT_WAV_SAMPLING_RATE_REC_TO_TAP          44100
 // #define DEFAULT_WAV_SAMPLING_RATE_REC_PLAY_TO_WAV     44100
 #define DEFAULT_8BIT_WAV_SAMPLING_RATE_REC 22050
 
+// Sampling rate para C64 TAP files - C64 CPU es 3.55x más lenta que ZX (0.985248 MHz
+#define C64_PULSE_SCALE_FACTOR (3.5 / 0.985248)
+
 // Porcentaje de avance rapido
 #define FAST_FORWARD_PER 0.02
 #define FAST_REWIND_PER 0.02
+#define CSW_REWIND_SPEED 0.02
 
 // Demora en ms para saltar a avance super-rapido
 #define TIME_TO_FAST_FORWRD 1500
@@ -252,6 +259,9 @@ int GPIO_MSX_REMOTE_PAUSE = 19;
 
 // Maximo numero de ficheros capturados en la lista de audio por directorio
 #define MAX_FILES_AUDIO_LIST 128
+
+// Compensacion para precisar la señal 5%
+#define PZX_COMPENSATION_FACTOR 0
 
 // --------------------------------------------------------------
 // Radio Internet
@@ -276,6 +286,7 @@ int GPIO_MSX_REMOTE_PAUSE = 19;
 #define RADIO_DECODE_BUFFER_SIZE 4096  // 1KB (más conservador en reproducción)
 
 #define RADIO_CONNECT_TIMEOUT_MS 10000 // 10s timeout (más tiempo)
+#define RADIO_BUFFER_TIMEOUT_MS  8000  // 8s sin crecimiento del buffer → reintentar
 #define USE_SSL_STATIONS false
 #define DIAL_COLOR 45056
 #define RADIO_SYNTONIZATION_LED_COLOR 2016
@@ -310,8 +321,8 @@ int GPIO_MSX_REMOTE_PAUSE = 19;
 #define USE_ZX_SPECTRUM_SR 0
 // #define STANDARD_SR_REC_ZX_SPECTRUM                 32800   // Sampling rate
 // adecuado para ZX Spectrum (recorder) - Ajuste AZIMUT (Hz) - 22200 Hz
-#define STANDARD_SR_REC_ZX_SPECTRUM                                            \
-  87500 // Sampling rate adecuado para ZX Spectrum (recorder) - Ajuste AZIMUT
+#define STANDARD_SR_REC_ZX_SPECTRUM 87500 // Sampling rate adecuado para ZX Spectrum (recorder) - Ajuste AZIMUT
+#define BIAS_FACTOR_TAP_C64 0.2
         // (Hz) - 22200 Hz
 //
 // ----------------------------------------------------------------------------------------------
@@ -341,7 +352,6 @@ bool TEST_LINE_IN_OUT = false;
 // --------------------------------------------------------------
 //  HMI
 // --------------------------------------------------------------
-#define windowNameLength 32
 #define windowNameLengthFB 50
 #define tRotateNameRfsh 230
 
@@ -367,6 +377,13 @@ bool TEST_LINE_IN_OUT = false;
 #define GITHUB_OWNER "hash6iron" // Tu usuario de GitHub
 #define GITHUB_REPO "powadcr"    // Tu repositorio
 #define AUTO_UPDATE_CHECK false  // Habilitar check automático
+
+// ---------------------------------------------------------------
+//
+// otros
+//
+// ---------------------------------------------------------------
+#define SPOTIFY_CONTROL_ENABLE
 
 // -------------------------------
 //
@@ -396,3 +413,19 @@ bool TEST_LINE_IN_OUT = false;
 #ifndef FS_TIME
 #define FS_TIME(hour, min, sec)     (((hour) << 11) | ((min) << 5) | ((sec) >> 1))
 #endif
+
+
+//
+// Definición de los flags de paginas mostradas por el HMI
+// se usan para saber donde estamos
+//
+#define PAGE_TAPE0                     0
+#define PAGE_TAPE                      1
+#define PAGE_MENU_GENERAL_SETTINGS     2
+#define PAGE_DEBUG                     3
+#define PAGE_EQ                        4
+#define PAGE_MENU_GENERAL_SETTINGS_EXT 5
+#define PAGE_SPOTIFY                   6
+#define PAGE_RADIO                     7
+#define PAGE_KEYDEBUG                  8
+#define PAGE_CLOCK                     99

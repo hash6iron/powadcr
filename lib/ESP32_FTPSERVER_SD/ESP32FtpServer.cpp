@@ -72,6 +72,9 @@
 #include <WiFiClient.h>
 #include <FS.h>
 #include <SD_MMC.h>
+
+//#include "globales.h"
+
 // #include "SD.h"
 // #include "SPI.h"
 
@@ -126,9 +129,13 @@ int FtpServer::handleFTP() {
   if ((int32_t) ( millisDelay - millis() ) > 0 )
     return 0;
 
+
   if (ftpServer.hasClient()) {
     client.stop();
     client = ftpServer.available();
+    if (client.connected()) {
+      FTP_CONNECTED = true;
+    }
   }
 
   if ( cmdStatus == 0 ) {
@@ -202,10 +209,10 @@ void FtpServer::clientConnected() {
 #ifdef FTP_DEBUG
   Serial.println("Client connected!");
 #endif
-  client.println( "220--- Welcome to FTP for ESP32 ---");
-  client.println( "220---   By David Paiva   ---");
+  client.println( "220--- Welcome to FTP of PowaDCR ---");
   client.println( "220 --   Version " + String(FTP_SERVER_VERSION) + "   --");
   iCL = 0;
+  // FTP_CONNECTED = true;
 }
 
 void FtpServer::disconnectClient() {
@@ -215,6 +222,7 @@ void FtpServer::disconnectClient() {
   abortTransfer();
   client.println("221 Goodbye");
   client.stop();
+  FTP_CONNECTED = false;
 }
 
 boolean FtpServer::userIdentity() {

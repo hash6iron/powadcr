@@ -50,6 +50,43 @@ class HMI
 {
 public:
 
+    void setVolumenOutput(bool mute = false)
+    {
+        // Ajustamos el volumen del DAC de audio usando MAIN_VOL, MAIN_VOL_L y MAIN_VOL_R
+        kitStream.setVolume(float(MAIN_VOL) / 100.0f); // Volumen general al 100% para que el control de volumen lo haga el potenciómetro;
+        if (mute) 
+        {
+            volumeStream.setVolume(0,0);
+            volumeStream.setVolume(0,1);
+        } 
+        else 
+        { 
+            volumeStream.setVolume(float(MAIN_VOL_L) / 100.0f,0);
+            volumeStream.setVolume(float(MAIN_VOL_R) / 100.0f,1);  
+          }
+        //
+        logln("Volume set to: " + String(MAIN_VOL) + "%, Left: " + String(MAIN_VOL_L) + "%, Right: " + String(MAIN_VOL_R) + "%");
+        logln("Real volume: " + String(volumeStream.volume(0)) + ", " + String(volumeStream.volume(1)));
+        logln("Real audioStream volume: " + String(kitStream.getVolume()));
+        logln("Booster volume: " + String(BOOSTER_VOLUME) + ", Booster factor: " + String(BOOSTER_FACTOR));
+    }
+
+    // ✅ Configurar velocidades de FFWD/RWD para CSW
+    void setCSWSeekSpeed(float ffwd_speed = 0.02, float rwd_speed = 0.02)
+    {
+        // Limitar valores a rango razonable (0.01 = 1%, 0.10 = 10%)
+        if (ffwd_speed < 0.01) ffwd_speed = 0.01;
+        if (ffwd_speed > 0.10) ffwd_speed = 0.10;
+        if (rwd_speed < 0.01) rwd_speed = 0.01;
+        if (rwd_speed > 0.10) rwd_speed = 0.10;
+        
+        CSW_FFWD_SPEED = ffwd_speed;
+        CSW_RWD_SPEED = rwd_speed;
+        
+        logln("CSW Seek Speed set: FFWD=" + String(ffwd_speed * 100, 1) + "%, RWD=" + String(rwd_speed * 100, 1) + "%");
+        writeString("tape.lblFFWDSpeed.txt=\"FF: " + String(int(ffwd_speed * 100)) + "%\"");
+    }
+
     // Lee la ruta almacenada en _last.txt y la devuelve como String
     inline String loadLastMedia() {
       File lastFile = SD_MMC.open("/_last.txt", FILE_READ);
@@ -96,6 +133,7 @@ private:
           int seek=0;
           String fileName="";
           String fileType="";
+          String IDZXDB="";
       };
 
       bool copyFileFS(const char* srcPath, const char* dstPath) {
@@ -457,27 +495,29 @@ private:
       void fillWithFilesFromFile(File &fout, File &fstatus, const String &search_pattern, const String &path) 
       {
           // Ruta del archivo _files.lst
-          String path_file_lst = path + "_files.lst";
+          String path_file_lst = "";
+          if (path.lastIndexOf('/') == path.length() - 1) 
+          {
+              // Si la ruta termina con '/', le añadimos el nombre del archivo
+              path_file_lst = path + "_files.lst";
+          } else {
+              // Si no termina con '/', añadimos '/' y el nombre del archivo
+              path_file_lst = path + "/_files.lst";          
+          }
       
           // Verificamos si el archivo _files.lst existe
           if (!SD_MMC.exists(path_file_lst.c_str())) {
-              #ifdef DEBUGMODE
-                  logln("File _files.lst does not exist: " + path_file_lst);
-              #endif
+              logln("File _files.lst does not exist: " + path_file_lst);
               return;
           }
 
-          #ifdef DEBUGMODE
-              logln("Reading file: " + path_file_lst);
-          #endif
+          logln("Reading file: " + path_file_lst);
 
           // Abrimos el archivo _files.lst
           File lstFile;
           lstFile = SD_MMC.open(path_file_lst.c_str(), FILE_READ);
           if (!lstFile) {
-              #ifdef DEBUGMODE
-                  logln("Failed to open _files.lst: " + path_file_lst);
-              #endif
+              logln("Failed to open _files.lst: " + path_file_lst);
               return;
           }
       
@@ -493,6 +533,8 @@ private:
       
           String searchPatternUC = search_pattern;
           searchPatternUC.toUpperCase(); // Convertimos el patrón de búsqueda a mayúsculas
+
+          writeString("statusFILE.txt=\"Search...\"");
       
           // Recorremos el archivo línea por línea
           while (lstFile.available()) {
@@ -507,10 +549,23 @@ private:
               // Convertimos el nombre del archivo a mayúsculas para la comparación
               String filenameUC = fl.fileName;
               filenameUC.toUpperCase();
-      
+
+              // logln("Processing file: " + fl.fileName + " (Type: " + fl.fileType + ", Seek: " + String(fl.seek) + ", IDZXDB: " + fl.IDZXDB + ")");
+              // logln("Search pattern: " + searchPatternUC);
+              // logln("Filename uppercase: " + filenameUC);
+
               // Si el archivo cumple con el patrón de búsqueda, lo escribimos en fout
-              if (filenameUC.indexOf(searchPatternUC) != -1) {
-                  fout.printf("%d|%s|%d|%s|\n", fl.ID, fl.fileType.c_str(), fl.seek, fl.fileName.c_str());
+              if (filenameUC.indexOf(searchPatternUC) != -1) 
+              {
+                  if (fl.IDZXDB != "") 
+                  {
+                    fout.printf("%d|%s|%d|%s|%s|\n", fl.ID, fl.fileType.c_str(), fl.seek, fl.fileName.c_str(), fl.IDZXDB.c_str());
+                  }
+                  else
+                  {
+                    fout.printf("%d|%s|%d|%s|\n", fl.ID, fl.fileType.c_str(), fl.seek, fl.fileName.c_str());
+                  }
+                  
                   FILE_TOTAL_FILES++;
               }
       
@@ -579,7 +634,10 @@ private:
                   fnameToLower.toLowerCase();
 
                   // Obtenemos la extensión del fichero
-                  const char *ext = getFileExtension(fname.c_str());
+                  const char *ext = getFileExtension(fnameToLower.c_str());
+
+                  // logln("File name: " + fnameToLower);
+                  // logln("Extension: " + String(ext));
 
                   #ifdef DEBUGMODE
                       logln("File: " + fname);
@@ -602,7 +660,8 @@ private:
                               strcmp(ext, "wav") == 0 || strcmp(ext, "mp3") == 0 ||
                               strcmp(ext, "flac") == 0 || strcmp(ext, "lst") == 0 ||
                               strcmp(ext, "dsc") == 0 || strcmp(ext, "inf") == 0 ||
-                              strcmp(ext, "txt") == 0 || strcmp(ext, "radio") == 0)
+                              strcmp(ext, "txt") == 0 || strcmp(ext, "radio") == 0 || 
+                              strcmp(ext, "zxdb") == 0 || strcmp(ext, "csw") == 0 || strcmp(ext, "zip") == 0)
                           {
                               fout.print(String(lpos)); fout.print(separator);
                               fout.print("F"); fout.print(separator);
@@ -728,6 +787,7 @@ private:
       void registerFiles(const String &path, const String &filename, const String &filename_inf, const String &search_pattern, bool rescan) 
       {
           // Construimos las rutas completas
+
           String regFile = path + "/" + filename;
           String statusFile = path + "/" + filename_inf;
       
@@ -743,11 +803,10 @@ private:
           // Manejadores de archivos
           File f, fstatus;
       
-          #ifdef DEBUGMODE
-              logln("File created: " + regFile);
-              logln("File status created: " + statusFile);
-          #endif
-  
+          logln("Registering. File created: " + regFile);
+          logln("Registering. File status created: " + statusFile);
+          logln("Rescan: " + String(rescan));
+
           // Abrimos los archivos
           f = SD_MMC.open(file_ch, FILE_WRITE);
           fstatus = SD_MMC.open(filest_ch, FILE_WRITE);
@@ -770,9 +829,17 @@ private:
                   logln("Registering files in path: " + path);   
               #endif
       
-              // Si es una búsqueda y no es un rescan, usamos el archivo existente
-              if (!search_pattern.isEmpty() && !rescan && f.size() > 0 && fstatus.size() > 0)
+              bool zxdb_search = (FILE_LAST_DIR.indexOf("/ONLINE/ZX/") != -1 || FILE_LAST_DIR.indexOf("/ONLINE/CPC/") != -1 || FILE_LAST_DIR.indexOf("/ONLINE/MSX/") != -1) ? true : false;
+              if (zxdb_search)
               {
+                  // Si la ruta es ONLINE, no intentamos cargar un _files.lst previo
+                  logln("Online path, skipping loading from existing file.");
+              }
+
+              // Si es una búsqueda y no es un rescan, usamos el archivo existente
+              if (zxdb_search || (!search_pattern.isEmpty() && !rescan && f.size() > 0 && fstatus.size() > 0))
+              {
+                  logln("Filling with existing file: " + regFile);
                   fillWithFilesFromFile(f, fstatus, search_pattern, path);
               } 
               else 
@@ -815,23 +882,37 @@ private:
               switch(index)
               {
                 case 0:
-                lineData.ID = atoi(ptr);
+                {
+                  lineData.ID = atoi(ptr);
+                }
                 break;
 
                 case 1:
-                lineData.type = ptr[0];
+                {
+                  lineData.type = ptr[0];
+                }
                 break;
 
                 case 2:
-                lineData.seek = atoi(ptr);
+                {
+                  lineData.seek = atoi(ptr);
+                }
                 break;
 
                 case 3:
-                // Cogemos la extensión del fichero
-                lineData.fileName = String(ptr);
-                int dotIdx = lineData.fileName.lastIndexOf('.');
-                lineData.fileType = (dotIdx != -1) ? lineData.fileName.substring(dotIdx) : "";
-                //logln("File type: " + lineData.fileType);
+                {
+                  // Cogemos la extensión del fichero
+                  lineData.fileName = String(ptr);
+                  int dotIdx = lineData.fileName.lastIndexOf('.');
+                  lineData.fileType = (dotIdx != -1) ? lineData.fileName.substring(dotIdx) : "";
+                  //logln("File type: " + lineData.fileType);
+                }
+                break;
+
+                case 4:
+                {
+                  lineData.IDZXDB = String(ptr);
+                }
                 break;
               }          
               ptr = strtok(NULL, separator);
@@ -1040,18 +1121,7 @@ private:
           FB_READING_FILES = true;
       
           clearFileBuffer();
-      
-          #ifdef DEBUGMODE
-              logln("Trying to use LST file: " + fFileList);
-              logln("Searching files in dir: " + FILE_LAST_DIR);
-              // File root = SD_MMC.open("/MP3");
-              // while (File entry = root.openNextFile()) {
-              //     logln(entry.name());
-              //     entry.close();
-              // }
-              // root.close();              
-          #endif
-      
+            
           // Aseguramos que el directorio está abierto
           if (global_dir) 
           {
@@ -1075,9 +1145,7 @@ private:
               return;
           }
       
-          #ifdef DEBUGMODE
-              logln("Directory: " + FILE_LAST_DIR + " - opened successfully.");
-          #endif
+          logln("Search: Directory: " + FILE_LAST_DIR + " - opened successfully.");
 
           FILE_DIR_OPEN_FAILED = false;
       
@@ -1088,8 +1156,15 @@ private:
               String pathTmp = "";
               if (FILE_LAST_DIR != "/") {pathTmp = FILE_LAST_DIR + "/" + output_file;}
               
+              logln("Checking if LST file exists at: " + pathTmp);
+              logln("Force rescan: " + String(force_rescan ? "Yes" : "No"));
+
               if (force_rescan || !SD_MMC.exists(pathTmp.c_str())) 
               {
+                // Si el archivo no existe o se fuerza el rescan, lo generamos
+                // Si el directorio no es ONLINE, no forzamos el rescan aunque se haya pedido, para evitar destruirlo ya que es virtual
+                if (FILE_LAST_DIR.indexOf("ONLINE") == -1 && FILE_LAST_DIR.indexOf("ONLINE_CPC") == -1 && FILE_LAST_DIR.indexOf("ONLINE_MSX") == -1) force_rescan = false;
+
                 registerFiles(FILE_LAST_DIR, output_file, output_file_inf, search_pattern, force_rescan);
               }
 
@@ -1102,9 +1177,10 @@ private:
               fFileLST.seek(0);
               LST_FILE_IS_OPEN = true;
           }
-      
+          
           // Si no estamos buscando, contamos las líneas en el archivo _files.inf
-          if (search_pattern == "") {
+          if (search_pattern == "") 
+          {
               countTotalLinesInLST(FILE_LAST_DIR, SOURCE_FILE_INF_TO_MANAGE);
           }
       
@@ -1392,7 +1468,11 @@ private:
               {
                 color = DSC_FILE_COLOR;  // Negro - Indica que es un fichero DSC
               }
-              else if (type == ".TAP" || type == ".TZX" || type == ".TSX" || type == ".CDT" || type == ".PZX" || type == ".WAV" || type == ".MP3" || type == ".FLAC" || type == ".RADIO")
+              else if (type == ".ZIP")
+              {
+                color = ZIP_FILE_COLOR;
+              }
+              else if (type == ".TAP" || type == ".TZX" || type == ".TSX" || type == ".CDT" || type == ".PZX" || type == ".WAV" || type == ".MP3" || type == ".FLAC" || type == ".RADIO" || type == ".ZXDB" || type == ".CPCDB" || type == ".MSXDB" || type == ".ZIP" || type == ".CSW")
               {
                   //Ficheros
                   if (SD_MMC.exists("/fav/" + szName))
@@ -1538,26 +1618,16 @@ private:
             {
               WiFi.mode(WIFI_STA);
               WiFi.begin(ssid, password);
-              //btStart();
-              //LAST_MESSAGE = "Connecting wifi radio";
-              //delay(125);
-              //LAST_MESSAGE = "Wifi enabled";
-              //
-              writeString("tape.wifiInd.pic=38");
-              writeString("tape0.wifiInd.pic=38");
+              writeString("tape.wifiInd.pco=60868");
             }
           }
           else
           {
             WiFi.disconnect(true);
             WiFi.mode(WIFI_OFF);
-            //btStop();          
-            //LAST_MESSAGE = "Disconnecting wifi radio";
-            //delay(2000);
-            //LAST_MESSAGE = "Wifi disabled";
+            WIFI_CONNECTED = false;
             //
-            writeString("tape.wifiInd.pic=37");
-            writeString("tape0.wifiInd.pic=37");
+            writeString("tape.wifiInd.pco=23275");
           }
       }
 
@@ -1726,6 +1796,32 @@ private:
 
           logln("Radio buffered: " + String(RADIO_BUFFERED));
           saveHMIcfg("RBUFopt");
+        }
+        // ✅ CSW FFWD Speed: CSW_FFWD=XX (XX = 01 a 10 = 1% a 10%)
+        else if (strCmd.indexOf("CSW_FFWD=") != -1)
+        {
+          uint8_t buff[12];
+          strCmd.getBytes(buff, 11);
+          int ffwd_pct = ((int)buff[9] - 48) * 10 + ((int)buff[10] - 48);  // Two digits
+          if (ffwd_pct < 1) ffwd_pct = 1;
+          if (ffwd_pct > 10) ffwd_pct = 10;
+          
+          float ffwd_speed = (float)ffwd_pct / 100.0;
+          setCSWSeekSpeed(ffwd_speed, CSW_RWD_SPEED);
+          logln("CSW FFWD Speed set to: " + String(ffwd_pct) + "%");
+        }
+        // ✅ CSW RWD Speed: CSW_RWD=XX (XX = 01 a 10 = 1% a 10%)
+        else if (strCmd.indexOf("CSW_RWD=") != -1)
+        {
+          uint8_t buff[12];
+          strCmd.getBytes(buff, 10);
+          int rwd_pct = ((int)buff[8] - 48) * 10 + ((int)buff[9] - 48);  // Two digits
+          if (rwd_pct < 1) rwd_pct = 1;
+          if (rwd_pct > 10) rwd_pct = 10;
+          
+          float rwd_speed = (float)rwd_pct / 100.0;
+          setCSWSeekSpeed(CSW_FFWD_SPEED, rwd_speed);
+          logln("CSW RWD Speed set to: " + String(rwd_pct) + "%");
         }   
         else if (strCmd.indexOf("DHCP=") != -1) 
         {
@@ -1933,7 +2029,8 @@ private:
         }
         else if (strCmd.indexOf("RFSH") != -1) 
         {
-            if (!FB_READING_FILES)
+            // No se hace rescan en los subdirectorios de /ONLINE porque destruye el catalogo
+            if (!FB_READING_FILES && !(FILE_LAST_DIR.indexOf("/ONLINE/ZX/") != -1) && !(FILE_LAST_DIR.indexOf("/ONLINE/CPC/") != -1) && !(FILE_LAST_DIR.indexOf("/ONLINE/MSX/") != -1))
             {
               reloadDir();
               REGENERATE_IDX = true;
@@ -2342,10 +2439,9 @@ private:
 
               String recDirTmp = FILE_LAST_DIR;
               recDirTmp.toUpperCase();
-              if (recDirTmp == "/FAV/" || recDirTmp == "/REC/" || recDirTmp == "/WAV")
+              if (recDirTmp == "/FAV/" || recDirTmp == "/REC/" || recDirTmp == "/WAV" || recDirTmp == "/DOWNLOAD" || recDirTmp == "/DOWNLOAD_CPC" || recDirTmp == "/DOWNLOAD_MSX" || recDirTmp == "/ONLINE" || recDirTmp == "/ONLINE_CPC" || recDirTmp == "/ONLINE_MSX")
               {
                 getFilesFromSD(true,SOURCE_FILE_TO_MANAGE,SOURCE_FILE_INF_TO_MANAGE);
-
               }
               else
               {
@@ -2553,25 +2649,82 @@ private:
               logln("File path to load: " + PATH_FILE_TO_LOAD);
               logln("File name only   : " + FILE_LOAD);
 
-              // Comprobamos que la ruta es existente
-              if (!SD_MMC.exists(PATH_FILE_TO_LOAD))
+              if (FILE_LOAD.indexOf(".zxdb") != -1)
               {
-                #ifdef DEBUGMODE
-                  logAlert("File not exists: " + PATH_FILE_TO_LOAD);
-                #endif
-                PATH_FILE_TO_LOAD = "";
-                FILE_LOAD = "";
-                FILE_SELECTED = false;
+                // Es un fichero virtual ZXDB. Hay que descargarlo primero.
+                logln("File is a virtual ZXDB file. Downloading ...");
+                // Cogemos el nombre del fichero sin .zxdb
+                String tittle = FILE_LOAD.substring(0, FILE_LOAD.length() - 5);
+                // Buscamos en _files.lst el ID que le corresponde a ese fichero para descargarlo
+                String idFile = getIdOfFileInLst(FILE_LAST_DIR + "/_files.lst", FILES_BUFF[FILE_IDX_SELECTED+1].path);
+
+                if (idFile != "")
+                {
+                  logln("File id to download: " + idFile);
+                  logln("Title of file to download: " + tittle);
+                  logln("Starting download from ZXDB ...");
+                  downloadFromZXDB(idFile, tittle);
+                }
+
+              }
+              else if (FILE_LOAD.indexOf(".cpcdb") != -1)
+              {
+                // Es un fichero virtual CPCDB. Hay que descargarlo primero.
+                logln("File is a virtual CPCDB file. Downloading ...");
+                // Cogemos el nombre del fichero sin .cpcdb
+                String tittle = FILE_LOAD.substring(0, FILE_LOAD.length() - 6);
+                // Buscamos en _files.lst el nombre real del CDT
+                String cdtFileName = getIdOfFileInLst(FILE_LAST_DIR + "/_files.lst", FILES_BUFF[FILE_IDX_SELECTED+1].path);
+
+                if (cdtFileName != "")
+                {
+                  logln("CDT file to download: " + cdtFileName);
+                  logln("Title of file to download: " + tittle);
+                  logln("Starting download from CPCDB ...");
+                  downloadFromCPCDB(cdtFileName, tittle);
+                }
+
+              }
+              else if (FILE_LOAD.indexOf(".msxdb") != -1)
+              {
+                // Es un fichero virtual MSXDB. Hay que descargarlo primero.
+                logln("File is a virtual MSXDB file. Downloading ...");
+                // Cogemos el nombre del fichero sin .msxdb
+                String tittle = FILE_LOAD.substring(0, FILE_LOAD.length() - 6);
+                // Buscamos en _files.lst la ruta real del CAS (e.g. "CLOAD/Game (EU).cas")
+                String casFileName = getIdOfFileInLst(FILE_LAST_DIR + "/_files.lst", FILES_BUFF[FILE_IDX_SELECTED+1].path);
+
+                if (casFileName != "")
+                {
+                  logln("CAS file to download: " + casFileName);
+                  logln("Title of file to download: " + tittle);
+                  logln("Starting download from MSXDB ...");
+                  downloadFromMSXDB(casFileName, tittle);
+                }
+
               }
               else
               {
-                #ifdef DEBUGMODE
-                  logAlert("File exists: " + PATH_FILE_TO_LOAD);
-                #endif
-                FILE_SELECTED = true;
+                  // Comprobamos que la ruta es existente
+                  if (!SD_MMC.exists(PATH_FILE_TO_LOAD))
+                  {
+                    #ifdef DEBUGMODE
+                      logAlert("File not exists: " + PATH_FILE_TO_LOAD);
+                    #endif
+                    PATH_FILE_TO_LOAD = "";
+                    FILE_LOAD = "";
+                    FILE_SELECTED = false;
+                  }
+                  else
+                  {
+                    #ifdef DEBUGMODE
+                      logAlert("File exists: " + PATH_FILE_TO_LOAD);
+                    #endif
+                    FILE_SELECTED = true;
 
-                // Guardamos esto en el fichero de last.txt
-                saveLastMedia(PATH_FILE_TO_LOAD);                
+                    // Guardamos esto en el fichero de last.txt
+                    saveLastMedia(PATH_FILE_TO_LOAD);                
+                  }                
               }
             }
             else
@@ -2636,6 +2789,11 @@ private:
             FFWIND = true;
             RWIND = false;
             KEEP_FFWIND = false;
+
+            if (CURRENT_PAGE == PAGE_SPOTIFY)
+            {
+              verifyCommand("SPO4");
+            }
         }
         else if (strCmd.indexOf("RWD") != -1) 
         {
@@ -2643,17 +2801,23 @@ private:
             FFWIND = false;
             RWIND = true;
             KEEP_RWIND = false;
+
+            if (CURRENT_PAGE == PAGE_SPOTIFY)
+            {
+              verifyCommand("SPO1");
+            }
+
         }
         else if (strCmd.indexOf("SFWD") != -1) 
         {
-            logln("S_FFWD pressed");
+            //logln("S_FFWD pressed");
             FFWIND = false;
             RWIND = false;
             KEEP_FFWIND = true;
         }
         else if (strCmd.indexOf("TTWD") != -1) 
         {
-            logln("S_RWD pressed");
+            //logln("S_RWD pressed");
             FFWIND = false;
             RWIND = false;
             KEEP_RWIND = true;
@@ -2675,6 +2839,12 @@ private:
           BTN_PLAY_PRESSED = true;  
           writeString("BBOK.val=1");
 
+          if (CURRENT_PAGE == PAGE_SPOTIFY)
+          {
+            verifyCommand("SPO2");
+          }
+          
+
         }   
         else if (strCmd.indexOf("REC") != -1) 
         {
@@ -2683,12 +2853,28 @@ private:
             logAlert("REC pressed.");
           #endif
 
-          if (IRADIO_EN)
+          // Pagina del TAPE
+          if (CURRENT_PAGE == PAGE_TAPE)
           {
-            REC = true;
-          }
-          else
+            if (IRADIO_EN)
+            {
+              REC = true;
+            }
+            else
+            {
+              REC = true;
+              BTNREC_PRESSED = true;
+
+              PLAY = false;
+              PAUSE = false;
+              STOP = false;
+              ABORT = false;
+              EJECT = false;
+            }    
+          }        
+          else if (CURRENT_PAGE == PAGE_TAPE0)
           {
+            //
             PLAY = false;
             PAUSE = false;
             STOP = false;
@@ -2696,7 +2882,10 @@ private:
             ABORT = false;
             EJECT = false;
             BTNREC_PRESSED = true;
+            writeString("page tape");
           }
+          
+
           
         }
         else if (strCmd.indexOf("PAUSE") != -1) 
@@ -2730,6 +2919,12 @@ private:
 
           BLOCK_SELECTED = 0;
           BYTES_LOADED = 0;
+
+          if (CURRENT_PAGE == PAGE_SPOTIFY)
+          {
+            verifyCommand("SPO3");
+          }
+
         }     
         else if (strCmd.indexOf("EJECT") != -1) 
         {
@@ -2751,6 +2946,9 @@ private:
           ABORT = false;
           EJECT = true;
 
+          C64_TAP_INSIDE = false;
+          myNex.writeStr("tape.wavind.txt", ""); // Limpiamos el texto de warning FFWD/RWD del tape
+
           // Esto lo hacemos así porque el EJECT lanza un comando en paralelo
           // al control del tape (tapeControl)
           // no quitar!!
@@ -2771,7 +2969,7 @@ private:
             // Si estamos en el tape pasamos a tape0
             delay(300);
             writeString("page tape0");
-            CURRENT_PAGE = 0;
+            CURRENT_PAGE = PAGE_TAPE0;
           }
           delay(500);          
           // Entramos en el file browser
@@ -2824,8 +3022,58 @@ private:
           saveHMIcfg("VLIopt");
           saveVolSliders();
 
-          kitStream.setVolume(MAIN_VOL / 100);
+          setVolumenOutput();
 
+        }
+        // Ajuste del volumen
+        else if (strCmd.indexOf("BOS=") != -1) 
+        {
+          //Cogemos el valor
+          uint8_t buff[8];
+          strCmd.getBytes(buff, 7);
+          int valVol = (int)buff[4];
+          BOOSTER_VOLUME = valVol==1 ? true : false;
+          logln("Booster volume: " + String(BOOSTER_VOLUME));
+          VolumeStreamConfig volumeCfg;
+          volumeCfg.copyFrom(volumeStream.audioInfo());
+          volumeCfg.allow_boost = BOOSTER_VOLUME;
+          volumeStream.setAudioInfo(volumeCfg);
+          saveHMIcfg("BOSopt");
+        }
+        else if (strCmd.indexOf("BAL=") != -1) 
+        {
+          //Cogemos el valor
+          uint8_t buff[8];
+          strCmd.getBytes(buff, 7);
+          int valVol = (int)buff[4];
+          BALANCE_VOL = valVol;
+
+          float b = (BALANCE_VOL - 50) / 50;
+          float factor_L = cos((b + 1) * 3.1415 / 4);    
+          float factor_R = sin((b + 1) * 3.1415 / 4);
+          
+          //Primero los ponemos al máximo para poder operar correctamente
+          //MAIN_VOL_L = MAIN_VOL_R = 100;
+
+          int salida_L = MAIN_VOL_L * factor_L;
+          int salida_R = MAIN_VOL_R * factor_R;
+
+          myNex.writeNum("menuAudio.volL.val", int(salida_L));
+          myNex.writeNum("menuAudio.volR.val", int(salida_R));
+          myNex.writeNum("menuAudio.volLevelL.val", int(salida_L));
+          myNex.writeNum("menuAudio.volLevel.val", int(salida_R));
+
+          //
+          MAIN_VOL_L = salida_L;
+          MAIN_VOL_R = salida_R;
+
+          // Aplicamos el balance en la salida
+          setVolumenOutput();
+
+          //MASTER_VOL = valVol;
+          saveHMIcfg("BALopt");
+          //
+          logln("Balance: " + String(BALANCE_VOL / 100));
         }
         // Ajuste del volumen
         else if (strCmd.indexOf("VOL=") != -1) 
@@ -2843,12 +3091,17 @@ private:
                 MAIN_VOL = MAX_VOL_FOR_HEADPHONE_LIMIT;
               }                 
           }
-          MASTER_VOL = valVol;
+          //MASTER_VOL = valVol;
           saveHMIcfg("VOLMopt");
           myNex.writeStr("tape.tapeVol.txt",String(int(MAIN_VOL)) + "%");
 
-          kitStream.setVolume(MAIN_VOL / 100);
-          
+          kitStream.setVolume(MAIN_VOL / 100.0f);
+          //setVolumenOutput();
+
+          //
+          VOL_CHANGE = true;
+          //
+          logln("Master Volume: " + String(MAIN_VOL / 100));
         }
         // Ajuste el vol canal R
         else if (strCmd.indexOf("VRR=") != -1) 
@@ -2868,6 +3121,9 @@ private:
           }          
 
           saveVolSliders();
+          setVolumenOutput();
+       
+          VOL_CHANGE = true;
 
         }
         // Ajuste el vol canal L
@@ -2891,11 +3147,15 @@ private:
           // Ajustamos el volumen
           #ifdef DEBUGMODE
             logln("");
-            logln("L-Channel volume value=" + String(MAIN_VOL_L));
+            logln("L-Channel volume value=" + String(MAIN_VOL * MAIN_VOL_L / 100));
             logln("");
           #endif
 
           saveVolSliders();
+          
+          setVolumenOutput();
+     
+          VOL_CHANGE = true;
 
         }
         else if (strCmd.indexOf("EQH=") != -1) 
@@ -2944,19 +3204,74 @@ private:
           // Le cambiamos el signo para que cuando seleccionemos -1 sea bajar tono en vez de quitar una muestra que es todo lo contrario (aumentar frecuencia)
           // y lo mismo con el +1
           AZIMUT = valVol;
+          C64_TIMING_BIAS = (AZIMUT - 5) * (BIAS_FACTOR_TAP_C64);
+          logln("C64_TIMING_BIAS: " + String(C64_TIMING_BIAS, 8) + " samples");
+
           //TONE_ADJUST = (-210)*(TONE_ADJUSTMENT_ZX_SPECTRUM + (valVol-TONE_ADJUSTMENT_ZX_SPECTRUM_LIMIT));         
           TONE_ADJUST = 0;
           SAMPLES_ADJUST = (TONE_ADJUSTMENT_ZX_SPECTRUM + (valVol-TONE_ADJUSTMENT_ZX_SPECTRUM_LIMIT));
           logln("TONE: " + String(TONE_ADJUST) + " Hz"); 
+
+          if ((AZIMUT != 0) && !WAV_8BIT_MONO && !REM_DETECTED)
+          {
+            myNex.writeStr("tape.wavind.txt", "AZI");
+          }
           //saveHMIcfg("EQLopt");
         }    
         else if (strCmd.indexOf("WWW") != -1) 
         {
-          // Activa audio internet.
-          // logln("Audio internet enabled.");
-          // IRADIO_EN = true;
+          // Salta al directorio de ZXDB online.
+          logln("Jumping to ZXDB dir.");
+          // Con este comando nos indica la pantalla que quiere
+          // le devolvamos ficheros en la posición actual del puntero
+          SOURCE_FILE_TO_MANAGE = "_files.lst";
+          SOURCE_FILE_INF_TO_MANAGE = "_files.inf"; 
+
+          LST_FILE_IS_OPEN = false;
+          if (fFileLST)
+          {
+            fFileLST.close();
+          }
+
+          jumpToDir("/ONLINE");
+          getFilesFromSD(true,SOURCE_FILE_TO_MANAGE,SOURCE_FILE_INF_TO_MANAGE);
+          refreshFiles();           
         }
-        else if (strCmd.indexOf("RADI") != -1) 
+        else if (strCmd.indexOf("CCPC") != -1)
+        {
+          // Salta al directorio de CPCDB online (Amstrad CPC).
+          logln("Jumping to CPCDB dir.");
+          SOURCE_FILE_TO_MANAGE = "_files.lst";
+          SOURCE_FILE_INF_TO_MANAGE = "_files.inf";
+
+          LST_FILE_IS_OPEN = false;
+          if (fFileLST)
+          {
+            fFileLST.close();
+          }
+
+          jumpToDir("/ONLINE_CPC");
+          getFilesFromSD(true,SOURCE_FILE_TO_MANAGE,SOURCE_FILE_INF_TO_MANAGE);
+          refreshFiles();
+        }
+        else if (strCmd.indexOf("CMSX") != -1)
+        {
+          // Salta al directorio de MSXDB online (MSX).
+          logln("Jumping to MSXDB dir.");
+          SOURCE_FILE_TO_MANAGE = "_files.lst";
+          SOURCE_FILE_INF_TO_MANAGE = "_files.inf";
+
+          LST_FILE_IS_OPEN = false;
+          if (fFileLST)
+          {
+            fFileLST.close();
+          }
+
+          jumpToDir("/ONLINE_MSX");
+          getFilesFromSD(true,SOURCE_FILE_TO_MANAGE,SOURCE_FILE_INF_TO_MANAGE);
+          refreshFiles();
+        }
+        else if (strCmd.indexOf("RADI") != -1)
         {
           // Salta al directorio de RADIO internet.
           logln("Jumping to internet radio dir.");
@@ -3015,29 +3330,79 @@ private:
         //   logln("Offset value=" + String(PULSE_OFFSET));
         // }                        
         // Habilitar terminadores para forzar siguiente pulso a HIGH
-        else if (strCmd.indexOf("TER=") != -1) 
+        else if (strCmd.indexOf("C64=") != -1) 
         {
-          // //Cogemos el valor
-          // uint8_t buff[8];
-          // strCmd.getBytes(buff, 7);
-          // int valEn = (int)buff[4];
-          // //
-          // if (valEn==1)
-          // {
-          //     // Habilita terminadores
-          //     APPLY_END = true;
-          // }
-          // else
-          // {
-          //     // Deshabilita terminadores
-          //     APPLY_END = false;
-          // }
+          //Cogemos el valor
+          uint8_t buff[8];
+          strCmd.getBytes(buff, 7);
+          int valEn = (int)buff[4];
+          //
+          if (valEn==1)
+          {
+              // Habilita terminadores
+              C64_MODE = true;
+          }
+          else
+          {
+              // Deshabilita terminadores
+              C64_MODE = false;
+          }
 
-          // // #ifdef DEBUGMODE
-          //   //logln("");
-          //   logln("Terminadores ENABLE =" + String(APPLY_END));
-          // // #endif
+          // #ifdef DEBUGMODE
+            //logln("");
+            logln("C64 Mode ENABLE =" + String(C64_MODE));
+          // #endif
         }
+        else if (strCmd.indexOf("RS1=") != -1) 
+        {
+          //
+          // Remove CSW silences (for C64 FPGA with REM patched)
+          //
+
+          //Cogemos el valor
+          uint8_t buff[8];
+          strCmd.getBytes(buff, 7);
+          int valEn = (int)buff[4];
+          //
+          if (valEn==1)
+          {
+              // Habilita terminadores
+              REMOVE_SILENCES_CSW = true;
+          }
+          else
+          {
+              // Deshabilita terminadores
+              REMOVE_SILENCES_CSW = false;
+          }
+
+          // #ifdef DEBUGMODE
+            //logln("");
+            logln("Remove CSW silences ENABLE =" + String(REMOVE_SILENCES_CSW));
+          // #endif
+        }        
+        else if (strCmd.indexOf("48K=") != -1) 
+        {
+          //Cogemos el valor
+          uint8_t buff[8];
+          strCmd.getBytes(buff, 7);
+          int valEn = (int)buff[4];
+          //
+          if (valEn==1)
+          {
+              // Habilita terminadores
+              SILENCE_COMPENSATION_48K_EN = true;
+          }
+          else
+          {
+              // Deshabilita terminadores
+              SILENCE_COMPENSATION_48K_EN = false;
+          }
+
+          // #ifdef DEBUGMODE
+            //logln("");
+            logln("48K Silence Compensation ENABLE =" + String(SILENCE_COMPENSATION_48K_EN));
+          // #endif
+        }        
         // Polarización de la señal
         else if (strCmd.indexOf("PLZ=") != -1) 
         {
@@ -3064,6 +3429,12 @@ private:
 
           logln("");
           logln("Polarization =" + String(INVERSETRAIN));
+
+          if (TYPE_FILE_LOAD == "WAV" || TYPE_FILE_LOAD == "TAP" || TYPE_FILE_LOAD == "TZX")
+          {
+            LAST_MESSAGE = "Polarization changed. Please, reload the file.";
+            EJECT = true;
+          }
 
         }
         // Nivel LOW a cero
@@ -3128,7 +3499,7 @@ private:
           }
 
           logln("");
-          logln("Enable EAR inversion=" + String(EN_SCHMITT_CHANGE));
+          logln("Enable EAR inversion=" + String(EN_EAR_INVERSION));
 
         }        
         // Mutea la salida amplificada
@@ -3606,7 +3977,9 @@ private:
           else
           {
               activateWifi(false);
-          }          
+          }    
+          
+          saveHMIcfg("WIFIopt");
         }
         // Show data debug by serial console
         else if (strCmd.indexOf("SDD=") != -1) 
@@ -3750,8 +4123,10 @@ private:
           myNex.writeNum("menuAudio.volM.val", int(MAIN_VOL));
           myNex.writeNum("menuAudio.volLevelM.val", int(MAIN_VOL));
           myNex.writeStr("tape.tapeVol.txt",String(int(MAIN_VOL)) + "%");
+          
+          //kitStream.setVolume(MAIN_VOL / 100);
+          setVolumenOutput();
 
-          kitStream.setVolume(MAIN_VOL / 100);
 
         }        
         else if (strCmd.indexOf("VOLDW") != -1) 
@@ -3768,7 +4143,10 @@ private:
           myNex.writeStr("tape.tapeVol.txt",String(int(MAIN_VOL)) + "%");
 
 
-          kitStream.setVolume(MAIN_VOL / 100);
+          //kitStream.setVolume(MAIN_VOL / 100);
+          setVolumenOutput();
+
+
           // logln("");
           // logln("VOL DOWN");
           // logln("");
@@ -3811,27 +4189,66 @@ private:
           
           findTheTextInFiles();
         }
+        else if (strCmd.indexOf("ZXDB=") != -1)
+        {
+          //Cogemos el valor
+          uint8_t buff[8];
+          strCmd.getBytes(buff, 7);
+          char str = (char)buff[5];
+          //
+          logln("Update ZXDB with letter: " + String(str));
+          updateZXDB(String(str));
+        }
+        else if (strCmd.indexOf("CPCD=") != -1)
+        {
+          // Actualizar catálogo CPCDB para una letra
+          uint8_t buff[8];
+          strCmd.getBytes(buff, 7);
+          char str = (char)buff[5];
+          logln("Update CPCDB with letter: " + String(str));
+          updateCPCDB(String(str));
+        }
+        else if (strCmd.indexOf("MSXD=") != -1)
+        {
+          // Actualizar catálogo MSXDB para una letra
+          uint8_t buff[8];
+          strCmd.getBytes(buff, 7);
+          char str = (char)buff[5];
+          logln("Update MSXDB with letter: " + String(str));
+          updateMSXDB(String(str));
+        }
         else if (strCmd.indexOf("PDEBUG") != -1)
         {
             // Estamos en la pantalla DEBUG
             #ifdef DEBUGMODE
               logAlert("PAGE DEBUG");
             #endif
-            CURRENT_PAGE = 3;
+            CURRENT_PAGE = PAGE_DEBUG;
         }
+        else if (strCmd.indexOf("KEYDB") != -1)
+        {
+            // Estamos en la pantalla DEBUG
+            #ifdef DEBUGMODE
+              logAlert("PAGE KEYPAD Debug");
+            #endif
+            CURRENT_PAGE = PAGE_KEYDEBUG;
+        }        
         else if (strCmd.indexOf("PMENU1") != -1)
         {
-            if (CURRENT_PAGE == 2) {
+            if (CURRENT_PAGE == PAGE_MENU_GENERAL_SETTINGS) {
               return;
             }
-            CURRENT_PAGE = 2;
-            delay(500);
+            CURRENT_PAGE = PAGE_MENU_GENERAL_SETTINGS;
+            delay(125);
             myNex.writeNum("menu.dhcp.val", int(DHCP_ENABLE));
+            delay(125);
+            myNex.writeNum("menu.dhcp.val", int(DHCP_ENABLE));           
         }
+        
         else if (strCmd.indexOf("PMENU0") != -1)
         {
             // Estamos en la pantalla MENU
-            CURRENT_PAGE = 5;
+            CURRENT_PAGE = PAGE_MENU_GENERAL_SETTINGS_EXT;
             writeString("mainmenu.verFirmware.txt=\" powadcr " + String(VERSION) + "\"");     
         }  
         else if (strCmd.indexOf("PMENU2") != -1)
@@ -3840,7 +4257,7 @@ private:
             #ifdef DEBUGMODE
               logAlert("PAGE MENU(Eq)");
             #endif
-            CURRENT_PAGE = 4;
+            CURRENT_PAGE = PAGE_EQ;
             delay(500);          
             myNex.writeNum("menuEq.eqHigh.val", int(EQ_HIGH*100));
             myNex.writeNum("menuEq.eqMid.val", int(EQ_MID*100));
@@ -3888,13 +4305,21 @@ private:
             TAPE_PAGE_SHOWN = true;
             RADIO_PAGE_SHOWN = true;
         }
+        else if (strCmd.indexOf("PSPOT") != -1)
+        {
+            // Estamos en la pantalla TAPE
+            #ifdef DEBUGMODE
+              logAlert("PAGE SPOTIFY");
+            #endif
+            CURRENT_PAGE = PAGE_SPOTIFY;
+        }
         else if (strCmd.indexOf("0TAPE") != -1)
         {
             // Estamos en la pantalla TAPE
             #ifdef DEBUGMODE
               logAlert("PAGE TAPE0");
             #endif
-            CURRENT_PAGE = 0;
+            CURRENT_PAGE = PAGE_TAPE0;
             //updateInformationMainPage(true);
             TAPE_PAGE_SHOWN = false;
             RADIO_PAGE_SHOWN = false;
@@ -3906,10 +4331,50 @@ private:
             #ifdef DEBUGMODE
               logAlert("PAGE CLOCK");
             #endif
-            CURRENT_PAGE = 99;
+            CURRENT_PAGE = PAGE_CLOCK;
             //updateInformationMainPage(true);
             TAPE_PAGE_SHOWN = false;
             RADIO_PAGE_SHOWN = false;
+            //
+        }    
+        else if (strCmd.indexOf("SPO4") != -1)
+        {
+            // Spotify PREV TRACK
+            //updateInformationMainPage(true);
+            if (SPOTIFY_CONTROL)
+            {
+              sp->skip_to_next();
+            }
+            //
+        }                  
+        else if (strCmd.indexOf("SPO1") != -1)
+        {
+            // Spotify PREV TRACK
+            //updateInformationMainPage(true);
+            if (SPOTIFY_CONTROL)
+            {
+              sp->skip_to_previous();
+            }
+            //
+        }     
+        else if (strCmd.indexOf("SPO2") != -1)
+        {
+            // Spotify PLAY/PAUSE
+            //updateInformationMainPage(true);
+            if (SPOTIFY_CONTROL)
+            {
+              sp->play();
+            }
+            //
+        }     
+        else if (strCmd.indexOf("SPO3") != -1)
+        {
+            // Spotify NEXT TRACK
+            //updateInformationMainPage(true);
+            if (SPOTIFY_CONTROL)
+            { 
+              sp->pause();
+            }
             //
         }            
         else if (strCmd.indexOf("CHKUPD") != -1)
@@ -3940,7 +4405,47 @@ private:
           {IGNORE_DSC = true;}
           else  
           {IGNORE_DSC = false;}
-        }        
+        }    
+        else if (strCmd.indexOf("SKN=") != -1) 
+        {
+          //Cogemos el valor
+          uint8_t buff[8];
+          strCmd.getBytes(buff, 7);
+          int valEn = (int)buff[4];
+          //
+          switch (valEn)
+          {
+            case 49:
+              //Powa skin
+              SKIN_SELECTED = 1;
+              break;
+            case 50:
+              // Amstrad
+              SKIN_SELECTED = 2;
+              break;
+            case 51:
+              // Commodore
+              SKIN_SELECTED = 3;
+              break;            
+            case 52:
+              // Spectrum
+              SKIN_SELECTED = 4;
+              break;
+            case 53:
+              // MSX
+              SKIN_SELECTED = 5;
+              break;              
+            default:
+              // Powa skin
+              SKIN_SELECTED = 1;
+          }
+
+          saveHMIcfg("SKINopt");
+
+          logln("");
+          logln("Skin selection=" + String(valEn));
+
+        }            
         else if (strCmd.indexOf("UPDATE") != -1)
         {
           //-------------------------------------------------------------------------
@@ -3958,6 +4463,7 @@ private:
           BLOCK_SELECTED = 0;
           BYTES_LOADED = 0;
           myNex.writeStr("update.status.txt","Stop player ...");
+          
           delay(1000);
           
           // Actualizamos
@@ -4263,14 +4769,22 @@ private:
                         else
                         {
                             // Si no hay nombre, ponemos "..."
-                            PROGRAM_NAME = LAST_PROGRAM_NAME + " [code]";
+                            if (C64_TAP_INSIDE)
+                            {
+                              PROGRAM_NAME = FILE_LOAD;
+                            }
+                            else
+                            {
+                              PROGRAM_NAME = LAST_PROGRAM_NAME + " [code]";
+                            }
+                            
                         }       
                       }                                
                 }                  
 
                 if (PLAY)
                 {
-                  if (CURRENT_PAGE == 3)
+                  if (CURRENT_PAGE == PAGE_DEBUG)
                   {
                       refreshInfoDebug();
                   }
@@ -4397,7 +4911,7 @@ private:
           lastPr2 = PROGRESS_BAR_TOTAL_VALUE;
 
                             
-          if (CURRENT_PAGE == 2)
+          if (CURRENT_PAGE == PAGE_MENU_GENERAL_SETTINGS)
           {
             updateMem();
           }
@@ -4938,6 +5452,53 @@ private:
         myNex.writeStr("update.status.txt","Latest version: " + tagName);
         
         return tagName;
+    }
+
+    // Busca en _files.lst el ID correspondiente a un fichero .zxdb
+    // lstPath  : ruta completa al _files.lst  (e.g. "/ONLINE/A/_files.lst")
+    // fileName : nombre del fichero con extensión (e.g. "Manic Miner.zxdb")
+    // Retorna  : el ID de 7 dígitos, o "" si no se encuentra
+    // Formato de línea: {lineNum}|F|0|{title}.zxdb|{id}
+    String getIdOfFileInLst(const String& lstPath, const String& fileName)
+    {
+      File lst = SD_MMC.open(lstPath.c_str(), FILE_READ);
+      if (!lst)
+      {
+        logln("getIdOfFileInLst: no se pudo abrir " + lstPath);
+        return "";
+      }
+
+      while (lst.available())
+      {
+        String line = lst.readStringUntil('\n');
+        line.trim();
+        if (line.length() == 0) continue;
+
+        // Formato: lineNum|F|0|title.zxdb|id
+        // Buscamos el campo 4 (índice 3, base 0) que contiene el nombre del fichero
+        int f1 = line.indexOf('|');                        // después de lineNum
+        int f2 = (f1 != -1) ? line.indexOf('|', f1+1) : -1; // después de F
+        int f3 = (f2 != -1) ? line.indexOf('|', f2+1) : -1; // después de 0
+        int f4 = (f3 != -1) ? line.indexOf('|', f3+1) : -1; // después de title
+
+        if (f3 == -1 || f4 == -1) continue;
+
+        String titleInLine = line.substring(f3+1, f4);
+        titleInLine.trim();
+
+        if (titleInLine == fileName)
+        {
+          String id = line.substring(f4+1);
+          id.trim();
+          lst.close();
+          logln("getIdOfFileInLst: encontrado ID=" + id + " para " + fileName);
+          return id;
+        }
+      }
+
+      lst.close();
+      logln("getIdOfFileInLst: no encontrado " + fileName + " en " + lstPath);
+      return "";
     }
 
     // ✅ FUNCIÓN OPTIMIZADA PARA ARCHIVOS GRANDES

@@ -116,7 +116,7 @@ private:
   void analyzePAUS(File &mFile, tPZXBlockDescriptor &descriptor) {
     strncpy(descriptor.typeName, "PZX Pause", 35);
     descriptor.playeable = true;
-    uint32_t duration_field = getNBYTE(mFile, descriptor.offset + 8, 4);
+    int duration_field = getNBYTE(mFile, descriptor.offset + 8, 4);
     descriptor.pause_duration = duration_field & 0x7FFFFFFF;
     descriptor.initial_level = (duration_field >> 31) & 1;
 
@@ -161,7 +161,7 @@ private:
     // 2. Llenar la estructura de pulsos
     current_pos = descriptor.offset + 8;
     for (int i = 0; i < pulse_count; ++i) {
-      uint32_t duration;
+      int duration;
       uint16_t count = 1;
 
       uint16_t val1 = getNBYTE(mFile, current_pos, 2);
@@ -268,7 +268,7 @@ private:
       uint16_t val = getNBYTE(mFile, pos, 2);
       pos += 2;
 
-      uint32_t duration = 0;
+      int duration = 0;
       uint16_t repeat = 1;
 
       if ((val & 0x8000) == 0) {
@@ -297,7 +297,7 @@ private:
 
           if (dur_word & 0x8000) {
             // Duración 31-bit: (dur_word & 0x7FFF) es HIGH, siguiente es LOW
-            duration = (uint32_t)(dur_word & 0x7FFF) << 16;
+            duration = (int)(dur_word & 0x7FFF) << 16;
             if (pos >= block_end)
               break;
             duration |= getNBYTE(mFile, pos, 2);
@@ -325,7 +325,7 @@ private:
     descriptor.timming.pzx_num_pulses = idx;
 
     // Calcular estadísticas
-    uint32_t total_pulses = 0;
+    int total_pulses = 0;
     for (int i = 0; i < idx; i++) {
       total_pulses += descriptor.timming.pzx_pulse_data[i].repeat;
     }
@@ -345,7 +345,7 @@ private:
     descriptor.playeable = true;
     int data_offset = descriptor.offset + 8;
 
-    uint32_t count_field = getNBYTE(mFile, data_offset, 4);
+    int count_field = getNBYTE(mFile, data_offset, 4);
     descriptor.data_bit_count = count_field & 0x7FFFFFFF;
     descriptor.initial_level = (count_field >> 31) & 1;
 
@@ -413,7 +413,7 @@ public:
     logln("Analyzing PZX CSW Block...");
 
     int block_data_offset = descriptor.offset + 8;
-    uint32_t flags = getNBYTE(mFile, block_data_offset, 4);
+    int flags = getNBYTE(mFile, block_data_offset, 4);
     descriptor.initial_level = (flags >> 3) & 1;
     descriptor.pause_duration = getNBYTE(mFile, block_data_offset + 4, 2);
 
@@ -506,7 +506,7 @@ public:
     descriptor.typeName[0] = '\0';
     // Leer el tag y el tamaño del bloque
     char tag[5] = {0};
-    uint32_t size = 0;
+    int size = 0;
 
     mFile.seek(currentOffset);
     mFile.read((uint8_t *)tag, 4);
@@ -565,11 +565,10 @@ public:
     // ✅ CORRECCIÓN: Leer el tamaño real del bloque PZXT para saber dónde
     // empieza el siguiente. El tamaño total del bloque PZXT es 8 (tag+size) +
     // el valor del campo size.
-    uint32_t pzxt_block_data_size = getNBYTE(mFile, 4, 4);
+    int pzxt_block_data_size = getNBYTE(mFile, 4, 4);
     startOffset = 8 + pzxt_block_data_size;
 
-    logln("PZXT header found. Next block starts at offset: " +
-          String(startOffset));
+    logln("PZXT header found. Next block starts at offset: " + String(startOffset));
 
     int currentOffset = startOffset;
     int blockCount = 0;
@@ -580,7 +579,7 @@ public:
       blockCount++;
 
       char *tag = readTag(mFile, currentOffset);
-      uint32_t blockSize = getNBYTE(mFile, currentOffset + 4, 4);
+      int blockSize = getNBYTE(mFile, currentOffset + 4, 4);
 
       // logln("");
       // logln("");
@@ -601,132 +600,60 @@ public:
 
     // 3. Reservar memoria para el número correcto de bloques
     _myPZX.numBlocks = blockCount;
-    _myPZX.descriptor = (tPZXBlockDescriptor *)ps_calloc(
-        blockCount, sizeof(tPZXBlockDescriptor));
-    if (_myPZX.descriptor == nullptr) {
-      logln("FATAL: Failed to allocate memory for PZX descriptors. ESP will "
-            "likely restart.");
+    _myPZX.descriptor = (tPZXBlockDescriptor *)ps_calloc(blockCount, sizeof(tPZXBlockDescriptor));
+    if (_myPZX.descriptor == nullptr) 
+    {
+      logln("FATAL: Failed to allocate memory for PZX descriptors. ESP will likely restart.");
       return;
     }
 
     // 4. Segundo paso: analizar cada bloque y rellenar el descriptor
-    currentOffset =
-        startOffset; // Reiniciar el offset al primer bloque de datos
-    for (int i = 0; i < blockCount; ++i) {
-      // if (STOP || ABORT) break;
+    currentOffset = startOffset; // Reiniciar el offset al primer bloque de datos
+
+    //Nos preparamos para poder cancelar el proceso cuando queramos.
+    STOP = false;
+
+    for (int i = 0; i < blockCount; ++i) 
+    {
+      if (STOP || ABORT)
+      {
+        LAST_MESSAGE = "Aborting PZX analysis...";
+        _myPZX.descriptor = nullptr;
+        _myPZX.numBlocks = 0;
+        return;
+      }
+      int progress_pct = (int)(((double)(i + 1) / blockCount) * 100.0);
+      LAST_MESSAGE = "Analyzing PZX block " + String(i + 1) + " / " + String(blockCount) + " (" + String(progress_pct) + "%)";
 
       analyzePZXBlock(mFile, currentOffset, _myPZX.descriptor[i]);
 
-      logln("TAg analyzed: " + String(_myPZX.descriptor[i].tag));
-      logln("Offset: ");
-      logHEX(_myPZX.descriptor[i].offset);
-      logln("Size: " + String(_myPZX.descriptor[i].size));
-      logln("Analyzed PZX Block " + String(i + 1) + "/" + String(blockCount) +
-            ": " + String(_myPZX.descriptor[i].typeName));
-
+      #ifdef DEBUG
+        logln("TAg analyzed: " + String(_myPZX.descriptor[i].tag));
+        logln("Offset: ");
+        logHEX(_myPZX.descriptor[i].offset);
+        logln("Size: " + String(_myPZX.descriptor[i].size));
+        logln("Analyzed PZX Block " + String(i + 1) + "/" + String(blockCount) + ": " + String(_myPZX.descriptor[i].typeName));
+      #endif
       // Avanzar al siguiente bloque
       currentOffset += 8 + _myPZX.descriptor[i].size;
     }
   }
-  // ... (resto del código) ...
-
-  // ✅ FUNCIÓN AÑADIDA: El bucle principal que recorre y analiza todos los
-  // bloques void getBlockDescriptor(File &mFile)
-  // {
-  //     // 1. Validar la cabecera PZX y obtener el offset inicial
-  //     char file_tag[5] = {0};
-  //     mFile.seek(0);
-  //     mFile.read((uint8_t*)file_tag, 4);
-  //     if (strcmp(file_tag, "PZXT") != 0) {
-  //         logln("Error: Not a valid PZX file. Missing 'PZXT' header.");
-  //         return;
-  //     }
-
-  //     // La cabecera 'PZXT' tiene un tamaño de datos y un header.
-  //     // El primer bloque real empieza después de ella.
-  //     // uint32_t header_block_size = getLittleEndianDWord(mFile, 4);
-  //     int startOffset = 10; // Offset para el primer bloque de datos
-
-  //     int currentOffset = startOffset;
-  //     int blockCount = 0;
-
-  //     // 2. Primer paso: contar bloques de datos (empezando DESPUÉS de la
-  //     cabecera) while(currentOffset < _myPZX.size) {
-  //         blockCount++;
-
-  //         char* tag = readTag(mFile, currentOffset);
-
-  //         uint32_t blockSize = getNBYTE(mFile, currentOffset + 4, 4);
-
-  //         logln("");
-  //         logln("");
-  //         log("PZX Block - " + String(tag) + " at offset: [");
-  //         logHEX(currentOffset);
-  //         log("] - Size: " + String(blockSize) + " bytes");
-
-  //         currentOffset += 8 + blockSize;
-
-  //     }
-
-  //     TOTAL_BLOCKS = blockCount+1;
-  //     logln("Total PZX Data Blocks Found: " + String(blockCount+1));
-
-  //     if (blockCount == 0) {
-  //         _myPZX.numBlocks = 0;
-  //         return;
-  //     }
-
-  //     // 3. Reservar memoria para el número correcto de bloques
-  //     _myPZX.numBlocks = blockCount;
-  //     _myPZX.descriptor = (tPZXBlockDescriptor*)ps_calloc(blockCount,
-  //     sizeof(tPZXBlockDescriptor)); if (_myPZX.descriptor == nullptr) {
-  //         logln("FATAL: Failed to allocate memory for PZX descriptors. ESP
-  //         will likely restart."); return;
-  //     }
-
-  //     // 4. Segundo paso: analizar cada bloque y rellenar el descriptor
-  //     mFile.seek(0);
-  //     currentOffset = startOffset; // Reiniciar el offset al primer bloque de
-  //     datos for (int i = 0; i < blockCount; ++i) {
-  //         //if (STOP || ABORT) break;
-
-  //         analyzePZXBlock(mFile, currentOffset, _myPZX.descriptor[i]);
-
-  //         logln("TAg analyzed: " + String(_myPZX.descriptor[i].tag));
-  //         logln("Offset: ");
-  //         logHEX(_myPZX.descriptor[i].offset);
-  //         logln("Size: " + String(_myPZX.descriptor[i].size));
-  //         logln("Analyzed PZX Block " + String(i + 1) + "/" +
-  //         String(blockCount) + ": " + String(_myPZX.descriptor[i].typeName));
-
-  //         // Avanzar al siguiente bloque
-  //         currentOffset += 8 + _myPZX.descriptor[i].size;
-  //     }
-  // }
-
+  
   void proccessingDescriptor(File &pzxFile) {
 
     LAST_MESSAGE = "Analyzing file. Capturing blocks";
 
-    // if (SD_MMC.exists(pathDSC))
-    // {
-    //   SD_MMC.remove(pathDSC);
-    // }
-
-    //_blDscTZX.createBlockDescriptorFileTZX(dscFile,pathDSC);
     // creamos un objeto TZXproccesor
     set_file(pzxFile, _rlen);
     // Lo procesamos y creamos DSC
     getBlockDescriptor(pzxFile);
-    // Cerramos para guardar los cambios
-    // dscFile.close();
 
+    // Cerramos para guardar los cambios
     if (_myPZX.descriptor != nullptr) {
       // Entregamos información por consola
-      // strcpy(LAST_NAME,"              ");
       LAST_MESSAGE = "PZX ready.";
     } else {
-      LAST_MESSAGE = "Error in PZX not supported";
+      LAST_MESSAGE = "Error in PZX OR aborted.";
     }
   }
 
@@ -804,10 +731,13 @@ public:
     }
   }
 
-  void play() {
+  void play() 
+  {
+    //
+    // Empezamos a reproducir desde el bloque seleccionado en el browser
+    //
     int firstBlockToBePlayed = BLOCK_SELECTED - 1;
-    if (firstBlockToBePlayed < 0)
-      firstBlockToBePlayed = 0;
+    if (firstBlockToBePlayed < 0) firstBlockToBePlayed = 0;
 
     BYTES_TOBE_LOAD = _myPZX.size;
     BYTES_LOADED = 0;
@@ -826,52 +756,120 @@ public:
 
     bool pause_from_stop_block = false;
 
-    // Inicializamos el nivel de la señal según la polarización seleccionada
-    // EDGE_EAR_IS = INVERSETRAIN ? POLARIZATION ^ 1: POLARIZATION;
+    // ============================================
+    // CÁLCULO DE TAMAÑO TOTAL DE TRABAJO
+    // ============================================
+    // Calcular unidades de trabajo totales (pulsos, bits, duración, etc.)
+    int64_t total_work_units = 0;
+    int64_t work_units_per_block[_myPZX.numBlocks];
+    memset(work_units_per_block, 0, sizeof(work_units_per_block));
 
-    for (int i = firstBlockToBePlayed; i < _myPZX.numBlocks; ++i) {
+    for (int j = firstBlockToBePlayed; j < _myPZX.numBlocks; ++j) 
+    {
+      if (!_myPZX.descriptor[j].playeable) continue;
+
+      if (strcmp(_myPZX.descriptor[j].tag, "PULS") == 0) 
+      {
+        // Contar pulsos totales considerando repeats
+        int64_t total_puls = 0;
+        for (int p = 0; p < _myPZX.descriptor[j].timming.pzx_num_pulses; ++p) 
+        {
+          total_puls += _myPZX.descriptor[j].timming.pzx_pulse_data[p].repeat;
+        }
+        work_units_per_block[j] = total_puls > 0 ? total_puls : 1;
+        total_work_units += work_units_per_block[j];
+      }
+      else if (strcmp(_myPZX.descriptor[j].tag, "DATA") == 0) 
+      {
+        // Usar bits como unidades de trabajo
+        work_units_per_block[j] = _myPZX.descriptor[j].data_bit_count > 0 ? _myPZX.descriptor[j].data_bit_count : 1;
+        total_work_units += work_units_per_block[j];
+      }
+      else if (strcmp(_myPZX.descriptor[j].tag, "CSW") == 0) 
+      {
+        // Contar pulsos totales considerando repeats
+        int64_t total_csw = 0;
+        for (int p = 0; p < _myPZX.descriptor[j].csw_num_pulses; ++p) 
+        {
+          total_csw += _myPZX.descriptor[j].csw_pulse_data[p].repeat;
+        }
+        work_units_per_block[j] = total_csw > 0 ? total_csw : 1;
+        total_work_units += work_units_per_block[j];
+      }
+      else if (strcmp(_myPZX.descriptor[j].tag, "PAUS") == 0 || strcmp(_myPZX.descriptor[j].tag, "STOP") == 0) 
+      {
+        // Bloques instantáneos: 1 unidad
+        work_units_per_block[j] = 1;
+        total_work_units += 1;
+      }
+    }
+
+    if (total_work_units == 0) total_work_units = 1; // Evitar división por cero
+
+    int64_t cumulative_work_units = 0;
+
+    // Para PZX, la polarización por defecto es LOW (0)
+    // Según la especificación PZX, PULS comienza en LOW.
+    // Si hay un pulso de duración 0 al inicio de PULS, puede hacer toggle a HIGH.
+    //EDGE_EAR_IS ^= 1;  // Para que empiece en LOW
+
+    for (int i = firstBlockToBePlayed; i < _myPZX.numBlocks; ++i) 
+    {
+    
       KEEP_CURRENT_EDGE = false;
 
       // Lo guardo por si hago PAUSE y vuelvo a reproducir el bloque
       _myPZX.descriptor[i].edge = EDGE_EAR_IS;
 
-      logln("Processing PZX Block " + String(i + 1) + "/" +
-            String(_myPZX.numBlocks) + ": " +
-            String(_myPZX.descriptor[i].typeName));
+      #ifdef DEBUG
+        logln("Processing PZX Block " + String(i + 1) + "/" + String(_myPZX.numBlocks) + ": " + String(_myPZX.descriptor[i].typeName));
+      #endif
 
-      if (STOP || EJECT)
-        break;
+      if (STOP || EJECT) break;
 
-      if (PAUSE || pause_from_stop_block) {
+      if (PAUSE || pause_from_stop_block) 
+      {
         tapeAnimationOFF();
         LAST_MESSAGE = "Tape paused. Press Play to continue.";
-        while (!PLAY && !STOP && !EJECT) {
+      
+        while (!PLAY && !STOP && !EJECT) 
+        {
           delay(100);
 
-          if (FFWIND) {
+          if (FFWIND) 
+          {
             FFWIND = false;
             LAST_MESSAGE = "Fast Forwarding to next block";
             BLOCK_SELECTED++;
-            if (i >= _myPZX.numBlocks) {
+            if (i >= _myPZX.numBlocks) 
+            {
               BLOCK_SELECTED = _myPZX.numBlocks;
               break;
             }
+            
             rewindAnimation(1);
+            
             // Forzamos un refresco de los indicadores
             hmi.setBasicFileInformation(
                 0, 0, myPZX.descriptor[BLOCK_SELECTED].name,
                 myPZX.descriptor[BLOCK_SELECTED].typeName,
                 myPZX.descriptor[BLOCK_SELECTED].size,
                 myPZX.descriptor[BLOCK_SELECTED].playeable);
-          } else if (RWIND) {
+
+          } 
+          else if (RWIND) 
+          {
             RWIND = false;
             LAST_MESSAGE = "Rewinding to previous block";
             BLOCK_SELECTED--;
-            if (BLOCK_SELECTED < 1) {
+          
+            if (BLOCK_SELECTED < 1) 
+            {
               BLOCK_SELECTED = 1;
               break;
             }
             rewindAnimation(-1);
+
             // Forzamos un refresco de los indicadores
             hmi.setBasicFileInformation(
                 0, 0, myPZX.descriptor[BLOCK_SELECTED].name,
@@ -880,7 +878,8 @@ public:
                 myPZX.descriptor[BLOCK_SELECTED].playeable);
           }
 
-          if (BB_OPEN || BB_UPDATE) {
+          if (BB_OPEN || BB_UPDATE) 
+          {
             // Ojo! no meter delay! que esta en una reproduccion
             logln("Solicito abrir el BLOCKBROWSER");
 
@@ -891,22 +890,28 @@ public:
           }
         }
 
-        if (PLAY) {
+        if (PLAY) 
+        {
           PAUSE = false;
           tapeAnimationON();
           LAST_MESSAGE = "Resuming playback";
-        } else if (STOP) {
+        }
+        else if (STOP) 
+        {
           LAST_MESSAGE = "Stopped by user";
           // LOADING_STATE = 2;
           break;
-        } else if (EJECT) {
+        }
+        else if (EJECT) 
+        {
           // PZX_EJECT_RQT = true;
           break;
         }
 
         // Si se paro por un bloque STOP, continuamos al siguiente
         // en otro caso permanecemos en el mismo bloque.
-        if (BLOCK_SELECTED > 0 && !pause_from_stop_block) {
+        if (BLOCK_SELECTED > 0 && !pause_from_stop_block) 
+        {
           i = BLOCK_SELECTED - 1;
         }
 
@@ -915,119 +920,159 @@ public:
 
       BLOCK_SELECTED = i + 1;
 
-      if (!_myPZX.descriptor[i].playeable)
-        continue;
+      if (!_myPZX.descriptor[i].playeable) continue;
 
-      if (BLOCK_SELECTED == 0) {
+      if (BLOCK_SELECTED == 0) 
+      {
         PRG_BAR_OFFSET_INI = 0;
-      } else {
+      }
+      else 
+      {
         PRG_BAR_OFFSET_INI = _myPZX.descriptor[BLOCK_SELECTED].offset;
       }
 
       CURRENT_BLOCK_IN_PROGRESS = i + 1;
-      _hmi.setBasicFileInformation(
-          0, 0, _myPZX.descriptor[i].name, _myPZX.descriptor[i].typeName,
-          _myPZX.descriptor[i].size, _myPZX.descriptor[i].playeable);
+      
+      _hmi.setBasicFileInformation(0, 0, _myPZX.descriptor[i].name, _myPZX.descriptor[i].typeName, _myPZX.descriptor[i].size, _myPZX.descriptor[i].playeable);
 
-      if (strcmp(_myPZX.descriptor[i].tag, "PULS") == 0) {
+      if (strcmp(_myPZX.descriptor[i].tag, "PULS") == 0) 
+      {
+        EDGE_EAR_IS = down;
         // logln(" - Playing PZX PULS Block");
+        // PULS comienza en LOW según especificación PZX
+        // Un pulso de duración 0 al inicio puede hacer toggle a HIGH
+        // No forzamos el nivel aquí, lo detectamos procesando los pulsos
+        
+        int64_t pulses_processed_in_block = 0;
+        for (int p = 0; p < _myPZX.descriptor[i].timming.pzx_num_pulses; ++p) 
+        {
+          if (STOP || EJECT || PAUSE) break;
 
-        for (int p = 0; p < _myPZX.descriptor[i].timming.pzx_num_pulses; ++p) {
-          if (STOP || EJECT || PAUSE)
-            break;
-
-          uint32_t pulse_len =
-              _myPZX.descriptor[i].timming.pzx_pulse_data[p].pulse_len;
-          uint16_t repeat =
-              _myPZX.descriptor[i].timming.pzx_pulse_data[p].repeat;
+          int pulse_len = _myPZX.descriptor[i].timming.pzx_pulse_data[p].pulse_len;
+          int repeat = _myPZX.descriptor[i].timming.pzx_pulse_data[p].repeat;
 
           // Un pulso de duración 0 significa "cambio de nivel instantáneo"
           // Se usa para ajustar la polaridad inicial
-          if (pulse_len == 0) {
-            // Cambiar el nivel sin generar audio
-            EDGE_EAR_IS ^= 1;
+          if (pulse_len == 0) 
+          {
+            // Cambiar el nivel
+            EDGE_EAR_IS = up;
             continue;
           }
 
-          for (int r = 0; r < repeat; ++r) {
-            if (STOP || EJECT || PAUSE)
-              break;
+          for (int r = 0; r < repeat; ++r) 
+          {
+            if (STOP || EJECT || PAUSE) break;
             _zxp.pulse(pulse_len);
+            pulses_processed_in_block++;
           }
+          
+          // Actualizar barra de progreso del bloque
+          int64_t total_puls = work_units_per_block[i];
+          if (total_puls > 0) 
+          {
+            PROGRESS_BAR_BLOCK_VALUE = (int)(((double)pulses_processed_in_block / total_puls) * 100.0);
+          }
+          
+          // Actualizar barra de progreso total
+          int64_t total_processed = cumulative_work_units + pulses_processed_in_block;
+          PROGRESS_BAR_TOTAL_VALUE = (int)(((double)total_processed / total_work_units) * 100.0);
         }
-      } else if (strcmp(_myPZX.descriptor[i].tag, "DATA") == 0) {
+        
+        // Actualizar unidades acumuladas para el siguiente bloque
+        cumulative_work_units += work_units_per_block[i];
+        
+        // Asegurar que el bloque PULS termina en LOW
+        //_zxp.forceLevelLow();
+        
+      } 
+      else if (strcmp(_myPZX.descriptor[i].tag, "DATA") == 0) 
+      {
         // el primer pulso lo rige initial_level
         CHANGE_PZX_LEVEL = false;
+
+        // Configurar el nivel inicial del bloque DATA según bit 31
+        // according to PZX spec: bit 31 = 0: LOW, bit 31 = 1: HIGH
+        // El primer semi-pulso de DATA genera en el nivel opuesto a EDGE_EAR_IS
+        if (_myPZX.descriptor[i].initial_level == 1) 
+        {
+          // Queremos que el primer semi-pulso sea HIGH
+          // semiPulse invierte el nivel, así que EDGE_EAR_IS debe ser LOW (0)
+          EDGE_EAR_IS = up;  // El pulso es HIGH
+        } 
+        else 
+        {
+          // Queremos que el primer semi-pulso sea LOW
+          // semiPulse invierte el nivel, así que EDGE_EAR_IS debe ser HIGH (1)
+          EDGE_EAR_IS = down;  // El pulso es LOW
+        }
 
         // logln(" - Playing PZX DATA Block");
         int data_byte_len = (_myPZX.descriptor[i].data_bit_count + 7) / 8;
         uint8_t *data_buffer = (uint8_t *)ps_malloc(data_byte_len);
 
-        if (data_buffer) {
+        if (data_buffer) 
+        {
           _mFile.seek(_myPZX.descriptor[i].data_stream_offset);
           _mFile.read(data_buffer, data_byte_len);
 
-          // ✅ Aplicar el bit 31: nivel inicial del primer pulso del bloque
-          // DATA Según la especificación PZX: "The initial pulse level is
-          // specified by bit 31 of the count field.
-          //  For data saved with standard ROM routines, it should be always set
-          //  to high"
-          // bit 31 = 0 -> pulso LOW, bit 31 = 1 -> pulso HIGH
-          // if (_myPZX.descriptor[i].initial_level == 0) {
-          //     // Queremos que el primer pulso sea LOW
-          //     _zxp.forzeHighLevel = false;
-          //     _zxp.forzeLowLevel = true;
-          // } else {
-          //     // Queremos que el primer pulso sea HIGH
-          //     _zxp.forzeLowLevel = false;
-          //     _zxp.forzeHighLevel = true;
-          // }
-
-          for (int bit_num = 0; bit_num < _myPZX.descriptor[i].data_bit_count;
-               ++bit_num) {
-            if (STOP || EJECT || PAUSE)
-              break;
+          for (int bit_num = 0; bit_num < _myPZX.descriptor[i].data_bit_count; ++bit_num) 
+          {
+            if (STOP || EJECT || PAUSE) break;
+            
+            // Resetear flag para cada BIT para garantizar manejo correcto del nivel inicial
+            CHANGE_PZX_LEVEL = false;
+            
             int byte_idx = bit_num / 8;
             int bit_idx = 7 - (bit_num % 8);
+            
             uint8_t bit_value = (data_buffer[byte_idx] >> bit_idx) & 1;
 
             if (bit_value == 0) // Tocar pulsos para '0'
             {
               // ✅ CORRECCIÓN: Iterar por el array de pulsos y llamar a pulse
               // para cada uno
-              for (int p = 0; p < _myPZX.descriptor[i].data_p0_count; ++p) {
-                _zxp.pulsePZX(_myPZX.descriptor[i].data_s0_pulses[p],
-                              _myPZX.descriptor[i].initial_level == 0);
+              for (int p = 0; p < _myPZX.descriptor[i].data_p0_count; ++p) 
+              {
+                _zxp.pulse(_myPZX.descriptor[i].data_s0_pulses[p]);
               }
-            } else // Tocar pulsos para '1'
+            } 
+            else // Tocar pulsos para '1'
             {
               // ✅ CORRECCIÓN: Iterar por el array de pulsos y llamar a pulse
               // para cada uno
-              for (int p = 0; p < _myPZX.descriptor[i].data_p1_count; ++p) {
-                _zxp.pulsePZX(_myPZX.descriptor[i].data_s1_pulses[p],
-                              _myPZX.descriptor[i].initial_level == 0);
+              for (int p = 0; p < _myPZX.descriptor[i].data_p1_count; ++p) 
+              {
+                _zxp.pulse(_myPZX.descriptor[i].data_s1_pulses[p]);
               }
             }
 
             // BYTES_LOADED = BYTES_LOADED + (bit_num / 8);
-            PROGRESS_BAR_BLOCK_VALUE =
-                (int)(((float)(bit_num + 1) /
-                       _myPZX.descriptor[i].data_bit_count) *
-                      100.0);
+            // Actualizar barras de progreso
+            PROGRESS_BAR_BLOCK_VALUE = (int)(((double)(bit_num + 1) / _myPZX.descriptor[i].data_bit_count) * 100.0);
+            
+            int64_t total_processed = cumulative_work_units + (bit_num + 1);
+            PROGRESS_BAR_TOTAL_VALUE = (int)(((double)total_processed / total_work_units) * 100.0);
           }
           free(data_buffer);
+          cumulative_work_units += work_units_per_block[i];
 
-          if (_myPZX.descriptor[i].data_tail_pulse > 0) {
+          if (_myPZX.descriptor[i].data_tail_pulse > 0) 
+          {
             // ✅ CORRECCIÓN: Usar semiPulse para el pulso de cola
-            _zxp.pulsePZX(_myPZX.descriptor[i].data_tail_pulse,
-                          _myPZX.descriptor[i].initial_level == 0);
+            _zxp.pulse(_myPZX.descriptor[i].data_tail_pulse);
           }
         }
-      } else if (strcmp(_myPZX.descriptor[i].tag, "PAUS") == 0) {
+        
+        // Asegurar que el bloque DATA termina en LOW
+        _zxp.forceLevelLow();
+        
+      } 
+      else if (strcmp(_myPZX.descriptor[i].tag, "PAUS") == 0) 
+      {
         // logln(" - Playing PZX PAUS Block");
         //  El silencio está en TStates
-        double duration =
-            (_myPZX.descriptor[i].pause_duration / DfreqCPU) * 1000.0;
+        double duration = (_myPZX.descriptor[i].pause_duration / DfreqCPU) * 1000.0;
 
         // Aplicar el bit 31: nivel inicial del pulso de pausa
         // bit 31 = 0 -> pulso LOW, bit 31 = 1 -> pulso HIGH
@@ -1035,19 +1080,25 @@ public:
         // En el caso de PZX la configuracion de silence es así, en el caso de
         // TZX no se fuerza.
         logln("Block " + String(i) + ": PAUS");
-        logln(" - PZX PAUS Block: duration (ms): " + String(duration) +
-              " initial level: " + String(_myPZX.descriptor[i].initial_level));
+        logln(" - PZX PAUS Block: duration (ms): " + String(duration) + " initial level: " + String(_myPZX.descriptor[i].initial_level));
 
-        _zxp.silencePZX(duration, _myPZX.descriptor[i].initial_level == 0);
-      } else if (strcmp(_myPZX.descriptor[i].tag, "CSW") == 0) {
+        _zxp.silence(duration);
+        
+        // Actualizar barras de progreso para bloque PAUS (instantáneo)
+        PROGRESS_BAR_BLOCK_VALUE = 100;
+        cumulative_work_units += work_units_per_block[i];
+        PROGRESS_BAR_TOTAL_VALUE = (int)(((double)cumulative_work_units / total_work_units) * 100.0);
+
+      } 
+      else if (strcmp(_myPZX.descriptor[i].tag, "CSW") == 0) 
+      {
 
         logln("Playing PZX CSW Block");
-        if (_myPZX.csw_sampling_rate > 0 &&
-            _myPZX.descriptor[i].csw_num_pulses > 0) {
+        if (_myPZX.csw_sampling_rate > 0 && _myPZX.descriptor[i].csw_num_pulses > 0) 
+        {
           // Factor para convertir la duración del pulso CSW a T-States
           // de 3.5MHz
-          float conversion_factor =
-              (float)DfreqCPU / (float)_myPZX.csw_sampling_rate;
+          double conversion_factor = (double)DfreqCPU / (double)_myPZX.csw_sampling_rate;
 
           // Usar _zxp.pulse() en un bucle
 
@@ -1055,64 +1106,78 @@ public:
           // duración 0 para establecerlo. La implementación de _zxp.pulse()
           // podría manejar esto de otra forma. Si el audio empieza invertido,
           // esta línea puede ser necesaria.
-          if (_myPZX.descriptor[i].initial_level == 1) {
+          if (_myPZX.descriptor[i].initial_level == 1) 
+          {
             KEEP_CURRENT_EDGE = true; // Mantener el nivel actual sin cambiarlo
-            EDGE_EAR_IS = 1;          // Asegurar que el nivel inicial es alto
+            EDGE_EAR_IS = up;          // Asegurar que el nivel inicial es alto
             _zxp.pulse(0);
           }
 
           // 1. Iterar a través de los pulsos decodificados del RLE
-          for (int p = 0; p < _myPZX.descriptor[i].csw_num_pulses; ++p) {
-            if (STOP)
-              break;
+          int64_t pulses_processed_in_csw = 0;
+          for (int p = 0; p < _myPZX.descriptor[i].csw_num_pulses; ++p) 
+          {
+            if (STOP) break;
 
             tRlePulse &pulse = _myPZX.descriptor[i].csw_pulse_data[p];
 
             // 2. Convertir la duración del pulso a T-States
-            uint32_t pulse_len_tstates =
-                round((float)pulse.pulse_len * conversion_factor);
+            int pulse_len_tstates = round((double)pulse.pulse_len * conversion_factor);
 
             // 3. Repetir la llamada a _zxp.pulse() para cada repetición
-            for (int r = 0; r < pulse.repeat; ++r) {
-              if (STOP)
-                break;
+            for (int r = 0; r < pulse.repeat; ++r) 
+            {
+              if (STOP) break;
               _zxp.pulse(pulse_len_tstates);
+              pulses_processed_in_csw++;
             }
 
-            // Actualizar barra de progreso aquí:
-            PROGRESS_BAR_BLOCK_VALUE =
-                (int)(((float)(p + 1) / _myPZX.descriptor[i].csw_num_pulses) *
-                      100.0);
+            // Actualizar barra de progreso del bloque
+            int64_t total_csw = work_units_per_block[i];
+            if (total_csw > 0) 
+            {
+              PROGRESS_BAR_BLOCK_VALUE = (int)(((double)pulses_processed_in_csw / total_csw) * 100.0);
+            }
+            
+            // Actualizar barra de progreso total
+            int64_t total_processed = cumulative_work_units + pulses_processed_in_csw;
+            PROGRESS_BAR_TOTAL_VALUE = (int)(((double)total_processed / total_work_units) * 100.0);
           }
           // ✅ FIN DE LA CORRECCIÓN
+          cumulative_work_units += work_units_per_block[i];
         }
-        _zxp.silence(_myPZX.descriptor[i].pause_duration);
+        _zxp.silence((double)_myPZX.descriptor[i].pause_duration);
 
-      } else if (strcmp(_myPZX.descriptor[i].tag, "STOP") == 0) {
+      } 
+      else if (strcmp(_myPZX.descriptor[i].tag, "STOP") == 0) 
+      {
         logln(" - Executing PZX STOP Block. Pausing tape.");
         pause_from_stop_block = true;
         PLAY = false;
         // PAUSE = true;
+        
+        // Actualizar barras de progreso para bloque STOP (instantáneo)
+        PROGRESS_BAR_BLOCK_VALUE = 100;
+        cumulative_work_units += work_units_per_block[i];
+        PROGRESS_BAR_TOTAL_VALUE = (int)(((double)cumulative_work_units / total_work_units) * 100.0);
       }
-
-      // Actualizamos el progreso total
-      PROGRESS_BAR_TOTAL_VALUE =
-          (int)(((float)(i + 1) / _myPZX.numBlocks) * 100.0);
     }
 
     // En el caso de no haber parado manualmente, es por finalizar
     // la reproducción
-    if (LOADING_STATE == 1) {
+    if (LOADING_STATE == 1)
+    {
       logln("PZX playback finished.");
 
-      if (LAST_SILENCE_DURATION == 0) {
-        _zxp.silence(2000);
+      if (LAST_SILENCE_DURATION == 0) 
+      {
+        _zxp.silence(2000.0);
       }
 
-// Paramos
-#ifdef DEBUGMODE
-      logln("AUTO STOP launch.");
-#endif
+      // Paramos
+      #ifdef DEBUGMODE
+            logln("AUTO STOP launch.");
+      #endif
 
       PLAY = false;
       PAUSE = false;
@@ -1136,9 +1201,13 @@ public:
     // Cerrando
   }
 
-  tPZX getDescriptor() { return _myPZX; }
+  tPZX getDescriptor() 
+  { 
+    return _myPZX; 
+  }
 
-  void initialize() {
+  void initialize() 
+  {
     // Inicialización si es necesaria
 
     strncpy(_myPZX.name, "          ", 10);
