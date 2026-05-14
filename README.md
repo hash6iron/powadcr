@@ -10,6 +10,7 @@ This project pretend to implement a Digital Cassette Recorder (for 8-bits machin
 <img width="4032" height="1908" alt="20260514_121434" src="https://github.com/user-attachments/assets/c3fa02bd-d66c-483b-bbb5-5842725ea170" />
 
 Models history.
+-----
 
 ![20241120_172544](https://github.com/user-attachments/assets/f7f18624-5184-490f-a2b1-47833b4a70f2)
 
