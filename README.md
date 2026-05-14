@@ -221,7 +221,7 @@ Is possible to connect directly to the machine audio output line-out, anyway, if
 - ESPectrum can connecto directly without adaptation circuit.
 - N-Go needs a special cable to get the output channel (+3 output) to stereo jack for powadcr (you can repeat the output channel in both left/right channels of the stereo jack or only get left channel and right to ground)
 
-**Files suppoerted by powadcr**
+**Supported file formats by powadcr**
 
 |  File extension | Description/Notes                    |
 |-----------------|--------------------------------------|
