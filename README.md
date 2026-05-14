@@ -18,12 +18,12 @@ Models history.
 And a lot of differents models
 
 ![image](https://jose.gal/assets/+2A/ESPectrum+2A-V3_14.jpeg)
-(by Jose Gal - See makeworld or personal webpage - https://jose.gal/)
+(by Jose Gal - See makerworld or personal webpage - https://jose.gal/)
 
 ![image](https://jose.gal/assets/computone_v3/Computone_10.jpeg)
-(by Jose Gal - See makeworld or personal webpage - https://jose.gal/)
+(by Jose Gal - See makerworld or personal webpage - https://jose.gal/)
 
-![video](https://masto.es/@Jose/116532579803531785)
+![image](https://masto.es/@Jose/116532579803531785)
 (by Jose Gal - Walkman model with powaDCR)
 
 And so on!
