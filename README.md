@@ -23,9 +23,10 @@ And a lot of differents models
 ![image](https://jose.gal/assets/computone_v3/Computone_10.jpeg)
 (by Jose Gal - See makerworld or personal webpage - https://jose.gal/)
 
-<img width="640" height="480" alt="image" src="https://github.com/user-attachments/assets/60777bfe-e488-4064-a1ba-c4b194ef395d" />
+<img width="640" height="480" alt="image" src="https://github.com/user-attachments/assets/60777bfe-e488-4064-a1ba-c4b194ef395d" /> <img width="640" height="480" alt="image" src="https://github.com/user-attachments/assets/8c7e0c85-3d15-45fe-8598-fab8f638951d" />
 
-<img width="640" height="480" alt="image" src="https://github.com/user-attachments/assets/8c7e0c85-3d15-45fe-8598-fab8f638951d" />
+
+
 (by Jose Gal - Walkman model with powaDCR - published on https://masto.es/@Jose/116532569484667256)
 
 And so on!
