@@ -226,15 +226,15 @@ Is possible to connect directly to the machine audio output line-out, anyway, if
 |  File extension | Description/Notes                    |
 |-----------------|--------------------------------------|
 | TAP             | Standard ZX Spectrum digital file    |
-| TZX             |                                      |
-| PZX             |                                      |
+| TZX             | Cassette format v1.20                |
+| PZX             | Spectrum cassette format             |
 | TSX             | For MSX                              |
-| CDT             |                                      |
+| CDT             | Amstrad file format (TZX adapted)    |
 | TAP (C64)       | v1.0 and v1.1                        |
-| CSW             | v1.1 and 2.0                         |
-| WAV             | At 96KHz, 16/8 bits                  |
-| MP3             | At 320Kbps                           |
-| FLAC            | At 44KHz                             |
+| CSW             | v1.1 and v2.0                        |
+| WAV             | 8 to 96KHz, 16/8 bits                |
+| MP3             | 64 to 320Kbps                        |
+| FLAC            | Limit at 24 bits/44KHz               |
 | ZIP             | Compress file                        |
 
 
