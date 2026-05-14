@@ -12,6 +12,10 @@ This project pretend to implement a Digital Cassette Recorder (for TAP/TZX files
 
 ![image](https://github.com/user-attachments/assets/6d7ac494-c201-4113-875b-0324e44a8308)
 
+And the last version of powaDCR (enjoy this photo!)
+
+<img width="4032" height="1908" alt="20260514_121434" src="https://github.com/user-attachments/assets/c3fa02bd-d66c-483b-bbb5-5842725ea170" />
+
 
 
 The board
