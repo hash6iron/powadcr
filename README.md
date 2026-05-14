@@ -5,17 +5,28 @@ TAP/TZX/TSX/CDT/CSW Digital cassette recorder for 8-bit machines, and WAV/MP3 pl
 </p>
 
 -----
-
-![20241120_172544](https://github.com/user-attachments/assets/f7f18624-5184-490f-a2b1-47833b4a70f2)
-
-This project pretend to implement a Digital Cassette Recorder (for TAP/TZX files playing and recording on TAP) for ZX Spectrum machines based on ESP32 Audio kit development board and using HMI over touch 3.5" screen.
-
-![image](https://github.com/user-attachments/assets/6d7ac494-c201-4113-875b-0324e44a8308)
-
-And the last version of powaDCR (enjoy this photo!)
+This project pretend to implement a Digital Cassette Recorder (for 8-bits machines DATA files for playing and recording) for ZX Spectrum, Amstrad, MSX, Commodore, FPGAs and emulators based on ESP32 Audio kit development board and using HMI over touch 3.5" screen, but powaDCR is more than that.
 
 <img width="4032" height="1908" alt="20260514_121434" src="https://github.com/user-attachments/assets/c3fa02bd-d66c-483b-bbb5-5842725ea170" />
 
+Models history.
+
+![20241120_172544](https://github.com/user-attachments/assets/f7f18624-5184-490f-a2b1-47833b4a70f2)
+
+![image](https://github.com/user-attachments/assets/6d7ac494-c201-4113-875b-0324e44a8308)
+
+And a lot of differents models
+
+https://jose.gal/assets/+2A/ESPectrum+2A-V3_14.jpeg
+(by Jose Gal - See makeworld or personal webpage - https://jose.gal/)
+
+https://jose.gal/assets/computone_v3/Computone_10.jpeg
+(by Jose Gal - See makeworld or personal webpage - https://jose.gal/)
+
+https://masto.es/@Jose/116532579803531785
+(by Jose Gal - Walkman model with powaDCR)
+
+And so on!
 
 
 The board
