@@ -1,254 +1,317 @@
-# POWADCR
-TAP/TZX/TSX/CDT Digital cassette recorder for 8-bit machines, and WAV/MP3 player recorder.
+# 🎙️ POWADCR
+
+**Digital Cassette Recorder for 8-bit Machines**
+
+TAP/TZX/TSX/CDT digital cassette recorder with WAV/MP3 playback and recording capabilities.
+
 <p align="center">
   <img width="400" height="400" src="/doc/powadcr.png" />
 </p>
 
------
+---
 
-![20241120_172544](https://github.com/user-attachments/assets/f7f18624-5184-490f-a2b1-47833b4a70f2)
+## 📋 Table of Contents
 
-This project pretend to implement a Digital Cassette Recorder (for TAP/TZX files playing and recording on TAP) for ZX Spectrum machines based on ESP32 Audio kit development board and using HMI over touch 3.5" screen.
+- [Overview](#overview)
+- [Hardware](#hardware)
+- [Assembly](#assembly)
+- [Installation](#installation)
+- [Usage](#usage)
+- [Support](#support)
 
-![image](https://github.com/user-attachments/assets/6d7ac494-c201-4113-875b-0324e44a8308)
+---
 
+## 🎯 Overview
 
+PowaDCR is a digital cassette recorder designed for ZX Spectrum machines and other 8-bit retro computers. It leverages the ESP32 Audio Kit development board with a 3.5" touch screen interface to provide an intuitive platform for playing and recording tape files.
 
-The board
------
-![20250530_020348](https://github.com/user-attachments/assets/07e084b3-bae2-4221-b484-52a52ccb1733)
-
-![20241114_094902](https://github.com/user-attachments/assets/112a1133-2ad4-4a44-b31e-9115065462c2)
-The launcher was this board, ESP32 Audio Kit equipped with ESP32 v3 microcontroller and ES8388 Audio proccesor 
-made by AI-Thinker Technology.
-
-https://docs.ai-thinker.com/en/esp32-audio-kit
-
-The summary of specifications is.
-+ CPU 32 bits at 240MHz
-+ 512KB + 4MB SRAM (PSRAM available)
-+ 2 CORES
-+ ES8388 dedicated audio proccesor
-+ Audio IN/OUT
-+ Bluetooth
-+ WiFi
-+ 8 switch buttons
-+ I/O connectors
-+ SD slot
-+ ...
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/f7f18624-5184-490f-a2b1-47833b4a70f2" width="600" />
+</p>
 
-So, it's a beautiful develop board with a big possibilities. 
-
-To begin with is necessary use the Phil Schatzmann's libraries for ESP32 Audio Kit v.0.65 (https://github.com/pschatzmann/arduino-audiokit) where we could take advantage of all resources of this kit, to create a digital player and recorder for ZX Spectrum easilly, or this is the first idea.
-
-## LCD Screen Display
-
-The LCD touch screen display chosen for this project is a TFT HMI LCD Display Module Screen Touch connected with 2 serial pins (TX and RX) to the board. 
-+ Brand: TJC
-+ Model: TJC4832T035_011
-+ Size: 3.5".
-+ Resolution:  480x320.
-
-NOTE: Several version of this LCD are availables. The project uses T0 versions but is possible to upgrade easily to T1 version.
-
-Important: 
-- Before using, configure the screen to 3.3v by connecting JP2 with a jumper (short wire welded is enough)
-  
-  ![20260215_111140](https://github.com/user-attachments/assets/b07eb60f-c534-4497-a2ea-625520ad8a43)  
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/6d7ac494-c201-4113-875b-0324e44a8308" width="600" />
+</p>
 
-About POWADCR Device.
------
-Architecture
+---
 
-<img width="1280" height="720" alt="arquitectura" src="https://github.com/user-attachments/assets/4c0b7d64-9389-45ff-875b-fcaddc2149b2" />
+## 🛠️ Hardware
 
-In this section we are going to describe parts to be needed to assemble the PowaDCR device.
+### ESP32 Audio Kit
 
-**Bill of material**
-+ Main board: ESP32 Audiokit by AI-Thinker technology : https://docs.ai-thinker.com/en/esp32-audio-kit (Possible buy site. Alliexpress)
-+ Color LCD 3.5" 480x320 pixels. Resistive TouchScreen - TJC4832T035_011 resistive (low priced but possible to discontinued and replaced by TJC4832T135 _ 011C capacitive or TJC4832T135 _ 011R resistive)
-+ Cable XH2.5 to dupont to connecto LCD to the extended port of ESP32 Audiokit
-+ Battery 2000mAh 3.7v (optional not needed)
-+ Micro SD card FAT32 formatted (to contain all ZX Spectrum games in TAP and other formats to be red for PowaDCR in the future)
-+ Micro SD card or FT232RL FTDI serial interface to program the TJC LCD (both methods are available)
-+ Cable with jacks Stereo-stereo male-male 3.5mm to connect PowaDCR to Spectrum Next or N-Go or clone versions.
-+ Cable with XH2.5 and mono jack 3.5mm to connect from amplifier out of PowaDCR to EAR connector on ZX Spectrum classic versions (Rubber keyboard 16K, 48K, Spectrum+ and Spectrum 128K Toastrack)
+The project is built on the **ESP32 Audio Kit** by AI-Thinker Technology—a professional development board with impressive specifications:
 
-**Software and drivers (Windows version)**
-+ LCD HMI editor:
-  UART HMI Chinesse editor. Check the last version [here](http://wiki.tjc1688.com/download/old_usart_hmi/history_download.html)
-+ CP2102 driver: [https://www.silabs.com/developer-tools/usb-to-uart-bridge-vcp-drivers?tab=downloads](https://www.silabs.com/documents/public/software/CP210x_Universal_Windows_Driver.zip)
+| Component | Specification |
+|-----------|---------------|
+| **Processor** | ESP32 v3 (32-bit @ 240MHz, 2 cores) |
+| **Memory** | 512KB + 4MB SRAM (PSRAM available) |
+| **Audio** | ES8388 dedicated processor |
+| **Connectivity** | Bluetooth, WiFi |
+| **Interfaces** | Audio IN/OUT, SD card slot, 8 buttons |
+| **Ports** | I/O connectors, UART |
 
-Ports of powadcr
------
-![20250530_014338](https://github.com/user-attachments/assets/3b99fdb7-2cc3-438a-9fb3-e441f770584a)
+📚 **Documentation**: [AI-Thinker ESP32-Audio-Kit Docs](https://docs.ai-thinker.com/en/esp32-audio-kit)
 
-Before assembly powadcr. Audiokit hacking.
------
-<b>Disassemble mics from audiokit ESP32 board</b>
-You need to remove both microphones from the Audiokit board. How do I do this?
+> This project utilizes **Phil Schatzmann's ESP32 Audio Kit library (v0.65)** to maximize the capabilities of this powerful board.
+> 📦 [Repository](https://github.com/pschatzmann/arduino-audiokit)
 
-- An easier way: with pliers and pull up (recomended)
-- Other way, unsoldering both, and conect pinout towards ES8388 to ground (See image below)
+### LCD Display
 
-  <p align="center">
-  <img src="/doc/mics.png" />
-  </p>
+**TFT Touch Screen with Serial Interface**
 
-How PowaDCR parts are connected?
------
-<b>LCD Screen connection</b>
-- Is very easy. See image below to connect LCD 4-pin connector to Audiokit
-  <p align="center">
-  <img src="/doc/GPIO_audiokit.png" />
-  </p>
-
-  <p align="center">
-  <img src="/doc/GPIO.png" />
-  </p>
-
-<b>LED indicator</b>
-- The led for power on and recording indications is connected to GPIO pin 22 and GND
-  <p align="center">
-  <img width="326" height="103" alt="led" src="https://github.com/user-attachments/assets/88c771d5-d1f8-4805-8d02-5bae96531cff" />
-  </p>
-
-<b>REM connection</b>
-- The REM input for remote tape control is assigned to GPIO pin 19 and GND. See example below for MSX computer.
-  <p align="center">
-    <img width="540" height="326" alt="REM" src="https://github.com/user-attachments/assets/37a33fe6-69c5-4f08-b839-53896d9daa75" />
-  </p>
+| Property | Value |
+|----------|-------|
+| **Manufacturer** | TJC |
+| **Model** | TJC4832T035_011 |
+| **Size** | 3.5 inches |
+| **Resolution** | 480×320 pixels |
+| **Interface** | Serial (TX/RX, 2 pins) |
+| **Variants** | T0 (project default), T1 (upgradeable) |
 
-<b>MCP23017 for external keypad</b>
-- If you want to install an external keypad to control and simulate a vintage cassette, see below.
->[!CAUTION]
->In this case TX and RX for HMI shall be changed to the followin pins
->- TX GPIO on Audiokit - Pin IO5
->- RX GPIO on Audiokit - Pin IO22
->- REM keeps on IO19
+> **⚙️ Important**: Before using, configure the screen to **3.3V** by connecting jumper **JP2**
+> 
+> ![20260215_111140](https://github.com/user-attachments/assets/b07eb60f-c534-4497-a2ea-625520ad8a43)
 
-<img width="1280" height="920" alt="image" src="https://github.com/user-attachments/assets/77e06446-dde5-4437-8531-cd3ba4e0e63d" />
+---
 
-
-Audiokit DIP switch configuration
------
-This project need set the PCB DIP switch to
-
-|Switch|Value|
-|---|---|
-|1|Off|
-|2|On|
-|3|On|
-|4|Off|
-|5|Off|
-
-How to install firmwares in powadcr? 
------
-<b>At the first time</b>
+## 🔧 Assembly
 
-- First you need to flash the screen firmware with this file : https://github.com/hash6iron/powadcr/releases/download/Release/powadcr_iface.tft 
-- The second step is to flash the following file in AudioKit board : https://github.com/hash6iron/powadcr/releases/download/Release/Powadcr_v1.0r2.bin
-- Then install later, the Screen and AudioKit firmwares from the latest relase :
+### Complete Bill of Materials
 
-  https://github.com/hash6iron/powadcr/releases/latest
+#### Core Components
+- **Main Board**: ESP32 Audio Kit (AI-Thinker)
+  - 📍 Available on [AliExpress](https://www.alliexpress.com)
+- **Display**: 3.5" TFT Touch Screen (480×320)
+  - TJC4832T035_011 (resistive) — standard option
+  - TJC4832T135_011C (capacitive) or TJC4832T135_011R (resistive) — alternative
+- **Connectors & Cables**:
+  - XH2.5 to Dupont cable (LCD connection)
+  - Stereo-to-stereo 3.5mm cable (machine connection)
+  - XH2.5 + mono 3.5mm jack (classic Spectrum adapter)
 
+#### Optional Components
+- Battery: 2000mAh, 3.7V (optional)
+- Programming Interface: FT232RL FTDI or microSD card
 
+#### Storage
+- Micro SD card (FAT32 formatted) for games and recordings
 
+#### Software & Drivers
+| Item | Link |
+|------|------|
+| **LCD HMI Editor** | [UART HMI Chinese Editor](http://wiki.tjc1688.com/download/old_usart_hmi/history_download.html) |
+| **CP2102 Driver** | [Silicon Labs - CP210x](https://www.silabs.com/documents/public/software/CP210x_Universal_Windows_Driver.zip) |
 
-<b>How to?</b>
+### Hardware Modifications
 
-To flash the firmware of the screen the file powadcr shown below must be copied inside an empty SD Card, insert it inside the SD Reader of the screen and connect the screen to the GPIO connector of the Audiokit board as shown below. Take care with polarity of the power, because if the polarity is inverted the screen could damage it. When the power is connected the screen will start with blank background and the file copy will be in process. This only takes less than 2 minutes. Be sure that the power couldn't be disconected during this process.
+#### Remove Built-in Microphones
 
+The ESP32 Audio Kit includes microphones that must be removed to prevent interference:
 
-After this you can flash the binaries directly to the AudioKit board if you do not want to mess with code and compilers. 
+- **Recommended**: Use pliers to gently pull upward
+- **Alternative**: Unsolder and connect pins to ground
 
-1. Download ESP32 Flash Downloading Tool - from [here](https://docs.espressif.com/projects/esp-test-tools/en/latest/esp32/production_stage/tools/flash_download_tool.html)
-2. Unzip file and execute - flash_download_tool_x.x.x.exe file
+<p align="center">
+  <img src="/doc/mics.png" width="400" />
+</p>
 
-   See the example image below.
+### Ports Overview
 
-   ![image](https://raw.githubusercontent.com/hash6iron/powadcr/refs/heads/main/doc/flash_download_tool.png)
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/3b99fdb7-2cc3-438a-9fb3-e441f770584a" width="600" />
+</p>
 
-   
-4. Select ESP32 model.
-   - ESP32
-   - Develop
-     And press "OK" button
-   
-5. Setting and begin the flash proccess.
-   - Select <b>complete_firmware.bin</b> file or type the path of it.
-   - Select all parameters exactly at the image below.
-   - Connect ESP32-A1S Audiokit board from UART microUSB port (not power microUSB PORT) at PC USB port.
-   - Select the available COM for this connection in COM: field on ESP32 Flash Downloading Tool.
-   - Select BAUD: speed at 921600
-   - Press START button in ESP32 Flash Downloading Tool. Then downloading proccess begin, and wait for FINISH message. Enjoy!
-  
-     NOTES: If the proccess fail.
-      - Try to download again.
-      - Try to ERASE before START proccess.
-   
-   Show image below.
-   
-   ![image](https://github.com/user-attachments/assets/b5c189c6-8945-4a65-9e22-e17a56d3eea6)
+---
 
-<b>Upcoming updates</b>
-- Put the <b>firmware.bin</b> and <b>powadcr_iface.tft</b> of the latest release inside the root folder in the AudioKit SD and run again. Wait until process finishs.
+## 🔌 Connections
 
-How custom firmware is uploaded in ESP32-A1S Audiokit? 
------
-1. Install VSCode
-   - https://code.visualstudio.com/download
-3. Install PlatformIO for VSCode
-   - https://platformio.org/install
-5. Open powaDCR project into VSCode
-6. Connect the ESP32 Audiokit USART USB port to any USB PC port
-7. Press BUILD (arrow icon) from PlatformIO toolbar.
+### System Architecture
 
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/4c0b7d64-9389-45ff-875b-fcaddc2149b2" width="900" />
+</p>
 
-Using powadcr recorder with modern and classic 8-bit machines
------
-**Classic machines. ZX Spectrum.**
+### LCD Screen Connection
 
-For this machine series, ZX Spectrum 16K, 48K, +, +2, +3 take into account that powadcr recorder uses a range between 0 to 3.3v then is needed to atenuate the audio output from ZX Spectrum classic version.
-Then:
-- You can use a tipical R circuit or audio amplifier (that permit adjust volumen signal from zero)
-- The goal is test several volumen settings in the input signal until powadcr begins to recognize wave, but from zero.
+Connect the 4-pin LCD connector to the Audiokit extended port:
 
+<p align="center">
+  <img src="/doc/GPIO_audiokit.png" width="500" />
+  <img src="/doc/GPIO.png" width="500" />
+</p>
 
-**Modern machines. ESPectrum (lilygo) , N-Go, etc.**
+### LED Indicator
 
-Is possible to connect directly to the machine audio output line-out, anyway, if you can check before the output power in order to know wave characteristics, you ensure that input signal is ok for powadcr.
-- ESPectrum can connecto directly without adaptation circuit.
-- N-Go needs a special cable to get the output channel (+3 output) to stereo jack for powadcr (you can repeat the output channel in both left/right channels of the stereo jack or only get left channel and right to ground)
+Power and recording status LED connected to **GPIO 22 + GND**:
 
-**Supported machines by powadcr**
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/88c771d5-d1f8-4805-8d02-5bae96531cff" width="400" />
+</p>
 
-|   Microcomputer  |  Play format  | Record format |
-| ---------------- | ------------- | ------------- |
-| Spectrum         | TAP, TZX, WAV | TAP, WAV      |
-| CPC Amstrad      | CDT(TZX), WAV | WAV           |
-| MSX              | TSX, WAV      | WAV           |
-| ORIC             | TZX (DR), WAV | WAV           |
-| Enterprise       | TZX (DR), WAV | WAV           |
-| Apple IIe        | TZX (DR), WAV | WAV           |
-| Mattel Aquarious | TZX (DR), WAV | WAV           |
-| Lynx             | TZX (DR), WAV | WAV           |
-| TRS-80 (COCO)    | TZX (DR), WAV | WAV           |
-| THOMPSON MO5     | TZX (DR), WAV | WAV           |
-| TI99             | TZX (DR), WAV | WAV           |
-| JUPITER          | TZX (DR), WAV | WAV           |
+### REM (Remote Control)
 
+Remote tape control input assigned to **GPIO 19 + GND**
 
+Example MSX integration:
 
-Are you enjoying?
------
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/37a33fe6-69c5-4f08-b839-53896d9daa75" width="600" />
+</p>
 
-<img src="https://github.com/user-attachments/assets/f08a42ab-0c6a-4262-b6ec-63c41263b76b" width="480" height="914">
+### External Keypad (Optional)
 
-If you enjoy with this project and you want to colaborate, please.
+Connect **MCP23017** I/O expander for vintage cassette control simulation:
 
-<a href="https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=BAWGJFZGXE5GE&source=url"><img src="/doc/paypal_boton.png" /></a>
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/77e06446-dde5-4437-8531-cd3ba4e0e63d" width="900" />
+</p>
 
-<a href="https://www.buymeacoffee.com/atamairon"><img src="/doc/coffe.jpg" /></a>
+> ⚠️ **Note**: When using external keypad, modify HMI connection:
+> - **TX** GPIO → Pin IO5
+> - **RX** GPIO → Pin IO22
+> - **REM** → Remains on IO19
 
-thxs.
+### DIP Switch Configuration
+
+Set the Audiokit PCB DIP switches as follows:
+
+| Switch | Position |
+|--------|----------|
+| 1 | ⊘ Off |
+| 2 | ⊙ On |
+| 3 | ⊙ On |
+| 4 | ⊘ Off |
+| 5 | ⊘ Off |
+
+---
+
+## 📦 Installation
+
+### Initial Firmware Flash
+
+#### Step 1: Flash LCD Screen Firmware
+
+1. Download: [powadcr_iface.tft](https://github.com/hash6iron/powadcr/releases/download/Release/powadcr_iface.tft)
+2. Copy to empty SD card
+3. Insert SD card into screen reader
+4. Connect screen to Audiokit GPIO connector (check polarity!)
+5. Wait for completion (~2 minutes)
+
+> ⚠️ **Critical**: Do not disconnect power during flashing!
+
+#### Step 2: Flash AudioKit Firmware
+
+**Option A: Binary Installation (Recommended for users)**
+
+1. Download [ESP32 Flash Tool](https://docs.espressif.com/projects/esp-test-tools/en/latest/esp32/production_stage/tools/flash_download_tool.html)
+2. Unzip and run `flash_download_tool_x.x.x.exe`
+
+   <p align="center">
+     <img src="https://raw.githubusercontent.com/hash6iron/powadcr/refs/heads/main/doc/flash_download_tool.png" width="600" />
+   </p>
+
+3. Select **ESP32** → **Develop** → **OK**
+4. Configure settings:
+   - **File**: `complete_firmware.bin`
+   - **Address**: (see tool configuration)
+   - **Baud Rate**: 921600
+5. Connect Audiokit via UART USB port (⚠️ NOT power port)
+6. Select COM port and click **START**
+
+   <p align="center">
+     <img src="https://github.com/user-attachments/assets/b5c189c6-8945-4a65-9e22-e17a56d3eea6" width="600" />
+   </p>
+
+7. Wait for **FINISH** message
+
+**Troubleshooting**:
+- If flashing fails, try again
+- Use **ERASE** before **START** if issues persist
+
+**Option B: Development Installation (For developers)**
+
+1. Install [VSCode](https://code.visualstudio.com/download)
+2. Install [PlatformIO](https://platformio.org/install)
+3. Open PowaDCR project in VSCode
+4. Connect Audiokit UART USB port
+5. Press **BUILD** (arrow icon) in PlatformIO toolbar
+
+#### Step 3: Update to Latest Firmware
+
+Place the following files in the Audiokit SD card root:
+- `firmware.bin`
+- `powadcr_iface.tft`
+
+Power cycle and wait for update completion.
+
+---
+
+## 🎮 Usage
+
+### Connecting to 8-bit Machines
+
+#### Classic Machines (ZX Spectrum)
+
+For Spectrum 16K, 48K, +, +2, +3:
+
+> PowaDCR outputs 0–3.3V, requiring signal attenuation from classic machines (5V output)
+
+**Solution**:
+- Use voltage divider (resistor circuit) OR
+- Connect through audio amplifier with volume control
+- Test input levels starting from zero and gradually increase until PowaDCR recognizes wave
+
+#### Modern Machines
+
+**ESPectrum (Lilygo), N-Go, etc.**:
+- Direct connection recommended
+- Verify output signal level first
+- ESPectrum: Direct connection supported
+- N-Go: Requires special cable for stereo output (repeat or ground right channel)
+
+### Supported Formats
+
+| Computer | Play Formats | Record Formats |
+|----------|--------------|----------------|
+| **Spectrum** | TAP, TZX, WAV | TAP, WAV |
+| **CPC Amstrad** | CDT (TZX), WAV | WAV |
+| **MSX** | TSX, WAV | WAV |
+| **ORIC** | TZX (DR), WAV | WAV |
+| **Enterprise** | TZX (DR), WAV | WAV |
+| **Apple IIe** | TZX (DR), WAV | WAV |
+| **Mattel Aquarius** | TZX (DR), WAV | WAV |
+| **Lynx** | TZX (DR), WAV | WAV |
+| **TRS-80 (COCO)** | TZX (DR), WAV | WAV |
+| **THOMPSON MO5** | TZX (DR), WAV | WAV |
+| **TI-99** | TZX (DR), WAV | WAV |
+| **JUPITER** | TZX (DR), WAV | WAV |
+
+---
+
+## ❤️ Support
+
+### Enjoying PowaDCR?
+
+If you find this project valuable and would like to support development:
+
+<p align="center">
+  <a href="https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=BAWGJFZGXE5GE&source=url">
+    <img src="/doc/paypal_boton.png" alt="PayPal" />
+  </a>
+  &nbsp;&nbsp;&nbsp;&nbsp;
+  <a href="https://www.buymeacoffee.com/atamairon">
+    <img src="/doc/coffe.jpg" alt="Buy Me A Coffee" />
+  </a>
+</p>
+
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/f08a42ab-0c6a-4262-b6ec-63c41263b76b" width="480" />
+</p>
+
+**Thanks for your support!** ☕
+
+---
+
+<p align="center">
+  <strong>PowaDCR</strong> — Bringing retro computing to life
+</p>
