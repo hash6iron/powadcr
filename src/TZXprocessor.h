@@ -3018,9 +3018,8 @@ public:
     npulses[1] = pone / 2;
     vpulse[0] = (_myTZX.descriptor[currentBlock].timming.bit_0);
     vpulse[1] = (_myTZX.descriptor[currentBlock].timming.bit_1);
-    pulsosmaximos =
-        (_myTZX.descriptor[currentBlock].timming.pilot_num_pulses) +
-        ((npulses[vlb] * nlb) + 128 + (npulses[vtb] * ntb)) * ldatos;
+    pulsosmaximos = (_myTZX.descriptor[currentBlock].timming.pilot_num_pulses) +
+                    ((npulses[vlb] * nlb) + 128 + (npulses[vtb] * ntb)) * ldatos;
 
     // Reservamos memoria dinamica
     _myTZX.descriptor[currentBlock].timming.pulse_seq_array = (int *)ps_calloc(pulsosmaximos + 1, sizeof(int));
@@ -3502,25 +3501,6 @@ public:
           //
           // Son bloques especiales de TONO GUIA o SECUENCIAS para SYNC
           //
-          // int num_pulses = 0;
-
-          // Variables para el ID 0x4B (75)
-          int nlb;
-          int vlb;
-          int ntb;
-          int vtb;
-          int pzero;
-          int pone;
-
-          int ldatos;
-          int offset;
-
-          int bufferD;
-          int partitions;
-          int lastPartitionSize;
-          double silence;
-
-          bool begin = false;
 
           switch (_myTZX.descriptor[i].ID) 
           {
@@ -3528,6 +3508,24 @@ public:
             // Bloque 0x4B - MSX
             case 75: 
             {
+              // Variables para el ID 0x4B (75)
+              int nlb;
+              int vlb;
+              int ntb;
+              int vtb;
+              int pzero;
+              int pone;
+
+              int ldatos;
+              int offset;
+
+              int bufferD;
+              int partitions;
+              int lastPartitionSize;
+              double silence;
+
+              bool begin = false;
+
               //PLAYABLE_BLOCKS_ACCUMULATED_OFFSET = 0;
               BYTES_TOBE_LOAD = _myTZX.size;
 
@@ -3540,16 +3538,16 @@ public:
               vtb = ((_myTZX.descriptor[i].timming.bitcfg & 0b00000100) >> 2);
 
               #ifdef DEBUGMODE
-                          logln("");
-                          log("ID 0x4B:");
-                          log("PULSES FOR ZERO = " + String(pzero));
-                          log(" - " + String(_myTZX.descriptor[i].timming.bit_0) + " - ");
-                          log(",PULSES FOR ONE = " + String(pone));
-                          log(" - " + String(_myTZX.descriptor[i].timming.bit_1) + " - ");
-                          log(",NUMBERS OF LEADING BITS = " + String(nlb));
-                          log(",VALUE OF LEADING BITS = " + String(vlb));
-                          log(",NUMBER OF TRAILING BITS = " + String(ntb));
-                          log(",VALUE OF TRAILING BITS = " + String(vtb));
+                  logln("");
+                  log("ID 0x4B:");
+                  log("PULSES FOR ZERO = " + String(pzero));
+                  log(" - " + String(_myTZX.descriptor[i].timming.bit_0) + " - ");
+                  log(",PULSES FOR ONE = " + String(pone));
+                  log(" - " + String(_myTZX.descriptor[i].timming.bit_1) + " - ");
+                  log(",NUMBERS OF LEADING BITS = " + String(nlb));
+                  log(",VALUE OF LEADING BITS = " + String(vlb));
+                  log(",NUMBER OF TRAILING BITS = " + String(ntb));
+                  log(",VALUE OF TRAILING BITS = " + String(vtb));
               #endif
 
               // Conocemos la longitud total del bloque de datos a reproducir
@@ -3561,7 +3559,7 @@ public:
               PRG_BAR_OFFSET_INI = PLAYABLE_BLOCKS_ACCUMULATED_OFFSET; // offset acumulativo
               PRG_BAR_OFFSET_END = PLAYABLE_BLOCKS_ACCUMULATED_OFFSET + _myTZX.descriptor[i].lengthOfData;
 
-              bufferD = 1024; // Buffer de BYTES de datos convertidos a samples
+              bufferD = 128; // Buffer de BYTES de datos convertidos a samples
 
               partitions = ldatos / bufferD;
               lastPartitionSize = ldatos - (partitions * bufferD);
@@ -3569,12 +3567,12 @@ public:
               silence = _myTZX.descriptor[i].pauseAfterThisBlock;
 
               #ifdef DEBUGMODE
-                          log(",SILENCE = " + String(silence) + " ms");
+                  log(",SILENCE = " + String(silence) + " ms");
 
-                          logln("");
-                          log("Total data parts: " + String(partitions));
-                          logln("");
-                          log("----------------------------------------");
+                  logln("");
+                  log("Total data parts: " + String(partitions));
+                  logln("");
+                  log("----------------------------------------");
               #endif
 
               // TSX_PARTITIONED = false;
@@ -3592,9 +3590,9 @@ public:
                   }
 
                   #ifdef DEBUGMODE
-                                  logln("");
-                                  log("Part [" + String(n) + "] - offset: ");
-                                  logHEX(offset);
+                      logln("");
+                      log("Part [" + String(n) + "] - offset: ");
+                      logHEX(offset);
                   #endif
 
                   prepareID4B(i, _mFile, nlb, vlb, ntb, vtb, pzero, pone, offset, bufferD, begin);
@@ -3604,11 +3602,15 @@ public:
                   PRG_BAR_OFFSET_INI = 0;
                   PRG_BAR_OFFSET_END = ldatos;
 
-                  _zxp.playCustomSequence(_myTZX.descriptor[i].timming.pulse_seq_array,_myTZX.descriptor[i].timming.pulse_seq_num_pulses, 0.0);
+                  _zxp.playCustomSequence(_myTZX.descriptor[i].timming.pulse_seq_array,_myTZX.descriptor[i].timming.pulse_seq_num_pulses);
                   // Avanzamos el puntero por el fichero
                   offset += bufferD;
 
-                  PROGRESS_BAR_BLOCK_VALUE = ((PRG_BAR_OFFSET_INI + (offset)) * 100) / PRG_BAR_OFFSET_END;
+                  // Solo actualizar barra si el progreso cambió significativamente (cada 5%)
+                  int newProgress = ((PRG_BAR_OFFSET_INI + offset) * 100) / PRG_BAR_OFFSET_END;
+                  if (newProgress >= PROGRESS_BAR_BLOCK_VALUE + 5 || newProgress >= 100) {
+                    PROGRESS_BAR_BLOCK_VALUE = newProgress;
+                  }
 
                   // Liberamos el array
                   free(_myTZX.descriptor[i].timming.pulse_seq_array);
@@ -3628,11 +3630,12 @@ public:
                   // ID 0x4B - Reproducimos una secuencia. Pulsos de longitud
                   // contenidos en un array y repetición
 
-                  _zxp.playCustomSequence(_myTZX.descriptor[i].timming.pulse_seq_array,_myTZX.descriptor[i].timming.pulse_seq_num_pulses, 0.0);
+                  _zxp.playCustomSequence(_myTZX.descriptor[i].timming.pulse_seq_array,_myTZX.descriptor[i].timming.pulse_seq_num_pulses);
                   // Liberamos el array
                   free(_myTZX.descriptor[i].timming.pulse_seq_array);
                   // delete[] _myTZX.descriptor[i].timming.pulse_seq_array;
-                  PROGRESS_BAR_BLOCK_VALUE = ((PRG_BAR_OFFSET_INI + (ldatos)) * 100) / PRG_BAR_OFFSET_END;
+                  // Actualizar al 100% solo al final
+                  PROGRESS_BAR_BLOCK_VALUE = 100;
                   // Pausa despues de bloque
                   _zxp.silence(silence);
                 }
@@ -3662,8 +3665,9 @@ public:
 
                   // ID 0x4B - Reproducimos una secuencia. Pulsos de longitud
                   // contenidos en un array y repetición
-                  _zxp.playCustomSequence(_myTZX.descriptor[i].timming.pulse_seq_array,_myTZX.descriptor[i].timming.pulse_seq_num_pulses, 0);
-                  PROGRESS_BAR_BLOCK_VALUE = ((PRG_BAR_OFFSET_INI + (ldatos)) * 100) / PRG_BAR_OFFSET_END;
+                  _zxp.playCustomSequence(_myTZX.descriptor[i].timming.pulse_seq_array,_myTZX.descriptor[i].timming.pulse_seq_num_pulses);
+                  // Actualizar al 100% solo al final
+                  PROGRESS_BAR_BLOCK_VALUE = 100;
 
                   // Liberamos el array
                   free(_myTZX.descriptor[i].timming.pulse_seq_array);
