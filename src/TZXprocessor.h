@@ -3608,9 +3608,7 @@ public:
 
                   // Solo actualizar barra si el progreso cambió significativamente (cada 5%)
                   int newProgress = ((PRG_BAR_OFFSET_INI + offset) * 100) / PRG_BAR_OFFSET_END;
-                  if (newProgress >= PROGRESS_BAR_BLOCK_VALUE + 5 || newProgress >= 100) {
-                    PROGRESS_BAR_BLOCK_VALUE = newProgress;
-                  }
+                  PROGRESS_BAR_BLOCK_VALUE = newProgress;
 
                   // Liberamos el array
                   free(_myTZX.descriptor[i].timming.pulse_seq_array);
