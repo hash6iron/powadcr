@@ -393,104 +393,104 @@ private:
           linesWithKeys.shrink_to_fit();
       }
 
-      void sortFile_old(File &file, bool firstDir = true) 
-      {
-          if (!file) return;
+      // void sortFile_old(File &file, bool firstDir = true) 
+      // {
+      //     if (!file) return;
           
-          file.seek(0);
-          std::vector<std::tuple<String, String, String, String>> linesWithKeys;
-          linesWithKeys.reserve(FILE_TOTAL_FILES);
-          String lineStr;
+      //     file.seek(0);
+      //     std::vector<std::tuple<String, String, String, String>> linesWithKeys;
+      //     linesWithKeys.reserve(FILE_TOTAL_FILES);
+      //     String lineStr;
 
-          // 1. Leemos las líneas y las almacenamos
-          while (file.available()) {
-              lineStr = file.readStringUntil('\n');
-              if (lineStr.length() == 0) continue;
-              lineStr.trim();
+      //     // 1. Leemos las líneas y las almacenamos
+      //     while (file.available()) {
+      //         lineStr = file.readStringUntil('\n');
+      //         if (lineStr.length() == 0) continue;
+      //         lineStr.trim();
 
-              int idx1 = lineStr.indexOf('|');
-              if (idx1 == -1) continue;
+      //         int idx1 = lineStr.indexOf('|');
+      //         if (idx1 == -1) continue;
 
-              int idx2 = lineStr.indexOf('|', idx1 + 1);
-              if (idx2 == -1) continue;
+      //         int idx2 = lineStr.indexOf('|', idx1 + 1);
+      //         if (idx2 == -1) continue;
 
-              int idx3 = lineStr.indexOf('|', idx2 + 1);
-              if (idx3 == -1) continue;
+      //         int idx3 = lineStr.indexOf('|', idx2 + 1);
+      //         if (idx3 == -1) continue;
 
-              int idx4 = lineStr.indexOf('|', idx3 + 1);
-              if (idx4 == -1) continue;
+      //         int idx4 = lineStr.indexOf('|', idx3 + 1);
+      //         if (idx4 == -1) continue;
 
-              String tipo = lineStr.substring(idx1 + 1, idx2);
-              String nombre = lineStr.substring(idx3 + 1, idx4);
-              String indice = lineStr.substring(0, idx1);
+      //         String tipo = lineStr.substring(idx1 + 1, idx2);
+      //         String nombre = lineStr.substring(idx3 + 1, idx4);
+      //         String indice = lineStr.substring(0, idx1);
 
-              tipo.trim();
-              nombre.trim();
+      //         tipo.trim();
+      //         nombre.trim();
 
-              linesWithKeys.push_back(std::make_tuple(tipo, nombre, indice, lineStr));
-          }
+      //         linesWithKeys.push_back(std::make_tuple(tipo, nombre, indice, lineStr));
+      //     }
 
-          // 2. Ordenamos usando un comparador compatible con C++11
-          std::sort(linesWithKeys.begin(), linesWithKeys.end(),
-              [firstDir](const std::tuple<String,String,String,String> &a, 
-                        const std::tuple<String,String,String,String> &b) {
-                  const String &tipoA = std::get<0>(a);
-                  const String &nombreA = std::get<1>(a);
-                  const String &tipoB = std::get<0>(b);
-                  const String &nombreB = std::get<1>(b);
+      //     // 2. Ordenamos usando un comparador compatible con C++11
+      //     std::sort(linesWithKeys.begin(), linesWithKeys.end(),
+      //         [firstDir](const std::tuple<String,String,String,String> &a, 
+      //                   const std::tuple<String,String,String,String> &b) {
+      //             const String &tipoA = std::get<0>(a);
+      //             const String &nombreA = std::get<1>(a);
+      //             const String &tipoB = std::get<0>(b);
+      //             const String &nombreB = std::get<1>(b);
 
-                  bool aIsDir = (tipoA == "D");
-                  bool bIsDir = (tipoB == "D");
+      //             bool aIsDir = (tipoA == "D");
+      //             bool bIsDir = (tipoB == "D");
 
-                  if (aIsDir != bIsDir) {
-                      return firstDir ? aIsDir : !aIsDir;
-                  }
+      //             if (aIsDir != bIsDir) {
+      //                 return firstDir ? aIsDir : !aIsDir;
+      //             }
 
-                  bool aIsUnderscore = nombreA.startsWith("_");
-                  bool bIsUnderscore = nombreB.startsWith("_");
-                  if (aIsUnderscore != bIsUnderscore) {
-                      return !aIsUnderscore;
-                  }
+      //             bool aIsUnderscore = nombreA.startsWith("_");
+      //             bool bIsUnderscore = nombreB.startsWith("_");
+      //             if (aIsUnderscore != bIsUnderscore) {
+      //                 return !aIsUnderscore;
+      //             }
 
-                  return nombreA.compareTo(nombreB) < 0;
-              }
-          );
+      //             return nombreA.compareTo(nombreB) < 0;
+      //         }
+      //     );
 
-          // 3. Escribimos el archivo ordenado
-          if (file) {
-              String filepath = file.path();
-              file.close();
-              file = SD_MMC.open(filepath.c_str(), FILE_WRITE);
-              file.seek(0);
+      //     // 3. Escribimos el archivo ordenado
+      //     if (file) {
+      //         String filepath = file.path();
+      //         file.close();
+      //         file = SD_MMC.open(filepath.c_str(), FILE_WRITE);
+      //         file.seek(0);
               
-              // En lugar de truncate, usamos write y close
-              file.close();
-              file = SD_MMC.open(filepath.c_str(), FILE_WRITE);
+      //         // En lugar de truncate, usamos write y close
+      //         file.close();
+      //         file = SD_MMC.open(filepath.c_str(), FILE_WRITE);
 
-              for (const auto& tup : linesWithKeys) {
-                  file.println(std::get<3>(tup));
-              }
-              file.flush();
-          }
+      //         for (const auto& tup : linesWithKeys) {
+      //             file.println(std::get<3>(tup));
+      //         }
+      //         file.flush();
+      //     }
 
-          // 4. Liberamos memoria
-          linesWithKeys.clear();
-          linesWithKeys.shrink_to_fit();
-      }
+      //     // 4. Liberamos memoria
+      //     linesWithKeys.clear();
+      //     linesWithKeys.shrink_to_fit();
+      // }
 
-      inline bool hasInvalidASCII(const String& str) {
-          const char* data = str.c_str();
+      // inline bool hasInvalidASCII(const String& str) {
+      //     const char* data = str.c_str();
           
-          // Solo los caracteres de control (0-31) y el DEL (127) son inválidos
-          // para nombres de archivo en tu sistema
-          static const char invalid_chars[] = 
-              "\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0A\x0B\x0C\x0D\x0E\x0F"
-              "\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1A\x1B\x1C\x1D\x1E\x1F"
-              "\x7F"; // Solo el carácter DEL (127)
+      //     // Solo los caracteres de control (0-31) y el DEL (127) son inválidos
+      //     // para nombres de archivo en tu sistema
+      //     static const char invalid_chars[] = 
+      //         "\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0A\x0B\x0C\x0D\x0E\x0F"
+      //         "\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1A\x1B\x1C\x1D\x1E\x1F"
+      //         "\x7F"; // Solo el carácter DEL (127)
           
-          // strpbrk busca el PRIMER carácter que SÍ está en invalid_chars
-          return strpbrk(data, invalid_chars) != NULL;
-      }
+      //     // strpbrk busca el PRIMER carácter que SÍ está en invalid_chars
+      //     return strpbrk(data, invalid_chars) != NULL;
+      // }
 
       void fillWithFilesFromFile(File &fout, File &fstatus, const String &search_pattern, const String &path) 
       {
@@ -1601,14 +1601,14 @@ private:
         resetBlockIndicators();
       }
 
-      void saveID2B(int valEn)
-      {
-        // Almacena la polarizacion en el fichero abierto en un bloque ID 0x2B
-        if(FILE_SELECTED)
-        {
-          // 
-        }
-      }
+      // void saveID2B(int valEn)
+      // {
+      //   // Almacena la polarizacion en el fichero abierto en un bloque ID 0x2B
+      //   if(FILE_SELECTED)
+      //   {
+      //     // 
+      //   }
+      // }
 
       void activateWifi(bool enable)
       {
@@ -3491,7 +3491,7 @@ private:
           //
           if (valEn==1)
           {
-              EN_EAR_INVERSION = true;
+            EN_EAR_INVERSION = true;
           }
           else
           {
@@ -3580,50 +3580,49 @@ private:
         }
         
         // Enable MIC left channel - Option
-        else if (strCmd.indexOf("EMI=") != -1) 
-        {
-          //Cogemos el valor
-          uint8_t buff[8];
-          strCmd.getBytes(buff, 7);
-          int valEn = (int)buff[4];
-          //
-          if (valEn==1)
-          {
-              SWAP_MIC_CHANNEL = true;
-          }
-          else
-          {
-              SWAP_MIC_CHANNEL = false;
-          }
-          //logln("MIC LEFT enable=" + String(SWAP_MIC_CHANNEL));
-        }
+        // else if (strCmd.indexOf("EMI=") != -1) 
+        // {
+        //   //Cogemos el valor
+        //   uint8_t buff[8];
+        //   strCmd.getBytes(buff, 7);
+        //   int valEn = (int)buff[4];
+        //   //
+        //   if (valEn==1)
+        //   {
+        //       SWAP_MIC_CHANNEL = true;
+        //   }
+        //   else
+        //   {
+        //       SWAP_MIC_CHANNEL = false;
+        //   }
+        //   //logln("MIC LEFT enable=" + String(SWAP_MIC_CHANNEL));
+        // }
         // Enable MIC left channel - Option
-        else if (strCmd.indexOf("EAR=") != -1) 
-        {
-          //Cogemos el valor
-          uint8_t buff[8];
-          strCmd.getBytes(buff, 7);
-          int valEn = (int)buff[4];
-          //
-          if (valEn==1)
-          {
-              SWAP_EAR_CHANNEL = true;
+        // else if (strCmd.indexOf("EAR=") != -1) 
+        // {
+        //   //Cogemos el valor
+        //   uint8_t buff[8];
+        //   strCmd.getBytes(buff, 7);
+        //   int valEn = (int)buff[4];
+        //   //
+        //   if (valEn==1)
+        //   {
+        //       SWAP_EAR_CHANNEL = true;
 
-          }
-          else
-          {
-              SWAP_EAR_CHANNEL = false;
-          }
+        //   }
+        //   else
+        //   {
+        //       SWAP_EAR_CHANNEL = false;
+        //   }
 
-          // Ahora mutamos el Amplificador en ambos estados del SWAP
-          // ya que el usuario decida si lo activa al quitar el swap
-          ACTIVE_AMP = false;
-          writeString("menuAudio.mutAmp.val=1");
-          // Habilitamos/Deshabilitamos el amplificador
-          kitStream.setPAPower(ACTIVE_AMP);
-;
-          //logln("EAR LEFT enable=" + String(SWAP_EAR_CHANNEL));
-        }
+        //   // Ahora mutamos el Amplificador en ambos estados del SWAP
+        //   // ya que el usuario decida si lo activa al quitar el swap
+        //   ACTIVE_AMP = false;
+        //   writeString("menuAudio.mutAmp.val=1");
+        //   // Habilitamos/Deshabilitamos el amplificador
+        //   kitStream.setPAPower(ACTIVE_AMP);
+        //   //logln("EAR LEFT enable=" + String(SWAP_EAR_CHANNEL));
+        // }
         // Save polarization in ID 0x2B
         else if (strCmd.indexOf("SAV") != -1) 
         {
@@ -3670,163 +3669,163 @@ private:
             log("Config. saved");
           #endif
         }
-        // Sampling rate TZX
-        else if (strCmd.indexOf("SAM=") != -1) 
-        {
-          //Cogemos el valor
-          uint8_t buff[8];
-          strCmd.getBytes(buff, 7);
-          int valEn = (int)buff[4];
-          //
-          if (valEn==0)
-          {
-              BASE_SR = 48000;
-              BASE_SR_TAP = 48000;
-              //writeString("tape.lblFreq.txt=\"48KHz\"" );
-          }
-          else if(valEn==1)
-          {
-              BASE_SR = 44100;
-              BASE_SR_TAP = 44100;
-              //writeString("tape.lblFreq.txt=\"44KHz\"" );
-          }
-          else if(valEn==2)
-          {
-              BASE_SR = 32000;
-              BASE_SR_TAP = 32000;
-              //writeString("tape.lblFreq.txt=\"32KHz\"" );
-          }
-          else if(valEn==3)
-          {
-              BASE_SR = STANDARD_SR_8_BIT_MACHINE;
-              BASE_SR_TAP = STANDARD_SR_8_BIT_MACHINE_TAP;
-              //writeString("tape.lblFreq.txt=\"22KHz\"" );
-          }
-          //
-          writeString("tape.lblFreq.txt=\"" + String(int(BASE_SR/1000)) + "KHz\"" );
-          writeString("tape0.lblFreq.txt=\"" + String(int(BASE_SR/1000)) + "KHz\"" );
+        // // Sampling rate TZX
+        // else if (strCmd.indexOf("SAM=") != -1) 
+        // {
+        //   //Cogemos el valor
+        //   uint8_t buff[8];
+        //   strCmd.getBytes(buff, 7);
+        //   int valEn = (int)buff[4];
+        //   //
+        //   if (valEn==0)
+        //   {
+        //       BASE_SR = 48000;
+        //       BASE_SR_TAP = 48000;
+        //       //writeString("tape.lblFreq.txt=\"48KHz\"" );
+        //   }
+        //   else if(valEn==1)
+        //   {
+        //       BASE_SR = 44100;
+        //       BASE_SR_TAP = 44100;
+        //       //writeString("tape.lblFreq.txt=\"44KHz\"" );
+        //   }
+        //   else if(valEn==2)
+        //   {
+        //       BASE_SR = 32000;
+        //       BASE_SR_TAP = 32000;
+        //       //writeString("tape.lblFreq.txt=\"32KHz\"" );
+        //   }
+        //   else if(valEn==3)
+        //   {
+        //       BASE_SR = STANDARD_SR_8_BIT_MACHINE;
+        //       BASE_SR_TAP = STANDARD_SR_8_BIT_MACHINE_TAP;
+        //       //writeString("tape.lblFreq.txt=\"22KHz\"" );
+        //   }
+        //   //
+        //   writeString("tape.lblFreq.txt=\"" + String(int(BASE_SR/1000)) + "KHz\"" );
+        //   writeString("tape0.lblFreq.txt=\"" + String(int(BASE_SR/1000)) + "KHz\"" );
          
-          // Cambiamos el sampling rate
-          // CAmbiamos el sampling rate del hardware de salida
-          // auto cfg = akit.defaultConfig();
-          // cfg.sample_rate = SAMPLING_RATE;
-          // akit.setAudioInfo(cfg);
+        //   // Cambiamos el sampling rate
+        //   // CAmbiamos el sampling rate del hardware de salida
+        //   // auto cfg = akit.defaultConfig();
+        //   // cfg.sample_rate = SAMPLING_RATE;
+        //   // akit.setAudioInfo(cfg);
 
-          auto cfg2 = kitStream.audioInfo();
-          cfg2.sample_rate = SAMPLING_RATE;
-          kitStream.setAudioInfo(cfg2);
+        //   auto cfg2 = kitStream.audioInfo();
+        //   cfg2.sample_rate = SAMPLING_RATE;
+        //   kitStream.setAudioInfo(cfg2);
 
-          #ifdef DEBUGMODE
-            log("Sampling rate =" + String(SAMPLING_RATE));
-          #endif
-        }
-        else if (strCmd.indexOf("CFR=") != -1) 
-        {
-          //Cogemos el valor
-          uint8_t buff[8];
-          strCmd.getBytes(buff, 7);
-          int valEn = (int)buff[4];
-          //
-          if (valEn==1)
-          {
-              WAV_SAMPLING_RATE = myNex.readNumber("menuAudio4.va0.val");
-              //logln("Custom sampling rate: " + String(WAV_SAMPLING_RATE));
-          }
+        //   #ifdef DEBUGMODE
+        //     log("Sampling rate =" + String(SAMPLING_RATE));
+        //   #endif
+        // }
+        // else if (strCmd.indexOf("CFR=") != -1) 
+        // {
+        //   //Cogemos el valor
+        //   uint8_t buff[8];
+        //   strCmd.getBytes(buff, 7);
+        //   int valEn = (int)buff[4];
+        //   //
+        //   if (valEn==1)
+        //   {
+        //       WAV_SAMPLING_RATE = myNex.readNumber("menuAudio4.va0.val");
+        //       //logln("Custom sampling rate: " + String(WAV_SAMPLING_RATE));
+        //   }
 
-          WAV_UPDATE_SR = true;                         
+        //   WAV_UPDATE_SR = true;                         
           
-          #ifdef DEBUGMODE
-            log("Customo WAV Sampling rate =" + String(WAV_SAMPLING_RATE));
-          #endif
-        }         
-        else if (strCmd.indexOf("WSR=") != -1) 
-        {
-          //Cogemos el valor
-          uint8_t buff[8];
-          strCmd.getBytes(buff, 7);
-          int valEn = (int)buff[4];
-          //
-          if (valEn==0)
-          {
-              WAV_SAMPLING_RATE = 48000;
-              // writeString("tape.lblFreq.txt=\"48KHz\"" );
-          }
-          else if(valEn==1)
-          {
-              WAV_SAMPLING_RATE = 44100;
-              // writeString("tape.lblFreq.txt=\"44KHz\"" );
-          }
-          else if(valEn==2)
-          {
-              WAV_SAMPLING_RATE = 32000;
-              // writeString("tape.lblFreq.txt=\"32KHz\"" );
-          }
-          else if(valEn==3)
-          {
-              WAV_SAMPLING_RATE = 22050;
-              // writeString("tape.lblFreq.txt=\"22KHz\"" );
-          }
-          else if(valEn==4)
-          {
-              WAV_SAMPLING_RATE = 11025;
-              // writeString("tape.lblFreq.txt=\"22KHz\"" );
-          }           
+        //   #ifdef DEBUGMODE
+        //     log("Customo WAV Sampling rate =" + String(WAV_SAMPLING_RATE));
+        //   #endif
+        // }         
+        // else if (strCmd.indexOf("WSR=") != -1) 
+        // {
+        //   //Cogemos el valor
+        //   uint8_t buff[8];
+        //   strCmd.getBytes(buff, 7);
+        //   int valEn = (int)buff[4];
+        //   //
+        //   if (valEn==0)
+        //   {
+        //       WAV_SAMPLING_RATE = 48000;
+        //       // writeString("tape.lblFreq.txt=\"48KHz\"" );
+        //   }
+        //   else if(valEn==1)
+        //   {
+        //       WAV_SAMPLING_RATE = 44100;
+        //       // writeString("tape.lblFreq.txt=\"44KHz\"" );
+        //   }
+        //   else if(valEn==2)
+        //   {
+        //       WAV_SAMPLING_RATE = 32000;
+        //       // writeString("tape.lblFreq.txt=\"32KHz\"" );
+        //   }
+        //   else if(valEn==3)
+        //   {
+        //       WAV_SAMPLING_RATE = 22050;
+        //       // writeString("tape.lblFreq.txt=\"22KHz\"" );
+        //   }
+        //   else if(valEn==4)
+        //   {
+        //       WAV_SAMPLING_RATE = 11025;
+        //       // writeString("tape.lblFreq.txt=\"22KHz\"" );
+        //   }           
           
-          WAV_UPDATE_SR = true;
+        //   WAV_UPDATE_SR = true;
           
-          #ifdef DEBUGMODE
-            log("WAV Sampling rate =" + String(WAV_SAMPLING_RATE));
-          #endif
-        }  
-        else if (strCmd.indexOf("WMO=") != -1) 
-        {
-          //Cogemos el valor
-          uint8_t buff[8];
-          strCmd.getBytes(buff, 7);
-          int valEn = (int)buff[4];
-          //
-          if (valEn==1)
-          {
-              // Habilitar MONO
-              WAV_CHAN = 1;
-          }
-          else
-          {
-              // Habilitar STEREO
-              WAV_CHAN = 2;
-          }
+        //   #ifdef DEBUGMODE
+        //     log("WAV Sampling rate =" + String(WAV_SAMPLING_RATE));
+        //   #endif
+        // }  
+        // else if (strCmd.indexOf("WMO=") != -1) 
+        // {
+        //   //Cogemos el valor
+        //   uint8_t buff[8];
+        //   strCmd.getBytes(buff, 7);
+        //   int valEn = (int)buff[4];
+        //   //
+        //   if (valEn==1)
+        //   {
+        //       // Habilitar MONO
+        //       WAV_CHAN = 1;
+        //   }
+        //   else
+        //   {
+        //       // Habilitar STEREO
+        //       WAV_CHAN = 2;
+        //   }
           
-          WAV_UPDATE_CH = true;
+        //   WAV_UPDATE_CH = true;
 
-          #ifdef DEBUGMODE
-            logln("WAV chanels =" + String(WAV_CHAN));
-          #endif
+        //   #ifdef DEBUGMODE
+        //     logln("WAV chanels =" + String(WAV_CHAN));
+        //   #endif
 
-        }     
-        else if (strCmd.indexOf("W8B=") != -1) 
-        {
-          //Cogemos el valor
-          uint8_t buff[8];
-          strCmd.getBytes(buff, 7);
-          int valEn = (int)buff[4];
-          //
-          if (valEn==1)
-          {
-              // Habilita terminadores
-              WAV_BITS_PER_SAMPLE = 8;
-          }
-          else
-          {
-              // Deshabilita terminadores
-              WAV_BITS_PER_SAMPLE = 16;
-          }
+        // }     
+        // else if (strCmd.indexOf("W8B=") != -1) 
+        // {
+        //   //Cogemos el valor
+        //   uint8_t buff[8];
+        //   strCmd.getBytes(buff, 7);
+        //   int valEn = (int)buff[4];
+        //   //
+        //   if (valEn==1)
+        //   {
+        //       // Habilita terminadores
+        //       WAV_BITS_PER_SAMPLE = 8;
+        //   }
+        //   else
+        //   {
+        //       // Deshabilita terminadores
+        //       WAV_BITS_PER_SAMPLE = 16;
+        //   }
 
-          WAV_UPDATE_BS = true;
+        //   WAV_UPDATE_BS = true;
 
-          #ifdef DEBUGMODE
-            logln("WAV bits =" + String(WAV_BITS_PER_SAMPLE));
-          #endif
-        }                 
+        //   #ifdef DEBUGMODE
+        //     logln("WAV bits =" + String(WAV_BITS_PER_SAMPLE));
+        //   #endif
+        // }                 
         // Habilitar recording sobre WAV file
         else if (strCmd.indexOf("WAV=") != -1) 
         {
@@ -3877,6 +3876,32 @@ private:
             logln("Modo Out to WAV =" + String(OUT_TO_WAV));
           #endif
         }
+        else if (strCmd.indexOf("C44=") != -1) 
+        {
+          //Cogemos el valor
+          uint8_t buff[8];
+          strCmd.getBytes(buff, 7);
+          int valEn = (int)buff[4];
+          //
+          if (valEn==1)
+          {
+              // Habilita
+              OUT_TO_WAV = true;
+              PLAY_TO_WAV_FILE = true;
+              CHOOSE_WAV_REC_44 = true;
+          }
+          else
+          {
+              // Deshabilita
+              OUT_TO_WAV = false;
+              PLAY_TO_WAV_FILE = false;
+              CHOOSE_WAV_REC_44 = false;
+          }
+
+          #ifdef DEBUGMODE
+            logln("Modo Out to WAV at 44.1KHz=" + String(OUT_TO_WAV));
+          #endif
+        }        
         // Habilitar play to WAV file file
         else if (strCmd.indexOf("WA8=") != -1) 
         {
@@ -4000,106 +4025,106 @@ private:
           //logln("SHOW_DATA_DEBUG enable=" + String(SHOW_DATA_DEBUG));
         }     
         // Parametrizado del timming maquinas. ROM estandar (no se usa)
-        else if (strCmd.indexOf("MP1=") != -1) 
-        {
-          //minSync1
-          uint8_t buff[8];
-          strCmd.getBytes(buff, 7);
-          int val = (int)buff[4];
-          //
-          MIN_SYNC=val;
-          //logln("MP1=" + String(MIN_SYNC));
-        }
-        else if (strCmd.indexOf("MP2=") != -1) 
-        {
-          //maxSync1
-          uint8_t buff[8];
-          strCmd.getBytes(buff, 7);
-          int val = (int)buff[4];
-          //
-          MAX_SYNC=val;
-          //logln("MP2=" + String(MAX_SYNC));
-        }
-        else if (strCmd.indexOf("MP3=") != -1) 
-        {
-          //minBit0
-          uint8_t buff[8];
-          strCmd.getBytes(buff, 7);
-          int val = (int)buff[4];
-          //
-          MIN_BIT0=val;
-          //logln("MP3=" + String(MIN_BIT0));
-        }
-        else if (strCmd.indexOf("MP4=") != -1) 
-        {
-          //maxBit0
-          uint8_t buff[8];
-          strCmd.getBytes(buff, 7);
-          int val = (int)buff[4];
-          //
-          MAX_BIT0=val;
-          //logln("MP4=" + String(MAX_BIT0));
-        }
-        else if (strCmd.indexOf("MP5=") != -1) 
-        {
-          //minBit1
-          uint8_t buff[8];
-          strCmd.getBytes(buff, 7);
-          int val = (int)buff[4];
-          //
-          MIN_BIT1=val;
-          //logln("MP5=" + String(MIN_BIT1));
-        }
-        else if (strCmd.indexOf("MP6=") != -1) 
-        {
-          //maxBit1
-          uint8_t buff[8];
-          strCmd.getBytes(buff, 7);
-          int val = (int)buff[4];
-          //
-          MAX_BIT1=val;
-          //logln("MP6=" + String(MAX_BIT1));
-        }
-        else if (strCmd.indexOf("MP7=") != -1) 
-        {
-          //max pulses lead
-          uint8_t buff[8];
-          strCmd.getBytes(buff, 7);
+        // else if (strCmd.indexOf("MP1=") != -1) 
+        // {
+        //   //minSync1
+        //   uint8_t buff[8];
+        //   strCmd.getBytes(buff, 7);
+        //   int val = (int)buff[4];
+        //   //
+        //   MIN_SYNC=val;
+        //   //logln("MP1=" + String(MIN_SYNC));
+        // }
+        // else if (strCmd.indexOf("MP2=") != -1) 
+        // {
+        //   //maxSync1
+        //   uint8_t buff[8];
+        //   strCmd.getBytes(buff, 7);
+        //   int val = (int)buff[4];
+        //   //
+        //   MAX_SYNC=val;
+        //   //logln("MP2=" + String(MAX_SYNC));
+        // }
+        // else if (strCmd.indexOf("MP3=") != -1) 
+        // {
+        //   //minBit0
+        //   uint8_t buff[8];
+        //   strCmd.getBytes(buff, 7);
+        //   int val = (int)buff[4];
+        //   //
+        //   MIN_BIT0=val;
+        //   //logln("MP3=" + String(MIN_BIT0));
+        // }
+        // else if (strCmd.indexOf("MP4=") != -1) 
+        // {
+        //   //maxBit0
+        //   uint8_t buff[8];
+        //   strCmd.getBytes(buff, 7);
+        //   int val = (int)buff[4];
+        //   //
+        //   MAX_BIT0=val;
+        //   //logln("MP4=" + String(MAX_BIT0));
+        // }
+        // else if (strCmd.indexOf("MP5=") != -1) 
+        // {
+        //   //minBit1
+        //   uint8_t buff[8];
+        //   strCmd.getBytes(buff, 7);
+        //   int val = (int)buff[4];
+        //   //
+        //   MIN_BIT1=val;
+        //   //logln("MP5=" + String(MIN_BIT1));
+        // }
+        // else if (strCmd.indexOf("MP6=") != -1) 
+        // {
+        //   //maxBit1
+        //   uint8_t buff[8];
+        //   strCmd.getBytes(buff, 7);
+        //   int val = (int)buff[4];
+        //   //
+        //   MAX_BIT1=val;
+        //   //logln("MP6=" + String(MAX_BIT1));
+        // }
+        // else if (strCmd.indexOf("MP7=") != -1) 
+        // {
+        //   //max pulses lead
+        //   uint8_t buff[8];
+        //   strCmd.getBytes(buff, 7);
 
-          // logln("0: " + String((char)buff[0]));
-          // logln("1: " + String((char)buff[1]));
-          // logln("2: " + String((char)buff[2]));
-          // logln("3: " + String((char)buff[3]));
-          // logln("4: " + String(buff[4]));
-          // logln("5: " + String(buff[5]));
-          // logln("6: " + String(buff[6]));
-          // logln("7: " + String(buff[7]));
+        //   // logln("0: " + String((char)buff[0]));
+        //   // logln("1: " + String((char)buff[1]));
+        //   // logln("2: " + String((char)buff[2]));
+        //   // logln("3: " + String((char)buff[3]));
+        //   // logln("4: " + String(buff[4]));
+        //   // logln("5: " + String(buff[5]));
+        //   // logln("6: " + String(buff[6]));
+        //   // logln("7: " + String(buff[7]));
 
-          long val = (long)((int)buff[4] + (256*(int)buff[5]) + (65536*(int)buff[6]));
-          //
-          MAX_PULSES_LEAD=val;
-          //logln("MP7=" + String(MAX_PULSES_LEAD));
-        }
-        else if (strCmd.indexOf("MP8=") != -1) 
-        {
-          //minLead
-          uint8_t buff[8];
-          strCmd.getBytes(buff, 7);
-          int val = (int)buff[4];
-          //
-          MIN_LEAD=val;
-          //logln("MP8=" + String(MIN_LEAD));
-        }
-        else if (strCmd.indexOf("MP9=") != -1) 
-        {
-          //maxLead
-          uint8_t buff[8];
-          strCmd.getBytes(buff, 7);
-          int val = buff[4];
-          //
-          MAX_LEAD=val;
-          //logln("MP9=" + String(MAX_LEAD));
-        }
+        //   long val = (long)((int)buff[4] + (256*(int)buff[5]) + (65536*(int)buff[6]));
+        //   //
+        //   MAX_PULSES_LEAD=val;
+        //   //logln("MP7=" + String(MAX_PULSES_LEAD));
+        // }
+        // else if (strCmd.indexOf("MP8=") != -1) 
+        // {
+        //   //minLead
+        //   uint8_t buff[8];
+        //   strCmd.getBytes(buff, 7);
+        //   int val = (int)buff[4];
+        //   //
+        //   MIN_LEAD=val;
+        //   //logln("MP8=" + String(MIN_LEAD));
+        // }
+        // else if (strCmd.indexOf("MP9=") != -1) 
+        // {
+        //   //maxLead
+        //   uint8_t buff[8];
+        //   strCmd.getBytes(buff, 7);
+        //   int val = buff[4];
+        //   //
+        // MAX_LEAD=val;
+        //   //logln("MP9=" + String(MAX_LEAD));
+        // }
         // Control de volumen por botones - MASTER
         else if (strCmd.indexOf("VOLUP") != -1) 
         {

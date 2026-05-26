@@ -1,0 +1,5 @@
+<map id="adpcm_ffmpeg::DecoderADPCM_IMA_QT" name="adpcm_ffmpeg::DecoderADPCM_IMA_QT">
+<area shape="rect" id="node1" title=" " alt="" coords="5,155,235,196"/>
+<area shape="rect" id="node2" href="$classadpcm__ffmpeg_1_1ADPCMDecoder.html" title="ADPCM Decoder." alt="" coords="5,80,235,107"/>
+<area shape="rect" id="node3" href="$classadpcm__ffmpeg_1_1ADPCMCodec.html" title="Common ADPCM Functionality." alt="" coords="13,5,227,32"/>
+</map>

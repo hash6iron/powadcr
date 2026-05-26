@@ -1,0 +1,11 @@
+<map id="src/adpcm&#45;ffmpeg/bswap.h" name="src/adpcm&#45;ffmpeg/bswap.h">
+<area shape="rect" id="node1" title=" " alt="" coords="244,5,443,32"/>
+<area shape="rect" id="node2" href="$intreadwrite_8h_source.html" title=" " alt="" coords="226,80,461,107"/>
+<area shape="rect" id="node3" href="$bytestream_8h_source.html" title=" " alt="" coords="5,162,236,189"/>
+<area shape="rect" id="node8" href="$get__bits_8h.html" title=" " alt="" coords="261,155,426,196"/>
+<area shape="rect" id="node9" href="$put__bits_8h.html" title=" " alt="" coords="373,244,538,285"/>
+<area shape="rect" id="node4" href="$ADPCMCodec_8h_source.html" title=" " alt="" coords="79,251,224,278"/>
+<area shape="rect" id="node5" href="$ADPCMDecoder_8h_source.html" title=" " alt="" coords="189,333,348,360"/>
+<area shape="rect" id="node7" href="$ADPCMEncoder_8h_source.html" title=" " alt="" coords="191,483,347,509"/>
+<area shape="rect" id="node6" href="$ADPCM_8h_source.html" title=" " alt="" coords="216,408,321,435"/>
+</map>

@@ -56,7 +56,7 @@
 // --------------------------------------------------------------
 // Configuración de la versión del software
 // --------------------------------------------------------------
-#define VERSION "v1.0r7.13" // Formato: vX.YrW.Z (X=major, Y=minor, W=revision, Z=revision_minor)
+#define VERSION "v1.0r7.14" // Formato: vX.YrW.Z (X=major, Y=minor, W=revision, Z=revision_minor)
 
 // --------------------------------------------------------------
 // Configuración de memoria optimizada
@@ -214,7 +214,7 @@ int GPIO_MSX_REMOTE_PAUSE = 19;
 #define DEFAULT_MP3_SAMPLING_RATE 44100
 #define STANDARD_SR_8_BIT_MACHINE 96000.0 // 44304   //32407    //43750   // Sampling rate adecuado para
           // maquinas de 8 bitsAjuste AZIMUT (Hz) - 22200 Hz
-#define STANDARD_SR_8_BIT_MACHINE_TAP 31250 // Sampling rate adecuado para maquinas de 8 bitsAjuste AZIMUT (Hz) -
+#define STANDARD_SR_8_BIT_MACHINE_TAP 96000.0 // Sampling rate adecuado para maquinas de 8 bitsAjuste AZIMUT (Hz) -
         // 22200 Hz
 #define PAUSE_TAIL_SAMPLES (0.002 / STANDARD_SR_8_BIT_MACHINE)
 #define PAUSE_TAIL_TSTATES 3500 * 2000 // Minimo debe ser 1S (3500000 TStates)
@@ -225,8 +225,11 @@ int GPIO_MSX_REMOTE_PAUSE = 19;
 // rate adecuado para maquinas de 8 bitsAjuste AZIMUT (Hz) - 22200 Hz
 
 // Sampling rate para WAV y REC WAV (pero ojo, no para PLAY TO WAV)
+//#define USE_ADPCM_ENCODER
 #define DEFAULT_WAV_SAMPLING_RATE 44100
 #define DEFAULT_WAV_SAMPLING_RATE_REC 96000
+#define DEFAULT_WAV_SAMPLING_RATE_REC_2 44100
+
 // #define DEFAULT_WAV_SAMPLING_RATE_REC_TO_TAP          44100
 // #define DEFAULT_WAV_SAMPLING_RATE_REC_PLAY_TO_WAV     44100
 #define DEFAULT_8BIT_WAV_SAMPLING_RATE_REC 22050

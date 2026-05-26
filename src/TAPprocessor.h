@@ -224,36 +224,36 @@ class TAPprocessor
             return isHeader;
         }
 
-        bool isProgramHeader(uint8_t* header, int startByte)
-        {
-            // Verifica que es una cabecera
-            //bool isHeaderPrg = false;
-            uint8_t checksum = 0;
-            uint8_t calcBlockChk = 0;
+        // bool isProgramHeader(uint8_t* header, int startByte)
+        // {
+        //     // Verifica que es una cabecera
+        //     //bool isHeaderPrg = false;
+        //     uint8_t checksum = 0;
+        //     uint8_t calcBlockChk = 0;
 
-            if (isCorrectHeader(header, startByte))
-            {
-                if (header[startByte+3]==0)
-                {
-                    checksum = header[startByte+20];
-                    calcBlockChk = calculateChecksum(header,startByte,18);
+        //     if (isCorrectHeader(header, startByte))
+        //     {
+        //         if (header[startByte+3]==0)
+        //         {
+        //             checksum = header[startByte+20];
+        //             calcBlockChk = calculateChecksum(header,startByte,18);
 
-                    if (checksum == calcBlockChk)
-                    {
-                        //isHeaderPrg = true;
-                        return true;
-                    }
-                }
-                else
-                //{isHeaderPrg = false;}
-                {
-                return false;
-                }
-            }
+        //             if (checksum == calcBlockChk)
+        //             {
+        //                 //isHeaderPrg = true;
+        //                 return true;
+        //             }
+        //         }
+        //         else
+        //         //{isHeaderPrg = false;}
+        //         {
+        //         return false;
+        //         }
+        //     }
 
-            //return isHeaderPrg;
-            return false;
-        }
+        //     //return isHeaderPrg;
+        //     return false;
+        // }
 
         int getBlockLen(uint8_t* header, int startByte)
         {
@@ -967,11 +967,11 @@ class TAPprocessor
             return _myTAP.name;
         }
 
-        int geTAPNumBlocks()
-        {
-            // Devolvemos el numero de bloques del TAP
-            return _myTAP.numBlocks;
-        }
+        // int geTAPNumBlocks()
+        // {
+        //     // Devolvemos el numero de bloques del TAP
+        //     return _myTAP.numBlocks;
+        // }
 
         void updateMemIndicator()
         {

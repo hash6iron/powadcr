@@ -1,0 +1,5 @@
+<map id="adpcm_ffmpeg::DecoderADPCM_ZORK" name="adpcm_ffmpeg::DecoderADPCM_ZORK">
+<area shape="rect" id="node1" title=" " alt="" coords="5,155,279,181"/>
+<area shape="rect" id="node2" href="$classadpcm__ffmpeg_1_1ADPCMDecoder.html" title="ADPCM Decoder." alt="" coords="27,80,257,107"/>
+<area shape="rect" id="node3" href="$classadpcm__ffmpeg_1_1ADPCMCodec.html" title="Common ADPCM Functionality." alt="" coords="35,5,249,32"/>
+</map>

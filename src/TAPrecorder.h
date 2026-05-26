@@ -1297,8 +1297,7 @@ public:
 
           // Rectificamos la onda
           // Invertimos la onda (si se quiere)
-          audioInValue =
-              (EN_EAR_INVERSION) ? audioInValue * (-1) : audioInValue;
+          audioInValue = (EN_EAR_INVERSION) ? audioInValue * (-1) : audioInValue;
 
           // Eliminamos la parte negativa (subimos la señal al cero)
           // audioInValue = (audioInValue <= 0) ? AmpZe:audioInValue;

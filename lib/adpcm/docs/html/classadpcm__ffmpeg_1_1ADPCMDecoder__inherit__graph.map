@@ -1,0 +1,51 @@
+<map id="adpcm_ffmpeg::ADPCMDecoder" name="adpcm_ffmpeg::ADPCMDecoder">
+<area shape="rect" id="node1" title="ADPCM Decoder." alt="" coords="268,1236,497,1263"/>
+<area shape="rect" id="node3" href="$classadpcm__ffmpeg_1_1DecoderADPCM__4XM.html" title=" " alt="" coords="550,5,815,32"/>
+<area shape="rect" id="node4" href="$classadpcm__ffmpeg_1_1DecoderADPCM__AFC.html" title=" " alt="" coords="551,56,814,83"/>
+<area shape="rect" id="node5" href="$classadpcm__ffmpeg_1_1DecoderADPCM__AGM.html" title=" " alt="" coords="549,107,816,133"/>
+<area shape="rect" id="node6" href="$classadpcm__ffmpeg_1_1DecoderADPCM__AICA.html" title=" " alt="" coords="549,157,816,184"/>
+<area shape="rect" id="node7" href="$classadpcm__ffmpeg_1_1DecoderADPCM__ARGO.html" title=" " alt="" coords="545,208,820,235"/>
+<area shape="rect" id="node8" href="$classadpcm__ffmpeg_1_1DecoderADPCM__CT.html" title=" " alt="" coords="556,259,809,285"/>
+<area shape="rect" id="node9" href="$classadpcm__ffmpeg_1_1DecoderADPCM__DTK.html" title=" " alt="" coords="551,309,814,336"/>
+<area shape="rect" id="node10" href="$classadpcm__ffmpeg_1_1DecoderADPCM__EA.html" title=" " alt="" coords="556,360,809,387"/>
+<area shape="rect" id="node11" href="$classadpcm__ffmpeg_1_1DecoderADPCM__EA__MAXIS__XA.html" title=" " alt="" coords="568,411,797,453"/>
+<area shape="rect" id="node12" href="$classadpcm__ffmpeg_1_1DecoderADPCM__EA__RX.html" title=" " alt="" coords="568,477,797,518"/>
+<area shape="rect" id="node16" href="$classadpcm__ffmpeg_1_1DecoderADPCM__EA__XAS.html" title=" " alt="" coords="568,542,797,583"/>
+<area shape="rect" id="node17" href="$classadpcm__ffmpeg_1_1DecoderADPCM__IMA__ACORN.html" title=" " alt="" coords="568,607,797,649"/>
+<area shape="rect" id="node18" href="$classadpcm__ffmpeg_1_1DecoderADPCM__IMA__ALP.html" title=" " alt="" coords="568,673,797,714"/>
+<area shape="rect" id="node19" href="$classadpcm__ffmpeg_1_1DecoderADPCM__IMA__AMV.html" title=" " alt="" coords="568,738,797,779"/>
+<area shape="rect" id="node20" href="$classadpcm__ffmpeg_1_1DecoderADPCM__IMA__APC.html" title=" " alt="" coords="568,803,797,845"/>
+<area shape="rect" id="node21" href="$classadpcm__ffmpeg_1_1DecoderADPCM__IMA__APM.html" title=" " alt="" coords="568,869,797,910"/>
+<area shape="rect" id="node22" href="$classadpcm__ffmpeg_1_1DecoderADPCM__IMA__CUNNING.html" title=" " alt="" coords="568,934,797,975"/>
+<area shape="rect" id="node23" href="$classadpcm__ffmpeg_1_1DecoderADPCM__IMA__DAT4.html" title=" " alt="" coords="568,999,797,1041"/>
+<area shape="rect" id="node24" href="$classadpcm__ffmpeg_1_1DecoderADPCM__IMA__DK3.html" title=" " alt="" coords="568,1065,797,1106"/>
+<area shape="rect" id="node25" href="$classadpcm__ffmpeg_1_1DecoderADPCM__IMA__DK4.html" title=" " alt="" coords="568,1130,797,1171"/>
+<area shape="rect" id="node26" href="$classadpcm__ffmpeg_1_1DecoderADPCM__IMA__EA__EACS.html" title=" " alt="" coords="568,1195,797,1237"/>
+<area shape="rect" id="node27" href="$classadpcm__ffmpeg_1_1DecoderADPCM__IMA__EA__SEAD.html" title=" " alt="" coords="568,1261,797,1302"/>
+<area shape="rect" id="node28" href="$classadpcm__ffmpeg_1_1DecoderADPCM__IMA__ISS.html" title=" " alt="" coords="568,1326,797,1367"/>
+<area shape="rect" id="node29" href="$classadpcm__ffmpeg_1_1DecoderADPCM__IMA__MOFLEX.html" title=" " alt="" coords="568,1391,797,1433"/>
+<area shape="rect" id="node30" href="$classadpcm__ffmpeg_1_1DecoderADPCM__IMA__MTF.html" title=" " alt="" coords="568,1457,797,1498"/>
+<area shape="rect" id="node31" href="$classadpcm__ffmpeg_1_1DecoderADPCM__IMA__OKI.html" title=" " alt="" coords="568,1522,797,1563"/>
+<area shape="rect" id="node32" href="$classadpcm__ffmpeg_1_1DecoderADPCM__IMA__QT.html" title=" " alt="" coords="568,1587,797,1629"/>
+<area shape="rect" id="node33" href="$classadpcm__ffmpeg_1_1DecoderADPCM__IMA__RAD.html" title=" " alt="" coords="568,1653,797,1694"/>
+<area shape="rect" id="node34" href="$classadpcm__ffmpeg_1_1DecoderADPCM__IMA__SMJPEG.html" title=" " alt="" coords="568,1718,797,1759"/>
+<area shape="rect" id="node35" href="$classadpcm__ffmpeg_1_1DecoderADPCM__IMA__SSI.html" title=" " alt="" coords="568,1783,797,1825"/>
+<area shape="rect" id="node36" href="$classadpcm__ffmpeg_1_1DecoderADPCM__IMA__WAV.html" title=" " alt="" coords="568,1849,797,1890"/>
+<area shape="rect" id="node37" href="$classadpcm__ffmpeg_1_1DecoderADPCM__IMA__WS.html" title=" " alt="" coords="568,1914,797,1955"/>
+<area shape="rect" id="node38" href="$classadpcm__ffmpeg_1_1DecoderADPCM__MS.html" title=" " alt="" coords="555,1980,811,2007"/>
+<area shape="rect" id="node39" href="$classadpcm__ffmpeg_1_1DecoderADPCM__MTAF.html" title=" " alt="" coords="547,2031,819,2057"/>
+<area shape="rect" id="node40" href="$classadpcm__ffmpeg_1_1DecoderADPCM__PSX.html" title=" " alt="" coords="552,2081,813,2108"/>
+<area shape="rect" id="node41" href="$classadpcm__ffmpeg_1_1DecoderADPCM__SBPRO__X.html" title=" " alt="" coords="568,2133,797,2174"/>
+<area shape="rect" id="node44" href="$classadpcm__ffmpeg_1_1DecoderADPCM__SWF.html" title=" " alt="" coords="550,2199,815,2225"/>
+<area shape="rect" id="node45" href="$classadpcm__ffmpeg_1_1DecoderADPCM__THP.html" title=" " alt="" coords="551,2249,814,2276"/>
+<area shape="rect" id="node46" href="$classadpcm__ffmpeg_1_1DecoderADPCM__XA.html" title=" " alt="" coords="555,2300,810,2327"/>
+<area shape="rect" id="node47" href="$classadpcm__ffmpeg_1_1DecoderADPCM__XMD.html" title=" " alt="" coords="549,2351,816,2377"/>
+<area shape="rect" id="node48" href="$classadpcm__ffmpeg_1_1DecoderADPCM__YAMAHA.html" title=" " alt="" coords="568,2402,797,2443"/>
+<area shape="rect" id="node49" href="$classadpcm__ffmpeg_1_1DecoderADPCM__ZORK.html" title=" " alt="" coords="546,2468,819,2495"/>
+<area shape="rect" id="node2" href="$classadpcm__ffmpeg_1_1ADPCMCodec.html" title="Common ADPCM Functionality." alt="" coords="5,1236,220,1263"/>
+<area shape="rect" id="node13" href="$classadpcm__ffmpeg_1_1DecoderADPCM__EA__R1.html" title=" " alt="" coords="868,411,1097,453"/>
+<area shape="rect" id="node14" href="$classadpcm__ffmpeg_1_1DecoderADPCM__EA__R2.html" title=" " alt="" coords="868,477,1097,518"/>
+<area shape="rect" id="node15" href="$classadpcm__ffmpeg_1_1DecoderADPCM__EA__R3.html" title=" " alt="" coords="868,542,1097,583"/>
+<area shape="rect" id="node42" href="$classadpcm__ffmpeg_1_1DecoderADPCM__SBPRO__2.html" title=" " alt="" coords="868,2101,1097,2142"/>
+<area shape="rect" id="node43" href="$classadpcm__ffmpeg_1_1DecoderADPCM__SBPRO__3.html" title=" " alt="" coords="868,2166,1097,2207"/>
+</map>
