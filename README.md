@@ -12,7 +12,7 @@ Multi-format TAP/TZX/TSX/CDT/CSW digital cassette recorder with WAV/MP3 playback
 
 ## Overview
 
-POWADCR is a professional-grade digital cassette recorder designed for retrocomputing enthusiasts and developers. Built on the ESP32 Audio Kit platform with a dedicated 3.5-inch capacitive touch interface, it provides comprehensive support for playing and recording tape files across multiple 8-bit computer architectures including ZX Spectrum, Amstrad, MSX, Commodore, FPGA systems, and various emulators.
+POWADCR is a professional-grade digital cassette recorder designed for retrocomputing enthusiasts and developers. Built on the ESP32 Audio Kit platform with a dedicated 3.5-inch touch interface, it provides comprehensive support for playing and recording tape files across multiple 8-bit computer architectures including ZX Spectrum, Amstrad, MSX, Commodore, FPGA systems, and various emulators.
 
 <p align="center">
   <img width="100%" src="https://github.com/user-attachments/assets/c3fa02bd-d66c-483b-bbb5-5842725ea170" />
