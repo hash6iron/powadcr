@@ -290,19 +290,19 @@ The initial firmware deployment consists of two independent flash operations:
 #### Phase 1: Display Firmware Installation
 
 **Required Files:**
-- `powadcr_iface.tft` - [Download from Latest Release](https://github.com/hash6iron/powadcr/releases)
+- `{your_TFT_model}.tft` - [Download from Latest Release](https://github.com/hash6iron/powadcr/releases)
 
 **Procedure:**
 
 1. Format an empty microSD card (FAT32 filesystem)
-2. Copy `powadcr_iface.tft` to the SD card root directory
+2. Copy `{your_TFT_model}.tft` to the SD card root directory
 3. Insert SD card into the display's integrated SD card reader
 4. Connect the display to the Audiokit ESP32 board via the 4-pin XH2.5 connector
 5. Verify correct polarity: Red wire = +3.3V, Black wire = GND
 6. Apply power to the system
-7. The display will show a blank screen and begin file transfer (LED activity may be visible)
+7. The display will show a uploading screen and begin file transfer.
 8. **Do not interrupt power during this process** (typically 1-2 minutes)
-9. Transfer complete when display shows normal boot sequence
+9. Wait for "success" message appears in the screen after 100$ was reached.
 
 #### Phase 2: AudioKit Firmware Installation
 
