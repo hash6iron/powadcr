@@ -165,7 +165,8 @@ Prior to initial operation, the display voltage regulator **must** be configured
 **Optional Accessories:**
 
 - Lithium Battery: 2000 mAh, 3.7V (for portable operation)
-- Amplifier Module: For signal conditioning from classic computers
+- MCP23017 extension module for external keypad.
+- Speaker 4Ohm 2-3W
 
 **Sourcing:**
 - Primary components available from [AliExpress](https://www.alliexpress.com/)
