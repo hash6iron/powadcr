@@ -371,11 +371,19 @@ The initial firmware deployment consists of two independent flash operations:
 
 **To update to the latest released firmware:**
 
-1. Download latest `firmware.bin` and `powadcr_iface.tft` from [Releases](https://github.com/hash6iron/powadcr/releases/latest)
+Manually
+1. Download latest `firmware.bin` and `{your_TFT_model}.tft` from [Releases](https://github.com/hash6iron/powadcr/releases/latest)
 2. Place both files in the SD card root directory
 3. Power cycle the system
-4. Wait for update process completion (typically 1-3 minutes)
-5. System will auto-reboot when complete
+4. In MAIN MENU, press "Check for update" and then press red button "Update"
+5. Wait for update process completion.
+6. System will auto-reboot when complete
+
+Automatically
+1. In MAIN MENU, press "Check for update" and then press "Check firm"
+2. Wait for verifying and auto-download process. Then press red button "Update"
+3. Wait for update process completion.
+4. System will auto-reboot when complete
 
 ---
 
@@ -383,31 +391,12 @@ The initial firmware deployment consists of two independent flash operations:
 
 ### Audio Source Integration
 
-#### Classic Computers (ZX Spectrum 16K/48K/+/+2/+3)
+#### Classic Computers (ZX Spectrum 16K/48K/+/+2/+3, Amstrad, MSX, ...)
 
 **Signal Level Mismatch:**
-Classic Spectrum machines output 5V audio signals, while POWADCR accepts 0-3.3V maximum input. Direct connection will cause signal clipping and reduced fidelity.
+Classic 8-bits machines with audio-loading, needs a high amplitud signal near 4.5v then put "master volume" slide of powaDCR at the maximun or uses amplified output at 30% (at the beginning) check several volume configurations.
 
-**Solution: Signal Conditioning Required**
-
-Two approaches are available:
-
-**Approach 1: Resistive Voltage Divider**
-- Construct simple RC network using two resistors
-- Recommended values: 10kΩ + 15kΩ configuration
-- Achieves 3:5 attenuation ratio
-
-**Approach 2: Audio Amplifier with Volume Control**
-- Connect Spectrum audio output to line input of powered amplifier
-- Adjust amplifier volume control until POWADCR recognizes signal
-- Start from minimum volume and increase gradually
-
-**Optimal Configuration:**
-- Begin testing from zero input level
-- Gradually increase until POWADCR recognizes valid waveform
-- Adjust for minimum distortion and maximum clarity
-- Note settings for future sessions
-
+NOTE: If you want to uses WAV files, remember configure 3-band equalizer in DATA mode.
 ---
 
 #### Modern Systems (ESPectrum, N-Go, Retro Clones)
