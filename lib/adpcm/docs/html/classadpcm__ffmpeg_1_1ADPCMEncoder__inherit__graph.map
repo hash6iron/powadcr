@@ -1,0 +1,16 @@
+<map id="adpcm_ffmpeg::ADPCMEncoder" name="adpcm_ffmpeg::ADPCMEncoder">
+<area shape="rect" id="node1" title="ADPCM Encoder." alt="" coords="268,323,495,350"/>
+<area shape="rect" id="node3" href="$classadpcm__ffmpeg_1_1ADPCMEncoderTrellis.html" title=" " alt="" coords="565,165,792,207"/>
+<area shape="rect" id="node10" href="$classadpcm__ffmpeg_1_1EncoderADPCM__ARGO.html" title=" " alt="" coords="543,231,815,258"/>
+<area shape="rect" id="node11" href="$classadpcm__ffmpeg_1_1EncoderADPCM__IMA__ALP.html" title=" " alt="" coords="565,283,792,324"/>
+<area shape="rect" id="node12" href="$classadpcm__ffmpeg_1_1EncoderADPCM__IMA__APM.html" title=" " alt="" coords="565,348,792,389"/>
+<area shape="rect" id="node13" href="$classadpcm__ffmpeg_1_1EncoderADPCM__IMA__SSI.html" title=" " alt="" coords="565,413,792,455"/>
+<area shape="rect" id="node14" href="$classadpcm__ffmpeg_1_1EncoderADPCM__IMA__WS.html" title=" " alt="" coords="565,479,792,520"/>
+<area shape="rect" id="node2" href="$classadpcm__ffmpeg_1_1ADPCMCodec.html" title="Common ADPCM Functionality." alt="" coords="5,323,220,350"/>
+<area shape="rect" id="node4" href="$classadpcm__ffmpeg_1_1EncoderADPCM__IMA__AMV.html" title=" " alt="" coords="881,5,1107,47"/>
+<area shape="rect" id="node5" href="$classadpcm__ffmpeg_1_1EncoderADPCM__IMA__QT.html" title=" " alt="" coords="881,71,1107,112"/>
+<area shape="rect" id="node6" href="$classadpcm__ffmpeg_1_1EncoderADPCM__IMA__WAV.html" title=" " alt="" coords="881,136,1107,177"/>
+<area shape="rect" id="node7" href="$classadpcm__ffmpeg_1_1EncoderADPCM__MS.html" title=" " alt="" coords="867,202,1121,229"/>
+<area shape="rect" id="node8" href="$classadpcm__ffmpeg_1_1EncoderADPCM__SWF.html" title=" " alt="" coords="863,253,1125,279"/>
+<area shape="rect" id="node9" href="$classadpcm__ffmpeg_1_1EncoderADPCM__YAMAHA.html" title=" " alt="" coords="881,304,1107,345"/>
+</map>

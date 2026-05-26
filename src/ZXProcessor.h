@@ -248,8 +248,9 @@ private:
     // las muestras acumuladas por error generado en la conversión
     // de double a int
     bool forzeExit = false;
+    int chs = WAV_8BIT_MONO ? 1 : channels;
     // El buffer se dimensiona para 16 bits
-    uint8_t buffer[samples * 2 * channels];
+    uint8_t buffer[samples * 2 * chs];
     uint16_t *ptr = (uint16_t *)buffer;
 
     size_t result = 0;
@@ -272,15 +273,18 @@ private:
     // Generamos la señal en el buffer del chip de audio.
     for (int j = 0; j < samples; j++) {
       // L-OUT - Left channel output (Speaker)
-      if (ACTIVE_AMP) {
-        *ptr++ = sample_L * EN_SPEAKER;
-      } else {
-        *ptr++ = sample_L;
+      if (chs>1)
+      {
+        if (ACTIVE_AMP) {
+          *ptr++ = sample_L * EN_SPEAKER;
+        } else {
+          *ptr++ = sample_L;
+        }
       }
+      
       // R-OUT - Right channel output (Amplified output)
       *ptr++ = sample_R;
-
-      result += 2 * channels;
+      result += 2 * chs;
 
       if (stopOrPauseRequest()) {
         // Salimos
@@ -292,7 +296,16 @@ private:
     if (!forzeExit) {
       // btstream.write(buffer, result);
       if (OUT_TO_WAV) {
-        encoderOutWAV.write(buffer, result);
+        if (WAV_8BIT_MONO)
+        {
+          encoderOutWAV8.write(buffer, result);
+        }
+        else
+        {
+          encoderOutWAV.write(buffer, result);
+        }
+        
+        kitStream.write(buffer, result);
       } else {
         kitStream.write(buffer, result);
       }
@@ -384,33 +397,49 @@ private:
   void createSample(uint16_t sample_R, uint16_t sample_L)
   {
     // El buffer se dimensiona para 16 bits
-    uint8_t buffer[2 * channels];
+    int chs = WAV_8BIT_MONO ? 1 : channels;
+    uint8_t buffer[2 * chs];
     uint16_t *ptr = (uint16_t *)buffer;
 
     // L-OUT - Left channel output (Speaker)
-    if (ACTIVE_AMP) {
-      *ptr++ = sample_L * EN_SPEAKER;
-    } else {
-      *ptr++ = sample_L;
+    if (chs > 1)
+    {
+      if (ACTIVE_AMP) {
+        *ptr++ = sample_L * EN_SPEAKER;
+      } else {
+        *ptr++ = sample_L;
+      }
     }
     // R-OUT - Right channel output (Amplified output)
     *ptr++ = sample_R;
-
+    
     if (OUT_TO_WAV) {
-      encoderOutWAV.write(buffer, 2 * channels);
+      if (WAV_8BIT_MONO)
+      {
+        encoderOutWAV8.write(buffer, 2 * chs);
+      }
+      else
+      {
+        encoderOutWAV.write(buffer, 2 * chs);
+      }
+      kitStream.write(buffer, 2 * chs);
     } else {
-      kitStream.write(buffer, 2 * channels);
+      kitStream.write(buffer, 2 * chs);
     }
   }
 
   void createPulse(int width, int bytes, uint16_t sample_R, uint16_t sample_L) {
+    int chn = WAV_8BIT_MONO ? 1 : channels;
     size_t result = 0;
-    uint8_t buffer[bytes + 4];
+    uint8_t buffer[bytes + (chn*2)];
     int16_t *ptr = (int16_t *)buffer;
-    int chn = channels;
+    
+
     size_t bytes_written = 0;
 
     LAST_PULSE_WIDTH = width;
+
+  
 
     for (int j = 0; j < width; j++) 
     {
@@ -421,10 +450,13 @@ private:
       }
 
       // L-OUT - Left channel output (Speaker)
-      if (ACTIVE_AMP) {
-        *ptr++ = sample_L * EN_SPEAKER;
-      } else {
-        *ptr++ = sample_L;
+      if (chn > 1)
+      {
+        if (ACTIVE_AMP) {
+          *ptr++ = sample_L * EN_SPEAKER;
+        } else {
+          *ptr++ = sample_L;
+        }
       }
       // R-OUT - Right channel output (Amplified output) and current output.
       *ptr++ = sample_R;
@@ -435,7 +467,15 @@ private:
 
     // Volcamos en el buffer
     if (OUT_TO_WAV) {
-      encoderOutWAV.write(buffer, result);
+      if (WAV_8BIT_MONO)
+      {
+        encoderOutWAV8.write(buffer, result);
+      }
+      else
+      {
+        encoderOutWAV.write(buffer, result);
+      }
+      kitStream.write(buffer, result);
     } else {
       kitStream.write(buffer, result);
     }
@@ -446,7 +486,8 @@ private:
   void sampleDR(int amp) {
     // Calculamos el tamaño del buffer
     int bytes = 0; // Cada muestra ocupa 2 bytes (16 bits)
-    int chn = channels;
+    int chn = WAV_8BIT_MONO ? 1 : channels;
+
     int frames = 0;
     double frames_rest = 0;
 
@@ -477,7 +518,8 @@ private:
   void pulseSilencePZX(int samples, bool initialLevelLow) {
     // Calculamos el tamaño del buffer
     int bytes = 0; // Cada muestra ocupa 2 bytes (16 bits)
-    int chn = channels;
+    int chn = WAV_8BIT_MONO ? 1 : channels;
+
     int frames = 0;
     double frames_rest = 0.0;
 
@@ -523,7 +565,7 @@ private:
             // log(" --> T1:  " + String(T1));
       #endif
       // Definimos el tamaño del buffer
-      bytes = samples * 2 * channels;
+      bytes = samples * 2 * chn;
       //
 
       // Generamos la onda
@@ -532,7 +574,7 @@ private:
       // Caso de un silencio o pulso muy largo
       // -------------------------------------
       int frameSlot = samples;
-      bytes = minFrame * 2 * channels;
+      bytes = minFrame * 2 * chn;
       int pass = 0;
       while (frameSlot >= minFrame) {
         createPulse(minFrame, bytes, sample_R, sample_L);
@@ -545,13 +587,13 @@ private:
 
       // El ultimo trozo
       if (frameSlot > 0) {
-        bytes = frameSlot * 2 * channels;
+        bytes = frameSlot * 2 * chn;
         createPulse(frameSlot, bytes, sample_R, sample_L);
       }
 
-#ifdef DEBUGMODE
-      // log("ACU_ERROR: "+ String(ACU_ERROR));
-#endif
+      #ifdef DEBUGMODE
+            // log("ACU_ERROR: "+ String(ACU_ERROR));
+      #endif
     }
 
     if (stopOrPauseRequest()) {
@@ -562,7 +604,9 @@ private:
   void pulseSilence(int samples) {
     // Calculamos el tamaño del buffer
     int bytes = 0; // Cada muestra ocupa 2 bytes (16 bits)
-    int chn = channels;
+    int chn = WAV_8BIT_MONO ? 1 : channels;
+
+
     int frames = 0;
     double frames_rest = 0.0;
 
@@ -615,7 +659,7 @@ private:
             // log(" --> T1:  " + String(T1));
       #endif
       // Definimos el tamaño del buffer
-      bytes = samples * 2 * channels;
+      bytes = samples * 2 * chn;
       // Generamos la onda
       createPulse(samples, bytes, sample_R, sample_L);
     } 
@@ -624,7 +668,7 @@ private:
       // Caso de un silencio o pulso muy largo
       // -------------------------------------
       int frameSlot = samples;
-      bytes = minFrame * 2 * channels;
+      bytes = minFrame * 2 * chn;
       int pass = 0;
       while (frameSlot >= minFrame) 
       {
@@ -639,7 +683,7 @@ private:
 
       // El ultimo trozo
       if (frameSlot > 0) {
-        bytes = frameSlot * 2 * channels;
+        bytes = frameSlot * 2 * chn;
         createPulse(frameSlot, bytes, sample_R, sample_L);
       }
 
@@ -658,7 +702,8 @@ private:
 
   void fullPulse(double dwidth, double calibrationValue = 0.0) {
     // Genera un pulso COMPLETO (dos semipulsos) con mayor precisión
-    int chn = channels;
+    int chn = WAV_8BIT_MONO ? 1 : channels;
+
     int minFrame = MIN_FRAME_FOR_SILENCE_PULSE_GENERATION;
     double tpulseWidth = ((dwidth / freqCPU) * SAMPLING_RATE) + calibrationValue;
     int s[2] = {(int)round(tpulseWidth),(int)round((2 * tpulseWidth) - round(tpulseWidth))};
@@ -675,149 +720,14 @@ private:
       DEBUG_AMP_R = sample_R;
       DEBUG_AMP_L = sample_L;
 
-      // if (samples <= minFrame) {
       int bytes = samples * 2 * chn;
       createPulse(samples, bytes, sample_R, sample_L);
-      // } else {
-      //     int framesCounter = 0;
-      //     int frameSlot = minFrame;
-      //     int bytes = minFrame * 2 * chn;
-      //     while (frameSlot <= samples) {
-      //         createPulse(minFrame, bytes, sample_R, sample_L);
-      //         frameSlot += minFrame;
-      //         if (stopOrPauseRequest()) return;
-      //         framesCounter++;
-      //     }
-      //     // Procesa el residuo final si existe
-      //     int processed = framesCounter * minFrame;
-      //     int remaining = samples - processed;
-      //     if (remaining > 0) {
-      //         bytes = remaining * 2 * chn;
-      //         createPulse(remaining, bytes, sample_R, sample_L);
-      //     }
-      // }
+
       if (stopOrPauseRequest())
         return;
     }
   }
 
-  // void fullPulse(double dwidth, double calibrationValue = 0.0)
-  // {
-  //     // **************************************************************
-  //     //
-  //     // Genera un pulso COMPLETO (dos semipulsos) con mayor precisión
-  //     //
-  //     // **************************************************************
-
-  //     // Calculamos el tamaño del buffer
-  //     int bytes = 0; //Cada muestra ocupa 2 bytes (16 bits)
-  //     int chn = channels;
-  //     int frames = 0;
-  //     double frames_rest = 0;
-
-  //     // El buffer se dimensiona para 16 bits
-  //     uint16_t sample_L = 0;
-  //     uint16_t sample_R = 0;
-  //     // Amplitud de la señal
-  //     double amplitude = 0;
-
-  //     // Calculamos los semipulsos
-  //     int pulseWidth = (int)round(((dwidth / freqCPU) * SAMPLING_RATE) +
-  //     calibrationValue); int s1 = int(pulseWidth / 2); int s2 = pulseWidth -
-  //     s1;
-
-  //     amplitude = getChannelAmplitude(true);
-  //     sample_R = (uint16_t)(amplitude * (MAIN_VOL_R / 100) * (MAIN_VOL /
-  //     100)); sample_L = (uint16_t)(amplitude * (MAIN_VOL_L / 100) * (MAIN_VOL
-  //     / 100));
-
-  //     // Pasamos los datos para el modo DEBUG
-  //     DEBUG_AMP_R = sample_R;
-  //     DEBUG_AMP_L = sample_L;
-
-  //     // Definiciones el número samples para el splitter
-  //     int minFrame = MIN_FRAME_FOR_SILENCE_PULSE_GENERATION;
-  //     // Si el semi-pulso tiene un numero
-  //     // menor de muestras que el minFrame, entonces
-  //     // el minFrame será ese numero de muestras
-
-  //     if (s1 <= minFrame)
-  //     {
-  //         // Definimos el tamaño del buffer
-  //         bytes = s1 * 2 * channels;
-  //         // Generamos la onda
-  //         createPulse(s1,bytes,sample_R,sample_L);
-  //     }
-  //     else
-  //     {
-  //         // Caso de un silencio o pulso muy largo
-  //         // -------------------------------------
-
-  //         // Definimos los terminadores de cada frame para el splitter
-  //         int frameSlot = minFrame;
-
-  //         // Definimos el buffer
-  //         bytes = minFrame * 2 * channels;
-
-  //         // Dividimos la onda en trozos
-  //         int framesCounter = 0;
-
-  //         while(frameSlot <= s1)
-  //         {
-  //             createPulse(minFrame, bytes, sample_R, sample_L);
-  //             frameSlot += minFrame;
-
-  //             if (stopOrPauseRequest()) {return;}
-  //             framesCounter++;
-  //         }
-
-  //             int processed = framesCounter * minFrame;
-  //             int remaining = s1 - processed;
-  //             if (remaining > 0) {
-  //                 bytes = remaining * 2 * channels;
-  //                 createPulse(remaining, bytes, sample_R, sample_L);
-  //             }
-  //     }
-
-  //     amplitude = getChannelAmplitude(true);
-  //     sample_R = (uint16_t)(amplitude * (MAIN_VOL_R / 100) * (MAIN_VOL /
-  //     100)); sample_L = (uint16_t)(amplitude * (MAIN_VOL_L / 100) * (MAIN_VOL
-  //     / 100));
-
-  //     // Ahora la otra mitad del pulso
-  //     if (s2 <= minFrame)
-  //     {
-  //         // Definimos el tamaño del buffer
-  //         bytes = s2 * 2 * channels;
-  //         // Generamos la onda
-  //         createPulse(s2,bytes,sample_R,sample_L);
-  //     }
-  //     else
-  //     {
-  //         // Caso de un silencio o pulso muy largo
-  //         // -------------------------------------
-
-  //         // Definimos los terminadores de cada frame para el splitter
-  //         int frameSlot = minFrame;
-
-  //         // Definimos el buffer
-  //         bytes = minFrame * 2 * channels;
-
-  //         // Dividimos la onda en trozos
-  //         int framesCounter = 0;
-
-  //         while(frameSlot <= s2)
-  //         {
-  //             createPulse(minFrame, bytes, sample_R, sample_L);
-  //             frameSlot += minFrame;
-
-  //             if (stopOrPauseRequest()) {return;}
-  //             framesCounter++;
-  //         }
-  //     }
-
-  //     if (stopOrPauseRequest()) {return;}
-  // }
 
   void semiPulsePZX(double dwidth, bool initialLevelLow) {
     // Amplitud de la señal
@@ -827,6 +737,8 @@ private:
     // El buffer se dimensiona para 16 bits
     uint16_t sample_L = 0;
     uint16_t sample_R = 0;
+
+    int chs = WAV_8BIT_MONO ? 1 : channels;
 
     // Calculamos el numero de samples con alta precisión
     // Usamos acumulador de error para distribuir fracciones uniformemente
@@ -874,7 +786,7 @@ private:
       // Caso de pulso corto
       // -------------------
       // Definimos el tamaño del buffer
-      bytes = samples * 2 * channels;
+      bytes = samples * 2 * chs;
       // Generamos la onda
       createPulse(samples, bytes, sample_R, sample_L);
     } else {
@@ -882,12 +794,11 @@ private:
       // -------------------------------------
       // Definimos los terminadores de cada frame para el splitter
       int frameSlot = MIN_FRAME_FOR_SILENCE_PULSE_GENERATION;
-      bytes = MIN_FRAME_FOR_SILENCE_PULSE_GENERATION * 2 * channels;
+      bytes = MIN_FRAME_FOR_SILENCE_PULSE_GENERATION * 2 * chs;
       int framesCounter = 0;
 
       while (frameSlot <= samples) {
-        createPulse(MIN_FRAME_FOR_SILENCE_PULSE_GENERATION, bytes, sample_R,
-                    sample_L);
+        createPulse(MIN_FRAME_FOR_SILENCE_PULSE_GENERATION, bytes, sample_R,sample_L);
         frameSlot += MIN_FRAME_FOR_SILENCE_PULSE_GENERATION;
 
         if (stopOrPauseRequest()) {
@@ -900,7 +811,7 @@ private:
       int processed = framesCounter * MIN_FRAME_FOR_SILENCE_PULSE_GENERATION;
       int remaining = samples - processed;
       if (remaining > 0) {
-        bytes = remaining * 2 * channels;
+        bytes = remaining * 2 * chs;
         createPulse(remaining, bytes, sample_R, sample_L);
       }
     }
@@ -915,13 +826,14 @@ private:
   }
 
 
-
   void semiPulse(double dwidth, double samples_compensation = 0) 
   {
     // Amplitud de la señal
     double amplitude = 0;
     int bytes = 0; // Cada muestra ocupa 2 bytes (16 bits)
     int samples = 0;
+    int chs = WAV_8BIT_MONO ? 1 : channels;
+    
     // El buffer se dimensiona para 16 bits
     uint16_t sample_L = 0;
     uint16_t sample_R = 0;
@@ -960,7 +872,7 @@ private:
       // Caso de pulso corto
       // -------------------
       // Definimos el tamaño del buffer
-      bytes = samples * 2 * channels;
+      bytes = samples * 2 * chs;
       // Generamos la onda
       createPulse(samples, bytes, sample_R, sample_L);
     } else {
@@ -968,12 +880,11 @@ private:
       // -------------------------------------
       // Definimos los terminadores de cada frame para el splitter
       int frameSlot = MIN_FRAME_FOR_SILENCE_PULSE_GENERATION;
-      bytes = MIN_FRAME_FOR_SILENCE_PULSE_GENERATION * 2 * channels;
+      bytes = MIN_FRAME_FOR_SILENCE_PULSE_GENERATION * 2 * chs;
       int framesCounter = 0;
 
       while (frameSlot <= samples) {
-        createPulse(MIN_FRAME_FOR_SILENCE_PULSE_GENERATION, bytes, sample_R,
-                    sample_L);
+        createPulse(MIN_FRAME_FOR_SILENCE_PULSE_GENERATION, bytes, sample_R, sample_L);
         frameSlot += MIN_FRAME_FOR_SILENCE_PULSE_GENERATION;
 
         if (stopOrPauseRequest()) {
@@ -986,7 +897,7 @@ private:
       int processed = framesCounter * MIN_FRAME_FOR_SILENCE_PULSE_GENERATION;
       int remaining = samples - processed;
       if (remaining > 0) {
-        bytes = remaining * 2 * channels;
+        bytes = remaining * 2 * chs;
         createPulse(remaining, bytes, sample_R, sample_L);
       }
     }
@@ -1677,13 +1588,15 @@ public:
   // Helper: genera 'samples' muestras a nivel CERO (silencio real entre bloques)
   void _silenceC64(int samples)
   {
+    int chs = WAV_8BIT_MONO ? 1 : channels;
+
     if (samples <= 0) return;
 
     uint16_t zero = 0;
     if (samples <= MIN_FRAME_FOR_SILENCE_PULSE_GENERATION) {
-      createPulse(samples, samples * 2 * channels, zero, zero);
+      createPulse(samples, samples * 2 * chs, zero, zero);
     } else {
-      int frame_bytes = MIN_FRAME_FOR_SILENCE_PULSE_GENERATION * 2 * channels;
+      int frame_bytes = MIN_FRAME_FOR_SILENCE_PULSE_GENERATION * 2 * chs;
       int frameSlot = MIN_FRAME_FOR_SILENCE_PULSE_GENERATION;
       int framesCounter = 0;
       while (frameSlot <= samples) {
@@ -1694,20 +1607,22 @@ public:
       }
       int remaining = samples - framesCounter * MIN_FRAME_FOR_SILENCE_PULSE_GENERATION;
       if (remaining > 0)
-        createPulse(remaining, remaining * 2 * channels, zero, zero);
+        createPulse(remaining, remaining * 2 * chs, zero, zero);
     }
   }
 
   // Helper: genera 'samples' muestras al nivel dado, con frame-splitting si es necesario
   void _generateC64Half(int samples, uint16_t sample_R, uint16_t sample_L)
   {
+    int chs = WAV_8BIT_MONO ? 1 : channels;
+
     if (samples <= 0) return;
 
     if (samples <= MIN_FRAME_FOR_SILENCE_PULSE_GENERATION) {
-      createPulse(samples, samples * 2 * channels, sample_R, sample_L);
+      createPulse(samples, samples * 2 * chs, sample_R, sample_L);
     } else {
       int frameSlot = MIN_FRAME_FOR_SILENCE_PULSE_GENERATION;
-      int frame_bytes = MIN_FRAME_FOR_SILENCE_PULSE_GENERATION * 2 * channels;
+      int frame_bytes = MIN_FRAME_FOR_SILENCE_PULSE_GENERATION * 2 * chs;
       int framesCounter = 0;
 
       while (frameSlot <= samples) {
@@ -1719,7 +1634,7 @@ public:
 
       int remaining = samples - framesCounter * MIN_FRAME_FOR_SILENCE_PULSE_GENERATION;
       if (remaining > 0) {
-        createPulse(remaining, remaining * 2 * channels, sample_R, sample_L);
+        createPulse(remaining, remaining * 2 * chs, sample_R, sample_L);
       }
     }
   }
@@ -1782,6 +1697,10 @@ public:
 
   // ✅ FUNCIÓN playDRBlock MODIFICADA PARA MANEJAR EL ÚLTIMO BYTE
   void playDRBlock_new(uint8_t *bBlock, int size, bool isThelastDataPart) {
+    
+    int chs = channels;
+    chs = WAV_8BIT_MONO ? 1 : channels;
+
     if (!bBlock || size == 0)
       return;
 
@@ -1808,8 +1727,7 @@ public:
     // en lugar de llamar a sampleDR() para cada bit
     // =====================================================
     const int BUFFER_SAMPLES = 512; // Número de muestras por chunk
-    const int BUFFER_BYTES =
-        BUFFER_SAMPLES * 2 * channels; // 2 bytes por muestra, stereo
+    const int BUFFER_BYTES = BUFFER_SAMPLES * 2 * chs; // 2 bytes por muestra, stereo
     uint8_t audio_buffer[BUFFER_BYTES];
     int16_t *ptr = (int16_t *)audio_buffer;
     int samples_in_buffer = 0;
@@ -1844,11 +1762,18 @@ public:
 
         // Añadir muestra al buffer
         // se añade siempre el canal L antes que el R para mantener la coherencia con el resto de funciones
-        if (bit_value == 1) {
-          *ptr++ = sample_up_L;
+        if (bit_value == 1) 
+        {
+          if (!WAV_8BIT_MONO)
+          {
+            *ptr++ = sample_up_L;
+          }
           *ptr++ = sample_up_R;
         } else {
-          *ptr++ = sample_down_L;
+          if (!WAV_8BIT_MONO)
+          {
+            *ptr++ = sample_down_L;
+          }
           *ptr++ = sample_down_R;
         }
 
@@ -1857,10 +1782,11 @@ public:
 
         // Cuando el buffer está lleno, escribir al stream
         if (samples_in_buffer >= BUFFER_SAMPLES) {
-          int bytes_to_write = samples_in_buffer * 2 * channels;
+          int bytes_to_write = samples_in_buffer * 2 * chs;
 
           if (OUT_TO_WAV) {
             encoderOutWAV.write(audio_buffer, bytes_to_write);
+            kitStream.write(audio_buffer, bytes_to_write);
           } else {
             kitStream.write(audio_buffer, bytes_to_write);
           }
@@ -1882,10 +1808,11 @@ public:
 
     // Escribir muestras restantes en el buffer
     if (samples_in_buffer > 0) {
-      int bytes_to_write = samples_in_buffer * 2 * channels;
+      int bytes_to_write = samples_in_buffer * 2 * chs;
 
       if (OUT_TO_WAV) {
         encoderOutWAV.write(audio_buffer, bytes_to_write);
+        kitStream.write(audio_buffer, bytes_to_write);
       } else {
         kitStream.write(audio_buffer, bytes_to_write);
       }
@@ -1897,6 +1824,10 @@ public:
   // repite automáticamente cada muestra ~2.11 veces para mantener la velocidad correcta
   void playDRBlock(uint8_t *bBlock, int size, bool isThelastDataPart, double dr_sr = 44100.0,
                    int bytes_accumulated = 0, int total_block_size = 0) {
+    
+    int chs = channels;
+    chs = WAV_8BIT_MONO ? 1 : channels;
+
     if (!bBlock || size == 0) return;
 
     // ✅ Limpiar estado de transición entre bloques
@@ -1916,7 +1847,7 @@ public:
     #endif
 
     const int DR_CHUNK_SIZE = 512;
-    const int BUFFER_BYTES = DR_CHUNK_SIZE * 2 * channels;
+    const int BUFFER_BYTES = DR_CHUNK_SIZE * 2 * chs;
     uint8_t audio_buffer[BUFFER_BYTES];
     
     // Pre-calcular amplitudes con volumen
@@ -1981,16 +1912,20 @@ public:
           
           // Escribir la muestra 'repeat_count' veces en el buffer I2S
           for (int rep = 0; rep < repeat_count; rep++) {
-            int16_t *ptr = (int16_t *)audio_buffer + (samples_in_buffer * channels);
-            *ptr++ = (int16_t)sample_L;
+            int16_t *ptr = (int16_t *)audio_buffer + (samples_in_buffer * chs);
+            if (!WAV_8BIT_MONO)
+            {
+              *ptr++ = (int16_t)sample_L;
+            }
             *ptr++ = (int16_t)sample_R;
             samples_in_buffer++;
 
             // Escribir al I2S cuando el buffer está lleno
             if (samples_in_buffer >= DR_CHUNK_SIZE) {
-              size_t bytes_to_write = samples_in_buffer * 2 * channels;
+              size_t bytes_to_write = samples_in_buffer * 2 * chs;
               if (OUT_TO_WAV) {
                 encoderOutWAV.write(audio_buffer, bytes_to_write);
+                kitStream.write(audio_buffer, bytes_to_write);
               } else {
                 kitStream.write(audio_buffer, bytes_to_write);
               }
@@ -2029,9 +1964,10 @@ public:
 
     // ✅ Escribir las muestras restantes del último chunk
     if (samples_in_buffer > 0) {
-      size_t bytes_to_write = samples_in_buffer * 2 * channels;
+      size_t bytes_to_write = samples_in_buffer * 2 * chs;
       if (OUT_TO_WAV) {
         encoderOutWAV.write(audio_buffer, bytes_to_write);
+        kitStream.write(audio_buffer, bytes_to_write);
       } else {
         kitStream.write(audio_buffer, bytes_to_write);
       }

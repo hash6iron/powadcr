@@ -466,6 +466,7 @@ bool NOT_CAPTURE_ID = false;
 // WAV record
 bool MODEWAV = false;
 bool OUT_TO_WAV = false;
+bool CHOOSE_WAV_REC_44 = false;
 bool PLAY_TO_WAV_FILE = false;
 bool WAV_8BIT_MONO = false;
 bool disable_auto_media_stop = false;
@@ -500,9 +501,9 @@ int BASE_SR = STANDARD_SR_REC_ZX_SPECTRUM; // STANDARD_SR_ZX_SPECTRUM // 44100
 int BASE_SR_TAP = 31250; // STANDARD_SR_8_BIT_MACHINE_TAP         // 44100
 int LAST_SAMPLING_RATE = 22050;                    // 44100;
 int WAV_SAMPLING_RATE = DEFAULT_WAV_SAMPLING_RATE; // 44100;
-int WAV_BITS_PER_SAMPLE = 16;
-int WAV_CHAN = 2;
-bool WAV_UPDATE_SR = false;
+//int WAV_BITS_PER_SAMPLE = 16;
+//int WAV_CHAN = 2;
+//bool WAV_UPDATE_SR = false;
 bool WAV_UPDATE_BS = false;
 bool WAV_UPDATE_CH = false;
 
@@ -531,23 +532,23 @@ int LAST_SCHMITT_THR = 0;
 bool EN_SCHMITT_CHANGE = false;
 bool EN_EAR_INVERSION = false;
 
-int MIN_SYNC = 10; // 6
-int MAX_SYNC = 18; // 19  -- S1: 190.6us + S2: 210us
+// int MIN_SYNC = 10; // 6
+// int MAX_SYNC = 18; // 19  -- S1: 190.6us + S2: 210us
 
-int MIN_BIT0 = 19; // 1
-int MAX_BIT0 = 22; // 31  -- 2442.8 us * 2
+// int MIN_BIT0 = 19; // 1
+// int MAX_BIT0 = 22; // 31  -- 2442.8 us * 2
 
-int MIN_BIT1 = 24; // 32
-int MAX_BIT1 = 44; // 48  -- 4885.7 us * 2
+// int MIN_BIT1 = 24; // 32
+// int MAX_BIT1 = 44; // 48  -- 4885.7 us * 2
 
-int MIN_LEAD = 50; // 54
-int MAX_LEAD = 55; // 62  -- 619.4us * 2
+// int MIN_LEAD = 50; // 54
+// int MAX_LEAD = 55; // 62  -- 619.4us * 2
 
 int MAX_PULSES_LEAD = 256;
 
 bool SHOW_DATA_DEBUG = false;
 // Seleccion del canal para grabación izquierdo. Por defecto es el derecho
-bool SWAP_MIC_CHANNEL = false;
+//bool SWAP_MIC_CHANNEL = false;
 bool SWAP_EAR_CHANNEL = false;
 //
 String RECORDING_DIR = "/REC";
@@ -1344,30 +1345,30 @@ bool isDirectoryPath(const char *path) {
   return isDir;
 }
 
-int getFreeFileDescriptors() {
-  int count = 0;
-  // El ESP32 típicamente tiene un máximo de 16 descriptores
-  const int MAX_FD = 16;
+// int getFreeFileDescriptors() {
+//   int count = 0;
+//   // El ESP32 típicamente tiene un máximo de 16 descriptores
+//   const int MAX_FD = 16;
 
-  // Intentamos abrir archivos hasta que falle
-  File *temp[MAX_FD];
+//   // Intentamos abrir archivos hasta que falle
+//   File *temp[MAX_FD];
 
-  for (int i = 0; i < MAX_FD; i++) {
-    temp[i] = new File(SD_MMC.open("/tmp.txt", FILE_READ));
-    if (!temp[i]->available()) {
-      count = i;
-      break;
-    }
-  }
+//   for (int i = 0; i < MAX_FD; i++) {
+//     temp[i] = new File(SD_MMC.open("/tmp.txt", FILE_READ));
+//     if (!temp[i]->available()) {
+//       count = i;
+//       break;
+//     }
+//   }
 
-  // Cerramos todos los archivos temporales
-  for (int i = 0; i < count; i++) {
-    temp[i]->close();
-    delete temp[i];
-  }
+//   // Cerramos todos los archivos temporales
+//   for (int i = 0; i < count; i++) {
+//     temp[i]->close();
+//     delete temp[i];
+//   }
 
-  return MAX_FD - count;
-}
+//   return MAX_FD - count;
+// }
 
 // Devuelve la posición del primer bit a 0 en un byte (0 = LSB, 7 = MSB), o -1 si todos están a 1
 // int detectKeyPressed(uint8_t byte) {

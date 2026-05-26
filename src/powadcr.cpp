@@ -98,6 +98,12 @@ EasyNex myNex(SerialHW);
 //#include "AudioTools/AudioCodecs/CodecFLAC.h"
 #include "AudioTools/AudioCodecs/CodecMP3Helix.h"
 #include "AudioTools/AudioCodecs/CodecWAV.h"
+
+#ifdef USE_ADPCM_ENCODER
+  #include "AudioTools/AudioCodecs/CodecADPCM.h"
+  #include "ADPCM.h"
+#endif
+
 #include "AudioTools/Communication/AudioHttp.h"
 #include "AudioTools/CoreAudio/AudioFilter/Equalizer3Bands.h"
 #include "AudioTools/Disk/AudioSourceIdxSDMMC.h"
@@ -128,13 +134,15 @@ File audioFile;
 
 // ADPCM
 #ifdef USE_ADPCM_ENCODER
-ADPCMEncoder adpcm_encoder(AV_CODEC_ID_ADPCM_MS, ADAPCM_DEFAULT_BLOCK_SIZE);
-WAVEncoder wav_encoder(adpcm_encoder, AudioFormat::ADPCM);
-EncodedAudioStream encoderOutWAV(&wavfile, &wav_encoder);
+  ADPCMEncoder adpcm_encoder(AV_CODEC_ID_ADPCM_MS, ADAPCM_DEFAULT_BLOCK_SIZE);
+  WAVEncoder wav_encoder(adpcm_encoder, AudioFormat::ADPCM);
+  EncodedAudioStream encoderOutWAV(&wavfile, &wav_encoder);
+  NumberFormatConverterStreamT<int16_t, uint8_t> encoderOutWAV8(encoderOutWAV);
 #else
-// PCM
-WAVEncoder wavEncoder;
-EncodedAudioStream encoderOutWAV(&wavfile, &wavEncoder);
+  // PCM
+  WAVEncoder wavEncoder;
+  EncodedAudioStream encoderOutWAV(&wavfile, &wavEncoder);
+  NumberFormatConverterStreamT<int16_t, uint8_t> encoderOutWAV8(encoderOutWAV);
 #endif
 
 
@@ -4660,158 +4668,120 @@ bool setAudioInfoSafe(audio_tools::AudioInfo newInfo, const String &context = ""
 }
 
 // Modificar MediaPlayer() - configuración inicial
-void playingFile() {
-  //rotate_enable = true;
-  //kitStream.setVolume(MAIN_VOL / 100.0);
+// Forward declarations
+// void playingFile2();
 
+// // Versión original optimizada
+// void playingFile() {
+//   playingFile2();
+// }
+
+// Función auxiliar para configurar WAV encoder
+void setupWAVEncoder() {
+  if (!OUT_TO_WAV) return;
+  
+  AudioInfo wavencodercfg(DEFAULT_WAV_SAMPLING_RATE_REC, WAV_8BIT_MONO ? 1 : 2, 16);
+  if (CHOOSE_WAV_REC_44) wavencodercfg.sample_rate = DEFAULT_WAV_SAMPLING_RATE_REC_2;
+  
+  encoderOutWAV.begin(wavencodercfg);
+  if (WAV_8BIT_MONO) {
+    encoderOutWAV8.begin(wavencodercfg);
+    encoderOutWAV.begin(encoderOutWAV8.audioInfoOut());
+  }
+  
+  hmi.writeString("tape.lblFreq.txt=\"" + String(int(wavencodercfg.sample_rate / 1000)) + "KHz\"");
+
+  logln("WAV encoder - Out to WAV: " + String(encoderOutWAV.audioInfo().sample_rate) + "Hz, " +
+        String(encoderOutWAV.audioInfo().bits_per_sample) + "b, " + 
+        String(encoderOutWAV.audioInfo().channels) + "ch");
+  delay(2000);
+}
+
+// Función auxiliar para limpiar y finalizar reproducción
+void finalizePlayback() {
+  hmi.writeString("tape.lblFreq.txt=\"" + String(int(SAMPLING_RATE / 1000)) + "KHz\"");
+  sendStatus(REC_ST, 0);
+  TOTAL_PARTS = 0;
+  PARTITION_BLOCK = 0;
+  tapeAnimationOFF();
+  if (OUT_TO_WAV) {
+    encoderOutWAV.end();
+    encoderOutWAV8.end();
+  }
+  DATA_IS_PLAYING = false;
+}
+
+void playingFile() 
+{
+  // Inicializamos
   kitStream.setPAPower(ACTIVE_AMP && EN_SPEAKER);
 
+  // Establecemos configuración por defecto - base
   auto new_sr = kitStream.defaultConfig();
   new_sr.channels = 2;
-
   LAST_SAMPLING_RATE = SAMPLING_RATE + TONE_ADJUST;
-  SAMPLING_RATE = BASE_SR + TONE_ADJUST;
-  new_sr.sample_rate = BASE_SR + TONE_ADJUST;
 
+  //
+  // Configurar sampling rate según preferencias
+  //
+  if (CHOOSE_WAV_REC_44) {
+    SAMPLING_RATE = DEFAULT_WAV_SAMPLING_RATE_REC_2 + TONE_ADJUST;
+    new_sr.sample_rate = DEFAULT_WAV_SAMPLING_RATE_REC_2 + TONE_ADJUST;
+  } else {
+    SAMPLING_RATE = BASE_SR + TONE_ADJUST;
+    new_sr.sample_rate = BASE_SR + TONE_ADJUST;
+  }
+  
+  // Aplicamos cambios en i2s
   kitStream.setAudioInfo(new_sr);
   hmi.setVolumenOutput();
 
-  // Inicializamos el nivel de la señal según la polarización seleccionada
-  // EDGE_EAR_IS = INVERSETRAIN ? POLARIZATION ^ 1: POLARIZATION;
+  // Actualizamos indicador de sampling rate.
+  
+  hmi.writeString("tape.lblFreq.txt=\"" + String(int(SAMPLING_RATE / 1000)) + "KHz\"");
 
-  // Por defecto
-
+  // Selección de medio
   if (TYPE_FILE_LOAD == "TAP") 
   {
-    // Ajustamos la salida de audio al valor estandar de las maquinas de 8 bits
-    // new_sr = kitStream.defaultConfig();
-
     DATA_IS_PLAYING = true;
 
-    // C64 TAP usa 96kHz: el hardware DEBE estar a la misma frecuencia que
-    // SAMPLING_RATE o los pulsos saldrán con el ancho incorrecto.
-    // BASE_SR (87500 Hz para ZX) ya fue aplicado al hardware arriba, pero el
-    // ES8388 redondeará a una tasa estándar. Para C64 forzamos hardware y
-    // variable a 96000 Hz antes de configurar el stream.
+    // C64 TAP usa 96kHz
     if (C64_TAP_INSIDE) {
-      SAMPLING_RATE = STANDARD_SR_8_BIT_MACHINE;      // 96000.0
-      new_sr.sample_rate = (uint32_t)STANDARD_SR_8_BIT_MACHINE;  // 96000
+      SAMPLING_RATE = STANDARD_SR_8_BIT_MACHINE;
+      new_sr.sample_rate = (uint32_t)STANDARD_SR_8_BIT_MACHINE;
       logln("C64 TAP: forcing hardware + SAMPLING_RATE to 96000 Hz");
     }
 
-    if (!setAudioInfoSafe(new_sr, "TAP playback")) 
-    {
+    if (!setAudioInfoSafe(new_sr, "TAP playback")) {
       LAST_MESSAGE = "Error configuring audio for TAP";
       STOP = true;
       PLAY = false;
       return;
     }
 
-    //
-    if (OUT_TO_WAV) 
-    {
-      // Configuramos el encoder WAV directament
-      AudioInfo wavencodercfg(DEFAULT_WAV_SAMPLING_RATE_REC, 2, 16);
-      // Iniciamos el stream
-      encoderOutWAV.begin(wavencodercfg);
-
-      // Verificamos la configuración final
-      logln("Sampling rate changed for TAP file: " +
-            String(DEFAULT_WAV_SAMPLING_RATE_REC) + "Hz");
-      logln("WAV encoder - Out to WAV: " +
-            String(encoderOutWAV.audioInfo().sample_rate) +
-            "Hz, Bits: " + String(encoderOutWAV.audioInfo().bits_per_sample) +
-            ", Channels: " + String(encoderOutWAV.audioInfo().channels));
-
-      LAST_MESSAGE = "Now output will be muted.";
-      delay(2000);
-    }
-
-    // Indicamos el sampling rate
-    hmi.writeString("tape.lblFreq.txt=\"" + String(int(SAMPLING_RATE / 1000)) + "KHz\"");
-    //
-    sendStatus(REC_ST, 0);
-
-    // Reiniciamos estas variables para que no aparezca informacion erronea
-    // en la pagina debug
-    TOTAL_PARTS = 0;
-    PARTITION_BLOCK = 0;
-    //
+    setupWAVEncoder();
     pTAP.play();
-    // Paramos la animación
-    tapeAnimationOFF();
-
-    if (OUT_TO_WAV) {
-      encoderOutWAV.end();
-    }
-    DATA_IS_PLAYING = false;
+    finalizePlayback();
   } 
-  else if (TYPE_FILE_LOAD == "TZX" || TYPE_FILE_LOAD == "CDT" ||  TYPE_FILE_LOAD == "TSX") 
+  else if (TYPE_FILE_LOAD == "TZX" || TYPE_FILE_LOAD == "CDT" || TYPE_FILE_LOAD == "TSX")
   {
-    // Ajustamos la salida de audio al valor estandar de las maquinas de 8 bits
-    // new_sr = kitStream.defaultConfig();
-    // LAST_SAMPLING_RATE = SAMPLING_RATE + TONE_ADJUST;
-    // SAMPLING_RATE = BASE_SR + TONE_ADJUST;
-    // new_sr.sample_rate = BASE_SR + TONE_ADJUST;
-    
     DATA_IS_PLAYING = true;
-
     logln("New sampling rate = " + String(SAMPLING_RATE));
 
-    if (!setAudioInfoSafe(new_sr, "TZX playback")) 
-    {
+    if (!setAudioInfoSafe(new_sr, "TZX playback")) {
       LAST_MESSAGE = "Error configuring audio for TZX";
       STOP = true;
       PLAY = false;
       return;
     }
 
-    // kitStream.setAudioInfo(new_sr);
-
-    //
-    if (OUT_TO_WAV) 
-    {
-      // Configuramos el encoder WAV directament
-      AudioInfo wavencodercfg(DEFAULT_WAV_SAMPLING_RATE_REC, 2, 16);
-      // Iniciamos el stream
-      encoderOutWAV.begin(wavencodercfg);
-
-      // Verificamos la configuración final
-      logln("Sampling rate changed for TZX format file: " +
-            String(DEFAULT_WAV_SAMPLING_RATE_REC) + "Hz");
-      logln("WAV encoder - Out to WAV: " +
-            String(encoderOutWAV.audioInfo().sample_rate) +
-            "Hz, Bits: " + String(encoderOutWAV.audioInfo().bits_per_sample) +
-            ", Channels: " + String(encoderOutWAV.audioInfo().channels));
-
-      LAST_MESSAGE = "Now output will be muted.";
-      delay(2000);
-    }
-
-    // Indicamos el sampling rate
-    hmi.writeString("tape.lblFreq.txt=\"" + String(int(SAMPLING_RATE / 1000)) + "KHz\"");
-    //
-    sendStatus(REC_ST, 0);
-    // Reiniciamos estas variables para que no aparezca informacion erronea
-    // en la pagina debug
-    TOTAL_PARTS = 0;
-    PARTITION_BLOCK = 0;
-    //
+    setupWAVEncoder();
     pTZX.play();
-    // Paramos la animación
-    tapeAnimationOFF();
-    //
-    if (OUT_TO_WAV) {
-      encoderOutWAV.end();
-    }
-
-    DATA_IS_PLAYING = false;    
+    finalizePlayback();
   } 
   else if (TYPE_FILE_LOAD == "CSW") 
   {
-    // Reproducción de ficheros CSW (Compressed Square Wave)
     DATA_IS_PLAYING = true;
-
     logln("New sampling rate = " + String(SAMPLING_RATE));
 
     if (!setAudioInfoSafe(new_sr, "CSW playback")) {
@@ -4821,61 +4791,23 @@ void playingFile() {
       return;
     }
 
-    if (OUT_TO_WAV) {
-      AudioInfo wavencodercfg(DEFAULT_WAV_SAMPLING_RATE_REC, 2, 16);
-      encoderOutWAV.begin(wavencodercfg);
-
-      logln("Sampling rate changed for CSW format file: " +
-            String(DEFAULT_WAV_SAMPLING_RATE_REC) + "Hz");
-      logln("WAV encoder - Out to WAV: " +
-            String(encoderOutWAV.audioInfo().sample_rate) +
-            "Hz, Bits: " + String(encoderOutWAV.audioInfo().bits_per_sample) +
-            ", Channels: " + String(encoderOutWAV.audioInfo().channels));
-
-      LAST_MESSAGE = "Now output will be muted.";
-      delay(2000);
-    }
-
-    // Indicamos el sampling rate
-    hmi.writeString("tape.lblFreq.txt=\"" + String(int(myCSW.descriptor[0].sampling_rate / 1000)) + "KHz\"");
+    setupWAVEncoder();
     
-    sendStatus(REC_ST, 0);
-    TOTAL_PARTS = 0;
-    PARTITION_BLOCK = 0;
-    
-    // ✅ Aplicar ajuste de TONE_ADJUST al sampling rate para pitch control
-    // SAMPLES_ADJUST afecta al pitch (rango típico: -5 a +5)
+    // Aplicar ajuste de pitch para CSW
     uint32_t original_sr = myCSW.descriptor[0].sampling_rate;
     uint32_t adjusted_sr = (uint32_t)round(original_sr * (1.0 + SAMPLES_ADJUST / 100.0));
-    logln("Original SR: " + String(original_sr) + " Hz, SAMPLES_ADJUST: " + String(SAMPLES_ADJUST) + ", Adjusted SR: " + String(adjusted_sr) + " Hz");
-    
-    // Modificar SR temporalmente en el descriptor para reproducción
     myCSW.descriptor[0].sampling_rate = adjusted_sr;
     
-    // Reproducir el bloque CSW con SR ajustado (por referencia, la posición se guardará en pausas)
     pTZX.playCSW(myCSW.descriptor[0]);
     
-    // Restaurar SR original después de reproducción
+    // Restaurar SR original
     myCSW.descriptor[0].sampling_rate = original_sr;
     
-    tapeAnimationOFF();
-    
-    if (OUT_TO_WAV) {
-      encoderOutWAV.end();
-    }
-
-    DATA_IS_PLAYING = false;    
+    finalizePlayback();
   }
   else if (TYPE_FILE_LOAD == "PZX") 
   {
-    // Ajustamos la salida de audio al valor estandar de las maquinas de 8 bits
-    // new_sr = kitStream.defaultConfig();
-    // LAST_SAMPLING_RATE = SAMPLING_RATE + TONE_ADJUST;
-    // SAMPLING_RATE = BASE_SR + TONE_ADJUST;
-    // new_sr.sample_rate = BASE_SR + TONE_ADJUST;
-    
     DATA_IS_PLAYING = true;
-
     logln("New sampling rate = " + String(SAMPLING_RATE));
 
     if (!setAudioInfoSafe(new_sr, "PZX playback")) {
@@ -4885,37 +4817,9 @@ void playingFile() {
       return;
     }
 
-    // kitStream.setAudioInfo(new_sr);
-
-    if (OUT_TO_WAV) {
-      // Configuramos el encoder WAV directament
-      AudioInfo wavencodercfg(DEFAULT_WAV_SAMPLING_RATE_REC, 2, 16);
-      // Iniciamos el stream
-      encoderOutWAV.begin(wavencodercfg);
-
-      // Verificamos la configuración final
-      logln("Sampling rate changed for PZX format file: " +
-            String(DEFAULT_WAV_SAMPLING_RATE_REC) + "Hz");
-      logln("WAV encoder - Out to WAV: " +
-            String(encoderOutWAV.audioInfo().sample_rate) +
-            "Hz, Bits: " + String(encoderOutWAV.audioInfo().bits_per_sample) +
-            ", Channels: " + String(encoderOutWAV.audioInfo().channels));
-    }
-
-    // Indicamos el sampling rate
-    hmi.writeString("tape.lblFreq.txt=\"" + String(int(SAMPLING_RATE / 1000)) + "KHz\"");
-    //
-    sendStatus(REC_ST, 0);
-    // Reiniciamos estas variables para que no aparezca informacion erronea
-    // en la pagina debug
-    TOTAL_PARTS = 0;
-    PARTITION_BLOCK = 0;
-    //
+    setupWAVEncoder();
     pPZX.play();
-    // Paramos la animación
-    tapeAnimationOFF();
-    //
-    DATA_IS_PLAYING = false;    
+    finalizePlayback();
   } 
   else if (TYPE_FILE_LOAD == "WAV") 
   {
@@ -5030,7 +4934,8 @@ void verifyConfigFileForSelection() {
         logln("");
         log("Param: " + fileCfg[i].cfgLine);
 
-        if ((fileCfg[i].cfgLine).indexOf("freq") != -1) {
+        if ((fileCfg[i].cfgLine).indexOf("freq") != -1) 
+        {
           SAMPLING_RATE = (getValueOfParam(fileCfg[i].cfgLine, "freq")).toInt();
 
           // CAmbiamos el sampling rate del hardware de salida
@@ -5046,48 +4951,9 @@ void verifyConfigFileForSelection() {
 
           logln("");
           log("Sampling rate: " + String(SAMPLING_RATE));
-
-          int sr_sel = (int)SAMPLING_RATE;
-
-          switch (sr_sel) {
-          case 48000: {
-            hmi.writeString("menuAudio2.r0.val=1");
-            hmi.writeString("menuAudio2.r1.val=0");
-            hmi.writeString("menuAudio2.r2.val=0");
-            hmi.writeString("menuAudio2.r3.val=0");
-            break;
-          }
-          case 44100: {
-            hmi.writeString("menuAudio2.r0.val=0");
-            hmi.writeString("menuAudio2.r1.val=1");
-            hmi.writeString("menuAudio2.r2.val=0");
-            hmi.writeString("menuAudio2.r3.val=0");
-            break;
-          }
-          case 32000: {
-            hmi.writeString("menuAudio2.r0.val=0");
-            hmi.writeString("menuAudio2.r1.val=0");
-            hmi.writeString("menuAudio2.r2.val=1");
-            hmi.writeString("menuAudio2.r3.val=0");
-            break;
-          }
-          case 22050: {
-            hmi.writeString("menuAudio2.r0.val=0");
-            hmi.writeString("menuAudio2.r1.val=0");
-            hmi.writeString("menuAudio2.r2.val=0");
-            hmi.writeString("menuAudio2.r3.val=1");
-            break;
-          }
-          default: {
-            // Por defecto es 44.1KHz
-            hmi.writeString("menuAudio2.r0.val=0");
-            hmi.writeString("menuAudio2.r1.val=0");
-            hmi.writeString("menuAudio2.r2.val=0");
-            hmi.writeString("menuAudio2.r3.val=1");
-            break;
-          }
-          }
-        } else if ((fileCfg[i].cfgLine).indexOf("zerolevel") != -1) {
+        }
+        else if ((fileCfg[i].cfgLine).indexOf("zerolevel") != -1) 
+        {
           ZEROLEVEL = getValueOfParam(fileCfg[i].cfgLine, "zerolevel").toInt();
 
           logln("");
@@ -5099,24 +4965,8 @@ void verifyConfigFileForSelection() {
             hmi.writeString("menuAudio2.lvlLowZero.val=0");
           }
         }
-        // else if ((fileCfg[i].cfgLine).indexOf("blockend") != -1)
-        // {
-        //   APPLY_END = getValueOfParam(fileCfg[i].cfgLine,
-        //   "blockend").toInt();
-
-        //   logln("");
-        //   log("Terminator forzed: " + String(APPLY_END));
-
-        //   if (APPLY_END == 1)
-        //   {
-        //     hmi.writeString("menuAudio2.enTerm.val=1");
-        //   }
-        //   else
-        //   {
-        //     hmi.writeString("menuAudio2.enTerm.val=0");
-        //   }
-        // }
-        else if ((fileCfg[i].cfgLine).indexOf("polarized") != -1) {
+        else if ((fileCfg[i].cfgLine).indexOf("polarized") != -1) 
+        {
           if ((getValueOfParam(fileCfg[i].cfgLine, "polarized")) == "1") {
             // Para que empiece en DOWN tenemos que poner POLARIZATION en UP
             // Una señal con INVERSION de pulso es POLARIZACION = UP (empieza en
@@ -5137,7 +4987,9 @@ void verifyConfigFileForSelection() {
             EDGE_EAR_IS = POLARIZATION;
             INVERSETRAIN = false;
           }
-        } else if ((fileCfg[i].cfgLine).indexOf("azimut") != -1) {
+        } 
+        else if ((fileCfg[i].cfgLine).indexOf("azimut") != -1) 
+        {
           // Cogemos el azimut
           AZIMUT = getValueOfParam(fileCfg[i].cfgLine, "azimut").toInt();
           // TONE_ADJUST = (-210)*(TONE_ADJUSTMENT_ZX_SPECTRUM +
@@ -10736,19 +10588,19 @@ hmi.writeString("statusLCD.txt=\"Preparing environment\"");
   //
   myNex.writeStr("tape.tapeVol.txt", String(int(MAIN_VOL)) + "%");
 
-  // -------------------------------------------------------------------------
-  //
-  // Configuramos el sampling rate por defecto
-  //
-  // -------------------------------------------------------------------------
-  // 48KHz
-  myNex.writeNum("menuAudio2.r0.val", 0);
-  // 44KHz
-  myNex.writeNum("menuAudio2.r1.val", 0);
-  // 32KHz
-  myNex.writeNum("menuAudio2.r2.val", 0);
-  // 22KHz
-  myNex.writeNum("menuAudio2.r3.val", 1);
+  // // -------------------------------------------------------------------------
+  // //
+  // // Configuramos el sampling rate por defecto
+  // //
+  // // -------------------------------------------------------------------------
+  // // 48KHz
+  // myNex.writeNum("menuAudio2.r0.val", 0);
+  // // 44KHz
+  // myNex.writeNum("menuAudio2.r1.val", 0);
+  // // 32KHz
+  // myNex.writeNum("menuAudio2.r2.val", 0);
+  // // 22KHz
+  // myNex.writeNum("menuAudio2.r3.val", 1);
   //
   // SAMPLING_RATE = BASE_SR;  // Por defecto
   BASE_SR = STANDARD_SR_8_BIT_MACHINE;
@@ -10758,7 +10610,7 @@ hmi.writeString("statusLCD.txt=\"Preparing environment\"");
   new_sr.sample_rate = SAMPLING_RATE;
   kitStream.setAudioInfo(new_sr);
 
-  myNex.writeStr("tape.lblFreq.txt", "32KHz");
+  myNex.writeStr("tape.lblFreq.txt", String(int(SAMPLING_RATE / 1000.0)) + "KHz");
   hmi.refreshPulseIcons(INVERSETRAIN, ZEROLEVEL);
 
   // -------------------------------------------------------------------------

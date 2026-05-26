@@ -1,0 +1,6 @@
+<map id="adpcm_ffmpeg::EncoderADPCM_SWF" name="adpcm_ffmpeg::EncoderADPCM_SWF">
+<area shape="rect" id="node1" title=" " alt="" coords="5,244,268,271"/>
+<area shape="rect" id="node2" href="$classadpcm__ffmpeg_1_1ADPCMEncoderTrellis.html" title=" " alt="" coords="23,155,250,196"/>
+<area shape="rect" id="node3" href="$classadpcm__ffmpeg_1_1ADPCMEncoder.html" title="ADPCM Encoder." alt="" coords="23,80,250,107"/>
+<area shape="rect" id="node4" href="$classadpcm__ffmpeg_1_1ADPCMCodec.html" title="Common ADPCM Functionality." alt="" coords="29,5,244,32"/>
+</map>

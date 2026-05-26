@@ -3581,6 +3581,7 @@ public:
               if (ldatos > bufferD) 
               {
                 // TSX_PARTITIONED = true;
+                int bytes_processed = 0;  // Contador relativo para este bloque
                 for (int n = 0; n < partitions && !STOP && !PAUSE; n++) 
                 {
                   if (n == 0) {
@@ -3605,10 +3606,10 @@ public:
                   _zxp.playCustomSequence(_myTZX.descriptor[i].timming.pulse_seq_array,_myTZX.descriptor[i].timming.pulse_seq_num_pulses);
                   // Avanzamos el puntero por el fichero
                   offset += bufferD;
+                  bytes_processed += bufferD;
 
-                  // Solo actualizar barra si el progreso cambió significativamente (cada 5%)
-                  int newProgress = ((PRG_BAR_OFFSET_INI + offset) * 100) / PRG_BAR_OFFSET_END;
-                  PROGRESS_BAR_BLOCK_VALUE = newProgress;
+                  // Actualizar barra de progreso relativa al bloque 0x4B
+                  PROGRESS_BAR_BLOCK_VALUE = (bytes_processed * 100) / ldatos;
 
                   // Liberamos el array
                   free(_myTZX.descriptor[i].timming.pulse_seq_array);
@@ -3621,8 +3622,6 @@ public:
                   PRG_BAR_OFFSET_INI = 0;
                   PRG_BAR_OFFSET_END = ldatos;
 
-                  PROGRESS_BAR_BLOCK_VALUE = 0;
-
                   prepareID4B(i, _mFile, nlb, vlb, ntb, vtb, pzero, pone, offset,
                               lastPartitionSize, false);
                   // ID 0x4B - Reproducimos una secuencia. Pulsos de longitud
@@ -3632,8 +3631,11 @@ public:
                   // Liberamos el array
                   free(_myTZX.descriptor[i].timming.pulse_seq_array);
                   // delete[] _myTZX.descriptor[i].timming.pulse_seq_array;
-                  // Actualizar al 100% solo al final
-                  PROGRESS_BAR_BLOCK_VALUE = 100;
+                  
+                  // Actualizar barra: bytes_processed es completamente acumulado
+                  bytes_processed += lastPartitionSize;
+                  PROGRESS_BAR_BLOCK_VALUE = (bytes_processed * 100) / ldatos;  // Ahora será 100%
+                  
                   // Pausa despues de bloque
                   _zxp.silence(silence);
                 }
@@ -3664,7 +3666,8 @@ public:
                   // ID 0x4B - Reproducimos una secuencia. Pulsos de longitud
                   // contenidos en un array y repetición
                   _zxp.playCustomSequence(_myTZX.descriptor[i].timming.pulse_seq_array,_myTZX.descriptor[i].timming.pulse_seq_num_pulses);
-                  // Actualizar al 100% solo al final
+                  
+                  // Actualizar barra al 100% al final
                   PROGRESS_BAR_BLOCK_VALUE = 100;
 
                   // Liberamos el array
@@ -4251,12 +4254,17 @@ public:
                 symbols_read++;
 
                 // Actualizamos la barra de progreso
-                if (TOTD > 0) {
-                  PROGRESS_BAR_BLOCK_VALUE = (symbols_read * 100) / TOTD;
-                  // Calcular bytes equivalentes procesados dentro del bloque GDB
-                  int block_bytes_processed = (gdbBlockSize * symbols_read) / TOTD;
-                  PROGRESS_BAR_TOTAL_VALUE = ((PRG_BAR_OFFSET_INI + block_bytes_processed) * 100) / BYTES_TOBE_LOAD;
-                }
+
+                // **********************************************************
+                // CORRECCIÓN GDB: El progreso se basa en símbolos leídos, no
+                // 25/05/2026
+                // **********************************************************                
+                // if (TOTD > 0) {
+                //   PROGRESS_BAR_BLOCK_VALUE = (symbols_read * 100) / TOTD;
+                //   // Calcular bytes equivalentes procesados dentro del bloque GDB
+                //   int block_bytes_processed = (gdbBlockSize * symbols_read) / TOTD;
+                //   PROGRESS_BAR_TOTAL_VALUE = ((PRG_BAR_OFFSET_INI + block_bytes_processed) * 100) / BYTES_TOBE_LOAD;
+                // }
               }
 
               // ✅ ASEGURAR QUE LA BARRA LLEGUE AL 100% AL FINALIZAR
@@ -4414,6 +4422,9 @@ public:
           i = _myTZX.numBlocks + 1;
           break;
         }
+
+        // Total de bloques.
+        PROGRESS_BAR_TOTAL_VALUE = i * 100 / _myTZX.numBlocks;
       }
       //---------------------------------------------------------------
 

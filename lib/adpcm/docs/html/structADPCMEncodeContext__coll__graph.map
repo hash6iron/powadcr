@@ -1,0 +1,6 @@
+<map id="ADPCMEncodeContext" name="ADPCMEncodeContext">
+<area shape="rect" id="node1" title=" " alt="" coords="85,109,253,136"/>
+<area shape="rect" id="node2" href="$structTrellisNode.html" title=" " alt="" coords="5,5,100,32"/>
+<area shape="rect" id="node3" href="$structTrellisPath.html" title=" " alt="" coords="125,5,213,32"/>
+<area shape="rect" id="node4" href="$structADPCMChannelStatus.html" title=" " alt="" coords="237,5,401,32"/>
+</map>

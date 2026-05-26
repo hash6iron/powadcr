@@ -1,0 +1,12 @@
+<map id="adpcm_ffmpeg::EncoderADPCM_IMA_ALP" name="adpcm_ffmpeg::EncoderADPCM_IMA_ALP">
+<area shape="rect" id="node1" title=" " alt="" coords="1271,140,1497,181"/>
+<area shape="rect" id="node2" href="$classadpcm__ffmpeg_1_1ADPCMEncoder.html" title="ADPCM Encoder." alt="" coords="995,147,1221,174"/>
+<area shape="rect" id="node3" href="$classadpcm__ffmpeg_1_1ADPCMCodec.html" title="Common ADPCM Functionality." alt="" coords="688,122,903,149"/>
+<area shape="rect" id="node4" href="$structadpcm__ffmpeg_1_1ADPCMEncodeContext.html" title=" " alt="" coords="357,64,579,105"/>
+<area shape="rect" id="node5" href="$structadpcm__ffmpeg_1_1ADPCMChannelStatus.html" title=" " alt="" coords="5,5,233,47"/>
+<area shape="rect" id="node6" href="$structadpcm__ffmpeg_1_1TrellisPath.html" title=" " alt="" coords="23,71,216,98"/>
+<area shape="rect" id="node7" href="$structadpcm__ffmpeg_1_1TrellisNode.html" title=" " alt="" coords="20,131,219,158"/>
+<area shape="rect" id="node8" href="$structadpcm__ffmpeg_1_1AVCodecContext.html" title="C API context for encoder and decoder." alt="" coords="351,141,585,167"/>
+<area shape="rect" id="node9" href="$structadpcm__ffmpeg_1_1AVFrame.html" title="This structure provides the uncompressed PCM data." alt="" coords="703,173,888,199"/>
+<area shape="rect" id="node10" href="$structadpcm__ffmpeg_1_1AVPacket.html" title="This structure stores compressed data. It is typically exported by demuxers and then passed as input ..." alt="" coords="702,223,889,250"/>
+</map>
