@@ -5656,7 +5656,10 @@ private:
                 file.flush();
                 
                 logln("Progress: " + String(totalBytes) + " / " + String(contentLength) + " bytes");
+                // Informacion de la descarga
                 myNex.writeStr("update.status.txt", "Downloading " + String(totalBytes / 1024) + " / " + String(contentLength / 1024) + " KB");
+                // Barra de progreso
+                myNex.writeNum("update.prgBar.val", (contentLength > 0) ? (totalBytes * 100) / contentLength : 0);
             }
             
             // ✅ YIELD PARA NO BLOQUEAR WATCHDOG
