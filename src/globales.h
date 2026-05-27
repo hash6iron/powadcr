@@ -1570,6 +1570,8 @@ bool _downloadBinaryToSD(const String& url, const String& localPath)
     if (bytesRead == 0) { delay(10); continue; }
     file.write(buf, bytesRead);
     total += bytesRead;
+    // Barra de progreso
+    if (contentLength > 0) myNex.writeNum("tape.progressTotal.val", (total*100)/contentLength);
   }
 
   file.flush();
@@ -1578,6 +1580,7 @@ bool _downloadBinaryToSD(const String& url, const String& localPath)
   http.end();
 
   logln("Descargados " + String(total) + " bytes -> " + localPath);
+  //myNex.writeStr("tape.size.txt", String(total) + " bytes");
   return (total > 0);
 }
 
@@ -1642,6 +1645,7 @@ int _unzipGameFilesToDir(const String& zipPath, const String& destDir)
         outFile.flush();
         outFile.close();
         logln("Extraído: " + outPath + " (" + String(uncompSize) + " bytes)");
+        //myNex.writeStr("tape.size.txt", String(uncompSize) + " bytes");
         extracted++;
       }
       else { logln("Error creando: " + outPath); }
@@ -1649,6 +1653,9 @@ int _unzipGameFilesToDir(const String& zipPath, const String& destDir)
     else { logln("Error extrayendo: " + entryName); }
 
     free(outBuf);
+    // Actualizar progreso. Barra de progreso
+    if (numEntries > 0) myNex.writeNum("tape.progressBlock.val", (i*100)/numEntries);
+
   }
 
   mz_zip_reader_end(&zip);
@@ -1754,7 +1761,7 @@ int _unzipAllFilesToDir(const String& zipPath)
         outFile.close();
         logln("Extraído: " + outPath + " (" + String(uncompSize) + " bytes)");
         extracted++;
-        
+        //myNex.writeStr("tape.size.txt", String(uncompSize) + " bytes");
         // Actualizar progreso
         LAST_MESSAGE = "Extracted: " + String(extracted) + "/" + String(numEntries) + " (" + entryName.substring(0, 20) + ")";
       }
@@ -1795,12 +1802,13 @@ void downloadFromZXDB(String gameId, String title)
   TYPE_FILE_LOAD = "ZXDB";
 
   LAST_MESSAGE = "Downloading: " + title;
-  myNex.writeStr("tape.g0.txt", LAST_MESSAGE);
+  //myNex.writeStr("tape.g0.txt", LAST_MESSAGE);
 
   if (!WIFI_CONNECTED || !WIFI_ENABLE)
   {
     logln("WiFi no disponible para descarga ZXDB");
-    myNex.writeStr("tape.g0.txt", "No WiFi");
+    LAST_MESSAGE = "No WiFi connection";
+    //myNex.writeStr("tape.g0.txt", "No WiFi");
     return;
   }
 
@@ -1823,7 +1831,7 @@ void downloadFromZXDB(String gameId, String title)
     if (!SD_MMC.mkdir(destDir))
     {
       logln("Error al crear directorio: " + destDir);
-      myNex.writeStr("tape.g0.txt", "Error creating dir");
+      LAST_MESSAGE = "Error creating dir";
       return;
     }
   }
@@ -1831,7 +1839,8 @@ void downloadFromZXDB(String gameId, String title)
   // Obtener metadata del juego de la API ZXDB
   String metaUrl = "https://api.zxinfo.dk/v3/games/" + gameId + "?mode=compact&output=flat";
   logln("Obteniendo metadata ZXDB: " + metaUrl);
-  myNex.writeStr("tape.g0.txt", "Fetching metadata...");
+  LAST_MESSAGE = "Fetching metadata...";
+  myNex.writeStr("tape.g0.txt", LAST_MESSAGE.c_str());
 
   // Payload declarado fuera del bloque para usarlo luego al parsear
   String payload;
@@ -1845,7 +1854,8 @@ void downloadFromZXDB(String gameId, String title)
   else 
   {
     logln("WiFi no disponible para descarga ZXDB");
-    myNex.writeStr("tape.g0.txt", "No WiFi");
+    LAST_MESSAGE = "No WiFi connection";
+    //myNex.writeStr("tape.g0.txt", "No WiFi");
 
     return;
   }
@@ -1870,7 +1880,8 @@ void downloadFromZXDB(String gameId, String title)
     if (attempt > 0)
     {
       logln("Reintento metadata " + String(attempt) + " (fragmentacion de heap)...");
-      myNex.writeStr("tape.g0.txt", "Retry " + String(attempt) + "...");
+      LAST_MESSAGE = "Retrying metadata... (" + String(attempt) + "/3)";
+      myNex.writeStr("tape.g0.txt", LAST_MESSAGE.c_str());
       vTaskDelay(pdMS_TO_TICKS(1500));
     }
 
@@ -1892,7 +1903,8 @@ void downloadFromZXDB(String gameId, String title)
     else
     {
       logln("Error HTTP metadata [intento " + String(attempt + 1) + "]: " + String(httpCode));
-      myNex.writeStr("tape.g0.txt", "Error " + String(httpCode) + " (" + String(attempt + 1) + "/3)");
+      LAST_MESSAGE = "Error " + String(httpCode) + " fetching metadata";
+      //myNex.writeStr("tape.g0.txt", "Error " + String(httpCode) + " (" + String(attempt + 1) + "/3)");
       http.end();
     }
     // secureClient destruido aquí al salir del scope del for, liberando SSL context
@@ -1901,13 +1913,15 @@ void downloadFromZXDB(String gameId, String title)
   if (!metaOK)
   {
     logln("Fallo al obtener metadata tras 3 intentos.");
-    myNex.writeStr("tape.g0.txt", "Metadata error after retries");
+    LAST_MESSAGE = "Metadata error";
+    //myNex.writeStr("tape.g0.txt", "Metadata error after retries");
     //
     LAST_MESSAGE = "Memory allocation error. Reboot ESP32";
-    myNex.writeStr("tape.g0.txt", LAST_MESSAGE);
+    //myNex.writeStr("tape.g0.txt", LAST_MESSAGE);
     return;
   }
   logln("Metadata recibida: " + String(payload.length()) + " bytes");
+  LAST_SIZE = payload.length();
 
   // Parsear releases.X.files.Y.path= buscando ficheros .zip
   // Los ficheros en ZXDB son siempre .zip (ej: 1LineCaveAdventure.tzx.zip)
@@ -1942,26 +1956,30 @@ void downloadFromZXDB(String gameId, String title)
         String downloadUrl = "https://spectrumcomputing.co.uk" + filePath;
 
         logln("Descargando ZIP: " + downloadUrl);
-        myNex.writeStr("tape.g0.txt", "Downloading: " + zipName);
+        LAST_MESSAGE = "Downloading: " + zipName;
+        myNex.writeStr("tape.g0.txt", LAST_MESSAGE.c_str());
+        // delay(125);
+        // myNex.writeStr("tape.g0.txt", "Downloading: " + zipName);
+        // delay(125);
+        // myNex.writeStr("tape.g0.txt", "Downloading: " + zipName);
 
         if (_downloadBinaryToSD(downloadUrl, tmpZip))
         {
-          myNex.writeStr("tape.g0.txt", "Extracting: " + zipName);
+          LAST_MESSAGE = "Extracting: " + zipName;
+          myNex.writeStr("tape.g0.txt", LAST_MESSAGE.c_str());
           int n = _unzipGameFilesToDir(tmpZip, destDir);
           filesDownloaded += n;
           SD_MMC.remove(tmpZip);  // borrar ZIP temporal
           
           LAST_MESSAGE = "Downloading done. See /DOWNLOAD";
-          myNex.writeStr("tape.g0.txt", LAST_MESSAGE);
-
-
         }
         else 
         { 
           logln("Error descargando: " + zipName); 
           LAST_MESSAGE = "Downloading error";
-          myNex.writeStr("tape.g0.txt", LAST_MESSAGE);
         }
+        // Actualizamos el mensaje en pantalla después de cada descarga/extracción
+        myNex.writeStr("tape.g0.txt", LAST_MESSAGE.c_str());
       }
 
       fileIdx++;
@@ -1972,12 +1990,20 @@ void downloadFromZXDB(String gameId, String title)
   if (filesDownloaded == 0)
   {
     logln("No se encontraron ficheros de juego para ID: " + gameId);
-    myNex.writeStr("tao.message.txt", "No game files found");
+    LAST_MESSAGE = "No game files found";
+    // delay(125);
+    // myNex.writeStr("tape.g0.txt", "No game files found");
+    // delay(125);
+    // myNex.writeStr("tape.g0.txt", "No game files found");
   }
   else
   {
     logln("Descargados " + String(filesDownloaded) + " fichero(s) en " + destDir);
-    myNex.writeStr("tape.g0.txt", "Done: " + String(filesDownloaded) + " file(s)");
+    LAST_MESSAGE = "Done: " + String(filesDownloaded) + " file(s)";
+    // delay(1250);
+    // myNex.writeStr("tape.g0.txt", "Done: " + String(filesDownloaded) + " file(s)");
+    // delay(125);
+    // myNex.writeStr("tape.g0.txt", "Done: " + String(filesDownloaded) + " file(s)");
   }
 
   DOWNLOADING_ZXDB = false;

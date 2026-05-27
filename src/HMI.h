@@ -2663,6 +2663,11 @@ private:
                   logln("File id to download: " + idFile);
                   logln("Title of file to download: " + tittle);
                   logln("Starting download from ZXDB ...");
+
+                  LAST_MESSAGE = "Trying to download from ZXDB. Please wait ...";
+                  myNex.writeStr("tape.g0.txt", LAST_MESSAGE.c_str());
+                  delay(500);
+
                   downloadFromZXDB(idFile, tittle);
                 }
 
@@ -5651,6 +5656,7 @@ private:
                 file.flush();
                 
                 logln("Progress: " + String(totalBytes) + " / " + String(contentLength) + " bytes");
+                myNex.writeStr("update.status.txt", "Downloading " + String(totalBytes / 1024) + " / " + String(contentLength / 1024) + " KB");
             }
             
             // ✅ YIELD PARA NO BLOQUEAR WATCHDOG
@@ -5695,7 +5701,8 @@ private:
     }
 
     // ✅ FUNCIÓN SIMPLE PARA DESCARGAR FIRMWARE - SIN VERIFICACIÓN DE ESPACIO
-    bool downloadFirmwareFiles(const String& tagVersion) {
+    bool downloadFirmwareFiles(const String& tagVersion) 
+    {
         if (tagVersion.length() == 0) {
             logln("Error: No tag version provided");
             myNex.writeStr("update.status.txt", "No version specified");
@@ -5833,7 +5840,7 @@ private:
       // ✅ PASO 2: DESCARGAR ARCHIVOS
       myNex.writeStr("update.status.txt","New update available");
       if (downloadFirmwareFiles(latestTag)) {
-        myNex.writeStr("update.status.txt","All firmwares downloaded. Update now.");
+        myNex.writeStr("update.status.txt","All firmwares downloaded. PRESS 'Update' now.");
         logln("Firmware update downloaded successfully!");
         logln("Files ready: /firmware.bin and /powadcr_iface.tft");
       } else {
@@ -5859,7 +5866,14 @@ private:
         myNex.writeStr("update.status.txt","Start to flashing display ...");
         delay(2000);
         // NOTA: Este metodo necesita que la pantalla esté alimentada con 5V
-        uploadFirmDisplay(strpathtft);
+        //uploadFirmDisplay(strpathtft);
+
+        if (!uploadFirmDisplay(strpathtft)) 
+        {
+          myNex.writeStr("update.status.txt","HMI update failed");
+          return;  // Salir sin continuar
+        }        
+
         // Esperamos al reinicio de la pantalla
         myNex.writeStr("screen.statusLCD.txt","Waiting for update page ...");
         delay(3000);
@@ -6017,7 +6031,7 @@ private:
         }
     }
 
-    void uploadFirmDisplay(char *filetft)
+    bool uploadFirmDisplay(char *filetft)
     {
       
       File file;
@@ -6031,8 +6045,12 @@ private:
       catch(String error)
       {
         myNex.writeStr("update.status.txt","Error opening TFT file");
+        // Eliminamos el fichero
+        delay(500);
+        SD_MMC.remove(filetft);        
+        //
         delay(2000);
-        return;
+        return false;
       }
       
       logln("File opened");
@@ -6150,7 +6168,10 @@ private:
               // Una vez enviado el primer bloque esperamos 2s
               delay(2000);
 
-              while (1)
+              unsigned long timeout = millis() + 60000; // Timeout de 60s para esperar respuesta de la pantalla
+
+              // Esperamos respuesta de la pantalla. Puede ser un ACK 0x05 o un comando 0x08 con el offset al que debemos saltar.
+              while (millis() < timeout)
               {
                 res = readStr();
 
@@ -6169,11 +6190,20 @@ private:
                 }
                 delay(50);
               }
+
+              if (millis() >= timeout)
+              {
+                logln("Timeout waiting for screen response after first block");
+                file.close();
+                return false;
+              }
             }
             else
             {
               String res = "";
-              while (1)
+              unsigned long timeout = millis() + 60000; // Timeout de 60s para esperar respuesta de la pantalla
+
+              while (millis() < timeout)
               {
                 // Esperams un ACK 0x05
                 res = readStr();
@@ -6181,6 +6211,13 @@ private:
                 {
                   break;
                 }
+              }
+
+              if (millis() >= timeout)
+              {
+                logln("Timeout waiting for screen ACK after block " + String(bl));
+                file.close();
+                return false;
               }
             }
 
@@ -6197,6 +6234,8 @@ private:
       // Eliminamos el fichero
       delay(500);
       SD_MMC.remove(filetft);
+
+      return true;
 
     }
 
