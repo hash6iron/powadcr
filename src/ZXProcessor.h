@@ -1162,6 +1162,7 @@ public:
     {
       pulseSilence(samples1ms); // Generamos un pulso de silencio de 1 muestra (ajustable)
       duration -= 1.0; // Restamos 1ms al tiempo total de silencio
+      //logln(" > Added 1ms tail for level change. Remaining silence duration: " + String(duration) + " ms");
     }
 
     // Generar silencio adicional si duration > 0
