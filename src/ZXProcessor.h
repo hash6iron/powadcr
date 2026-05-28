@@ -1156,8 +1156,13 @@ public:
         
     //Metemos un tail de 1ms para el ultimo pulso y cambio el flanco
     double samples1ms = (1 / 1000.0) * SAMPLING_RATE;
-    pulseSilence(samples1ms); // Generamos un pulso de silencio de 1 muestra (ajustable)
-    duration -= 1.0; // Restamos 1ms al tiempo total de silencio
+
+    // Para MSX no metemos TAIL
+    if (TYPE_FILE_LOAD != "TSX")
+    {
+      pulseSilence(samples1ms); // Generamos un pulso de silencio de 1 muestra (ajustable)
+      duration -= 1.0; // Restamos 1ms al tiempo total de silencio
+    }
 
     // Generar silencio adicional si duration > 0
     if (duration > 0.0) {
