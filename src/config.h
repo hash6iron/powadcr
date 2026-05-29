@@ -225,7 +225,7 @@ int GPIO_MSX_REMOTE_PAUSE = 19;
 // rate adecuado para maquinas de 8 bitsAjuste AZIMUT (Hz) - 22200 Hz
 
 // Sampling rate para WAV y REC WAV (pero ojo, no para PLAY TO WAV)
-//#define USE_ADPCM_ENCODER
+// #define USE_ADPCM_ENCODER  // Ahora usamos variable global USE_ADPCM_CODEC en runtime
 #define DEFAULT_WAV_SAMPLING_RATE 44100
 #define DEFAULT_WAV_SAMPLING_RATE_REC 96000
 #define DEFAULT_WAV_SAMPLING_RATE_REC_2 44100

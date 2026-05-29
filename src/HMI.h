@@ -3907,7 +3907,7 @@ private:
             logln("Modo Out to WAV at 44.1KHz=" + String(OUT_TO_WAV));
           #endif
         }        
-        // Habilitar play to WAV file file
+        // Habilitar play to WAV file file a 8-bits
         else if (strCmd.indexOf("WA8=") != -1) 
         {
           //Cogemos el valor
@@ -3930,6 +3930,29 @@ private:
             logln("Modo WAV mono 8-bits =" + String(WAV_8BIT_MONO));
           #endif
         }
+        // Habilitar Codec ADPCM
+        else if (strCmd.indexOf("ADP=") != -1) 
+        {
+          //Cogemos el valor
+          uint8_t buff[8];
+          strCmd.getBytes(buff, 7);
+          int valEn = (int)buff[4];
+          //
+          if (valEn==1)
+          {
+              // Habilita
+              USE_ADPCM_CODEC = true;
+          }
+          else
+          {
+              // Deshabilita
+              USE_ADPCM_CODEC = false;
+          }
+
+          #ifdef DEBUGMODE
+            logln("Modo ADPCM Codec =" + String(USE_ADPCM_CODEC));
+          #endif
+        }        
         // Deshabilitar Auto Stop en WAV and MP3 player.
         else if (strCmd.indexOf("DPS=") != -1) 
         {
@@ -5548,7 +5571,7 @@ private:
         }
         
         // ✅ TIMEOUTS LARGOS PARA ARCHIVOS GRANDES
-        http.setTimeout(300000);  // 5 minutos
+        http.setTimeout(65535);  // Tiempo total de la operación - Antes teniamos 300000
         http.setConnectTimeout(30000); // 30 segundos para conectar
         
         http.addHeader("User-Agent", "PowaDCR/" + String(VERSION));

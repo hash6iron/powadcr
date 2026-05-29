@@ -470,6 +470,7 @@ bool CHOOSE_WAV_REC_44 = false;
 bool PLAY_TO_WAV_FILE = false;
 bool WAV_8BIT_MONO = false;
 bool disable_auto_media_stop = false;
+bool USE_ADPCM_CODEC = false;  // true = ADPCM, false = PCM
 
 // Power led
 bool POWERLED_ON = true;

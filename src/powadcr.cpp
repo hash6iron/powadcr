@@ -99,10 +99,9 @@ EasyNex myNex(SerialHW);
 #include "AudioTools/AudioCodecs/CodecMP3Helix.h"
 #include "AudioTools/AudioCodecs/CodecWAV.h"
 
-#ifdef USE_ADPCM_ENCODER
-  #include "AudioTools/AudioCodecs/CodecADPCM.h"
-  #include "ADPCM.h"
-#endif
+// Siempre incluir ADPCM (se selecciona en runtime con USE_ADPCM_CODEC)
+#include "AudioTools/AudioCodecs/CodecADPCM.h"
+#include "ADPCM.h"
 
 #include "AudioTools/Communication/AudioHttp.h"
 #include "AudioTools/CoreAudio/AudioFilter/Equalizer3Bands.h"
@@ -132,18 +131,22 @@ HMI hmi;
 File wavfile;
 File audioFile;
 
-// ADPCM
-#ifdef USE_ADPCM_ENCODER
-  ADPCMEncoder adpcm_encoder(AV_CODEC_ID_ADPCM_MS, ADAPCM_DEFAULT_BLOCK_SIZE);
-  WAVEncoder wav_encoder(adpcm_encoder, AudioFormat::ADPCM);
-  EncodedAudioStream encoderOutWAV(&wavfile, &wav_encoder);
-  NumberFormatConverterStreamT<int16_t, uint8_t> encoderOutWAV8(encoderOutWAV);
-#else
-  // PCM
-  WAVEncoder wavEncoder;
-  EncodedAudioStream encoderOutWAV(&wavfile, &wavEncoder);
-  NumberFormatConverterStreamT<int16_t, uint8_t> encoderOutWAV8(encoderOutWAV);
-#endif
+// WAV Encoders - ambos disponibles, se selecciona según USE_ADPCM_CODEC en runtime
+// ADPCM encoder
+//ADPCMEncoder adpcm_encoder(AV_CODEC_ID_ADPCM_MS, ADAPCM_DEFAULT_BLOCK_SIZE);
+ADPCMEncoder adpcm_encoder(AV_CODEC_ID_ADPCM_IMA_WAV);
+WAVEncoder wav_encoder_adpcm(adpcm_encoder, AudioFormat::ADPCM);
+EncodedAudioStream encoderOutWAV_ADPCM(&wavfile, &wav_encoder_adpcm);
+NumberFormatConverterStreamT<int16_t, uint8_t> encoderOutWAV8_ADPCM(encoderOutWAV_ADPCM);
+
+// PCM encoder
+WAVEncoder wav_encoder_pcm;
+EncodedAudioStream encoderOutWAV_PCM(&wavfile, &wav_encoder_pcm);
+NumberFormatConverterStreamT<int16_t, uint8_t> encoderOutWAV8_PCM(encoderOutWAV_PCM);
+
+// Punteros selectores (apuntan al codec actual según USE_ADPCM_CODEC)
+EncodedAudioStream *encoderOutWAV = nullptr;  // Se asigna en setupWAVEncoder()
+NumberFormatConverterStreamT<int16_t, uint8_t> *encoderOutWAV8 = nullptr;  // Se asigna en setupWAVEncoder()
 
 
 
@@ -250,6 +253,7 @@ void setupNTP();
 void setupWifi();
 String getFileNameFromPath(const String &filePath);
 String removeExtension(const String &filename);
+void updateWAVHeader(const String &file_path);
 
 
 // -----------------------------------------------------------------------
@@ -1328,7 +1332,10 @@ void WavRecording() {
   // Cerramos el fichero WAV
   wavfile.flush();
   wavfile.close();
-
+  //delay(1000);
+  logln("-- Update WAVheader from WavRecording() --");
+  updateWAVHeader(REC_FILENAME);
+  
   WAVFILE_PRELOAD = true;
 
 }
@@ -4680,34 +4687,147 @@ bool setAudioInfoSafe(audio_tools::AudioInfo newInfo, const String &context = ""
 void setupWAVEncoder() {
   if (!OUT_TO_WAV) return;
   
+  // Seleccionar el encoder seg\u00fan la variable global USE_ADPCM_CODEC
+  if (USE_ADPCM_CODEC) {
+    encoderOutWAV = &encoderOutWAV_ADPCM;
+    encoderOutWAV8 = &encoderOutWAV8_ADPCM;
+    String wavindicator = myNex.readStr("tape.wavind.txt");
+    myNex.writeStr("tape.wavind.txt", wavindicator + "+A");
+    logln("Using ADPCM codec");
+  } else {
+    encoderOutWAV = &encoderOutWAV_PCM;
+    encoderOutWAV8 = &encoderOutWAV8_PCM;
+    logln("Using PCM codec");
+  }
+  
   AudioInfo wavencodercfg(DEFAULT_WAV_SAMPLING_RATE_REC, WAV_8BIT_MONO ? 1 : 2, 16);
   if (CHOOSE_WAV_REC_44) wavencodercfg.sample_rate = DEFAULT_WAV_SAMPLING_RATE_REC_2;
   
-  encoderOutWAV.begin(wavencodercfg);
+  encoderOutWAV->begin(wavencodercfg);
   if (WAV_8BIT_MONO) {
-    encoderOutWAV8.begin(wavencodercfg);
-    encoderOutWAV.begin(encoderOutWAV8.audioInfoOut());
+    encoderOutWAV8->begin(wavencodercfg);
+    encoderOutWAV->begin(encoderOutWAV8->audioInfoOut());
   }
   
   hmi.writeString("tape.lblFreq.txt=\"" + String(int(wavencodercfg.sample_rate / 1000)) + "KHz\"");
 
-  logln("WAV encoder - Out to WAV: " + String(encoderOutWAV.audioInfo().sample_rate) + "Hz, " +
-        String(encoderOutWAV.audioInfo().bits_per_sample) + "b, " + 
-        String(encoderOutWAV.audioInfo().channels) + "ch");
+  logln("WAV encoder - Out to WAV: " + String(encoderOutWAV->audioInfo().sample_rate) + "Hz, " +
+        String(encoderOutWAV->audioInfo().bits_per_sample) + "b, " + 
+        String(encoderOutWAV->audioInfo().channels) + "ch");
   delay(2000);
+}
+
+
+void updateWAVHeader(const String &file_path) 
+{
+  logln("Updating WAV header for file: " + file_path);
+
+  if (file_path.length() == 0) {
+    logln("WAV file path is empty - cannot update header");
+    return;
+  }
+
+  // Construir ruta completa con /sdcard/ si no la tiene
+  String full_path = file_path;
+  if (!file_path.startsWith("/sdcard/")) {
+    full_path = "/sdcard" + file_path;
+  }
+  logln("Full VFS path: " + full_path);
+
+  // Abrir con POSIX fopen en modo "rb+" (lectura/escritura sin truncar)
+  FILE *wavFile = fopen(full_path.c_str(), "rb+");
+  if (!wavFile) {
+    logln("Failed to open WAV file: " + full_path);
+    
+    return;
+  }
+
+  // Obtener tamaño del archivo
+  fseek(wavFile, 0, SEEK_END);
+  uint32_t file_size = ftell(wavFile);
+  fseek(wavFile, 0, SEEK_SET);
+  
+  if (file_size < 44) {
+    logln("WAV file is too small to be valid: " + String(file_size) + " bytes");
+    fclose(wavFile);
+    return;
+  }
+
+  // Leer los primeros 44 bytes del header
+  uint8_t header_buffer[44];
+  size_t bytes_read = fread(header_buffer, 1, 44, wavFile);
+  
+  if (bytes_read != 44) {
+    logln("Failed to read WAV header: read " + String(bytes_read) + " bytes instead of 44");
+    fclose(wavFile);
+    return;
+  }
+
+  // Parsear header para validar
+  WAVHeader wavHeader;
+  wavHeader.write(header_buffer, 44);
+  if (!wavHeader.parse()) {
+    logln("Failed to parse WAV header");
+    fclose(wavFile);
+    return;
+  }
+
+  logln("DEBUG - Before update: file_size=" + String(wavHeader.audioInfo().file_size) + 
+        ", data_length=" + String(wavHeader.audioInfo().data_length));
+
+  // Calcular los valores correctos
+  uint32_t riff_size = file_size - 8;      // RIFF chunk size (todo excepto "RIFF" y su tamaño)
+  uint32_t data_length = file_size - 44;   // data chunk size (todo excepto el header de 44 bytes)
+
+  logln("Calculated: riff_size=" + String(riff_size) + ", data_length=" + String(data_length));
+
+  // Escribir RIFF size en bytes 4-7 (little-endian)
+  fseek(wavFile, 4, SEEK_SET);
+  fwrite(&riff_size, 4, 1, wavFile);
+
+  // Escribir data chunk size en bytes 40-43 (little-endian)
+  fseek(wavFile, 40, SEEK_SET);
+  fwrite(&data_length, 4, 1, wavFile);
+
+  // Verificación: leer nuevamente el header para confirmar
+  fseek(wavFile, 0, SEEK_SET);
+  uint8_t verify_buffer[44];
+  size_t verify_read = fread(verify_buffer, 1, 44, wavFile);
+
+  if (verify_read == 44) {
+    WAVHeader verifyHeader;
+    verifyHeader.write(verify_buffer, 44);
+    if (verifyHeader.parse()) {
+      logln("DEBUG - After update: file_size=" + String(verifyHeader.audioInfo().file_size) + 
+            ", data_length=" + String(verifyHeader.audioInfo().data_length));
+    }
+  }
+
+  fclose(wavFile);
+
+  logln("WAV header updated successfully: " + file_path);
+  logln("  Final file_size=" + String(file_size) + " bytes, data_length=" + String(data_length) + " bytes");
 }
 
 // Función auxiliar para limpiar y finalizar reproducción
 void finalizePlayback() {
+  
   hmi.writeString("tape.lblFreq.txt=\"" + String(int(SAMPLING_RATE / 1000)) + "KHz\"");
+  
   sendStatus(REC_ST, 0);
+  
   TOTAL_PARTS = 0;
   PARTITION_BLOCK = 0;
+  
   tapeAnimationOFF();
-  if (OUT_TO_WAV) {
-    encoderOutWAV.end();
-    encoderOutWAV8.end();
+  
+  if (OUT_TO_WAV) 
+  {
+    encoderOutWAV->end();
+    encoderOutWAV8->end();
+    // Aqui no se actualiza la cabecera. Se deja para el tapeControl
   }
+
   DATA_IS_PLAYING = false;
 }
 
@@ -5737,7 +5857,10 @@ void recCondition() {
   if (OUT_TO_WAV) {
     wavfile.flush();
     wavfile.close();
-    encoderOutWAV.end();
+    //delay(1000);
+    logln("-- Update WAVheader from recCondition()");
+    updateWAVHeader(REC_FILENAME);
+    //encoderOutWAV.end();
   }
 
   //
@@ -5918,10 +6041,15 @@ void tapeControl() {
       TAPESTATE = 0;
       LOADING_STATE = 0;
 
-      if (OUT_TO_WAV) {
+      if (OUT_TO_WAV) 
+      {
         wavfile.flush();
         wavfile.close();
-        encoderOutWAV.end();
+        // Actualizar la cabecera del WAV con el tamaño real de los datos grabados
+        //delay(1000);
+        logln("-- Update WAVheader from CASE 1 EJECT");
+        updateWAVHeader(REC_FILENAME);
+        //encoderOutWAV.end();
       }
     } else if (PAUSE) {
       TAPESTATE = 3;
@@ -5944,7 +6072,10 @@ void tapeControl() {
       if (OUT_TO_WAV) {
         wavfile.flush();
         wavfile.close();
-        encoderOutWAV.end();
+        //delay(1000);
+        //encoderOutWAV.end();
+        logln("-- Update WAVheader from CASE 1 PAUSE");
+        updateWAVHeader(REC_FILENAME);
       }
     } 
     else if (STOP) 
@@ -5997,7 +6128,10 @@ void tapeControl() {
       {
         wavfile.flush();
         wavfile.close();
-        encoderOutWAV.end();
+        //delay(1000);
+        logln("-- Update WAVheader from CASE 1 STOP");
+        updateWAVHeader(REC_FILENAME);
+        //encoderOutWAV.end();
       }
     } 
     else if (REC) 
@@ -6033,7 +6167,10 @@ void tapeControl() {
       {
         wavfile.flush();
         wavfile.close();
-        encoderOutWAV.end();
+        //delay(1000);
+        logln("-- Update WAVheader from CASE 1 REC");
+        updateWAVHeader(REC_FILENAME);
+        //encoderOutWAV.end();
       }
     } 
     else 
@@ -10126,6 +10263,8 @@ void setupSDCard() {
   //
   //
   // ****************************************************************
+
+
   if (!SD_MMC.begin("/sdcard", false, false, SD_Speed)) {
 
     // SD no inicializada

@@ -298,11 +298,11 @@ private:
       if (OUT_TO_WAV) {
         if (WAV_8BIT_MONO)
         {
-          encoderOutWAV8.write(buffer, result);
+          encoderOutWAV8->write(buffer, result);
         }
         else
         {
-          encoderOutWAV.write(buffer, result);
+          encoderOutWAV->write(buffer, result);
         }
         
         kitStream.write(buffer, result);
@@ -416,11 +416,11 @@ private:
     if (OUT_TO_WAV) {
       if (WAV_8BIT_MONO)
       {
-        encoderOutWAV8.write(buffer, 2 * chs);
+        encoderOutWAV8->write(buffer, 2 * chs);
       }
       else
       {
-        encoderOutWAV.write(buffer, 2 * chs);
+        encoderOutWAV->write(buffer, 2 * chs);
       }
       kitStream.write(buffer, 2 * chs);
     } else {
@@ -469,11 +469,11 @@ private:
     if (OUT_TO_WAV) {
       if (WAV_8BIT_MONO)
       {
-        encoderOutWAV8.write(buffer, result);
+        encoderOutWAV8->write(buffer, result);
       }
       else
       {
-        encoderOutWAV.write(buffer, result);
+        encoderOutWAV->write(buffer, result);
       }
       kitStream.write(buffer, result);
     } else {
@@ -1791,7 +1791,7 @@ public:
           int bytes_to_write = samples_in_buffer * 2 * chs;
 
           if (OUT_TO_WAV) {
-            encoderOutWAV.write(audio_buffer, bytes_to_write);
+            encoderOutWAV->write(audio_buffer, bytes_to_write);
             kitStream.write(audio_buffer, bytes_to_write);
           } else {
             kitStream.write(audio_buffer, bytes_to_write);
@@ -1817,7 +1817,7 @@ public:
       int bytes_to_write = samples_in_buffer * 2 * chs;
 
       if (OUT_TO_WAV) {
-        encoderOutWAV.write(audio_buffer, bytes_to_write);
+        encoderOutWAV->write(audio_buffer, bytes_to_write);
         kitStream.write(audio_buffer, bytes_to_write);
       } else {
         kitStream.write(audio_buffer, bytes_to_write);
@@ -1930,7 +1930,7 @@ public:
             if (samples_in_buffer >= DR_CHUNK_SIZE) {
               size_t bytes_to_write = samples_in_buffer * 2 * chs;
               if (OUT_TO_WAV) {
-                encoderOutWAV.write(audio_buffer, bytes_to_write);
+                encoderOutWAV->write(audio_buffer, bytes_to_write);
                 kitStream.write(audio_buffer, bytes_to_write);
               } else {
                 kitStream.write(audio_buffer, bytes_to_write);
@@ -1972,7 +1972,7 @@ public:
     if (samples_in_buffer > 0) {
       size_t bytes_to_write = samples_in_buffer * 2 * chs;
       if (OUT_TO_WAV) {
-        encoderOutWAV.write(audio_buffer, bytes_to_write);
+        encoderOutWAV->write(audio_buffer, bytes_to_write);
         kitStream.write(audio_buffer, bytes_to_write);
       } else {
         kitStream.write(audio_buffer, bytes_to_write);
