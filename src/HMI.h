@@ -3952,7 +3952,31 @@ private:
           #ifdef DEBUGMODE
             logln("Modo ADPCM Codec =" + String(USE_ADPCM_CODEC));
           #endif
-        }        
+        }       
+        else if (strCmd.indexOf("BAU1") != -1) 
+        {
+          //Cogemos el valor
+          TAPE_BAUDRATE = 1;
+          logln("Baud rate = 1200");
+        }         
+        else if (strCmd.indexOf("BAU2") != -1) 
+        {
+          //Cogemos el valor
+          TAPE_BAUDRATE = 2;
+          logln("Baud rate = 2400");
+        }         
+        else if (strCmd.indexOf("BAU3") != -1) 
+        {
+          //Cogemos el valor
+          TAPE_BAUDRATE = 3;
+          logln("Baud rate = 3600");
+        }         
+        else if (strCmd.indexOf("BAU4") != -1) 
+        {
+          //Cogemos el valor
+          TAPE_BAUDRATE = 3.21;
+          logln("Baud rate = 3850");
+        }         
         // Deshabilitar Auto Stop en WAV and MP3 player.
         else if (strCmd.indexOf("DPS=") != -1) 
         {

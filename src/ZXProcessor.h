@@ -1365,12 +1365,8 @@ public:
     }
 
     // C64 TAP utiliza siempre la frecuencia real del hardware (96kHz).
-    // playingFile() establece SAMPLING_RATE = BASE_SR (87500 Hz para ZX) antes
-    // de llamar a pTAP.play(), pero el hardware AudioKit permanece a 96kHz
-    // porque no soporta 87500 Hz. Si usamos 87500 para calcular muestras y el
-    // hardware reproduce a 96000 Hz, los pulsos saldrían con el ancho erróneo.
     double savedSamplingRate = SAMPLING_RATE;
-    SAMPLING_RATE = STANDARD_SR_8_BIT_MACHINE;  // 96000.0
+    SAMPLING_RATE = STANDARD_SR_8_BIT_MACHINE / TAPE_BAUDRATE;  // 96000.0
 
     PROGRESS_BAR_BLOCK_VALUE = 0;
     ADD_ONE_SAMPLE_COMPENSATION = false;

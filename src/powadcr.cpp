@@ -4844,13 +4844,19 @@ void playingFile()
   //
   // Configurar sampling rate según preferencias
   //
-  if (CHOOSE_WAV_REC_44) {
+  if (CHOOSE_WAV_REC_44) 
+  {
     SAMPLING_RATE = DEFAULT_WAV_SAMPLING_RATE_REC_2 + TONE_ADJUST;
-    new_sr.sample_rate = DEFAULT_WAV_SAMPLING_RATE_REC_2 + TONE_ADJUST;
-  } else {
-    SAMPLING_RATE = BASE_SR + TONE_ADJUST;
-    new_sr.sample_rate = BASE_SR + TONE_ADJUST;
+    new_sr.sample_rate = SAMPLING_RATE;
   }
+  else 
+  {
+    SAMPLING_RATE = BASE_SR + TONE_ADJUST;
+    new_sr.sample_rate = SAMPLING_RATE;
+  }
+
+  // Ajustamos el baudrate
+  SAMPLING_RATE = SAMPLING_RATE / TAPE_BAUDRATE;
   
   // Aplicamos cambios en i2s
   kitStream.setAudioInfo(new_sr);
@@ -4867,8 +4873,8 @@ void playingFile()
 
     // C64 TAP usa 96kHz
     if (C64_TAP_INSIDE) {
-      SAMPLING_RATE = STANDARD_SR_8_BIT_MACHINE;
-      new_sr.sample_rate = (uint32_t)STANDARD_SR_8_BIT_MACHINE;
+      SAMPLING_RATE = STANDARD_SR_8_BIT_MACHINE / TAPE_BAUDRATE;
+      new_sr.sample_rate = (uint32_t)SAMPLING_RATE;
       logln("C64 TAP: forcing hardware + SAMPLING_RATE to 96000 Hz");
     }
 
@@ -5054,25 +5060,26 @@ void verifyConfigFileForSelection() {
         logln("");
         log("Param: " + fileCfg[i].cfgLine);
 
-        if ((fileCfg[i].cfgLine).indexOf("freq") != -1) 
-        {
-          SAMPLING_RATE = (getValueOfParam(fileCfg[i].cfgLine, "freq")).toInt();
+        // if ((fileCfg[i].cfgLine).indexOf("freq") != -1) 
+        // {
+        //   SAMPLING_RATE = (getValueOfParam(fileCfg[i].cfgLine, "freq")).toInt();
 
-          // CAmbiamos el sampling rate del hardware de salida
-          // auto cfg = kitStream.audioInfo();
-          auto cfg = kitStream.defaultConfig();
-          cfg.sample_rate = SAMPLING_RATE;
-          kitStream.setAudioInfo(cfg);
+        //   // CAmbiamos el sampling rate del hardware de salida
+        //   // auto cfg = kitStream.audioInfo();
+        //   auto cfg = kitStream.defaultConfig();
+        //   cfg.sample_rate = SAMPLING_RATE;
+        //   kitStream.setAudioInfo(cfg);
 
-          // auto cfg2 = kitStream.audioInfo();
-          auto cfg2 = kitStream.defaultConfig();
-          cfg2.sample_rate = SAMPLING_RATE;
-          kitStream.setAudioInfo(cfg2);
+        //   // auto cfg2 = kitStream.audioInfo();
+        //   auto cfg2 = kitStream.defaultConfig();
+        //   cfg2.sample_rate = SAMPLING_RATE;
+        //   kitStream.setAudioInfo(cfg2);
 
-          logln("");
-          log("Sampling rate: " + String(SAMPLING_RATE));
-        }
-        else if ((fileCfg[i].cfgLine).indexOf("zerolevel") != -1) 
+        //   logln("");
+        //   log("Sampling rate: " + String(SAMPLING_RATE));
+        // }
+        // else 
+        if ((fileCfg[i].cfgLine).indexOf("zerolevel") != -1) 
         {
           ZEROLEVEL = getValueOfParam(fileCfg[i].cfgLine, "zerolevel").toInt();
 

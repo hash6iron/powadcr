@@ -946,6 +946,10 @@ uint8_t MCP_LED_IO_PIN     = 7;   // Pin 7 del PA del MCP23017 para Power LED
 //
 uint8_t SKIN_SELECTED = 1;
 
+// Baudrate
+double TAPE_BAUDRATE = 1; // 1 = 1200, 2 = 2400, 3 = 3600, 3.21 = 3850
+
+
 // Declaraciones de metodos
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 // void save();
