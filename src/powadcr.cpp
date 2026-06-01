@@ -251,6 +251,8 @@ void rewindAnimation(int direction);
 void showOption(String id, String value);
 void setupNTP();
 void setupWifi();
+void tapeAnimationOFF();
+void tapeAnimationON();
 String getFileNameFromPath(const String &filePath);
 String removeExtension(const String &filename);
 void updateWAVHeader(const String &file_path);
@@ -6109,6 +6111,7 @@ void tapeControl() {
       {
         LAST_MESSAGE = "Stop playing.";
         STOP_OR_PAUSE_REQUEST = false;
+        REM_ENABLE = false;
       }
       else 
       {
@@ -6229,20 +6232,32 @@ void tapeControl() {
 
         BTN_PLAY_PRESSED = true;
       }
+      else
+      {
+        // Se pulso PLAY en vez de REM = closed
+        REM_ENABLE = false;
+      }
       // Reanudamos la reproduccion
       TAPESTATE = 1;
       AUTO_PAUSE = false;
 
       recoverEdgeBeginOfBlock();
-    } else if (PAUSE) {
+    } 
+    else if (PAUSE) 
+    {
       // Reanudamos la reproduccion pero con PAUSE
+      REM_ENABLE = false;
+
       TAPESTATE = 5;
       AUTO_PAUSE = false;
 
       HMI_FNAME = FILE_LOAD;
 
       recoverEdgeBeginOfBlock();
-    } else if (STOP) {
+    } 
+    else if (STOP) 
+    {
+      REM_ENABLE = false;
       TAPESTATE = 1;
       AUTO_PAUSE = false;
 
@@ -6296,9 +6311,13 @@ void tapeControl() {
     //
     remDetection();
 
-    if (PLAY || REM_DETECTED) {
+    if (PLAY || REM_DETECTED) 
+    {
       if (REM_DETECTED)
+      {
         PLAY = true;
+        //REM_ENABLE=true;
+      }
 
       if (FILE_PREPARED) {
         // Ponemos esto aqui porque prepareOutputToWav() puede cambiar el

@@ -221,24 +221,29 @@ private:
       ACU_ERROR = 0;
       STOP_OR_PAUSE_REQUEST = true;
       return true;
-    } else if (PAUSE || (!REM_DETECTED && STATUS_REM_ACTUATED)) {
+    }
+    else if (PAUSE)// || (!REM_DETECTED && STATUS_REM_ACTUATED)) 
+    {
       LAST_MESSAGE = "Pause requested. Wait.";
       LOADING_STATE = 3; // Pausa del bloque actual
       ACU_ERROR = 0;
       STOP_OR_PAUSE_REQUEST = true;
 
-      if (STATUS_REM_ACTUATED) {
-        STATUS_REM_ACTUATED = false;
-        PLAY = false;
-        PAUSE = true;
-        STOP = false;
-        REC = false;
-        ABORT = true;
-        EJECT = false;
-      }
+      // if (STATUS_REM_ACTUATED) 
+      // {
+      //   STATUS_REM_ACTUATED = false;
+      //   PLAY = false;
+      //   PAUSE = true;
+      //   STOP = false;
+      //   REC = false;
+      //   ABORT = true;
+      //   EJECT = false;
+      // }
 
       return true;
-    } else {
+    } 
+    else 
+    {
       return false;
     }
   }

@@ -847,7 +847,7 @@ String BLUETOOTH_DEVICE_PAIRED = "JBL T450BT";
 #endif
 
 // Control remoto de motor (REM)
-bool REM_ENABLE = true;
+bool REM_ENABLE = false;
 bool REM_DETECTED = false;
 bool STATUS_REM_ACTUATED = false;
 int firstBytes_REM = 0;
@@ -1464,7 +1464,7 @@ void remDetection() {
     isAvailableForREM = false;
   }
 
-  if (REM_ENABLE && isAvailableForREM) 
+  if (isAvailableForREM) 
   {
     if (digitalRead(GPIO_MSX_REMOTE_PAUSE) == LOW && !REM_DETECTED) 
     {
@@ -1475,6 +1475,7 @@ void remDetection() {
       delay(MOTOR_DELAY_MS);
       // Flag del REM a true
       REM_DETECTED = true;
+      REM_ENABLE = true;
     }
     else if (digitalRead(GPIO_MSX_REMOTE_PAUSE) != LOW && REM_DETECTED) 
     {
