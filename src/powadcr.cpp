@@ -152,6 +152,10 @@ NumberFormatConverterStreamT<int16_t, uint8_t> *encoderOutWAV8 = nullptr;  // Se
 // ZX Spectrum. Procesador de audio output
 ZXProcessor zxp;
 
+// ORIC TAP Processor - Agregado para soporte ORIC-1/Oric Atmos
+#include "OricProcessor.h"
+OricProcessor oricp;
+
 // Procesadores de cinta
 // #include "BlockProcessor.h"
 #include "PZXprocessor.h"
@@ -524,9 +528,7 @@ bool loadCfgFile() {
   if (SD_MMC.exists("/powadcr.cfg")) 
   {
 
-    #ifdef INFO_LOG
-        log_info("SETUP", "File powadcr.cfg exists");
-    #endif
+    log_info("SETUP", "File powadcr.cfg exists");
 
     char pathCfgFile[32] = {};
     strcpy(pathCfgFile, "/powadcr.cfg");
@@ -541,104 +543,89 @@ bool loadCfgFile() {
       CFGSYSTEM = readAllParamCfg(fCfg, 100);
 
       // WiFi settings
-      #ifdef INFO_LOG
-      logln("");
-      logln("");
-      logln("");
-      logln("");
-      logln("");
-      logln("Settings:");
-      logln(
-          "------------------------------------------------------------------");
-      logln("");
-      #endif
+      log_info("CONFIG", "Settings:");
+      log_info("CONFIG", "------------------------------------------------------------------");
 
       // Hostname - busca sin depender del orden
       strcpy(HOSTNAME, getConfigParamValue("hostname", "powaDCR").c_str());
-      #ifdef INFO_LOG
-      logln(HOSTNAME);
-      #endif
+      log_info("CONFIG", "Hostname: " + String(HOSTNAME));
 
       // SSID - Wifi
       ssid = getConfigParamValue("ssid", "");
-      #ifdef INFO_LOG
-      logln("SSID in cfg file: " + ssid);
-      #endif
+      log_info("CONFIG", "SSID in cfg file: " + ssid);
 
       if (ssid.length() == 0) 
       {
         WIFI_ENABLE = false;
-        #ifdef ALERT_LOG
         log_alert("SETUP", "SSID is empty. WiFi disabled.");
-        #endif
         saveHMIcfg("WIFIopt");
       }
 
       // Password - WiFi
       strcpy(password, getConfigParamValue("password", "").c_str());
-      logln(password);
+      log_info("CONFIG", "Password: " + String(password));
 
       // Local IP
       strcpy(ip1, getConfigParamValue("IP", "192.168.1.10").c_str());
-      logln("IP: " + String(ip1));
+      log_info("CONFIG", "IP: " + String(ip1));
       POWAIP = ip1;
       IP = strToIPAddress(String(ip1));
       local_IP = IPAddress(IP[0], IP[1], IP[2], IP[3]);
 
       // Subnet
       strcpy(ip1, getConfigParamValue("SN", "255.255.255.0").c_str());
-      logln("SN: " + String(ip1));
+      log_info("CONFIG", "SN: " + String(ip1));
       IP = strToIPAddress(String(ip1));
       subnet = IPAddress(IP[0], IP[1], IP[2], IP[3]);
 
       // Gateway
       strcpy(ip1, getConfigParamValue("GW", "192.168.1.1").c_str());
-      logln("GW: " + String(ip1));
+      log_info("CONFIG", "GW: " + String(ip1));
       IP = strToIPAddress(String(ip1));
       gateway = IPAddress(IP[0], IP[1], IP[2], IP[3]);
 
       // DNS1
       strcpy(ip1, getConfigParamValue("DNS1", "192.168.1.1").c_str());
-      logln("DNS1: " + String(ip1));
+      log_info("CONFIG", "DNS1: " + String(ip1));
       IP = strToIPAddress(String(ip1));
       primaryDNS = IPAddress(IP[0], IP[1], IP[2], IP[3]);
 
       // DNS2
       strcpy(ip1, getConfigParamValue("DNS2", "192.168.1.1").c_str());
-      logln("DNS2: " + String(ip1));
+      log_info("CONFIG", "DNS2: " + String(ip1));
       IP = strToIPAddress(String(ip1));
       secondaryDNS = IPAddress(IP[0], IP[1], IP[2], IP[3]);
 
       // MCP23017 (on/off)
       strcpy(param, getConfigParamValue("MCP23017", "off").c_str());
-      logln("MCP23017: " + String(param));
+      log_info("CONFIG", "MCP23017: " + String(param));
       String(param).toLowerCase();
       MCP23017_AVAILABLE = String(param) == "on" || String(param) == "1" ? true : false;
 
       // NTP-SERVER
       strcpy(param, getConfigParamValue("NTPSERVER", "pool.ntp.org").c_str());
-      logln("NTP-SERVER: " + String(param));
+      log_info("CONFIG", "NTP-SERVER: " + String(param));
       NTPSERVER = param;
 
       // NTP-TIMEZONE
       strcpy(param, getConfigParamValue("TIMEZONE", "0").c_str());
       TIMEZONE = String(param).toInt();
-      logln("TIMEZONE: " + String(TIMEZONE));
+      log_info("CONFIG", "TIMEZONE: " + String(TIMEZONE));
 
       // NTP-SUMMER TIME (on/off)
       strcpy(param, getConfigParamValue("SUMMERTIME", "off").c_str());
-      logln("SUMMERTIME: " + String(param));
+      log_info("CONFIG", "SUMMERTIME: " + String(param));
       String(param).toLowerCase();
       SUMMERTIME = String(param) == "on" || String(param) == "1" ? true : false;
 
       // QUICK BOOT
       strcpy(param, getConfigParamValue("QUICKBOOT", "off").c_str());
-      logln("QUICK Boot: " + String(param));
+      log_info("CONFIG", "QUICKBOOT: " + String(param));
       QUICK_BOOT = String(param) == "on" || String(param) == "1" ? true : false;
 
       // BEEP
       strcpy(param, getConfigParamValue("BEEP", "on").c_str());
-      logln("BEEP: " + String(param));
+      log_info("CONFIG", "BEEP: " + String(param));
       BEEP = String(param) == "on" || String(param) == "1" ? true : false;
 
       // KEY bindings
@@ -646,56 +633,55 @@ bool loadCfgFile() {
       if (String(param) != "null" && String(param) != "")
       {
         MCP_KEY_PLAY = (uint8_t)(String(param).toInt());
-        logln("KEYPLAY: " + String(MCP_KEY_PLAY));
+        log_info("CONFIG", "KEYPLAY: " + String(MCP_KEY_PLAY));
       }
 
       strcpy(param, getConfigParamValue("KEYRWD", "4").c_str());
       if (String(param) != "null" && String(param) != "")
       {
         MCP_KEY_RWD = (uint8_t)(String(param).toInt());
-        logln("KEYRWD: " + String(MCP_KEY_RWD));    
+        log_info("CONFIG", "KEYRWD: " + String(MCP_KEY_RWD));    
       }
       
       strcpy(param, getConfigParamValue("KEYFFWD", "3").c_str());
       if (String(param) != "null" && String(param) != "")
       {
         MCP_KEY_FFWD = (uint8_t)(String(param).toInt());
-        logln("KEYFFWD: " + String(MCP_KEY_FFWD));      
+        log_info("CONFIG", "KEYFFWD: " + String(MCP_KEY_FFWD));      
       }
 
       strcpy(param, getConfigParamValue("KEYPAUSE", "2").c_str());
       if (String(param) != "null" && String(param) != "")
       {
         MCP_KEY_PAUSE = (uint8_t)(String(param).toInt());
-        logln("KEYPAUSE: " + String(MCP_KEY_PAUSE));
+        log_info("CONFIG", "KEYPAUSE: " + String(MCP_KEY_PAUSE));
       }
 
       strcpy(param, getConfigParamValue("KEYSTOP", "1").c_str());
       if (String(param) != "null" && String(param) != "")
       {
         MCP_KEY_STOP = (uint8_t)(String(param).toInt());
-        logln("KEYSTOP: " + String(MCP_KEY_STOP));
+        log_info("CONFIG", "KEYSTOP: " + String(MCP_KEY_STOP));
       }
 
       strcpy(param, getConfigParamValue("KEYREC", "6").c_str());
       if (String(param) != "null" && String(param) != "")
       {
         MCP_KEY_REC = (uint8_t)(String(param).toInt());
-        logln("KEYREC: " + String(MCP_KEY_REC));
+        log_info("CONFIG", "KEYREC: " + String(MCP_KEY_REC));
       }
 
       strcpy(param, getConfigParamValue("KEYEJECT", "0").c_str());
       if (String(param) != "null" && String(param) != "")
       {
         MCP_KEY_EJECT = (uint8_t)(String(param).toInt());
-        logln("KEYEJECT: " + String(MCP_KEY_EJECT));
+        log_info("CONFIG", "KEYEJECT: " + String(MCP_KEY_EJECT));
       }
 
-      logln("");
-      logln(
-          "------------------------------------------------------------------");
-      logln("");
-      logln("");
+      log_info("CONFIG", "");
+      log_info("CONFIG", "------------------------------------------------------------------");
+      log_info("CONFIG", "");
+      log_info("CONFIG", "Configuration file loaded successfully.");
 
       fCfg.close();
       cfgloaded = true;
@@ -704,6 +690,7 @@ bool loadCfgFile() {
     // Si no existe creo uno de referencia
     File fCfg;
     if (!SD_MMC.exists("/powadcr_ori.cfg")) {
+      log_info("SETUP", "File powadcr_ori.cfg does not exist. Creating reference file.");
       // fWifi.open("/wifi_ori.cfg", O_WRITE | O_CREAT);
       fCfg = SD_MMC.open("/powadcr_ori.cfg", FILE_WRITE);
 
@@ -731,9 +718,7 @@ bool loadCfgFile() {
         fCfg.println("<KEYREC>6</KEYREC>");
         fCfg.println("<KEYEJECT>0</KEYEJECT>");
 
-        #ifdef DEBUGMODE
-                logln("powadcr.cfg new file created");
-        #endif
+        log_info("SETUP", "powadcr.cfg new file created");
 
         fCfg.close();
 
@@ -759,6 +744,71 @@ void proccesingTAP(char *file_ch) {
     if (!FILE_CORRUPTED && TOTAL_BLOCKS != 0) {
       // El fichero está preparado para PLAY
       FILE_PREPARED = true;
+
+      // ============================================================================
+      // AUTO-DETECT TAP FORMAT: ORIC, C64, o ZX Spectrum (default)
+      // ============================================================================
+      // Obtenemos el descriptor del primer bloque para determinar tipo de formato
+      if (TOTAL_BLOCKS > 0 && myTAP.descriptor != nullptr) 
+      {
+        uint8_t blockType = myTAP.descriptor[0].type;
+        
+        // type = 0x20 => ORIC TAP (establecido por getBlockDescriptorOric())
+        if (blockType == 0x20)
+        {
+          ORIC_MODE = true;
+          C64_MODE = false;
+          C64_TAP_INSIDE = false;
+          
+          // Guardar el baudrate original antes de cambiarlo
+          TAPE_BAUDRATE_SAVED = TAPE_BAUDRATE;
+          
+          // ✅ AUTO-DETECT BAUDRATE para ORIC
+          // ORIC estándar: 2400 bps => TAPE_BAUDRATE = 2400/1200 = 2
+          // ORIC turbo: varía según loader, pero típicamente 3600-4800 bps
+          if (ORIC_TURBO_MODE)
+          {
+            TAPE_BAUDRATE = 3.0;  // ~3600 bps (3600/1200)
+            #ifdef DEBUGMODE
+              logln("ORIC Turbo mode detected: TAPE_BAUDRATE = 3.0 (3600 bps)");
+            #endif
+          }
+          else
+          {
+            TAPE_BAUDRATE = 2.0;  // 2400 bps estándar (2400/1200)
+            #ifdef DEBUGMODE
+              logln("ORIC Standard mode: TAPE_BAUDRATE = 2.0 (2400 bps)");
+            #endif
+          }
+          
+          #ifdef DEBUGMODE
+            logAlert("TAP Format: ORIC detected! Setting ORIC_MODE=true");
+            logln("Block descriptor type: 0x" + String(blockType, HEX) + " (ORIC marker)");
+            logln("Baudrate multiplier: " + String(TAPE_BAUDRATE, 2));
+          #endif
+        }
+        // C64_DATA_BLOCK or detectC64Format() sets C64_MODE
+        // (El detector ya está en TAPprocessor.h como detectC64Format())
+        else if (C64_MODE || C64_TAP_INSIDE)
+        {
+          ORIC_MODE = false;
+          
+          #ifdef DEBUGMODE
+            logAlert("TAP Format: Commodore C64 detected! Setting C64_MODE=true");
+          #endif
+        }
+        else
+        {
+          // ZX Spectrum (default)
+          ORIC_MODE = false;
+          C64_MODE = false;
+          C64_TAP_INSIDE = false;
+          
+          #ifdef DEBUGMODE
+            logAlert("TAP Format: ZX Spectrum (default)");
+          #endif
+        }
+      }
 
 #ifdef DEBUGMODE
       logAlert("TAP prepared");
@@ -827,27 +877,16 @@ void proccesingPZX(char *file_ch) {
 
 void proccesingCSW(char *file_ch) {
   // Procesamos ficheros CSW (Compressed Square Wave)
-  logln("");
-  logln("========================================");
-  logln("Processing CSW file...");
-  logln("========================================");
+  log_info("CSW", "Processing CSW file...");
 
   if (!PLAY) {
     File cswFile = SD_MMC.open(file_ch, FILE_READ);
     
     if (!cswFile) {
-      logln("ERROR: Cannot open CSW file: " + String(file_ch));
+      log_error("CSW", "ERROR: Cannot open CSW file: " + String(file_ch));
       FILE_PREPARED = false;
       return;
     }
-
-    // Validar que sea un fichero CSW válido
-    // if (!pTZX.isFileCSW(cswFile)) {
-    //   logln("ERROR: Invalid CSW file or header not recognized");
-    //   cswFile.close();
-    //   FILE_PREPARED = false;
-    //   return;
-    // }
 
     // Procesar el fichero CSW
     if (pTZX.processCSWFile(cswFile)) 
@@ -859,19 +898,17 @@ void proccesingCSW(char *file_ch) {
       BLOCK_SELECTED = myCSW.numBlocks;
       FILE_PREPARED = true;
 
-      logln("");
-      logln("CSW file prepared successfully!");
-      logln("  - Sample Rate: " + String(myCSW.descriptor[0].sampling_rate) + " Hz");
-      logln("  - Pulses: " + String(myCSW.descriptor[0].num_pulses));
-      logln("  - Compression: " + String(myCSW.descriptor[0].compression_type == 1 ? "RLE" : "Z-RLE"));
-      logln("");
-
+      log_debug("CSW", "CSW file prepared successfully!");
+      log_debug("CSW", "  - Sample Rate: " + String(myCSW.descriptor[0].sampling_rate) + " Hz");
+      log_debug("CSW", "  - Pulses: " + String(myCSW.descriptor[0].num_pulses));
+      log_debug("CSW", "  - Compression: " + String(myCSW.descriptor[0].compression_type == 1 ? "RLE" : "Z-RLE"));
+      log_debug("CSW", "");
 #ifdef DEBUGMODE
       logAlert("CSW prepared");
 #endif
     } else {
       cswFile.close();
-      logln("ERROR: Failed to process CSW file");
+      log_error("CSW", "ERROR: Failed to process CSW file");
       FILE_PREPARED = false;
     }
   } else {
@@ -886,19 +923,13 @@ void verifyConfigFileForSelection();
 
 void proccesingZIP(char *file_ch) {
   // Procesamos ficheros ZIP - Descomprimen el contenido
-  logln("");
-  logln("========================================");
-  logln("Processing ZIP file...");
-  logln("========================================");
-
+  log_info("ZIP","Processing ZIP file: " + String(file_ch));
+  
   LAST_MESSAGE = "Decompressing ZIP...";
   int filesExtracted = _unzipAllFilesToDir(String(file_ch));
   
   if (filesExtracted > 0) {
-    logln("");
-    logln("ZIP extracted successfully!");
-    logln("  - Files extracted: " + String(filesExtracted));
-    logln("");
+    log_info("ZIP", "ZIP extracted successfully! Files extracted: " + String(filesExtracted));
 
     LAST_MESSAGE = "Searching for valid file...";
 
@@ -912,12 +943,12 @@ void proccesingZIP(char *file_ch) {
     if (dotPos != -1) zipName = zipName.substring(0, dotPos);
     
     String extractedDir = dirPath + "/" + zipName;
-    logln("Extracted directory: " + extractedDir);
+    log_info("ZIP", "Extracted directory: " + extractedDir);
     
     // ✅ PASO 2: Buscar el primer archivo válido en el directorio extraído
     File folder = SD_MMC.open(extractedDir.c_str());
     if (!folder || !folder.isDirectory()) {
-      logln("ERROR: Could not open extracted directory");
+      log_error("ZIP", "ERROR: Could not open extracted directory");
       LAST_MESSAGE = "Error: Could not open extracted directory";
       hmi.writeString("tape.g0.txt=\"Error opening directory\"");
       FILE_PREPARED = false;
@@ -940,7 +971,7 @@ void proccesingZIP(char *file_ch) {
         for (const auto& ext : validExtensions) {
           if (upperName.endsWith(ext)) {
             firstValidFile = String(entry.name());
-            logln("Found valid file: " + firstValidFile);
+            log_debug("ZIP", "Found valid file: " + firstValidFile);
             break;
           }
         }
@@ -951,7 +982,7 @@ void proccesingZIP(char *file_ch) {
     folder.close();
 
     if (firstValidFile == "") {
-      logln("ERROR: No valid Spectrum files found in extracted directory");
+      log_error("ZIP", "ERROR: No valid Spectrum files found in extracted directory");
       LAST_MESSAGE = "Error: No valid files in ZIP";
       hmi.writeString("tape.g0.txt=\"No valid files found\"");
       FILE_PREPARED = false;
@@ -963,8 +994,8 @@ void proccesingZIP(char *file_ch) {
     FILE_LAST_DIR = extractedDir;
     PATH_FILE_TO_LOAD = extractedDir + "/" + firstValidFile;
     
-    logln("Will load: " + PATH_FILE_TO_LOAD);
-    logln("File size to load: " + String(firstValidFile.length()));
+    log_info("ZIP", "Will load: " + PATH_FILE_TO_LOAD);
+    log_info("ZIP", "File size to load: " + String(firstValidFile.length()));
     
     // Copiar el path a file_ch para procesamiento posterior
     PATH_FILE_TO_LOAD.toCharArray(file_ch, 256);
@@ -1036,9 +1067,7 @@ void proccesingZIP(char *file_ch) {
     logAlert("ZIP extracted and file loaded");
 #endif
   } else {
-    logln("");
-    logln("ERROR: ZIP extraction failed or no files found");
-    logln("");
+    log_error("ZIP", "ERROR: ZIP extraction failed or no files found");
     LAST_MESSAGE = "Error: ZIP extraction failed";
     hmi.writeString("tape.g0.txt=\"ZIP extraction failed\"");
     FILE_PREPARED = false;
@@ -4810,6 +4839,7 @@ void playingFile()
   }
 
   // Ajustamos el baudrate
+  myNex.writeStr("tape.bds.txt", String(int(TAPE_BAUDRATE*1200.0)) + " Bds");
   SAMPLING_RATE = SAMPLING_RATE / TAPE_BAUDRATE;
   
   // Aplicamos cambios en i2s
@@ -4817,8 +4847,7 @@ void playingFile()
   hmi.setVolumenOutput();
 
   // Actualizamos indicador de sampling rate.
-  
-  hmi.writeString("tape.lblFreq.txt=\"" + String(int(SAMPLING_RATE / 1000)) + "KHz\"");
+  myNex.writeStr("tape.lblFreq.txt=", String(int(SAMPLING_RATE / 1000)) + "KHz");
 
   // Selección de medio
   if (TYPE_FILE_LOAD == "TAP") 
@@ -6074,6 +6103,16 @@ void tapeControl() {
         REC = false;
         EJECT = false;
         STOP_OR_PAUSE_REQUEST = false;
+      }
+      
+      // ✅ Restaurar TAPE_BAUDRATE si estábamos reproduciendo ORIC
+      if (ORIC_MODE)
+      {
+        TAPE_BAUDRATE = TAPE_BAUDRATE_SAVED;
+        ORIC_MODE = false;
+        #ifdef DEBUGMODE
+          logln("ORIC playback ended. Restoring TAPE_BAUDRATE = " + String(TAPE_BAUDRATE, 2));
+        #endif
       }
 
       setPolarization();

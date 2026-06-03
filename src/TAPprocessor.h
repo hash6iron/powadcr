@@ -75,8 +75,9 @@ class TAPprocessor
         int _startBlock = 0;
         int _lastStartBlock = 0;
         
-        // C64 format detection flag
+        // Format detection flags
         bool _isC64Format = false;
+        bool _isOricFormat = false;
 
         // Ruta del fichero TAP actualmente abierto (para poder reabrirlo en play())
         char _tapFilePath[257] = {0};
@@ -481,6 +482,31 @@ class TAPprocessor
 
         bool getBlockDescriptor(File mFile, int sizeTAP)
         {
+            // Wrapper que detecta formato TAP (ORIC, C64, o ZX Spectrum)
+            // y llama al parser específico
+            
+            _mFile = mFile;
+            _sizeTAP = sizeTAP;
+            
+            // Intentar detectar ORIC primero (es el más nuevo)
+            if (detectOricFormat())
+            {
+                _isOricFormat = true;
+                return getBlockDescriptorOric();
+            }
+            
+            // Luego intentar detectar C64
+            if (detectC64Format())
+            {
+                _isC64Format = true;
+                return getBlockDescriptorC64();
+            }
+            
+            // Si no es ni ORIC ni C64, es ZX Spectrum (por defecto)
+            _isC64Format = false;
+            _isOricFormat = false;
+            
+            // ============ ZX SPECTRUM PARSING (Original logic) ============
             // Este procedimiento permite analizar un fichero .TAP
             // obteniendo de este información relevante y los distintos bloques que lo
             // forman. De cada bloque almacenaremos la dirección de inicio ó 
@@ -655,6 +681,11 @@ class TAPprocessor
             _myTAP.size = sizeTAP;
             _myTAP.numBlocks = numBlocks;
             
+            // Log final
+            #ifdef DEBUGMODE
+                logln("ZX Descriptor: numBlocks=" + String(numBlocks) + ", name=" + String(_myTAP.name));
+            #endif
+            
             return blockDescriptorOk;
         }
 
@@ -717,6 +748,116 @@ class TAPprocessor
                 // //SerialHW.println("");
 
             }      
+        }
+
+        // ============================================================================
+        // ORIC FORMAT DETECTION AND PROCESSING
+        // ============================================================================
+
+        bool detectOricFormat()
+        {
+            // Detecta si es un formato ORIC .TAP
+            // ORIC TAP signature: Múltiples bytes 0x16 (sync) seguidos de marker 0x24
+            // Estructura típica: [0x16, 0x16, ..., 0x16, 0x24, ...]
+            
+            if (_mFile == 0 || _sizeTAP < 6)
+                return false;
+
+            // Leer primeros 16 bytes para análisis exhaustivo
+            uint8_t* header = (uint8_t*)ps_calloc(16, sizeof(uint8_t));
+            readFileRange(_mFile, header, 0, 16, false);
+
+            // Excluir formatos conocidos primero
+            // ZX Spectrum TAP siempre comienza con [0x13, 0x00, 0x00]
+            bool isZXHeader = (header[0] == 19 && header[1] == 0 && header[2] == 0);
+
+            // C64 TAP a menudo comienza con 'C' (67) o tiene patrones específicos
+            bool isC64Start = (header[0] == 67);  // 'C' (C64-TAPE-RAW)
+            
+            // Búsqueda de patrón ORIC: secuencia de 0x16 (sync bytes)
+            // seguida de 0x24 (marker byte) dentro de los primeros 16 bytes
+            bool foundOricSync = false;
+            int syncCount = 0;
+            int markerPos = -1;
+            
+            // Contar bytes 0x16 al inicio
+            for (int i = 0; i < 16 && header[i] == 0x16; i++)
+            {
+                syncCount++;
+            }
+            
+            // Buscar marker 0x24 después de los sync bytes
+            if (syncCount >= 2)  // Al menos 2 sync bytes
+            {
+                for (int i = syncCount; i < 16; i++)
+                {
+                    if (header[i] == 0x24)
+                    {
+                        markerPos = i;
+                        foundOricSync = true;
+                        break;
+                    }
+                }
+            }
+            
+            // También verificar si 0x16 aparece en posición 0 y 1 (patrón común)
+            bool isOricPattern = (header[0] == 0x16 && header[1] == 0x16);
+            bool isOric = (isOricPattern || foundOricSync) && !isZXHeader && !isC64Start;
+            
+            logln("🔍 ORIC Detection: Format=" + String(isOric ? "ORIC ✅" : "NO-ORIC ❌") + 
+                  " | FirstBytes=[" + String(header[0], HEX) + "," + String(header[1], HEX) + "," + 
+                  String(header[2], HEX) + "," + String(header[3], HEX) + "] | SyncCount=" + 
+                  String(syncCount) + " | MarkerPos=" + String(markerPos) + 
+                  " | ZXhead=" + String(isZXHeader) + " | C64=" + String(isC64Start));
+            
+            free(header);
+            return isOric;
+        }
+
+        bool getBlockDescriptorOric()
+        {
+            // Procesa bloques ORIC .TAP (Oric-1, Oric Atmos)
+            // ORIC TAP es muy simple:
+            // - Estructura: Sync bytes (0x16) + Marker (0x24) + Parámetros + Nombre + Datos
+            // - Típicamente 1 solo bloque por archivo
+            // - Checksum XOR simple (igual que ZX)
+            
+            bool blockDescriptorOk = true;
+            
+            if (_myTAP.descriptor == nullptr)
+                return false;
+
+            // ORIC TAP: crear descriptor minimalista para 1 bloque
+            _myTAP.descriptor[0].offset = 0;           // Comienza desde el inicio
+            _myTAP.descriptor[0].size = _sizeTAP;      // Todo el archivo es datos
+            _myTAP.descriptor[0].chk = 0;              // No usamos checksum para ORIC
+            _myTAP.descriptor[0].header = false;
+            _myTAP.descriptor[0].type = 0x20;          // Marcar como tipo ORIC (0x20)
+            _myTAP.descriptor[0].playeable = true;
+            _myTAP.descriptor[0].playback_position = 0;
+            _myTAP.descriptor[0].nameDetected = true;
+            
+            // Extraer nombre del archivo (sin extensión)
+            char fname[256] = {0};
+            strncpy(fname, _mFile.name(), 255);
+            char* dot = strrchr(fname, '.');
+            if (dot) *dot = 0;  // Remover extensión
+            strncpy(_myTAP.descriptor[0].name, fname, 10);
+            
+            // Label de tipo
+            strncpy(_myTAP.descriptor[0].typeName, "ORIC.DATA", 15);
+            
+            _myTAP.numBlocks = 1;
+            _myTAP.size = _sizeTAP;
+            strncpy(_myTAP.name, _myTAP.descriptor[0].name, 10);
+            
+            #ifdef DEBUGMODE
+                logln("ORIC Descriptor: offset=" + String(_myTAP.descriptor[0].offset) + 
+                      ", size=" + String(_myTAP.descriptor[0].size) +
+                      ", name=" + String(_myTAP.descriptor[0].name));
+            #endif
+            
+            return blockDescriptorOk;
         }
 
         // ============================================================================
@@ -1409,6 +1550,18 @@ class TAPprocessor
 
                             // Llamamos a la función de reproducción C64 con soporte PAUSE/RESUME/FFWD/RWD
                             _zxp.playC64Data(bufferPlay, _myTAP.descriptor[i].size, &_myTAP.descriptor[i].playback_position);
+
+                            // Liberamos el buffer de reproducción
+                            free(bufferPlay);
+                        }
+                        else if (_myTAP.descriptor[i].type == 0x20)
+                        {
+                            // *** Bloque ORIC - Reproducción con soporte PAUSE/RESUME/FFWD/RWD
+                            bufferPlay = (uint8_t*)(ps_calloc(_myTAP.descriptor[i].size, sizeof(uint8_t)));
+                            readFileRange(_mFile, bufferPlay, _myTAP.descriptor[i].offset, _myTAP.descriptor[i].size, false);
+
+                            // Llamamos a la función de reproducción ORIC con soporte PAUSE/RESUME/FFWD/RWD
+                            _zxp.playOricData(bufferPlay, _myTAP.descriptor[i].size, &_myTAP.descriptor[i].playback_position);
 
                             // Liberamos el buffer de reproducción
                             free(bufferPlay);

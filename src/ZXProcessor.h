@@ -2320,6 +2320,141 @@ public:
     }
   }
 
+  // ============================================================================
+  // ORIC TAP PLAYBACK - Con soporte PAUSE, FFWD, RWD
+  // ============================================================================
+  void playOricData(uint8_t *bBlock, int lenBlock, int *playback_position = nullptr) {
+    //
+    // Reproduce datos ORIC .TAP
+    // Soporta PAUSE, RWD, FFWD como en C64/CSW
+    // Convierte cada byte ORIC en pulsos usando timing ORIC
+    //
+
+    if (!bBlock || lenBlock == 0) {
+      logln("ERROR: playOricData - No data buffer or zero size");
+      return;
+    }
+
+    double savedSamplingRate = SAMPLING_RATE;
+    SAMPLING_RATE = STANDARD_SR_8_BIT_MACHINE / TAPE_BAUDRATE;  // Aplicar multiplicador TAPE_BAUDRATE
+
+    PROGRESS_BAR_BLOCK_VALUE = 0;
+    ERROR_ACCUMULATOR = 0.0;
+
+    bool isResume = (playback_position && *playback_position > 0);
+    int i = (playback_position && *playback_position > 0) ? *playback_position : 0;
+    int byteCount = 0;
+
+    if (i == 0) {
+      logln("ORIC PLAYBACK START - Block size: " + String(lenBlock) + ", TAPE_BAUDRATE: " + 
+            String(TAPE_BAUDRATE, 2) + ", ORIC_TURBO_MODE: " + String(ORIC_TURBO_MODE));
+    }
+
+    // Recorremos todos los bytes del buffer ORIC
+    for (; i < lenBlock; i++) {
+
+      // ✅ Soporte para FFWD - Continuo mientras KEEP_FFWIND esté pulsado
+      if ((FFWIND || KEEP_FFWIND) && playback_position) {
+        int jump_bytes = (int)((float)lenBlock * C64_FFWD_SPEED);  // Reutilizar velocidad C64
+        int new_pos = i + jump_bytes;
+        if (new_pos >= lenBlock) new_pos = lenBlock - 1;
+        *playback_position = new_pos;
+        i = new_pos - 1;
+        CSW_SEEK_MODE = 1;  // FFWD en UI
+        PROGRESS_BAR_BLOCK_VALUE = (int)(((new_pos + 1) * 100) / lenBlock);
+        logln("ORIC FFWD: Jump to " + String(new_pos) + " / " + String(lenBlock));
+        if (!KEEP_FFWIND) {
+          FFWIND = false;
+        }
+        delay(100);
+        continue;
+      }
+
+      // ✅ Soporte para RWD - Continuo mientras KEEP_RWIND esté pulsado
+      if ((RWIND || KEEP_RWIND) && playback_position) {
+        int jump_bytes = (int)((float)lenBlock * C64_RWD_SPEED);  // Reutilizar velocidad C64
+        int new_pos = i - jump_bytes;
+        if (new_pos < 0) new_pos = 0;
+        *playback_position = new_pos;
+        i = new_pos - 1;
+        CSW_SEEK_MODE = 2;  // RWD en UI
+        PROGRESS_BAR_BLOCK_VALUE = (int)(((new_pos + 1) * 100) / lenBlock);
+        logln("ORIC RWD: Jump to " + String(new_pos) + " / " + String(lenBlock));
+        if (!KEEP_RWIND) {
+          RWIND = false;
+        }
+        delay(100);
+        continue;
+      }
+      CSW_SEEK_MODE = 0;
+
+      if (LOADING_STATE == 2) {
+        if (playback_position) *playback_position = 0;
+        SAMPLING_RATE = savedSamplingRate;
+        return;
+      }
+
+      // ✅ Verificar pausa/stop con guardado de posición
+      if (stopOrPauseRequest()) {
+        if (playback_position && PAUSE && !STOP) {
+          *playback_position = i;
+        } else if (STOP) {
+          if (playback_position) *playback_position = 0;
+        }
+        SAMPLING_RATE = savedSamplingRate;
+        return;
+      }
+
+      // Leer byte de datos ORIC
+      uint8_t dataByte = bBlock[i];
+
+      // Reproducir byte ORIC como pulsos
+      // Cada bit se convierte a pulsos de cierta duración en microsegundos
+      for (int bit = 7; bit >= 0; bit--) {
+        uint8_t bitValue = (dataByte >> bit) & 0x01;
+
+        // Obtener duraciones en microsegundos
+        double zeroDurationUs = ORICZEROLOWPULSE + ORICZEROHIGHPULSE;  // Para 0-bit: LOW + HIGH
+        double oneDurationUs = ORICONEPULSE;                            // Para 1-bit: más simple
+
+        // Si turbo mode, usar tiempos turbo
+        if (ORIC_TURBO_MODE) {
+          zeroDurationUs = ORICTURBOZERO * 2;   // ~182µs * 2
+          oneDurationUs = ORICTURBIONE;         // ~92µs
+        }
+
+        // Convertir microsegundos a segundos
+        double zeroSeconds = zeroDurationUs / 1000000.0;
+        double oneSeconds = oneDurationUs / 1000000.0;
+
+        // Generar pulsos para este bit
+        if (bitValue == 0) {
+          // 0-bit: LOW + HIGH
+          semiPulseC64(zeroSeconds / 2.0);  // Primera mitad (LOW)
+          semiPulseC64(zeroSeconds / 2.0);  // Segunda mitad (HIGH)
+        } else {
+          // 1-bit: pulso simple más corto
+          semiPulseC64(oneSeconds);
+        }
+      }
+
+      BYTES_LOADED = i;
+      PROGRESS_BAR_BLOCK_VALUE = (int)(((i + 1) * 100) / lenBlock);
+      byteCount++;
+    }
+
+    // Auto-stop al final
+    logln("ORIC playback complete (" + String(byteCount) + " bytes)");
+    if (playback_position) *playback_position = 0;
+    STOP = true;
+    PAUSE = false;
+    LOADING_STATE = 2;
+    TAPESTATE = 0;
+    logln("ORIC: Auto-stop activated");
+    LAST_MESSAGE = "Auto-stop playing.";
+    SAMPLING_RATE = savedSamplingRate;
+  }
+
   // Constructor
   ZXProcessor() {
     // Constructor de la clase

@@ -65,10 +65,10 @@ public:
             volumeStream.setVolume(float(MAIN_VOL_R) / 100.0f,1);  
           }
         //
-        logln("Volume set to: " + String(MAIN_VOL) + "%, Left: " + String(MAIN_VOL_L) + "%, Right: " + String(MAIN_VOL_R) + "%");
-        logln("Real volume: " + String(volumeStream.volume(0)) + ", " + String(volumeStream.volume(1)));
-        logln("Real audioStream volume: " + String(kitStream.getVolume()));
-        logln("Booster volume: " + String(BOOSTER_VOLUME) + ", Booster factor: " + String(BOOSTER_FACTOR));
+        log_debug("HMI","Volume set to: " + String(MAIN_VOL) + "%, Left: " + String(MAIN_VOL_L) + "%, Right: " + String(MAIN_VOL_R) + "%");
+        log_debug("HMI","Real volume: " + String(volumeStream.volume(0)) + ", " + String(volumeStream.volume(1)));
+        log_debug("HMI","Real audioStream volume: " + String(kitStream.getVolume()));
+        log_debug("HMI","Booster volume: " + String(BOOSTER_VOLUME) + ", Booster factor: " + String(BOOSTER_FACTOR));
     }
 
     // ✅ Configurar velocidades de FFWD/RWD para CSW
@@ -83,7 +83,7 @@ public:
         CSW_FFWD_SPEED = ffwd_speed;
         CSW_RWD_SPEED = rwd_speed;
         
-        logln("CSW Seek Speed set: FFWD=" + String(ffwd_speed * 100, 1) + "%, RWD=" + String(rwd_speed * 100, 1) + "%");
+        log_debug("HMI","CSW Seek Speed set: FFWD=" + String(ffwd_speed * 100, 1) + "%, RWD=" + String(rwd_speed * 100, 1) + "%");
         writeString("tape.lblFFWDSpeed.txt=\"FF: " + String(int(ffwd_speed * 100)) + "%\"");
     }
 
@@ -113,7 +113,7 @@ public:
       }
       else
       {
-        logln("No path to save in last.txt");
+        log_debug("HMI","No path to save in last.txt");
       }
     }
 
@@ -408,17 +408,17 @@ private:
       
           // Verificamos si el archivo _files.lst existe
           if (!SD_MMC.exists(path_file_lst.c_str())) {
-              logln("File _files.lst does not exist: " + path_file_lst);
+              log_info("HMI","File _files.lst does not exist: " + path_file_lst);
               return;
           }
 
-          logln("Reading file: " + path_file_lst);
+          log_debug("HMI","Reading file: " + path_file_lst);
 
           // Abrimos el archivo _files.lst
           File lstFile;
           lstFile = SD_MMC.open(path_file_lst.c_str(), FILE_READ);
           if (!lstFile) {
-              logln("Failed to open _files.lst: " + path_file_lst);
+              log_error("HMI","Failed to open _files.lst: " + path_file_lst);
               return;
           }
       
@@ -451,9 +451,9 @@ private:
               String filenameUC = fl.fileName;
               filenameUC.toUpperCase();
 
-              // logln("Processing file: " + fl.fileName + " (Type: " + fl.fileType + ", Seek: " + String(fl.seek) + ", IDZXDB: " + fl.IDZXDB + ")");
-              // logln("Search pattern: " + searchPatternUC);
-              // logln("Filename uppercase: " + filenameUC);
+              log_debug("HMI","Processing file: " + fl.fileName + " (Type: " + fl.fileType + ", Seek: " + String(fl.seek) + ", IDZXDB: " + fl.IDZXDB + ")");
+              log_debug("HMI","Search pattern: " + searchPatternUC);
+              log_debug("HMI","Filename uppercase: " + filenameUC);
 
               // Si el archivo cumple con el patrón de búsqueda, lo escribimos en fout
               if (filenameUC.indexOf(searchPatternUC) != -1) 
@@ -483,9 +483,7 @@ private:
           // Cerramos el archivo
           lstFile.close();
       
-          #ifdef DEBUGMODE
-              logln("Total files found: " + String(FILE_TOTAL_FILES));
-          #endif
+          log_debug("HMI","Total files found: " + String(FILE_TOTAL_FILES));
       }
 
     
@@ -509,9 +507,7 @@ private:
           // Convierte el patrón de búsqueda a minúsculas una sola vez
           search_pattern.toLowerCase();
       
-          #ifdef DEBUGMODE
-              logln("Registering files with pattern: " + search_pattern);
-          #endif
+          log_debug("HMI","Registering files with pattern: " + search_pattern);
 
           String entry;
           while (entry = global_dir.getNextFileName())
@@ -519,9 +515,7 @@ private:
               
               if (entry == "") break;
 
-              #ifdef DEBUGMODE
-                  logln("Reading file: " + entry);
-              #endif
+              log_debug("HMI","Reading file: " + entry);
 
               //esp_task_wdt_reset();
               String fname = entry;
@@ -537,14 +531,12 @@ private:
                   // Obtenemos la extensión del fichero
                   const char *ext = getFileExtension(fnameToLower.c_str());
 
-                  // logln("File name: " + fnameToLower);
-                  // logln("Extension: " + String(ext));
+                  log_debug("HMI","File name: " + fnameToLower);
+                  log_debug("HMI","Extension: " + String(ext));
 
-                  #ifdef DEBUGMODE
-                      logln("File: " + fname);
-                      if (ext) logln("Extension: " + String(ext));
-                      else logln("No extension found.");
-                  #endif
+                  log_debug("HMI","File: " + fname);
+                  if (ext) log_debug("HMI","Extension: " + String(ext));
+                  else log_debug("HMI","No extension found.");
 
                   if (fnameToLower.indexOf(search_pattern) != -1 || search_pattern == "")
                   {
@@ -615,15 +607,15 @@ private:
       bool removeFileFromLst(const String& lstPath, const String& fileNameToRemove) 
       {
           String tmpPath = lstPath + ".tmp";
-          logln("Removing file from list: " + fileNameToRemove + " in " + lstPath);
-          logln("Temporary file: " + tmpPath);
+          log_debug("HMI","Removing file from list: " + fileNameToRemove + " in " + lstPath);
+          log_debug("HMI","Temporary file: " + tmpPath);
           int itemsCount = 0;
 
           // Abrimos el archivo original para lectura
           File lstFile = SD_MMC.open((lstPath).c_str(), FILE_READ);
           if (!lstFile) 
           {
-              logln("Error opening list file.");
+              log_debug("HMI","Error opening list file.");
               return false;
           }
           lstFile.seek(0);
@@ -632,16 +624,16 @@ private:
           File tmpFile = SD_MMC.open(tmpPath.c_str(), FILE_WRITE);
           if (!tmpFile) {
               lstFile.close();
-              logln("Error creating temporary file.");
+              log_debug("HMI","Error creating temporary file.");
               return false;
           }
 
-          logln("Processing list file...");
+          log_debug("HMI","Processing list file...");
 
           while (lstFile.available()) 
           {
               String line = lstFile.readStringUntil('\n');
-              logln("Processing line: " + line);
+              log_debug("HMI","Processing line: " + line);
               // Extrae el nombre del archivo de la línea
               int idx1 = line.indexOf('|');
               int idx2 = line.indexOf('|', idx1 + 1);
@@ -674,12 +666,12 @@ private:
           {
             SD_MMC.remove(lstPath);
             SD_MMC.rename(tmpPath, lstPath);
-            logln("End removing file from list.");
+            log_debug("HMI","End removing file from list.");
           }
           else
           {
             SD_MMC.remove(tmpPath);
-            logln("No items found in list.");
+            log_debug("HMI","No items found in list.");
           }
 
           return true;
@@ -704,9 +696,9 @@ private:
           // Manejadores de archivos
           File f, fstatus;
       
-          logln("Registering. File created: " + regFile);
-          logln("Registering. File status created: " + statusFile);
-          logln("Rescan: " + String(rescan));
+          log_debug("HMI","Registering. File created: " + regFile);
+          log_debug("HMI","Registering. File status created: " + statusFile);
+          log_debug("HMI","Rescan: " + String(rescan));
 
           // Abrimos los archivos
           f = SD_MMC.open(file_ch, FILE_WRITE);
@@ -714,9 +706,7 @@ private:
   
           if (!f || !fstatus) 
           {
-              #ifdef DEBUGMODE
-                  logln("Error opening files for writing.");
-              #endif
+              log_debug("HMI","Error opening files for writing.");
 
               writeString("statusFILE.txt=\"ERROR\"");
               return;
@@ -726,21 +716,19 @@ private:
               // Escribimos la ruta en el archivo de estado
               fstatus.println("PATH=" + path);
 
-              #ifdef DEBUGMODE
-                  logln("Registering files in path: " + path);   
-              #endif
+              log_debug("HMI","Registering files in path: " + path);   
       
               bool zxdb_search = (FILE_LAST_DIR.indexOf("/ONLINE/ZX/") != -1 || FILE_LAST_DIR.indexOf("/ONLINE/CPC/") != -1 || FILE_LAST_DIR.indexOf("/ONLINE/MSX/") != -1) ? true : false;
               if (zxdb_search)
               {
                   // Si la ruta es ONLINE, no intentamos cargar un _files.lst previo
-                  logln("Online path, skipping loading from existing file.");
+                  log_debug("HMI","Online path, skipping loading from existing file.");
               }
 
               // Si es una búsqueda y no es un rescan, usamos el archivo existente
               if (zxdb_search || (!search_pattern.isEmpty() && !rescan && f.size() > 0 && fstatus.size() > 0))
               {
-                  logln("Filling with existing file: " + regFile);
+                  log_debug("HMI","Filling with existing file: " + regFile);
                   fillWithFilesFromFile(f, fstatus, search_pattern, path);
               } 
               else 
@@ -753,9 +741,7 @@ private:
                     f.close();
                     f = SD_MMC.open(file_ch, FILE_READ);
                     // Ordenamos el archivo _files.lst
-                    #ifdef DEBUGMODE
-                        logln("Sorting file...");
-                    #endif
+                    log_debug("HMI","Sorting file...");
                     
                     writeString("statusFILE.txt=\"SORTING\"");
                     sortFile(f,SORT_FILES_FIRST_DIR);
@@ -806,7 +792,7 @@ private:
                   lineData.fileName = String(ptr);
                   int dotIdx = lineData.fileName.lastIndexOf('.');
                   lineData.fileType = (dotIdx != -1) ? lineData.fileName.substring(dotIdx) : "";
-                  //logln("File type: " + lineData.fileType);
+                  log_debug("HMI","File type: " + lineData.fileType);
                 }
                 break;
 
@@ -885,9 +871,7 @@ private:
           }
           else
           {
-            #ifdef DEBUGMODE
-              logln("Error reading file. " + SOURCE_FILE_TO_MANAGE +" is closed");
-            #endif
+            log_debug("HMI","Error reading file. " + SOURCE_FILE_TO_MANAGE +" is closed");
           }
 
           return ld;
@@ -896,9 +880,7 @@ private:
       void putFilePtrInPosition(File &f, int pos) 
       {
           if (!f) {
-              #ifdef DEBUGMODE
-                  logln("File is not open.");
-              #endif
+              log_debug("HMI","File is not open.");
               return;
           }
 
@@ -908,9 +890,7 @@ private:
           String sline;
           int currentLine = 0;
 
-          #ifdef DEBUGMODE
-              logln("Moving pointer to position: " + String(pos));
-          #endif
+          log_debug("HMI","Moving pointer to position: " + String(pos));
 
           // Saltamos líneas hasta alcanzar la posición deseada
           while (currentLine < pos && f.available()) {
@@ -919,9 +899,7 @@ private:
               currentLine++;
           }
 
-          #ifdef DEBUGMODE
-              logln("Pointer moved to position: " + String(currentLine));
-          #endif
+          log_debug("HMI","Pointer moved to position: " + String(currentLine));
       }
 
       void countTotalLinesInLST(const String &path, const String &sourceFile) {
@@ -931,9 +909,7 @@ private:
           // Abrimos el fichero _files.inf
           fFileINF = SD_MMC.open(fFile.c_str(), FILE_READ);
           if (!fFileINF) {
-              #ifdef DEBUGMODE
-                  logln("Failed to open file: " + fFile);
-              #endif
+              log_debug("HMI","Failed to open file: " + fFile);
               return;
           }
 
@@ -958,11 +934,9 @@ private:
 
           FILE_TOTAL_FILES = cdir + cfil;
 
-          #ifdef DEBUGMODE
-              logln("Total directories: " + String(cdir));
-              logln("Total files: " + String(cfil));
-              logln("Total items: " + String(FILE_TOTAL_FILES));
-          #endif
+          log_debug("HMI","Total directories: " + String(cdir));
+          log_debug("HMI","Total files: " + String(cfil));
+          log_debug("HMI","Total items: " + String(FILE_TOTAL_FILES));
 
           fFileINF.close();
       }
@@ -978,9 +952,7 @@ private:
 
               // Si llegamos al final del archivo, salimos
               if (fl.ID == -1) {
-                  #ifdef DEBUGMODE
-                      logln("EOF reached.");
-                  #endif
+                  log_debug("HMI","EOF reached.");
                   break;
               }
 
@@ -997,15 +969,7 @@ private:
                   FILES_BUFF[idptr].type.toUpperCase(); // Convertimos el tipo a mayúsculas
               }
 
-              #ifdef DEBUGMODE
-                  log("File added: ");
-                  log(fl.fileName + " - ");
-                  log(fl.fileType + " - ");
-                  log(String(fl.ID) + " - ");
-                  log(String(fl.seek) + " - ");
-                  log(String(fl.type));
-                  logln("");
-              #endif
+              log_debug("HMI","File added: " + fl.fileName + " - " + fl.fileType + " - " + String(fl.ID) + " - " + String(fl.seek) + " - " + String(fl.type));
 
               idptr++;
           }
@@ -1030,23 +994,19 @@ private:
           }
 
           // Abrimos el directorio
-          #ifdef DEBUGMODE
-              logln("Trying to open dir: " + FILE_LAST_DIR);
-          #endif
+          log_debug("HMI","Trying to open dir: " + FILE_LAST_DIR);
 
           global_dir = SD_MMC.open(FILE_LAST_DIR.c_str(), FILE_READ);
 
           if (!global_dir || !global_dir.isDirectory())
           {
-              #ifdef DEBUGMODE
-                  logln("Failed to open directory: " + FILE_LAST_DIR);  
-              #endif
+              log_debug("HMI","Failed to open directory: " + FILE_LAST_DIR);  
 
               FILE_DIR_OPEN_FAILED = true;
               return;
           }
       
-          logln("Search: Directory: " + FILE_LAST_DIR + " - opened successfully.");
+          log_debug("HMI","Search: Directory: " + FILE_LAST_DIR + " - opened successfully.");
 
           FILE_DIR_OPEN_FAILED = false;
       
@@ -1057,8 +1017,8 @@ private:
               String pathTmp = "";
               if (FILE_LAST_DIR != "/") {pathTmp = FILE_LAST_DIR + "/" + output_file;}
               
-              logln("Checking if LST file exists at: " + pathTmp);
-              logln("Force rescan: " + String(force_rescan ? "Yes" : "No"));
+              log_debug("HMI","Checking if LST file exists at: " + pathTmp);
+              log_debug("HMI","Force rescan: " + String(force_rescan ? "Yes" : "No"));
 
               if (force_rescan || !SD_MMC.exists(pathTmp.c_str())) 
               {
@@ -1268,10 +1228,7 @@ private:
           String strTmp = INITFILEPATH;
           //strncpy(strTmp,&INITFILEPATH[0],2);
 
-          #ifdef DEBUGMODE
-            logln("");
-            logln("Current dir: " + path);
-          #endif
+          log_debug("HMI","Current dir: " + path);
 
           int lpath = path.length();
           
@@ -1287,10 +1244,7 @@ private:
               }
           }
 
-          #ifdef DEBUGMODE
-            logln("");
-            logln("Next dir: " + strTmp);
-          #endif
+          log_debug("HMI","Next dir: " + strTmp);
 
           return strTmp;
       }
@@ -1350,9 +1304,7 @@ private:
               szName = FILES_BUFF[i].path;
               type = FILES_BUFF[i].type;
               
-              #ifdef DEBUGMODE
-                logln("File [" + String(i) + "] - " + szName + " - type: " + type);
-              #endif
+              log_debug("HMI","File [" + String(i) + "] - " + szName + " - type: " + type);
 
               // Convertimos a mayusculas el tipo
               type.toUpperCase();
@@ -1679,25 +1631,6 @@ private:
 
           saveHMIcfg("HVKopt");
         }                       
-        // else if (strCmd.indexOf("RBUF=") != -1) 
-        // {
-        //   //Cogemos el valor
-        //   uint8_t buff[8];
-        //   strCmd.getBytes(buff, 7);
-        //   int valEn = (int)buff[5];
-        //   //
-        //   if (valEn==1)
-        //   {
-        //     RADIO_BUFFERED = true;
-        //   }
-        //   else
-        //   {
-        //     RADIO_BUFFERED = false;
-        //   }
-
-        //   logln("Radio buffered: " + String(RADIO_BUFFERED));
-        //   saveHMIcfg("RBUFopt");
-        // }
         // ✅ CSW FFWD Speed: CSW_FFWD=XX (XX = 01 a 10 = 1% a 10%)
         else if (strCmd.indexOf("CSW_FFWD=") != -1)
         {
@@ -1709,7 +1642,7 @@ private:
           
           float ffwd_speed = (float)ffwd_pct / 100.0;
           setCSWSeekSpeed(ffwd_speed, CSW_RWD_SPEED);
-          logln("CSW FFWD Speed set to: " + String(ffwd_pct) + "%");
+          log_debug("HMI","CSW FFWD Speed set to: " + String(ffwd_pct) + "%");
         }
         // ✅ CSW RWD Speed: CSW_RWD=XX (XX = 01 a 10 = 1% a 10%)
         else if (strCmd.indexOf("CSW_RWD=") != -1)
@@ -1722,7 +1655,7 @@ private:
           
           float rwd_speed = (float)rwd_pct / 100.0;
           setCSWSeekSpeed(CSW_FFWD_SPEED, rwd_speed);
-          logln("CSW RWD Speed set to: " + String(rwd_pct) + "%");
+          log_debug("HMI","CSW RWD Speed set to: " + String(rwd_pct) + "%");
         }   
         else if (strCmd.indexOf("DHCP=") != -1) 
         {
@@ -1740,7 +1673,7 @@ private:
             DHCP_ENABLE = false;
           }
 
-          logln("DHCP enabled: " + String(DHCP_ENABLE));
+          log_debug("HMI","DHCP enabled: " + String(DHCP_ENABLE));
           saveHMIcfg("DHCPFopt");
         }               
         else if (strCmd.indexOf("BKX=") != -1) 
@@ -1755,8 +1688,8 @@ private:
               long val = (long)((int)buff[4] + (256*(int)buff[5]) + (65536*(int)buff[6]));
               String num = String(val);
 
-              logln("Block selected: " + num);
-              logln("Block total: " + String(TOTAL_BLOCKS));
+              log_debug("HMI","Block selected: " + num);
+              log_debug("HMI","Block total: " + String(TOTAL_BLOCKS));
 
               BLOCK_SELECTED = num.toInt();
 
@@ -1816,10 +1749,7 @@ private:
                     totalPages+=1;
                 }            
 
-                #ifdef DEBUGMODE
-                  logln("");
-                  logln("Page selected: " + String(pageSelected+1) + "/" + String(totalPages));
-                #endif
+                log_debug("HMI","Page selected: " + String(pageSelected+1) + "/" + String(totalPages));
 
                 // Controlamos que no nos salgamos del total de páginas
                 if ((pageSelected+1) <= totalPages)
@@ -2000,10 +1930,7 @@ private:
             // le devolvamos ficheros en la posición actual del puntero
             FILE_PTR_POS = FILE_PTR_POS + TOTAL_FILES_IN_BROWSER_PAGE;
   
-            #ifdef DEBUGMODE
-              logln("");
-              logln("files in page: " + String(FILE_TOTAL_FILES-1));
-            #endif
+            log_debug("HMI","files in page: " + String(FILE_TOTAL_FILES-1));
 
             if (FILE_PTR_POS > (FILE_TOTAL_FILES))
             {
@@ -2072,13 +1999,8 @@ private:
                 String pSource = fToFav;
                 String pTarget = "/fav/" + fileName;
 
-                #ifdef DEBUGMODE
-                  logln("");
-                  log("Source file: " + pSource);
-                  logln("");
-                  log("Target file: " + pTarget);
-                  logln("");
-                #endif
+                log_debug("HMI","Source file: " + pSource);
+                log_debug("HMI","Target file: " + pTarget);
                 
                 //Esto lo hacemos para ver si el directorio existe
                 String favDir = "/FAV";
@@ -2089,7 +2011,7 @@ private:
                       logAlert("FAV ok");
                     #endif
                     // Si el fichero no existe en favoritos, lo copio
-                    logln("Checking if file exists in FAV ..." + pTarget);
+                    log_debug("HMI","Checking if file exists in FAV ..." + pTarget);
                     if (!SD_MMC.exists(pTarget))
                     {
                         if (copyFileFS(pSource.c_str(), pTarget.c_str()))
@@ -2105,18 +2027,12 @@ private:
                     }
                     else
                     {
-                        #ifdef DEBUGMODE
-                          logln("");
-                          log("File already in FAV.");
-                        #endif
+                        log_debug("HMI","File already in FAV.");
                     }                  
                 }
                 else
                 {
-                  #ifdef DEBUGMODE
-                    logln("");
-                    log("Error! directory /FAV not created.");
-                  #endif
+                  log_debug("HMI","Error! directory /FAV not created.");
                 }
             }     
         }              
@@ -2146,7 +2062,7 @@ private:
           int idsel = sbstr.toInt();
           int blsel = (MAX_BLOCKS_IN_BROWSER * BB_PAGE_SELECTED) - (MAX_BLOCKS_IN_BROWSER - idsel);
 
-          //logln("Bloque seleccionado: " + String(blsel));
+          log_debug("HMI","Bloque seleccionado: " + String(blsel));
 
           if (blsel >= 0 && blsel <= TOTAL_BLOCKS)
           {
@@ -2252,18 +2168,6 @@ private:
         else if (strCmd.indexOf("CHD=") != -1) 
         {
             uint32_t val=0;
-            // Con este comando capturamos el directorio a cambiar
-            // uint8_t buff[8];
-            // strCmd.getBytes(buff, 7);
-
-            // #ifdef DEBUGMODE
-            //   for (int i=0;i<8;i++)
-            //   {
-            //     logln("Byte " + String(i) + ": " + String(buff[i]));
-            //   }
-            // #endif
-            
-            // long val = (long)((int)buff[4] + (256*(int)buff[5]) + (65536*(int)buff[6]));
 
             // Con este comando capturamos el directorio a cambiar
             uint8_t buff[8] = {0}; // Inicializamos el buffer a 0
@@ -2282,12 +2186,12 @@ private:
                     FILE_IDX_SELECTED = indexFileSelected;
                     // ... resto del código existente ...
                 } else {
-                    logln("Error: Invalid file index value: " + String(val));
+                    log_error("HMI","Error: Invalid file index value: " + String(val));
                     writeString("currentDir.txt=\">> Error: Invalid index value <<\"");
                     return;
                 }
             } else {
-                logln("Error: Invalid CHD command format");
+                log_error("HMI","Error: Invalid CHD command format");
                 writeString("currentDir.txt=\">> Error: Invalid command format <<\"");
                 return;
             }
@@ -2299,7 +2203,7 @@ private:
             if (indexFileSelected > sizeof(FILES_BUFF))
             {
               // Regeneramos el directorio de manera automática.
-              logln("File index out of range: " + String(indexFileSelected));
+              log_error("HMI","File index out of range: " + String(indexFileSelected));
               //
               writeString("currentDir.txt=\">> HMI error. Idx out of range <<\"");
               //FILE_IDX_SELECTED = 13;
@@ -2320,9 +2224,7 @@ private:
                 FILE_DIR_TO_CHANGE = FILE_LAST_DIR + "/" + FILES_BUFF[FILE_IDX_SELECTED+1].path;
               }
 
-              #ifdef DEBUGMODE
-                logln("Dir to change " + FILE_DIR_TO_CHANGE);
-              #endif
+              log_debug("HMI","Dir to change " + FILE_DIR_TO_CHANGE);
               
               IN_THE_SAME_DIR = false;
         
@@ -2331,7 +2233,7 @@ private:
               if (dir_ch.endsWith("/") && dir_ch.length() > 1) dir_ch.remove(dir_ch.length() - 1);
 
               //
-              logln("Changing to dir: " + dir_ch);
+              log_debug("HMI","Changing to dir: " + dir_ch);
 
               //
               FILE_PREVIOUS_DIR = FILE_LAST_DIR;
@@ -2342,14 +2244,11 @@ private:
               // clearFilesInScreen(); // 02/12/2024
               writeString("statusFILE.txt=\"READING\"");  
 
-              //logln("Paso 1");
               if (fFileLST)
               {
                 fFileLST.close();
                 LST_FILE_IS_OPEN = false;
               }
-
-              //logln("Paso 2");
 
               String recDirTmp = FILE_LAST_DIR;
               recDirTmp.toUpperCase();
@@ -2369,9 +2268,7 @@ private:
               }
               else
               {
-                #ifdef DEBUGMODE
-                  logln("Error to open directory");
-                #endif
+                log_error("HMI","Error to open directory");
               }          
             }
      
@@ -2448,7 +2345,7 @@ private:
             String num = String(val);
       
             int idx = num.toInt();  
-            logln("Rotating index: " + String(idx));
+            log_debug("HMI","Rotating index: " + String(idx));
 
             if (idx >=0 && idx < 14)
             {
@@ -2461,8 +2358,8 @@ private:
               ENABLE_ROTATE_FILEBROWSER = false;
             }
 
-            logln("Rotating filename: " + ROTATE_FILENAME);
-            logln("Rotating enable: " + String(ENABLE_ROTATE_FILEBROWSER));
+            log_debug("HMI","Rotating filename: " + ROTATE_FILENAME);
+            log_debug("HMI","Rotating enable: " + String(ENABLE_ROTATE_FILEBROWSER));
 
             
             // Esto lo hacemos para que no se quede pillado en el ultimo cuando ha hecho un rotate
@@ -2510,12 +2407,8 @@ private:
 
                     if (!SD_MMC.remove(FILE_TO_DELETE))
                     {
-                      #ifdef DEBUGMODE
-                        logln("Error to remove file. " + FILE_TO_DELETE);
-                      #endif
+                      log_error("HMI","Error to remove file. " + FILE_TO_DELETE);
                       
-                      logln("File not removed. " + FILE_TO_DELETE);
-
                       writeString("currentDir.txt=\">> Error. File not removed <<\"");
                       delay(1500);
                       writeString("currentDir.txt=\"" + String(FILE_LAST_DIR_LAST) + "\"");    
@@ -2524,12 +2417,12 @@ private:
                     else
                     {
                       FILE_SELECTED_DELETE = false;
-                      logln("File remove. " + FILE_TO_DELETE);
+                      log_debug("HMI","File remove. " + FILE_TO_DELETE);
                     }                  
                 }
 
                 // Tras borrar hacemos un rescan
-                logln("Rescanning files ... in dir: " + FILE_LAST_DIR_LAST + "/_files.lst");
+                log_debug("HMI","Rescanning files ... in dir: " + FILE_LAST_DIR_LAST + "/_files.lst");
                 //removeFileFromLst(FILE_LAST_DIR_LAST + "/_files.lst", FILES_BUFF[FILE_IDX_SELECTED+1].path);
                 reloadDir();
             }
@@ -2551,7 +2444,7 @@ private:
             FILE_IDX_SELECTED = num.toInt();
             FILE_SELECTED = false;
 
-            logln("File selected: " + String(FILE_IDX_SELECTED));
+            log_debug("HMI","File selected: " + String(FILE_IDX_SELECTED));
 
             // Path completo del fichero
             if (FILE_IDX_SELECTED >=0 && FILE_IDX_SELECTED < 14)
@@ -2560,13 +2453,13 @@ private:
               // Fichero sin path
               FILE_LOAD = FILES_BUFF[FILE_IDX_SELECTED+1].path;                
 
-              logln("File path to load: " + PATH_FILE_TO_LOAD);
-              logln("File name only   : " + FILE_LOAD);
+              log_debug("HMI","File path to load: " + PATH_FILE_TO_LOAD);
+              log_debug("HMI","File name only   : " + FILE_LOAD);
 
               if (FILE_LOAD.indexOf(".zxdb") != -1)
               {
                 // Es un fichero virtual ZXDB. Hay que descargarlo primero.
-                logln("File is a virtual ZXDB file. Downloading ...");
+                log_debug("HMI","File is a virtual ZXDB file. Downloading ...");
                 // Cogemos el nombre del fichero sin .zxdb
                 String tittle = FILE_LOAD.substring(0, FILE_LOAD.length() - 5);
                 // Buscamos en _files.lst el ID que le corresponde a ese fichero para descargarlo
@@ -2574,9 +2467,9 @@ private:
 
                 if (idFile != "")
                 {
-                  logln("File id to download: " + idFile);
-                  logln("Title of file to download: " + tittle);
-                  logln("Starting download from ZXDB ...");
+                  log_debug("HMI","File id to download: " + idFile);
+                  log_debug("HMI","Title of file to download: " + tittle);
+                  log_debug("HMI","Starting download from ZXDB ...");
 
                   LAST_MESSAGE = "Trying to download from ZXDB. Please wait ...";
                   myNex.writeStr("tape.g0.txt", LAST_MESSAGE.c_str());
@@ -2589,7 +2482,7 @@ private:
               else if (FILE_LOAD.indexOf(".cpcdb") != -1)
               {
                 // Es un fichero virtual CPCDB. Hay que descargarlo primero.
-                logln("File is a virtual CPCDB file. Downloading ...");
+                log_debug("HMI","File is a virtual CPCDB file. Downloading ...");
                 // Cogemos el nombre del fichero sin .cpcdb
                 String tittle = FILE_LOAD.substring(0, FILE_LOAD.length() - 6);
                 // Buscamos en _files.lst el nombre real del CDT
@@ -2597,9 +2490,9 @@ private:
 
                 if (cdtFileName != "")
                 {
-                  logln("CDT file to download: " + cdtFileName);
-                  logln("Title of file to download: " + tittle);
-                  logln("Starting download from CPCDB ...");
+                  log_debug("HMI","CDT file to download: " + cdtFileName);
+                  log_debug("HMI","Title of file to download: " + tittle);
+                  log_debug("HMI","Starting download from CPCDB ...");
                   downloadFromCPCDB(cdtFileName, tittle);
                 }
 
@@ -2607,7 +2500,7 @@ private:
               else if (FILE_LOAD.indexOf(".msxdb") != -1)
               {
                 // Es un fichero virtual MSXDB. Hay que descargarlo primero.
-                logln("File is a virtual MSXDB file. Downloading ...");
+                log_debug("HMI","File is a virtual MSXDB file. Downloading ...");
                 // Cogemos el nombre del fichero sin .msxdb
                 String tittle = FILE_LOAD.substring(0, FILE_LOAD.length() - 6);
                 // Buscamos en _files.lst la ruta real del CAS (e.g. "CLOAD/Game (EU).cas")
@@ -2615,9 +2508,9 @@ private:
 
                 if (casFileName != "")
                 {
-                  logln("CAS file to download: " + casFileName);
-                  logln("Title of file to download: " + tittle);
-                  logln("Starting download from MSXDB ...");
+                  log_debug("HMI","CAS file to download: " + casFileName);
+                  log_debug("HMI","Title of file to download: " + tittle);
+                  log_debug("HMI","Starting download from MSXDB ...");
                   downloadFromMSXDB(casFileName, tittle);
                 }
 
@@ -2651,12 +2544,7 @@ private:
               PATH_FILE_TO_LOAD = "";
             }
       
-            #ifdef DEBUGMODE
-              logln("");
-              logln("File to load = ");
-              log(PATH_FILE_TO_LOAD);
-              logln("");
-            #endif
+            log_debug("HMI","File to load = " + PATH_FILE_TO_LOAD);
 
             FILE_STATUS = 0;
       
@@ -2664,38 +2552,6 @@ private:
       
         }   
         // Configuración de frecuencias de muestreo
-        else if (strCmd.indexOf("FRQ1") != -1)
-        {
-          DfreqCPU = 3250000.0;
-        }
-        else if (strCmd.indexOf("FRQ2") != -1)
-        {
-          DfreqCPU = 3300000.0;
-        }
-        else if (strCmd.indexOf("FRQ3") != -1)
-        {
-          DfreqCPU = 3330000.0;
-        }
-        else if (strCmd.indexOf("FRQ4") != -1)
-        {
-          DfreqCPU = 3350000.0;
-        }
-        else if (strCmd.indexOf("FRQ5") != -1)
-        {
-          DfreqCPU = 3400000.0;
-        }
-        else if (strCmd.indexOf("FRQ6") != -1)
-        {
-          DfreqCPU = 3430000.0;
-        }
-        else if (strCmd.indexOf("FRQ7") != -1)
-        {
-          DfreqCPU = 3450000.0;
-        }
-        else if (strCmd.indexOf("FRQ8") != -1)
-        {
-          DfreqCPU = 3500000.0;
-        }
         // Indica que la pantalla está activa
         else if (strCmd.indexOf("LCDON") != -1) 
         {
@@ -2704,7 +2560,7 @@ private:
         // Control de TAPE
         else if (strCmd.indexOf("FFWD") != -1) 
         {
-            logln("FFWD pressed");
+            log_debug("HMI","FFWD pressed");
             FFWIND = true;
             RWIND = false;
             KEEP_FFWIND = false;
@@ -2716,7 +2572,7 @@ private:
         }
         else if (strCmd.indexOf("RWD") != -1) 
         {
-            logln("RWD pressed");
+            log_debug("HMI","RWD pressed");
             FFWIND = false;
             RWIND = true;
             KEEP_RWIND = false;
@@ -2729,14 +2585,14 @@ private:
         }
         else if (strCmd.indexOf("SFWD") != -1) 
         {
-            //logln("S_FFWD pressed");
+            log_debug("HMI","S_FFWD pressed");
             FFWIND = false;
             RWIND = false;
             KEEP_FFWIND = true;
         }
         else if (strCmd.indexOf("TTWD") != -1) 
         {
-            //logln("S_RWD pressed");
+            log_debug("HMI","S_RWD pressed");
             FFWIND = false;
             RWIND = false;
             KEEP_RWIND = true;
@@ -2744,9 +2600,7 @@ private:
         else if (strCmd.indexOf("PLAY") != -1) 
         {
 
-          #ifdef DEBUGMODE
-            logAlert("PLAY pressed.");
-          #endif
+          log_debug("HMI","PLAY pressed.");
 
           PLAY = true;
           PAUSE = false;
@@ -2768,9 +2622,7 @@ private:
         else if (strCmd.indexOf("REC") != -1) 
         {
 
-          #ifdef DEBUGMODE
-            logAlert("REC pressed.");
-          #endif
+          log_debug("HMI","REC pressed.");
 
           // Pagina del TAPE
           if (CURRENT_PAGE == PAGE_TAPE)
@@ -2793,7 +2645,7 @@ private:
           }        
           else if (CURRENT_PAGE == PAGE_TAPE0)
           {
-            //
+            log_debug("HMI","REC pressed.");
             PLAY = false;
             PAUSE = false;
             STOP = false;
@@ -2810,9 +2662,7 @@ private:
         else if (strCmd.indexOf("PAUSE") != -1) 
         {
 
-          #ifdef DEBUGMODE
-            logAlert("PAUSE pressed.");
-          #endif
+          log_debug("HMI","PAUSE pressed.");
 
           PLAY = false;
           PAUSE = true;
@@ -2825,9 +2675,7 @@ private:
         else if (strCmd.indexOf("STOP") != -1) 
         {
 
-          #ifdef DEBUGMODE
-            logAlert("STOP pressed.");
-          #endif
+          log_debug("HMI","STOP pressed.");
 
           PLAY = false;
           PAUSE = false;
@@ -2847,16 +2695,9 @@ private:
         }     
         else if (strCmd.indexOf("EJECT") != -1) 
         {
-          #ifdef DEBUGMODE
-            logAlert("EJECT pressed.");
-          #endif
+          log_debug("HMI","EJECT pressed.");
 
-          logln("Status of PAUSE_REQ: " + String(STOP_OR_PAUSE_REQUEST));
-
-          // Si no se esta solicitando un STOP o PAUSE aun
-          // if (!STOP_OR_PAUSE_REQUEST || PZX_EJECT_RQT)
-          // {
-          //PZX_EJECT_RQT = false;
+          log_debug("HMI","Status of PAUSE_REQ: " + String(STOP_OR_PAUSE_REQUEST));
 
           PLAY = false;
           PAUSE = false;
@@ -2952,7 +2793,7 @@ private:
           strCmd.getBytes(buff, 7);
           int valVol = (int)buff[4];
           BOOSTER_VOLUME = valVol==1 ? true : false;
-          logln("Booster volume: " + String(BOOSTER_VOLUME));
+          log_debug("HMI","Booster volume: " + String(BOOSTER_VOLUME));
           VolumeStreamConfig volumeCfg;
           volumeCfg.copyFrom(volumeStream.audioInfo());
           volumeCfg.allow_boost = BOOSTER_VOLUME;
@@ -2990,7 +2831,7 @@ private:
           setVolumenOutput();
           saveHMIcfg("BALopt");
           //
-          logln("Balance: " + String(BALANCE_VOL / 100));
+          log_debug("HMI","Balance: " + String(BALANCE_VOL / 100));
         }
         // Ajuste del volumen
         else if (strCmd.indexOf("VOL=") != -1) 
@@ -3017,7 +2858,7 @@ private:
           //
           VOL_CHANGE = true;
           //
-          logln("Master Volume: " + String(MAIN_VOL / 100));
+          log_debug("HMI","Master Volume: " + String(MAIN_VOL / 100));
         }
         // Ajuste el vol canal R
         else if (strCmd.indexOf("VRR=") != -1) 
@@ -3061,11 +2902,9 @@ private:
 
 
           // Ajustamos el volumen
-          #ifdef DEBUGMODE
-            logln("");
-            logln("L-Channel volume value=" + String(MAIN_VOL * MAIN_VOL_L / 100));
-            logln("");
-          #endif
+          log_debug("HMI","");
+          log_debug("HMI","L-Channel volume value=" + String(MAIN_VOL * MAIN_VOL_L / 100));
+          log_debug("HMI","");
 
           // Guardamos en la partición NVS los valores de los sliders
           saveVolSliders();
@@ -3083,7 +2922,7 @@ private:
 
           EQ_HIGH = valVol/100.0;      
           EQ_CHANGE = true;    
-          //logln("EQ HIGH: " + String(EQ_HIGH)); 
+          log_debug("HMI","EQ HIGH: " + String(EQ_HIGH)); 
           saveHMIcfg("EQHopt");
         } 
         else if (strCmd.indexOf("EQM=") != -1) 
@@ -3095,7 +2934,7 @@ private:
 
           EQ_MID = valVol/100.0;          
           EQ_CHANGE = true;    
-          //logln("EQ MID: " + String(EQ_MID)); 
+          log_debug("HMI","EQ MID: " + String(EQ_MID)); 
           saveHMIcfg("EQMopt");
         }   
         else if (strCmd.indexOf("EQL=") != -1) 
@@ -3107,7 +2946,7 @@ private:
 
           EQ_LOW = valVol/100.0;          
           EQ_CHANGE = true;   
-          //logln("EQ LOW: " + String(EQ_LOW)); 
+          log_debug("HMI","EQ LOW: " + String(EQ_LOW)); 
           saveHMIcfg("EQLopt");
         }      
         else if (strCmd.indexOf("TON=") != -1) 
@@ -3121,12 +2960,12 @@ private:
           // y lo mismo con el +1
           AZIMUT = valVol;
           C64_TIMING_BIAS = (AZIMUT - 5) * (BIAS_FACTOR_TAP_C64);
-          logln("C64_TIMING_BIAS: " + String(C64_TIMING_BIAS, 8) + " samples");
+          log_debug("HMI","C64_TIMING_BIAS: " + String(C64_TIMING_BIAS, 8) + " samples");
 
           //TONE_ADJUST = (-210)*(TONE_ADJUSTMENT_ZX_SPECTRUM + (valVol-TONE_ADJUSTMENT_ZX_SPECTRUM_LIMIT));         
           TONE_ADJUST = 0;
           SAMPLES_ADJUST = (TONE_ADJUSTMENT_ZX_SPECTRUM + (valVol-TONE_ADJUSTMENT_ZX_SPECTRUM_LIMIT));
-          logln("TONE: " + String(TONE_ADJUST) + " Hz"); 
+          log_debug("HMI","TONE: " + String(TONE_ADJUST) + " Hz"); 
 
           if ((AZIMUT != 0) && !WAV_8BIT_MONO && !REM_DETECTED)
           {
@@ -3137,7 +2976,7 @@ private:
         else if (strCmd.indexOf("WWW") != -1) 
         {
           // Salta al directorio de ZXDB online.
-          logln("Jumping to ZXDB dir.");
+          log_debug("HMI","Jumping to ZXDB dir.");
           // Con este comando nos indica la pantalla que quiere
           // le devolvamos ficheros en la posición actual del puntero
           SOURCE_FILE_TO_MANAGE = "_files.lst";
@@ -3156,7 +2995,7 @@ private:
         else if (strCmd.indexOf("CCPC") != -1)
         {
           // Salta al directorio de CPCDB online (Amstrad CPC).
-          logln("Jumping to CPCDB dir.");
+          log_debug("HMI","Jumping to CPCDB dir.");
           SOURCE_FILE_TO_MANAGE = "_files.lst";
           SOURCE_FILE_INF_TO_MANAGE = "_files.inf";
 
@@ -3173,7 +3012,7 @@ private:
         else if (strCmd.indexOf("CMSX") != -1)
         {
           // Salta al directorio de MSXDB online (MSX).
-          logln("Jumping to MSXDB dir.");
+          log_debug("HMI","Jumping to MSXDB dir.");
           SOURCE_FILE_TO_MANAGE = "_files.lst";
           SOURCE_FILE_INF_TO_MANAGE = "_files.inf";
 
@@ -3190,7 +3029,7 @@ private:
         else if (strCmd.indexOf("RADI") != -1)
         {
           // Salta al directorio de RADIO internet.
-          logln("Jumping to internet radio dir.");
+          log_debug("HMI","Jumping to internet radio dir.");
           IRADIO_EN = true;
           // Con este comando nos indica la pantalla que quiere
           // le devolvamos ficheros en la posición actual del puntero
@@ -3216,7 +3055,7 @@ private:
           strCmd.getBytes(buff, 7);
           int valThr = (int)buff[4];
           SCHMITT_THR = valThr;
-          logln("Threshold value=" + String(SCHMITT_THR));
+          log_debug("HMI","Threshold value=" + String(SCHMITT_THR));
         }
         else if (strCmd.indexOf("AMP=") != -1) 
         {
@@ -3225,7 +3064,7 @@ private:
           strCmd.getBytes(buff, 7);
           int valAmp = (int)buff[4];
           SCHMITT_AMP = valAmp;
-          logln("Amplification value=" + String(SCHMITT_AMP));
+          log_debug("HMI","Amplification value=" + String(SCHMITT_AMP));
         } 
         else if (strCmd.indexOf("IVO=") != -1) 
         {
@@ -3234,7 +3073,7 @@ private:
           strCmd.getBytes(buff, 7);
           int valInVol = (int)buff[4];
           IN_REC_VOL = valInVol/100.0; // Valor en %
-          logln("Input rec gain=" + String(IN_REC_VOL));
+          log_debug("HMI","Input rec gain=" + String(IN_REC_VOL));
           //
           saveHMIcfg("IVOopt");
           // Ajustamos el input gain
@@ -3258,10 +3097,7 @@ private:
               C64_MODE = false;
           }
 
-          // #ifdef DEBUGMODE
-            //logln("");
-            logln("C64 Mode ENABLE =" + String(C64_MODE));
-          // #endif
+          log_debug("HMI","C64 Mode ENABLE =" + String(C64_MODE));
         }
         else if (strCmd.indexOf("RS1=") != -1) 
         {
@@ -3285,10 +3121,7 @@ private:
               REMOVE_SILENCES_CSW = false;
           }
 
-          // #ifdef DEBUGMODE
-            //logln("");
-            logln("Remove CSW silences ENABLE =" + String(REMOVE_SILENCES_CSW));
-          // #endif
+          log_debug("HMI","Remove CSW silences ENABLE =" + String(REMOVE_SILENCES_CSW));
         }        
         else if (strCmd.indexOf("48K=") != -1) 
         {
@@ -3308,10 +3141,7 @@ private:
               SILENCE_COMPENSATION_48K_EN = false;
           }
 
-          // #ifdef DEBUGMODE
-            //logln("");
-            logln("48K Silence Compensation ENABLE =" + String(SILENCE_COMPENSATION_48K_EN));
-          // #endif
+          log_debug("HMI","48K Silence Compensation ENABLE =" + String(SILENCE_COMPENSATION_48K_EN));
         }        
         // Polarización de la señal
         else if (strCmd.indexOf("PLZ=") != -1) 
@@ -3337,8 +3167,8 @@ private:
               //INVERSETRAIN = true;
           }
 
-          logln("");
-          logln("Polarization =" + String(INVERSETRAIN));
+          log_debug("HMI","");
+          log_debug("HMI","Polarization =" + String(INVERSETRAIN));
 
           if (TYPE_FILE_LOAD == "WAV" || TYPE_FILE_LOAD == "TAP" || TYPE_FILE_LOAD == "TZX")
           {
@@ -3366,8 +3196,7 @@ private:
               ZEROLEVEL = false;
           }
           
-          //logln("");
-          //logln("Down level is ZERO =" + String(ZEROLEVEL));
+          log_debug("HMI","Down level is ZERO =" + String(ZEROLEVEL));
 
         }
         // Enable Schmitt Trigger threshold adjust
@@ -3387,8 +3216,7 @@ private:
               EN_SCHMITT_CHANGE = false;
           }
 
-          logln("");
-          logln("Threshold enable=" + String(EN_SCHMITT_CHANGE));
+          log_debug("HMI","Threshold enable=" + String(EN_SCHMITT_CHANGE));
 
         }
         // Enable MIC inversion
@@ -3408,8 +3236,7 @@ private:
             EN_EAR_INVERSION = false;
           }
 
-          logln("");
-          logln("Enable EAR inversion=" + String(EN_EAR_INVERSION));
+          log_debug("HMI","Enable EAR inversion=" + String(EN_EAR_INVERSION));
 
         }        
         // Mutea la salida amplificada
@@ -3441,7 +3268,7 @@ private:
 
           // Habilitamos el amplificador de salida
           kitStream.setPAPower(ACTIVE_AMP);
-          logln("Active amp=" + String(ACTIVE_AMP));
+          log_debug("HMI","Active amp=" + String(ACTIVE_AMP));
           AMP_CHANGE = true;
         }        
         // Habilita los dos canales
@@ -3458,7 +3285,7 @@ private:
           saveHMIcfg("STEopt");
           // Almacenamos en NVS tambien el mute
           saveHMIcfg("MAMopt");
-          //logln("Mute enable=" + String(EN_STEREO));
+          log_debug("HMI","Mute enable=" + String(EN_STEREO));
         }
         // Habilita el Speaker
         else if (strCmd.indexOf("SPK=") != -1) 
@@ -3486,53 +3313,8 @@ private:
           // Almacenamos en NVS
           saveHMIcfg("SPKopt");
           SPK_CHANGE = true;
-          //logln("Speaker enable=" + String(EN_SPEAKER));
+          log_debug("HMI","Speaker enable=" + String(EN_SPEAKER));
         }
-        
-        // Enable MIC left channel - Option
-        // else if (strCmd.indexOf("EMI=") != -1) 
-        // {
-        //   //Cogemos el valor
-        //   uint8_t buff[8];
-        //   strCmd.getBytes(buff, 7);
-        //   int valEn = (int)buff[4];
-        //   //
-        //   if (valEn==1)
-        //   {
-        //       SWAP_MIC_CHANNEL = true;
-        //   }
-        //   else
-        //   {
-        //       SWAP_MIC_CHANNEL = false;
-        //   }
-        //   //logln("MIC LEFT enable=" + String(SWAP_MIC_CHANNEL));
-        // }
-        // Enable MIC left channel - Option
-        // else if (strCmd.indexOf("EAR=") != -1) 
-        // {
-        //   //Cogemos el valor
-        //   uint8_t buff[8];
-        //   strCmd.getBytes(buff, 7);
-        //   int valEn = (int)buff[4];
-        //   //
-        //   if (valEn==1)
-        //   {
-        //       SWAP_EAR_CHANNEL = true;
-
-        //   }
-        //   else
-        //   {
-        //       SWAP_EAR_CHANNEL = false;
-        //   }
-
-        //   // Ahora mutamos el Amplificador en ambos estados del SWAP
-        //   // ya que el usuario decida si lo activa al quitar el swap
-        //   ACTIVE_AMP = false;
-        //   writeString("menuAudio.mutAmp.val=1");
-        //   // Habilitamos/Deshabilitamos el amplificador
-        //   kitStream.setPAPower(ACTIVE_AMP);
-        //   //logln("EAR LEFT enable=" + String(SWAP_EAR_CHANNEL));
-        // }
         // Save polarization in ID 0x2B
         else if (strCmd.indexOf("SAV") != -1) 
         {
@@ -3545,21 +3327,18 @@ private:
 
           File cfg;
 
-          //logln("");
-          //logln("Saving configuration in " + String(strpath));
+          log_debug("HMI","Saving configuration in " + String(strpath));
           cfg = SD_MMC.open(strpath, FILE_WRITE);
 
           if (cfg)
           {
             // Creamos el fichero de configuracion.
  
-            //logln("");
-            //logln("file created - ");
+            log_debug("HMI","File created - ");
 
             // Ahora escribimos la configuracion
             cfg.println("<freq>"+ String(SAMPLING_RATE) +"</freq>");        
             cfg.println("<zerolevel>" + String(ZEROLEVEL) + "</zerolevel>");
-            //cfg.println("<blockend>" + String(APPLY_END) + "</blockend>");   
 
             if (INVERSETRAIN)
             {
@@ -3575,167 +3354,8 @@ private:
           
           cfg.close();
 
-          #ifdef DEBUGMODE
-            log("Config. saved");
-          #endif
+          log_debug("HMI","Config. saved");
         }
-        // // Sampling rate TZX
-        // else if (strCmd.indexOf("SAM=") != -1) 
-        // {
-        //   //Cogemos el valor
-        //   uint8_t buff[8];
-        //   strCmd.getBytes(buff, 7);
-        //   int valEn = (int)buff[4];
-        //   //
-        //   if (valEn==0)
-        //   {
-        //       BASE_SR = 48000;
-        //       BASE_SR_TAP = 48000;
-        //       //writeString("tape.lblFreq.txt=\"48KHz\"" );
-        //   }
-        //   else if(valEn==1)
-        //   {
-        //       BASE_SR = 44100;
-        //       BASE_SR_TAP = 44100;
-        //       //writeString("tape.lblFreq.txt=\"44KHz\"" );
-        //   }
-        //   else if(valEn==2)
-        //   {
-        //       BASE_SR = 32000;
-        //       BASE_SR_TAP = 32000;
-        //       //writeString("tape.lblFreq.txt=\"32KHz\"" );
-        //   }
-        //   else if(valEn==3)
-        //   {
-        //       BASE_SR = STANDARD_SR_8_BIT_MACHINE;
-        //       BASE_SR_TAP = STANDARD_SR_8_BIT_MACHINE_TAP;
-        //       //writeString("tape.lblFreq.txt=\"22KHz\"" );
-        //   }
-        //   //
-        //   writeString("tape.lblFreq.txt=\"" + String(int(BASE_SR/1000)) + "KHz\"" );
-        //   writeString("tape0.lblFreq.txt=\"" + String(int(BASE_SR/1000)) + "KHz\"" );
-         
-        //   // Cambiamos el sampling rate
-        //   // CAmbiamos el sampling rate del hardware de salida
-        //   // auto cfg = akit.defaultConfig();
-        //   // cfg.sample_rate = SAMPLING_RATE;
-        //   // akit.setAudioInfo(cfg);
-
-        //   auto cfg2 = kitStream.audioInfo();
-        //   cfg2.sample_rate = SAMPLING_RATE;
-        //   kitStream.setAudioInfo(cfg2);
-
-        //   #ifdef DEBUGMODE
-        //     log("Sampling rate =" + String(SAMPLING_RATE));
-        //   #endif
-        // }
-        // else if (strCmd.indexOf("CFR=") != -1) 
-        // {
-        //   //Cogemos el valor
-        //   uint8_t buff[8];
-        //   strCmd.getBytes(buff, 7);
-        //   int valEn = (int)buff[4];
-        //   //
-        //   if (valEn==1)
-        //   {
-        //       WAV_SAMPLING_RATE = myNex.readNumber("menuAudio4.va0.val");
-        //       //logln("Custom sampling rate: " + String(WAV_SAMPLING_RATE));
-        //   }
-
-        //   WAV_UPDATE_SR = true;                         
-          
-        //   #ifdef DEBUGMODE
-        //     log("Customo WAV Sampling rate =" + String(WAV_SAMPLING_RATE));
-        //   #endif
-        // }         
-        // else if (strCmd.indexOf("WSR=") != -1) 
-        // {
-        //   //Cogemos el valor
-        //   uint8_t buff[8];
-        //   strCmd.getBytes(buff, 7);
-        //   int valEn = (int)buff[4];
-        //   //
-        //   if (valEn==0)
-        //   {
-        //       WAV_SAMPLING_RATE = 48000;
-        //       // writeString("tape.lblFreq.txt=\"48KHz\"" );
-        //   }
-        //   else if(valEn==1)
-        //   {
-        //       WAV_SAMPLING_RATE = 44100;
-        //       // writeString("tape.lblFreq.txt=\"44KHz\"" );
-        //   }
-        //   else if(valEn==2)
-        //   {
-        //       WAV_SAMPLING_RATE = 32000;
-        //       // writeString("tape.lblFreq.txt=\"32KHz\"" );
-        //   }
-        //   else if(valEn==3)
-        //   {
-        //       WAV_SAMPLING_RATE = 22050;
-        //       // writeString("tape.lblFreq.txt=\"22KHz\"" );
-        //   }
-        //   else if(valEn==4)
-        //   {
-        //       WAV_SAMPLING_RATE = 11025;
-        //       // writeString("tape.lblFreq.txt=\"22KHz\"" );
-        //   }           
-          
-        //   WAV_UPDATE_SR = true;
-          
-        //   #ifdef DEBUGMODE
-        //     log("WAV Sampling rate =" + String(WAV_SAMPLING_RATE));
-        //   #endif
-        // }  
-        // else if (strCmd.indexOf("WMO=") != -1) 
-        // {
-        //   //Cogemos el valor
-        //   uint8_t buff[8];
-        //   strCmd.getBytes(buff, 7);
-        //   int valEn = (int)buff[4];
-        //   //
-        //   if (valEn==1)
-        //   {
-        //       // Habilitar MONO
-        //       WAV_CHAN = 1;
-        //   }
-        //   else
-        //   {
-        //       // Habilitar STEREO
-        //       WAV_CHAN = 2;
-        //   }
-          
-        //   WAV_UPDATE_CH = true;
-
-        //   #ifdef DEBUGMODE
-        //     logln("WAV chanels =" + String(WAV_CHAN));
-        //   #endif
-
-        // }     
-        // else if (strCmd.indexOf("W8B=") != -1) 
-        // {
-        //   //Cogemos el valor
-        //   uint8_t buff[8];
-        //   strCmd.getBytes(buff, 7);
-        //   int valEn = (int)buff[4];
-        //   //
-        //   if (valEn==1)
-        //   {
-        //       // Habilita terminadores
-        //       WAV_BITS_PER_SAMPLE = 8;
-        //   }
-        //   else
-        //   {
-        //       // Deshabilita terminadores
-        //       WAV_BITS_PER_SAMPLE = 16;
-        //   }
-
-        //   WAV_UPDATE_BS = true;
-
-        //   #ifdef DEBUGMODE
-        //     logln("WAV bits =" + String(WAV_BITS_PER_SAMPLE));
-        //   #endif
-        // }                 
         // Habilitar recording sobre WAV file
         else if (strCmd.indexOf("WAV=") != -1) 
         {
@@ -3757,9 +3377,7 @@ private:
               MODEWAV = false;
           }
 
-          #ifdef DEBUGMODE
-            logln("Modo WAV =" + String(MODEWAV));
-          #endif
+          log_debug("HMI","Modo WAV =" + String(MODEWAV));
         }
         // Habilitar play to WAV file file
         else if (strCmd.indexOf("PTW=") != -1) 
@@ -3782,9 +3400,7 @@ private:
               PLAY_TO_WAV_FILE = false;
           }
 
-          #ifdef DEBUGMODE
-            logln("Modo Out to WAV =" + String(OUT_TO_WAV));
-          #endif
+          log_debug("HMI","Modo Out to WAV =" + String(OUT_TO_WAV));
         }
         else if (strCmd.indexOf("C44=") != -1) 
         {
@@ -3808,9 +3424,7 @@ private:
               CHOOSE_WAV_REC_44 = false;
           }
 
-          #ifdef DEBUGMODE
-            logln("Modo Out to WAV at 44.1KHz=" + String(OUT_TO_WAV));
-          #endif
+          log_debug("HMI","Modo Out to WAV at 44.1KHz=" + String(OUT_TO_WAV));
         }        
         // Habilitar play to WAV file file a 8-bits
         else if (strCmd.indexOf("WA8=") != -1) 
@@ -3831,9 +3445,7 @@ private:
               WAV_8BIT_MONO = false;
           }
 
-          #ifdef DEBUGMODE
-            logln("Modo WAV mono 8-bits =" + String(WAV_8BIT_MONO));
-          #endif
+          log_debug("HMI","Modo WAV mono 8-bits =" + String(WAV_8BIT_MONO));
         }
         // Habilitar Codec ADPCM
         else if (strCmd.indexOf("ADP=") != -1) 
@@ -3854,33 +3466,31 @@ private:
               USE_ADPCM_CODEC = false;
           }
 
-          #ifdef DEBUGMODE
-            logln("Modo ADPCM Codec =" + String(USE_ADPCM_CODEC));
-          #endif
+          log_debug("HMI","Modo ADPCM Codec =" + String(USE_ADPCM_CODEC));
         }       
         else if (strCmd.indexOf("BAU1") != -1) 
         {
           //Cogemos el valor
           TAPE_BAUDRATE = 1;
-          logln("Baud rate = 1200");
+          log_debug("HMI","Baud rate = 1200");
         }         
         else if (strCmd.indexOf("BAU2") != -1) 
         {
           //Cogemos el valor
           TAPE_BAUDRATE = 2;
-          logln("Baud rate = 2400");
+          log_debug("HMI","Baud rate = 2400");
         }         
         else if (strCmd.indexOf("BAU3") != -1) 
         {
           //Cogemos el valor
           TAPE_BAUDRATE = 3;
-          logln("Baud rate = 3600");
+          log_debug("HMI","Baud rate = 3600");
         }         
         else if (strCmd.indexOf("BAU4") != -1) 
         {
           //Cogemos el valor
           TAPE_BAUDRATE = 3.21;
-          logln("Baud rate = 3850");
+          log_debug("HMI","Baud rate = 3850");
         }         
         // Deshabilitar Auto Stop en WAV and MP3 player.
         else if (strCmd.indexOf("DPS=") != -1) 
@@ -3892,7 +3502,7 @@ private:
           //
           disable_auto_media_stop = !disable_auto_media_stop;
           
-          logln("DPS: " + String(disable_auto_media_stop));
+          log_debug("HMI","DPS: " + String(disable_auto_media_stop));
 
           if (!disable_auto_media_stop)
           {
@@ -3913,9 +3523,7 @@ private:
             writeString("doevents");
           }          
 
-          #ifdef DEBUGMODE
-            logln("Modo Auto STOP player =" + String(OUT_TO_WAV));
-          #endif
+          log_debug("HMI","Modo Auto STOP player =" + String(OUT_TO_WAV));
         }        
         // Habilitar Audio output cuando está grabando.
         else if (strCmd.indexOf("LOO=") != -1) 
@@ -3979,110 +3587,8 @@ private:
           {
               SHOW_DATA_DEBUG = false;
           }
-          //logln("SHOW_DATA_DEBUG enable=" + String(SHOW_DATA_DEBUG));
+          log_debug("HMI","SHOW_DATA_DEBUG enable=" + String(SHOW_DATA_DEBUG));
         }     
-        // Parametrizado del timming maquinas. ROM estandar (no se usa)
-        // else if (strCmd.indexOf("MP1=") != -1) 
-        // {
-        //   //minSync1
-        //   uint8_t buff[8];
-        //   strCmd.getBytes(buff, 7);
-        //   int val = (int)buff[4];
-        //   //
-        //   MIN_SYNC=val;
-        //   //logln("MP1=" + String(MIN_SYNC));
-        // }
-        // else if (strCmd.indexOf("MP2=") != -1) 
-        // {
-        //   //maxSync1
-        //   uint8_t buff[8];
-        //   strCmd.getBytes(buff, 7);
-        //   int val = (int)buff[4];
-        //   //
-        //   MAX_SYNC=val;
-        //   //logln("MP2=" + String(MAX_SYNC));
-        // }
-        // else if (strCmd.indexOf("MP3=") != -1) 
-        // {
-        //   //minBit0
-        //   uint8_t buff[8];
-        //   strCmd.getBytes(buff, 7);
-        //   int val = (int)buff[4];
-        //   //
-        //   MIN_BIT0=val;
-        //   //logln("MP3=" + String(MIN_BIT0));
-        // }
-        // else if (strCmd.indexOf("MP4=") != -1) 
-        // {
-        //   //maxBit0
-        //   uint8_t buff[8];
-        //   strCmd.getBytes(buff, 7);
-        //   int val = (int)buff[4];
-        //   //
-        //   MAX_BIT0=val;
-        //   //logln("MP4=" + String(MAX_BIT0));
-        // }
-        // else if (strCmd.indexOf("MP5=") != -1) 
-        // {
-        //   //minBit1
-        //   uint8_t buff[8];
-        //   strCmd.getBytes(buff, 7);
-        //   int val = (int)buff[4];
-        //   //
-        //   MIN_BIT1=val;
-        //   //logln("MP5=" + String(MIN_BIT1));
-        // }
-        // else if (strCmd.indexOf("MP6=") != -1) 
-        // {
-        //   //maxBit1
-        //   uint8_t buff[8];
-        //   strCmd.getBytes(buff, 7);
-        //   int val = (int)buff[4];
-        //   //
-        //   MAX_BIT1=val;
-        //   //logln("MP6=" + String(MAX_BIT1));
-        // }
-        // else if (strCmd.indexOf("MP7=") != -1) 
-        // {
-        //   //max pulses lead
-        //   uint8_t buff[8];
-        //   strCmd.getBytes(buff, 7);
-
-        //   // logln("0: " + String((char)buff[0]));
-        //   // logln("1: " + String((char)buff[1]));
-        //   // logln("2: " + String((char)buff[2]));
-        //   // logln("3: " + String((char)buff[3]));
-        //   // logln("4: " + String(buff[4]));
-        //   // logln("5: " + String(buff[5]));
-        //   // logln("6: " + String(buff[6]));
-        //   // logln("7: " + String(buff[7]));
-
-        //   long val = (long)((int)buff[4] + (256*(int)buff[5]) + (65536*(int)buff[6]));
-        //   //
-        //   MAX_PULSES_LEAD=val;
-        //   //logln("MP7=" + String(MAX_PULSES_LEAD));
-        // }
-        // else if (strCmd.indexOf("MP8=") != -1) 
-        // {
-        //   //minLead
-        //   uint8_t buff[8];
-        //   strCmd.getBytes(buff, 7);
-        //   int val = (int)buff[4];
-        //   //
-        //   MIN_LEAD=val;
-        //   //logln("MP8=" + String(MIN_LEAD));
-        // }
-        // else if (strCmd.indexOf("MP9=") != -1) 
-        // {
-        //   //maxLead
-        //   uint8_t buff[8];
-        //   strCmd.getBytes(buff, 7);
-        //   int val = buff[4];
-        //   //
-        // MAX_LEAD=val;
-        //   //logln("MP9=" + String(MAX_LEAD));
-        // }
-        // Control de volumen por botones - MASTER
         else if (strCmd.indexOf("VOLUP") != -1) 
         {
           MAIN_VOL += 1;
@@ -4127,11 +3633,7 @@ private:
 
           //kitStream.setVolume(MAIN_VOL / 100);
           setVolumenOutput();
-
-
-          // logln("");
-          // logln("VOL DOWN");
-          // logln("");
+          log_debug("HMI","VOL DOWN");
         }
         else if (strCmd.indexOf("TONE") != -1) 
         {
@@ -4156,11 +3658,9 @@ private:
           }
 
           #ifdef DEBUGMODE
-            logln("");
-            log("Search mode.");
-            logln("");
-            log("Text to search: ");
-            log(phrase);
+            log_debug("HMI","Search mode.");
+            log_debug("HMI","Text to search: ");
+            log_debug("HMI",phrase);
           #endif
 
           // Ahora localizamos los ficheros
@@ -4178,7 +3678,7 @@ private:
           strCmd.getBytes(buff, 7);
           char str = (char)buff[5];
           //
-          logln("Update ZXDB with letter: " + String(str));
+          log_debug("HMI","Update ZXDB with letter: " + String(str));
           updateZXDB(String(str));
         }
         else if (strCmd.indexOf("CPCD=") != -1)
@@ -4187,7 +3687,7 @@ private:
           uint8_t buff[8];
           strCmd.getBytes(buff, 7);
           char str = (char)buff[5];
-          logln("Update CPCDB with letter: " + String(str));
+          log_debug("HMI","Update CPCDB with letter: " + String(str));
           updateCPCDB(String(str));
         }
         else if (strCmd.indexOf("MSXD=") != -1)
@@ -4196,23 +3696,19 @@ private:
           uint8_t buff[8];
           strCmd.getBytes(buff, 7);
           char str = (char)buff[5];
-          logln("Update MSXDB with letter: " + String(str));
+          log_debug("HMI","Update MSXDB with letter: " + String(str));
           updateMSXDB(String(str));
         }
         else if (strCmd.indexOf("PDEBUG") != -1)
         {
             // Estamos en la pantalla DEBUG
-            #ifdef DEBUGMODE
-              logAlert("PAGE DEBUG");
-            #endif
+            log_debug("HMI","PAGE DEBUG");
             CURRENT_PAGE = PAGE_DEBUG;
         }
         else if (strCmd.indexOf("KEYDB") != -1)
         {
             // Estamos en la pantalla DEBUG
-            #ifdef DEBUGMODE
-              logAlert("PAGE KEYPAD Debug");
-            #endif
+            log_debug("HMI","PAGE KEYPAD Debug");
             CURRENT_PAGE = PAGE_KEYDEBUG;
         }        
         else if (strCmd.indexOf("PMENU1") != -1)
@@ -4236,9 +3732,7 @@ private:
         else if (strCmd.indexOf("PMENU2") != -1)
         {
             // Estamos en la pantalla MENU
-            #ifdef DEBUGMODE
-              logAlert("PAGE MENU(Eq)");
-            #endif
+            log_debug("HMI","PAGE MENU(Eq)");
             CURRENT_PAGE = PAGE_EQ;
             delay(500);          
             myNex.writeNum("menuEq.eqHigh.val", int(EQ_HIGH*100));
@@ -4250,9 +3744,7 @@ private:
         }
         else if (strCmd.indexOf("PMENU3") != -1)
         {
-            #ifdef DEBUGMODE
-              logAlert("PAGE MENU(Next)");
-            #endif
+            log_debug("HMI","PAGE MENU(Next)");
             CURRENT_PAGE = 3;
             //delay(150);          
             switch((int)ceil(TAPE_BAUDRATE))
@@ -4303,9 +3795,7 @@ private:
         }         
         else if (strCmd.indexOf("PMENU5") != -1)
         {
-            #ifdef DEBUGMODE
-              logAlert("PAGE MENU(Next)");
-            #endif
+            log_debug("HMI","PAGE MENU(Next)");
             CURRENT_PAGE = 5;
             //delay(150);          
             myNex.writeNum("menu2.pwled.val", int(!POWER_LED_MODE));
@@ -4326,9 +3816,7 @@ private:
         else if (strCmd.indexOf("PTAPE") != -1)
         {
             // Estamos en la pantalla TAPE
-            #ifdef DEBUGMODE
-              logAlert("PAGE TAPE");
-            #endif
+            log_debug("HMI","PAGE TAPE");
             CURRENT_PAGE = 1;
             updateInformationMainPage(true);
             TAPE_PAGE_SHOWN = true;
@@ -4337,17 +3825,13 @@ private:
         else if (strCmd.indexOf("PSPOT") != -1)
         {
             // Estamos en la pantalla TAPE
-            #ifdef DEBUGMODE
-              logAlert("PAGE SPOTIFY");
-            #endif
+            log_debug("HMI","PAGE SPOTIFY");
             CURRENT_PAGE = PAGE_SPOTIFY;
         }
         else if (strCmd.indexOf("0TAPE") != -1)
         {
             // Estamos en la pantalla TAPE
-            #ifdef DEBUGMODE
-              logAlert("PAGE TAPE0");
-            #endif
+            log_debug("HMI","PAGE TAPE0");
             CURRENT_PAGE = PAGE_TAPE0;
             //updateInformationMainPage(true);
             TAPE_PAGE_SHOWN = false;
@@ -4357,9 +3841,7 @@ private:
         else if (strCmd.indexOf("PCLOCK") != -1)
         {
             // Estamos en la pantalla TAPE
-            #ifdef DEBUGMODE
-              logAlert("PAGE CLOCK");
-            #endif
+            log_debug("HMI","PAGE CLOCK");
             CURRENT_PAGE = PAGE_CLOCK;
             //updateInformationMainPage(true);
             TAPE_PAGE_SHOWN = false;
@@ -4376,7 +3858,7 @@ private:
           #ifdef AUTO_UPDATE    
             if (WIFI_CONNECTED) 
             {
-              logln("Manual firmware update requested");
+              log_info("HMI","Manual firmware update requested");
               myNex.writeStr("update.status.txt","Please wait...");
               manualFirmwareUpdate();        
             } else {
@@ -4431,8 +3913,7 @@ private:
 
           saveHMIcfg("SKINopt");
 
-          logln("");
-          logln("Skin selection=" + String(valEn));
+          log_info("HMI","Skin selection=" + String(valEn));
 
         }            
         else if (strCmd.indexOf("UPDATE") != -1)
@@ -4716,7 +4197,7 @@ private:
                         else if (TYPE_FILE_LOAD == "TZX")
                         {
 
-                          //logln("REC mode" + String(REC));
+                          log_debug("HMI","REC mode" + String(REC));
                           blName = myTZX.descriptor[BLOCK_SELECTED].name;
                           blType = myTZX.descriptor[BLOCK_SELECTED].type;
                         }
@@ -4909,13 +4390,11 @@ private:
       
       int getEndCharPosition(String str,int start)
       {
-        //logln(">> " + str);
         int pos=-1;
         int stateCr=0;
         for (int i = start; i < str.length(); i++) 
         {
           char cr = str[i];
-          //logln(String(cr) + " - " + String(int(cr)));
 
           // Buscamos 0xFF 0xFF 0xFF
           switch(stateCr)
@@ -4963,7 +4442,6 @@ private:
 
         }
 
-        //logln("Pos: " + String(pos));
         return pos;
       }
 
@@ -4977,20 +4455,14 @@ private:
           // Buscamos el separador de comandos que es 
           // 0x32 0x32 0x32
           
-          #ifdef DEBUGMODE
-            logln("");
-            logln("Several commands routine");
-          #endif
+          log_debug("HMI","Several commands routine");
 
           int cPos = getEndCharPosition(strCmd,cStart);          
 
           if (cPos==-1)
           {
             // Solo hay un comando
-            #ifdef DEBUGMODE
-              logln("");
-              logln("Only one command");
-            #endif
+            log_debug("HMI","Only one command");
 
             verifyCommand(strCmd);
           }
@@ -4999,20 +4471,14 @@ private:
             // Hay varios
             while(cPos < strCmd.length() && cPos!=-1)
             {
-              #ifdef DEBUGMODE
-                logln("");
-                logln("Start,pos,last: " + String(cStart) + "," + String(cPos) + "," + String(lastcStart));
-              #endif
+              log_debug("HMI","Start,pos,last: " + String(cStart) + "," + String(cPos) + "," + String(lastcStart));
 
               str=strCmd.substring(cStart,cPos-2);
 
-              #ifdef DEBUGMODE
-                logln("");
-                logln("Command: " + str);
-              #endif
+              log_debug("HMI","Command: " + str);
 
               // Verificamos el comando
-              //logln("Verify comando: " + str);
+              log_debug("HMI","Verify comando: " + str);
               verifyCommand(str);
               // Adelantamos el puntero
               cStart = cPos+1;
@@ -5087,19 +4553,13 @@ private:
 
       void getMemFree()
       {
-          #ifdef DEBUGMODE
-            logln("");
-            logln("");
-            logln("> MEM REPORT");
-            logln("------------------------------------------------------------");
-            logln("");
-            logln("Total heap: " + String(ESP.getHeapSize() / 1024) + "KB");
-            logln("Free heap: " + String(ESP.getFreeHeap() / 1024) + "KB");
-            logln("Total PSRAM: " + String(ESP.getPsramSize() / 1024) + "KB");
-            logln("Free PSRAM: " + String (ESP.getFreePsram() / 1024) + "KB");  
-            logln("");
-            logln("------------------------------------------------------------");
-          #endif
+          log_debug("HMI","> MEM REPORT");
+          log_debug("HMI","------------------------------------------------------------");
+          log_debug("HMI","Total heap: " + String(ESP.getHeapSize() / 1024) + "KB");
+          log_debug("HMI","Free heap: " + String(ESP.getFreeHeap() / 1024) + "KB");
+          log_debug("HMI","Total PSRAM: " + String(ESP.getPsramSize() / 1024) + "KB");
+          log_debug("HMI","Free PSRAM: " + String (ESP.getFreePsram() / 1024) + "KB");  
+          log_debug("HMI","------------------------------------------------------------");
           //
           updateMem();
       }           
@@ -5451,7 +4911,7 @@ private:
       File lst = SD_MMC.open(lstPath.c_str(), FILE_READ);
       if (!lst)
       {
-        logln("getIdOfFileInLst: no se pudo abrir " + lstPath);
+        log_debug("HMI","getIdOfFileInLst: no se pudo abrir " + lstPath);
         return "";
       }
 
@@ -5478,13 +4938,13 @@ private:
           String id = line.substring(f4+1);
           id.trim();
           lst.close();
-          logln("getIdOfFileInLst: encontrado ID=" + id + " para " + fileName);
+          log_debug("HMI","getIdOfFileInLst: encontrado ID=" + id + " para " + fileName);
           return id;
         }
       }
 
       lst.close();
-      logln("getIdOfFileInLst: no encontrado " + fileName + " en " + lstPath);
+      log_debug("HMI","getIdOfFileInLst: no encontrado " + fileName + " en " + lstPath);
       return "";
     }
 
@@ -5514,12 +4974,12 @@ private:
         int httpCode = http.GET();
         
         if (httpCode != HTTP_CODE_OK) {
-            logln("HTTP error downloading: " + String(httpCode));
+            log_error("HMI","HTTP error downloading: " + String(httpCode));
             
             // ✅ MANEJO ESPECÍFICO DE REDIRECCIONES
             if (httpCode == HTTP_CODE_FOUND || httpCode == HTTP_CODE_MOVED_PERMANENTLY) {
                 String redirectURL = http.getLocation();
-                logln("Redirect to: " + redirectURL);
+                log_debug("HMI","Redirect to: " + redirectURL);
                 
                 http.end();
                 if (client) delete client;
@@ -5536,7 +4996,7 @@ private:
         
         // ✅ OBTENER TAMAÑO DEL ARCHIVO
         int contentLength = http.getSize();
-        logln("File size: " + String(contentLength) + " bytes");
+        log_debug("HMI","File size: " + String(contentLength) + " bytes");
         
         if (contentLength > 0) {
             LAST_MESSAGE = "Downloading " + String(contentLength / 1024) + " KB...";
@@ -5546,7 +5006,7 @@ private:
         // ✅ CREAR ARCHIVO
         File file = SD_MMC.open(localPath.c_str(), FILE_WRITE);
         if (!file) {
-            logln("Cannot create file: " + localPath);
+            log_error("HMI","Cannot create file: " + localPath);
             http.end();
             if (client) delete client;
             if (secureClient) delete secureClient;
@@ -5558,7 +5018,7 @@ private:
         uint8_t* buffer = (uint8_t*)malloc(bufferSize);
         
         if (!buffer) {
-            logln("Cannot allocate buffer");
+            log_error("HMI","Cannot allocate buffer");
             file.close();
             http.end();
             if (client) delete client;
@@ -5592,7 +5052,7 @@ private:
             // ✅ ESCRIBIR AL ARCHIVO EN CHUNKS
             size_t bytesWritten = file.write(buffer, bytesRead);
             if (bytesWritten != bytesRead) {
-                logln("Write error - Expected: " + String(bytesRead) + ", Written: " + String(bytesWritten));
+                log_error("HMI","Write error - Expected: " + String(bytesRead) + ", Written: " + String(bytesWritten));
                 break;
             }
             
@@ -5612,7 +5072,7 @@ private:
                 // ✅ FLUSH PERIÓDICO PARA ARCHIVOS GRANDES
                 file.flush();
                 
-                logln("Progress: " + String(totalBytes) + " / " + String(contentLength) + " bytes");
+                log_debug("HMI","Progress: " + String(totalBytes) + " / " + String(contentLength) + " bytes");
                 // Informacion de la descarga
                 myNex.writeStr("update.status.txt", "Downloading " + String(totalBytes / 1024) + " / " + String(contentLength / 1024) + " KB");
                 // Barra de progreso
@@ -5642,18 +5102,18 @@ private:
         }
         
         if (success) {
-            logln("Download completed successfully!");
-            logln("Total bytes downloaded: " + String(totalBytes));
+            log_debug("HMI","Download completed successfully!");
+            log_debug("HMI","Total bytes downloaded: " + String(totalBytes));
             return true;
         } else {
-            logln("Download failed or incomplete");
-            logln("Expected: " + String(contentLength) + " bytes");
-            logln("Downloaded: " + String(totalBytes) + " bytes");
+            log_error("HMI","Download failed or incomplete");
+            log_error("HMI","Expected: " + String(contentLength) + " bytes");
+            log_error("HMI","Downloaded: " + String(totalBytes) + " bytes");
             
             // ✅ ELIMINAR ARCHIVO INCOMPLETO
             if (SD_MMC.exists(localPath.c_str())) {
                 SD_MMC.remove(localPath.c_str());
-                logln("Incomplete file deleted");
+                log_debug("HMI","Incomplete file deleted");
             }
             
             return false;
@@ -5664,7 +5124,7 @@ private:
     bool downloadFirmwareFiles(const String& tagVersion) 
     {
         if (tagVersion.length() == 0) {
-            logln("Error: No tag version provided");
+            log_error("HMI","Error: No tag version provided");
             myNex.writeStr("update.status.txt", "No version specified");
             return false;
         }
@@ -5677,15 +5137,15 @@ private:
         String firmwarePath = "/firmware.bin";
         String interfacePath = "/"+ HMI_MODEL +".tft";
         
-        logln("Downloading firmware files for version: " + tagVersion);
+        log_debug("HMI","Downloading firmware files for version: " + tagVersion);
         myNex.writeStr("update.status.txt", "Downloading " + tagVersion + "...");
         
         // ✅ DESCARGAR FIRMWARE.BIN (EL MÁS GRANDE)
-        logln("Downloading: " + firmwareUrl);
+        log_debug("HMI","Downloading: " + firmwareUrl);
         myNex.writeStr("update.status.txt", "Downloading firmware.bin (>1MB)...");
         
         if (!downloadFileSimple(firmwareUrl, firmwarePath)) {
-            logln("Failed to download firmware.bin");
+            log_error("HMI","Failed to download firmware.bin");
             myNex.writeStr("update.status.txt","Failed: firmware.bin");
             return false;
         }
@@ -5694,11 +5154,11 @@ private:
         delay(2000);
         
         // ✅ DESCARGAR POWADCR_IFACE.TFT
-        logln("Downloading: " + interfaceUrl);
+        log_debug("HMI","Downloading: " + interfaceUrl);
         myNex.writeStr("update.status.txt", "Downloading interface...");
         
         if (!downloadFileSimple(interfaceUrl, interfacePath)) {
-            logln("Failed to download " + HMI_MODEL + ".tft");
+            log_error("HMI","Failed to download " + HMI_MODEL + ".tft");
             myNex.writeStr("update.status.txt","Failed: " + HMI_MODEL + ".tft");
             return false;
         }
@@ -5711,20 +5171,20 @@ private:
             size_t firmwareSize = firmwareFile.size();
             size_t interfaceSize = interfaceFile.size();
             
-            logln("Firmware size: " + String(firmwareSize) + " bytes");
-            logln("Interface size: " + String(interfaceSize) + " bytes");
+            log_debug("HMI","Firmware size: " + String(firmwareSize) + " bytes");
+            log_debug("HMI","Interface size: " + String(interfaceSize) + " bytes");
             
             // Verificación básica de tamaños mínimos
             if (firmwareSize > 1000000 && interfaceSize > 2000000) { // Firmware >1MB, Interface >2MB
                 
                 myNex.writeStr("update.status.txt", "Files downloaded");
-                logln("Both files downloaded successfully!");
+                log_debug("HMI","Both files downloaded successfully!");
                 
                 firmwareFile.close();
                 interfaceFile.close();
                 return true;
             } else {
-                logln("Downloaded files seem too small - possible corruption");
+                log_error("HMI","Downloaded files seem too small - possible corruption");
                 myNex.writeStr("update.status.txt","Downloaded files corrupted");
                 // Eliminar archivos corruptos
                 SD_MMC.remove(firmwarePath.c_str());
@@ -5775,7 +5235,7 @@ private:
     }
 
     void manualFirmwareUpdate() {
-      logln("=== MANUAL FIRMWARE UPDATE ===");
+      log_info("HMI","=== MANUAL FIRMWARE UPDATE ===");
       // ✅ PASO 1: OBTENER ÚLTIMO TAG
       String latestTag = getLatestReleaseTag();
       if (latestTag.length() == 0) {
@@ -5789,23 +5249,23 @@ private:
       myNex.writeStr("update.cVersion.txt",currentVersion.c_str());
       myNex.writeStr("update.nVersion.txt",latestTag.c_str());
 
-      logln("Current version: " + currentVersion);
-      logln("Latest version: " + latestTag);
+      log_info("HMI","Current version: " + currentVersion);
+      log_info("HMI","Latest version: " + latestTag);
 
       if (!isVersionNewer(latestTag, currentVersion)) {
         myNex.writeStr("update.status.txt","No update needed");
-        logln("No update needed");
+        log_info("HMI","No update needed");
         return;
       }
       // ✅ PASO 2: DESCARGAR ARCHIVOS
       myNex.writeStr("update.status.txt","New update available");
       if (downloadFirmwareFiles(latestTag)) {
         myNex.writeStr("update.status.txt","All firmwares downloaded. PRESS 'Update' now.");
-        logln("Firmware update downloaded successfully!");
-        logln("Files ready: /firmware.bin and /powadcr_iface.tft");
+        log_info("HMI","Firmware update downloaded successfully!");
+        log_info("HMI","Files ready: /firmware.bin and /powadcr_iface.tft");
       } else {
         myNex.writeStr("update.status.txt","Update failed.");
-        logln("Firmware update failed!");
+        log_error("HMI","Firmware update failed!");
       }
     }
 
@@ -5815,7 +5275,7 @@ private:
     {
       char strpathtft[128] = {};
       String hmifile = "/" + myNex.readStr("update.firmVersion.txt") + ".tft";
-      logln("Search for HMI file: " + hmifile);
+      log_info("HMI","Search for HMI file: " + hmifile);
       
       strcpy(strpathtft, hmifile.c_str());
 
@@ -5831,6 +5291,7 @@ private:
         if (!uploadFirmDisplay(strpathtft)) 
         {
           myNex.writeStr("update.status.txt","HMI update failed");
+          log_error("HMI","HMI update failed");
           return;  // Salir sin continuar
         }        
 
@@ -5858,25 +5319,11 @@ private:
 
     static void onOTAProgress(size_t currSize, size_t totalSize)
     {
-      // log_v("CALLBACK:  Update process at %d of %d bytes...", currSize, totalSize);
+      log_debug("HMI","Uploading status: " + String(currSize / 1024) + "/" + String(totalSize / 1024) + " KB");
 
-    #ifdef DEBUGMODE
-      logln("Uploading status: " + String(currSize / 1024) + "/" + String(totalSize / 1024) + " KB");
-    #endif
-
-      // if (!pageScreenIsShown)
-      // {
-      //   hmi.writeString("page screen");
-      //   hmi.writeString("screen.updateBar.bco=23275");
-      //   pageScreenIsShown = true;
-      // }
-
-      int prg = 0;
+       int prg = 0;
       prg = (currSize * 100) / totalSize;
-
-      //hmi.writeString("statusLCD.txt=\"FIRMWARE UPDATING " + String(prg) + " %\"");
       myNex.writeStr("update.status.txt","Flashing Audiokit ... " + String(prg) + " %");
-      //hmi.writeString("screen.updateBar.val=" + String(prg));
     }
 
     void onOTAEnd(bool success)
@@ -6024,7 +5471,7 @@ private:
       File file;
       String ans = "";
       
-      logln("Uploading file " + String(filetft));
+      log_debug("HMI","Uploading file " + String(filetft));
       try
       {
         file = SD_MMC.open(filetft,FILE_READ);
@@ -6040,12 +5487,12 @@ private:
         return false;
       }
       
-      logln("File opened");
+      log_debug("HMI","File opened");
 
       if (file)
       {
           uint32_t filesize = file.available();
-          logln("Starting uploading");
+          log_debug("HMI","Starting uploading");
 
           //Enviamos comando de conexión
           // Forzamos un reinicio de la pantalla
@@ -6180,7 +5627,7 @@ private:
 
               if (millis() >= timeout)
               {
-                logln("Timeout waiting for screen response after first block");
+                log_debug("HMI","Timeout waiting for screen response after first block");
                 file.close();
                 return false;
               }
@@ -6202,7 +5649,7 @@ private:
 
               if (millis() >= timeout)
               {
-                logln("Timeout waiting for screen ACK after block " + String(bl));
+                log_debug("HMI","Timeout waiting for screen ACK after block " + String(bl));
                 file.close();
                 return false;
               }
