@@ -86,18 +86,21 @@
 #  define USE_PDM
 #endif
 
-#define USE_ANALOG
+// === OPTIMIZATIONS FOR POWADCR ===
+// Disable unused features to save FLASH/RAM
+
+// #define USE_ANALOG        // ❌ Disabled (2-4 KB saved)
 #define USE_I2S
-#define USE_PDM_RX
+// #define USE_PDM_RX        // ❌ Disabled - ESP32-A1S has no mic (3-5 KB saved)
 
 #ifdef ARDUINO
-#  define USE_PWM
+// #  define USE_PWM         // ❌ Disabled - not used (2-3 KB saved)
 #  define USE_WIFI
 #  define USE_WIFI_CLIENT_SECURE
 #  define USE_URL_ARDUINO
-#  define USE_AUDIO_SERVER
+// #  define USE_AUDIO_SERVER  // ❌ Disabled (2-3 KB saved)
 #  define USE_TIMER
-#  define USE_TOUCH_READ
+// #  define USE_TOUCH_READ  // ❌ Disabled - not used (1-2 KB saved)
 #endif
 
 #define USE_TYPETRAITS

@@ -22,7 +22,17 @@ class ADPCMDecoder : public AudioDecoderExt {
 
   /// Destructor
   ~ADPCMDecoder() {
-    if (p_decoder) delete p_decoder;
+    if (p_decoder != nullptr) {
+      try {
+        p_decoder->end();
+      } catch (...) {
+        // Ignore errors during cleanup
+      }
+      // NOTE: DO NOT delete p_decoder here - causes double-free crash
+      // The library ADPCM manages its own lifecycle internally
+      // Only setImplementation() deletes the old decoder when changing codec
+      p_decoder = nullptr;
+    }
   }
 
   // (re) defines the codec id: set the block size first
@@ -178,7 +188,15 @@ class ADPCMEncoder : public AudioEncoderExt {
 
   /// Destructor
   ~ADPCMEncoder() {
-    if (p_encoder != nullptr) delete p_encoder;
+    if (p_encoder != nullptr) {
+      try {
+        p_encoder->end();
+      } catch (...) {
+        // Ignore errors during cleanup
+      }
+      delete p_encoder;
+      p_encoder = nullptr;  // Prevent double-free
+    }
   }
 
   /// (re) defines the codec id

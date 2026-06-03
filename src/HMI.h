@@ -393,105 +393,6 @@ private:
           linesWithKeys.shrink_to_fit();
       }
 
-      // void sortFile_old(File &file, bool firstDir = true) 
-      // {
-      //     if (!file) return;
-          
-      //     file.seek(0);
-      //     std::vector<std::tuple<String, String, String, String>> linesWithKeys;
-      //     linesWithKeys.reserve(FILE_TOTAL_FILES);
-      //     String lineStr;
-
-      //     // 1. Leemos las líneas y las almacenamos
-      //     while (file.available()) {
-      //         lineStr = file.readStringUntil('\n');
-      //         if (lineStr.length() == 0) continue;
-      //         lineStr.trim();
-
-      //         int idx1 = lineStr.indexOf('|');
-      //         if (idx1 == -1) continue;
-
-      //         int idx2 = lineStr.indexOf('|', idx1 + 1);
-      //         if (idx2 == -1) continue;
-
-      //         int idx3 = lineStr.indexOf('|', idx2 + 1);
-      //         if (idx3 == -1) continue;
-
-      //         int idx4 = lineStr.indexOf('|', idx3 + 1);
-      //         if (idx4 == -1) continue;
-
-      //         String tipo = lineStr.substring(idx1 + 1, idx2);
-      //         String nombre = lineStr.substring(idx3 + 1, idx4);
-      //         String indice = lineStr.substring(0, idx1);
-
-      //         tipo.trim();
-      //         nombre.trim();
-
-      //         linesWithKeys.push_back(std::make_tuple(tipo, nombre, indice, lineStr));
-      //     }
-
-      //     // 2. Ordenamos usando un comparador compatible con C++11
-      //     std::sort(linesWithKeys.begin(), linesWithKeys.end(),
-      //         [firstDir](const std::tuple<String,String,String,String> &a, 
-      //                   const std::tuple<String,String,String,String> &b) {
-      //             const String &tipoA = std::get<0>(a);
-      //             const String &nombreA = std::get<1>(a);
-      //             const String &tipoB = std::get<0>(b);
-      //             const String &nombreB = std::get<1>(b);
-
-      //             bool aIsDir = (tipoA == "D");
-      //             bool bIsDir = (tipoB == "D");
-
-      //             if (aIsDir != bIsDir) {
-      //                 return firstDir ? aIsDir : !aIsDir;
-      //             }
-
-      //             bool aIsUnderscore = nombreA.startsWith("_");
-      //             bool bIsUnderscore = nombreB.startsWith("_");
-      //             if (aIsUnderscore != bIsUnderscore) {
-      //                 return !aIsUnderscore;
-      //             }
-
-      //             return nombreA.compareTo(nombreB) < 0;
-      //         }
-      //     );
-
-      //     // 3. Escribimos el archivo ordenado
-      //     if (file) {
-      //         String filepath = file.path();
-      //         file.close();
-      //         file = SD_MMC.open(filepath.c_str(), FILE_WRITE);
-      //         file.seek(0);
-              
-      //         // En lugar de truncate, usamos write y close
-      //         file.close();
-      //         file = SD_MMC.open(filepath.c_str(), FILE_WRITE);
-
-      //         for (const auto& tup : linesWithKeys) {
-      //             file.println(std::get<3>(tup));
-      //         }
-      //         file.flush();
-      //     }
-
-      //     // 4. Liberamos memoria
-      //     linesWithKeys.clear();
-      //     linesWithKeys.shrink_to_fit();
-      // }
-
-      // inline bool hasInvalidASCII(const String& str) {
-      //     const char* data = str.c_str();
-          
-      //     // Solo los caracteres de control (0-31) y el DEL (127) son inválidos
-      //     // para nombres de archivo en tu sistema
-      //     static const char invalid_chars[] = 
-      //         "\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0A\x0B\x0C\x0D\x0E\x0F"
-      //         "\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1A\x1B\x1C\x1D\x1E\x1F"
-      //         "\x7F"; // Solo el carácter DEL (127)
-          
-      //     // strpbrk busca el PRIMER carácter que SÍ está en invalid_chars
-      //     return strpbrk(data, invalid_chars) != NULL;
-      // }
-
       void fillWithFilesFromFile(File &fout, File &fstatus, const String &search_pattern, const String &path) 
       {
           // Ruta del archivo _files.lst
@@ -1902,6 +1803,12 @@ private:
             // Vemos que pagina tenemos abierta
             if (FILE_BROWSER_OPEN)
             {
+                // *******************************************************
+                //
+                //                     File Browser
+                //
+                // *******************************************************
+
                 // Calculamos el total de páginas
                 int totalPages = (FILE_TOTAL_FILES / TOTAL_FILES_IN_BROWSER_PAGE);
                 if (FILE_TOTAL_FILES % TOTAL_FILES_IN_BROWSER_PAGE != 0)
@@ -1933,8 +1840,13 @@ private:
                 // Refrescamos el listado de ficheros visualizado
                 refreshFiles();                   
             }
-            else if (BLOCK_BROWSER_OPEN)
+            else if (BB_OPEN)
             {
+                // *******************************************************
+                //
+                //                     Block Browser
+                //
+                // *******************************************************
                 // Calculamos el total de páginas
                 int totalPages = ((TOTAL_BLOCKS-1) / MAX_BLOCKS_IN_BROWSER);
                 if ((TOTAL_BLOCKS-1) % MAX_BLOCKS_IN_BROWSER != 0)
@@ -2220,7 +2132,7 @@ private:
           // *************************************************************************************************
           //
           BB_OPEN = true;
-          BLOCK_BROWSER_OPEN = true;
+          //BLOCK_BROWSER_OPEN = true;
         }
         else if (strCmd.indexOf("BBCL=") != -1)
         {
@@ -2248,10 +2160,12 @@ private:
             }
             writeString("tape.currentBlock.val=" + String(BLOCK_SELECTED));
           }         
+          
           // Delay para esperar a que el browser se cierre
           delay(250);
+
           BB_OPEN = false;
-          BLOCK_BROWSER_OPEN = false;
+          //BLOCK_BROWSER_OPEN = false;
           UPDATE_HMI = true;
         }        
         else if (strCmd.indexOf("BDOWN") != -1)
@@ -4345,6 +4259,53 @@ private:
         }
         else if (strCmd.indexOf("PMENU3") != -1)
         {
+            #ifdef DEBUGMODE
+              logAlert("PAGE MENU(Next)");
+            #endif
+            CURRENT_PAGE = 3;
+            //delay(150);          
+            switch((int)ceil(TAPE_BAUDRATE))
+            {
+              case 1:
+              {
+                // 1200 - x1
+                myNex.writeNum("menuAudio2.baud1.val", 1);  
+                myNex.writeNum("menuAudio2.baud2.val", 0);  
+                myNex.writeNum("menuAudio2.baud3.val", 0);  
+                myNex.writeNum("menuAudio2.baud4.val", 0);  
+              }
+              break;
+
+              case 2:
+              {
+                // 2400 - x2
+                myNex.writeNum("menuAudio2.baud2.val", 1);  
+                myNex.writeNum("menuAudio2.baud1.val", 0);  
+                myNex.writeNum("menuAudio2.baud3.val", 0);  
+                myNex.writeNum("menuAudio2.baud4.val", 0);
+              }
+              break;
+
+              case 3:
+              {
+                //3600 - x3
+                myNex.writeNum("menuAudio2.baud3.val", 1);
+                myNex.writeNum("menuAudio2.baud1.val", 0);  
+                myNex.writeNum("menuAudio2.baud2.val", 0);  
+                myNex.writeNum("menuAudio2.baud4.val", 0);  
+              }
+              break;
+
+              case 4:
+              {
+                //3850 - x3.21
+                myNex.writeNum("menuAudio2.baud4.val", 1);
+                myNex.writeNum("menuAudio2.baud1.val", 0);  
+                myNex.writeNum("menuAudio2.baud2.val", 0);  
+                myNex.writeNum("menuAudio2.baud3.val", 0);  
+              }
+              break;
+            }
         }  
         else if (strCmd.indexOf("PMENU4") != -1)
         {
@@ -4355,7 +4316,7 @@ private:
               logAlert("PAGE MENU(Next)");
             #endif
             CURRENT_PAGE = 5;
-            delay(500);          
+            //delay(150);          
             myNex.writeNum("menu2.pwled.val", int(!POWER_LED_MODE));
             myNex.writeNum("menu2.c0.val", int(HIDE_VIRTUAL_KEY));
             myNex.writeNum("menu2.sortFil.val", int(SORT_FILES_FIRST_DIR));   
@@ -4413,47 +4374,7 @@ private:
             TAPE_PAGE_SHOWN = false;
             RADIO_PAGE_SHOWN = false;
             //
-        }    
-        else if (strCmd.indexOf("SPO4") != -1)
-        {
-            // Spotify PREV TRACK
-            //updateInformationMainPage(true);
-            if (SPOTIFY_CONTROL)
-            {
-              sp->skip_to_next();
-            }
-            //
-        }                  
-        else if (strCmd.indexOf("SPO1") != -1)
-        {
-            // Spotify PREV TRACK
-            //updateInformationMainPage(true);
-            if (SPOTIFY_CONTROL)
-            {
-              sp->skip_to_previous();
-            }
-            //
-        }     
-        else if (strCmd.indexOf("SPO2") != -1)
-        {
-            // Spotify PLAY/PAUSE
-            //updateInformationMainPage(true);
-            if (SPOTIFY_CONTROL)
-            {
-              sp->play();
-            }
-            //
-        }     
-        else if (strCmd.indexOf("SPO3") != -1)
-        {
-            // Spotify NEXT TRACK
-            //updateInformationMainPage(true);
-            if (SPOTIFY_CONTROL)
-            { 
-              sp->pause();
-            }
-            //
-        }            
+        }              
         else if (strCmd.indexOf("CHKUPD") != -1)
         {
           //-------------------------------------------------------------------------
@@ -5324,10 +5245,6 @@ private:
               myNex.writeStr("mp3browser.totalBl.txt",String(totalblocks - 1));
               myNex.writeStr("mp3browser.bbpag.txt",String(BB_PAGE_SELECTED));
               myNex.writeStr("mp3browser.size0.txt","SIZE[MB]");
-              // writeString("mp3browser.path.txt=\"" + HMI_FNAME + "\"");
-              // writeString("mp3browser.totalBl.txt=\"" + String(totalblocks - 1) + "\"");
-              // writeString("mp3browser.bbpag.txt=\"" + String(BB_PAGE_SELECTED) + "\"");
-              // writeString("mp3browser.size0.txt=\"SIZE[MB]\"");
 
               double ctpage = (double)totalblocks / (double)MAX_BLOCKS_IN_BROWSER;
               int totalPages = trunc(ctpage);
@@ -5335,7 +5252,6 @@ private:
                   totalPages += 1;
               }
               myNex.writeStr("mp3browser.totalPag.txt",String(totalPages));
-              // writeString("mp3browser.totalPag.txt=\"" + String(totalPages) + "\"");
 
               BB_BROWSER_STEP = 1; // Siguiente paso: primer item
               return;
@@ -5349,26 +5265,19 @@ private:
               {
                   myNex.writeStr("mp3browser.id" + String(i) + ".txt","");
                   myNex.writeStr("mp3browser.name" + String(i) + ".txt","");
-                  // writeString("mp3browser.id" + String(i) + ".txt=\"\"");
-                  // writeString("mp3browser.name" + String(i) + ".txt=\"\"");
               } 
               else 
               {
                 if (IRADIO_EN)
                 {
                   myNex.writeStr("mp3browser.id" + String(i) + ".txt",String(i + BB_PTR_ITEM));
-                  myNex.writeStr("mp3browser.name" + String(i) + ".txt",source[i + BB_PTR_ITEM - 1].filename);
-                  // writeString("mp3browser.id" + String(i) + ".txt=\"" + String(i + BB_PTR_ITEM) + "\"");
-                  // writeString("mp3browser.name" + String(i) + ".txt=\"" + source[i + BB_PTR_ITEM - 1].filename + "\"");                      
+                  myNex.writeStr("mp3browser.name" + String(i) + ".txt",source[i + BB_PTR_ITEM - 1].filename);              
                 }
                 else
                 {
                   String name = source[i + BB_PTR_ITEM - 1].filename;
                   myNex.writeStr("mp3browser.id" + String(i) + ".txt",String(i + BB_PTR_ITEM));
                   myNex.writeStr("mp3browser.name" + String(i) + ".txt",getFileNameFromPath(name));
-                  //
-                  // writeString("mp3browser.id" + String(i) + ".txt=\"" + String(i + BB_PTR_ITEM) + "\"");
-                  // writeString("mp3browser.name" + String(i) + ".txt=\"" + getFileNameFromPath(name) + "\"");
                 }
               }                
               BB_BROWSER_STEP++;
@@ -5486,7 +5395,9 @@ private:
     // ✅ FUNCIÓN SIMPLE PARA OBTENER ÚLTIMO TAG
     String getLatestReleaseTag() {
         if (!WIFI_CONNECTED) {
-            logln("Error: WiFi not connected");
+            #ifdef ERROR_LOG
+            log_error("OTA", "WiFi not connected");
+            #endif
             LAST_MESSAGE = "WiFi not connected";
             return "";
         }
@@ -5500,13 +5411,17 @@ private:
         http.begin(client, apiUrl);
         http.addHeader("User-Agent", "PowaDCR/" + String(VERSION));
         
-        logln("Getting latest release from: " + apiUrl);
+        #ifdef INFO_LOG
+        log_info("OTA", "Getting latest release from: " + apiUrl);
+        #endif
         myNex.writeStr("update.status.txt","Checking latest version...");
         
         int httpCode = http.GET();
         
         if (httpCode != HTTP_CODE_OK) {
-            logln("HTTP error: " + String(httpCode));
+            #ifdef ERROR_LOG
+            log_error("OTA", "HTTP error: " + String(httpCode));
+            #endif
             myNex.writeStr("update.status.txt","GitHub API error: " + String(httpCode));
             http.end();
             return "";
@@ -5518,14 +5433,18 @@ private:
         // ✅ PARSEAR JSON SIMPLE - SOLO EL TAG
         DynamicJsonDocument doc(4096);
         if (deserializeJson(doc, payload) != DeserializationError::Ok) {
-            logln("JSON parse error");
+            #ifdef ERROR_LOG
+            log_error("OTA", "JSON parse error");
+            #endif
             myNex.writeStr("update.status.txt","Parse error");
             return "";
         }
         
         String tagName = doc["tag_name"].as<String>();
         
-        logln("Latest release tag: " + tagName);
+        #ifdef INFO_LOG
+        log_info("OTA", "Latest release tag: " + tagName);
+        #endif
         myNex.writeStr("update.status.txt","Latest version: " + tagName);
         
         return tagName;
@@ -5983,8 +5902,9 @@ private:
 
     void updateESP32firmware()
     {
-        // log_v("");
-        // log_v("Search for firmware..");
+        // #ifdef DEBUG_LOG
+        // log_debug("OTA", "Search for firmware..");
+        // #endif
         char strpath[20] = {};
         strcpy(strpath, "/firmware.bin");
 
@@ -5992,38 +5912,54 @@ private:
 
         if (firmware)
         {
-          logln("Firmware file opened " + String(strpath));
+          #ifdef INFO_LOG
+          log_info("OTA", "Firmware file opened " + String(strpath));
+          #endif
           myNex.writeStr("update.status.txt","Checking firmware");
           
           // Verificar magic byte antes del update
           uint8_t magicByte = firmware.peek();
-          logln("First byte of firmware: 0x" + String(magicByte, HEX));
+          #ifdef INFO_LOG
+          log_info("OTA", "First byte of firmware: 0x" + String(magicByte, HEX));
+          #endif
           
           if (magicByte != 0xE9) 
           {
-              logln("ERROR: Invalid firmware file - Wrong magic byte");
+              #ifdef ERROR_LOG
+              log_error("OTA", "Invalid firmware file - Wrong magic byte");
+              #endif
               myNex.writeStr("update.status.txt","Invalid firmware file");
               firmware.close();
               
               // Eliminar archivo inválido
               if (SD_MMC.remove("/firmware.bin")) {
-                  logln("Invalid firmware file deleted");
+                  #ifdef INFO_LOG
+                  log_info("OTA", "Invalid firmware file deleted");
+                  #endif
               }
               return;
           }    
           myNex.writeStr("update.status.txt","Flashing Audiokit ...");
-          logln("Firmware found on SD_MMC");
+          #ifdef INFO_LOG
+          log_info("OTA", "Firmware found on SD_MMC");
+          #endif
           onOTAStart();
-          logln("Updating firmware...");
+          #ifdef INFO_LOG
+          log_info("OTA", "Updating firmware...");
+          #endif
 
           Update.onProgress(onOTAProgress);
 
           size_t firmwareSize = firmware.available();
-          logln("Firmware size: " + String(firmwareSize) + " bytes");
+          #ifdef INFO_LOG
+          log_info("OTA", "Firmware size: " + String(firmwareSize) + " bytes");
+          #endif
 
           if(!Update.begin(firmwareSize))
           {
-            logln("Error initializing updater obj.");
+            #ifdef ERROR_LOG
+            log_error("OTA", "Error initializing updater obj.");
+            #endif
             Update.getError();
             Update.printError(Serial);
           }
@@ -6037,20 +5973,26 @@ private:
               {
                 Update.write(buf, bytesRead);
                 totalWritten += bytesRead;
-                Serial.printf("Escritos: %d/%d bytes\n", totalWritten, firmwareSize);
+                #ifdef DEBUG_LOG
+                Serial.printf("[OTA] Escritos: %d/%d bytes\n", totalWritten, firmwareSize);
+                #endif
               }        
           }
 
           if (Update.end())
           {
-            log_v("Update finished!");
+            #ifdef INFO_LOG
+            log_info("OTA", "Update finished!");
+            #endif
             myNex.writeStr("update.status.txt","Update finished");
             onOTAEnd(true);
             delay(2000);
           }
           else
           {
-            log_e("Update error!");
+            #ifdef ERROR_LOG
+            log_error("OTA", "Update error!");
+            #endif
             myNex.writeStr("update.status.txt","Update error");
             
             Update.getError();
@@ -6063,11 +6005,15 @@ private:
 
           if (SD_MMC.remove(strpath))
           {
-            log_v("Firmware deleted succesfully!");
+            #ifdef INFO_LOG
+            log_info("OTA", "Firmware deleted succesfully!");
+            #endif
           }
           else
           {
-            log_e("Firmware delete error!");
+            #ifdef ERROR_LOG
+            log_error("OTA", "Firmware delete error!");
+            #endif
           }
           delay(2000);
 

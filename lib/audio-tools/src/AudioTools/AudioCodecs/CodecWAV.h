@@ -305,6 +305,20 @@ class WAVDecoder : public AudioDecoder {
    */
   WAVDecoder(AudioDecoderExt &dec, AudioFormat fmt) { setDecoder(dec, fmt); }
 
+  /// Destructor - cleanup embedded decoder reference
+  ~WAVDecoder() {
+    // Clean up embedded decoder if present
+    if (p_decoder != nullptr) {
+      try {
+        p_decoder->end();
+      } catch (...) {
+        // Ignore errors during cleanup
+      }
+      // NOTE: We do NOT delete p_decoder because it's externally managed
+      p_decoder = nullptr;
+    }
+  }
+
   /// Defines an optional decoder if the format is not PCM
   void setDecoder(AudioDecoderExt &dec, AudioFormat fmt) {
     TRACED();

@@ -56,7 +56,7 @@
 // --------------------------------------------------------------
 // Configuración de la versión del software
 // --------------------------------------------------------------
-#define VERSION "1.0r7.15p6" // Formato: vX.YrW.Z (X=major, Y=minor, W=revision, Z=revision_minor)
+#define VERSION "1.0r7.15p7" // Formato: vX.YrW.Z (X=major, Y=minor, W=revision, Z=revision_minor)
 
 // --------------------------------------------------------------
 // Configuración de memoria optimizada
@@ -102,6 +102,16 @@
 #define USE_AUDIO_LOGGING false
 // States of LOG_LEVEL: Debug, Info, Warning, Error
 #define LOG_LEVEL AudioLogger::Info
+
+// ======================================================================
+// CONFIGURACIÓN DE SISTEMA DE LOGGING CON CLASIFICACIÓN POR NIVELES
+// ======================================================================
+// Define estos valores a 1 para habilitar el nivel correspondiente
+// Define a 0 o comenta la línea para deshabilitar y ahorrar FLASH
+// ======================================================================
+#define INFO_LOG  1    // Información general (comentado = DESHABILITADO)
+#define ERROR_LOG 1       // Errores (1 = SIEMPRE habilitado)
+// #define DEBUG_LOG 1    // Debug (comentado = DESHABILITADO)
 
 // Reproduce un BEEP al arrancar para comprobar que el audio funciona
 #define TEST_AUDIOKIT_ON_BOOT
@@ -332,6 +342,8 @@ int GPIO_MSX_REMOTE_PAUSE = 19;
 // Particion mas pequeña de un silencio
 #define MIN_FRAME_FOR_SILENCE_PULSE_GENERATION 1024
 #define MOTOR_DELAY_MS                         20 // Retardo de arranque/parada de motor en ms (20ms = 50Hz)
+
+#define APPLY_ADPCM_LABEL                      true // Añade etiqueta "_ADPCM" a los ficheros WAV generados con ADPCM
 
 // --------------------------------------------------------------
 // TAP config.

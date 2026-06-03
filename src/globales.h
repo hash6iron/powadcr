@@ -750,7 +750,7 @@ bool BB_UPDATE = false;
 int BB_PAGE = 0;
 int BB_PTR_ITEM = 0;
 bool UPDATE_HMI = false;
-bool BLOCK_BROWSER_OPEN = false;
+//bool BLOCK_BROWSER_OPEN = false;
 int BB_PAGE_SELECTED = 1;
 int BB_BROWSER_STEP = 0; // 0 = info general, 1..MAX_BLOCKS_IN_BROWSER = items
 int BB_BROWSER_MAX = 0;
@@ -906,11 +906,6 @@ bool DATA_IS_PLAYING = false;
 // Auto-update
 String HMI_MODEL = "";
 
-bool SPOTIFY_CONTROL = false;
-bool SPOTIFY_EN = false;
-String SPOTIFY_CLIENT_ID = "";
-String SPOTIFY_CLIENT_SECRET = "";
-
 //
 bool QUICK_BOOT = false;
 bool DOWNLOADING_ZXDB = false;
@@ -995,7 +990,7 @@ bool loadHMICfg() {
   }
   ESP_ERROR_CHECK(err);
 
-  // Open NVS
+  // Open NVS for reading
   nvs_handle_t handle;
   err = nvs_open("storage", NVS_READONLY, &handle);
   if (err != ESP_OK) {
@@ -1003,6 +998,9 @@ bool loadHMICfg() {
     logln("Error - abriendo NVS");
     return true;
   }
+
+  // Track missing keys to save later
+  std::vector<std::string> missing_keys;
 
   // Iterate over the configuration entries and load them
   for (auto &entry : configEntries) {
@@ -1023,7 +1021,8 @@ bool loadHMICfg() {
         }
         delete[] buffer; // Free memory
       } else if (err == ESP_ERR_NVS_NOT_FOUND) {
-        printf("Key '%s' not found, skipping...\n", entry.key);
+        printf("Key '%s' not found, will initialize with default.\n", entry.key);
+        missing_keys.push_back(entry.key);
       }
       break;
     }
@@ -1041,14 +1040,16 @@ bool loadHMICfg() {
         }
         delete[] buffer;
       } else if (err == ESP_ERR_NVS_NOT_FOUND) {
-        printf("Key '%s' not found, skipping...\n", entry.key);
+        printf("Key '%s' not found, will initialize with default.\n", entry.key);
+        missing_keys.push_back(entry.key);
       }
       break;
     }
     case CONFIG_TYPE_UINT8: {
       err = nvs_get_u8(handle, entry.key, static_cast<uint8_t *>(entry.value));
       if (err == ESP_ERR_NVS_NOT_FOUND) {
-        printf("Key '%s' not found, skipping...\n", entry.key);
+        printf("Key '%s' not found, will initialize with default.\n", entry.key);
+        missing_keys.push_back(entry.key);
       }
       break;
     }
@@ -1056,28 +1057,32 @@ bool loadHMICfg() {
       err =
           nvs_get_u16(handle, entry.key, static_cast<uint16_t *>(entry.value));
       if (err == ESP_ERR_NVS_NOT_FOUND) {
-        printf("Key '%s' not found, skipping...\n", entry.key);
+        printf("Key '%s' not found, will initialize with default.\n", entry.key);
+        missing_keys.push_back(entry.key);
       }
       break;
     }
     case CONFIG_TYPE_FLOAT: {
       err = nvs_get_i32(handle, entry.key, static_cast<int32_t *>(entry.value));
       if (err == ESP_ERR_NVS_NOT_FOUND) {
-        printf("Key '%s' not found, skipping...\n", entry.key);
+        printf("Key '%s' not found, will initialize with default.\n", entry.key);
+        missing_keys.push_back(entry.key);
       }
       break;
     }
     case CONFIG_TYPE_DOUBLE: {
       err = nvs_get_i64(handle, entry.key, static_cast<int64_t *>(entry.value));
       if (err == ESP_ERR_NVS_NOT_FOUND) {
-        printf("Key '%s' not found, skipping...\n", entry.key);
+        printf("Key '%s' not found, will initialize with default.\n", entry.key);
+        missing_keys.push_back(entry.key);
       }
       break;
     }
     case CONFIG_TYPE_INT8: {
       err = nvs_get_i8(handle, entry.key, static_cast<int8_t *>(entry.value));
       if (err == ESP_ERR_NVS_NOT_FOUND) {
-        printf("Key '%s' not found, skipping...\n", entry.key);
+        printf("Key '%s' not found, will initialize with default.\n", entry.key);
+        missing_keys.push_back(entry.key);
       }
       break;
     }
@@ -1089,8 +1094,62 @@ bool loadHMICfg() {
     }
   }
 
-  // Close NVS
+  // Close NVS read handle
   nvs_close(handle);
+
+  // If there are missing keys, save their current (default) values to NVS
+  if (!missing_keys.empty()) {
+    printf("Found %d missing keys. Saving defaults to NVS...\n", missing_keys.size());
+    
+    // Open NVS for writing
+    err = nvs_open("storage", NVS_READWRITE, &handle);
+    if (err == ESP_OK) {
+      for (const auto &missing_key : missing_keys) {
+        // Find the corresponding entry and save it
+        for (const auto &entry : configEntries) {
+          if (entry.key == missing_key) {
+            switch (entry.type) {
+            case CONFIG_TYPE_STRING:
+              nvs_set_str(handle, entry.key,
+                          static_cast<std::string *>(entry.value)->c_str());
+              break;
+            case CONFIG_TYPE_BOOL: {
+              bool val = *static_cast<bool *>(entry.value);
+              std::string bool_str = val ? "true" : "false";
+              nvs_set_str(handle, entry.key, bool_str.c_str());
+              break;
+            }
+            case CONFIG_TYPE_UINT8:
+              nvs_set_u8(handle, entry.key, *static_cast<uint8_t *>(entry.value));
+              break;
+            case CONFIG_TYPE_UINT16:
+              nvs_set_u16(handle, entry.key,
+                          *static_cast<uint16_t *>(entry.value));
+              break;
+            case CONFIG_TYPE_FLOAT:
+              nvs_set_i32(handle, entry.key,
+                          *static_cast<int32_t *>(entry.value));
+              break;
+            case CONFIG_TYPE_DOUBLE:
+              nvs_set_i64(handle, entry.key,
+                          *static_cast<int64_t *>(entry.value));
+              break;
+            case CONFIG_TYPE_INT8:
+              nvs_set_i8(handle, entry.key, *static_cast<int8_t *>(entry.value));
+              break;
+            }
+            printf("Saved default for key '%s'\n", entry.key);
+            break;
+          }
+        }
+      }
+      nvs_commit(handle);
+      nvs_close(handle);
+      printf("Missing keys initialized and saved.\n");
+    } else {
+      printf("Warning: Could not open NVS for writing missing keys.\n");
+    }
+  }
 
   return false;
 }
@@ -1221,83 +1280,164 @@ bool loadFromSD() {
   return false;
 }
 
+// ======================================================================
+// SISTEMA DE LOGGING PROFESIONAL CON CLASIFICACIÓN POR NIVELES
+// ======================================================================
+// Niveles disponibles: INFO_LOG, ERROR_LOG, DEBUG_LOG
+// Formato: "timestamp [sección] - mensaje"
+// 
+// MIGRACIÓN GRADUAL:
+// - Nuevo código: usar log_info(), log_error(), log_debug(), log_alert()
+// - Código antiguo: seguir usando logln(), que se wrappea automáticamente
+// ======================================================================
+
+#define INFO_LOG 0      // Información general (0=deshabilitado, 1=habilitado)
+#define ERROR_LOG 1     // Errores (1=siempre habilitado)
+#define DEBUG_LOG 0     // Debug (0=deshabilitado, 1=habilitado)
+#define ALERT_LOG 1     // Alertas (1=siempre habilitado)
+
+// Función helper para obtener timestamp en ms
+inline unsigned long getLogTimestamp() {
+  return millis();
+}
+
+// Función helper para formatear logs con timestamp y sección
+void _log_formatted(const char* level, const char* section, const String& message) {
+  unsigned long ts = getLogTimestamp();
+  Serial.printf("[%06lu] [%s] %s - %s\r\n", ts, level, section, message.c_str());
+}
+
+void _log_formatted(const char* level, const char* section, const char* message) {
+  unsigned long ts = getLogTimestamp();
+  Serial.printf("[%06lu] [%s] %s - %s\r\n", ts, level, section, message);
+}
+
+// ======================================================================
+// MACROS DE LOGGING CLASIFICADOS (INFO, ERROR, DEBUG, ALERT)
+// ======================================================================
+
+#define log_info(section, message) \
+  do { \
+    if (INFO_LOG) { \
+      _log_formatted("INFO", section, message); \
+    } \
+  } while(0)
+
+#define log_error(section, message) \
+  do { \
+    if (ERROR_LOG) { \
+      _log_formatted("ERROR", section, message); \
+    } \
+  } while(0)
+
+#define log_debug(section, message) \
+  do { \
+    if (DEBUG_LOG) { \
+      _log_formatted("DEBUG", section, message); \
+    } \
+  } while(0)
+
+#define log_alert(section, message) \
+  do { \
+    if (ALERT_LOG) { \
+      _log_formatted("ALERT", section, message); \
+    } \
+  } while(0)
+
+// ======================================================================
+// MACROS PARA LOGS NUMÉRICOS
+// ======================================================================
+
+#define log_info_hex(section, value) \
+  do { \
+    if (INFO_LOG) { \
+      Serial.printf("[%06lu] [INFO] %s - 0x%02X\r\n", getLogTimestamp(), section, value); \
+    } \
+  } while(0)
+
+#define log_error_hex(section, value) \
+  do { \
+    if (ERROR_LOG) { \
+      Serial.printf("[%06lu] [ERROR] %s - 0x%02X\r\n", getLogTimestamp(), section, value); \
+    } \
+  } while(0)
+
+#define log_info_bin(section, value) \
+  do { \
+    if (INFO_LOG) { \
+      Serial.printf("[%06lu] [INFO] %s - 0b", getLogTimestamp(), section); \
+      Serial.print(value, BIN); \
+      Serial.println(); \
+    } \
+  } while(0)
+
+// ======================================================================
+// FUNCIONES LEGACY (COMPATIBILIDAD CON CÓDIGO EXISTENTE)
+// ======================================================================
+// Nota: Envueltas con #ifdef para control granular
+
 void logHEX(int n) {
-  Serial.print(" 0x");
-  Serial.print(n, HEX);
+  #ifdef INFO_LOG
+  if (INFO_LOG) {
+    Serial.print(" 0x");
+    Serial.print(n, HEX);
+  }
+  #endif
 }
 
 void logBIN(int n) {
-  Serial.print(" 0x");
-  Serial.print(n, BIN);
+  #ifdef INFO_LOG
+  if (INFO_LOG) {
+    Serial.print(" 0b");
+    Serial.print(n, BIN);
+  }
+  #endif
 }
 
-void log(String txt) { Serial.print(txt); }
+void log(String txt) { 
+  #ifdef INFO_LOG
+  if (INFO_LOG) {
+    Serial.print(txt);
+  }
+  #endif
+}
 
 void logln(String txt) {
-  //Serial.println("");
-  Serial.print(txt);
-  Serial.println("");
+  #ifdef INFO_LOG
+  if (INFO_LOG) {
+    Serial.print(txt);
+    Serial.println("");
+  }
+  #endif
 }
 
 void loglnf(const char *format, String txt)
 {
-  Serial.printf(format,txt);
+  #ifdef INFO_LOG
+  if (INFO_LOG) {
+    Serial.printf(format, txt.c_str());
+  }
+  #endif
 }
 
 String lastAlertTxt = "";
 
 void logAlert(String txt) {
-  // Solo muestra una vez el mismo mensaje.
-  // esta rutina es perfecta para no llenar el buffer de salida serie con
-  // mensajes ciclicos
-  if (lastAlertTxt != txt) {
-    Serial.println("");
-    Serial.print(txt);
-    Serial.println("");
+  #ifdef ALERT_LOG
+  if (ALERT_LOG) {
+    // Solo muestra una vez el mismo mensaje.
+    // esta rutina es perfecta para no llenar el buffer de salida serie con
+    // mensajes ciclicos
+    if (lastAlertTxt != txt) {
+      Serial.println("");
+      Serial.print(txt);
+      Serial.println("");
+    }
+    lastAlertTxt = txt;
   }
-
-  lastAlertTxt = txt;
+  #endif
 }
 
-// void readFileRange(File mFile, uint8_t* &bufferFile, uint32_t offset, int
-// size, bool logOn=false)
-// {
-//     if (mFile)
-//     {
-//         // Ponemos a cero el puntero de lectura del fichero
-//         mFile.seek(0);
-
-//         // Obtenemos el tamano del fichero
-//         int rlen = mFile.available();
-//         FILE_LENGTH = rlen;
-
-//         // Posicionamos el puntero en la posicion indicada por offset
-//         mFile.seek(offset);
-
-//         // Si el fichero tiene aun datos entonces capturo
-//         if (rlen != 0)
-//         {
-//             // Leo el bloque y lo meto en bufferFile.
-//             mFile.read(bufferFile, size);
-
-//             #ifdef DEBUGMODE
-//                 logln("buffer read: ");
-//                 for (int i=0; i<size; i++)
-//                 {
-//                     logHEX(bufferFile[i]);
-//                     log(" ");
-//                 }
-//             #endif
-//         }
-//     }
-//     else
-//     {
-//         #ifdef DEBUGMODE
-//             logln("SD Card: error opening file.");
-//             logln(mFile.name());
-//         #endif
-//     }
-// }
 
 // ✅ VERSIÓN OPTIMIZADA - SIN MALLOC/FREE INNECESARIOS
 void readFileRange(File &file, uint8_t *buffer, int offset, int size,

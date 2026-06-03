@@ -737,7 +737,7 @@ class DecoderADPCM_IMA_QT : public ADPCMDecoder {
       }
 
       if (cs->step_index > 88u) {
-        av_log(avctx, AV_LOG_ERROR, "ERROR: step_index[%d] = %i\n", channel,
+        av_log(avctx, AV_LOG_ERROR, "1. ERROR: step_index[%d] = %i\n", channel,
                cs->step_index);
         // return AVERROR_INVALIDDATA;
       }
@@ -792,7 +792,7 @@ class DecoderADPCM_IMA_WAV : public ADPCMDecoder {
 
       cs->step_index = sign_extend(bytestream2_get_le16u(&gb), 16);
       if (cs->step_index > 88u) {
-        av_log(avctx, AV_LOG_ERROR, "ERROR: step_index[%d] = %i\n", i,
+        av_log(avctx, AV_LOG_ERROR, "2. ERROR: step_index[%d] = %i\n", i,
                cs->step_index);
         return AVERROR_INVALIDDATA;
       }
@@ -853,7 +853,7 @@ class DecoderADPCM_4XM : public ADPCMDecoder {
     for (int i = 0; i < channels(); i++) {
       c->status[i].step_index = sign_extend(bytestream2_get_le16u(&gb), 16);
       if (c->status[i].step_index > 88u) {
-        av_log(avctx, AV_LOG_ERROR, "ERROR: step_index[%d] = %i\n", i,
+        av_log(avctx, AV_LOG_ERROR, "3. ERROR: step_index[%d] = %i\n", i,
                c->status[i].step_index);
         return AVERROR_INVALIDDATA;
       }
@@ -1088,7 +1088,7 @@ class DecoderADPCM_IMA_DK4 : public ADPCMDecoder {
       cs->predictor = *samples++ = sign_extend(bytestream2_get_le16u(&gb), 16);
       cs->step_index = sign_extend(bytestream2_get_le16u(&gb), 16);
       if (cs->step_index > 88u) {
-        av_log(avctx, AV_LOG_ERROR, "ERROR: step_index[%d] = %i\n", channel,
+        av_log(avctx, AV_LOG_ERROR, "4. ERROR: step_index[%d] = %i\n", channel,
                cs->step_index);
         return AVERROR_INVALIDDATA;
       }
@@ -1135,7 +1135,7 @@ class DecoderADPCM_IMA_DK3 : public ADPCMDecoder {
     c->status[0].step_index = bytestream2_get_byteu(&gb);
     c->status[1].step_index = bytestream2_get_byteu(&gb);
     if (c->status[0].step_index > 88u || c->status[1].step_index > 88u) {
-      av_log(avctx, AV_LOG_ERROR, "ERROR: step_index = %i/%i\n",
+      av_log(avctx, AV_LOG_ERROR, "5. ERROR: step_index = %i/%i\n",
              c->status[0].step_index, c->status[1].step_index);
       return AVERROR_INVALIDDATA;
     }
@@ -1186,7 +1186,7 @@ class DecoderADPCM_IMA_ISS : public ADPCMDecoder {
       cs->predictor = sign_extend(bytestream2_get_le16u(&gb), 16);
       cs->step_index = sign_extend(bytestream2_get_le16u(&gb), 16);
       if (cs->step_index > 88u) {
-        av_log(avctx, AV_LOG_ERROR, "ERROR: step_index[%d] = %i\n", channel,
+        av_log(avctx, AV_LOG_ERROR, "12. ERROR: step_index[%d] = %i\n", channel,
                cs->step_index);
         return AVERROR_INVALIDDATA;
       }
@@ -1430,7 +1430,7 @@ class DecoderADPCM_IMA_RAD : public ADPCMDecoder {
       cs->step_index = sign_extend(bytestream2_get_le16u(&gb), 16);
       cs->predictor = sign_extend(bytestream2_get_le16u(&gb), 16);
       if (cs->step_index > 88u) {
-        av_log(avctx, AV_LOG_ERROR, "ERROR: step_index[%d] = %i\n", channel,
+        av_log(avctx, AV_LOG_ERROR, "7. ERROR: step_index[%d] = %i\n", channel,
                cs->step_index);
         return AVERROR_INVALIDDATA;
       }
@@ -1664,7 +1664,7 @@ class DecoderADPCM_IMA_EA_EACS : public ADPCMDecoder {
     for (int i = 0; i <= st; i++) {
       c->status[i].step_index = bytestream2_get_le32u(&gb);
       if (c->status[i].step_index > 88u) {
-        av_log(avctx, AV_LOG_ERROR, "ERROR: step_index[%d] = %i\n", i,
+        av_log(avctx, AV_LOG_ERROR, "8. ERROR: step_index[%d] = %i\n", i,
                c->status[i].step_index);
         return AVERROR_INVALIDDATA;
       }
@@ -1853,7 +1853,7 @@ class DecoderADPCM_IMA_ACORN : public ADPCMDecoder {
       cs->predictor = sign_extend(bytestream2_get_le16u(&gb), 16);
       cs->step_index = bytestream2_get_le16u(&gb) & 0xFF;
       if (cs->step_index > 88u) {
-        av_log(avctx, AV_LOG_ERROR, "ERROR: step_index[%d] = %i\n", channel,
+        av_log(avctx, AV_LOG_ERROR, "9. ERROR: step_index[%d] = %i\n", channel,
                cs->step_index);
         return AVERROR_INVALIDDATA;
       }
@@ -1890,7 +1890,7 @@ class DecoderADPCM_IMA_AMV : public ADPCMDecoder {
     c->status[0].step_index = bytestream2_get_byteu(&gb);
     bytestream2_skipu(&gb, 5);
     if (c->status[0].step_index > 88u) {
-      av_log(avctx, AV_LOG_ERROR, "ERROR: step_index = %i\n",
+      av_log(avctx, AV_LOG_ERROR, "10. ERROR: step_index = %i\n",
              c->status[0].step_index);
       return AVERROR_INVALIDDATA;
     }
@@ -1929,7 +1929,7 @@ class DecoderADPCM_IMA_SMJPEG : public ADPCMDecoder {
       c->status[i].step_index = bytestream2_get_byteu(&gb);
       bytestream2_skipu(&gb, 1);
       if (c->status[i].step_index > 88u) {
-        av_log(avctx, AV_LOG_ERROR, "ERROR: step_index = %i\n",
+        av_log(avctx, AV_LOG_ERROR, "11. ERROR: step_index = %i\n",
                c->status[i].step_index);
         return AVERROR_INVALIDDATA;
       }
