@@ -111,6 +111,8 @@
 // ======================================================================
 #define INFO_LOG  1    // Información general (comentado = DESHABILITADO)
 #define ERROR_LOG 1       // Errores (1 = SIEMPRE habilitado)
+#define ALERT_LOG 0       // Alertas (1 = SIEMPRE habilitado)
+#define DEBUG_LOG 0     // Debug (comentado = DESHABILITADO)
 // #define DEBUG_LOG 1    // Debug (comentado = DESHABILITADO)
 
 // Reproduce un BEEP al arrancar para comprobar que el audio funciona
@@ -444,3 +446,4 @@ bool TEST_LINE_IN_OUT = false;
 #define PAGE_RADIO                     7
 #define PAGE_KEYDEBUG                  8
 #define PAGE_CLOCK                     99
+

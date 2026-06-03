@@ -10176,17 +10176,23 @@ void setupSDCard() {
 void loadHMICfgfromNVS() {
   //LAST_MESSAGE = "Loading HMI settings.";
   
-  logln("> Loading HMI configuration from NVS.");
+  log_info("BOOT", "Assigning NVS values to HMI configuration.");
 
   //loadHMICfg();
 
   // Actualizamos la configuracion
-  logln("EN_STERO = " + String(EN_STEREO));
-  logln("MUTE AMP = " + String(!ACTIVE_AMP));
-  logln("VOL_LIMIT_HEADPHONE = " + String(VOL_LIMIT_HEADPHONE));
-  logln("MAIN_VOL" + String(MAIN_VOL));
-  logln("MAIN_VOL_L" + String(MAIN_VOL_L));
-  logln("MAIN_VOL_R" + String(MAIN_VOL_R));
+  log_debug("BOOT", "> EN_STERO = " + String(EN_STEREO));
+  log_debug("BOOT", "> Master vol: " + String(MAIN_VOL));
+  log_debug("BOOT", "> Master vol R: " + String(MAIN_VOL_R));
+  log_debug("BOOT", "> Master vol L: " + String(MAIN_VOL_L));
+  log_debug("BOOT", "> BALANCE " + String(BALANCE_VOL));
+  log_debug("BOOT", "> VOL_LIMIT_HEADPHONE = " + String(VOL_LIMIT_HEADPHONE));
+  log_debug("BOOT", "> EQ_HIGH = " + String(EQ_HIGH));
+  log_debug("BOOT", "> EQ_MID = " + String(EQ_MID));
+  log_debug("BOOT", "> EQ_LOW = " + String(EQ_LOW));
+  log_debug("BOOT", "> MUTE AMP = " + String(!ACTIVE_AMP));  
+  log_debug("BOOT", "> REC GAIN = " + String(IN_REC_VOL));
+  
   //
   showOption("menu.wifiEn.val", String(WIFI_ENABLE));
   // EN_STEREO
@@ -10216,15 +10222,16 @@ void loadHMICfgfromNVS() {
   }
 
   //
-
-  if (ACTIVE_AMP) {
-    MAIN_VOL_L = 5;
-  } else {
-    MAIN_VOL_L = MAIN_VOL_R;
-  }
   // Actualizamos el HMI
-  hmi.writeString("menuAudio.volL.val=" + String(MAIN_VOL_L));
-  hmi.writeString("menuAudio.volLevel.val=" + String(MAIN_VOL_L));
+  // Canal derecho
+  myNex.writeNum("menuAudio.volR.val", MAIN_VOL_R);
+  myNex.writeNum("menuAudio.volLevel.val", MAIN_VOL_R);
+  // Canal izquierdo
+  myNex.writeNum("menuAudio.volL.val", MAIN_VOL_L);
+  myNex.writeNum("menuAudio.volLevelL.val", MAIN_VOL_L);
+  // Volumen general
+  myNex.writeNum("menuAudio.volM.val", MAIN_VOL);
+  myNex.writeNum("menuAudio.volLevelM.val", MAIN_VOL);
 
   if (EN_SPEAKER) {
     // Actualizamos el HMI
@@ -10233,8 +10240,6 @@ void loadHMICfgfromNVS() {
 
   // VOL_LIMIT
   showOption("menuAudio.volLimit.val", String(VOL_LIMIT_HEADPHONE));
-
-  //MAIN_VOL = float(MASTER_VOL);
 
   if (MAIN_VOL > MAX_VOL_FOR_HEADPHONE_LIMIT && VOL_LIMIT_HEADPHONE) {
     MAIN_VOL = MAX_VOL_FOR_HEADPHONE_LIMIT;
@@ -10261,6 +10266,10 @@ void loadHMICfgfromNVS() {
   showOption("menuEq.eqLowL.val", String(int(EQ_LOW * 100)));
   EQ_CHANGE = true;
 
+  // Rec gain
+  showOption("menuAudio3.h0.val", String(int(IN_REC_VOL * 100)));
+  showOption("menuAudio3.invol.val", String(int(IN_REC_VOL * 100)));
+
   // Esto lo hacemos porque depende de la configuración cargada.
   kitStream.setPAPower(ACTIVE_AMP && EN_SPEAKER);
   //
@@ -10276,20 +10285,17 @@ void setup() {
   SerialHW.setRxBufferSize(4096);
   SerialHW.setTxBufferSize(4096);
 
-  logln("PowaDCR " + String(VERSION));
-  logln("Initializing system...");
-  logln("");
-
-
+  log_debug("BOOT", "PowaDCR " + String(VERSION));
+  log_debug("BOOT", "Initializing system...");
+  
   // Leemos la variable de NVS
-  logln("> Loading HMI configuration from NVS. This will determine the pinout for HMI communication.");
+  log_info("BOOT", "Loading HMI configuration from NVS.");
   //
   if (!loadHMICfg())
   {
-    logln("Failed to load HMI configuration from NVS. Defaulting to standard pinout.");
+    log_error("BOOT", "Failed to load HMI configuration from NVS. Defaulting to standard pinout.");
     // Si no se pudo cargar la configuración, asumimos que no hay MCP23017
     MCP23017_AVAILABLE = false;
-    //saveHMIcfg("MCPAVAIL");
   }
 
   // -------------------------------------------------------------------------
@@ -10345,7 +10351,7 @@ void setup() {
     if (myNex.readNumber("screen.reg.val") == 1) 
     {
       hmidetected = true;
-      logln("HMI detected on default pins.");
+      log_info("BOOT", "HMI detected on default pins.");
       myNex.writeNum("screen.ack.val", 2);
       delay(125);       
       myNex.writeNum("screen.tm0.en", 0);
@@ -10374,7 +10380,7 @@ void setup() {
       if (myNex.readNumber("screen.reg.val") == 1) 
       {
         hmidetected = true;
-        logln("HMI detected on alternative pins.");
+        log_info("BOOT", "HMI detected on alternative pins.");
         myNex.writeNum("screen.ack.val", 2);
         delay(125);
         myNex.writeNum("screen.tm0.en", 0);
@@ -10382,7 +10388,7 @@ void setup() {
       } 
       else 
       {
-        logln("HMI not detected after multiple attempts. Please check connections and configuration.");
+        log_error("BOOT", "HMI not detected after multiple attempts. Please check connections and configuration.");
         while (1) 
         {
           // Aquí podrías agregar un mensaje en el LCD o un parpadeo para indicar el error
@@ -10413,7 +10419,7 @@ void setup() {
       if (myNex.readNumber("screen.reg.val") == 1) 
       {
         hmidetected = true;
-        logln("HMI detected on alternative pins.");
+        log_info("BOOT", "HMI detected on alternative pins.");
         myNex.writeNum("screen.ack.val", 2);
         delay(125);
         myNex.writeNum("screen.tm0.en", 0);
@@ -10422,7 +10428,7 @@ void setup() {
       } 
       else 
       {
-        logln("HMI not detected after multiple attempts. Please check connections and configuration.");
+        log_error("BOOT", "HMI not detected after multiple attempts. Please check connections and configuration.");
         while (1) 
         {
           // Aquí podrías agregar un mensaje en el LCD o un parpadeo para indicar el error

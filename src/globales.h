@@ -800,7 +800,7 @@ float BOOSTER_FACTOR = 1.5;
 float BALANCE_VOL = 0;
 float MAIN_VOL = 90;
 float MAIN_VOL_R = 90;
-float MAIN_VOL_L = 5;
+float MAIN_VOL_L = 90;
 float EQ_HIGH = 0.9;
 float EQ_MID = 0.5;
 float EQ_LOW = 0.7;
@@ -871,7 +871,7 @@ bool WAS_LAUNCHED = false;
 // Internet Radio
 bool IRADIO_EN = false;
 bool URL_RADIO_IS_READY = false;
-bool RADIO_BUFFERED = false;
+//bool RADIO_BUFFERED = false;
 
 // Remote control
 bool UPDATE_FROM_REMOTE_CONTROL = false;
@@ -944,342 +944,6 @@ uint8_t SKIN_SELECTED = 1;
 // Baudrate
 double TAPE_BAUDRATE = 1; // 1 = 1200, 2 = 2400, 3 = 3600, 3.21 = 3850
 
-
-// Declaraciones de metodos
-// ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-// void save();
-// void saveHMIcfg(string value);
-void logln(String txt);
-
-// ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-// Define the array of configuration entries
-ConfigEntry configEntries[] = {
-    {"STEopt", CONFIG_TYPE_BOOL, &EN_STEREO},
-    {"MAMopt", CONFIG_TYPE_BOOL, &ACTIVE_AMP},
-    {"VLIopt", CONFIG_TYPE_BOOL, &VOL_LIMIT_HEADPHONE},
-    {"VOLMopt", CONFIG_TYPE_FLOAT, &MAIN_VOL},
-    {"VOLLopt", CONFIG_TYPE_FLOAT, &MAIN_VOL_L},
-    {"VOLRopt", CONFIG_TYPE_FLOAT, &MAIN_VOL_R},
-    {"EQHopt", CONFIG_TYPE_FLOAT, &EQ_HIGH},
-    {"EQMopt", CONFIG_TYPE_FLOAT, &EQ_MID},
-    {"EQLopt", CONFIG_TYPE_FLOAT, &EQ_LOW},
-    {"PLEopt", CONFIG_TYPE_BOOL, &ENABLE_POWER_LED},
-    {"SFFopt", CONFIG_TYPE_BOOL, &SORT_FILES_FIRST_DIR},
-    {"PLDopt", CONFIG_TYPE_BOOL, &POWER_LED_MODE},
-    {"HVKopt", CONFIG_TYPE_BOOL, &HIDE_VIRTUAL_KEY},
-    {"SPKopt", CONFIG_TYPE_BOOL, &EN_SPEAKER},
-    {"RBUFopt", CONFIG_TYPE_BOOL, &RADIO_BUFFERED},
-    {"DHCPFopt", CONFIG_TYPE_BOOL, &DHCP_ENABLE},
-    {"MCPAVAIL", CONFIG_TYPE_BOOL, &MCP23017_AVAILABLE},
-    {"WIFIopt", CONFIG_TYPE_BOOL, &WIFI_ENABLE},
-    {"SKINopt", CONFIG_TYPE_UINT8, &SKIN_SELECTED},
-};
-
-//           s.end());
-// }
-
-// Function to load the configuration
-bool loadHMICfg() {
-  // Initialize NVS
-  esp_err_t err = nvs_flash_init();
-  if (err == ESP_ERR_NVS_NO_FREE_PAGES ||
-      err == ESP_ERR_NVS_NEW_VERSION_FOUND) {
-    ESP_ERROR_CHECK(nvs_flash_erase());
-    err = nvs_flash_init();
-  }
-  ESP_ERROR_CHECK(err);
-
-  // Open NVS for reading
-  nvs_handle_t handle;
-  err = nvs_open("storage", NVS_READONLY, &handle);
-  if (err != ESP_OK) {
-    printf("Error (%s) opening NVS handle for read!\n", esp_err_to_name(err));
-    logln("Error - abriendo NVS");
-    return true;
-  }
-
-  // Track missing keys to save later
-  std::vector<std::string> missing_keys;
-
-  // Iterate over the configuration entries and load them
-  for (auto &entry : configEntries) {
-    switch (entry.type) {
-    case CONFIG_TYPE_STRING: {
-      size_t required_size = 0;
-      err = nvs_get_str(handle, entry.key, NULL,
-                        &required_size); // Get required size first
-      if (err == ESP_OK && required_size > 0) {
-        std::string *str_value = static_cast<std::string *>(entry.value);
-        char *buffer = new char[required_size];
-        err = nvs_get_str(handle, entry.key, buffer, &required_size);
-        if (err == ESP_OK) {
-          // Asignar el contenido del buffer al string
-          *str_value = std::string(
-              buffer,
-              required_size - 1); // Se resta 1 para no incluir el carácter nulo
-        }
-        delete[] buffer; // Free memory
-      } else if (err == ESP_ERR_NVS_NOT_FOUND) {
-        printf("Key '%s' not found, will initialize with default.\n", entry.key);
-        missing_keys.push_back(entry.key);
-      }
-      break;
-    }
-    case CONFIG_TYPE_BOOL: {
-      std::string bool_str;
-      size_t required_size = 0;
-      err = nvs_get_str(handle, entry.key, NULL,
-                        &required_size); // Get size of boolean string
-      if (err == ESP_OK && required_size > 0) {
-        char *buffer = new char[required_size];
-        err = nvs_get_str(handle, entry.key, buffer, &required_size);
-        if (err == ESP_OK) {
-          bool_str = buffer;
-          *static_cast<bool *>(entry.value) = (bool_str == "true");
-        }
-        delete[] buffer;
-      } else if (err == ESP_ERR_NVS_NOT_FOUND) {
-        printf("Key '%s' not found, will initialize with default.\n", entry.key);
-        missing_keys.push_back(entry.key);
-      }
-      break;
-    }
-    case CONFIG_TYPE_UINT8: {
-      err = nvs_get_u8(handle, entry.key, static_cast<uint8_t *>(entry.value));
-      if (err == ESP_ERR_NVS_NOT_FOUND) {
-        printf("Key '%s' not found, will initialize with default.\n", entry.key);
-        missing_keys.push_back(entry.key);
-      }
-      break;
-    }
-    case CONFIG_TYPE_UINT16: {
-      err =
-          nvs_get_u16(handle, entry.key, static_cast<uint16_t *>(entry.value));
-      if (err == ESP_ERR_NVS_NOT_FOUND) {
-        printf("Key '%s' not found, will initialize with default.\n", entry.key);
-        missing_keys.push_back(entry.key);
-      }
-      break;
-    }
-    case CONFIG_TYPE_FLOAT: {
-      err = nvs_get_i32(handle, entry.key, static_cast<int32_t *>(entry.value));
-      if (err == ESP_ERR_NVS_NOT_FOUND) {
-        printf("Key '%s' not found, will initialize with default.\n", entry.key);
-        missing_keys.push_back(entry.key);
-      }
-      break;
-    }
-    case CONFIG_TYPE_DOUBLE: {
-      err = nvs_get_i64(handle, entry.key, static_cast<int64_t *>(entry.value));
-      if (err == ESP_ERR_NVS_NOT_FOUND) {
-        printf("Key '%s' not found, will initialize with default.\n", entry.key);
-        missing_keys.push_back(entry.key);
-      }
-      break;
-    }
-    case CONFIG_TYPE_INT8: {
-      err = nvs_get_i8(handle, entry.key, static_cast<int8_t *>(entry.value));
-      if (err == ESP_ERR_NVS_NOT_FOUND) {
-        printf("Key '%s' not found, will initialize with default.\n", entry.key);
-        missing_keys.push_back(entry.key);
-      }
-      break;
-    }
-    }
-
-    // Print error if there's a problem reading any entry
-    if (err != ESP_OK && err != ESP_ERR_NVS_NOT_FOUND) {
-      printf("Error (%s) reading key '%s'!\n", esp_err_to_name(err), entry.key);
-    }
-  }
-
-  // Close NVS read handle
-  nvs_close(handle);
-
-  // If there are missing keys, save their current (default) values to NVS
-  if (!missing_keys.empty()) {
-    printf("Found %d missing keys. Saving defaults to NVS...\n", missing_keys.size());
-    
-    // Open NVS for writing
-    err = nvs_open("storage", NVS_READWRITE, &handle);
-    if (err == ESP_OK) {
-      for (const auto &missing_key : missing_keys) {
-        // Find the corresponding entry and save it
-        for (const auto &entry : configEntries) {
-          if (entry.key == missing_key) {
-            switch (entry.type) {
-            case CONFIG_TYPE_STRING:
-              nvs_set_str(handle, entry.key,
-                          static_cast<std::string *>(entry.value)->c_str());
-              break;
-            case CONFIG_TYPE_BOOL: {
-              bool val = *static_cast<bool *>(entry.value);
-              std::string bool_str = val ? "true" : "false";
-              nvs_set_str(handle, entry.key, bool_str.c_str());
-              break;
-            }
-            case CONFIG_TYPE_UINT8:
-              nvs_set_u8(handle, entry.key, *static_cast<uint8_t *>(entry.value));
-              break;
-            case CONFIG_TYPE_UINT16:
-              nvs_set_u16(handle, entry.key,
-                          *static_cast<uint16_t *>(entry.value));
-              break;
-            case CONFIG_TYPE_FLOAT:
-              nvs_set_i32(handle, entry.key,
-                          *static_cast<int32_t *>(entry.value));
-              break;
-            case CONFIG_TYPE_DOUBLE:
-              nvs_set_i64(handle, entry.key,
-                          *static_cast<int64_t *>(entry.value));
-              break;
-            case CONFIG_TYPE_INT8:
-              nvs_set_i8(handle, entry.key, *static_cast<int8_t *>(entry.value));
-              break;
-            }
-            printf("Saved default for key '%s'\n", entry.key);
-            break;
-          }
-        }
-      }
-      nvs_commit(handle);
-      nvs_close(handle);
-      printf("Missing keys initialized and saved.\n");
-    } else {
-      printf("Warning: Could not open NVS for writing missing keys.\n");
-    }
-  }
-
-  return false;
-}
-
-// Function to save the configuration
-void saveHMIcfg(std::string value) {
-
-  // Initialize NVS
-  esp_err_t err = nvs_flash_init();
-  if (err == ESP_ERR_NVS_NO_FREE_PAGES ||
-      err == ESP_ERR_NVS_NEW_VERSION_FOUND) {
-    ESP_ERROR_CHECK(nvs_flash_erase());
-    err = nvs_flash_init();
-  }
-  ESP_ERROR_CHECK(err);
-
-  // Open NVS
-  nvs_handle_t handle;
-  err = nvs_open("storage", NVS_READWRITE, &handle);
-  if (err != ESP_OK) {
-    printf("Error (%s) opening NVS handle!\n", esp_err_to_name(err));
-    logln("Error opening NVS handle");
-    return;
-  }
-
-  // Iterate over the configuration entries and save them
-  for (const auto &entry : configEntries) {
-    if (value == "all" || value == entry.key) {
-      switch (entry.type) {
-      case CONFIG_TYPE_STRING:
-        nvs_set_str(handle, entry.key,
-                    static_cast<std::string *>(entry.value)->c_str());
-        break;
-      case CONFIG_TYPE_BOOL:
-        nvs_set_str(handle, entry.key,
-                    *static_cast<bool *>(entry.value) ? "true" : "false");
-        break;
-      case CONFIG_TYPE_UINT8:
-        nvs_set_u8(handle, entry.key, *static_cast<uint8_t *>(entry.value));
-        break;
-      case CONFIG_TYPE_UINT16:
-        nvs_set_u16(handle, entry.key, *static_cast<uint16_t *>(entry.value));
-        break;
-      case CONFIG_TYPE_UINT32:
-        nvs_set_u32(handle, entry.key, *static_cast<uint32_t *>(entry.value));
-        break;
-      case CONFIG_TYPE_FLOAT:
-        nvs_set_blob(handle, entry.key, static_cast<float *>(entry.value),
-                     sizeof(float));
-        break;
-      case CONFIG_TYPE_INT8:
-        nvs_set_i8(handle, entry.key, *static_cast<int8_t *>(entry.value));
-        break;
-      }
-    }
-  }
-
-  // Commit the updates to NVS
-  err = nvs_commit(handle);
-  if (err != ESP_OK) {
-    printf("Error (%s) committing updates to NVS!\n", esp_err_to_name(err));
-  }
-
-  // Close NVS
-  nvs_close(handle);
-}
-
-void saveVolSliders() {
-  saveHMIcfg("VOLLopt");
-  saveHMIcfg("VOLRopt");
-}
-
-// Function to load configuration from SD using fopen
-bool loadFromSD() {
-  FILE *file = fopen("/sd/.powadcr.cfg", "r");
-  if (!file) {
-    printf("Failed to open .powadcr.cfg for reading\n");
-    return true;
-  }
-
-  char line[128]; // Buffer para leer cada línea
-  while (fgets(line, sizeof(line), file)) {
-    char *delimiterPos = strchr(line, '=');
-    if (!delimiterPos)
-      continue; // Saltar líneas sin '='
-
-    *delimiterPos = '\0'; // Dividir en campo y valor
-    std::string key = line;
-    std::string valueStr = delimiterPos + 1;
-
-    // Remover salto de línea final si existe
-    valueStr.erase(std::remove(valueStr.begin(), valueStr.end(), '\n'),
-                   valueStr.end());
-
-    // Buscamos el campo y actualizamos su valor
-    for (auto &entry : configEntries) {
-      if (entry.key == key) {
-        switch (entry.type) {
-        case CONFIG_TYPE_STRING:
-          *static_cast<std::string *>(entry.value) = valueStr;
-          break;
-        case CONFIG_TYPE_BOOL:
-          *static_cast<bool *>(entry.value) = (valueStr == "true");
-          break;
-        case CONFIG_TYPE_UINT8:
-          *static_cast<uint8_t *>(entry.value) =
-              static_cast<uint8_t>(std::stoi(valueStr));
-          break;
-        case CONFIG_TYPE_UINT16:
-          *static_cast<uint16_t *>(entry.value) =
-              static_cast<uint16_t>(std::stoi(valueStr));
-          break;
-        case CONFIG_TYPE_UINT32:
-          *static_cast<uint32_t *>(entry.value) =
-              static_cast<uint32_t>(std::stoi(valueStr));
-          break;
-        case CONFIG_TYPE_INT8:
-          *static_cast<int8_t *>(entry.value) =
-              static_cast<int8_t>(std::stoi(valueStr));
-          break;
-        }
-        break;
-      }
-    }
-  }
-
-  fclose(file);
-  return false;
-}
-
 // ======================================================================
 // SISTEMA DE LOGGING PROFESIONAL CON CLASIFICACIÓN POR NIVELES
 // ======================================================================
@@ -1291,25 +955,20 @@ bool loadFromSD() {
 // - Código antiguo: seguir usando logln(), que se wrappea automáticamente
 // ======================================================================
 
-#define INFO_LOG 0      // Información general (0=deshabilitado, 1=habilitado)
-#define ERROR_LOG 1     // Errores (1=siempre habilitado)
-#define DEBUG_LOG 0     // Debug (0=deshabilitado, 1=habilitado)
-#define ALERT_LOG 1     // Alertas (1=siempre habilitado)
-
 // Función helper para obtener timestamp en ms
 inline unsigned long getLogTimestamp() {
   return millis();
 }
 
 // Función helper para formatear logs con timestamp y sección
-void _log_formatted(const char* level, const char* section, const String& message) {
+void _log_formatted(const char* level, const int line, const char* func, const char* section, const String& message) {
   unsigned long ts = getLogTimestamp();
-  Serial.printf("[%06lu] [%s] %s - %s\r\n", ts, level, section, message.c_str());
+  Serial.printf("[%06lu] [%s] %d - %s - %s - %s\r\n", ts, level, line, func, section, message.c_str());
 }
 
-void _log_formatted(const char* level, const char* section, const char* message) {
+void _log_formatted(const char* level, const int line, const char* func, const char* section, const char* message) {
   unsigned long ts = getLogTimestamp();
-  Serial.printf("[%06lu] [%s] %s - %s\r\n", ts, level, section, message);
+  Serial.printf("[%06lu] [%s] %d - %s - %s - %s\r\n", ts, level, line, func, section, message);
 }
 
 // ======================================================================
@@ -1319,28 +978,28 @@ void _log_formatted(const char* level, const char* section, const char* message)
 #define log_info(section, message) \
   do { \
     if (INFO_LOG) { \
-      _log_formatted("INFO", section, message); \
+      _log_formatted("INFO", __LINE__, __func__, section, message); \
     } \
   } while(0)
 
 #define log_error(section, message) \
   do { \
     if (ERROR_LOG) { \
-      _log_formatted("ERROR", section, message); \
+      _log_formatted("ERROR",  __LINE__, __func__, section, message); \
     } \
   } while(0)
 
 #define log_debug(section, message) \
   do { \
     if (DEBUG_LOG) { \
-      _log_formatted("DEBUG", section, message); \
+      _log_formatted("DEBUG", __LINE__, __func__, section, message); \
     } \
   } while(0)
 
 #define log_alert(section, message) \
   do { \
     if (ALERT_LOG) { \
-      _log_formatted("ALERT", section, message); \
+      _log_formatted("ALERT",  __LINE__, __func__, section, message); \
     } \
   } while(0)
 
@@ -1348,21 +1007,21 @@ void _log_formatted(const char* level, const char* section, const char* message)
 // MACROS PARA LOGS NUMÉRICOS
 // ======================================================================
 
-#define log_info_hex(section, value) \
+#define LOGHEX(section, value) \
   do { \
     if (INFO_LOG) { \
       Serial.printf("[%06lu] [INFO] %s - 0x%02X\r\n", getLogTimestamp(), section, value); \
     } \
   } while(0)
 
-#define log_error_hex(section, value) \
+#define LOGERRORHEX(section, value) \
   do { \
     if (ERROR_LOG) { \
       Serial.printf("[%06lu] [ERROR] %s - 0x%02X\r\n", getLogTimestamp(), section, value); \
     } \
   } while(0)
 
-#define log_info_bin(section, value) \
+#define LOGBIN(section, value) \
   do { \
     if (INFO_LOG) { \
       Serial.printf("[%06lu] [INFO] %s - 0b", getLogTimestamp(), section); \
@@ -1438,6 +1097,354 @@ void logAlert(String txt) {
   #endif
 }
 
+// Declaraciones de metodos
+// ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+// void save();
+// void saveHMIcfg(string value);
+
+// ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+// Define the array of configuration entries
+ConfigEntry configEntries[] = {
+    {"STEopt", CONFIG_TYPE_BOOL, &EN_STEREO},
+    {"MAMopt", CONFIG_TYPE_BOOL, &ACTIVE_AMP},
+    {"VLIopt", CONFIG_TYPE_BOOL, &VOL_LIMIT_HEADPHONE},
+    {"VOLMopt", CONFIG_TYPE_FLOAT, &MAIN_VOL},
+    {"VOLLopt", CONFIG_TYPE_FLOAT, &MAIN_VOL_L},
+    {"VOLRopt", CONFIG_TYPE_FLOAT, &MAIN_VOL_R},
+    {"BALopt", CONFIG_TYPE_FLOAT, &BALANCE_VOL},
+    {"EQHopt", CONFIG_TYPE_FLOAT, &EQ_HIGH},
+    {"EQMopt", CONFIG_TYPE_FLOAT, &EQ_MID},
+    {"EQLopt", CONFIG_TYPE_FLOAT, &EQ_LOW},
+    {"PLEopt", CONFIG_TYPE_BOOL, &ENABLE_POWER_LED},
+    {"SFFopt", CONFIG_TYPE_BOOL, &SORT_FILES_FIRST_DIR},
+    {"PLDopt", CONFIG_TYPE_BOOL, &POWER_LED_MODE},
+    {"HVKopt", CONFIG_TYPE_BOOL, &HIDE_VIRTUAL_KEY},
+    {"SPKopt", CONFIG_TYPE_BOOL, &EN_SPEAKER},
+    {"DHCPFopt", CONFIG_TYPE_BOOL, &DHCP_ENABLE},
+    {"MCPAVAIL", CONFIG_TYPE_BOOL, &MCP23017_AVAILABLE},
+    {"WIFIopt", CONFIG_TYPE_BOOL, &WIFI_ENABLE},
+    {"SKINopt", CONFIG_TYPE_UINT8, &SKIN_SELECTED},
+    {"IVOopt", CONFIG_TYPE_FLOAT, &IN_REC_VOL},
+};
+
+//           s.end());
+// }
+
+// Function to load the configuration
+bool loadHMICfg() {
+  // Initialize NVS
+  esp_err_t err = nvs_flash_init();
+  if (err == ESP_ERR_NVS_NO_FREE_PAGES ||
+      err == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+    ESP_ERROR_CHECK(nvs_flash_erase());
+    err = nvs_flash_init();
+  }
+  ESP_ERROR_CHECK(err);
+
+  // Open NVS for reading
+  nvs_handle_t handle;
+  err = nvs_open("storage", NVS_READONLY, &handle);
+  if (err != ESP_OK) {
+    printf("Error (%s) opening NVS handle for read!\n", esp_err_to_name(err));
+    logln("Error - abriendo NVS");
+    return false;
+  }
+
+  // Track missing keys to save later
+  std::vector<std::string> missing_keys;
+
+  // Iterate over the configuration entries and load them
+  for (auto &entry : configEntries) {
+    switch (entry.type) {
+        case CONFIG_TYPE_STRING: {
+          size_t required_size = 0;
+          err = nvs_get_str(handle, entry.key, NULL,
+                            &required_size); // Get required size first
+          if (err == ESP_OK && required_size > 0) {
+            std::string *str_value = static_cast<std::string *>(entry.value);
+            char *buffer = new char[required_size];
+            err = nvs_get_str(handle, entry.key, buffer, &required_size);
+            if (err == ESP_OK) {
+              // Asignar el contenido del buffer al string
+              *str_value = std::string(
+                  buffer,
+                  required_size - 1); // Se resta 1 para no incluir el carácter nulo
+            }
+            delete[] buffer; // Free memory
+          } else if (err == ESP_ERR_NVS_NOT_FOUND) {
+            printf("Key '%s' not found, will initialize with default.\n", entry.key);
+            logln("Key '" + String(entry.key) + "' not found, will initialize with default.");
+            missing_keys.push_back(entry.key);
+          }
+          break;
+        }
+        case CONFIG_TYPE_BOOL: {
+          std::string bool_str;
+          size_t required_size = 0;
+          err = nvs_get_str(handle, entry.key, NULL,
+                            &required_size); // Get size of boolean string
+          if (err == ESP_OK && required_size > 0) {
+            char *buffer = new char[required_size];
+            err = nvs_get_str(handle, entry.key, buffer, &required_size);
+            if (err == ESP_OK) {
+              bool_str = buffer;
+              *static_cast<bool *>(entry.value) = (bool_str == "true");
+            }
+            delete[] buffer;
+          } else if (err == ESP_ERR_NVS_NOT_FOUND) {
+            printf("Key '%s' not found, will initialize with default.\n", entry.key);
+            logln("Key '" + String(entry.key) + "' not found, will initialize with default.");
+            missing_keys.push_back(entry.key);
+          }
+          break;
+        }
+        case CONFIG_TYPE_UINT8: {
+          err = nvs_get_u8(handle, entry.key, static_cast<uint8_t *>(entry.value));
+          if (err == ESP_ERR_NVS_NOT_FOUND) {
+            printf("Key '%s' not found, will initialize with default.\n", entry.key);
+            logln("Key '" + String(entry.key) + "' not found, will initialize with default.");
+            missing_keys.push_back(entry.key);
+          }
+          break;
+        }
+        case CONFIG_TYPE_UINT16: {
+          err =
+              nvs_get_u16(handle, entry.key, static_cast<uint16_t *>(entry.value));
+          if (err == ESP_ERR_NVS_NOT_FOUND) {
+            printf("Key '%s' not found, will initialize with default.\n", entry.key);
+            logln("Key '" + String(entry.key) + "' not found, will initialize with default.");
+            missing_keys.push_back(entry.key);
+          }
+          break;
+        }
+        case CONFIG_TYPE_FLOAT: {
+          err = nvs_get_i32(handle, entry.key, static_cast<int32_t *>(entry.value));
+          if (err == ESP_ERR_NVS_NOT_FOUND) {
+            printf("Key '%s' not found, will initialize with default.\n", entry.key);
+            logln("Key '" + String(entry.key) + "' not found, will initialize with default.");
+            missing_keys.push_back(entry.key);
+          }
+          break;
+        }
+        case CONFIG_TYPE_DOUBLE: {
+          err = nvs_get_i64(handle, entry.key, static_cast<int64_t *>(entry.value));
+          if (err == ESP_ERR_NVS_NOT_FOUND) {
+            printf("Key '%s' not found, will initialize with default.\n", entry.key);
+            logln("Key '" + String(entry.key) + "' not found, will initialize with default.");
+            missing_keys.push_back(entry.key);
+          }
+          break;
+        }
+        case CONFIG_TYPE_INT8: {
+          err = nvs_get_i8(handle, entry.key, static_cast<int8_t *>(entry.value));
+          if (err == ESP_ERR_NVS_NOT_FOUND) {
+            printf("Key '%s' not found, will initialize with default.\n", entry.key);
+            logln("Key '" + String(entry.key) + "' not found, will initialize with default.");
+            missing_keys.push_back(entry.key);
+          }
+          break;
+        }
+    }
+
+    // Print error if there's a problem reading any entry
+    if (err != ESP_OK && err != ESP_ERR_NVS_NOT_FOUND) {
+      printf("Error (%s) reading key '%s'!\n", esp_err_to_name(err), entry.key);
+      logln("Error (" + String(esp_err_to_name(err)) + ") reading key '" + String(entry.key) + "'!");
+    }
+  }
+
+  // Close NVS read handle
+  nvs_close(handle);
+
+  // If there are missing keys, save their current (default) values to NVS
+  if (!missing_keys.empty()) {
+    printf("Found %d missing keys. Saving defaults to NVS...\n", missing_keys.size());
+    
+    // Open NVS for writing
+    err = nvs_open("storage", NVS_READWRITE, &handle);
+    if (err == ESP_OK) {
+      for (const auto &missing_key : missing_keys) {
+        // Find the corresponding entry and save it
+        for (const auto &entry : configEntries) {
+          if (entry.key == missing_key) {
+            switch (entry.type) {
+            case CONFIG_TYPE_STRING:
+              nvs_set_str(handle, entry.key,
+                          static_cast<std::string *>(entry.value)->c_str());
+              break;
+            case CONFIG_TYPE_BOOL: {
+              bool val = *static_cast<bool *>(entry.value);
+              std::string bool_str = val ? "true" : "false";
+              nvs_set_str(handle, entry.key, bool_str.c_str());
+              break;
+            }
+            case CONFIG_TYPE_UINT8:
+              nvs_set_u8(handle, entry.key, *static_cast<uint8_t *>(entry.value));
+              break;
+            case CONFIG_TYPE_UINT16:
+              nvs_set_u16(handle, entry.key,
+                          *static_cast<uint16_t *>(entry.value));
+              break;
+            case CONFIG_TYPE_FLOAT:
+              nvs_set_i32(handle, entry.key,
+                          *static_cast<int32_t *>(entry.value));
+              break;
+            case CONFIG_TYPE_DOUBLE:
+              nvs_set_i64(handle, entry.key,
+                          *static_cast<int64_t *>(entry.value));
+              break;
+            case CONFIG_TYPE_INT8:
+              nvs_set_i8(handle, entry.key, *static_cast<int8_t *>(entry.value));
+              break;
+            }
+            printf("Saved default for key '%s'\n", entry.key);
+            break;
+          }
+        }
+      }
+      nvs_commit(handle);
+      nvs_close(handle);
+      printf("Missing keys initialized and saved.\n");
+    } else {
+      printf("Warning: Could not open NVS for writing missing keys.\n");
+    }
+  }
+  else
+  {
+    log_info("BOOT", "All keys loaded successfully from NVS.");
+    return true;
+  }
+
+  return false;
+}
+
+// Function to save the configuration
+void saveHMIcfg(std::string value) {
+
+  // Initialize NVS
+  esp_err_t err = nvs_flash_init();
+  if (err == ESP_ERR_NVS_NO_FREE_PAGES ||
+      err == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+    ESP_ERROR_CHECK(nvs_flash_erase());
+    err = nvs_flash_init();
+  }
+  ESP_ERROR_CHECK(err);
+
+  // Open NVS
+  nvs_handle_t handle;
+  err = nvs_open("storage", NVS_READWRITE, &handle);
+  if (err != ESP_OK) {
+    printf("Error (%s) opening NVS handle!\n", esp_err_to_name(err));
+    logln("Error opening NVS handle");
+    return;
+  }
+
+  // Iterate over the configuration entries and save them
+  for (const auto &entry : configEntries) {
+    if (value == "all" || value == entry.key) {
+      switch (entry.type) {
+      case CONFIG_TYPE_STRING:
+        nvs_set_str(handle, entry.key,
+                    static_cast<std::string *>(entry.value)->c_str());
+        break;
+      case CONFIG_TYPE_BOOL:
+        nvs_set_str(handle, entry.key,
+                    *static_cast<bool *>(entry.value) ? "true" : "false");
+        break;
+      case CONFIG_TYPE_UINT8:
+        nvs_set_u8(handle, entry.key, *static_cast<uint8_t *>(entry.value));
+        break;
+      case CONFIG_TYPE_UINT16:
+        nvs_set_u16(handle, entry.key, *static_cast<uint16_t *>(entry.value));
+        break;
+      case CONFIG_TYPE_UINT32:
+        nvs_set_u32(handle, entry.key, *static_cast<uint32_t *>(entry.value));
+        break;
+      case CONFIG_TYPE_FLOAT:
+        nvs_set_i32(handle, entry.key, *static_cast<int32_t *>(entry.value));
+        break;
+      case CONFIG_TYPE_INT8:
+        nvs_set_i8(handle, entry.key, *static_cast<int8_t *>(entry.value));
+        break;
+      }
+    }
+  }
+
+  // Commit the updates to NVS
+  err = nvs_commit(handle);
+  if (err != ESP_OK) {
+    printf("Error (%s) committing updates to NVS!\n", esp_err_to_name(err));
+  }
+
+  // Close NVS
+  nvs_close(handle);
+}
+
+void saveVolSliders() 
+{
+  saveHMIcfg("VOLLopt");
+  saveHMIcfg("VOLRopt");
+  saveHMIcfg("VOLMopt");
+}
+
+// Function to load configuration from SD using fopen
+bool loadFromSD() {
+  FILE *file = fopen("/sd/.powadcr.cfg", "r");
+  if (!file) {
+    printf("Failed to open .powadcr.cfg for reading\n");
+    return true;
+  }
+
+  char line[128]; // Buffer para leer cada línea
+  while (fgets(line, sizeof(line), file)) {
+    char *delimiterPos = strchr(line, '=');
+    if (!delimiterPos)
+      continue; // Saltar líneas sin '='
+
+    *delimiterPos = '\0'; // Dividir en campo y valor
+    std::string key = line;
+    std::string valueStr = delimiterPos + 1;
+
+    // Remover salto de línea final si existe
+    valueStr.erase(std::remove(valueStr.begin(), valueStr.end(), '\n'),
+                   valueStr.end());
+
+    // Buscamos el campo y actualizamos su valor
+    for (auto &entry : configEntries) {
+      if (entry.key == key) {
+        switch (entry.type) {
+        case CONFIG_TYPE_STRING:
+          *static_cast<std::string *>(entry.value) = valueStr;
+          break;
+        case CONFIG_TYPE_BOOL:
+          *static_cast<bool *>(entry.value) = (valueStr == "true");
+          break;
+        case CONFIG_TYPE_UINT8:
+          *static_cast<uint8_t *>(entry.value) =
+              static_cast<uint8_t>(std::stoi(valueStr));
+          break;
+        case CONFIG_TYPE_UINT16:
+          *static_cast<uint16_t *>(entry.value) =
+              static_cast<uint16_t>(std::stoi(valueStr));
+          break;
+        case CONFIG_TYPE_UINT32:
+          *static_cast<uint32_t *>(entry.value) =
+              static_cast<uint32_t>(std::stoi(valueStr));
+          break;
+        case CONFIG_TYPE_INT8:
+          *static_cast<int8_t *>(entry.value) =
+              static_cast<int8_t>(std::stoi(valueStr));
+          break;
+        }
+        break;
+      }
+    }
+  }
+
+  fclose(file);
+  return false;
+}
 
 // ✅ VERSIÓN OPTIMIZADA - SIN MALLOC/FREE INNECESARIOS
 void readFileRange(File &file, uint8_t *buffer, int offset, int size,

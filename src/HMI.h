@@ -1679,25 +1679,25 @@ private:
 
           saveHMIcfg("HVKopt");
         }                       
-        else if (strCmd.indexOf("RBUF=") != -1) 
-        {
-          //Cogemos el valor
-          uint8_t buff[8];
-          strCmd.getBytes(buff, 7);
-          int valEn = (int)buff[5];
-          //
-          if (valEn==1)
-          {
-            RADIO_BUFFERED = true;
-          }
-          else
-          {
-            RADIO_BUFFERED = false;
-          }
+        // else if (strCmd.indexOf("RBUF=") != -1) 
+        // {
+        //   //Cogemos el valor
+        //   uint8_t buff[8];
+        //   strCmd.getBytes(buff, 7);
+        //   int valEn = (int)buff[5];
+        //   //
+        //   if (valEn==1)
+        //   {
+        //     RADIO_BUFFERED = true;
+        //   }
+        //   else
+        //   {
+        //     RADIO_BUFFERED = false;
+        //   }
 
-          logln("Radio buffered: " + String(RADIO_BUFFERED));
-          saveHMIcfg("RBUFopt");
-        }
+        //   logln("Radio buffered: " + String(RADIO_BUFFERED));
+        //   saveHMIcfg("RBUFopt");
+        // }
         // ✅ CSW FFWD Speed: CSW_FFWD=XX (XX = 01 a 10 = 1% a 10%)
         else if (strCmd.indexOf("CSW_FFWD=") != -1)
         {
@@ -2988,8 +2988,6 @@ private:
 
           // Aplicamos el balance en la salida
           setVolumenOutput();
-
-          //MASTER_VOL = valVol;
           saveHMIcfg("BALopt");
           //
           logln("Balance: " + String(BALANCE_VOL / 100));
@@ -3010,13 +3008,12 @@ private:
                 MAIN_VOL = MAX_VOL_FOR_HEADPHONE_LIMIT;
               }                 
           }
-          //MASTER_VOL = valVol;
-          saveHMIcfg("VOLMopt");
+
+          // Guardamos en la partición NVS los valores de los sliders
+          saveVolSliders();
           myNex.writeStr("tape.tapeVol.txt",String(int(MAIN_VOL)) + "%");
 
           kitStream.setVolume(MAIN_VOL / 100.0f);
-          //setVolumenOutput();
-
           //
           VOL_CHANGE = true;
           //
@@ -3039,9 +3036,9 @@ private:
             }
           }          
 
+          // Guardamos en la partición NVS los valores de los sliders
           saveVolSliders();
           setVolumenOutput();
-       
           VOL_CHANGE = true;
 
         }
@@ -3070,8 +3067,8 @@ private:
             logln("");
           #endif
 
+          // Guardamos en la partición NVS los valores de los sliders
           saveVolSliders();
-          
           setVolumenOutput();
      
           VOL_CHANGE = true;
@@ -3238,17 +3235,11 @@ private:
           int valInVol = (int)buff[4];
           IN_REC_VOL = valInVol/100.0; // Valor en %
           logln("Input rec gain=" + String(IN_REC_VOL));
+          //
+          saveHMIcfg("IVOopt");
           // Ajustamos el input gain
           kitStream.setInputVolume(IN_REC_VOL); // Ajustamos el volumen de entrada al 50%          
         } 
-        //IN_REC_VOL
-        // else if (strCmd.indexOf("OFS=") != -1) 
-        // {
-        //   //Cogemos el valor
-        //   PULSE_OFFSET = myNex.readNumber("menuAudio3.offset.val");;
-        //   logln("Offset value=" + String(PULSE_OFFSET));
-        // }                        
-        // Habilitar terminadores para forzar siguiente pulso a HIGH
         else if (strCmd.indexOf("C64=") != -1) 
         {
           //Cogemos el valor
