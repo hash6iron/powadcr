@@ -4857,19 +4857,18 @@ void playingFile()
 
     // C64 TAP usa 96kHz
     if (C64_TAP_INSIDE) {
-      SAMPLING_RATE = STANDARD_SR_8_BIT_MACHINE / TAPE_BAUDRATE;
+      SAMPLING_RATE = (BASE_SR + TONE_ADJUST) / TAPE_BAUDRATE;
       new_sr.sample_rate = (uint32_t)SAMPLING_RATE;
       logln("C64 TAP: forcing hardware + SAMPLING_RATE to 96000 Hz");
     }
     else if (ORIC_TAP_INSIDE) {
       // Para ORIC
-      SAMPLING_RATE = STANDARD_SR_8_BIT_MACHINE / TAPE_BAUDRATE;
+      SAMPLING_RATE = (BASE_SR + TONE_ADJUST) * TAPE_BAUDRATE;
       new_sr.sample_rate = (uint32_t)SAMPLING_RATE;
       logln("Oric TAP: forcing hardware + baudrate at 300 bauds");
     }
-    else {
-      logln("New sampling rate = " + String(SAMPLING_RATE));
-    }
+
+    log_info("SYSTEM","New sampling rate = " + String(SAMPLING_RATE));
 
     if (!setAudioInfoSafe(new_sr, "TAP playback")) {
       LAST_MESSAGE = "Error configuring audio for TAP";

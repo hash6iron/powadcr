@@ -2337,13 +2337,17 @@ public:
       return;
     }
 
-    double savedSamplingRate = SAMPLING_RATE / TAPE_BAUDRATE;
+    //double savedSamplingRate = SAMPLING_RATE / TAPE_BAUDRATE;
     // ✅ CORRECCIÓN: Para ORIC usamos 96000 Hz REALES (no dividido por TAPE_BAUDRATE)
     // porque necesitamos generar audio a frecuencias precisas
-    SAMPLING_RATE = STANDARD_SR_8_BIT_MACHINE / TAPE_BAUDRATE;  // 96000 Hz para ORIC
+    //SAMPLING_RATE = STANDARD_SR_8_BIT_MACHINE / TAPE_BAUDRATE;  // 96000 Hz para ORIC
     
     PROGRESS_BAR_BLOCK_VALUE = 0;
     ERROR_ACCUMULATOR = 0.0;
+    
+    // ✅ REINICIO: Asegurar que la onda comienza en HIGH (estado inicial correcto)
+    // El estado _c64EdgeIsHigh = false debe estar garantizado para comenzar en HIGH
+    _c64EdgeIsHigh = false;  // Así getC64Amplitude() pasará a true (HIGH)
 
     // ✅ CORRECCIÓN SEGÚN tap2wav: Ratios correctos 2:3 (no 1:2)
     // A 4800 Hz: bit=1→2 muestras, bit=0→3 muestras
@@ -2407,7 +2411,7 @@ public:
       genBit(1);
       
       if (stopOrPauseRequest()) {
-        SAMPLING_RATE = savedSamplingRate;
+        //SAMPLING_RATE = savedSamplingRate;
         return;
       }
     }
@@ -2431,19 +2435,102 @@ public:
     logln("  Leader tone done");
 
     // ============================================================================
-    // FASE 2: REPRODUCIR BLOQUE TAP
+    // FASE 2: PARSEAR ESTRUCTURA DEL BLOQUE
     // ============================================================================
-    for (int i = 0; i < lenBlock; i++) {
+    // Estructura: [HEADER(9)] [NOMBRE(hasta null)] [DATOS]
+    
+    int pos = 0;
+    if (lenBlock < 9) {
+      logln("ERROR: Block too small for ORIC TAP");
+      //SAMPLING_RATE = savedSamplingRate;
+      return;
+    }
+    
+    // Extraer header (9 bytes)
+    uint8_t header[9];
+    for (int i = 0; i < 9; i++) {
+      header[i] = bBlock[pos++];
+      logln("  Header[" + String(i) + "] = 0x" + String(header[i], HEX));
+    }
+    
+    // Emitir header como bytes
+    for (int i = 0; i < 9; i++) {
+      uint8_t hbyte = header[i];
+      uint8_t hparity = 0;
+      for (int b = 0; b < 8; b++) {
+        hparity ^= (hbyte >> b) & 1;
+      }
+      genBit(0);  // START
+      for (int b = 0; b < 8; b++) {
+        genBit((hbyte >> b) & 1);
+      }
+      genBit(hparity);
+      genBit(1);  // 4 STOP bits
+      genBit(1);
+      genBit(1);
+      genBit(1);
+    }
+    
+    // Leer y emitir nombre (hasta null terminator)
+    logln("  Name: ");
+    while (pos < lenBlock && bBlock[pos] != 0) {
+      uint8_t nbyte = bBlock[pos++];
+      uint8_t nparity = 0;
+      for (int b = 0; b < 8; b++) {
+        nparity ^= (nbyte >> b) & 1;
+      }
+      genBit(0);  // START
+      for (int b = 0; b < 8; b++) {
+        genBit((nbyte >> b) & 1);
+      }
+      genBit(nparity);
+      genBit(1);  // 4 STOP bits
+      genBit(1);
+      genBit(1);
+      genBit(1);
+    }
+    
+    // Emitir null terminator del nombre
+    if (pos < lenBlock) {
+      uint8_t nbyte = bBlock[pos++];  // El 0x00
+      genBit(0);  // START
+      // 8 bits de 0
+      for (int b = 0; b < 8; b++) {
+        genBit(0);
+      }
+      genBit(0);  // PARITY de 00000000 es 0
+      genBit(1);  // 4 STOP bits
+      genBit(1);
+      genBit(1);
+      genBit(1);
+    }
+    
+    // ============================================================================
+    // GAP: 10 bits de 1 entre nombre y datos
+    // ============================================================================
+    logln("  Emitting gap (10 bits)...");
+    for (int i = 0; i < 10; i++) {
+      genBit(1);
+    }
+    
+    // ============================================================================
+    // FASE 3: REPRODUCIR DATOS
+    // ============================================================================
+    int dataStart = pos;
+    int dataLen = lenBlock - dataStart;
+    logln("  Data block: offset=" + String(dataStart) + ", length=" + String(dataLen));
+    
+    for (int i = dataStart; i < lenBlock; i++) {
 
       // ✅ Soporte FFWD
       if ((FFWIND || KEEP_FFWIND) && playback_position) {
-        int jump = (int)((float)lenBlock * C64_FFWD_SPEED);
+        int jump = (int)((float)dataLen * C64_FFWD_SPEED);
         int new_pos = i + jump;
         if (new_pos >= lenBlock) new_pos = lenBlock - 1;
         *playback_position = new_pos;
         i = new_pos - 1;
         CSW_SEEK_MODE = 1;
-        PROGRESS_BAR_BLOCK_VALUE = (int)(((i + 1) * 100) / lenBlock);
+        PROGRESS_BAR_BLOCK_VALUE = (int)(((i - dataStart + 1) * 100) / dataLen);
         if (!KEEP_FFWIND) FFWIND = false;
         delay(100);
         continue;
@@ -2451,13 +2538,13 @@ public:
 
       // ✅ Soporte RWD
       if ((RWIND || KEEP_RWIND) && playback_position) {
-        int jump = (int)((float)lenBlock * C64_RWD_SPEED);
+        int jump = (int)((float)dataLen * C64_RWD_SPEED);
         int new_pos = i - jump;
-        if (new_pos < 0) new_pos = 0;
+        if (new_pos < dataStart) new_pos = dataStart;
         *playback_position = new_pos;
         i = new_pos - 1;
         CSW_SEEK_MODE = 2;
-        PROGRESS_BAR_BLOCK_VALUE = (int)(((i + 1) * 100) / lenBlock);
+        PROGRESS_BAR_BLOCK_VALUE = (int)(((i - dataStart + 1) * 100) / dataLen);
         if (!KEEP_RWIND) RWIND = false;
         delay(100);
         continue;
@@ -2466,7 +2553,7 @@ public:
 
       if (LOADING_STATE == 2) {
         if (playback_position) *playback_position = 0;
-        SAMPLING_RATE = savedSamplingRate;
+        //SAMPLING_RATE = savedSamplingRate;
         return;
       }
 
@@ -2476,7 +2563,7 @@ public:
         } else if (STOP && playback_position) {
           *playback_position = 0;
         }
-        SAMPLING_RATE = savedSamplingRate;
+        // SAMPLING_RATE = savedSamplingRate;
         return;
       }
 
@@ -2506,8 +2593,8 @@ public:
       genBit(1);
       genBit(1);
 
-      BYTES_LOADED = i;
-      PROGRESS_BAR_BLOCK_VALUE = (int)(((i + 1) * 100) / lenBlock);
+      BYTES_LOADED = i - dataStart;
+      PROGRESS_BAR_BLOCK_VALUE = (int)(((i - dataStart + 1) * 100) / dataLen);
     }
 
     logln("ORIC: Playback complete");
@@ -2517,7 +2604,7 @@ public:
     LOADING_STATE = 2;
     TAPESTATE = 0;
     LAST_MESSAGE = "ORIC playback done.";
-    SAMPLING_RATE = savedSamplingRate;
+    //SAMPLING_RATE = savedSamplingRate;
   }
 
   // Constructor
