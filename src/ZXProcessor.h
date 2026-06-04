@@ -2321,68 +2321,144 @@ public:
   }
 
   // ============================================================================
-  // ORIC TAP PLAYBACK - Con soporte PAUSE, FFWD, RWD
+  // ORIC TAP PLAYBACK - Codificación correcta (4166 Hz para 1, 2083 Hz para 0)
   // ============================================================================
+  
   void playOricData(uint8_t *bBlock, int lenBlock, int *playback_position = nullptr) {
     //
-    // Reproduce datos ORIC .TAP
-    // Soporta PAUSE, RWD, FFWD como en C64/CSW
-    // Convierte cada byte ORIC en pulsos usando timing ORIC
+    // Reproduce datos ORIC .TAP con especificación correcta
+    // Bit 1: 1 ciclo de 4166 Hz = 240 µs
+    // Bit 0: 1 ciclo de 2083 Hz = 480 µs
+    // Incluye leader tone al inicio
     //
 
     if (!bBlock || lenBlock == 0) {
-      logln("ERROR: playOricData - No data buffer or zero size");
+      logln("ERROR: playOricData - No data");
       return;
     }
 
-    double savedSamplingRate = SAMPLING_RATE;
-    SAMPLING_RATE = STANDARD_SR_8_BIT_MACHINE / TAPE_BAUDRATE;  // Aplicar multiplicador TAPE_BAUDRATE
-
+    double savedSamplingRate = SAMPLING_RATE / TAPE_BAUDRATE;
+    // ✅ CORRECCIÓN: Para ORIC usamos 96000 Hz REALES (no dividido por TAPE_BAUDRATE)
+    // porque necesitamos generar audio a frecuencias precisas
+    SAMPLING_RATE = STANDARD_SR_8_BIT_MACHINE / TAPE_BAUDRATE;  // 96000 Hz para ORIC
+    
     PROGRESS_BAR_BLOCK_VALUE = 0;
     ERROR_ACCUMULATOR = 0.0;
 
-    bool isResume = (playback_position && *playback_position > 0);
-    int i = (playback_position && *playback_position > 0) ? *playback_position : 0;
-    int byteCount = 0;
+    // ✅ CORRECCIÓN SEGÚN tap2wav: Ratios correctos 2:3 (no 1:2)
+    // A 4800 Hz: bit=1→2 muestras, bit=0→3 muestras
+    // Escalado a 96 kHz (factor 20):
+    // bit=1: 2×20 = 40 muestras = 416.67 µs
+    // bit=0: 3×20 = 60 muestras = 625 µs
+    const double SAMPLES_1_BIT = 40.0;   // 40 muestras @ 96kHz
+    const double SAMPLES_0_BIT = 60.0;   // 60 muestras @ 96kHz
+    
+    const double SEC_1_BIT = SAMPLES_1_BIT / SAMPLING_RATE;
+    const double SEC_0_BIT = SAMPLES_0_BIT / SAMPLING_RATE;
 
-    if (i == 0) {
-      logln("ORIC PLAYBACK START - Block size: " + String(lenBlock) + ", TAPE_BAUDRATE: " + 
-            String(TAPE_BAUDRATE, 2) + ", ORIC_TURBO_MODE: " + String(ORIC_TURBO_MODE));
+    logln("ORIC playback START");
+
+    // Definir función genBit para usarla tanto en leader tone como en datos
+    auto genBit = [&](uint8_t bit) {
+      double amplitude = getC64Amplitude();
+      uint16_t sample_R = (uint16_t)(amplitude * (MAIN_VOL_R / 100.0f));
+      uint16_t sample_L = (uint16_t)(amplitude * (MAIN_VOL_L / 100.0f));
+      
+      if (bit == 1) {
+        // Bit 1: 40 muestras a 96 kHz = 416.67 µs
+        // Generar 20 muestras de un nivel, luego 20 de otro (semi-períodos)
+        _generateC64Half(20, sample_R, sample_L);
+        amplitude = getC64Amplitude();
+        sample_R = (uint16_t)(amplitude * (MAIN_VOL_R / 100.0f));
+        sample_L = (uint16_t)(amplitude * (MAIN_VOL_L / 100.0f));
+        _generateC64Half(20, sample_R, sample_L);
+      } else {
+        // Bit 0: 60 muestras a 96 kHz = 625 µs
+        // Generar 30 muestras de un nivel, luego 30 de otro (semi-períodos)
+        _generateC64Half(30, sample_R, sample_L);
+        amplitude = getC64Amplitude();
+        sample_R = (uint16_t)(amplitude * (MAIN_VOL_R / 100.0f));
+        sample_L = (uint16_t)(amplitude * (MAIN_VOL_L / 100.0f));
+        _generateC64Half(30, sample_R, sample_L);
+      }
+    };
+
+    // ============================================================================
+    // FASE 1: LEADER TONE (256 bytes 0x16 como en tap2wav + 0x24)
+    // ============================================================================
+    logln("  Generating leader tone (256×0x16 + 0x24)...");
+    
+    // Según tap2wav: 256 bytes de sincronismo 0x16, luego marcador 0x24
+    // Cada byte se emite completo con estructura START+DATA+PARITY+STOP
+    for (int i = 0; i < 256; i++) {
+      uint8_t syncByte = 0x16;
+      uint8_t parity = 0;
+      for (int b = 0; b < 8; b++) {
+        parity ^= (syncByte >> b) & 1;
+      }
+      genBit(0);  // START
+      for (int b = 0; b < 8; b++) {
+        genBit((syncByte >> b) & 1);
+      }
+      genBit(parity);
+      genBit(1);  // 4 STOP bits (tap2wav usa 4, no 3)
+      genBit(1);
+      genBit(1);
+      genBit(1);
+      
+      if (stopOrPauseRequest()) {
+        SAMPLING_RATE = savedSamplingRate;
+        return;
+      }
     }
+    
+    // Marcador 0x24
+    uint8_t markerByte = 0x24;
+    uint8_t markerParity = 0;
+    for (int b = 0; b < 8; b++) {
+      markerParity ^= (markerByte >> b) & 1;
+    }
+    genBit(0);  // START
+    for (int b = 0; b < 8; b++) {
+      genBit((markerByte >> b) & 1);
+    }
+    genBit(markerParity);
+    genBit(1);  // 4 STOP bits
+    genBit(1);
+    genBit(1);
+    genBit(1);
+    
+    logln("  Leader tone done");
 
-    // Recorremos todos los bytes del buffer ORIC
-    for (; i < lenBlock; i++) {
+    // ============================================================================
+    // FASE 2: REPRODUCIR BLOQUE TAP
+    // ============================================================================
+    for (int i = 0; i < lenBlock; i++) {
 
-      // ✅ Soporte para FFWD - Continuo mientras KEEP_FFWIND esté pulsado
+      // ✅ Soporte FFWD
       if ((FFWIND || KEEP_FFWIND) && playback_position) {
-        int jump_bytes = (int)((float)lenBlock * C64_FFWD_SPEED);  // Reutilizar velocidad C64
-        int new_pos = i + jump_bytes;
+        int jump = (int)((float)lenBlock * C64_FFWD_SPEED);
+        int new_pos = i + jump;
         if (new_pos >= lenBlock) new_pos = lenBlock - 1;
         *playback_position = new_pos;
         i = new_pos - 1;
-        CSW_SEEK_MODE = 1;  // FFWD en UI
-        PROGRESS_BAR_BLOCK_VALUE = (int)(((new_pos + 1) * 100) / lenBlock);
-        logln("ORIC FFWD: Jump to " + String(new_pos) + " / " + String(lenBlock));
-        if (!KEEP_FFWIND) {
-          FFWIND = false;
-        }
+        CSW_SEEK_MODE = 1;
+        PROGRESS_BAR_BLOCK_VALUE = (int)(((i + 1) * 100) / lenBlock);
+        if (!KEEP_FFWIND) FFWIND = false;
         delay(100);
         continue;
       }
 
-      // ✅ Soporte para RWD - Continuo mientras KEEP_RWIND esté pulsado
+      // ✅ Soporte RWD
       if ((RWIND || KEEP_RWIND) && playback_position) {
-        int jump_bytes = (int)((float)lenBlock * C64_RWD_SPEED);  // Reutilizar velocidad C64
-        int new_pos = i - jump_bytes;
+        int jump = (int)((float)lenBlock * C64_RWD_SPEED);
+        int new_pos = i - jump;
         if (new_pos < 0) new_pos = 0;
         *playback_position = new_pos;
         i = new_pos - 1;
-        CSW_SEEK_MODE = 2;  // RWD en UI
-        PROGRESS_BAR_BLOCK_VALUE = (int)(((new_pos + 1) * 100) / lenBlock);
-        logln("ORIC RWD: Jump to " + String(new_pos) + " / " + String(lenBlock));
-        if (!KEEP_RWIND) {
-          RWIND = false;
-        }
+        CSW_SEEK_MODE = 2;
+        PROGRESS_BAR_BLOCK_VALUE = (int)(((i + 1) * 100) / lenBlock);
+        if (!KEEP_RWIND) RWIND = false;
         delay(100);
         continue;
       }
@@ -2394,64 +2470,53 @@ public:
         return;
       }
 
-      // ✅ Verificar pausa/stop con guardado de posición
       if (stopOrPauseRequest()) {
         if (playback_position && PAUSE && !STOP) {
           *playback_position = i;
-        } else if (STOP) {
-          if (playback_position) *playback_position = 0;
+        } else if (STOP && playback_position) {
+          *playback_position = 0;
         }
         SAMPLING_RATE = savedSamplingRate;
         return;
       }
 
-      // Leer byte de datos ORIC
       uint8_t dataByte = bBlock[i];
 
-      // Reproducir byte ORIC como pulsos
-      // Cada bit se convierte a pulsos de cierta duración en microsegundos
-      for (int bit = 7; bit >= 0; bit--) {
-        uint8_t bitValue = (dataByte >> bit) & 0x01;
-
-        // Obtener duraciones en microsegundos
-        double zeroDurationUs = ORICZEROLOWPULSE + ORICZEROHIGHPULSE;  // Para 0-bit: LOW + HIGH
-        double oneDurationUs = ORICONEPULSE;                            // Para 1-bit: más simple
-
-        // Si turbo mode, usar tiempos turbo
-        if (ORIC_TURBO_MODE) {
-          zeroDurationUs = ORICTURBOZERO * 2;   // ~182µs * 2
-          oneDurationUs = ORICTURBIONE;         // ~92µs
-        }
-
-        // Convertir microsegundos a segundos
-        double zeroSeconds = zeroDurationUs / 1000000.0;
-        double oneSeconds = oneDurationUs / 1000000.0;
-
-        // Generar pulsos para este bit
-        if (bitValue == 0) {
-          // 0-bit: LOW + HIGH
-          semiPulseC64(zeroSeconds / 2.0);  // Primera mitad (LOW)
-          semiPulseC64(zeroSeconds / 2.0);  // Segunda mitad (HIGH)
-        } else {
-          // 1-bit: pulso simple más corto
-          semiPulseC64(oneSeconds);
-        }
+      // Calcular paridad XOR
+      uint8_t parity = 0;
+      for (int b = 0; b < 8; b++) {
+        parity ^= (dataByte >> b) & 1;
       }
+
+      // Estructura: [START_0 | 8_DATA_LSB | PARITY | 3_STOP_1]
+      // START (0)
+      genBit(0);
+      
+      // 8 DATA bits (LSB first)
+      for (int b = 0; b < 8; b++) {
+        genBit((dataByte >> b) & 1);
+      }
+      
+      // PARITY
+      genBit(parity);
+      
+      // 4 STOP bits (tap2wav usa 4 en lugar de 3)
+      genBit(1);
+      genBit(1);
+      genBit(1);
+      genBit(1);
 
       BYTES_LOADED = i;
       PROGRESS_BAR_BLOCK_VALUE = (int)(((i + 1) * 100) / lenBlock);
-      byteCount++;
     }
 
-    // Auto-stop al final
-    logln("ORIC playback complete (" + String(byteCount) + " bytes)");
+    logln("ORIC: Playback complete");
     if (playback_position) *playback_position = 0;
     STOP = true;
     PAUSE = false;
     LOADING_STATE = 2;
     TAPESTATE = 0;
-    logln("ORIC: Auto-stop activated");
-    LAST_MESSAGE = "Auto-stop playing.";
+    LAST_MESSAGE = "ORIC playback done.";
     SAMPLING_RATE = savedSamplingRate;
   }
 

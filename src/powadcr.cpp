@@ -760,35 +760,36 @@ void proccesingTAP(char *file_ch) {
           C64_MODE = false;
           C64_TAP_INSIDE = false;
           
-          // Guardar el baudrate original antes de cambiarlo
-          TAPE_BAUDRATE_SAVED = TAPE_BAUDRATE;
+        //   // Guardar el baudrate original antes de cambiarlo
+        //   TAPE_BAUDRATE_SAVED = TAPE_BAUDRATE;
           
-          // ✅ AUTO-DETECT BAUDRATE para ORIC
-          // ORIC estándar: 2400 bps => TAPE_BAUDRATE = 2400/1200 = 2
-          // ORIC turbo: varía según loader, pero típicamente 3600-4800 bps
-          if (ORIC_TURBO_MODE)
-          {
-            TAPE_BAUDRATE = 3.0;  // ~3600 bps (3600/1200)
-            #ifdef DEBUGMODE
-              logln("ORIC Turbo mode detected: TAPE_BAUDRATE = 3.0 (3600 bps)");
-            #endif
-          }
-          else
-          {
-            TAPE_BAUDRATE = 2.0;  // 2400 bps estándar (2400/1200)
-            #ifdef DEBUGMODE
-              logln("ORIC Standard mode: TAPE_BAUDRATE = 2.0 (2400 bps)");
-            #endif
-          }
+        //   // ✅ AUTO-DETECT BAUDRATE para ORIC
+        //   // ORIC estándar: 2400 bps => TAPE_BAUDRATE = 2400/1200 = 2
+        //   // ORIC turbo: varía según loader, pero típicamente 3600-4800 bps
+        //   if (ORIC_TURBO_MODE)
+        //   {
+        //     TAPE_BAUDRATE = 2.0;  // ~3600 bps (3600/1200)
+        //     #ifdef DEBUGMODE
+        //       logln("ORIC Turbo mode detected: TAPE_BAUDRATE = 3.0 (3600 bps)");
+        //     #endif
+        //   }
+        //   else
+        //   {
+        //     TAPE_BAUDRATE = 1.0;  // 2400 bps estándar (2400/1200)
+        //     #ifdef DEBUGMODE
+        //       logln("ORIC Standard mode: TAPE_BAUDRATE = 1.0 (2400 bps)");
+        //     #endif
+        //   }
           
-          #ifdef DEBUGMODE
-            logAlert("TAP Format: ORIC detected! Setting ORIC_MODE=true");
-            logln("Block descriptor type: 0x" + String(blockType, HEX) + " (ORIC marker)");
-            logln("Baudrate multiplier: " + String(TAPE_BAUDRATE, 2));
-          #endif
-        }
+        //   #ifdef DEBUGMODE
+        //     logAlert("TAP Format: ORIC detected! Setting ORIC_MODE=true");
+        //     logln("Block descriptor type: 0x" + String(blockType, HEX) + " (ORIC marker)");
+        //     logln("Baudrate multiplier: " + String(TAPE_BAUDRATE, 2));
+        //   #endif
+        // }
         // C64_DATA_BLOCK or detectC64Format() sets C64_MODE
         // (El detector ya está en TAPprocessor.h como detectC64Format())
+        }
         else if (C64_MODE || C64_TAP_INSIDE)
         {
           ORIC_MODE = false;
@@ -4860,6 +4861,15 @@ void playingFile()
       new_sr.sample_rate = (uint32_t)SAMPLING_RATE;
       logln("C64 TAP: forcing hardware + SAMPLING_RATE to 96000 Hz");
     }
+    else if (ORIC_TAP_INSIDE) {
+      // Para ORIC
+      SAMPLING_RATE = STANDARD_SR_8_BIT_MACHINE / TAPE_BAUDRATE;
+      new_sr.sample_rate = (uint32_t)SAMPLING_RATE;
+      logln("Oric TAP: forcing hardware + baudrate at 300 bauds");
+    }
+    else {
+      logln("New sampling rate = " + String(SAMPLING_RATE));
+    }
 
     if (!setAudioInfoSafe(new_sr, "TAP playback")) {
       LAST_MESSAGE = "Error configuring audio for TAP";
@@ -5551,13 +5561,17 @@ void putLogo() {
     // WAV file
     hmi.writeString("tape.logo.pic=46");
     delay(5);
-  } else if (TYPE_FILE_LOAD == "TAP" && !C64_TAP_INSIDE) {
+  } else if (TYPE_FILE_LOAD == "TAP" && !C64_TAP_INSIDE && !ORIC_TAP_INSIDE) {
     // Spectrum
     hmi.writeString("tape.logo.pic=41");
     delay(5);
-  } else if (TYPE_FILE_LOAD == "TAP" && C64_TAP_INSIDE) {
+  } else if (TYPE_FILE_LOAD == "TAP" && C64_TAP_INSIDE && !ORIC_TAP_INSIDE) {
     // C64
     hmi.writeString("tape.logo.pic=62");
+    delay(5);
+  } else if (TYPE_FILE_LOAD == "TAP" && ORIC_TAP_INSIDE && !C64_TAP_INSIDE) {
+    // ORIC
+    hmi.writeString("tape.logo.pic=63");
     delay(5);
   } else if (TYPE_FILE_LOAD == "TZX") {
     // TZX file

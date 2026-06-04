@@ -59,6 +59,7 @@ uint8_t C64_TAP_VERSION = 0;  // TAP version: 0=original (overflow on 0x00), 1=u
 // ORIC MODE - Runtime switchable via auto-detection
 // ======================================================================
 bool ORIC_MODE = false;  // Set to true for Oric-1/Oric Atmos 8-bit computer
+bool ORIC_TAP_INSIDE = false; // Flag to indicate if we're currently processing an ORIC TAP file (used for conditional logic in various functions)
 bool ORIC_TURBO_MODE = false;  // Detect/use ORIC turbo mode (>2400 bps) if available
 double TAPE_BAUDRATE_SAVED = 1.0;  // Guarda el TAPE_BAUDRATE original antes de cambiar para ORIC
 

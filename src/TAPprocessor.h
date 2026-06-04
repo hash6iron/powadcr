@@ -492,6 +492,7 @@ class TAPprocessor
             if (detectOricFormat())
             {
                 _isOricFormat = true;
+                ORIC_TAP_INSIDE = true; // Indicamos que estamos procesando un TAP de ORIC
                 return getBlockDescriptorOric();
             }
             
@@ -893,23 +894,23 @@ class TAPprocessor
                                        + String(header[8]) + String(header[9]) + String(header[10]) + String(header[11]) + "]");
 
             // Fallback: verificar size word como segundo criterio
-            if (!isC64)
-            {
-                // Leer byte adicional para size word
-                uint8_t byte4 = 0;
-                uint8_t* temp = (uint8_t*)ps_calloc(1, sizeof(uint8_t));
-                readFileRange(_mFile, temp, 3, 1, false);
-                byte4 = temp[0];
-                free(temp);
+            // if (!isC64)
+            // {
+            //     // Leer byte adicional para size word
+            //     uint8_t byte4 = 0;
+            //     uint8_t* temp = (uint8_t*)ps_calloc(1, sizeof(uint8_t));
+            //     readFileRange(_mFile, temp, 3, 1, false);
+            //     byte4 = temp[0];
+            //     free(temp);
                 
-                uint16_t possibleSize = (byte4 << 8) | header[1];
+            //     uint16_t possibleSize = (byte4 << 8) | header[1];
                 
-                // Si el size es inválido, podría ser C64 incluso con [19, 0, 0]
-                if (possibleSize > _sizeTAP || (possibleSize < 50 && possibleSize > 0))
-                {
-                    isC64 = true;
-                }
-            }
+            //     // Si el size es inválido, podría ser C64 incluso con [19, 0, 0]
+            //     if (possibleSize > _sizeTAP || (possibleSize < 50 && possibleSize > 0))
+            //     {
+            //         isC64 = true;
+            //     }
+            // }
             
             free(header);
             return isC64;
