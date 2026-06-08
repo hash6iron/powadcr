@@ -2329,7 +2329,14 @@ public:
       myNex.writeStr("tape.bds.txt", "300 Bds");
     }    
 
-    ORIC_TURBO_MODE = (TAPE_BAUDRATE > 1.0) ? 1 : 0;
+    // ORIC_TURBO_MODE = (TAPE_BAUDRATE > 1.0) ? 1 : 0;
+
+    // if (ORIC_TURBO_MODE) 
+    // {
+    //   // Tenemos que volver a dejar el baudrate en 1200 porque
+    //   // ya se encarga la rutina de calcular el baudrate real con los pulsos.
+    //   setBaudrate(1.0);
+    // }
 
     log_info("ORIC", "Turbo mode: " + String(ORIC_TURBO_MODE ? "ON" : "OFF"));
 

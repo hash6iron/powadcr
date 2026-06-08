@@ -4817,6 +4817,13 @@ void finalizePlayback() {
 
 void playingFile() 
 {
+
+  if (ORIC_TAP_INSIDE) {
+    // No se cambia el baudrate solo el ORIC_TURBO_MODE
+    ORIC_TURBO_MODE = (TAPE_BAUDRATE > 1.0) ? true : false;
+    TAPE_BAUDRATE = 1.0;
+  }
+  
   // Inicializamos
   kitStream.setPAPower(ACTIVE_AMP && EN_SPEAKER);
 
