@@ -4863,7 +4863,7 @@ void playingFile()
     }
     else if (ORIC_TAP_INSIDE) {
       // Para ORIC
-      SAMPLING_RATE = (BASE_SR + TONE_ADJUST) * TAPE_BAUDRATE;
+      SAMPLING_RATE = (BASE_SR + TONE_ADJUST) / TAPE_BAUDRATE;
       new_sr.sample_rate = (uint32_t)SAMPLING_RATE;
       logln("Oric TAP: forcing hardware + baudrate at 300 bauds");
     }
@@ -10038,7 +10038,37 @@ void prepareCardStructure() {
     if (!QUICK_BOOT) delay(750);
   } 
 
-  // Creamos el directorio /fav
+  // Creamos el directorio /DOWNLOAD/ZX
+  fDir = "/DOWNLOAD/ZX";
+
+  // Esto lo hacemos para ver si el directorio existe
+  if (createSpecialDirectory(fDir)) {
+    hmi.writeString("statusLCD.txt=\"Creating DOWNLOAD/ZX directory\"");
+    hmi.reloadCustomDir("/");
+    if (!QUICK_BOOT) delay(750);
+  } 
+
+    // Creamos el directorio /DOWNLOAD/CPC
+  fDir = "/DOWNLOAD/CPC";
+
+  // Esto lo hacemos para ver si el directorio existe
+  if (createSpecialDirectory(fDir)) {
+    hmi.writeString("statusLCD.txt=\"Creating DOWNLOAD/CPC directory\"");
+    hmi.reloadCustomDir("/");
+    if (!QUICK_BOOT) delay(750);
+  } 
+
+  // Creamos el directorio /DOWNLOAD/MSX
+  fDir = "/DOWNLOAD/MSX";
+
+  // Esto lo hacemos para ver si el directorio existe
+  if (createSpecialDirectory(fDir)) {
+    hmi.writeString("statusLCD.txt=\"Creating DOWNLOAD/MSX directory\"");
+    hmi.reloadCustomDir("/");
+    if (!QUICK_BOOT) delay(750);
+  }
+
+  // Creamos el directorio /FAV
   fDir = "/FAV";
 
   // Esto lo hacemos para ver si el directorio existe

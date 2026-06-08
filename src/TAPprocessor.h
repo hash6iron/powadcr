@@ -838,6 +838,20 @@ class TAPprocessor
             _myTAP.descriptor[0].playback_position = 0;
             _myTAP.descriptor[0].nameDetected = true;
             
+            // Contar bytes de sincronismo iniciales para la detección de velocidad
+            uint8_t firstBytes[64];
+            _mFile.seek(0);
+            int read = _mFile.read(firstBytes, 64);
+            int syncs = 0;
+            for(int i=0; i<read; i++) {
+                if (firstBytes[i] == 0x16) syncs++;
+                else if (firstBytes[i] == 0x24) break;
+            }
+
+            // Inicializar OricProcessor con los datos del archivo
+            oricp.initialize(_sizeTAP, syncs);
+            ORIC_TURBO_MODE = oricp.getTurboMode();
+
             // Extraer nombre del archivo (sin extensión)
             char fname[256] = {0};
             strncpy(fname, _mFile.name(), 255);

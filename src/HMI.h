@@ -2962,8 +2962,8 @@ private:
           C64_TIMING_BIAS = (AZIMUT - 5) * (BIAS_FACTOR_TAP_C64);
           log_debug("HMI","C64_TIMING_BIAS: " + String(C64_TIMING_BIAS, 8) + " samples");
 
-          //TONE_ADJUST = (-210)*(TONE_ADJUSTMENT_ZX_SPECTRUM + (valVol-TONE_ADJUSTMENT_ZX_SPECTRUM_LIMIT));         
-          TONE_ADJUST = 0;
+          TONE_ADJUST = (-210)*(TONE_ADJUSTMENT_ZX_SPECTRUM + (valVol-TONE_ADJUSTMENT_ZX_SPECTRUM_LIMIT));         
+          //TONE_ADJUST = 0;
           SAMPLES_ADJUST = (TONE_ADJUSTMENT_ZX_SPECTRUM + (valVol-TONE_ADJUSTMENT_ZX_SPECTRUM_LIMIT));
           log_debug("HMI","TONE: " + String(TONE_ADJUST) + " Hz"); 
 

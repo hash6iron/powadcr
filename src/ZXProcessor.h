@@ -42,6 +42,8 @@
 // #include <stdint.h>
 #include <math.h>
 #include "config.h"
+#include "OricProcessor.h"
+extern OricProcessor oricp;
 
 #pragma once
 
@@ -137,6 +139,22 @@ private:
   // Independiente de EDGE_EAR_IS (ZX/CSW) para evitar interferencias.
   // false = LOW, true = HIGH. Empieza en false → primer toggle → HIGH.
   bool _c64EdgeIsHigh = false;
+
+  void setBaudRateF(double bauds_factor)
+  {
+    AudioInfo current_info = kitStream.audioInfo();
+    current_info.sample_rate = SAMPLING_RATE / bauds_factor;  // Asegurar que el SR es el esperado para ORIC
+    kitStream.setAudioInfo(current_info);
+    log_info("SYSTEM","Baud rate set to " + String(1200*bauds_factor) + " bauds, sampling rate = " + String(current_info.sample_rate) + " Hz");  
+  }
+
+  void setBaudrate(int bauds)
+  {
+    AudioInfo current_info = kitStream.audioInfo();
+    current_info.sample_rate = SAMPLING_RATE / (bauds/1200.0);  // Asegurar que el SR es el esperado para ORIC
+    kitStream.setAudioInfo(current_info);
+    log_info("SYSTEM","Baud rate set to " + String(bauds) + " bauds, sampling rate = " + String(current_info.sample_rate) + " Hz");  
+  }
 
   // ============================================================================
   // C64 PULSE PROCESSING HELPERS (always compiled, runtime controlled)
@@ -351,52 +369,6 @@ private:
     return high ? maxAmplitude : minAmplitude;
   }
 
-  int firFilter(int data) {
-    _x[0] = _x[1];
-    long tmp = ((((data * 3269048L) >> 2)    //= (3.897009118e-1 * data)
-                 + ((_x[0] * 3701023L) >> 3) //+(  0.2205981765*v[0])
-                 ) +
-                1048576) >>
-               21; // round and downshift fixed point /2097152
-    _x[1] = (int)tmp;
-    return (int)(_x[0] + _x[1]); // 2^
-  }
-
-  int lowPass(int data) {
-    _xf[0] = _xf[1];
-    _xf[1] = data;
-    _yf[0] = _yf[1];
-    float gain = 10;
-
-    return (int)(gain * (0.969 * _yf[0] + 0.0155 * _xf[1] + 0.0155 * _xf[0]));
-  }
-
-  int highPass(int data) {
-    // Coeficientes de 2º orden. Butterworth
-    // https://www.meme.net.au/butterworth.html
-
-    float A = 1;
-    float B = 2;
-    float C = 1;
-    float D = 0.681;
-    float E = -0.703;
-
-    float gain = 6000;
-
-    // Calculos
-    _xf[0] = _xf[1];
-    _xf[1] = _xf[2];
-    _xf[2] = data;
-
-    _yf[0] = _yf[1];
-    _yf[1] = _yf[2];
-
-    _yf[2] = (int)(gain * ((A * _xf[2] - B * _xf[1] + C * _xf[0])) +
-                   D * _yf[1] - E * _yf[0]);
-
-    return _yf[2];
-  }
-
   public: 
 
   void createSample(uint16_t sample_R, uint16_t sample_L)
@@ -443,8 +415,6 @@ private:
     size_t bytes_written = 0;
 
     LAST_PULSE_WIDTH = width;
-
-  
 
     for (int j = 0; j < width; j++) 
     {
@@ -1873,6 +1843,30 @@ public:
     for (int i = 0; i < size; i++) {
       bRead = bBlock[i];
 
+      // ========== Control de FFWIND/RWIND ==========
+      if ((FFWIND || KEEP_FFWIND) && size > 0) {
+        int jump = (int)((float)size * TZX_REWIND_SPEED);
+        i = (i + jump >= size) ? size - 1 : i + jump;
+        CSW_SEEK_MODE = 1;
+        if (!KEEP_FFWIND) FFWIND = false;
+        BYTES_LOADED = bytes_accumulated + i;
+        PROGRESS_BAR_BLOCK_VALUE = (int)(((bytes_accumulated + i + 1) * 100) / (total_block_size > 0 ? total_block_size : size));
+        delay(100);
+        continue;
+      }
+
+      if ((RWIND || KEEP_RWIND) && size > 0) {
+        int jump = (int)((float)size * TZX_REWIND_SPEED);
+        i = (i - jump < 0) ? 0 : i - jump;
+        CSW_SEEK_MODE = 2;
+        if (!KEEP_RWIND) RWIND = false;
+        BYTES_LOADED = bytes_accumulated + i;
+        PROGRESS_BAR_BLOCK_VALUE = (int)(((bytes_accumulated + i + 1) * 100) / (total_block_size > 0 ? total_block_size : size));
+        delay(100);
+        continue;
+      }
+      CSW_SEEK_MODE = 0;
+
       if (LOADING_STATE == 1 || TEST_RUNNING) {
         // Determinar máscara para este byte
         if ((i == size - 1) && isThelastDataPart) {
@@ -2321,231 +2315,194 @@ public:
   }
 
   // ============================================================================
-  // ORIC TAP PLAYBACK - Codificación correcta (4166 Hz para 1, 2083 Hz para 0)
+  // ORIC TAP PLAYBACK - Completo, Limpio y Funcional
   // ============================================================================
-  
   void playOricData(uint8_t *bBlock, int lenBlock, int *playback_position = nullptr) {
-    //
-    // Reproduce datos ORIC .TAP con especificación correcta
-    // Bit 1: 1 ciclo de 4166 Hz = 240 µs
-    // Bit 0: 1 ciclo de 2083 Hz = 480 µs
-    // Incluye leader tone al inicio
-    //
 
     if (!bBlock || lenBlock == 0) {
       logln("ERROR: playOricData - No data");
       return;
     }
 
-    //double savedSamplingRate = SAMPLING_RATE / TAPE_BAUDRATE;
-    // ✅ CORRECCIÓN: Para ORIC usamos 96000 Hz REALES (no dividido por TAPE_BAUDRATE)
-    // porque necesitamos generar audio a frecuencias precisas
-    //SAMPLING_RATE = STANDARD_SR_8_BIT_MACHINE / TAPE_BAUDRATE;  // 96000 Hz para ORIC
-    
+    logln("ORIC playback START. baudrate=" + String(TAPE_BAUDRATE*1200) + " bauds");
+    if (TAPE_BAUDRATE == 1) {
+      myNex.writeStr("tape.bds.txt", "300 Bds");
+    }    
+
+    ORIC_TURBO_MODE = (TAPE_BAUDRATE > 1.0) ? 1 : 0;
+
+    log_info("ORIC", "Turbo mode: " + String(ORIC_TURBO_MODE ? "ON" : "OFF"));
+
     PROGRESS_BAR_BLOCK_VALUE = 0;
     ERROR_ACCUMULATOR = 0.0;
-    
-    // ✅ REINICIO: Asegurar que la onda comienza en HIGH (estado inicial correcto)
-    // El estado _c64EdgeIsHigh = false debe estar garantizado para comenzar en HIGH
-    _c64EdgeIsHigh = false;  // Así getC64Amplitude() pasará a true (HIGH)
+    _c64EdgeIsHigh = false;
+    EDGE_EAR_IS = down;
 
-    // ✅ CORRECCIÓN SEGÚN tap2wav: Ratios correctos 2:3 (no 1:2)
-    // A 4800 Hz: bit=1→2 muestras, bit=0→3 muestras
-    // Escalado a 96 kHz (factor 20):
-    // bit=1: 2×20 = 40 muestras = 416.67 µs
-    // bit=0: 3×20 = 60 muestras = 625 µs
-    const double SAMPLES_1_BIT = 40.0;   // 40 muestras @ 96kHz
-    const double SAMPLES_0_BIT = 60.0;   // 60 muestras @ 96kHz
-    
-    const double SEC_1_BIT = SAMPLES_1_BIT / SAMPLING_RATE;
-    const double SEC_0_BIT = SAMPLES_0_BIT / SAMPLING_RATE;
+    int chn = WAV_8BIT_MONO ? 1 : channels;
 
-    logln("ORIC playback START");
-
-    // Definir función genBit para usarla tanto en leader tone como en datos
     auto genBit = [&](uint8_t bit) {
-      double amplitude = getC64Amplitude();
-      uint16_t sample_R = (uint16_t)(amplitude * (MAIN_VOL_R / 100.0f));
-      uint16_t sample_L = (uint16_t)(amplitude * (MAIN_VOL_L / 100.0f));
-      
-      if (bit == 1) {
-        // Bit 1: 40 muestras a 96 kHz = 416.67 µs
-        // Generar 20 muestras de un nivel, luego 20 de otro (semi-períodos)
-        _generateC64Half(20, sample_R, sample_L);
-        amplitude = getC64Amplitude();
-        sample_R = (uint16_t)(amplitude * (MAIN_VOL_R / 100.0f));
-        sample_L = (uint16_t)(amplitude * (MAIN_VOL_L / 100.0f));
-        _generateC64Half(20, sample_R, sample_L);
-      } else {
-        // Bit 0: 60 muestras a 96 kHz = 625 µs
-        // Generar 30 muestras de un nivel, luego 30 de otro (semi-períodos)
-        _generateC64Half(30, sample_R, sample_L);
-        amplitude = getC64Amplitude();
-        sample_R = (uint16_t)(amplitude * (MAIN_VOL_R / 100.0f));
-        sample_L = (uint16_t)(amplitude * (MAIN_VOL_L / 100.0f));
-        _generateC64Half(30, sample_R, sample_L);
+      // Generar semi-pulsos para cada bit (SIEMPRE 2):
+      // Modo SLOW: Bit 0 asimétrico (LOW 208µs + HIGH 416µs)
+      //            Bit 1 simétrico (208µs + 208µs)
+      // Modo TURBO: Bit 0 asimétrico (LOW 60µs + HIGH 470µs)
+      //             Bit 1 simétrico (60µs + 60µs)
+      // Nota: Siempre 2 semi-pulsos para mantener alternancia correcta de _c64EdgeIsHigh
+      int numSemiPulsos = 2;
+
+      // Generar cada semi-pulso (LOW o HIGH)
+      for (int n = 0; n < numSemiPulsos; n++) 
+      {        
+        // Obtener ancho del semi-pulso actual (LOW o HIGH según _c64EdgeIsHigh)
+        double sp_width_us = oricp.getPulseWidthUs(bit, ORIC_TURBO_MODE, _c64EdgeIsHigh);
+        // Convertir a segundos para calcular muestras
+        double sp_width_s  = sp_width_us * 1e-6;
+        // Calcular número de muestras para este semi-pulso
+        int samples = (int)round(sp_width_s * SAMPLING_RATE);
+        if (samples < 1) samples = 1;
+        // Buffer de muestras para este semi-pulso
+        int bytes = samples * 2 * chn;
+        // Obtenemos la amplitud ajustada por volumen para este bit
+        // dentro de get64Amplitude() se alterna el semi-pulso
+        double amplitude  = getC64Amplitude();
+
+        // Calculamos la amplitud de los canales R y L aplicando el volumen maestro
+        uint16_t sample_R = (uint16_t)(amplitude * (MAIN_VOL_R / 100.0f));
+        uint16_t sample_L = (uint16_t)(amplitude * (MAIN_VOL_L / 100.0f));
+        // Generamos el semi-pulso en el bus I2S
+        createPulse(samples, bytes, sample_R, sample_L);
+        // Solicitud de parada
+        if (stopOrPauseRequest()) return;
       }
     };
 
-    // ============================================================================
-    // FASE 1: LEADER TONE (256 bytes 0x16 como en tap2wav + 0x24)
-    // ============================================================================
-    logln("  Generating leader tone (256×0x16 + 0x24)...");
-    
-    // Según tap2wav: 256 bytes de sincronismo 0x16, luego marcador 0x24
-    // Cada byte se emite completo con estructura START+DATA+PARITY+STOP
-    for (int i = 0; i < 256; i++) {
-      uint8_t syncByte = 0x16;
-      uint8_t parity = 0;
+    // ========== emitByte: Emitir 1 byte con protocolo ORIC estándar ==========
+    // Estructura: START(0) + 8×DATA(LSB first) + PARITY(odd/inverse) + 3×STOP(1)
+    // Total: 13 bits por byte
+    // Nota: Especificación ORIC permite 1-3 stop bits; MaxDuino usa 3 (más robusto)
+    auto emitByte = [&](uint8_t byte_val) {
+      uint8_t bitChecksum = 0;
       for (int b = 0; b < 8; b++) {
-        parity ^= (syncByte >> b) & 1;
+        uint8_t bit = (byte_val >> b) & 1;
+        bitChecksum ^= bit;
       }
-      genBit(0);  // START
-      for (int b = 0; b < 8; b++) {
-        genBit((syncByte >> b) & 1);
-      }
-      genBit(parity);
-      genBit(1);  // 4 STOP bits (tap2wav usa 4, no 3)
-      genBit(1);
-      genBit(1);
-      genBit(1);
       
-      if (stopOrPauseRequest()) {
-        //SAMPLING_RATE = savedSamplingRate;
-        return;
+      genBit(0); // Start bit (siempre 0)
+      for (int b = 0; b < 8; b++) {
+        genBit((byte_val >> b) & 1);
       }
-    }
-    
-    // Marcador 0x24
-    uint8_t markerByte = 0x24;
-    uint8_t markerParity = 0;
-    for (int b = 0; b < 8; b++) {
-      markerParity ^= (markerByte >> b) & 1;
-    }
-    genBit(0);  // START
-    for (int b = 0; b < 8; b++) {
-      genBit((markerByte >> b) & 1);
-    }
-    genBit(markerParity);
-    genBit(1);  // 4 STOP bits
-    genBit(1);
-    genBit(1);
-    genBit(1);
-    
-    logln("  Leader tone done");
+      // Paridad inversa (odd): si hay número impar de 1s (bitChecksum=1), enviar 0; si par (bitChecksum=0), enviar 1
+      genBit(bitChecksum == 0 ? 1 : 0); // Parity bit (inverse/odd)
+      // Tres bits de parada a '1'
+      genBit(1); 
+      genBit(1);
+      genBit(1);
+    };
 
-    // ============================================================================
-    // FASE 2: PARSEAR ESTRUCTURA DEL BLOQUE
-    // ============================================================================
-    // Estructura: [HEADER(9)] [NOMBRE(hasta null)] [DATOS]
-    
+    // ========== SINCRONISMO: Generar tono guía artificial y sincronizar con el bloque del archivo ==========
     int pos = 0;
-    if (lenBlock < 9) {
-      logln("ERROR: Block too small for ORIC TAP");
-      //SAMPLING_RATE = savedSamplingRate;
+
+    // Tono guía artificial (bytes 0x16) para que el hardware del Oric estabilice la señal.
+    // Emitimos exactamente 259 bytes, tal como hace la subrutina de la ROM en $E75A.
+    for (int i = 0; i < 259; i++) {
+      emitByte(0x16);
+      if (stopOrPauseRequest()) return;
+    }
+    emitByte(0x24); // Marcador de fin de sincronismo emitido artificialmente
+    
+    // Localizamos el marcador 0x24 en el bloque de datos del archivo .TAP
+    while (pos < lenBlock && bBlock[pos] != 0x24) {
+      pos++;
+    }
+
+    // Verificación de seguridad: necesitamos el marcador + al menos 9 bytes de cabecera
+    if (pos + 9 >= lenBlock) 
+    {
+      log_error("ORIC", "Sync marker not found or block too short");
+      LAST_MESSAGE = "Error: sync not found.";
+      return;
+    } 
+
+    pos++; // IMPORTANTE: Saltamos el byte 0x24 del archivo para no enviarlo dos veces
+
+
+    // ========== HEADER (9 bytes, count_r 9..1) ==========
+    // [0-2]: magic | [3]: Type
+    // [4]: End_HI  [5]: End_LO  (count_r=5,4)
+    // [6]: Start_HI [7]: Start_LO (count_r=3,2)
+    // [8]: último byte (count_r=1)
+    if (lenBlock < pos + 9) {
+      logln("ERROR: Block too small for header");
       return;
     }
     
-    // Extraer header (9 bytes)
     uint8_t header[9];
     for (int i = 0; i < 9; i++) {
       header[i] = bBlock[pos++];
-      logln("  Header[" + String(i) + "] = 0x" + String(header[i], HEX));
     }
     
-    // Emitir header como bytes
+    // bytesToRead = (End - Start) + 1  (replicando lógica de oric.cpp NEWPARAM)
+    uint16_t endAddr   = (uint16_t)((header[4] << 8) | header[5]);
+    uint16_t startAddr = (uint16_t)((header[6] << 8) | header[7]);
+    int bytesToRead    = (int)(endAddr - startAddr) + 1;
+    
+    logln("  ORIC header: Type=0x" + String(header[3], HEX) +
+          " End=0x" + String(endAddr, HEX) +
+          " Start=0x" + String(startAddr, HEX) +
+          " Size=" + String(bytesToRead));
+    
+    if (bytesToRead <= 0 || bytesToRead > lenBlock) {
+      logln("ERROR: bytesToRead invalid=" + String(bytesToRead));
+      return;
+    }
+    
     for (int i = 0; i < 9; i++) {
-      uint8_t hbyte = header[i];
-      uint8_t hparity = 0;
-      for (int b = 0; b < 8; b++) {
-        hparity ^= (hbyte >> b) & 1;
-      }
-      genBit(0);  // START
-      for (int b = 0; b < 8; b++) {
-        genBit((hbyte >> b) & 1);
-      }
-      genBit(hparity);
-      genBit(1);  // 4 STOP bits
-      genBit(1);
-      genBit(1);
-      genBit(1);
+      emitByte(header[i]);
     }
-    
-    // Leer y emitir nombre (hasta null terminator)
-    logln("  Name: ");
-    while (pos < lenBlock && bBlock[pos] != 0) {
-      uint8_t nbyte = bBlock[pos++];
-      uint8_t nparity = 0;
-      for (int b = 0; b < 8; b++) {
-        nparity ^= (nbyte >> b) & 1;
-      }
-      genBit(0);  // START
-      for (int b = 0; b < 8; b++) {
-        genBit((nbyte >> b) & 1);
-      }
-      genBit(nparity);
-      genBit(1);  // 4 STOP bits
-      genBit(1);
-      genBit(1);
-      genBit(1);
-    }
-    
-    // Emitir null terminator del nombre
-    if (pos < lenBlock) {
-      uint8_t nbyte = bBlock[pos++];  // El 0x00
-      genBit(0);  // START
-      // 8 bits de 0
-      for (int b = 0; b < 8; b++) {
-        genBit(0);
-      }
-      genBit(0);  // PARITY de 00000000 es 0
-      genBit(1);  // 4 STOP bits
-      genBit(1);
-      genBit(1);
-      genBit(1);
-    }
-    
-    // ============================================================================
-    // GAP: 10 bits de 1 entre nombre y datos
-    // ============================================================================
-    logln("  Emitting gap (10 bits)...");
-    for (int i = 0; i < 10; i++) {
-      genBit(1);
-    }
-    
-    // ============================================================================
-    // FASE 3: REPRODUCIR DATOS
-    // ============================================================================
-    int dataStart = pos;
-    int dataLen = lenBlock - dataStart;
-    logln("  Data block: offset=" + String(dataStart) + ", length=" + String(dataLen));
-    
-    for (int i = dataStart; i < lenBlock; i++) {
 
-      // ✅ Soporte FFWD
+    // ========== NOMBRE (hasta null terminator o límite de 16 caracteres típicos) ==========
+    int nameLimit = 0;
+    while (pos < lenBlock && bBlock[pos] != 0 && nameLimit < 32) {
+      emitByte(bBlock[pos++]);
+      nameLimit++;
+    }
+    if (pos < lenBlock) {
+      emitByte(bBlock[pos++]);  // null terminator
+    }
+
+    // ========== GAP (100 ciclos de Bit 1) ==========
+    for (int i = 0; i < 100; i++) {
+      genBit(1);
+    }
+
+    // ========== DATOS (exactamente bytesToRead) ==========
+    int dataStart = pos;
+    
+    for (int i = 0; i < bytesToRead; i++) {
+      if (dataStart + i >= lenBlock) {
+        logln("ERROR: Insufficient data");
+        break;
+      }
+
       if ((FFWIND || KEEP_FFWIND) && playback_position) {
-        int jump = (int)((float)dataLen * C64_FFWD_SPEED);
-        int new_pos = i + jump;
-        if (new_pos >= lenBlock) new_pos = lenBlock - 1;
-        *playback_position = new_pos;
-        i = new_pos - 1;
+        int jump = (int)((float)bytesToRead * C64_FFWD_SPEED);
+        i = (i + jump >= bytesToRead) ? bytesToRead - 1 : i + jump;
+        *playback_position = i;
         CSW_SEEK_MODE = 1;
-        PROGRESS_BAR_BLOCK_VALUE = (int)(((i - dataStart + 1) * 100) / dataLen);
         if (!KEEP_FFWIND) FFWIND = false;
+        BYTES_LOADED = i;
+        PROGRESS_BAR_BLOCK_VALUE = (int)(((i + 1) * 100) / bytesToRead);
         delay(100);
         continue;
       }
 
-      // ✅ Soporte RWD
       if ((RWIND || KEEP_RWIND) && playback_position) {
-        int jump = (int)((float)dataLen * C64_RWD_SPEED);
-        int new_pos = i - jump;
-        if (new_pos < dataStart) new_pos = dataStart;
-        *playback_position = new_pos;
-        i = new_pos - 1;
+        int jump = (int)((float)bytesToRead * C64_RWD_SPEED);
+        i = (i - jump < 0) ? 0 : i - jump;
+        *playback_position = i;
         CSW_SEEK_MODE = 2;
-        PROGRESS_BAR_BLOCK_VALUE = (int)(((i - dataStart + 1) * 100) / dataLen);
         if (!KEEP_RWIND) RWIND = false;
+        BYTES_LOADED = i;
+        PROGRESS_BAR_BLOCK_VALUE = (int)(((i + 1) * 100) / bytesToRead);
         delay(100);
         continue;
       }
@@ -2553,48 +2510,25 @@ public:
 
       if (LOADING_STATE == 2) {
         if (playback_position) *playback_position = 0;
-        //SAMPLING_RATE = savedSamplingRate;
         return;
       }
 
       if (stopOrPauseRequest()) {
-        if (playback_position && PAUSE && !STOP) {
-          *playback_position = i;
-        } else if (STOP && playback_position) {
-          *playback_position = 0;
-        }
-        // SAMPLING_RATE = savedSamplingRate;
+        if (playback_position && PAUSE && !STOP) *playback_position = i;
+        else if (playback_position && STOP) *playback_position = 0;
         return;
       }
 
-      uint8_t dataByte = bBlock[i];
-
-      // Calcular paridad XOR
-      uint8_t parity = 0;
-      for (int b = 0; b < 8; b++) {
-        parity ^= (dataByte >> b) & 1;
-      }
-
-      // Estructura: [START_0 | 8_DATA_LSB | PARITY | 3_STOP_1]
-      // START (0)
-      genBit(0);
+      emitByte(bBlock[dataStart + i]);
       
-      // 8 DATA bits (LSB first)
-      for (int b = 0; b < 8; b++) {
-        genBit((dataByte >> b) & 1);
-      }
-      
-      // PARITY
-      genBit(parity);
-      
-      // 4 STOP bits (tap2wav usa 4 en lugar de 3)
-      genBit(1);
-      genBit(1);
-      genBit(1);
-      genBit(1);
+      BYTES_LOADED = i;
+      PROGRESS_BAR_BLOCK_VALUE = (int)(((i + 1) * 100) / bytesToRead);
+    }
 
-      BYTES_LOADED = i - dataStart;
-      PROGRESS_BAR_BLOCK_VALUE = (int)(((i - dataStart + 1) * 100) / dataLen);
+    // ========== PAUSE (100 ciclos de Bit 1) ==========
+    for (int i = 0; i < 100; i++) {
+      genBit(1);
+      if (stopOrPauseRequest()) break;
     }
 
     logln("ORIC: Playback complete");
@@ -2604,12 +2538,11 @@ public:
     LOADING_STATE = 2;
     TAPESTATE = 0;
     LAST_MESSAGE = "ORIC playback done.";
-    //SAMPLING_RATE = savedSamplingRate;
   }
 
   // Constructor
   ZXProcessor() {
-    // Constructor de la clase
-    ACU_ERROR = 0;
+  // Constructor de la clase
+  ACU_ERROR = 0;
   }
 };

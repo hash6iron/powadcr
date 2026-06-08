@@ -14,10 +14,10 @@
     
     El formato ORIC TAP es más simple que ZX Spectrum:
     - Típicamente un solo bloque por archivo
-    - Frecuencia estándar: 2400 bps
-    - Pulsos: 0-bit = 274µs LOW + 274µs HIGH, 1-bit = 140µs
-    - Soporta modo turbo: 0-bit = 182µs, 1-bit = 92µs
-    - Sincronización: bytes 0x16 0x16 (sync)
+    - Frecuencia estándar: 1200-2400 bps (SLOW mode)
+    - Pulsos SLOW: 0-bit = 208µs LOW + 416µs HIGH (asimétrico), 1-bit = 208µs (simétrico)
+    - Soporta modo turbo: 0-bit = 60µs LOW + 470µs HIGH (asimétrico), 1-bit = 60µs (simétrico)
+    - Sincronización: bytes 0x16 repetidos + 0x24 (sync)
 
     Version: 1.0
 
@@ -82,18 +82,18 @@ private:
   // ============================================================================
   // Basados en especificación ORIC-1/Oric Atmos
   // Referencia: MaxDuino, Oric TAP specs PDF
+
+ 
+  // Modo estándar (300 bps)
+  const double oric_zeroLowPulseWidth = 208.0;   // MaxDuino Std 0 LOW
+  const double oric_zeroHighPulseWidth = 416.0;  // MaxDuino Std 0 HIGH
+  const double oric_onePulseWidth = 208.0;       // MaxDuino Std 1 (Symmetric)
   
-  // Modo estándar (2400 bps)
-  const double oric_zeroPulseWidth = 274.0;     // microsegundos para bit 0
-  const double oric_onePulseWidth = 140.0;      // microsegundos para bit 1
-  
-  // Modo turbo (velocidad aumentada)
-  const double oric_turboZeroPulseWidth = 182.0;  // Turbo bit 0
-  const double oric_turboOnePulseWidth = 92.0;    // Turbo bit 1
-  
-  // Tono piloto/sync
-  const double oric_syncPulseWidth = 200.0;     // Pulsos sincronización
-  
+  // Modo turbo (2400 bps)
+  const double oric_turboZeroLowPulseWidth = 60.0;   // MaxDuino Turbo 0 LOW
+  const double oric_turboZeroHighPulseWidth = 470.0; // MaxDuino Turbo 0 HIGH
+  const double oric_turboOnePulseWidth = 60.0;       // MaxDuino Turbo 1
+   
   // Frecuencia CPU Oric-1 / Oric Atmos
   const double oric_freqCPU = 1000000.0;  // 1 MHz (para cálculos de timing)
   const double oric_tState = (1.0 / oric_freqCPU);
@@ -118,12 +118,23 @@ public:
    * 
    * @return true si se detecta modo turbo, false si es modo estándar
    */
-  bool detectTurboMode() {
-    // Heurística: si se detectan pulsos muy cortos de forma consistente,
-    // probablemente sea modo turbo
-    // Por ahora, suponemos modo estándar por defecto
-    // En versiones futuras: analizar primeros N bytes para decidir
-    return ORIC_TURBO_MODE;  // Usa flag global de config
+  bool detectTurboMode(int fileSize, int syncCount) {
+    // HEURÍSTICA DE DETECCIÓN:
+    // 1. Si el archivo es grande (> 2KB), casi seguro es 2400 baudios (Fast).
+    if (fileSize > 2048) {
+        return true; 
+    }
+
+    // 2. Analizar el preámbulo de sincronismo (0x16).
+    // Los archivos de 300 baudios (Slow) tienen preámbulos muy largos.
+    // Si hay pocos bytes de sincronismo (< 30), es probable que sea Fast.
+    if (syncCount > 0 && syncCount < 30) {
+        return true;
+    }
+
+    // 3. Fallback: usar el estado actual o por defecto Standard (Slow) 
+    // si el archivo es minúsculo y tiene mucho sync.
+    return fileSize > 512; 
   }
 
   /**
@@ -131,13 +142,16 @@ public:
    * 
    * @param bit Valor del bit (0 o 1)
    * @param isTurbo Usar timing turbo si es true
+   * @param isHighPhase Si es true devuelve el ancho de la fase HIGH (solo para bit 0)
    * @return Duración en microsegundos
    */
-  double getPulseWidthUs(uint8_t bit, bool isTurbo = false) {
+  double getPulseWidthUs(uint8_t bit, bool isTurbo = false, bool isHighPhase = false) {
     if (isTurbo) {
-      return (bit == 0) ? oric_turboZeroPulseWidth : oric_turboOnePulseWidth;
+      // Modo FAST: '1' es 2400Hz, '0' es 1200Hz
+      return (bit == 1) ? oric_turboOnePulseWidth : (isHighPhase ? oric_turboZeroHighPulseWidth : oric_turboZeroLowPulseWidth);
     } else {
-      return (bit == 0) ? oric_zeroPulseWidth : oric_onePulseWidth;
+      // Modo SLOW: Frecuencias base
+      return (bit == 1) ? oric_onePulseWidth : (isHighPhase ? oric_zeroHighPulseWidth : oric_zeroLowPulseWidth);
     }
   }
 
@@ -158,9 +172,9 @@ public:
   String getOricTimingInfo() {
     String info = "ORIC TAP Timing:\n";
     info += "Mode: " + String(_isTurboMode ? "TURBO" : "STANDARD") + "\n";
-    info += "Std 0-bit: " + String(oric_zeroPulseWidth, 1) + " µs\n";
+    info += "Std 0-bit: " + String(oric_zeroLowPulseWidth, 1) + " - " + String(oric_zeroHighPulseWidth, 1) + " µs\n";
     info += "Std 1-bit: " + String(oric_onePulseWidth, 1) + " µs\n";
-    info += "Turbo 0-bit: " + String(oric_turboZeroPulseWidth, 1) + " µs\n";
+    info += "Turbo 0-bit: " + String(oric_turboZeroLowPulseWidth, 1) + " - " + String(oric_turboZeroHighPulseWidth, 1) + " µs\n";
     info += "Turbo 1-bit: " + String(oric_turboOnePulseWidth, 1) + " µs\n";
     return info;
   }
@@ -181,20 +195,23 @@ public:
   /**
    * Obtiene modo turbo actual
    */
-  bool getTurboMode() {
+  bool getTurboMode() 
+  {
+    
     return _isTurboMode;
   }
 
   /**
    * Inicializa procesador para bloque ORIC
    */
-  void initialize() {
+  void initialize(int fileSize = 0, int syncCount = 0) {
     _byteCount = 0;
-    _isTurboMode = detectTurboMode();
+    if (fileSize > 0) {
+        _isTurboMode = detectTurboMode(fileSize, syncCount);
+    }
     
     #ifdef DEBUGMODE
       logln("ORIC Processor initialized. Turbo: " + String(_isTurboMode ? "YES" : "NO"));
     #endif
   }
 };
-

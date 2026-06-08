@@ -253,6 +253,7 @@ int GPIO_MSX_REMOTE_PAUSE = 19;
 #define FAST_FORWARD_PER 0.02
 #define FAST_REWIND_PER 0.02
 #define CSW_REWIND_SPEED 0.02
+#define TZX_REWIND_SPEED 0.1
 
 // Demora en ms para saltar a avance super-rapido
 #define TIME_TO_FAST_FORWRD 1500
