@@ -554,7 +554,9 @@ private:
                               strcmp(ext, "flac") == 0 || strcmp(ext, "lst") == 0 ||
                               strcmp(ext, "dsc") == 0 || strcmp(ext, "inf") == 0 ||
                               strcmp(ext, "txt") == 0 || strcmp(ext, "radio") == 0 || 
-                              strcmp(ext, "zxdb") == 0 || strcmp(ext, "csw") == 0 || strcmp(ext, "zip") == 0)
+                              strcmp(ext, "zxdb") == 0 || strcmp(ext, "csw") == 0 || strcmp(ext, "zip") == 0 ||
+                              strcmp(ext, "o") == 0 || strcmp(ext, "p") == 0 ||
+                              strcmp(ext, "80") == 0 || strcmp(ext, "81") == 0)
                           {
                               fout.print(String(lpos)); fout.print(separator);
                               fout.print("F"); fout.print(separator);
@@ -1325,7 +1327,7 @@ private:
               {
                 color = ZIP_FILE_COLOR;
               }
-              else if (type == ".TAP" || type == ".TZX" || type == ".TSX" || type == ".CDT" || type == ".PZX" || type == ".WAV" || type == ".MP3" || type == ".FLAC" || type == ".RADIO" || type == ".ZXDB" || type == ".CPCDB" || type == ".MSXDB" || type == ".ZIP" || type == ".CSW")
+              else if (type == ".TAP" || type == ".TZX" || type == ".TSX" || type == ".CDT" || type == ".PZX" || type == ".WAV" || type == ".MP3" || type == ".FLAC" || type == ".RADIO" || type == ".ZXDB" || type == ".CPCDB" || type == ".MSXDB" || type == ".ZIP" || type == ".CSW" || type == ".O" || type == ".P" || type == ".80" || type == ".81")
               {
                   //Ficheros
                   if (SD_MMC.exists("/fav/" + szName))
@@ -3170,7 +3172,7 @@ private:
           log_debug("HMI","");
           log_debug("HMI","Polarization =" + String(INVERSETRAIN));
 
-          if (TYPE_FILE_LOAD == "WAV" || TYPE_FILE_LOAD == "TAP" || TYPE_FILE_LOAD == "TZX")
+          if (TYPE_FILE_LOAD == "WAV" || TYPE_FILE_LOAD == "TAP" || TYPE_FILE_LOAD == "TZX" || TYPE_FILE_LOAD == "ZX80" || TYPE_FILE_LOAD == "ZX81")
           {
             LAST_MESSAGE = "Polarization changed. Please, reload the file.";
             EJECT = true;

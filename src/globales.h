@@ -40,7 +40,7 @@
 #include <string>
 #include <miniz.h>
 
-#define up 1
+#define up   1
 #define down 0
 
 File global_dir;
@@ -127,7 +127,7 @@ int SD_SPEED_MHZ = 4;
 // generar y no al final para el siguiente. entonces hay que empezar en HIGH
 // para que el primer pulso baje a LOW. Si empezamos en LOW, el primer pulso
 // sube a HIGH y eso no es compatible con el estandar TZX.
-uint8_t POLARIZATION = 1;
+uint8_t POLARIZATION = up;    // Para que el primer pulso sea "down"
 uint8_t EDGE_EAR_IS = POLARIZATION;
 bool CHANGE_PZX_LEVEL = false;
 bool FORZE_LEVEL = false;       // Forzar nivel inicial en bloques PZX

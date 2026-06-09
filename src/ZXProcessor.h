@@ -341,22 +341,11 @@ private:
   }
 
   double getChannelAmplitude() {
-
     // Cambiamos el edge
-    if (!KEEP_CURRENT_EDGE) 
-    {
-      EDGE_EAR_IS ^= 1;
-    }
-
-    double A = 0;
-
-    if (EDGE_EAR_IS == down) {
-      A = minAmplitude;
-    } else {
-      A = maxAmplitude;
-    }
-
-    return (A);
+    if (!KEEP_CURRENT_EDGE) EDGE_EAR_IS ^= 1;
+    // Esto parece incongruente pero es la manera en la que funcionan
+    // las cargas que son sensibles a la polarización.
+    return ((EDGE_EAR_IS == up) ? minAmplitude : maxAmplitude);
   }
 
   // Obtiene la amplitud del siguiente semi-pulso C64, alternando el flanco propio.
@@ -364,7 +353,6 @@ private:
   double getC64Amplitude() 
   {
     _c64EdgeIsHigh = !_c64EdgeIsHigh;
-
     bool high = INVERSETRAIN ? !_c64EdgeIsHigh : _c64EdgeIsHigh;
     return high ? maxAmplitude : minAmplitude;
   }
@@ -672,7 +660,7 @@ private:
     }
 
     //
-    logln("(Silence END) -> EDGE is: " + String(EDGE_EAR_IS == down ? "DOWN" : "UP"));
+    //logln("(Silence END) -> EDGE is: " + String(EDGE_EAR_IS == down ? "DOWN" : "UP"));
   }
 
   void fullPulse(double dwidth, double calibrationValue = 0.0) {
@@ -800,8 +788,7 @@ private:
     }
   }
 
-
-  void semiPulse(double dwidth, double samples_compensation = 0) 
+  void semiPulse(double dwidth, double samples_compensation = 0, bool dwidthIsInTime = false) 
   {
     // Amplitud de la señal
     double amplitude = 0;
@@ -815,7 +802,9 @@ private:
 
     // Calculamos el numero de samples con alta precisión
     // Usamos acumulador de error para distribuir fracciones uniformemente
-    double rsamples = (((dwidth / freqCPU) * SAMPLING_RATE)) + samples_compensation;
+    // Esto lo hacemos para compatibilidad con ZX80/ZX81
+    double coefSamples = (dwidthIsInTime) ? (dwidth / 1000.0) : (dwidth / freqCPU);
+    double rsamples = (coefSamples * SAMPLING_RATE) + samples_compensation;
     
     // Acumular el valor exacto (incluyendo la parte fraccionaria)
     ERROR_ACCUMULATOR += rsamples;
@@ -1130,15 +1119,17 @@ public:
     #endif
         
     //Metemos un tail de 1ms para el ultimo pulso y cambio el flanco
-    double samples1ms = (1 / 1000.0) * SAMPLING_RATE;
+    #ifdef TAIL_1ms_AFTER_SILENCE
+      double samples1ms = (1 / 1000.0) * SAMPLING_RATE;
 
-    // Para MSX no metemos TAIL
-    if (TYPE_FILE_LOAD != "TSX")
-    {
-      pulseSilence(samples1ms); // Generamos un pulso de silencio de 1 muestra (ajustable)
-      duration -= 1.0; // Restamos 1ms al tiempo total de silencio
-      //logln(" > Added 1ms tail for level change. Remaining silence duration: " + String(duration) + " ms");
-    }
+      // Para MSX no metemos TAIL
+      if (TYPE_FILE_LOAD != "TSX")
+      {
+        pulseSilence(samples1ms); // Generamos un pulso de silencio de 1 muestra (ajustable)
+        duration -= 1.0; // Restamos 1ms al tiempo total de silencio
+        //logln(" > Added 1ms tail for level change. Remaining silence duration: " + String(duration) + " ms");
+      }
+    #endif
 
     // Generar silencio adicional si duration > 0
     if (duration > 0.0) {
@@ -2545,6 +2536,83 @@ public:
     LOADING_STATE = 2;
     TAPESTATE = 0;
     LAST_MESSAGE = "ORIC playback done.";
+  }
+
+  // ================== ZX80/ZX81 PLAYBACK ==================
+  void playZX80Data(uint8_t *data, uint16_t size) {
+    // Initial 5-seconds silence (5000 ms)
+    silence(5000);
+
+    // Play each byte
+    for (uint16_t i = 0; i < size; i++) {
+      uint8_t byte = data[i];
+
+      // Play bits MSB first
+      for (int bit = 7; bit >= 0; bit--) {
+        bool bitValue = (byte >> bit) & 1;
+        // Specification: Bit0=4 pulses (1200µs), Bit1=9 pulses (2700µs)
+        // Each pulse = 150µs HIGH + 150µs LOW = 300µs
+        // semiPulse(0.15) generates 150µs, so need 2 calls per logical pulse
+        uint16_t semiPulseCount = bitValue ? 18 : 8;
+
+        // Generate semi-pulses: 150µs each (2 per logical pulse)
+        for (uint16_t p = 0; p < semiPulseCount; p++) {
+          semiPulse(0.15, 0, true);  // 150µs half-pulse
+        }
+
+        // 1300µs silence between bits
+        silence(1.3);  // 1300µs
+      }
+    }
+
+    // Final 2-second silence
+    silence(2000);  // 2000 ms
+  }
+
+  // ================== ZX80/ZX81 STREAMING PLAYBACK ==================
+  void playZX80DataBegin(uint8_t *data, uint16_t size) {
+    // Initial 5-seconds silence only on first chunk
+    silence(5000);
+    // Process bytes WITHOUT final silence
+    playZX80Bits(data, size);
+  }
+
+  void playZX80DataPartition(uint8_t *data, uint16_t size) {
+    // Process bytes with NO leading or trailing silence (intermediate chunks)
+    playZX80Bits(data, size);
+  }
+
+  void playZX80DataEnd(uint8_t *data, uint16_t size) {
+    // Process bytes with final silence only on last chunk
+    playZX80Bits(data, size);
+    silence(2000);  // Final 2-second silence
+  }
+
+  void playZX80Bits(uint8_t *data, uint16_t size) {
+    // Helper: Generate bit pattern for ZX80/ZX81 (MSB first)
+    // Specification: Bit0=4 pulses (1200µs), Bit1=9 pulses (2700µs)
+    // Each pulse = 150µs HIGH + 150µs LOW = 300µs total
+    // semiPulse(0.15) generates 150µs alternating, need 2 calls per logical pulse
+    for (uint16_t i = 0; i < size; i++) {
+      uint8_t byte = data[i];
+
+      // Play bits MSB first (bit 7 → bit 0)
+      for (int bit = 7; bit >= 0; bit--) {
+        bool bitValue = (byte >> bit) & 1;
+        // Bit0=4 pulses, Bit1=9 pulses
+        uint16_t pulseCount = bitValue ? 9 : 4;
+
+        // Generate complete pulses: each pulse = HIGH (150µs) + LOW (150µs)
+        // semiPulse alternates automatically via EDGE_EAR_IS
+        for (uint16_t p = 0; p < pulseCount; p++) {
+          semiPulse(0.15, 0, true);  // 150µs HIGH
+          semiPulse(0.15, 0, true);  // 150µs LOW (alternated automatically)
+        }
+
+        // 1300µs silence between bits
+        silence(1.3);  // 1300µs
+      }
+    }
   }
 
   // Constructor

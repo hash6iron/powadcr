@@ -148,6 +148,8 @@ NumberFormatConverterStreamT<int16_t, uint8_t> *encoderOutWAV8 = nullptr;  // Se
 
 
 #include "ZXProcessor.h"
+#include "ZX80Processor.h"
+ZX80Processor zx80p;
 
 // ZX Spectrum. Procesador de audio output
 ZXProcessor zxp;
@@ -959,7 +961,8 @@ void proccesingZIP(char *file_ch) {
 
     String firstValidFile = "";
     String validExtensions[] = {".TAP", ".tap", ".TZX", ".tzx", ".CSW", ".csw", 
-                               ".PZX", ".pzx", ".CDT", ".cdt", ".TSX", ".tsx"};
+                               ".PZX", ".pzx", ".CDT", ".cdt", ".TSX", ".tsx",
+                               ".O", ".o", ".P", ".p", ".80", ".81"};
     
     File entry = folder.openNextFile();
     while (entry && firstValidFile == "") {
@@ -1058,9 +1061,57 @@ void proccesingZIP(char *file_ch) {
         TYPE_FILE_LOAD = "CDT";
       }
       BYTES_TOBE_LOAD = myTZX.size;
+      
+    } else if (PATH_FILE_TO_LOAD.indexOf(".O", PATH_FILE_TO_LOAD.length() - 2) != -1 ||
+               PATH_FILE_TO_LOAD.indexOf(".o", PATH_FILE_TO_LOAD.length() - 2) != -1) {
+      
+      LAST_MESSAGE = "Loading ZX80 file...";
+      TYPE_FILE_LOAD = "ZX80";
+      File zx80File = SD_MMC.open(file_ch, FILE_READ);
+      if (zx80File) {
+        BYTES_TOBE_LOAD = zx80File.size();
+        TOTAL_BLOCKS = 1;  // ZX80 is a single binary data block
+        FILE_PREPARED = true;
+        zx80File.close();
+      }
+      
+    } else if (PATH_FILE_TO_LOAD.indexOf(".80", PATH_FILE_TO_LOAD.length() - 3) != -1) {
+      
+      LAST_MESSAGE = "Loading ZX80 file...";
+      TYPE_FILE_LOAD = "ZX80";
+      File zx80File = SD_MMC.open(file_ch, FILE_READ);
+      if (zx80File) {
+        BYTES_TOBE_LOAD = zx80File.size();
+        TOTAL_BLOCKS = 1;  // ZX80 is a single binary data block
+        FILE_PREPARED = true;
+        zx80File.close();
+      }
+      
+    } else if (PATH_FILE_TO_LOAD.indexOf(".P", PATH_FILE_TO_LOAD.length() - 2) != -1 ||
+               PATH_FILE_TO_LOAD.indexOf(".p", PATH_FILE_TO_LOAD.length() - 2) != -1) {
+      
+      LAST_MESSAGE = "Loading ZX81 file...";
+      TYPE_FILE_LOAD = "ZX81";
+      File zx81File = SD_MMC.open(file_ch, FILE_READ);
+      if (zx81File) {
+        BYTES_TOBE_LOAD = zx81File.size();
+        TOTAL_BLOCKS = 1;  // ZX81 is a single binary data block
+        FILE_PREPARED = true;
+        zx81File.close();
+      }
+      
+    } else if (PATH_FILE_TO_LOAD.indexOf(".81", PATH_FILE_TO_LOAD.length() - 3) != -1) {
+      
+      LAST_MESSAGE = "Loading ZX81 file...";
+      TYPE_FILE_LOAD = "ZX81";
+      File zx81File = SD_MMC.open(file_ch, FILE_READ);
+      if (zx81File) {
+        BYTES_TOBE_LOAD = zx81File.size();
+        TOTAL_BLOCKS = 1;  // ZX81 is a single binary data block
+        FILE_PREPARED = true;
+        zx81File.close();
+      }
     }
-
-    LAST_MESSAGE = "Extracted & loaded: " + firstValidFile;
     hmi.writeString("tape.g0.txt=\"" + firstValidFile + " loaded\"");
     FILE_PREPARED = true;
 
@@ -4830,19 +4881,19 @@ void playingFile()
   // Establecemos configuración por defecto - base
   auto new_sr = kitStream.defaultConfig();
   new_sr.channels = 2;
-  LAST_SAMPLING_RATE = SAMPLING_RATE + TONE_ADJUST;
+  LAST_SAMPLING_RATE = SAMPLING_RATE ;
 
   //
   // Configurar sampling rate según preferencias
   //
   if (CHOOSE_WAV_REC_44) 
   {
-    SAMPLING_RATE = DEFAULT_WAV_SAMPLING_RATE_REC_2 + TONE_ADJUST;
+    SAMPLING_RATE = DEFAULT_WAV_SAMPLING_RATE_REC_2 ;
     new_sr.sample_rate = SAMPLING_RATE;
   }
   else 
   {
-    SAMPLING_RATE = BASE_SR + TONE_ADJUST;
+    SAMPLING_RATE = BASE_SR ;
     new_sr.sample_rate = SAMPLING_RATE;
   }
 
@@ -4864,13 +4915,13 @@ void playingFile()
 
     // C64 TAP usa 96kHz
     if (C64_TAP_INSIDE) {
-      SAMPLING_RATE = (BASE_SR + TONE_ADJUST) / TAPE_BAUDRATE;
+      SAMPLING_RATE = (BASE_SR ) / TAPE_BAUDRATE;
       new_sr.sample_rate = (uint32_t)SAMPLING_RATE;
       logln("C64 TAP: forcing hardware + SAMPLING_RATE to 96000 Hz");
     }
     else if (ORIC_TAP_INSIDE) {
       // Para ORIC
-      SAMPLING_RATE = (BASE_SR + TONE_ADJUST) / TAPE_BAUDRATE;
+      SAMPLING_RATE = (BASE_SR ) / TAPE_BAUDRATE;
       new_sr.sample_rate = (uint32_t)SAMPLING_RATE;
       logln("Oric TAP: forcing hardware + baudrate at 300 bauds");
     }
@@ -5004,6 +5055,16 @@ void playingFile()
     LAST_MESSAGE = "Wait for scanning end.";
     //ZXDBPlayer();
     logln("Finish ZXDB playing file");
+  } 
+  else if (TYPE_FILE_LOAD == "ZX80" || TYPE_FILE_LOAD == "ZX81")
+  {
+    logln("Type file load: " + TYPE_FILE_LOAD);
+    LAST_MESSAGE = "Wait for scanning end.";
+    
+    setupWAVEncoder();
+    pTAP.playZX80();
+    logln("Finish ZX80/ZX81 playing file");
+    finalizePlayback();
   } 
   else 
   {
@@ -5282,6 +5343,48 @@ void loadingFile(char *file_ch) {
       logln("ZXDB file to load: " + PATH_FILE_TO_LOAD);
       FILE_PREPARED = true;
       TYPE_FILE_LOAD = "ZXDB";
+    } else if (PATH_FILE_TO_LOAD.indexOf(".O", PATH_FILE_TO_LOAD.length() - 2) != -1 ||
+               PATH_FILE_TO_LOAD.indexOf(".o", PATH_FILE_TO_LOAD.length() - 2) != -1) {
+      logln("ZX80 file to load: " + PATH_FILE_TO_LOAD);
+      FILE_PREPARED = true;
+      TYPE_FILE_LOAD = "ZX80";
+      TOTAL_BLOCKS = 1;
+      File zx80File = SD_MMC.open(file_ch, FILE_READ);
+      if (zx80File) {
+        BYTES_TOBE_LOAD = zx80File.size();
+        zx80File.close();
+      }
+    } else if (PATH_FILE_TO_LOAD.indexOf(".80", PATH_FILE_TO_LOAD.length() - 3) != -1) {
+      logln("ZX80 file to load: " + PATH_FILE_TO_LOAD);
+      FILE_PREPARED = true;
+      TYPE_FILE_LOAD = "ZX80";
+      TOTAL_BLOCKS = 1;
+      File zx80File = SD_MMC.open(file_ch, FILE_READ);
+      if (zx80File) {
+        BYTES_TOBE_LOAD = zx80File.size();
+        zx80File.close();
+      }
+    } else if (PATH_FILE_TO_LOAD.indexOf(".P", PATH_FILE_TO_LOAD.length() - 2) != -1 ||
+               PATH_FILE_TO_LOAD.indexOf(".p", PATH_FILE_TO_LOAD.length() - 2) != -1) {
+      logln("ZX81 file to load: " + PATH_FILE_TO_LOAD);
+      FILE_PREPARED = true;
+      TYPE_FILE_LOAD = "ZX81";
+      TOTAL_BLOCKS = 1;
+      File zx81File = SD_MMC.open(file_ch, FILE_READ);
+      if (zx81File) {
+        BYTES_TOBE_LOAD = zx81File.size();
+        zx81File.close();
+      }
+    } else if (PATH_FILE_TO_LOAD.indexOf(".81", PATH_FILE_TO_LOAD.length() - 3) != -1) {
+      logln("ZX81 file to load: " + PATH_FILE_TO_LOAD);
+      FILE_PREPARED = true;
+      TYPE_FILE_LOAD = "ZX81";
+      TOTAL_BLOCKS = 1;
+      File zx81File = SD_MMC.open(file_ch, FILE_READ);
+      if (zx81File) {
+        BYTES_TOBE_LOAD = zx81File.size();
+        zx81File.close();
+      }
     } else if (PATH_FILE_TO_LOAD.indexOf(".ZIP", PATH_FILE_TO_LOAD.length() - 4) != -1) {
       logln("");
       logln("ZIP file");
@@ -5672,7 +5775,7 @@ void  rewindAnimation(int direction) {
 void getTheFirstPlayeableBlock() {
   // Buscamos ahora el primer bloque playeable
 
-  if (TYPE_FILE_LOAD != "TAP" && TYPE_FILE_LOAD != "PZX" && TYPE_FILE_LOAD != "CSW") {
+  if (TYPE_FILE_LOAD != "TAP" && TYPE_FILE_LOAD != "PZX" && TYPE_FILE_LOAD != "CSW" && TYPE_FILE_LOAD != "ZX80" && TYPE_FILE_LOAD != "ZX81") {
     int i = 0;
 
     while (!myTZX.descriptor[i].playeable) {
