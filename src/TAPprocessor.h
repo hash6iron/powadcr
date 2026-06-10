@@ -1423,7 +1423,7 @@ class TAPprocessor
         }
         
         uint32_t fileSize = zxFile.size();
-        logln("ZX80/ZX81 file size: " + String(fileSize) + " bytes");
+        log_info("TAP_ZX80","ZX80/ZX81 file size: " + String(fileSize) + " bytes");
         
         // Process file: stream if large, direct if small
         if (fileSize >= SIZE_FOR_SPLIT) {
@@ -1433,7 +1433,7 @@ class TAPprocessor
         int blocks = fileSize / blockSizeSplit;
         int lastBlockSize = fileSize - (blocks * blockSizeSplit);
         
-        logln("Streaming mode: " + String(blocks + (lastBlockSize > 0 ? 1 : 0)) + " chunks");
+        log_info("TAP_ZX80","Streaming mode: " + String(blocks + (lastBlockSize > 0 ? 1 : 0)) + " chunks");
         
         // Process full chunks
         for (int n = 0; n < blocks; n++) {
@@ -1446,7 +1446,7 @@ class TAPprocessor
             }
             
             if (zxFile.read(bufferPlay, blockSizeSplit) != blockSizeSplit) {
-            logAlert("Read error on chunk " + String(n));
+            log_error("TAP_ZX80","Read error on chunk " + String(n));
             free(bufferPlay);
             break;
             }
@@ -1470,14 +1470,14 @@ class TAPprocessor
             }
         }
         } else {
-        // DIRECT MODE: Small file, read all at once
-        uint8_t* bufferPlay = (uint8_t*)ps_calloc(fileSize, sizeof(uint8_t));
-        if (bufferPlay) {
-            if (zxFile.read(bufferPlay, fileSize) == fileSize) {
-            zxp.playZX80Data(bufferPlay, fileSize);
+            // DIRECT MODE: Small file, read all at once
+            uint8_t* bufferPlay = (uint8_t*)ps_calloc(fileSize, sizeof(uint8_t));
+            if (bufferPlay) {
+                if (zxFile.read(bufferPlay, fileSize) == fileSize) {
+                zxp.playZX80Data(bufferPlay, fileSize);
+                }
+                free(bufferPlay);
             }
-            free(bufferPlay);
-        }
         }
         
         zxFile.close();    
@@ -1640,16 +1640,73 @@ class TAPprocessor
                     }
                     else if (_myTAP.descriptor[i].type == 0x20)
                     {
-                        // *** Bloque ORIC - Reproducción con soporte PAUSE/RESUME/FFWD/RWD
-                        bufferPlay = (uint8_t*)(ps_calloc(_myTAP.descriptor[i].size, sizeof(uint8_t)));
-                        readFileRange(_mFile, bufferPlay, _myTAP.descriptor[i].offset, _myTAP.descriptor[i].size, false);
-
-                        // Llamamos a la función de reproducción ORIC con soporte PAUSE/RESUME/FFWD/RWD
-                        _zxp.playOricData(bufferPlay, _myTAP.descriptor[i].size, &_myTAP.descriptor[i].playback_position);
-
-                        // Liberamos el buffer de reproducción
-                        free(bufferPlay);
+                        uint32_t totalSize = _myTAP.descriptor[i].size;
+                        uint32_t offsetBase = _myTAP.descriptor[i].offset;
+                        
+                        if (totalSize >= SIZE_FOR_SPLIT) 
+                        {
+                            // STREAMING MODE: Procesar en chunks para archivos grandes
+                            int blockSizeSplit = SIZE_FOR_SPLIT;
+                            int blocks = totalSize / blockSizeSplit;
+                            int lastBlockSize = totalSize - (blocks * blockSizeSplit);
+                            uint32_t newOffset;
+                            
+                            TOTAL_PARTS = blocks + (lastBlockSize > 0 ? 1 : 0);
+                            
+                            // Procesar cada partición
+                            for (int n = 0; n < blocks; n++)
+                            {
+                                PARTITION_BLOCK = n;
+                                newOffset = offsetBase + (blockSizeSplit * n);
+                                PRG_BAR_OFFSET_INI = newOffset;
+                                
+                                bufferPlay = (uint8_t*)ps_calloc(blockSizeSplit, sizeof(uint8_t));
+                                readFileRange(_mFile, bufferPlay, newOffset, blockSizeSplit, true);
+                                
+                                if (n == 0) {
+                                    _zxp.playOricDataBegin(bufferPlay, blockSizeSplit, &_myTAP.descriptor[i].playback_position);
+                                } else {
+                                    _zxp.playOricDataPartition(bufferPlay, blockSizeSplit, &_myTAP.descriptor[i].playback_position);                                    
+                                }
+                                free(bufferPlay);
+                            }
+                            
+                            // Procesar último bloque si existe
+                            if (lastBlockSize > 0)
+                            {
+                                newOffset = offsetBase + (blockSizeSplit * blocks);
+                                PRG_BAR_OFFSET_INI = newOffset;
+                                
+                                bufferPlay = (uint8_t*)ps_calloc(lastBlockSize, sizeof(uint8_t));
+                                readFileRange(_mFile, bufferPlay, newOffset, lastBlockSize, true);
+                                _zxp.playOricDataEnd(bufferPlay, lastBlockSize, &_myTAP.descriptor[i].playback_position);
+                                free(bufferPlay);
+                            }
+                        } 
+                        else 
+                        {
+                            // DIRECT MODE: Archivo pequeño, procesar directamente
+                            bufferPlay = (uint8_t*)(ps_calloc(totalSize, sizeof(uint8_t)));
+                            readFileRange(_mFile, bufferPlay,  _myTAP.descriptor[i].offset, _myTAP.descriptor[i].size, false);
+                            _zxp.playOricData(bufferPlay, _myTAP.descriptor[i].size, &_myTAP.descriptor[i].playback_position);
+                            free(bufferPlay);
+                        }
                     }
+                    // else if (_myTAP.descriptor[i].type == 0x20)
+                    // {
+                    //     // *** Bloque ORIC - Reproducción con soporte PAUSE/RESUME/FFWD/RWD
+                    //     bufferPlay = (uint8_t*)(ps_calloc(_myTAP.descriptor[i].size, sizeof(uint8_t)));
+                        
+                    //     log_info("TAP","Block size: " + String(_myTAP.descriptor[i].size) + " bytes");
+
+                    //     readFileRange(_mFile, bufferPlay, _myTAP.descriptor[i].offset, _myTAP.descriptor[i].size, false);
+
+                    //     // Llamamos a la función de reproducción ORIC con soporte PAUSE/RESUME/FFWD/RWD
+                    //     _zxp.playOricData(bufferPlay, _myTAP.descriptor[i].size, &_myTAP.descriptor[i].playback_position);
+
+                    //     // Liberamos el buffer de reproducción
+                    //     free(bufferPlay);
+                    // }
                     else if (_myTAP.descriptor[i].type == 0x21)
                     {
                         // *** Bloque ZX80/ZX81 - Reproducción por streaming (sin cargar todo en memoria)
@@ -1677,9 +1734,9 @@ class TAPprocessor
                                 readFileRange(_mFile, bufferPlay, newOffset, blockSizeSplit, true);
                                 
                                 if (n == 0) {
-                                    _zxp.playZX80DataBegin(bufferPlay, blockSizeSplit);
+                                    _zxp.playZX80DataBegin(bufferPlay, blockSizeSplit, &_myTAP.descriptor[i].playback_position);
                                 } else {
-                                    _zxp.playZX80DataPartition(bufferPlay, blockSizeSplit);
+                                    _zxp.playZX80DataPartition(bufferPlay, blockSizeSplit, &_myTAP.descriptor[i].playback_position);
                                 }
                                 free(bufferPlay);
                             }
@@ -1692,7 +1749,7 @@ class TAPprocessor
                                 
                                 bufferPlay = (uint8_t*)ps_calloc(lastBlockSize, sizeof(uint8_t));
                                 readFileRange(_mFile, bufferPlay, newOffset, lastBlockSize, true);
-                                _zxp.playZX80DataEnd(bufferPlay, lastBlockSize);
+                                _zxp.playZX80DataEnd(bufferPlay, lastBlockSize, &_myTAP.descriptor[i].playback_position);
                                 free(bufferPlay);
                             }
                         } 
@@ -1701,7 +1758,7 @@ class TAPprocessor
                             // DIRECT MODE: Archivo pequeño, procesar directamente
                             bufferPlay = (uint8_t*)(ps_calloc(totalSize, sizeof(uint8_t)));
                             readFileRange(_mFile, bufferPlay, offsetBase, totalSize, false);
-                            _zxp.playZX80Data(bufferPlay, totalSize);
+                            _zxp.playZX80Data(bufferPlay, totalSize, &_myTAP.descriptor[i].playback_position);
                             free(bufferPlay);
                         }
                     }

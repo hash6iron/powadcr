@@ -259,6 +259,7 @@ void tapeAnimationON();
 String getFileNameFromPath(const String &filePath);
 String removeExtension(const String &filename);
 void updateWAVHeader(const String &file_path);
+bool updateEqualizerSettings(Equalizer3Bands &eq);
 
 
 // -----------------------------------------------------------------------
@@ -1897,21 +1898,37 @@ void updateSamplingRate(AudioPlayer &player, Equalizer3Bands &eq, AudioInfo real
   {
     // Actualizamos la configuración con los valores reales
     kitStream.setAudioInfo(realInfo);
+    // Actualizamos el EQ
     eq.setAudioInfo(realInfo);
+    updateEqualizerSettings(eq);
+    // Actualizamos el player
     player.setAudioInfo(realInfo);
     //
-    // logln("Real Audio Info - Sample Rate: " + String(realInfo.sample_rate) +
-    //       "Hz, Bits: " + String(realInfo.bits_per_sample) +
-    //       ", Channels: " + String(realInfo.channels));
+    log_info("PLAYER","Real Audio Info - Sample Rate: " + String(realInfo.sample_rate) +
+          "Hz, Bits: " + String(realInfo.bits_per_sample) +
+          ", Channels: " + String(realInfo.channels));
+
+    log_info("PLAYER","Player - Sample Rate: " + String(player.audioInfo().sample_rate) +
+          "Hz, Bits: " + String(player.audioInfo().bits_per_sample) +
+          ", Channels: " + String(player.audioInfo().channels));          
+
+    log_info("PLAYER","Equalizer - Sample Rate: " + String(eq.audioInfo().sample_rate) +
+          "Hz, Bits: " + String(eq.audioInfo().bits_per_sample) +
+          ", Channels: " + String(eq.audioInfo().channels));          
+
+    log_info("PLAYER","KitStream - Sample Rate: " + String(kitStream.audioInfo().sample_rate) +
+          "Hz, Bits: " + String(kitStream.audioInfo().bits_per_sample) +
+          ", Channels: " + String(kitStream.audioInfo().channels));          
+
 
     // Mostramos la información
-    hmi.writeString("tape.lblFreq.txt=\"" + String(int(realInfo.sample_rate / 1000)) + "KHz\"");
+    myNex.writeStr("tape.lblFreq.txt=", String(int(realInfo.sample_rate / 1000)) + "KHz");
     delay(125);
   } 
   else 
   {
-    logln("Warning: Invalid sample rate detected in audio file");
-    hmi.writeString("tape.lblFreq.txt=\" -- KHz\"");
+    log_info("PLAYER","Warning: Invalid sample rate detected in audio file.");
+    myNex.writeStr("tape.lblFreq.txt=", " -- KHz");
   }
 }
 
@@ -2635,6 +2652,14 @@ void radio_network_task(void *parameter)
 }
 
 // ... (código existente, incluyendo radio_network_task) ...
+bool updateEqualizerSettings(Equalizer3Bands &eq) {
+  audio_tools::ConfigEqualizer3Bands cfg_eq = eq.defaultConfig();
+  eq.setAudioInfo(cfg_eq);
+  cfg_eq.gain_low = EQ_LOW;
+  cfg_eq.gain_medium = EQ_MID;
+  cfg_eq.gain_high = EQ_HIGH;
+  return eq.begin(cfg_eq);
+}
 
 void RadioPlayer() {
 
@@ -2686,17 +2711,17 @@ void RadioPlayer() {
   IRADIO_EN = true;
 
   audio_tools::Equalizer3Bands eq(volumeStream);
-  audio_tools::ConfigEqualizer3Bands cfg_eq;
 
   MP3DecoderHelix decoder;
   EncodedAudioStream decodedStream(&eq, &decoder);
 
-  cfg_eq = eq.defaultConfig();
-  cfg_eq.setAudioInfo(cfg);
-  cfg_eq.gain_low = EQ_LOW;
-  cfg_eq.gain_medium = EQ_MID;
-  cfg_eq.gain_high = EQ_HIGH;
-  eq.begin(cfg_eq);
+  updateEqualizerSettings(eq);
+  // cfg_eq = eq.defaultConfig();
+  // cfg_eq.setAudioInfo(cfg);
+  // cfg_eq.gain_low = EQ_LOW;
+  // cfg_eq.gain_medium = EQ_MID;
+  // cfg_eq.gain_high = EQ_HIGH;
+  // eq.begin(cfg_eq);
 
   // Variables de estado
   uint8_t playerState = 0;
@@ -2742,11 +2767,12 @@ void RadioPlayer() {
     if (EQ_CHANGE) 
     {
       EQ_CHANGE = false;
-      cfg_eq.setAudioInfo(cfg);
-      cfg_eq.gain_low = EQ_LOW;
-      cfg_eq.gain_medium = EQ_MID;
-      cfg_eq.gain_high = EQ_HIGH;
-      eq.begin(cfg_eq);  // Reconfigura el ecualizador
+      updateEqualizerSettings(eq);
+      // cfg_eq.setAudioInfo(cfg);
+      // cfg_eq.gain_low = EQ_LOW;
+      // cfg_eq.gain_medium = EQ_MID;
+      // cfg_eq.gain_high = EQ_HIGH;
+      // eq.begin(cfg_eq);  // Reconfigura el ecualizador
     }
 
     // Gestión de botones FFWD/RWIND
@@ -3116,45 +3142,6 @@ void RadioPlayer() {
   RADIO_IS_PLAYING = false;
 }
 
-// void ADPCMtest()
-// {
-//     AudioInfo info(16000, 2, 16);
-//     SineWaveGenerator<int16_t> sineWave( 32000);  
-//     GeneratedSoundStream<int16_t> sound( sineWave); 
-    
-//     ADPCMDecoder adpcm_decoder(AV_CODEC_ID_ADPCM_IMA_WAV); 
-//     ADPCMEncoder adpcm_encoder(AV_CODEC_ID_ADPCM_IMA_WAV);  
-//     WAVDecoder wav_decoder(adpcm_decoder, AudioFormat::ADPCM);
-//     WAVEncoder wav_encoder(adpcm_encoder, AudioFormat::ADPCM);
-    
-//     EncodedAudioStream decoder(&kitStream, &wav_decoder); 
-//     EncodedAudioStream encoder(&decoder, &wav_encoder); 
-//     StreamCopy copier(encoder, sound);     
-
-//     //AudioLogger::instance().begin(Serial, AudioLogger::Warning);
-
-//     // start Output
-//     auto cfgi = kitStream.defaultConfig(TX_MODE);
-//     cfgi.copyFrom(info);
-//     kitStream.begin(cfgi);
-
-//     // Setup sine wave
-//     auto cfgs = sineWave.defaultConfig();
-//     cfgs.copyFrom(info);
-//     sineWave.begin(info, N_B4);
-
-//     // start decoder
-//     decoder.begin(info);
-
-//     // start encoder
-//     encoder.begin(info);
-
-//     while(1) 
-//     { 
-//       copier.copy();
-//     }  
-// }
-
 void MediaPlayer() {
 
   // ---------------------------------------------------------
@@ -3276,12 +3263,14 @@ void MediaPlayer() {
   audio_tools::Equalizer3Bands eq(volumeStream);
   audio_tools::ConfigEqualizer3Bands cfg_eq;
 
-  cfg_eq = eq.defaultConfig();
-  cfg_eq.setAudioInfo(cfg);
-  cfg_eq.gain_low = EQ_LOW;
-  cfg_eq.gain_medium = EQ_MID;
-  cfg_eq.gain_high = EQ_HIGH;
-  eq.begin(cfg_eq);
+  updateEqualizerSettings(eq);
+  // cfg_eq = eq.defaultConfig();
+  // cfg_eq.setAudioInfo(cfg);
+  // cfg_eq.gain_low = EQ_LOW;
+  // cfg_eq.gain_medium = EQ_MID;
+  // cfg_eq.gain_high = EQ_HIGH;
+  // eq.begin(cfg_eq);
+
 
   // Inversión de polaridad para WAV (INVERSETRAIN)
   // AudioEffectStream se inserta entre el player y eq solo en el caso WAV.
@@ -3306,6 +3295,9 @@ void MediaPlayer() {
   // FLAC
   decoderFLAC.addNotifyAudioChange(volumeStream);
   decoderFLAC.addNotifyAudioChange(eq);
+
+  wavEffectStream.addNotifyAudioChange(volumeStream); // Para ajustar ganancia de inversión en función del sample rate del WAV
+  wavEffectStream.addNotifyAudioChange(eq); // Para refrescar iconos de pulso en función del sample rate del WAV
 
   // Configuración del reproductor
   // ---------------------------------------------------------
@@ -3614,13 +3606,13 @@ void MediaPlayer() {
     if (EQ_CHANGE) 
     {
       EQ_CHANGE = false;
-      cfg = kitStream.audioInfo();
-      cfg_eq.setAudioInfo(cfg);
-      cfg_eq.gain_low = EQ_LOW;
-      cfg_eq.gain_medium = EQ_MID;
-      cfg_eq.gain_high = EQ_HIGH;
+      // cfg = kitStream.audioInfo();
+      // cfg_eq.setAudioInfo(cfg);
+      // cfg_eq.gain_low = EQ_LOW;
+      // cfg_eq.gain_medium = EQ_MID;
+      // cfg_eq.gain_high = EQ_HIGH;
 
-      if (!eq.begin(cfg_eq)) {
+      if (!updateEqualizerSettings(eq)) {
         LAST_MESSAGE = "Error EQ initialization";
         STOP = true;
         PLAY = false;
@@ -4893,7 +4885,7 @@ void playingFile()
   }
   else 
   {
-    SAMPLING_RATE = BASE_SR ;
+    SAMPLING_RATE = BASE_SR + TONE_ADJUST;
     new_sr.sample_rate = SAMPLING_RATE;
   }
 
@@ -4915,13 +4907,13 @@ void playingFile()
 
     // C64 TAP usa 96kHz
     if (C64_TAP_INSIDE) {
-      SAMPLING_RATE = (BASE_SR ) / TAPE_BAUDRATE;
+      SAMPLING_RATE = (BASE_SR + TONE_ADJUST) / TAPE_BAUDRATE;
       new_sr.sample_rate = (uint32_t)SAMPLING_RATE;
       logln("C64 TAP: forcing hardware + SAMPLING_RATE to 96000 Hz");
     }
     else if (ORIC_TAP_INSIDE) {
       // Para ORIC
-      SAMPLING_RATE = (BASE_SR ) / TAPE_BAUDRATE;
+      SAMPLING_RATE = (BASE_SR + TONE_ADJUST) / TAPE_BAUDRATE;
       new_sr.sample_rate = (uint32_t)SAMPLING_RATE;
       logln("Oric TAP: forcing hardware + baudrate at 300 bauds");
     }
@@ -5060,7 +5052,7 @@ void playingFile()
   {
     logln("Type file load: " + TYPE_FILE_LOAD);
     LAST_MESSAGE = "Wait for scanning end.";
-    
+        
     setupWAVEncoder();
     pTAP.playZX80();
     logln("Finish ZX80/ZX81 playing file");
@@ -5352,6 +5344,7 @@ void loadingFile(char *file_ch) {
       File zx80File = SD_MMC.open(file_ch, FILE_READ);
       if (zx80File) {
         BYTES_TOBE_LOAD = zx80File.size();
+        LAST_SIZE = BYTES_TOBE_LOAD;
         zx80File.close();
       }
     } else if (PATH_FILE_TO_LOAD.indexOf(".80", PATH_FILE_TO_LOAD.length() - 3) != -1) {
@@ -5362,6 +5355,7 @@ void loadingFile(char *file_ch) {
       File zx80File = SD_MMC.open(file_ch, FILE_READ);
       if (zx80File) {
         BYTES_TOBE_LOAD = zx80File.size();
+        LAST_SIZE = BYTES_TOBE_LOAD;
         zx80File.close();
       }
     } else if (PATH_FILE_TO_LOAD.indexOf(".P", PATH_FILE_TO_LOAD.length() - 2) != -1 ||
@@ -5373,6 +5367,7 @@ void loadingFile(char *file_ch) {
       File zx81File = SD_MMC.open(file_ch, FILE_READ);
       if (zx81File) {
         BYTES_TOBE_LOAD = zx81File.size();
+        LAST_SIZE = BYTES_TOBE_LOAD;
         zx81File.close();
       }
     } else if (PATH_FILE_TO_LOAD.indexOf(".81", PATH_FILE_TO_LOAD.length() - 3) != -1) {
@@ -5383,6 +5378,7 @@ void loadingFile(char *file_ch) {
       File zx81File = SD_MMC.open(file_ch, FILE_READ);
       if (zx81File) {
         BYTES_TOBE_LOAD = zx81File.size();
+        LAST_SIZE = BYTES_TOBE_LOAD;
         zx81File.close();
       }
     } else if (PATH_FILE_TO_LOAD.indexOf(".ZIP", PATH_FILE_TO_LOAD.length() - 4) != -1) {
@@ -5616,11 +5612,11 @@ void prevGroupBlock() {
 
 void isGroupStart() {
   // Verificamos si se entra en un grupo
-  logln("ID: " + String(myTZX.descriptor[BLOCK_SELECTED].ID));
-
   if (TYPE_FILE_LOAD != "TAP" && TYPE_FILE_LOAD != "WAV" &&
       TYPE_FILE_LOAD != "MP3" && TYPE_FILE_LOAD != "FLAC" &&
-      TYPE_FILE_LOAD != "RADIO") {
+      TYPE_FILE_LOAD != "RADIO" && TYPE_FILE_LOAD != "ZX80" &&
+      TYPE_FILE_LOAD != "ZX81") {
+    logln("ID: " + String(myTZX.descriptor[BLOCK_SELECTED].ID));
     if (myTZX.descriptor[BLOCK_SELECTED].ID == 33) {
       // Es un group start
       LAST_BLOCK_WAS_GROUP_START = true;
@@ -5636,11 +5632,11 @@ void isGroupStart() {
 
 void isGroupEnd() {
   // Verificamos si se entra en un grupo
-  logln("ID: " + String(myTZX.descriptor[BLOCK_SELECTED].ID));
-
   if (TYPE_FILE_LOAD != "TAP" && TYPE_FILE_LOAD != "WAV" &&
       TYPE_FILE_LOAD != "MP3" && TYPE_FILE_LOAD != "FLAC" &&
-      TYPE_FILE_LOAD != "RADIO") {
+      TYPE_FILE_LOAD != "RADIO" && TYPE_FILE_LOAD != "ZX80" &&
+      TYPE_FILE_LOAD != "ZX81") {
+    logln("ID: " + String(myTZX.descriptor[BLOCK_SELECTED].ID));
     if (myTZX.descriptor[BLOCK_SELECTED].ID == 34) {
       // Es un group start
       LAST_BLOCK_WAS_GROUP_END = true;
@@ -5807,7 +5803,8 @@ void getTheFirstPlayeableBlock() {
 void setFWIND() {
   logln("Set FFWD - " + String(LAST_BLOCK_WAS_GROUP_START));
 
-  if (TYPE_FILE_LOAD != "TAP" && TYPE_FILE_LOAD != "PZX" && TYPE_FILE_LOAD != "CSW") {
+  if (TYPE_FILE_LOAD != "TAP" && TYPE_FILE_LOAD != "PZX" && TYPE_FILE_LOAD != "CSW" &&
+      TYPE_FILE_LOAD != "ZX80" && TYPE_FILE_LOAD != "ZX81") {
     if (LAST_BLOCK_WAS_GROUP_START) {
       // Si el ultimo bloque fue un GroupStart entonces busco un Group End y
       // avanzo 1
@@ -5822,7 +5819,8 @@ void setFWIND() {
     BLOCK_SELECTED++;
   }
 
-  if (TYPE_FILE_LOAD != "TAP" && TYPE_FILE_LOAD != "PZX" && TYPE_FILE_LOAD != "CSW") {
+  if (TYPE_FILE_LOAD != "TAP" && TYPE_FILE_LOAD != "PZX" && TYPE_FILE_LOAD != "CSW" &&
+      TYPE_FILE_LOAD != "ZX80" && TYPE_FILE_LOAD != "ZX81") {
     // Para las estructuras TZX, CDT y TSX
     if (BLOCK_SELECTED > (TOTAL_BLOCKS - 1)) {
       BLOCK_SELECTED = 1;
@@ -5833,8 +5831,8 @@ void setFWIND() {
     if (BLOCK_SELECTED > (TOTAL_BLOCKS - 1)) {
       BLOCK_SELECTED = 1;
     }
-  } else if (TYPE_FILE_LOAD == "TAP") {
-    // Para el fichero TAP
+  } else if (TYPE_FILE_LOAD == "TAP" || TYPE_FILE_LOAD == "ZX80" || TYPE_FILE_LOAD == "ZX81") {
+    // Para el fichero TAP y archivos ZX80/ZX81
     if (BLOCK_SELECTED > (TOTAL_BLOCKS - 2)) {
       BLOCK_SELECTED = 0;
     }
@@ -5843,7 +5841,8 @@ void setFWIND() {
   logln("TOTAL_BLOCKS: " + String(TOTAL_BLOCKS));
   logln("BLOCK_SELECTED: " + String(BLOCK_SELECTED));
 
-  if (TYPE_FILE_LOAD != "TAP" && TYPE_FILE_LOAD != "PZX" && TYPE_FILE_LOAD != "CSW") {
+  if (TYPE_FILE_LOAD != "TAP" && TYPE_FILE_LOAD != "PZX" && TYPE_FILE_LOAD != "CSW" &&
+      TYPE_FILE_LOAD != "ZX80" && TYPE_FILE_LOAD != "ZX81") {
     // Para TZX, CDT, TSX
     hmi.setBasicFileInformation(myTZX.descriptor[BLOCK_SELECTED].ID,
                                 myTZX.descriptor[BLOCK_SELECTED].group,
@@ -5880,7 +5879,8 @@ void setRWIND() {
 
   logln("Set RWD - " + String(LAST_BLOCK_WAS_GROUP_END));
 
-  if (TYPE_FILE_LOAD != "TAP" && TYPE_FILE_LOAD != "PZX" && TYPE_FILE_LOAD != "CSW") {
+  if (TYPE_FILE_LOAD != "TAP" && TYPE_FILE_LOAD != "PZX" && TYPE_FILE_LOAD != "CSW" &&
+      TYPE_FILE_LOAD != "ZX80" && TYPE_FILE_LOAD != "ZX81") {
     if (LAST_BLOCK_WAS_GROUP_END) {
       // Si el ultimo bloque fue un Group End entonces busco un Group Start y
       // avanzo 1
@@ -5895,13 +5895,14 @@ void setRWIND() {
   }
 
   // Para las estructuras TZX, CDT y TSX
-  if (TYPE_FILE_LOAD != "TAP" && TYPE_FILE_LOAD != "PZX" && TYPE_FILE_LOAD != "CSW") {
+  if (TYPE_FILE_LOAD != "TAP" && TYPE_FILE_LOAD != "PZX" && TYPE_FILE_LOAD != "CSW" &&
+      TYPE_FILE_LOAD != "ZX80" && TYPE_FILE_LOAD != "ZX81") {
     if (BLOCK_SELECTED < 1) {
       BLOCK_SELECTED = (TOTAL_BLOCKS - 1);
       isGroupEnd();
     }
-  } else if (TYPE_FILE_LOAD == "TAP") {
-    // Para el fichero TAP
+  } else if (TYPE_FILE_LOAD == "TAP" || TYPE_FILE_LOAD == "ZX80" || TYPE_FILE_LOAD == "ZX81") {
+    // Para el fichero TAP y archivos ZX80/ZX81
     if (BLOCK_SELECTED < 0) {
       BLOCK_SELECTED = (TOTAL_BLOCKS - 2);
     }
@@ -5912,7 +5913,8 @@ void setRWIND() {
     }
   }
 
-  if (TYPE_FILE_LOAD != "TAP" && TYPE_FILE_LOAD != "PZX" && TYPE_FILE_LOAD != "CSW") {
+  if (TYPE_FILE_LOAD != "TAP" && TYPE_FILE_LOAD != "PZX" && TYPE_FILE_LOAD != "CSW" &&
+      TYPE_FILE_LOAD != "ZX80" && TYPE_FILE_LOAD != "ZX81") {
     // Para TZX, CDT, TSX
     hmi.setBasicFileInformation(myTZX.descriptor[BLOCK_SELECTED].ID,
                                 myTZX.descriptor[BLOCK_SELECTED].group,

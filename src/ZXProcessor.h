@@ -2308,6 +2308,153 @@ public:
   // ============================================================================
   // ORIC TAP PLAYBACK - Completo, Limpio y Funcional
   // ============================================================================
+// ================== ORIC STREAMING PLAYBACK ==================
+  // Streaming functions for ORIC TAP files (avoiding full file load into memory)
+  // Following same pattern as ZX80/ZX81 with pilot tone, sync, and data sections
+  void genBitOric(uint8_t bit) {
+      // Generar semi-pulsos para cada bit (SIEMPRE 2):
+      // Modo SLOW: Bit 0 asimétrico (LOW 208µs + HIGH 416µs)
+      //            Bit 1 simétrico (208µs + 208µs)
+      // Modo TURBO: Bit 0 asimétrico (LOW 60µs + HIGH 470µs)
+      //             Bit 1 simétrico (60µs + 60µs)
+      // Nota: Siempre 2 semi-pulsos para mantener alternancia correcta de _c64EdgeIsHigh
+      int chn = WAV_8BIT_MONO ? 1 : channels;
+      int numSemiPulsos = 2;
+
+      // Generar cada semi-pulso (LOW o HIGH)
+      for (int n = 0; n < numSemiPulsos; n++) 
+      {        
+        // Obtener ancho del semi-pulso actual (LOW o HIGH según _c64EdgeIsHigh)
+        double sp_width_us = oricp.getPulseWidthUs(bit, ORIC_TURBO_MODE, _c64EdgeIsHigh);
+        // Convertir a segundos para calcular muestras
+        double sp_width_s  = sp_width_us * 1e-6;
+        // Calcular número de muestras para este semi-pulso
+        int samples = (int)round(sp_width_s * SAMPLING_RATE);
+        if (samples < 1) samples = 1;
+        // Buffer de muestras para este semi-pulso
+        int bytes = samples * 2 * chn;
+        // Obtenemos la amplitud ajustada por volumen para este bit
+        // dentro de get64Amplitude() se alterna el semi-pulso
+        double amplitude  = getC64Amplitude();
+
+        // Calculamos la amplitud de los canales R y L aplicando el volumen maestro
+        uint16_t sample_R = (uint16_t)(amplitude * (MAIN_VOL_R / 100.0f));
+        uint16_t sample_L = (uint16_t)(amplitude * (MAIN_VOL_L / 100.0f));
+        // Generamos el semi-pulso en el bus I2S
+        createPulse(samples, bytes, sample_R, sample_L);
+        // Solicitud de parada
+        if (stopOrPauseRequest()) return;
+      }
+  }
+
+  void emitByteOric(uint8_t byte_val) {
+      uint8_t bitChecksum = 0;
+      for (int b = 0; b < 8; b++) {
+        uint8_t bit = (byte_val >> b) & 1;
+        bitChecksum ^= bit;
+      }
+      
+      genBitOric(0); // Start bit (siempre 0)
+      for (int b = 0; b < 8; b++) {
+        genBitOric((byte_val >> b) & 1);
+      }
+      // Paridad inversa (odd): si hay número impar de 1s (bitChecksum=1), enviar 0; si par (bitChecksum=0), enviar 1
+      genBitOric(bitChecksum == 0 ? 1 : 0); // Parity bit (inverse/odd)
+      // Tres bits de parada a '1'
+      genBitOric(1); 
+      genBitOric(1);
+      genBitOric(1);
+  }
+
+  void playOricDataBegin(uint8_t *data, uint16_t size, int *playback_position = nullptr) {
+    // First chunk: Emit pilot tone and then process data
+    // Pilot tone: 259 bytes of 0x16 (artificial guide tone for Oric hardware stabilization)
+    for (int i = 0; i < 259; i++) {
+      emitByteOric(0x16);
+      if (stopOrPauseRequest()) return;
+    }
+    
+    // Emit sync marker
+    emitByteOric(0x24);
+    
+    // Process the data bytes (without final pause)
+    playOricDataPartition(data, size, playback_position);
+  }
+
+  void playOricDataPartition(uint8_t *data, uint16_t size, int *playback_position = nullptr) {
+    // Middle chunks: Just emit data bytes without pilot tone or pause
+    // Calculate progress within the total file context
+    int progress_start = (PARTITION_BLOCK * 100) / TOTAL_PARTS;
+    int progress_end = ((PARTITION_BLOCK + 1) * 100) / TOTAL_PARTS;
+    int progress_range = progress_end - progress_start;
+    
+    for (uint16_t i = 0; i < size; i++) {
+      // Handle FFWIND (fast forward)
+      if ((FFWIND || KEEP_FFWIND)) {
+        int jump = (int)((float)size * C64_FFWD_SPEED);
+        i = (i + jump >= size) ? size - 1 : i + jump;
+        CSW_SEEK_MODE = 1;
+        if (!KEEP_FFWIND) FFWIND = false;
+        if (playback_position) *playback_position = i;
+        BYTES_LOADED = i;
+        PROGRESS_BAR_BLOCK_VALUE = progress_start + ((i + 1) * progress_range) / size;
+        delay(100);
+        continue;
+      }
+
+      // Handle RWIND (rewind)
+      if ((RWIND || KEEP_RWIND)) {
+        int jump = (int)((float)size * C64_RWD_SPEED);
+        i = (i - jump < 0) ? 0 : i - jump;
+        CSW_SEEK_MODE = 2;
+        if (!KEEP_RWIND) RWIND = false;
+        if (playback_position) *playback_position = i;
+        BYTES_LOADED = i;
+        PROGRESS_BAR_BLOCK_VALUE = progress_start + ((i + 1) * progress_range) / size;
+        delay(100);
+        continue;
+      }
+      CSW_SEEK_MODE = 0;
+
+      // Check for stop/pause requests
+      if (LOADING_STATE == 2) {
+        return;
+      }
+
+      if (stopOrPauseRequest()) {
+        if (playback_position && PAUSE && !STOP) *playback_position = i;
+        else if (playback_position && STOP) *playback_position = 0;
+        return;
+      }
+
+      emitByteOric(data[i]);
+      
+      // Update progress bar with accumulated progress across chunks
+      if (playback_position) *playback_position = i;
+      BYTES_LOADED = i;
+      PROGRESS_BAR_BLOCK_VALUE = progress_start + ((i + 1) * progress_range) / size;
+    }
+  }
+
+  void playOricDataEnd(uint8_t *data, uint16_t size, int *playback_position = nullptr) {
+    // Last chunk: Process data bytes and emit final pause
+    playOricDataPartition(data, size, playback_position);
+    
+    // Final pause: 100 bits of '1' (pause cycle)
+    for (int i = 0; i < 100; i++) {
+      genBitOric(1);
+      if (stopOrPauseRequest()) break;
+    }
+    
+    // Mark playback complete
+    if (playback_position) *playback_position = 0;
+    STOP = true;
+    PAUSE = false;
+    LOADING_STATE = 2;
+    TAPESTATE = 0;
+    LAST_MESSAGE = "ORIC playback done.";
+  }
+
   void playOricData(uint8_t *bBlock, int lenBlock, int *playback_position = nullptr) {
 
     if (!bBlock || lenBlock == 0) {
@@ -2336,65 +2483,7 @@ public:
     _c64EdgeIsHigh = false;
     EDGE_EAR_IS = down;
 
-    int chn = WAV_8BIT_MONO ? 1 : channels;
-
-    auto genBit = [&](uint8_t bit) {
-      // Generar semi-pulsos para cada bit (SIEMPRE 2):
-      // Modo SLOW: Bit 0 asimétrico (LOW 208µs + HIGH 416µs)
-      //            Bit 1 simétrico (208µs + 208µs)
-      // Modo TURBO: Bit 0 asimétrico (LOW 60µs + HIGH 470µs)
-      //             Bit 1 simétrico (60µs + 60µs)
-      // Nota: Siempre 2 semi-pulsos para mantener alternancia correcta de _c64EdgeIsHigh
-      int numSemiPulsos = 2;
-
-      // Generar cada semi-pulso (LOW o HIGH)
-      for (int n = 0; n < numSemiPulsos; n++) 
-      {        
-        // Obtener ancho del semi-pulso actual (LOW o HIGH según _c64EdgeIsHigh)
-        double sp_width_us = oricp.getPulseWidthUs(bit, ORIC_TURBO_MODE, _c64EdgeIsHigh);
-        // Convertir a segundos para calcular muestras
-        double sp_width_s  = sp_width_us * 1e-6;
-        // Calcular número de muestras para este semi-pulso
-        int samples = (int)round(sp_width_s * SAMPLING_RATE);
-        if (samples < 1) samples = 1;
-        // Buffer de muestras para este semi-pulso
-        int bytes = samples * 2 * chn;
-        // Obtenemos la amplitud ajustada por volumen para este bit
-        // dentro de get64Amplitude() se alterna el semi-pulso
-        double amplitude  = getC64Amplitude();
-
-        // Calculamos la amplitud de los canales R y L aplicando el volumen maestro
-        uint16_t sample_R = (uint16_t)(amplitude * (MAIN_VOL_R / 100.0f));
-        uint16_t sample_L = (uint16_t)(amplitude * (MAIN_VOL_L / 100.0f));
-        // Generamos el semi-pulso en el bus I2S
-        createPulse(samples, bytes, sample_R, sample_L);
-        // Solicitud de parada
-        if (stopOrPauseRequest()) return;
-      }
-    };
-
-    // ========== emitByte: Emitir 1 byte con protocolo ORIC estándar ==========
-    // Estructura: START(0) + 8×DATA(LSB first) + PARITY(odd/inverse) + 3×STOP(1)
-    // Total: 13 bits por byte
-    // Nota: Especificación ORIC permite 1-3 stop bits; MaxDuino usa 3 (más robusto)
-    auto emitByte = [&](uint8_t byte_val) {
-      uint8_t bitChecksum = 0;
-      for (int b = 0; b < 8; b++) {
-        uint8_t bit = (byte_val >> b) & 1;
-        bitChecksum ^= bit;
-      }
-      
-      genBit(0); // Start bit (siempre 0)
-      for (int b = 0; b < 8; b++) {
-        genBit((byte_val >> b) & 1);
-      }
-      // Paridad inversa (odd): si hay número impar de 1s (bitChecksum=1), enviar 0; si par (bitChecksum=0), enviar 1
-      genBit(bitChecksum == 0 ? 1 : 0); // Parity bit (inverse/odd)
-      // Tres bits de parada a '1'
-      genBit(1); 
-      genBit(1);
-      genBit(1);
-    };
+    
 
     // ========== SINCRONISMO: Generar tono guía artificial y sincronizar con el bloque del archivo ==========
     int pos = 0;
@@ -2402,10 +2491,10 @@ public:
     // Tono guía artificial (bytes 0x16) para que el hardware del Oric estabilice la señal.
     // Emitimos exactamente 259 bytes, tal como hace la subrutina de la ROM en $E75A.
     for (int i = 0; i < 259; i++) {
-      emitByte(0x16);
+      emitByteOric(0x16);
       if (stopOrPauseRequest()) return;
     }
-    emitByte(0x24); // Marcador de fin de sincronismo emitido artificialmente
+    emitByteOric(0x24); // Marcador de fin de sincronismo emitido artificialmente
     
     // Localizamos el marcador 0x24 en el bloque de datos del archivo .TAP
     while (pos < lenBlock && bBlock[pos] != 0x24) {
@@ -2454,22 +2543,22 @@ public:
     }
     
     for (int i = 0; i < 9; i++) {
-      emitByte(header[i]);
+      emitByteOric(header[i]);
     }
 
     // ========== NOMBRE (hasta null terminator o límite de 16 caracteres típicos) ==========
     int nameLimit = 0;
     while (pos < lenBlock && bBlock[pos] != 0 && nameLimit < 32) {
-      emitByte(bBlock[pos++]);
+      emitByteOric(bBlock[pos++]);
       nameLimit++;
     }
     if (pos < lenBlock) {
-      emitByte(bBlock[pos++]);  // null terminator
+      emitByteOric(bBlock[pos++]);  // null terminator
     }
 
     // ========== GAP (100 ciclos de Bit 1) ==========
     for (int i = 0; i < 100; i++) {
-      genBit(1);
+      genBitOric(1);
     }
 
     // ========== DATOS (exactamente bytesToRead) ==========
@@ -2517,7 +2606,7 @@ public:
         return;
       }
 
-      emitByte(bBlock[dataStart + i]);
+      emitByteOric(bBlock[dataStart + i]);
       
       BYTES_LOADED = i;
       PROGRESS_BAR_BLOCK_VALUE = (int)(((i + 1) * 100) / bytesToRead);
@@ -2525,7 +2614,7 @@ public:
 
     // ========== PAUSE (100 ciclos de Bit 1) ==========
     for (int i = 0; i < 100; i++) {
-      genBit(1);
+      genBitOric(1);
       if (stopOrPauseRequest()) break;
     }
 
@@ -2538,8 +2627,9 @@ public:
     LAST_MESSAGE = "ORIC playback done.";
   }
 
+
   // ================== ZX80/ZX81 PLAYBACK ==================
-  void playZX80Data(uint8_t *data, uint16_t size) {
+  void playZX80Data(uint8_t *data, uint16_t size, int *playback_position = nullptr) {
     // Initial 5-seconds silence (5000 ms)
     silence(5000);
 
@@ -2557,47 +2647,118 @@ public:
 
         // Generate semi-pulses: 150µs each (2 per logical pulse)
         for (uint16_t p = 0; p < semiPulseCount; p++) {
+          if(stopOrPauseRequest()) {
+            return;
+          }
           semiPulse(0.15, 0, true);  // 150µs half-pulse
         }
 
         // 1300µs silence between bits
         silence(1.3);  // 1300µs
       }
+
+      // Update progress tracking
+      if (playback_position) *playback_position = i;
+      BYTES_LOADED = i;
+      PROGRESS_BAR_BLOCK_VALUE = (int)(((i + 1) * 100) / size);
     }
 
     // Final 2-second silence
     silence(2000);  // 2000 ms
+
+    // Mark playback complete
+    if (playback_position) *playback_position = 0;
+    STOP = true;
+    PAUSE = false;
+    LOADING_STATE = 2;
+    TAPESTATE = 0;
   }
 
   // ================== ZX80/ZX81 STREAMING PLAYBACK ==================
-  void playZX80DataBegin(uint8_t *data, uint16_t size) {
+  void playZX80DataBegin(uint8_t *data, uint16_t size, int *playback_position = nullptr) {
     // Initial 5-seconds silence only on first chunk
     silence(5000);
     // Process bytes WITHOUT final silence
-    playZX80Bits(data, size);
+    playZX80Bits(data, size, playback_position);
   }
 
-  void playZX80DataPartition(uint8_t *data, uint16_t size) {
+  void playZX80DataPartition(uint8_t *data, uint16_t size, int *playback_position = nullptr) {
     // Process bytes with NO leading or trailing silence (intermediate chunks)
-    playZX80Bits(data, size);
+    playZX80Bits(data, size, playback_position);
   }
 
-  void playZX80DataEnd(uint8_t *data, uint16_t size) {
+  void playZX80DataEnd(uint8_t *data, uint16_t size, int *playback_position = nullptr) {
     // Process bytes with final silence only on last chunk
-    playZX80Bits(data, size);
+    playZX80Bits(data, size, playback_position);
     silence(2000);  // Final 2-second silence
+    
+    // Mark playback complete
+    if (playback_position) *playback_position = 0;
+    STOP = true;
+    PAUSE = false;
+    LOADING_STATE = 2;
+    TAPESTATE = 0;
   }
 
-  void playZX80Bits(uint8_t *data, uint16_t size) {
-    // Helper: Generate bit pattern for ZX80/ZX81 (MSB first)
+  void playZX80Bits(uint8_t *data, uint16_t size, int *playback_position = nullptr) {
+    // Helper: Generate bit pattern for ZX80/ZX81 (MSB first) with progress tracking
     // Specification: Bit0=4 pulses (1200µs), Bit1=9 pulses (2700µs)
     // Each pulse = 150µs HIGH + 150µs LOW = 300µs total
     // semiPulse(0.15) generates 150µs alternating, need 2 calls per logical pulse
+    
+    // Calculate progress within the total file context for streaming mode
+    int progress_start = (TOTAL_PARTS > 0) ? (PARTITION_BLOCK * 100) / TOTAL_PARTS : 0;
+    int progress_end = (TOTAL_PARTS > 0) ? ((PARTITION_BLOCK + 1) * 100) / TOTAL_PARTS : 100;
+    int progress_range = progress_end - progress_start;
+    
     for (uint16_t i = 0; i < size; i++) {
-      uint8_t byte = data[i];
+      // Handle FFWIND (fast forward)
+      if ((FFWIND || KEEP_FFWIND)) {
+        int jump = (int)((float)size * C64_FFWD_SPEED);
+        i = (i + jump >= size) ? size - 1 : i + jump;
+        CSW_SEEK_MODE = 1;
+        if (!KEEP_FFWIND) FFWIND = false;
+        if (playback_position) *playback_position = i;
+        BYTES_LOADED = i;
+        PROGRESS_BAR_BLOCK_VALUE = progress_start + ((i + 1) * progress_range) / size;
+        delay(100);
+        continue;
+      }
 
+      // Handle RWIND (rewind)
+      if ((RWIND || KEEP_RWIND)) {
+        int jump = (int)((float)size * C64_RWD_SPEED);
+        i = (i - jump < 0) ? 0 : i - jump;
+        CSW_SEEK_MODE = 2;
+        if (!KEEP_RWIND) RWIND = false;
+        if (playback_position) *playback_position = i;
+        BYTES_LOADED = i;
+        PROGRESS_BAR_BLOCK_VALUE = progress_start + ((i + 1) * progress_range) / size;
+        delay(100);
+        continue;
+      }
+      CSW_SEEK_MODE = 0;
+
+      // Check for stop request
+      if (LOADING_STATE == 2) {
+        if (playback_position) *playback_position = 0;
+        return;
+      }
+
+      // Check for pause request
+      if (stopOrPauseRequest()) {
+        if (playback_position && PAUSE && !STOP) *playback_position = i;
+        else if (playback_position && STOP) *playback_position = 0;
+        return;
+      }
+
+      uint8_t byte = data[i];
+      
       // Play bits MSB first (bit 7 → bit 0)
       for (int bit = 7; bit >= 0; bit--) {
+        if (stopOrPauseRequest()) {
+          return;
+        }
         bool bitValue = (byte >> bit) & 1;
         // Bit0=4 pulses, Bit1=9 pulses
         uint16_t pulseCount = bitValue ? 9 : 4;
@@ -2612,6 +2773,11 @@ public:
         // 1300µs silence between bits
         silence(1.3);  // 1300µs
       }
+
+      // Update progress tracking with accumulated progress
+      if (playback_position) *playback_position = i;
+      BYTES_LOADED = i;
+      PROGRESS_BAR_BLOCK_VALUE = progress_start + ((i + 1) * progress_range) / size;
     }
   }
 

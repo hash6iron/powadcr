@@ -4240,8 +4240,8 @@ private:
                         }
                         else
                         {
-                            // Si no hay nombre, ponemos "..."
-                            if (C64_TAP_INSIDE)
+                            // Si no hay nombre, ponemos el nombre del fichero
+                            if (C64_TAP_INSIDE || TYPE_FILE_LOAD == "ZX81" || TYPE_FILE_LOAD == "ZX80" || TYPE_FILE_LOAD == "ORIC")
                             {
                               PROGRAM_NAME = FILE_LOAD;
                             }

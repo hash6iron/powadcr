@@ -1467,8 +1467,7 @@ private:
 
     // Ahora cogemos el texto en el siguiente byte
     // #ifdef DEBUGMODE
-    logln("ID33 - sizeTextInformation = " + String(sizeTextInformation) +
-          " bytes");
+    logln("ID33 - sizeTextInformation = " + String(sizeTextInformation) + " bytes");
     // #endif
 
     uint8_t *grpN =
