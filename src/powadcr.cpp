@@ -259,7 +259,8 @@ void tapeAnimationON();
 String getFileNameFromPath(const String &filePath);
 String removeExtension(const String &filename);
 void updateWAVHeader(const String &file_path);
-bool updateEqualizerSettings(Equalizer3Bands &eq);
+bool updateEqualizerSettings(Equalizer3Bands &eq, ConfigEqualizer3Bands &cfg_eq, AudioInfo cfg);
+// bool volumeStreamSettings();
 
 
 // -----------------------------------------------------------------------
@@ -1891,18 +1892,26 @@ void updateIndicators(int size, int pos, uint32_t fsize, int bitrate, String fna
   }
 }
 
-void updateSamplingRate(AudioPlayer &player, Equalizer3Bands &eq, AudioInfo realInfo) {
+void updateSamplingRate(AudioPlayer &player, Equalizer3Bands &eq, ConfigEqualizer3Bands &cfg_eq, AudioInfo realInfo) {
   //logln("Reading sampling rate and updating.");
 
   if (realInfo.sample_rate > 0) 
   {
-    // Actualizamos la configuración con los valores reales
-    kitStream.setAudioInfo(realInfo);
-    // Actualizamos el EQ
-    eq.setAudioInfo(realInfo);
-    updateEqualizerSettings(eq);
-    // Actualizamos el player
+    //volumeStreamSettings();
+    // Actualizamos con la configuración de audio del decoder
     player.setAudioInfo(realInfo);
+    // Forzamos EQ
+    updateEqualizerSettings(eq,cfg_eq, realInfo);
+    //
+    //
+    kitStream.setAudioInfo(realInfo);
+    // Forzamos volumeStream 
+    VolumeStreamConfig cfg = volumeStream.defaultConfig();
+    cfg.sample_rate = realInfo.sample_rate;
+    cfg.bits_per_sample = realInfo.bits_per_sample;
+    cfg.channels = realInfo.channels;
+    volumeStream.begin(cfg);
+
     //
     log_info("PLAYER","Real Audio Info - Sample Rate: " + String(realInfo.sample_rate) +
           "Hz, Bits: " + String(realInfo.bits_per_sample) +
@@ -1916,13 +1925,17 @@ void updateSamplingRate(AudioPlayer &player, Equalizer3Bands &eq, AudioInfo real
           "Hz, Bits: " + String(eq.audioInfo().bits_per_sample) +
           ", Channels: " + String(eq.audioInfo().channels));          
 
+    log_info("PLAYER","VolumeStream - Sample Rate: " + String(volumeStream.audioInfo().sample_rate) +
+          "Hz, Bits: " + String(volumeStream.audioInfo().bits_per_sample) +
+          ", Channels: " + String(volumeStream.audioInfo().channels));             
+
     log_info("PLAYER","KitStream - Sample Rate: " + String(kitStream.audioInfo().sample_rate) +
           "Hz, Bits: " + String(kitStream.audioInfo().bits_per_sample) +
           ", Channels: " + String(kitStream.audioInfo().channels));          
 
 
     // Mostramos la información
-    myNex.writeStr("tape.lblFreq.txt=", String(int(realInfo.sample_rate / 1000)) + "KHz");
+    myNex.writeStr("tape.lblFreq.txt", String(int(realInfo.sample_rate / 1000)) + "KHz");
     delay(125);
   } 
   else 
@@ -2651,14 +2664,27 @@ void radio_network_task(void *parameter)
   logln("Heap - NET: " + String(ESP.getFreeHeap()) + " (max bloque: " + String(ESP.getMaxAllocHeap()) + ")");
 }
 
-// ... (código existente, incluyendo radio_network_task) ...
-bool updateEqualizerSettings(Equalizer3Bands &eq) {
-  audio_tools::ConfigEqualizer3Bands cfg_eq = eq.defaultConfig();
-  eq.setAudioInfo(cfg_eq);
+
+// bool volumeStreamSettings()
+// {
+//   auto cfg_vo = volumeStream.defaultConfig();
+//   cfg_vo.copyFrom(kitStream.audioInfo());
+//   return volumeStream.begin(cfg_vo);
+// }
+
+bool updateEqualizerSettings(Equalizer3Bands &eq,ConfigEqualizer3Bands &cfg_eq, AudioInfo cfg) {
+  // Actualizamos el parametrizado del 3-BAND EQ
+  // cfg_eq debe ser estática para evitar overflow de stack durante procesamiento de audio
+  //static audio_tools::ConfigEqualizer3Bands cfg_eq;
+  cfg_eq = eq.defaultConfig();
+  // ASignamos parametros base del I2S
+  eq.setAudioInfo(cfg);
+  // Modificamos los filtros
   cfg_eq.gain_low = EQ_LOW;
   cfg_eq.gain_medium = EQ_MID;
   cfg_eq.gain_high = EQ_HIGH;
-  return eq.begin(cfg_eq);
+  // Terminamos.
+  return (eq.begin(cfg_eq));
 }
 
 void RadioPlayer() {
@@ -2711,12 +2737,13 @@ void RadioPlayer() {
   IRADIO_EN = true;
 
   audio_tools::Equalizer3Bands eq(volumeStream);
+  audio_tools::ConfigEqualizer3Bands cfg_eq;
 
   MP3DecoderHelix decoder;
   EncodedAudioStream decodedStream(&eq, &decoder);
 
-  updateEqualizerSettings(eq);
-  // cfg_eq = eq.defaultConfig();
+  updateEqualizerSettings(eq,cfg_eq,cfg);
+  //cfg_eq = eq.defaultConfig();
   // cfg_eq.setAudioInfo(cfg);
   // cfg_eq.gain_low = EQ_LOW;
   // cfg_eq.gain_medium = EQ_MID;
@@ -2749,9 +2776,7 @@ void RadioPlayer() {
   STOP = false;
   EJECT = false;
   TOTAL_BLOCKS = generateRadioList(audiolist);
-  currentRadioStation =
-      nextRadioStation(PATH_FILE_TO_LOAD, radioName, radioUrlBuffer,
-                       sizeof(radioUrlBuffer), true, 0, true);
+  currentRadioStation = nextRadioStation(PATH_FILE_TO_LOAD, radioName, radioUrlBuffer, sizeof(radioUrlBuffer), true, 0, true);
   updateDialIndicator(currentRadioStation);
   LAST_MESSAGE = "Ready. Press PLAY.";
   playerState = 10;
@@ -2767,7 +2792,7 @@ void RadioPlayer() {
     if (EQ_CHANGE) 
     {
       EQ_CHANGE = false;
-      updateEqualizerSettings(eq);
+      updateEqualizerSettings(eq, cfg_eq, cfg);
       // cfg_eq.setAudioInfo(cfg);
       // cfg_eq.gain_low = EQ_LOW;
       // cfg_eq.gain_medium = EQ_MID;
@@ -3218,7 +3243,9 @@ void MediaPlayer() {
   // Configuración de la fuente de audio - old version
   // ----------------------------------------------------------
   // Por defecto no descubre fichero, eso ya lo hará reindex()
-  AudioSourceIdxSDMMC source(FILE_LAST_DIR.c_str(), ext.c_str(), false);
+  // Hacer 'source' estático previene corrupción de heap al destruirse
+  // cuando hay transiciones entre archivos ADPCM
+  static AudioSourceIdxSDMMC source(FILE_LAST_DIR.c_str(), ext.c_str(), false);
   // REGENERATE_IDX = false;
 
 
@@ -3263,14 +3290,7 @@ void MediaPlayer() {
   audio_tools::Equalizer3Bands eq(volumeStream);
   audio_tools::ConfigEqualizer3Bands cfg_eq;
 
-  updateEqualizerSettings(eq);
-  // cfg_eq = eq.defaultConfig();
-  // cfg_eq.setAudioInfo(cfg);
-  // cfg_eq.gain_low = EQ_LOW;
-  // cfg_eq.gain_medium = EQ_MID;
-  // cfg_eq.gain_high = EQ_HIGH;
-  // eq.begin(cfg_eq);
-
+  updateEqualizerSettings(eq, cfg_eq, cfg);
 
   // Inversión de polaridad para WAV (INVERSETRAIN)
   // AudioEffectStream se inserta entre el player y eq solo en el caso WAV.
@@ -3295,10 +3315,10 @@ void MediaPlayer() {
   // FLAC
   decoderFLAC.addNotifyAudioChange(volumeStream);
   decoderFLAC.addNotifyAudioChange(eq);
-
+  //
   wavEffectStream.addNotifyAudioChange(volumeStream); // Para ajustar ganancia de inversión en función del sample rate del WAV
   wavEffectStream.addNotifyAudioChange(eq); // Para refrescar iconos de pulso en función del sample rate del WAV
-
+  //
   // Configuración del reproductor
   // ---------------------------------------------------------
   AudioInfo audiosr;
@@ -3306,6 +3326,7 @@ void MediaPlayer() {
 
   player.setAudioSource(source);
   player.setOutput(eq);
+  //
 
   auto tempConfig = kitStream.defaultConfig();
 
@@ -3341,6 +3362,18 @@ void MediaPlayer() {
         // Inicializar el decoder apropiado
         if (isADPCM) {
           logln(">>> Using WAV ADPCM IMA decoder <<<");
+          
+          // Limpiar decoder ADPCM anterior si existe
+          decoderADPCM.end();
+          
+          // Reinicializar decoder ADPCM
+          if (!decoderADPCM.begin()) {
+            logln("ERROR: Cannot initialize ADPCM decoder");
+            LAST_MESSAGE = "Error initializing ADPCM decoder";
+            STOP = true;
+            PLAY = false;
+            return;
+          }
           
           tempConfig = kitStream.defaultConfig();
           tempConfig.sample_rate = 44100;
@@ -3596,6 +3629,8 @@ void MediaPlayer() {
   // Bucle principal
   //
   // ---------------------------------------------------------------
+  // Forzamos un cambio en el EQ
+  EQ_CHANGE = true;
 
   while (!EJECT && !REC) 
   {
@@ -3612,7 +3647,7 @@ void MediaPlayer() {
       // cfg_eq.gain_medium = EQ_MID;
       // cfg_eq.gain_high = EQ_HIGH;
 
-      if (!updateEqualizerSettings(eq)) {
+      if (!updateEqualizerSettings(eq, cfg_eq, cfg)) {
         LAST_MESSAGE = "Error EQ initialization";
         STOP = true;
         PLAY = false;
@@ -3637,6 +3672,11 @@ void MediaPlayer() {
     {
       if (PLAY) 
       {
+        // audiosr = (ext == "wav")   ? decoderWAV.audioInfo()
+        //           : (ext == "mp3") ? decoderMP3.audioInfo()
+        //                            : decoderFLAC.audioInfo();
+        // updateSamplingRate(player, eq, cfg_eq, audiosr);
+
         // Iniciamos el reproductor
         if (WAVFILE_PRELOAD)
           WAVFILE_PRELOAD = false;
@@ -3694,7 +3734,8 @@ void MediaPlayer() {
         audiosr = (ext == "wav")   ? decoderWAV.audioInfo()
                   : (ext == "mp3") ? decoderMP3.audioInfo()
                                    : decoderFLAC.audioInfo();
-        updateSamplingRate(player, eq, audiosr);
+        
+        updateSamplingRate(player, eq, cfg_eq, audiosr);
 
         LAST_MESSAGE = "...";
 
@@ -3779,7 +3820,7 @@ void MediaPlayer() {
           audiosr = (ext == "wav")   ? decoderWAV.audioInfo()
                     : (ext == "mp3") ? decoderMP3.audioInfo()
                                      : decoderFLAC.audioInfo();
-          updateSamplingRate(player, eq, audiosr);
+          updateSamplingRate(player, eq, cfg_eq, audiosr);
         }
       }
 
@@ -4639,7 +4680,7 @@ void MediaPlayer() {
   tapeAnimationOFF();
 
   // Descargamos objetos
-  // player.end();
+  player.end();
   eq.end();
 
   // Desvinculamos todas las notificaciones. Importante para evitar problemas
@@ -4653,12 +4694,9 @@ void MediaPlayer() {
   decoderMP3.end();
   decoderWAV.end();
   decoderFLAC.end();
-  // decoderWAV_ADPCM_global.end();
-  // decoderADPCM_global.end();
   
   measureMP3.end();
   metadatafilter.end();
-  //volumeStream.end();
 
   // Desvinculamos todas las notificaciones. Importante para evitar problemas
   kitStream.clearNotifyAudioChange();
@@ -4667,10 +4705,6 @@ void MediaPlayer() {
   if (p_file_seek != nullptr && p_file_seek) {
     p_file_seek->close();
   }
-
-  // hmi.writeString("menuAudio2.polValue.style=3");
-  // hmi.writeString("menuAudio2.polValue.bco=65535");
-  // hmi.writeString("menuAudio2.t5.pco=60868");
   
   // Liberamos la memoria del audiolist
   free(audiolist);
@@ -4838,8 +4872,15 @@ void updateWAVHeader(const String &file_path)
 
 // Función auxiliar para limpiar y finalizar reproducción
 void finalizePlayback() {
-  
-  hmi.writeString("tape.lblFreq.txt=\"" + String(int(SAMPLING_RATE / 1000)) + "KHz\"");
+  // Restauramos el baudrate por defecto para futuras reproducciones
+  myNex.writeStr("tape.lblFreq.txt",String(int(SAMPLING_RATE / 1000)) + "KHz");
+  myNex.writeStr("tape.bds.txt", "-- Bds");
+  // Reiniciamos las barras de progreso
+  myNex.writeStr("tape.progressTotal.val=0");
+  myNex.writeStr("tape.progressBlock.val=0");
+  //
+  PROGRESS_BAR_BLOCK_VALUE = 0;
+  PROGRESS_BAR_TOTAL_VALUE = 0;
   
   sendStatus(REC_ST, 0);
   
@@ -5051,7 +5092,7 @@ void playingFile()
   else if (TYPE_FILE_LOAD == "ZX80" || TYPE_FILE_LOAD == "ZX81")
   {
     logln("Type file load: " + TYPE_FILE_LOAD);
-    LAST_MESSAGE = "Wait for scanning end.";
+    LAST_MESSAGE = "Playing previous silence.";
         
     setupWAVEncoder();
     pTAP.playZX80();
@@ -5698,6 +5739,10 @@ void putLogo() {
     // MSX
     hmi.writeString("tape.logo.pic=61");
     delay(5);
+  } else if (TYPE_FILE_LOAD == "ZX80" || TYPE_FILE_LOAD == "ZX81") {
+    // ZX80/ZX81
+    hmi.writeString("tape.logo.pic=62");
+    delay(5);    
   } else {
     // En blanco
     hmi.writeString("tape.logo.pic=42");

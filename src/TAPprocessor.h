@@ -1424,6 +1424,9 @@ class TAPprocessor
         
         uint32_t fileSize = zxFile.size();
         log_info("TAP_ZX80","ZX80/ZX81 file size: " + String(fileSize) + " bytes");
+
+        LAST_MESSAGE = "Playing file.";
+
         
         // Process file: stream if large, direct if small
         if (fileSize >= SIZE_FOR_SPLIT) {
