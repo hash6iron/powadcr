@@ -187,9 +187,9 @@ public:
   void setTurboMode(bool turbo) {
     _isTurboMode = turbo;
     
-    #ifdef DEBUGMODE
-      logln("ORIC turbo mode: " + String(turbo ? "ON" : "OFF"));
-    #endif
+    
+    log_info("ORIC","ORIC turbo mode: " + String(turbo ? "ON" : "OFF"));
+    
   }
 
   /**
@@ -211,8 +211,6 @@ public:
         _isTurboMode = detectTurboMode(fileSize, syncCount);
     }
     
-    #ifdef DEBUGMODE
-      logln("ORIC Processor initialized. Turbo: " + String(_isTurboMode ? "YES" : "NO"));
-    #endif
+    log_info("ORIC","ORIC Processor initialized. Turbo: " + String(_isTurboMode ? "YES" : "NO"));
   }
 };

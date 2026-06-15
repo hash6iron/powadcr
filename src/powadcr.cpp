@@ -764,35 +764,6 @@ void proccesingTAP(char *file_ch) {
           C64_MODE = false;
           C64_TAP_INSIDE = false;
           
-        //   // Guardar el baudrate original antes de cambiarlo
-        //   TAPE_BAUDRATE_SAVED = TAPE_BAUDRATE;
-          
-        //   // ✅ AUTO-DETECT BAUDRATE para ORIC
-        //   // ORIC estándar: 2400 bps => TAPE_BAUDRATE = 2400/1200 = 2
-        //   // ORIC turbo: varía según loader, pero típicamente 3600-4800 bps
-        //   if (ORIC_TURBO_MODE)
-        //   {
-        //     TAPE_BAUDRATE = 2.0;  // ~3600 bps (3600/1200)
-        //     #ifdef DEBUGMODE
-        //       logln("ORIC Turbo mode detected: TAPE_BAUDRATE = 3.0 (3600 bps)");
-        //     #endif
-        //   }
-        //   else
-        //   {
-        //     TAPE_BAUDRATE = 1.0;  // 2400 bps estándar (2400/1200)
-        //     #ifdef DEBUGMODE
-        //       logln("ORIC Standard mode: TAPE_BAUDRATE = 1.0 (2400 bps)");
-        //     #endif
-        //   }
-          
-        //   #ifdef DEBUGMODE
-        //     logAlert("TAP Format: ORIC detected! Setting ORIC_MODE=true");
-        //     logln("Block descriptor type: 0x" + String(blockType, HEX) + " (ORIC marker)");
-        //     logln("Baudrate multiplier: " + String(TAPE_BAUDRATE, 2));
-        //   #endif
-        // }
-        // C64_DATA_BLOCK or detectC64Format() sets C64_MODE
-        // (El detector ya está en TAPprocessor.h como detectC64Format())
         }
         else if (C64_MODE || C64_TAP_INSIDE)
         {
@@ -1568,16 +1539,6 @@ bool wifiSetup()
   uint8_t tryconnection = 60;
 
   logln("Attempting to connect to WiFi SSID: [" + String(ssid) + "]");
-  // Esperamos la respuesta
-  // while (wifiStatus != WL_CONNECTED && tryconnection != 0) 
-  // {  
-  //   //hmi.writeString("statusLCD.txt=\"Connecting to WiFi ... " + String(tryconnection/4) + "s \"");
-  //   logln("Connecting to WiFi ... " + String(tryconnection/4) + "s");
-  //   delay(250);
-  //   //WiFi.reconnect();
-  //   //wifiStatus = WiFi.begin(ssid, password);
-  //   tryconnection--;
-  // }
 
   if (wifiStatus == WL_NO_SSID_AVAIL || wifiStatus == WL_NO_SSID_AVAIL) 
   {
@@ -1893,26 +1854,32 @@ void updateIndicators(int size, int pos, uint32_t fsize, int bitrate, String fna
 }
 
 void updateSamplingRate(AudioPlayer &player, Equalizer3Bands &eq, ConfigEqualizer3Bands &cfg_eq, AudioInfo realInfo) {
-  //logln("Reading sampling rate and updating.");
 
   if (realInfo.sample_rate > 0) 
   {
-    //volumeStreamSettings();
     // Actualizamos con la configuración de audio del decoder
     player.setAudioInfo(realInfo);
-    // Forzamos EQ
-    updateEqualizerSettings(eq,cfg_eq, realInfo);
     //
-    //
-    kitStream.setAudioInfo(realInfo);
     // Forzamos volumeStream 
     VolumeStreamConfig cfg = volumeStream.defaultConfig();
     cfg.sample_rate = realInfo.sample_rate;
     cfg.bits_per_sample = realInfo.bits_per_sample;
     cfg.channels = realInfo.channels;
     volumeStream.begin(cfg);
-
     //
+    kitStream.setAudioInfo(realInfo);
+    //
+    // Forzamos EQ: Si no se deja el ultimo, no se actualiza el sampling rate.
+    updateEqualizerSettings(eq,cfg_eq, realInfo);
+
+    if (realInfo.channels == 1 && realInfo.bits_per_sample == 8) {
+      myNex.writeStr("tape.wavind.txt", "8BIT");
+    }
+    else
+    {
+      myNex.writeStr("tape.wavind.txt", "");
+    }
+
     log_info("PLAYER","Real Audio Info - Sample Rate: " + String(realInfo.sample_rate) +
           "Hz, Bits: " + String(realInfo.bits_per_sample) +
           ", Channels: " + String(realInfo.channels));
@@ -1936,7 +1903,7 @@ void updateSamplingRate(AudioPlayer &player, Equalizer3Bands &eq, ConfigEqualize
 
     // Mostramos la información
     myNex.writeStr("tape.lblFreq.txt", String(int(realInfo.sample_rate / 1000)) + "KHz");
-    delay(125);
+    //delay(125);
   } 
   else 
   {
@@ -1961,10 +1928,6 @@ void estimatePlayingTime(int fileread, int filesize, int samprate) {
 
     String utsec = (tsec < 10) ? "0" : "";
     String utmin = (tmin < 10) ? "0" : "";
-
-    // Elapsed time
-    // logln("Bit rate por sample: " + String(ainfo.bits_per_sample));
-    // logln("Sampling rate:       " + String(ainfo.sample_rate));
 
     float time = 0;
 
@@ -2065,9 +2028,6 @@ int generateRadioList(tAudioList *&radioList) {
       continue;
     }
 
-    // 4. Extraer nombre y URL
-    // logln("Radio read: " + line);
-
     String stationName = line.substring(0, commaIndex);
     String stationUrl = line.substring(commaIndex + 1);
 
@@ -2075,8 +2035,6 @@ int generateRadioList(tAudioList *&radioList) {
     stationName.trim();
     stationUrl.trim();
 
-    // logln(" > Station Name: " + stationName + " | Station URL: " +
-    // stationUrl);
 
     // 5. Eliminar comillas del nombre de la emisora
     if (stationName.length() >= 2) {
@@ -2285,10 +2243,8 @@ int generateAudioList(tAudioList *&audioList, String extension = ".mp3") {
   return size;
 }
 
-int getIndexFromAudioList(tAudioList *audioList, int size,
-                          const String &searchValue) {
+int getIndexFromAudioList(tAudioList *audioList, int size, const String &searchValue) {
   for (int i = 0; i < size; i++) {
-    // logln("Comparing: " + audioList[i].filename + " with " + searchValue);
 
     if (audioList[i].filename.equalsIgnoreCase(searchValue)) {
       return audioList[i].index; // Retorna el índice del archivo encontrado
@@ -3389,10 +3345,10 @@ void MediaPlayer() {
           }
           
           player.setDecoder(decoderWAV_ADPCM);
-          logln("WAV ADPCM decoder set");
+          log_info("DECODER","WAV ADPCM decoder set");
         } 
         else {
-          logln(">>> Using PCM decoder <<<");
+          log_info("DECODER","Using PCM decoder.");
           if (!decoderWAV.begin()) {
             logln("ERROR: Cannot initialize WAV decoder");
             LAST_MESSAGE = "Error initializing WAV decoder";
@@ -3414,8 +3370,11 @@ void MediaPlayer() {
             hmi.refreshPulseIcons(INVERSETRAIN, ZEROLEVEL);
           }
           
+          // Deshabilitamos conversion automatica a 16 bits
+          decoderWAV.setConvert8Bit(false);
+
           player.setDecoder(decoderWAV);
-          logln("PCM decoder set");
+          log_info("DECODER","PCM decoder set");
         }
         
         player.setAutoNext(AUTO_NEXT);
@@ -3590,6 +3549,7 @@ void MediaPlayer() {
 
   // Mostramos informacion del fichero seleccionado en el browser.
   updateIndicators(totalFilesIdx, currentPointer + 1, fileSize, bitRateRead, audiolist[currentPointer].filename);
+
   // -------------------------------------------------------------------
   // -
   // - Arranque del player
@@ -3598,15 +3558,19 @@ void MediaPlayer() {
   LAST_MESSAGE = "Initializing player...";
   hmi.writeString("statusLCD.txt=\"" + LAST_MESSAGE + "\"");
   waitflag = 0;
-  while (!player.begin() && !EJECT) 
+  
+  // Nos aseguramos de finalizar alguna instancia anterior.
+  player.end();
+
+  // Iniciamos el player
+  if (!player.begin() && !EJECT) 
   {
-    if (waitflag++ > 32) // Esperamos un maximo de 32*125ms = 4s
-    {
-      LAST_MESSAGE = "Error indexing files. Open again.";
-      delay(2000);
-      return;
-    }
-    delay(125);
+    LAST_MESSAGE = "Time out. Error indexing files.";
+    delay(1500);
+    // Si no podemos iniciar el player, salimos.
+    STOP = true;
+    PLAY = false;
+    return;
   }
 
   LAST_MESSAGE = "Player ready. Press Play.";
@@ -3641,11 +3605,6 @@ void MediaPlayer() {
     if (EQ_CHANGE) 
     {
       EQ_CHANGE = false;
-      // cfg = kitStream.audioInfo();
-      // cfg_eq.setAudioInfo(cfg);
-      // cfg_eq.gain_low = EQ_LOW;
-      // cfg_eq.gain_medium = EQ_MID;
-      // cfg_eq.gain_high = EQ_HIGH;
 
       if (!updateEqualizerSettings(eq, cfg_eq, cfg)) {
         LAST_MESSAGE = "Error EQ initialization";
@@ -3672,11 +3631,6 @@ void MediaPlayer() {
     {
       if (PLAY) 
       {
-        // audiosr = (ext == "wav")   ? decoderWAV.audioInfo()
-        //           : (ext == "mp3") ? decoderMP3.audioInfo()
-        //                            : decoderFLAC.audioInfo();
-        // updateSamplingRate(player, eq, cfg_eq, audiosr);
-
         // Iniciamos el reproductor
         if (WAVFILE_PRELOAD)
           WAVFILE_PRELOAD = false;
@@ -3735,6 +3689,7 @@ void MediaPlayer() {
                   : (ext == "mp3") ? decoderMP3.audioInfo()
                                    : decoderFLAC.audioInfo();
         
+        log_info("PLAYER", "Reading file header first bytes -> state of stream Player = 0");
         updateSamplingRate(player, eq, cfg_eq, audiosr);
 
         LAST_MESSAGE = "...";
@@ -3813,15 +3768,19 @@ void MediaPlayer() {
         {
           flacReadyToChangeTrack = true;
         }
+      }
 
-        if (fileread < 128) {
-          // En los primeros 128 bytes actualizo el sampling rate
-          // en los que aseguro haber leido la cabecera
-          audiosr = (ext == "wav")   ? decoderWAV.audioInfo()
-                    : (ext == "mp3") ? decoderMP3.audioInfo()
-                                     : decoderFLAC.audioInfo();
-          updateSamplingRate(player, eq, cfg_eq, audiosr);
-        }
+      // Leemos la cabeceera y actualizamos audioInfo "on the air"
+      if (fileread < 128) {
+        
+        log_info("PLAYER", "Reading file header on the air");
+
+        // En los primeros 1024 bytes actualizo el sampling rate
+        // en los que aseguro haber leido la cabecera
+        audiosr = (ext == "wav")   ? decoderWAV.audioInfo()
+                  : (ext == "mp3") ? decoderMP3.audioInfo()
+                                    : decoderFLAC.audioInfo();
+        updateSamplingRate(player, eq, cfg_eq, audiosr);
       }
 
       // Cuando haya datos que mostrar, visualizamos la barra de progreso
@@ -3930,7 +3889,21 @@ void MediaPlayer() {
           fileSize = getStreamfileSize(pFile);
           updateIndicators(totalFilesIdx, currentPointer, fileSize, bitRateRead, audiolist[currentPointer].filename);
           delay(125);
+
+          // Leemos la cabeceera y actualizamos audioInfo "on the air"
+          if (fileread < 128) {
+            
+            log_info("PLAYER", "Reading file header on the air");
+
+            // En los primeros 1024 bytes actualizo el sampling rate
+            // en los que aseguro haber leido la cabecera
+            audiosr = (ext == "wav")   ? decoderWAV.audioInfo()
+                      : (ext == "mp3") ? decoderMP3.audioInfo()
+                                        : decoderFLAC.audioInfo();
+            updateSamplingRate(player, eq, cfg_eq, audiosr);
+          }          
         }
+        log_info("PLAYER","Auto NEXT. Change track");
       }
 
       if (STOP) {
@@ -4194,6 +4167,10 @@ void MediaPlayer() {
       if ((FFWIND || RWIND) && !was_pressed_wd) 
           {
             // LAST_MESSAGE = "Searching...";
+            log_info("PLAYER","Track change");
+
+            stateStreamplayer = 0;
+
             if (FFWIND) 
             {
               // Animación de avance de pista
@@ -4437,8 +4414,6 @@ void MediaPlayer() {
             // reseteamos el estado fast_wind
             fast_wind_status = 0;
           }
-
-
     }
 
         // Avance rapido y retroceso rapido
@@ -4563,7 +4538,6 @@ void MediaPlayer() {
       //
       was_pressed_wd = true;
     }
-
     // Seleccion de pista con Block Browser
     if (BB_OPEN || BB_UPDATE) {
       //
@@ -4674,13 +4648,13 @@ void MediaPlayer() {
 
   // Actualizamos la configuración de audio según el archivo actual
   auto finalAudioInfo = player.audioInfo();
-  logln("Final Audio Settings - Sample Rate: " + String(finalAudioInfo.sample_rate) + "Hz, Bits: " + String(finalAudioInfo.bits_per_sample) +
+  log_info("PLAYER","Final Audio Settings - Sample Rate: " + String(finalAudioInfo.sample_rate) + "Hz, Bits: " + String(finalAudioInfo.bits_per_sample) +
         ", Channels: " + String(finalAudioInfo.channels));
   updateSamplingRateIndicator(finalAudioInfo.sample_rate, finalAudioInfo.bits_per_sample, ext); // Paramos animación
   tapeAnimationOFF();
 
   // Descargamos objetos
-  player.end();
+  //player.end();
   eq.end();
 
   // Desvinculamos todas las notificaciones. Importante para evitar problemas
@@ -9434,7 +9408,7 @@ void Task0code(void *pvParameters) {
   int se = 0;
   int tScrRfsh = 1000;
   int timeRTC = 1000;
-  int timeKeyPoll = 250;
+  int timeKeyPoll = 125;
 
   uint8_t lasthour = 0;
   uint8_t lastminute = 0;
