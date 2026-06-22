@@ -926,6 +926,18 @@ private:
  * - CPU optimizado (evita cambios innecesarios de contexto)
  * - Estadísticas de rendimiento en tiempo real
  */
+void updateInformation(OptimizedFLACPlayer &player)
+{
+    myNex.writeNum("tape.totalBlocks.val", player.getTotalTracks());
+    myNex.writeNum("tape.currentBlock.val", player.getCurrentTrackNumber());
+                        
+    // Mostrar información del archivo parado
+    uint32_t size_kb = player.getState().file_size / 1024;
+    myNex.writeStr("tape2.size.txt", String(size_kb) + " KB");
+    
+    myNex.writeStr("tape2.name.txt", player.getCurrentTrackName());                
+}
+
 void FLACPlayer() {
     
     OptimizedFLACPlayer player;
@@ -1283,13 +1295,13 @@ void FLACPlayer() {
             }
             else if (UPDATE_HMI || UPDATE)
             {
-                log_info("FLAC","Actualizando HMI - UPDATE_HMI=" + String(UPDATE_HMI) + " UPDATE=" + String(UPDATE));
+                log_info("FLAC","Seleccionando pista desde Block Media Browser - BLOCK_SELECTED=" + String(BLOCK_SELECTED));
+                //
+                player.selectTrack1Based(BLOCK_SELECTED);
                 UPDATE_HMI = false;
                 UPDATE = false;
-                log_info("FLAC","Seleccionando pista desde Block Media Browser - BLOCK_SELECTED=" + String(BLOCK_SELECTED));
-                player.selectTrack1Based(BLOCK_SELECTED);
-                
-                //track_changed = true;
+                // Actualizar HMI con la nueva pista seleccionada
+                updateInformation(player);
             }
 
             // ====================================================================
@@ -1304,36 +1316,13 @@ void FLACPlayer() {
                     // Actualizar progreso
                     PROGRESS_BAR_TOTAL_VALUE = player.getProgress();
 
-                    // Para no repetirlo indefinidamente, solo actualizar si hay cambios significativos
-                    if (PROGRESS_BAR_TOTAL_VALUE < 10) 
-                    {
-                        // Mostrar pista actual y total (BLOCK_SELECTED es 1-based)
-                        myNex.writeNum("tape.totalBlocks.val", player.getTotalTracks());
-                        myNex.writeNum("tape.currentBlock.val", player.getCurrentTrackNumber());
-
-                        
-                        uint32_t size_kb = player.getState().file_size / 1024;
-                        myNex.writeStr("tape2.size.txt", String(size_kb) + " KB");
-                        
-                        // Nombre de la pista
-                        myNex.writeStr("tape2.name.txt", player.getCurrentTrackName());
-                        
-                        // Estado de animación (1=reproduciendo, 0=parado)
-                        //myNex.writeNum("tape2.play.val", 1);
-                    }
                 } else {
                     // Archivo preparado pero no reproduciendo
                     PROGRESS_BAR_TOTAL_VALUE = 0;
-                    myNex.writeNum("tape.totalBlocks.val", player.getTotalTracks());
-                    myNex.writeNum("tape.currentBlock.val", player.getCurrentTrackNumber());
-                                        
-                    // Mostrar información del archivo parado
-                    uint32_t size_kb = player.getState().file_size / 1024;
-                    myNex.writeStr("tape2.size.txt", String(size_kb) + " KB");
-                    
-                    myNex.writeStr("tape2.name.txt", player.getCurrentTrackName());
-                    //myNex.writeNum("tape2.play.val", 0);  // 0=parado
                 }
+                // Actualizar información de HMI
+                updateInformation(player);
+
             }
                         
             // Yield para otras tareas (pero minimamente)
