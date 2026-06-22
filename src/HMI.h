@@ -2562,7 +2562,7 @@ private:
         // Control de TAPE
         else if (strCmd.indexOf("FFWD") != -1) 
         {
-            log_debug("HMI","FFWD pressed");
+            log_info("HMI","FFWD pressed");
             FFWIND = true;
             RWIND = false;
             KEEP_FFWIND = false;
@@ -2574,7 +2574,7 @@ private:
         }
         else if (strCmd.indexOf("RWD") != -1) 
         {
-            log_debug("HMI","RWD pressed");
+            log_info("HMI","RWD pressed");
             FFWIND = false;
             RWIND = true;
             KEEP_RWIND = false;
@@ -2591,6 +2591,7 @@ private:
             FFWIND = false;
             RWIND = false;
             KEEP_FFWIND = true;
+            KEEP_RWIND = false;
         }
         else if (strCmd.indexOf("TTWD") != -1) 
         {
@@ -2598,6 +2599,7 @@ private:
             FFWIND = false;
             RWIND = false;
             KEEP_RWIND = true;
+            KEEP_FFWIND = false;
         }        
         else if (strCmd.indexOf("PLAY") != -1) 
         {
