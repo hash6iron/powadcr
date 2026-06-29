@@ -7312,32 +7312,6 @@ void getRandomFilenameWAV(char *&currentPath, String currentFileBaseName) {
   strcat(currentPath, extPath);
 }
 
-void  rewindAnimation(int direction) {
-  int p = 0;
-  int frames = 19;
-  int fdelay = 5;
-
-  logln("Rewind animation - Direction: " + String(direction));
-
-  while (p < frames) {
-
-    POS_ROTATE_CASSETTE += direction;
-
-    if (POS_ROTATE_CASSETTE > 23) {
-      POS_ROTATE_CASSETTE = 4;
-    }
-
-    if (POS_ROTATE_CASSETTE < 4) {
-      POS_ROTATE_CASSETTE = 23;
-    }
-
-    hmi.writeString("tape.animation.pic=" + String(POS_ROTATE_CASSETTE));
-    delay(20);
-
-    p++;
-  }
-}
-
 void getTheFirstPlayeableBlock() {
   // Buscamos ahora el primer bloque playeable
 

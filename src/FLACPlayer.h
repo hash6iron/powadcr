@@ -43,17 +43,19 @@ extern VolumeStream volumeStream;
 #define FLAC_OUTPUT_BUFFER_SIZE     (16 * 1024)   // Buffer de salida
 #define FLAC_PREBUFFER_THRESHOLD    (8 * 1024)    // Umbral mínimo para comenzar
 #define FLAC_DECODER_STACK_SIZE     (12 * 1024)   // Stack dedicado para decodificador
+#define FLAC_CHUNK_BUFFER_SIZE      512           // Buffer interno del decodificador
 
 // Parámetros de lectura de disco
 #define FLAC_DISK_READ_SIZE         (8 * 1024)    // Lectura por chunk de disco
 #define FLAC_DISK_READ_QUEUE_SIZE   4             // Queue de lectura
 #define FLAC_DISK_PRIORITY          (tskIDLE_PRIORITY + 2)
-#define FLAC_FAST_SEEK_STEP_KB      256           // Paso de avance/retroceso rapido dentro de pista
+//#define FLAC_FAST_SEEK_STEP_KB      256           // Paso de avance/retroceso rapido dentro de pista
 
 // Configuración de decodificador FLAC
 // Nota: FLAC_MAX_BLOCK_SIZE y FLAC_MAX_CHANNELS están definidos en foxen-flac.h
 #define FLAC_MAX_CHANNELS           2
-#define FLAC_OUTPUT_BITS            16            // 16-bit output
+#define FLAC_OUTPUT_BITS            24            // 24-bit output
+#define FLAC_SAMPLE_RATE            96000         // 96kHz sample rate
 
 // ============================================================================
 // ESTRUCTURA DE CONTROL DE REPRODUCCIÓN FLAC
@@ -69,9 +71,9 @@ struct FLACPlayState {
     uint32_t file_size = 0;
     uint32_t bytes_decoded = 0;
     
-    uint32_t sample_rate = 44100;
-    uint8_t channels = 2;
-    uint8_t bits_per_sample = 16;
+    uint32_t sample_rate = FLAC_SAMPLE_RATE;
+    uint8_t channels = FLAC_MAX_CHANNELS;
+    uint8_t bits_per_sample = FLAC_OUTPUT_BITS;
     
     float playback_position_ms = 0.0f;
     float total_duration_ms = 0.0f;
@@ -83,6 +85,8 @@ struct FLACPlayState {
     
     String error_message = "";
     String current_file = "";
+
+    bool track_end_reached = false;
 };
 
 // ============================================================================
@@ -100,6 +104,7 @@ public:
 public:
     FLACPlayList() {}
     void openBlockMediaBrowser();
+    void rewindAnimation(int direction);
 
     // ============================================================================
     // FUNCIÓN DE CONVERSIÓN: FLACPlayList → tAudioList[]
@@ -113,25 +118,34 @@ public:
         current_track_index = -1;
         playlist_path = directory_path;
         
-        File dir = SD_MMC.open(directory_path);
-        if (!dir || !dir.isDirectory()) {
-            log_error("FLAC","No se puede abrir directorio: " + directory_path);
+        // Abrimos el fichero de indices.
+        log_info("FLAC","Abriendo fichero de índice: " + directory_path + "/idx.txt");
+        //
+        File fileIdx = SD_MMC.open(directory_path + "/idx.txt", FILE_READ);
+        if (!fileIdx) {
+            log_error("FLAC","No se puede abrir fichero de índice: " + directory_path + "/idx.txt");
             return false;
         }
-        
-        File file = dir.openNextFile();
-        while (file) {
-            String filename = file.name();
+
+        // Ahora lo recorremos. Cada fila es un nombre de fichero.
+        while (fileIdx.available()) {
+            String filename = fileIdx.readStringUntil('\n');
+            filename.trim();  // Eliminar espacios en blanco al inicio y al final
             
-            // Buscar archivos .flac (case-insensitive)
-            if (filename.endsWith(".flac") || filename.endsWith(".FLAC")) {
-                String full_path = directory_path + "/" + filename;
+            // filename temporal para comprobar que es .FLAC pero no cambiar el nombre
+            String fTemp = filename;
+            fTemp.toUpperCase();
+            // Buscar archivos .FLAC (case-insensitive)
+            if (fTemp.indexOf(".FLAC") != -1) {          
+                // ¡Ojo! La vble. filename lleva la ruta completa extraida del fichero idx.txt
+                String full_path = filename;
                 tracks.push_back(full_path);
                 log_info("FLAC","Track added: " + full_path);
+            }else{
+                log_info("FLAC","Skipping non-FLAC file: " + filename);
             }
-            file = dir.openNextFile();
         }
-        dir.close();
+        fileIdx.close();
         
         log_info("FLAC","Playlist loaded: " + String(tracks.size()) + " tracks");
         return tracks.size() > 0;
@@ -479,6 +493,7 @@ public:
         state.paused = false;
         state.stop_requested = false;
         state.error_occurred = false;
+        state.track_end_reached = false;
         
         // Limpiar buffers
         input_buffer->clear();
@@ -509,12 +524,12 @@ public:
         uint32_t decode_start_us = micros();
         
         // Decodificar en lotes pequeños para mantener fluidez y permitir que disk_reader reabastezca
-        uint8_t decode_chunk[512];
+        uint8_t decode_chunk[FLAC_CHUNK_BUFFER_SIZE];
         size_t bytes_available = input_buffer->available();
         
-        if (bytes_available >= FLAC_PREBUFFER_THRESHOLD) {
-            // Decodificar conservadoramente: máximo 512 bytes por llamada
-            size_t bytes_to_decode = bytes_available > 512 ? 512 : bytes_available;
+        if (bytes_available >= FLAC_CHUNK_BUFFER_SIZE) {
+            // Decodificar conservadoramente: máximo FLAC_CHUNK_BUFFER_SIZE bytes por llamada
+            size_t bytes_to_decode = bytes_available > FLAC_CHUNK_BUFFER_SIZE ? FLAC_CHUNK_BUFFER_SIZE : bytes_available;
             
             size_t bytes_read = input_buffer->read(decode_chunk, bytes_to_decode);
             
@@ -524,23 +539,36 @@ public:
                 state.bytes_decoded += decoded;
                 state.file_position += decoded;
                 
-                // Calcular estadísticas
-                uint32_t decode_time_us = micros() - decode_start_us;
-                last_decoder_time_us = decode_time_us;
-                
-                // Promedio móvil de tiempo de decodificación
-                state.avg_decoder_time_us = 
-                    (state.avg_decoder_time_us * 9 + decode_time_us) / 10;
+                decoder_iterations++;
+            }
+        }
+        else
+        {
+            // Ultimo tramo del track es de tamaño igual al CHUNK
+            size_t bytes_to_decode = bytes_available;
+            size_t bytes_read = input_buffer->read(decode_chunk, bytes_to_decode);
+            
+            if (bytes_read > 0) {
+                // Decodificar los datos - esto actualiza el output buffer internamente
+                size_t decoded = decoder.write(decode_chunk, bytes_read);
+                state.bytes_decoded += decoded;
+                state.file_position += decoded;
                 
                 decoder_iterations++;
             }
-        } else if (bytes_available == 0 && !disk_reader.running && state.playing) {
-            // Buffer vacío Y disk_reader inactivo Y file size validado = EOF real
-            if (state.file_position >= state.file_size - 1) {
-                state.playing = false;
+                        
+            // Comprobamos si hemos llegado al final
+            if (state.file_position >= state.file_size - 1) 
+            {
+                // Fin del track alcanzado
+                trackEndReached();
+                log_info("FLAC","Track end reached.");
             }
-            // Si no, solo es un buffer vacío temporal - continuar esperando
         }
+
+        log_debug("FLAC","Decoding: file position: " + String(state.file_position ) + 
+            " / " + String(state.file_size) + 
+            " bytes, progress: " + String(getProgress()) + "%");        
     }
     
     // ========================================================================
@@ -716,6 +744,14 @@ public:
     
     bool isPaused() const {
         return state.paused;
+    }
+
+    void resetTrackEndFlag() {
+        state.track_end_reached = false;
+    }
+    
+    void trackEndReached() {
+        state.track_end_reached = true;
     }
     
     uint32_t getBufferAvailable() const {
@@ -938,6 +974,32 @@ void updateInformation(OptimizedFLACPlayer &player)
     myNex.writeStr("tape2.name.txt", player.getCurrentTrackName());                
 }
 
+// void  rewindAnimation(int direction) {
+//   int p = 0;
+//   int frames = 19;
+//   int fdelay = 5;
+
+//   log_info("FLAC","Rewind animation - Direction: " + String(direction));
+
+//   while (p < frames) {
+
+//     POS_ROTATE_CASSETTE += direction;
+
+//     if (POS_ROTATE_CASSETTE > 23) {
+//       POS_ROTATE_CASSETTE = 4;
+//     }
+
+//     if (POS_ROTATE_CASSETTE < 4) {
+//       POS_ROTATE_CASSETTE = 23;
+//     }
+
+//     myNex.writeNum("tape.animation.pic", POS_ROTATE_CASSETTE);
+//     delay(20);
+
+//     p++;
+//   }
+// }
+
 void FLACPlayer() {
     
     OptimizedFLACPlayer player;
@@ -965,27 +1027,32 @@ void FLACPlayer() {
     EJECT = false;
     STOP = true;  // Comenzar en STOP
     
-    // BUCLE EXTERNO: Permite reiniciar con nuevo archivo sin salir de FLACPlayer()
-    while (!EJECT && !REC && MEDIA_PLAYER_EN) {
-        
-        // Inicializar lista de reproducción desde el directorio del archivo seleccionado
-        logln("[FLAC] Inicializando playlist para: " + PATH_FILE_TO_LOAD);
-        if (!player.initializePlaylist(PATH_FILE_TO_LOAD)) {
-            log_info("FLAC","ERROR: No se pudo crear playlist de: " + PATH_FILE_TO_LOAD);
-            LAST_MESSAGE = "Cannot load FLAC playlist";
-            break;
-        }
-        
-        logln("[FLAC] Playlist cargada: " + String(player.getTotalTracks()) + " pistas");
-        myNex.writeNum("tape.totalBlocks.val", player.getTotalTracks());
-        myNex.writeNum("tape.currentBlock.val", player.getTotalTracks());
+    // Inicializar lista de reproducción desde el directorio del archivo seleccionado
+    log_info("FLAC","Inicializando playlist para: " + PATH_FILE_TO_LOAD);
+    if (!player.initializePlaylist(PATH_FILE_TO_LOAD)) {
+        log_info("FLAC","ERROR: No se pudo crear playlist de: " + PATH_FILE_TO_LOAD);
+        LAST_MESSAGE = "Cannot load FLAC playlist";
+        //break;
+        return;
+    }
+    
+    log_info("FLAC","Playlist cargada: " + String(player.getTotalTracks()) + " pistas");
+    myNex.writeNum("tape.totalBlocks.val", player.getTotalTracks());
+    myNex.writeNum("tape.currentBlock.val", player.getTotalTracks());
 
+
+    while (!EJECT && !REC && MEDIA_PLAYER_EN) {
+                
+        // ====================================================================
+        // BUCLE PRINCIPAL DE REPRODUCCIÓN PARA ESTA PISTA
+        // ====================================================================
         // Preparar archivo pero NO reproducir aún
         current_playing_file = PATH_FILE_TO_LOAD;
         if (!player.play(PATH_FILE_TO_LOAD)) {
             log_info("FLAC","ERROR: No se pudo abrir archivo: " + PATH_FILE_TO_LOAD);
             LAST_MESSAGE = "Cannot open FLAC file";
-            break;
+            //break;
+            return;
         }
         
         file_prepared = true;
@@ -996,12 +1063,12 @@ void FLACPlayer() {
         f.close();
         
         log_info("FLAC","Pista: " + String(player.getCurrentTrackNumber()) + "/" + 
-              String(player.getTotalTracks()) + " - " + player.getCurrentTrackName());
+                String(player.getTotalTracks()) + " - " + player.getCurrentTrackName());
         log_info("FLAC","Tamaño: " + String(file_size / 1024) + " KB");
         
         myNex.writeNum("tape.totalBlocks.val", player.getTotalTracks());
         myNex.writeNum("tape.currentBlock.val", player.getCurrentTrackNumber());
-       
+        
         // Actualizar HMI con información inicial
         myNex.writeStr("tape.name.txt", player.getCurrentTrackName());
 
@@ -1012,18 +1079,15 @@ void FLACPlayer() {
         }
                 
         LAST_MESSAGE = "FLAC: Ready to play. Press PLAY to start.";
-        
-        // ====================================================================
-        // BUCLE PRINCIPAL DE REPRODUCCIÓN PARA ESTA PISTA
-        // ====================================================================
-        
+        //
+        // ********************************************************************
         uint32_t last_update_hmi = millis();
         uint32_t decoder_iterations = 0;
         bool track_changed = false;
         bool is_currently_playing = false;  // Controlar si está realmente reproduciendo
         uint32_t last_rwd_ffwd_time = 0;  // ✅ Contador para KEEP_RWIND/KEEP_FFWIND
         
-        logln("[FLAC] Archivo preparado. Esperando PLAY. isPlaying=" + String(player.isPlaying()) + 
+        log_info("FLAC","File prepared. Waiting for PLAY. isPlaying=" + String(player.isPlaying()) + 
               " isPaused=" + String(player.isPaused()));
         
         uint8_t playerStatus = 0;
@@ -1035,15 +1099,18 @@ void FLACPlayer() {
             // ====================================================================
             switch (playerStatus) {
                 case 0:  // STOPPED
-                    if (PLAY) 
+                {
+                    if (PLAY)    
                     {
                         playerStatus = 1;  // Cambiar a PLAYING
                         player.resume();
                         is_currently_playing = true;
                         tapeAnimationON();  // ✅ Activar animación del cassette
                     }
+                }
                     break;
-                case 1:  // PLAYING
+                case 1:
+                {  // PLAYING
                     if (PAUSE) {
                         playerStatus = 2;       // Cambiar a PAUSED
                         player.pause();
@@ -1060,17 +1127,18 @@ void FLACPlayer() {
                         break;
                     }
                     // ✅ DETECCIÓN DE FIN DE TRACK - AUTO-ADVANCE
-                    else if (player.getProgress() >= 100) {
-                        log_info("FLAC","Track finalizado - Progreso: " + String(player.getProgress()) + "%");
+                    else if (player.getState().track_end_reached) {
+                        player.resetTrackEndFlag();  // Resetear bandera
+                        log_debug("FLAC","Track end - Progress: " + String(player.getProgress()) + "%");
                         
                         int current_track_num = player.getCurrentTrackNumber();  // 1-based
                         int total_tracks = player.getTotalTracks();
                         
-                        log_info("FLAC","Track " + String(current_track_num) + " de " + String(total_tracks) + " completado");
+                        log_info("FLAC","Track " + String(current_track_num) + " of " + String(total_tracks) + " completed");
                         
                         // Si no es el último track, ir al siguiente
                         if (current_track_num < total_tracks) {
-                            log_info("FLAC","Auto-advance: Pasando al siguiente track");
+                            log_info("FLAC","Auto-advance: Next track");
                             String next_track = player.getNextTrack();
                             PATH_FILE_TO_LOAD = next_track;
                             track_changed = true;
@@ -1080,14 +1148,14 @@ void FLACPlayer() {
                         else {
                             if (disable_auto_media_stop) {
                                 // Loop: reiniciar desde el principio
-                                log_info("FLAC","Último track finalizado - Mode LOOP activado. Reiniciando playlist...");
+                                log_info("FLAC","Last track end - Mode LOOP activated. Restarting playlist...");
                                 String first_track = player.selectTrack1Based(1);  // Volver al primer track
                                 PATH_FILE_TO_LOAD = first_track;
                                 track_changed = true;
                                 break;  // Reiniciar bucle externo
                             } else {
                                 // Parar: fin de playlist
-                                log_info("FLAC","Último track finalizado - Mode STOP. Deteniendo reproducción...");
+                                log_info("FLAC","Last track end - Mode STOP. Stop playing...");
                                 player.stop();
                                 tapeAnimationOFF();
                                 playerStatus = 0;
@@ -1107,8 +1175,12 @@ void FLACPlayer() {
                     
                     player.decode();  // Continuar decodificando mientras se reproduce
                     decoder_iterations++;
-                    break;
+
+                }
+                break;
+                
                 case 2:  // PAUSED
+                {
                     if (PLAY || PAUSE) {
                         PAUSE = false;          // Resetear bandera de pausa
                         playerStatus = 1;       // Cambiar a PLAYING
@@ -1123,7 +1195,8 @@ void FLACPlayer() {
                         player.selectTrack(0);  // Reiniciar a la primera pista
                         break;
                     }
-                    break;
+                }
+                break;
             }
           
                         
@@ -1134,11 +1207,13 @@ void FLACPlayer() {
             // RWIND - Pista anterior (presión simple de RWD)
             if ((RWIND && !FFWIND) || (KEEP_RWIND && !KEEP_FFWIND))
             {
+                rewindAnimation(-1);
+
                 if (RWIND && !lastWasFastRWind) 
                 {
                     String prev_track = player.getPreviousTrack();
                     if (!prev_track.isEmpty()) {
-                        logln("[FLAC] RWD: Cambiando a pista anterior");
+                        log_info("FLAC","RWD: Previous track");
                         //player.stop();
                         PATH_FILE_TO_LOAD = prev_track;
                         RWIND = false;
@@ -1157,7 +1232,7 @@ void FLACPlayer() {
                             if (KEEP_RWIND)
                             {
                                 stausFastRWind = 1;
-                                log_info("FLAC","RWD: Modo fast rewind activado");
+                                log_info("FLAC","RWD: Fast rewind mode activated");
                                 // Borramos este flag para evitar cambio de track al soltar el boton.
                             }
                         }
@@ -1173,7 +1248,7 @@ void FLACPlayer() {
                                 FFWIND = false;  // Asegurar que no estamos en fast forward
                                 lastWasFastRWind = false;   // Marcar que ya no estamos en fast rewind
                                 lastWasFastFFWind = false;   // Asegurar que no estamos en fast forward
-                                log_info("FLAC","RWD: Tecla soltada, saliendo de modo fast rewind");
+                                log_info("FLAC","RWD: Key released, exiting fast rewind mode");
                             }
                             else if (KEEP_RWIND)
                             {
@@ -1214,11 +1289,13 @@ void FLACPlayer() {
             }
             else if ((FFWIND && !RWIND) || (KEEP_FFWIND && !KEEP_RWIND))
             {
+                rewindAnimation(1);
+
                 // FFWIND - Siguiente pista (presión simple de FFWD)
                 if (FFWIND && !lastWasFastFFWind) {
                     String next_track = player.getNextTrack();
                     if (!next_track.isEmpty()) {
-                        log_info("FLAC","FFWD: Cambiando a siguiente pista");
+                        log_info("FLAC","FFWD: Change to next track");
                         //player.stop();
                         PATH_FILE_TO_LOAD = next_track;
                         FFWIND = false;
@@ -1290,12 +1367,12 @@ void FLACPlayer() {
 
             // Seleccion de pista con Block Browser
             if (BB_OPEN || BB_UPDATE) {
-                log_info("FLAC","Abriendo Block Media Browser - BB_OPEN=" + String(BB_OPEN) + " BB_UPDATE=" + String(BB_UPDATE));
+                log_info("FLAC","Opening Block Media Browser - BB_OPEN=" + String(BB_OPEN) + " BB_UPDATE=" + String(BB_UPDATE));
                 player.openBlockMediaBrowser();
             }
             else if (UPDATE_HMI || UPDATE)
             {
-                log_info("FLAC","Seleccionando pista desde Block Media Browser - BLOCK_SELECTED=" + String(BLOCK_SELECTED));
+                log_info("FLAC","Selecting track from Block Media Browser - BLOCK_SELECTED=" + String(BLOCK_SELECTED));
                 //
                 player.selectTrack1Based(BLOCK_SELECTED);
                 UPDATE_HMI = false;
@@ -1325,7 +1402,7 @@ void FLACPlayer() {
 
             }
                         
-            // Yield para otras tareas (pero minimamente)
+            // Yield obligatorio para la reproducción
             if (decoder_iterations % 10 == 0) {
                 vTaskDelay(1);  // Yield al sistema
             }
@@ -1333,7 +1410,7 @@ void FLACPlayer() {
         
         // Si se cambió de pista, reiniciar el loop externo
         if (track_changed && PATH_FILE_TO_LOAD != current_playing_file) {
-            log_info("FLAC","Reabriendo nuevo archivo...");
+            log_info("FLAC","Reopening new file...");
             player.stop();
             continue;  // Volver al inicio del bucle externo
         }

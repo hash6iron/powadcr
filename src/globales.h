@@ -965,6 +965,7 @@ uint8_t SKIN_SELECTED = 1;
 // Baudrate
 double TAPE_BAUDRATE = 1; // 0.25 = 300, 1 = 1200, 2 = 2400, 3 = 3600, 3.21 = 3850
 
+
 // ======================================================================
 // SISTEMA DE LOGGING PROFESIONAL CON CLASIFICACIÓN POR NIVELES
 // ======================================================================
@@ -1149,8 +1150,38 @@ ConfigEntry configEntries[] = {
     {"IVOopt", CONFIG_TYPE_FLOAT, &IN_REC_VOL},
 };
 
-//           s.end());
-// }
+// ********************************************************************************************
+//
+// Funciones globales
+//
+// ********************************************************************************************
+
+void rewindAnimation(int direction) {
+  // Animación de rebobinado/avance rápido de la cinta
+  int p = 0;
+  int frames = 19;
+  int fdelay = 5;
+
+  log_info("FLAC","Rewind animation - Direction: " + String(direction));
+
+  while (p < frames) {
+
+    POS_ROTATE_CASSETTE += direction;
+
+    if (POS_ROTATE_CASSETTE > 23) {
+      POS_ROTATE_CASSETTE = 4;
+    }
+
+    if (POS_ROTATE_CASSETTE < 4) {
+      POS_ROTATE_CASSETTE = 23;
+    }
+
+    myNex.writeNum("tape.animation.pic", POS_ROTATE_CASSETTE);
+    delay(20);
+
+    p++;
+  }
+}
 
 // Function to load the configuration
 bool loadHMICfg() {
