@@ -162,7 +162,7 @@ public:
             
             if (track_lower == filepath_lower) {
                 current_track_index = i;
-                logln("[FLAC] Track found at index " + String(i) + ": " + tracks[i]);
+                log_info("FLAC","Track found at index " + String(i) + ": " + tracks[i]);
                 return true;
             }
         }
@@ -199,8 +199,8 @@ public:
         // Validar que el índice esté dentro del rango
         if (index < 0 || index >= tracks.size()) {
             // Si está fuera de rango, seleccionar el primero
-            logln("[FLAC] ⚠ Índice " + String(index) + " fuera de rango [0," + 
-                  String(tracks.size() - 1) + "]. Seleccionando primera pista.");
+            log_info("FLAC","Index " + String(index) + " out of range [0," + 
+                  String(tracks.size() - 1) + "]. Selecting first track.");
             
             if (tracks.size() == 0) {
                 return "";  // No hay tracks
@@ -211,7 +211,7 @@ public:
         
         // Índice válido - seleccionar
         current_track_index = index;
-        logln("[FLAC] Seleccionando track #" + String(index + 1) + ": " + tracks[index]);
+        log_info("FLAC","Selecting track #" + String(index + 1) + ": " + tracks[index]);
         return tracks[current_track_index];
     }
     
@@ -843,6 +843,16 @@ public:
         return playlist.getCurrentTrackName();
     }
     
+    String getTrackNameFromPlaylist(int track_number)
+    {
+        String track = playlist.getTrackAt(track_number - 1);  // Convertir a 0-based
+        if (track.isEmpty()) {
+            log_error("FLAC","No se encontró track para número: " + String(track_number));
+            return "";
+        }
+        return playlist.getTrackName(track);
+    }
+
     // Método para seleccionar un track específico por índice (0-based)
     // Si el índice está fuera de rango, selecciona el primero automáticamente
     String selectTrack(int track_index_0based) {
@@ -1366,19 +1376,46 @@ void FLACPlayer() {
             }
 
             // Seleccion de pista con Block Browser
-            if (BB_OPEN || BB_UPDATE) {
+            if (BB_OPEN) 
+            {
+                // Abrimos el block_browser
                 log_info("FLAC","Opening Block Media Browser - BB_OPEN=" + String(BB_OPEN) + " BB_UPDATE=" + String(BB_UPDATE));
                 player.openBlockMediaBrowser();
             }
-            else if (UPDATE_HMI || UPDATE)
+            else if (BB_UPDATE)
             {
-                log_info("FLAC","Selecting track from Block Media Browser - BLOCK_SELECTED=" + String(BLOCK_SELECTED));
-                //
-                player.selectTrack1Based(BLOCK_SELECTED);
+                // Actualiza pagina del browser por cambio de pagina.
+                BB_UPDATE = false;
+            }
+            else if (UPDATE_HMI)
+            {
                 UPDATE_HMI = false;
-                UPDATE = false;
-                // Actualizar HMI con la nueva pista seleccionada
-                updateInformation(player);
+                // Browser cerrado. Lanza el track seleccionado.
+                if (BLOCK_SELECTED >= 0 && BLOCK_SELECTED <= player.getTotalTracks()) 
+                {
+                    log_info("FLAC","Selecting track from Block Media Browser - BLOCK_SELECTED=" + String(BLOCK_SELECTED));
+                    //
+                    String current_path = PATH_FILE_TO_LOAD;
+                    PATH_FILE_TO_LOAD = player.selectTrack(BLOCK_SELECTED);
+                    //
+                    if (!PATH_FILE_TO_LOAD.isEmpty() && PATH_FILE_TO_LOAD != current_path)
+                    {
+                        bool playerIsPlaying = player.isPlaying();
+                        player.stop();
+                        log_info("FLAC","Track selected: " + PATH_FILE_TO_LOAD);
+
+                        UPDATE_HMI = false;
+                        UPDATE = false;
+                        // Actualizar HMI con la nueva pista seleccionada
+                        updateInformation(player);
+                        track_changed = true;
+                        if (playerIsPlaying) 
+                        {
+                            player.play(PATH_FILE_TO_LOAD);
+                        }
+                        break;
+                    }
+                }
             }
 
             // ====================================================================

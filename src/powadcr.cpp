@@ -2098,11 +2098,11 @@ int generateAudioList(tAudioList *&audioList, String extension = ".mp3") {
   String filesListPath = parentDir + "_files.lst";
   String fileSelected = getFileNameFromPath(PATH_FILE_TO_LOAD);
 
-  // ✅ NUEVAS RUTAS para los archivos de índice
+  // NUEVAS RUTAS para los archivos de índice
   String idxPath = parentDir + "idx.txt";
   String idxDefPath = parentDir + "idx-def.txt";
 
-  // ✅ Verificar que el archivo _files.lst existe
+  // Verificar que el archivo _files.lst existe
   if (!SD_MMC.exists(filesListPath.c_str())) {
     logln("Error: Files list not found: " + filesListPath);
     return 0;
@@ -2114,7 +2114,7 @@ int generateAudioList(tAudioList *&audioList, String extension = ".mp3") {
     return 0;
   }
 
-  // ✅ CREAR archivos de índice para AudioSourceIdxSDMMC
+  // CREAR archivos de índice para AudioSourceIdxSDMMC
   File idxFile;
   File idxDefFile;
 
@@ -2173,7 +2173,7 @@ int generateAudioList(tAudioList *&audioList, String extension = ".mp3") {
       tipo.trim();
       nombre.trim();
 
-      // ✅ Validaciones adicionales de seguridad
+      // Validaciones adicionales de seguridad
       if (nombre.length() == 0 || nombre.length() > 255) {
         logln("Invalid filename length: " + nombre);
         continue;
@@ -2201,7 +2201,7 @@ int generateAudioList(tAudioList *&audioList, String extension = ".mp3") {
       extensionLower.toLowerCase();
 
       if (tipo == "F" && nombreLower.endsWith(extensionLower)) {
-        // ✅ Añadir a la lista de audio
+        // Añadir a la lista de audio
         audioList[size].index = indice.toInt();
         audioList[size].filename = nombre;
         audioList[size].path = parentDir;
@@ -2212,7 +2212,7 @@ int generateAudioList(tAudioList *&audioList, String extension = ".mp3") {
           MEDIA_CURRENT_POINTER = size;
         }
 
-        // ✅ ESCRIBIR en idx.txt (formato requerido por AudioSourceIdxSDMMC)
+        // ESCRIBIR en idx.txt (formato requerido por AudioSourceIdxSDMMC)
         String fullPath = parentDir + nombre;
         idxFile.println(fullPath);
 
@@ -2226,10 +2226,10 @@ int generateAudioList(tAudioList *&audioList, String extension = ".mp3") {
       }
     }
 
-    // ✅ Cerrar el archivo idx.txt
+    // Cerrar el archivo idx.txt
     idxFile.close();
 
-    // ✅ CREAR archivo idx-def.txt
+    // CREAR archivo idx-def.txt
     idxDefFile = SD_MMC.open(idxDefPath.c_str(), FILE_WRITE);
     if (idxDefFile) {
       // Crear la clave de definición (formato requerido por
@@ -2249,7 +2249,7 @@ int generateAudioList(tAudioList *&audioList, String extension = ".mp3") {
     logln("Unknown exception in generateAudioList");
   }
 
-  // ✅ Limpieza garantizada
+  // Limpieza garantizada
   free(line);
   line = nullptr;
 
@@ -4999,8 +4999,11 @@ void MediaPlayer() {
       case 'f':
       {
         // FLAC - Usar reproductor optimizado exclusivamente para FLAC
-        log_info("PLAYER","\n>>> Delegando a FLACPlayer() optimizado <<<");
-        FLAC_IS_PLAYING = true;
+        log_info("PLAYER","Generating idx.txt file");
+        audioListSize = generateAudioList(audiolist, ext);
+
+        log_info("PLAYER","-- > Resend stream to FLACPlayer()");
+        FLAC_IS_PLAYING = true;        
         FLACPlayer();  // Reproductor FLAC altamente optimizado
         FLAC_IS_PLAYING = false;
         return;  // Retorno desde MediaPlayer()
