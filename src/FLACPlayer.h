@@ -610,47 +610,59 @@ public:
 
     void openBlockMediaBrowser() 
     {
+        log_info("FLAC","Abriendo Block Media Browser - TOTAL_BLOCKS=" + String(TOTAL_BLOCKS));
 
-        int totalblocks = 0;
-        
-        totalblocks = playlist.getTotalTracks();
-
-        int max = MAX_BLOCKS_IN_BROWSER;
-        if (totalblocks > max) {
-            max = MAX_BLOCKS_IN_BROWSER;
-        } else {
-            max = totalblocks - 1;
-        }
-        BB_BROWSER_MAX = max;
+        // int max = MAX_BLOCKS_IN_BROWSER;
+        // if (TOTAL_BLOCKS > max) {
+        //     max = MAX_BLOCKS_IN_BROWSER;
+        // } else {
+        //     max = TOTAL_BLOCKS - 1;
+        // }
+        BB_BROWSER_MAX = TOTAL_BLOCKS - 1;
 
         // Paso 0: Información general
         BB_PAGE_SELECTED = (BB_PTR_ITEM / MAX_BLOCKS_IN_BROWSER) + 1;
 
         myNex.writeStr("mp3browser.path.txt",HMI_FNAME);
-        myNex.writeStr("mp3browser.totalBl.txt",String(totalblocks - 1));
+        myNex.writeStr("mp3browser.totalBl.txt",String(TOTAL_BLOCKS - 1));
         myNex.writeStr("mp3browser.bbpag.txt",String(BB_PAGE_SELECTED));
         myNex.writeStr("mp3browser.size0.txt","SIZE[MB]");
 
-        double ctpage = (double)totalblocks / (double)MAX_BLOCKS_IN_BROWSER;
+        double ctpage = (double)TOTAL_BLOCKS / (double)MAX_BLOCKS_IN_BROWSER;
         int totalPages = trunc(ctpage);
-        if ((totalblocks % MAX_BLOCKS_IN_BROWSER != 0) && ctpage > 1) {
+        if ((TOTAL_BLOCKS % MAX_BLOCKS_IN_BROWSER != 0) && ctpage > 1) {
             totalPages += 1;
         }
-        //
+        else
+        {
+            totalPages = 1;
+        }
+
         myNex.writeStr("mp3browser.totalPag.txt",String(totalPages));
 
         int pos = 1;
         //
+        log_info("FLAC","Abriendo Block Media Browser - TOTAL_BLOCKS=" + String(TOTAL_BLOCKS) + 
+            ", BB_PTR_ITEM=" + String(BB_PTR_ITEM) + 
+            ", MAX_BLOCKS_IN_BROWSER=" + String(MAX_BLOCKS_IN_BROWSER) + 
+            ", BB_BROWSER_MAX=" + String(BB_BROWSER_MAX) + 
+            ", totalPages=" + String(totalPages));
+
         for (int i = BB_PTR_ITEM; i <= BB_PTR_ITEM + MAX_BLOCKS_IN_BROWSER; i++)
         {
-            if (i <= BB_BROWSER_MAX) 
+            if (i <= TOTAL_BLOCKS - 1) 
             {
                 String name = playlist.getTrackAt(i);
                 myNex.writeStr("mp3browser.id" + String(pos) + ".txt",String(i));
                 myNex.writeStr("mp3browser.name" + String(pos) + ".txt",playlist.getTrackName(name));
-
                 pos++;
-            }            
+            } 
+            else
+            {
+                myNex.writeStr("mp3browser.id" + String(pos) + ".txt","");
+                myNex.writeStr("mp3browser.name" + String(pos) + ".txt","");
+                pos++;
+            }           
         }
 
         // Si hemos terminado, reseteamos flags
@@ -1042,13 +1054,15 @@ void FLACPlayer() {
     if (!player.initializePlaylist(PATH_FILE_TO_LOAD)) {
         log_info("FLAC","ERROR: No se pudo crear playlist de: " + PATH_FILE_TO_LOAD);
         LAST_MESSAGE = "Cannot load FLAC playlist";
+        TOTAL_BLOCKS = 0;
         //break;
         return;
     }
-    
-    log_info("FLAC","Playlist cargada: " + String(player.getTotalTracks()) + " pistas");
-    myNex.writeNum("tape.totalBlocks.val", player.getTotalTracks());
-    myNex.writeNum("tape.currentBlock.val", player.getTotalTracks());
+    TOTAL_BLOCKS = player.getTotalTracks();
+
+    log_info("FLAC","Playlist cargada: " + String(TOTAL_BLOCKS) + " pistas");
+    myNex.writeNum("tape.totalBlocks.val", TOTAL_BLOCKS);
+    myNex.writeNum("tape.currentBlock.val", TOTAL_BLOCKS);
 
 
     while (!EJECT && !REC && MEDIA_PLAYER_EN) {
@@ -1073,10 +1087,10 @@ void FLACPlayer() {
         f.close();
         
         log_info("FLAC","Pista: " + String(player.getCurrentTrackNumber()) + "/" + 
-                String(player.getTotalTracks()) + " - " + player.getCurrentTrackName());
+                String(TOTAL_BLOCKS) + " - " + player.getCurrentTrackName());
         log_info("FLAC","Tamaño: " + String(file_size / 1024) + " KB");
         
-        myNex.writeNum("tape.totalBlocks.val", player.getTotalTracks());
+        myNex.writeNum("tape.totalBlocks.val", TOTAL_BLOCKS);
         myNex.writeNum("tape.currentBlock.val", player.getCurrentTrackNumber());
         
         // Actualizar HMI con información inicial
@@ -1142,7 +1156,7 @@ void FLACPlayer() {
                         log_debug("FLAC","Track end - Progress: " + String(player.getProgress()) + "%");
                         
                         int current_track_num = player.getCurrentTrackNumber();  // 1-based
-                        int total_tracks = player.getTotalTracks();
+                        int total_tracks = TOTAL_BLOCKS;
                         
                         log_info("FLAC","Track " + String(current_track_num) + " of " + String(total_tracks) + " completed");
                         
@@ -1385,13 +1399,14 @@ void FLACPlayer() {
             else if (BB_UPDATE)
             {
                 // Actualiza pagina del browser por cambio de pagina.
-                BB_UPDATE = false;
+                log_info("FLAC","Changing current page - BB_OPEN=" + String(BB_OPEN) + " BB_UPDATE=" + String(BB_UPDATE));
+                player.openBlockMediaBrowser();                
             }
             else if (UPDATE_HMI)
             {
                 UPDATE_HMI = false;
                 // Browser cerrado. Lanza el track seleccionado.
-                if (BLOCK_SELECTED >= 0 && BLOCK_SELECTED <= player.getTotalTracks()) 
+                if (BLOCK_SELECTED >= 0 && BLOCK_SELECTED <= TOTAL_BLOCKS) 
                 {
                     log_info("FLAC","Selecting track from Block Media Browser - BLOCK_SELECTED=" + String(BLOCK_SELECTED));
                     //
