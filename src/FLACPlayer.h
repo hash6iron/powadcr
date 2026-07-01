@@ -624,7 +624,7 @@ public:
         BB_PAGE_SELECTED = (BB_PTR_ITEM / MAX_BLOCKS_IN_BROWSER) + 1;
 
         myNex.writeStr("mp3browser.path.txt",HMI_FNAME);
-        myNex.writeStr("mp3browser.totalBl.txt",String(TOTAL_BLOCKS - 1));
+        myNex.writeStr("mp3browser.totalBl.txt",String(TOTAL_BLOCKS));
         myNex.writeStr("mp3browser.bbpag.txt",String(BB_PAGE_SELECTED));
         myNex.writeStr("mp3browser.size0.txt","SIZE[MB]");
 
