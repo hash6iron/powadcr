@@ -1451,7 +1451,6 @@ void FLACPlayer() {
                 }
                 // Actualizar información de HMI
                 updateInformation(player);
-
             }
                         
             // Yield obligatorio para la reproducción
