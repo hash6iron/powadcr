@@ -1411,7 +1411,7 @@ void FLACPlayer() {
                     log_info("FLAC","Selecting track from Block Media Browser - BLOCK_SELECTED=" + String(BLOCK_SELECTED));
                     //
                     String current_path = PATH_FILE_TO_LOAD;
-                    PATH_FILE_TO_LOAD = player.selectTrack(BLOCK_SELECTED);
+                    PATH_FILE_TO_LOAD = player.selectTrack(BLOCK_SELECTED - 1);  // Convertir a 0-based
                     //
                     if (!PATH_FILE_TO_LOAD.isEmpty() && PATH_FILE_TO_LOAD != current_path)
                     {
