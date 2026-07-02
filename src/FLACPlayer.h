@@ -1413,7 +1413,7 @@ void FLACPlayer() {
                 log_info("FLAC","Changing current page - BB_OPEN=" + String(BB_OPEN) + " BB_UPDATE=" + String(BB_UPDATE));
                 player.openBlockMediaBrowser();                
             }
-            else if (UPDATE_HMI)
+            else if (UPDATE_HMI || UPDATE)
             {
                 UPDATE_HMI = false;
                 // Browser cerrado. Lanza el track seleccionado.
