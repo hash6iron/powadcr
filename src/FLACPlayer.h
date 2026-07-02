@@ -779,6 +779,9 @@ public:
         return (state.file_position * 100) / state.file_size;
     }
     
+    uint32_t getTrackSize() const {
+        return state.file_size;
+    }
 
 
     String getStatsReport() const {
@@ -830,6 +833,10 @@ public:
         return true;
     }
     
+    String getCurrentTrack() {
+        return playlist.getCurrentTrack();
+    }   
+
     String getNextTrack() {
         return playlist.nextTrack();
     }
@@ -996,32 +1003,6 @@ void updateInformation(OptimizedFLACPlayer &player)
     myNex.writeStr("tape2.name.txt", player.getCurrentTrackName());                
 }
 
-// void  rewindAnimation(int direction) {
-//   int p = 0;
-//   int frames = 19;
-//   int fdelay = 5;
-
-//   log_info("FLAC","Rewind animation - Direction: " + String(direction));
-
-//   while (p < frames) {
-
-//     POS_ROTATE_CASSETTE += direction;
-
-//     if (POS_ROTATE_CASSETTE > 23) {
-//       POS_ROTATE_CASSETTE = 4;
-//     }
-
-//     if (POS_ROTATE_CASSETTE < 4) {
-//       POS_ROTATE_CASSETTE = 23;
-//     }
-
-//     myNex.writeNum("tape.animation.pic", POS_ROTATE_CASSETTE);
-//     delay(20);
-
-//     p++;
-//   }
-// }
-
 void FLACPlayer() {
     
     OptimizedFLACPlayer player;
@@ -1116,6 +1097,19 @@ void FLACPlayer() {
         
         uint8_t playerStatus = 0;
 
+        // Estado de parada. Selección de pista
+        if ((RWIND || FFWIND) && !is_currently_playing) {
+            log_info("FLAC","RWIND/FFWIND detected in STOPPED state. Selecting track...");
+            if (RWIND) {
+                PATH_FILE_TO_LOAD = player.getPreviousTrack();
+                log_info("FLAC","RWIND: Selected previous track: " + PATH_FILE_TO_LOAD);
+            } else if (FFWIND) {
+                PATH_FILE_TO_LOAD = player.getNextTrack();
+                log_info("FLAC","FFWIND: Selected next track: " + PATH_FILE_TO_LOAD);
+            }
+            //track_changed = true;  // Forzar reinicio de bucle externo
+        }
+
         while (!EJECT && !REC && MEDIA_PLAYER_EN && !track_changed && PATH_FILE_TO_LOAD == current_playing_file) {
             
             // ====================================================================
@@ -1140,7 +1134,7 @@ void FLACPlayer() {
                         player.pause();
                         PAUSE = false;
                         tapeAnimationOFF();     // ✅ Detener animación
-                    } else if (STOP) {
+                    } else if (STOP || EJECT) {
                         playerStatus = 0;  // Cambiar a STOPPED
                         player.stop();
                         tapeAnimationOFF();  // ✅ Detener animación
@@ -1233,8 +1227,25 @@ void FLACPlayer() {
             {
                 rewindAnimation(-1);
 
-                if (RWIND && !lastWasFastRWind) 
+                // Reiniciar pista actual una vez superado el 5% de reproducción
+                if (RWIND && !lastWasFastRWind && player.getProgress() > 10)
                 {
+                    log_info("FLAC","RWD: Restarting current track - " + PATH_FILE_TO_LOAD);
+
+                    RWIND = false;
+                    // Hacemos esto para un retroceso suave.
+                    player.pause();
+                    //
+                    player.seekToPosition(0);  // Reiniciar a posición 0
+                    //
+                    player.resume();
+
+                }
+                // Pasar a la pista anterior
+                else if (RWIND && !lastWasFastRWind && player.getProgress() <= 10)
+                {
+                    log_info("FLAC","RWD: Requesting previous track");
+
                     String prev_track = player.getPreviousTrack();
                     if (!prev_track.isEmpty()) {
                         log_info("FLAC","RWD: Previous track");
@@ -1463,12 +1474,16 @@ void FLACPlayer() {
         if (track_changed && PATH_FILE_TO_LOAD != current_playing_file) {
             log_info("FLAC","Reopening new file...");
             player.stop();
+            tapeAnimationOFF();  // Detener animación
+
             continue;  // Volver al inicio del bucle externo
         }
     }
     
     // Limpieza final
     player.stop();
+    tapeAnimationOFF();  // Detener animación de la cinta
+
     MEDIA_PLAYER_EN = false;
     MUSIC_IS_PLAYING = false;
     
