@@ -6063,9 +6063,14 @@ void tapeControl() {
 
       // Cargamos el medio
       PATH_FILE_TO_LOAD = hmi.loadLastMedia();
+      // Cogemos el nombre del fichero
       FILE_LOAD = getFileNameFromPath(PATH_FILE_TO_LOAD);
+      // Cogemos la ruta actual y la almacenamos
       FILE_LAST_DIR = getDirFromPath(PATH_FILE_TO_LOAD);
-
+      // Cogemos el path anterior trabajando la cadena FILE_LAST_DIR
+      FILE_PREVIOUS_DIR = hmi.getPreviousDirFromPath(FILE_LAST_DIR); 
+      // Para el current dir que se muestra arriba. Ponemos un caracter " " al final como workaround, debido a un bug.
+      FILE_LAST_DIR_LAST = getDirFromPath(PATH_FILE_TO_LOAD) + " "; 
       // Mostramos la página de carga
       hmi.writeString("page tape");          
       delay(125);
