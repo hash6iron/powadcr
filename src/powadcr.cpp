@@ -123,6 +123,11 @@ AudioBoardStream kitStream(powadcr_board);
 // El control de audio saliente ahora lo lleva VolumeStream
 VolumeStream volumeStream(kitStream);
 
+// Gestión manual del montaje SD_MMC
+bool mountSDCard(bool showStatus = true);
+bool unmountSDCard(bool showStatus = true);
+bool isSDCardMounted();
+
 // SpotifyESP32 - REMOVED (not used, saves ~120KB)
 
 #include "HMI.h"
@@ -6037,8 +6042,33 @@ void tapeControl() {
     else if (DISABLE_SD) 
     {
       // ------------------
-      // Disable SD
+      // Enable / Disable SD
       // ------------------
+      if (isSDCardMounted()) 
+      {
+        log_info("TAPE","Unmounting SD card");
+        unmountSDCard(true);
+        // myNex.writeStr("debug.bt0.txt","Enable SD");
+        // delay(1500);
+        CURRENT_PAGE = PAGE_TAPE0;
+        hmi.writeString("page tape0");
+        delay(500);
+        myNex.writeStr("tape0.g0.txt", "Unmounting SD card");
+      } 
+      else 
+      {
+        log_info("TAPE","Mounting SD card");
+        mountSDCard();
+        // myNex.writeStr("debug.bt0.txt","Disable SD");
+        // delay(1500);
+        CURRENT_PAGE = PAGE_TAPE0;
+        hmi.writeString("page tape0");
+        delay(500);
+        myNex.writeStr("tape0.g0.txt", "Mounting SD card");
+      }
+
+      DISABLE_SD = false;
+      
     } 
     else if (PLAY) 
     {
@@ -10282,13 +10312,59 @@ void setupMCP()
   }
 }
 
+static bool g_sdMounted = false;
+
+bool isSDCardMounted() {
+  if (!g_sdMounted) {
+    return false;
+  }
+  return SD_MMC.cardType() != CARD_NONE;
+}
+
+bool mountSDCard(bool showStatus) {
+  if (isSDCardMounted()) {
+    if (showStatus) {
+      hmi.writeString("statusLCD.txt=\"SD already mounted\"");
+    }
+    return true;
+  }
+
+  const int sdSpeed = SD_FRQ_MHZ_INITIAL; // Velocidad en Hz (config.h)
+  if (!SD_MMC.begin("/sdcard", false, false, sdSpeed)) {
+    g_sdMounted = false;
+    return false;
+  }
+
+  g_sdMounted = true;
+  logln("SD Card mounted");
+  if (showStatus) {
+    hmi.writeString("statusLCD.txt=\"SD_MMC available\"");
+  }
+  return true;
+}
+
+bool unmountSDCard(bool showStatus) {
+  if (!g_sdMounted) {
+    if (showStatus) {
+      hmi.writeString("statusLCD.txt=\"SD already unmounted\"");
+    }
+    return true;
+  }
+
+  SD_MMC.end();
+  g_sdMounted = false;
+  log_info("SD","SD Card unmounted");
+  if (showStatus) {
+    hmi.writeString("statusLCD.txt=\"SD unmounted\"");
+  }
+  return true;
+}
+
 void setupSDCard() {
   logln("Waiting for SD Card");
 
   hmi.writeString("statusLCD.txt=\"WAITING FOR SD CARD\"");
   delay(125);
-
-  int SD_Speed = SD_FRQ_MHZ_INITIAL; // Velocidad en Hz (config.h)
 
   // ****************************************************************
   //
@@ -10299,7 +10375,7 @@ void setupSDCard() {
   // ****************************************************************
 
 
-  if (!SD_MMC.begin("/sdcard", false, false, SD_Speed)) {
+  if (!mountSDCard(false)) {
 
     // SD no inicializada
     while (1) {
@@ -10309,9 +10385,14 @@ void setupSDCard() {
       delay(2000);
       hmi.writeString("statusLCD.txt=\"- Verify audiokit switches.\"");
       delay(2000);
+
+      if (mountSDCard(false)) {
+        hmi.writeString("statusLCD.txt=\"SD_MMC available\"");
+        delay(125);
+        break;
+      }
     }
   } else {
-    logln("SD Card mounted");
     hmi.writeString("statusLCD.txt=\"SD_MMC available\"");
     delay(125);
   }

@@ -2596,25 +2596,25 @@ private:
       }        
       else if (strCmd.indexOf("PLAY") != -1) 
       {
-
-        log_debug("HMI","PLAY pressed.");
-
-        PLAY = true;
-        PAUSE = false;
-        STOP = false;
-        REC = false;
-        EJECT = false;
-        ABORT = false;
-
-        BTN_PLAY_PRESSED = true;  
-        writeString("BBOK.val=1");
-
-        if (CURRENT_PAGE == PAGE_SPOTIFY)
+        if (isSDCardMounted())
         {
-          verifyCommand("SPO2");
-        }
-        
+          log_info("HMI","PLAY pressed.");
 
+          PLAY = true;
+          PAUSE = false;
+          STOP = false;
+          REC = false;
+          EJECT = false;
+          ABORT = false;
+
+          BTN_PLAY_PRESSED = true;  
+          writeString("BBOK.val=1");
+
+          if (CURRENT_PAGE == PAGE_SPOTIFY)
+          {
+            verifyCommand("SPO2");
+          }        
+        }
       }   
       else if (strCmd.indexOf("REC") != -1) 
       {
@@ -2692,47 +2692,56 @@ private:
       }     
       else if (strCmd.indexOf("EJECT") != -1) 
       {
-        log_debug("HMI","EJECT pressed.");
-
-        log_debug("HMI","Status of PAUSE_REQ: " + String(STOP_OR_PAUSE_REQUEST));
-
-        PLAY = false;
-        PAUSE = false;
-        STOP = true;
-        REC = false;
-        ABORT = false;
-        EJECT = true;
-
-        C64_TAP_INSIDE = false;
-        myNex.writeStr("tape.wavind.txt", ""); // Limpiamos el texto de warning FFWD/RWD del tape
-
-        // Esto lo hacemos así porque el EJECT lanza un comando en paralelo
-        // al control del tape (tapeControl)
-        // no quitar!!
-        if (PROGRAM_NAME != "" || TOTAL_BLOCKS !=0)
+        if (isSDCardMounted)
         {
-            LAST_MESSAGE = "Ejecting cassette.";
-            writeString("g0.txt=\"" + LAST_MESSAGE + "\"");
-            // writeXSTR(66,247,342,16,2,65535,0,1,1,50,LAST_MESSAGE);
-            delay(125);
-            clearInformationFile();
-            delay(125);
+          log_debug("HMI","EJECT pressed.");
+
+          log_debug("HMI","Status of PAUSE_REQ: " + String(STOP_OR_PAUSE_REQUEST));
+
+          PLAY = false;
+          PAUSE = false;
+          STOP = true;
+          REC = false;
+          ABORT = false;
+          EJECT = true;
+
+          C64_TAP_INSIDE = false;
+          myNex.writeStr("tape.wavind.txt", ""); // Limpiamos el texto de warning FFWD/RWD del tape
+
+          // Esto lo hacemos así porque el EJECT lanza un comando en paralelo
+          // al control del tape (tapeControl)
+          // no quitar!!
+          if (PROGRAM_NAME != "" || TOTAL_BLOCKS !=0)
+          {
+              LAST_MESSAGE = "Ejecting cassette.";
+              writeString("g0.txt=\"" + LAST_MESSAGE + "\"");
+              // writeXSTR(66,247,342,16,2,65535,0,1,1,50,LAST_MESSAGE);
+              delay(125);
+              clearInformationFile();
+              delay(125);
+          }
+
+          FILE_BROWSER_OPEN = true;
+          //
+          if (myNex.readNumber("screen.source.val") == 1)
+          {
+            // Si estamos en el tape pasamos a tape0
+            delay(300);
+            writeString("page tape0");
+            CURRENT_PAGE = PAGE_TAPE0;
+          }
+          delay(500);          
+          // Entramos en el file browser
+          writeString("page file");          
+          delay(125);
+          refreshFiles();          
+        }
+        else
+        {
+          EJECT = false;
+          log_info("HMI","EJECT pressed but SD card not mounted.");
         }
 
-        FILE_BROWSER_OPEN = true;
-        //
-        if (myNex.readNumber("screen.source.val") == 1)
-        {
-          // Si estamos en el tape pasamos a tape0
-          delay(300);
-          writeString("page tape0");
-          CURRENT_PAGE = PAGE_TAPE0;
-        }
-        delay(500);          
-        // Entramos en el file browser
-        writeString("page file");          
-        delay(125);
-        refreshFiles();
       }    
       else if (strCmd.indexOf("VLI=") != -1) 
       {
