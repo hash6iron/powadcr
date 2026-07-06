@@ -1026,10 +1026,10 @@ void FLACPlayer() {
 
     PLAY = FROM_BUTTONS_CONTROL ? true : false;  // Si viene de botones, iniciar automáticamente
     FROM_BUTTONS_CONTROL = false;  // Resetear flag de control externo
-    
+
     PAUSE = false;
     EJECT = false;
-    STOP = true;  // Comenzar en STOP
+    STOP = ~PLAY;  // Si no se presionó PLAY, iniciar en STOP
     
     // Inicializar lista de reproducción desde el directorio del archivo seleccionado
     log_info("FLAC","Inicializando playlist para: " + PATH_FILE_TO_LOAD);
