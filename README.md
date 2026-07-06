@@ -8,7 +8,7 @@ TAP/TZX/TSX/CDT Digital cassette recorder for 8-bit machines, and WAV/MP3 player
 
 ![20241120_172544](https://github.com/user-attachments/assets/f7f18624-5184-490f-a2b1-47833b4a70f2)
 
-This project pretend to implement a Digital Cassette Recorder (for TAP/TZX files playing and recording on TAP) for ZX Spectrum machines based on ESP32 Audio kit development board and using HMI over touch 3.5" screen.
+This project pretend to implement a Digital Cassette Recorder (for TAP/TZX files playing and recording on TAP) for ZX Spectrum machines based on ESP32 Audio kit development board and using HMI ove[...]
 
 ![image](https://github.com/user-attachments/assets/6d7ac494-c201-4113-875b-0324e44a8308)
 
@@ -39,7 +39,7 @@ The summary of specifications is.
 
 So, it's a beautiful develop board with a big possibilities. 
 
-To begin with is necessary use the Phil Schatzmann's libraries for ESP32 Audio Kit v.0.65 (https://github.com/pschatzmann/arduino-audiokit) where we could take advantage of all resources of this kit, to create a digital player and recorder for ZX Spectrum easilly, or this is the first idea.
+To begin with is necessary use the Phil Schatzmann's libraries for ESP32 Audio Kit v.0.65 (https://github.com/pschatzmann/arduino-audiokit) where we could take advantage of all resources of this k[...]
 
 ## LCD Screen Display
 
@@ -57,7 +57,7 @@ In this section we are going to describe parts to be needed to assemble the Powa
 
 **Bill of material**
 + Main board: ESP32 Audiokit by AI-Thinker technology : https://docs.ai-thinker.com/en/esp32-audio-kit (Possible buy site. Alliexpress)
-+ Color LCD 3.5" 480x320 pixels. Resistive TouchScreen - TJC4832T035_011 resistive (low priced but possible to discontinued and replaced by TJC4832T135 _ 011C capacitive or TJC4832T135 _ 011R resistive)
++ Color LCD 3.5" 480x320 pixels. Resistive TouchScreen - TJC4832T035_011 resistive (low priced but possible to discontinued and replaced by TJC4832T135 _ 011C capacitive or TJC4832T135 _ 011R resi[...]
 + Cable XH2.5 to dupont to connecto LCD to the extended port of ESP32 Audiokit
 + Battery 2000mAh 3.7v (optional not needed)
 + Micro SD card FAT32 formatted (to contain all ZX Spectrum games in TAP and other formats to be red for PowaDCR in the future)
@@ -138,7 +138,7 @@ How to install firmwares in powadcr?
 
 <b>How to?</b>
 
-To flash the firmware of the screen the file powadcr shown below must be copied inside an empty SD Card, insert it inside the SD Reader of the screen and connect the screen to the GPIO connector of the Audiokit board as shown below. Take care with polarity of the power, because if the polarity is inverted the screen could damage it. When the power is connected the screen will start with blank background and the file copy will be in process. This only takes less than 2 minutes. Be sure that the power couldn't be disconected during this process.
+To flash the firmware of the screen the file powadcr shown below must be copied inside an empty SD Card, insert it inside the SD Reader of the screen and connect the screen to the GPIO connector [...]
 
 
 After this you can flash the binaries directly to the AudioKit board if you do not want to mess with code and compilers. 
@@ -190,7 +190,7 @@ Using powadcr recorder with modern and classic 8-bit machines
 -----
 **Classic machines. ZX Spectrum.**
 
-For this machine series, ZX Spectrum 16K, 48K, +, +2, +3 take into account that powadcr recorder uses a range between 0 to 3.3v then is needed to atenuate the audio output from ZX Spectrum classic version.
+For this machine series, ZX Spectrum 16K, 48K, +, +2, +3 take into account that powadcr recorder uses a range between 0 to 3.3v then is needed to atenuate the audio output from ZX Spectrum classi[...]
 Then:
 - You can use a tipical R circuit or audio amplifier (that permit adjust volumen signal from zero)
 - The goal is test several volumen settings in the input signal until powadcr begins to recognize wave, but from zero.
@@ -198,9 +198,9 @@ Then:
 
 **Modern machines. ESPectrum (lilygo) , N-Go, etc.**
 
-Is possible to connect directly to the machine audio output line-out, anyway, if you can check before the output power in order to know wave characteristics, you ensure that input signal is ok for powadcr.
+Is possible to connect directly to the machine audio output line-out, anyway, if you can check before the output power in order to know wave characteristics, you ensure that input signal is ok fo[...]
 - ESPectrum can connecto directly without adaptation circuit.
-- N-Go needs a special cable to get the output channel (+3 output) to stereo jack for powadcr (you can repeat the output channel in both left/right channels of the stereo jack or only get left channel and right to ground)
+- N-Go needs a special cable to get the output channel (+3 output) to stereo jack for powadcr (you can repeat the output channel in both left/right channels of the stereo jack or only get left ch[...]
 
 **Supported machines by powadcr**
 
