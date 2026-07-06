@@ -65,10 +65,10 @@ public:
             volumeStream.setVolume(float(MAIN_VOL_R) / 100.0f,1);  
           }
         //
-        logln("Volume set to: " + String(MAIN_VOL) + "%, Left: " + String(MAIN_VOL_L) + "%, Right: " + String(MAIN_VOL_R) + "%");
-        logln("Real volume: " + String(volumeStream.volume(0)) + ", " + String(volumeStream.volume(1)));
-        logln("Real audioStream volume: " + String(kitStream.getVolume()));
-        logln("Booster volume: " + String(BOOSTER_VOLUME) + ", Booster factor: " + String(BOOSTER_FACTOR));
+        log_debug("HMI","Volume set to: " + String(MAIN_VOL) + "%, Left: " + String(MAIN_VOL_L) + "%, Right: " + String(MAIN_VOL_R) + "%");
+        log_debug("HMI","Real volume: " + String(volumeStream.volume(0)) + ", " + String(volumeStream.volume(1)));
+        log_debug("HMI","Real audioStream volume: " + String(kitStream.getVolume()));
+        log_debug("HMI","Booster volume: " + String(BOOSTER_VOLUME) + ", Booster factor: " + String(BOOSTER_FACTOR));
     }
 
     // ✅ Configurar velocidades de FFWD/RWD para CSW
@@ -83,7 +83,7 @@ public:
         CSW_FFWD_SPEED = ffwd_speed;
         CSW_RWD_SPEED = rwd_speed;
         
-        logln("CSW Seek Speed set: FFWD=" + String(ffwd_speed * 100, 1) + "%, RWD=" + String(rwd_speed * 100, 1) + "%");
+        log_debug("HMI","CSW Seek Speed set: FFWD=" + String(ffwd_speed * 100, 1) + "%, RWD=" + String(rwd_speed * 100, 1) + "%");
         writeString("tape.lblFFWDSpeed.txt=\"FF: " + String(int(ffwd_speed * 100)) + "%\"");
     }
 
@@ -113,2721 +113,2492 @@ public:
       }
       else
       {
-        logln("No path to save in last.txt");
+        log_debug("HMI","No path to save in last.txt");
       }
     }
 
-    //SDMMC _sdm;
-    //FS _sdf;
     File fFileLST;
 
 private:
 
-      
+    struct tFileLST
+    {
+        int ID=0;
+        char type='F';
+        int seek=0;
+        String fileName="";
+        String fileType="";
+        String IDZXDB="";
+    };
 
+    bool copyFileFS(const char* srcPath, const char* dstPath) {
+        File srcFile = SD_MMC.open(srcPath, FILE_READ);
+        if (!srcFile) return false;
 
-      struct tFileLST
+        File dstFile = SD_MMC.open(dstPath, FILE_WRITE);
+        if (!dstFile) {
+            srcFile.close();
+            return false;
+        }
+
+        uint8_t buffer[512];
+        size_t bytesRead;
+        int bytesCopied = 0;
+        while ((bytesRead = srcFile.read(buffer, sizeof(buffer))) > 0) {
+            dstFile.write(buffer, bytesRead);
+            bytesCopied += bytesRead;
+            writeString("statusFILE.txt=\"COPY " + String((bytesCopied * 100) / srcFile.size()) + "%\"");
+
+        }
+
+        srcFile.close();
+        dstFile.close();
+        return true;
+    }
+
+    void clearFileBuffer()
+    {
+      // Borramos todos los registros
+      for (int i=0;i<MAX_FILES_TO_LOAD;i++)
       {
-          int ID=0;
-          char type='F';
-          int seek=0;
-          String fileName="";
-          String fileType="";
-          String IDZXDB="";
-      };
+        FILES_BUFF[i].isDir = false;
+        FILES_BUFF[i].path = "";
+        FILES_BUFF[i].type = "";
+        FILES_BUFF[i].fileposition = 0;
+      }
+    }
 
-      bool copyFileFS(const char* srcPath, const char* dstPath) {
-          File srcFile = SD_MMC.open(srcPath, FILE_READ);
-          if (!srcFile) return false;
+    const char* getFileExtension(const char* szName) {
+        const char* dot = strrchr(szName, '.');
+        if (dot && *(dot + 1) != '\0') {
+            return dot + 1; // Devuelve un puntero a la extensión (sin el punto)
+        }
+        return ""; // No hay extensión
+    }      
 
-          File dstFile = SD_MMC.open(dstPath, FILE_WRITE);
-          if (!dstFile) {
-              srcFile.close();
-              return false;
-          }
-
-          uint8_t buffer[512];
-          size_t bytesRead;
-          int bytesCopied = 0;
-          while ((bytesRead = srcFile.read(buffer, sizeof(buffer))) > 0) {
-              dstFile.write(buffer, bytesRead);
-              bytesCopied += bytesRead;
-              writeString("statusFILE.txt=\"COPY " + String((bytesCopied * 100) / srcFile.size()) + "%\"");
-
-          }
-
-          srcFile.close();
-          dstFile.close();
+    bool clearFile(const char* path) 
+    {
+      File file = SD_MMC.open(path, FILE_WRITE);
+      if (file) 
+      {
+          file.close(); // El archivo ahora está vacío (0 bytes)
           return true;
       }
+      file.close();
+      return false; // Error al abrir el archivo
+    }
 
-      void clearFileBuffer()
-      {
-        // Borramos todos los registros
-        for (int i=0;i<MAX_FILES_TO_LOAD;i++)
-        {
-          FILES_BUFF[i].isDir = false;
-          FILES_BUFF[i].path = "";
-          FILES_BUFF[i].type = "";
-          FILES_BUFF[i].fileposition = 0;
+    // Añade esta función helper para reintentos de lectura SD
+    bool safeSDRead(File &file, char* buffer, size_t length, int maxRetries = 3) {
+        for(int retry = 0; retry < maxRetries; retry++) {
+            if(file.read((uint8_t*)buffer, length) == length) {
+                return true;
+            }
+            // Pequeña pausa entre reintentos
+            delay(10); 
         }
-      }
+        return false;
+    }
 
-      const char* getFileExtension(const char* szName) {
-          const char* dot = strrchr(szName, '.');
-          if (dot && *(dot + 1) != '\0') {
-              return dot + 1; // Devuelve un puntero a la extensión (sin el punto)
-          }
-          return ""; // No hay extensión
-      }      
+    void sortFile(File &file, bool firstDir = true) 
+    {
+        if (!file) return;
 
-      bool clearFile(const char* path) 
-      {
-        File file = SD_MMC.open(path, FILE_WRITE);
-        if (file) 
-        {
-            file.close(); // El archivo ahora está vacío (0 bytes)
-            return true;
+        // Pre-reservar memoria en el heap en lugar de la pila
+        const size_t BUFFER_SIZE = 1024;
+        char* buffer = (char*)malloc(BUFFER_SIZE);
+        if (!buffer) {
+            writeString("statusFILE.txt=\"MEM ERROR\"");
+            return;
         }
-        file.close();
-        return false; // Error al abrir el archivo
-      }
 
-      // Añade esta función helper para reintentos de lectura SD
-      bool safeSDRead(File &file, char* buffer, size_t length, int maxRetries = 3) {
-          for(int retry = 0; retry < maxRetries; retry++) {
-              if(file.read((uint8_t*)buffer, length) == length) {
-                  return true;
-              }
-              // Pequeña pausa entre reintentos
-              delay(10); 
-          }
+        std::vector<std::tuple<String, String, String, String>> linesWithKeys;
+        // linesWithKeys.reserve(1024);
+        linesWithKeys.reserve(FILE_TOTAL_FILES < 256 ? FILE_TOTAL_FILES : 256); // Limitar reserva
+        
+        file.seek(0);
+        writeString("statusFILE.txt=\"READING 0%\"");
+        
+        int totalLines = 0;
+        int currentLine = 0;
+        int readErrors = 0;
+        int lastProgress = -1;
+
+        // Primer conteo de líneas
+        while (file.available()) {
+            yield();
+            if(!safeSDRead(file, buffer, 1)) {
+                readErrors++;
+                if(readErrors > 5) {
+                    free(buffer);
+                    writeString("statusFILE.txt=\"SD READ ERROR\"");
+                    delay(1000);
+                    return;
+                }
+                continue;
+            }
+            if(buffer[0] == '\n') totalLines++;
+        }
+
+        // Volver al inicio
+        file.seek(0);
+        readErrors = 0;
+
+        // Leer y procesar líneas
+        String accumulatedLine;
+        while (file.available()) {
+            yield();
+            
+            size_t bytesToRead = min((size_t)file.available(), (size_t)(BUFFER_SIZE-1));
+            
+            if(!safeSDRead(file, buffer, bytesToRead)) {
+                readErrors++;
+                if(readErrors > 5) {
+                    free(buffer);
+                    writeString("statusFILE.txt=\"SD READ ERROR\"");
+                    delay(1000);
+                    return;
+                }
+                continue;
+            }
+
+            buffer[bytesToRead] = '\0';
+            accumulatedLine += String(buffer);
+            
+            int lineEnd;
+            while ((lineEnd = accumulatedLine.indexOf('\n')) != -1) {
+                yield();
+                
+                String line = accumulatedLine.substring(0, lineEnd);
+                line.trim();
+                
+                // Procesar la línea
+                int idx1 = line.indexOf('|');
+                if (idx1 == -1) continue;
+
+                int idx2 = line.indexOf('|', idx1 + 1);
+                if (idx2 == -1) continue;
+
+                int idx3 = line.indexOf('|', idx2 + 1);
+                if (idx3 == -1) continue;
+
+                int idx4 = line.indexOf('|', idx3 + 1);
+                if (idx4 == -1) continue;
+
+                String tipo = line.substring(idx1 + 1, idx2);
+                String nombre = line.substring(idx3 + 1, idx4);
+                String indice = line.substring(0, idx1);
+
+                tipo.trim();
+                nombre.trim();
+                
+                linesWithKeys.emplace_back(std::move(tipo), std::move(nombre), 
+                                        std::move(indice), std::move(line));
+
+                currentLine++;
+                int progress = (currentLine * 100) / totalLines;
+                if (progress % 5 == 0 && progress != lastProgress) {
+                    writeString("statusFILE.txt=\"READING " + String(progress) + "%\"");
+                    lastProgress = progress;
+                    yield();
+                }
+
+                accumulatedLine = accumulatedLine.substring(lineEnd + 1);
+            }
+        }
+
+        free(buffer);
+
+        // Ordenar usando comparador que depende de firstDir
+        writeString("statusFILE.txt=\"SORTING\"");
+        yield();
+
+        std::sort(linesWithKeys.begin(), linesWithKeys.end(),
+            [firstDir](const std::tuple<String,String,String,String> &a, 
+                      const std::tuple<String,String,String,String> &b) {
+                const String &tipoA = std::get<0>(a);
+                const String &nombreA = std::get<1>(a);
+                const String &tipoB = std::get<0>(b);
+                const String &nombreB = std::get<1>(b);
+
+                bool aIsDir = (tipoA == "D");
+                bool bIsDir = (tipoB == "D");
+                
+                // Detectar archivos especiales .lst y .inf
+                bool aIsSpecial = nombreA.endsWith(".lst") || nombreA.endsWith(".inf") || nombreA.endsWith(".txt");
+                bool bIsSpecial = nombreB.endsWith(".lst") || nombreB.endsWith(".inf") || nombreB.endsWith(".txt");
+
+                // Los archivos especiales (.lst .inf) siempre van al final
+                if (aIsSpecial != bIsSpecial) {
+                    return !aIsSpecial; // Los especiales van al final
+                }
+
+                // Si ambos son archivos especiales, ordenar por nombre
+                if (aIsSpecial && bIsSpecial) {
+                    return nombreA.compareTo(nombreB) < 0;
+                }
+
+                // Lógica principal según firstDir
+                if (firstDir) {
+                    // firstDir = true: Directorios primero, luego archivos
+                    if (aIsDir != bIsDir) {
+                        return aIsDir; // Directorios primero
+                    }
+                } else {
+                    // firstDir = false: Archivos primero, luego directorios  
+                    if (aIsDir != bIsDir) {
+                        return !aIsDir; // Archivos primero
+                    }
+                }
+
+                // Si son del mismo tipo, ordenar por nombre
+                return nombreA.compareTo(nombreB) < 0;
+            }
+        );
+
+        // Escribir archivo ordenado
+        writeString("statusFILE.txt=\"SAVING\"");
+        yield();
+
+        if (file) {
+            String filepath = file.path();
+            file.close();
+            file = SD_MMC.open(filepath.c_str(), FILE_WRITE);
+            
+            lastProgress = -1;
+            const size_t totalItems = linesWithKeys.size();
+            
+            for (size_t i = 0; i < totalItems; i++) {
+                yield();
+                file.println(std::get<3>(linesWithKeys[i]));
+                
+                int progress = (i * 100) / totalItems;
+                if (progress % 5 == 0 && progress != lastProgress) {
+                    writeString("statusFILE.txt=\"SAVING " + String(progress) + "%\"");
+                    lastProgress = progress;
+                    yield();
+                }
+            }
+            
+            file.flush();
+        }
+
+        writeString("statusFILE.txt=\"SORT COMPLTE\"");
+        linesWithKeys.clear();
+        linesWithKeys.shrink_to_fit();
+    }
+
+    void fillWithFilesFromFile(File &fout, File &fstatus, const String &search_pattern, const String &path) 
+    {
+        // Ruta del archivo _files.lst
+        String path_file_lst = "";
+        if (path.lastIndexOf('/') == path.length() - 1) 
+        {
+            // Si la ruta termina con '/', le añadimos el nombre del archivo
+            path_file_lst = path + "_files.lst";
+        } else {
+            // Si no termina con '/', añadimos '/' y el nombre del archivo
+            path_file_lst = path + "/_files.lst";          
+        }
+    
+        // Verificamos si el archivo _files.lst existe
+        if (!SD_MMC.exists(path_file_lst.c_str())) {
+            log_info("HMI","File _files.lst does not exist: " + path_file_lst);
+            return;
+        }
+
+        log_debug("HMI","Reading file: " + path_file_lst);
+
+        // Abrimos el archivo _files.lst
+        File lstFile;
+        lstFile = SD_MMC.open(path_file_lst.c_str(), FILE_READ);
+        if (!lstFile) {
+            log_error("HMI","Failed to open _files.lst: " + path_file_lst);
+            return;
+        }
+    
+        lstFile.seek(0);
+    
+        // Variables para procesar el archivo
+        char line[256];
+        String strLine;
+        int n = 0;
+        //int itemsCount = 0;
+        int itemsToShow = 0;
+        FILE_TOTAL_FILES = 0;
+    
+        String searchPatternUC = search_pattern;
+        searchPatternUC.toUpperCase(); // Convertimos el patrón de búsqueda a mayúsculas
+
+        writeString("statusFILE.txt=\"Search...\"");
+    
+        // Recorremos el archivo línea por línea
+        while (lstFile.available()) {
+            strLine = lstFile.readStringUntil('\n');
+            strLine.toCharArray(line, sizeof(line));
+            n = strlen(line);
+            line[n - 1] = 0; // Eliminamos el terminador '\n'              line[n - 1] = 0; // Eliminamos el terminador '\n'
+    
+            // Extraemos los parámetros de la línea
+            tFileLST fl = getParametersFromLine(line);
+    
+            // Convertimos el nombre del archivo a mayúsculas para la comparación
+            String filenameUC = fl.fileName;
+            filenameUC.toUpperCase();
+
+            log_debug("HMI","Processing file: " + fl.fileName + " (Type: " + fl.fileType + ", Seek: " + String(fl.seek) + ", IDZXDB: " + fl.IDZXDB + ")");
+            log_debug("HMI","Search pattern: " + searchPatternUC);
+            log_debug("HMI","Filename uppercase: " + filenameUC);
+
+            // Si el archivo cumple con el patrón de búsqueda, lo escribimos en fout
+            if (filenameUC.indexOf(searchPatternUC) != -1) 
+            {
+                if (fl.IDZXDB != "") 
+                {
+                  fout.printf("%d|%s|%d|%s|%s|\n", fl.ID, fl.fileType.c_str(), fl.seek, fl.fileName.c_str(), fl.IDZXDB.c_str());
+                }
+                else
+                {
+                  fout.printf("%d|%s|%d|%s|\n", fl.ID, fl.fileType.c_str(), fl.seek, fl.fileName.c_str());
+                }
+                
+                FILE_TOTAL_FILES++;
+            }
+    
+            // Actualizamos el estado en HMI
+            //itemsCount++;
+            itemsToShow++;
+            if (itemsToShow >= EACH_FILES_REFRESH) {
+                writeString("statusFILE.txt=\"FOUND " + String(FILE_TOTAL_FILES) + "\"");
+                itemsToShow = 0; // Reiniciamos el contador
+            }
+
+        }
+    
+        // Cerramos el archivo
+        lstFile.close();
+    
+        log_debug("HMI","Total files found: " + String(FILE_TOTAL_FILES));
+    }
+
+  
+    void fillWithFiles(File &fout, File &fstatus, String search_pattern)
+    {
+        // *****************************************************************************
+        //
+        // Con este metodo, leemos el directorio actual y volcamos los ficheros en fout
+        //
+        // *****************************************************************************
+
+        //char szName[256];
+        const String separator="|";
+        if (!global_dir.isDirectory()) return;
+        global_dir.seek(0);
+    
+        int lpos = 1, cdir = 0, cfiles = 0;
+        int itemsCount = 0, itemsToShow = 0;
+        FILE_TOTAL_FILES = 0;
+    
+        // Convierte el patrón de búsqueda a minúsculas una sola vez
+        search_pattern.toLowerCase();
+    
+        log_debug("HMI","Registering files with pattern: " + search_pattern);
+
+        String entry;
+        while (entry = global_dir.getNextFileName())
+        {
+            
+            if (entry == "") break;
+
+            log_debug("HMI","Reading file: " + entry);
+
+            //esp_task_wdt_reset();
+            String fname = entry;
+            String fnameToLower = "";
+            size_t len = fname.length();
+    
+            if (len != 0)
+            {
+                fname = String(entry).substring(String(entry).lastIndexOf('/') + 1);
+                fnameToLower = fname;
+                fnameToLower.toLowerCase();
+
+                // Obtenemos la extensión del fichero
+                const char *ext = getFileExtension(fnameToLower.c_str());
+
+                log_debug("HMI","File name: " + fnameToLower);
+                log_debug("HMI","Extension: " + String(ext));
+
+                log_debug("HMI","File: " + fname);
+                if (ext) log_debug("HMI","Extension: " + String(ext));
+                else log_debug("HMI","No extension found.");
+
+                if (fnameToLower.indexOf(search_pattern) != -1 || search_pattern == "")
+                {
+                    bool isDir = isDirectoryPath(entry.c_str()); // entry.isDirectory();
+                    bool isHidden = entry[0] == '.';
+
+                    //if (ext == nullptr) ext = ""; // Si no hay extensión, asignamos cadena vacía
+
+                    if (!isDir && !isHidden)
+                    {
+                        // Compara extensión directamente (más rápido que strstr)
+                        if (strcmp(ext, "tap") == 0 || strcmp(ext, "tzx") == 0 || strcmp(ext, "pzx") == 0 ||
+                            strcmp(ext, "tsx") == 0 || strcmp(ext, "cdt") == 0 ||
+                            strcmp(ext, "wav") == 0 || strcmp(ext, "mp3") == 0 ||
+                            strcmp(ext, "flac") == 0 || strcmp(ext, "lst") == 0 ||
+                            strcmp(ext, "dsc") == 0 || strcmp(ext, "inf") == 0 ||
+                            strcmp(ext, "txt") == 0 || strcmp(ext, "radio") == 0 || 
+                            strcmp(ext, "zxdb") == 0 || strcmp(ext, "csw") == 0 || strcmp(ext, "zip") == 0 ||
+                            strcmp(ext, "o") == 0 || strcmp(ext, "p") == 0 ||
+                            strcmp(ext, "80") == 0 || strcmp(ext, "81") == 0)
+                        {
+                            fout.print(String(lpos)); fout.print(separator);
+                            fout.print("F"); fout.print(separator);
+                            fout.print(String(global_dir.position())); fout.print(separator);
+                            fout.print(fname); fout.println(separator);
+                            cfiles++; lpos++;
+                        }
+                    }
+                    else if (isDir && !isHidden)
+                    {
+                        fout.print(String(lpos)); fout.print(separator);
+                        fout.print("D"); fout.print(separator);
+                        fout.print(String(global_dir.position())); fout.print(separator);
+                        fout.print(fname); fout.println(separator);
+                        cdir++; lpos++;
+                    }
+                    FILE_TOTAL_FILES = cdir + cfiles;
+                    if (itemsToShow >= EACH_FILES_REFRESH)
+                    {
+                        writeString("statusFILE.txt=\"ITEMS " + String(itemsCount) + "\"");
+                        itemsToShow = 0;
+                    }
+                }
+            }
+            //entry.close();
+            itemsCount++;
+            itemsToShow++;
+        }
+        //
+        fstatus.println("CFIL=" + String(cfiles));
+        fstatus.println("CDIR=" + String(cdir));
+    }     
+
+    bool createEmptyFile32(char* path)
+    {
+      File fFile;
+      fFile = SD_MMC.open(path, FILE_WRITE);
+      if (fFile)
+      {
+          fFile.close();
+          return true;
+      }
+      else
+      {
+          fFile.close();
           return false;
       }
+    }
 
-      void sortFile(File &file, bool firstDir = true) 
-      {
-          if (!file) return;
+    bool removeFileFromLst(const String& lstPath, const String& fileNameToRemove) 
+    {
+        String tmpPath = lstPath + ".tmp";
+        log_debug("HMI","Removing file from list: " + fileNameToRemove + " in " + lstPath);
+        log_debug("HMI","Temporary file: " + tmpPath);
+        int itemsCount = 0;
 
-          // Pre-reservar memoria en el heap en lugar de la pila
-          const size_t BUFFER_SIZE = 1024;
-          char* buffer = (char*)malloc(BUFFER_SIZE);
-          if (!buffer) {
-              writeString("statusFILE.txt=\"MEM ERROR\"");
-              return;
-          }
-
-          std::vector<std::tuple<String, String, String, String>> linesWithKeys;
-          // linesWithKeys.reserve(1024);
-          linesWithKeys.reserve(FILE_TOTAL_FILES < 256 ? FILE_TOTAL_FILES : 256); // Limitar reserva
-          
-          file.seek(0);
-          writeString("statusFILE.txt=\"READING 0%\"");
-          
-          int totalLines = 0;
-          int currentLine = 0;
-          int readErrors = 0;
-          int lastProgress = -1;
-
-          // Primer conteo de líneas
-          while (file.available()) {
-              yield();
-              if(!safeSDRead(file, buffer, 1)) {
-                  readErrors++;
-                  if(readErrors > 5) {
-                      free(buffer);
-                      writeString("statusFILE.txt=\"SD READ ERROR\"");
-                      delay(1000);
-                      return;
-                  }
-                  continue;
-              }
-              if(buffer[0] == '\n') totalLines++;
-          }
-
-          // Volver al inicio
-          file.seek(0);
-          readErrors = 0;
-
-          // Leer y procesar líneas
-          String accumulatedLine;
-          while (file.available()) {
-              yield();
-              
-              size_t bytesToRead = min((size_t)file.available(), (size_t)(BUFFER_SIZE-1));
-              
-              if(!safeSDRead(file, buffer, bytesToRead)) {
-                  readErrors++;
-                  if(readErrors > 5) {
-                      free(buffer);
-                      writeString("statusFILE.txt=\"SD READ ERROR\"");
-                      delay(1000);
-                      return;
-                  }
-                  continue;
-              }
-
-              buffer[bytesToRead] = '\0';
-              accumulatedLine += String(buffer);
-              
-              int lineEnd;
-              while ((lineEnd = accumulatedLine.indexOf('\n')) != -1) {
-                  yield();
-                  
-                  String line = accumulatedLine.substring(0, lineEnd);
-                  line.trim();
-                  
-                  // Procesar la línea
-                  int idx1 = line.indexOf('|');
-                  if (idx1 == -1) continue;
-
-                  int idx2 = line.indexOf('|', idx1 + 1);
-                  if (idx2 == -1) continue;
-
-                  int idx3 = line.indexOf('|', idx2 + 1);
-                  if (idx3 == -1) continue;
-
-                  int idx4 = line.indexOf('|', idx3 + 1);
-                  if (idx4 == -1) continue;
-
-                  String tipo = line.substring(idx1 + 1, idx2);
-                  String nombre = line.substring(idx3 + 1, idx4);
-                  String indice = line.substring(0, idx1);
-
-                  tipo.trim();
-                  nombre.trim();
-                  
-                  linesWithKeys.emplace_back(std::move(tipo), std::move(nombre), 
-                                          std::move(indice), std::move(line));
-
-                  currentLine++;
-                  int progress = (currentLine * 100) / totalLines;
-                  if (progress % 5 == 0 && progress != lastProgress) {
-                      writeString("statusFILE.txt=\"READING " + String(progress) + "%\"");
-                      lastProgress = progress;
-                      yield();
-                  }
-
-                  accumulatedLine = accumulatedLine.substring(lineEnd + 1);
-              }
-          }
-
-          free(buffer);
-
-          // Ordenar usando comparador que depende de firstDir
-          writeString("statusFILE.txt=\"SORTING\"");
-          yield();
-
-          std::sort(linesWithKeys.begin(), linesWithKeys.end(),
-              [firstDir](const std::tuple<String,String,String,String> &a, 
-                        const std::tuple<String,String,String,String> &b) {
-                  const String &tipoA = std::get<0>(a);
-                  const String &nombreA = std::get<1>(a);
-                  const String &tipoB = std::get<0>(b);
-                  const String &nombreB = std::get<1>(b);
-
-                  bool aIsDir = (tipoA == "D");
-                  bool bIsDir = (tipoB == "D");
-                  
-                  // Detectar archivos especiales .lst y .inf
-                  bool aIsSpecial = nombreA.endsWith(".lst") || nombreA.endsWith(".inf") || nombreA.endsWith(".txt");
-                  bool bIsSpecial = nombreB.endsWith(".lst") || nombreB.endsWith(".inf") || nombreB.endsWith(".txt");
-
-                  // Los archivos especiales (.lst .inf) siempre van al final
-                  if (aIsSpecial != bIsSpecial) {
-                      return !aIsSpecial; // Los especiales van al final
-                  }
-
-                  // Si ambos son archivos especiales, ordenar por nombre
-                  if (aIsSpecial && bIsSpecial) {
-                      return nombreA.compareTo(nombreB) < 0;
-                  }
-
-                  // Lógica principal según firstDir
-                  if (firstDir) {
-                      // firstDir = true: Directorios primero, luego archivos
-                      if (aIsDir != bIsDir) {
-                          return aIsDir; // Directorios primero
-                      }
-                  } else {
-                      // firstDir = false: Archivos primero, luego directorios  
-                      if (aIsDir != bIsDir) {
-                          return !aIsDir; // Archivos primero
-                      }
-                  }
-
-                  // Si son del mismo tipo, ordenar por nombre
-                  return nombreA.compareTo(nombreB) < 0;
-              }
-          );
-
-          // Escribir archivo ordenado
-          writeString("statusFILE.txt=\"SAVING\"");
-          yield();
-
-          if (file) {
-              String filepath = file.path();
-              file.close();
-              file = SD_MMC.open(filepath.c_str(), FILE_WRITE);
-              
-              lastProgress = -1;
-              const size_t totalItems = linesWithKeys.size();
-              
-              for (size_t i = 0; i < totalItems; i++) {
-                  yield();
-                  file.println(std::get<3>(linesWithKeys[i]));
-                  
-                  int progress = (i * 100) / totalItems;
-                  if (progress % 5 == 0 && progress != lastProgress) {
-                      writeString("statusFILE.txt=\"SAVING " + String(progress) + "%\"");
-                      lastProgress = progress;
-                      yield();
-                  }
-              }
-              
-              file.flush();
-          }
-
-          writeString("statusFILE.txt=\"SORT COMPLTE\"");
-          linesWithKeys.clear();
-          linesWithKeys.shrink_to_fit();
-      }
-
-      // void sortFile_old(File &file, bool firstDir = true) 
-      // {
-      //     if (!file) return;
-          
-      //     file.seek(0);
-      //     std::vector<std::tuple<String, String, String, String>> linesWithKeys;
-      //     linesWithKeys.reserve(FILE_TOTAL_FILES);
-      //     String lineStr;
-
-      //     // 1. Leemos las líneas y las almacenamos
-      //     while (file.available()) {
-      //         lineStr = file.readStringUntil('\n');
-      //         if (lineStr.length() == 0) continue;
-      //         lineStr.trim();
-
-      //         int idx1 = lineStr.indexOf('|');
-      //         if (idx1 == -1) continue;
-
-      //         int idx2 = lineStr.indexOf('|', idx1 + 1);
-      //         if (idx2 == -1) continue;
-
-      //         int idx3 = lineStr.indexOf('|', idx2 + 1);
-      //         if (idx3 == -1) continue;
-
-      //         int idx4 = lineStr.indexOf('|', idx3 + 1);
-      //         if (idx4 == -1) continue;
-
-      //         String tipo = lineStr.substring(idx1 + 1, idx2);
-      //         String nombre = lineStr.substring(idx3 + 1, idx4);
-      //         String indice = lineStr.substring(0, idx1);
-
-      //         tipo.trim();
-      //         nombre.trim();
-
-      //         linesWithKeys.push_back(std::make_tuple(tipo, nombre, indice, lineStr));
-      //     }
-
-      //     // 2. Ordenamos usando un comparador compatible con C++11
-      //     std::sort(linesWithKeys.begin(), linesWithKeys.end(),
-      //         [firstDir](const std::tuple<String,String,String,String> &a, 
-      //                   const std::tuple<String,String,String,String> &b) {
-      //             const String &tipoA = std::get<0>(a);
-      //             const String &nombreA = std::get<1>(a);
-      //             const String &tipoB = std::get<0>(b);
-      //             const String &nombreB = std::get<1>(b);
-
-      //             bool aIsDir = (tipoA == "D");
-      //             bool bIsDir = (tipoB == "D");
-
-      //             if (aIsDir != bIsDir) {
-      //                 return firstDir ? aIsDir : !aIsDir;
-      //             }
-
-      //             bool aIsUnderscore = nombreA.startsWith("_");
-      //             bool bIsUnderscore = nombreB.startsWith("_");
-      //             if (aIsUnderscore != bIsUnderscore) {
-      //                 return !aIsUnderscore;
-      //             }
-
-      //             return nombreA.compareTo(nombreB) < 0;
-      //         }
-      //     );
-
-      //     // 3. Escribimos el archivo ordenado
-      //     if (file) {
-      //         String filepath = file.path();
-      //         file.close();
-      //         file = SD_MMC.open(filepath.c_str(), FILE_WRITE);
-      //         file.seek(0);
-              
-      //         // En lugar de truncate, usamos write y close
-      //         file.close();
-      //         file = SD_MMC.open(filepath.c_str(), FILE_WRITE);
-
-      //         for (const auto& tup : linesWithKeys) {
-      //             file.println(std::get<3>(tup));
-      //         }
-      //         file.flush();
-      //     }
-
-      //     // 4. Liberamos memoria
-      //     linesWithKeys.clear();
-      //     linesWithKeys.shrink_to_fit();
-      // }
-
-      // inline bool hasInvalidASCII(const String& str) {
-      //     const char* data = str.c_str();
-          
-      //     // Solo los caracteres de control (0-31) y el DEL (127) son inválidos
-      //     // para nombres de archivo en tu sistema
-      //     static const char invalid_chars[] = 
-      //         "\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0A\x0B\x0C\x0D\x0E\x0F"
-      //         "\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1A\x1B\x1C\x1D\x1E\x1F"
-      //         "\x7F"; // Solo el carácter DEL (127)
-          
-      //     // strpbrk busca el PRIMER carácter que SÍ está en invalid_chars
-      //     return strpbrk(data, invalid_chars) != NULL;
-      // }
-
-      void fillWithFilesFromFile(File &fout, File &fstatus, const String &search_pattern, const String &path) 
-      {
-          // Ruta del archivo _files.lst
-          String path_file_lst = "";
-          if (path.lastIndexOf('/') == path.length() - 1) 
-          {
-              // Si la ruta termina con '/', le añadimos el nombre del archivo
-              path_file_lst = path + "_files.lst";
-          } else {
-              // Si no termina con '/', añadimos '/' y el nombre del archivo
-              path_file_lst = path + "/_files.lst";          
-          }
-      
-          // Verificamos si el archivo _files.lst existe
-          if (!SD_MMC.exists(path_file_lst.c_str())) {
-              logln("File _files.lst does not exist: " + path_file_lst);
-              return;
-          }
-
-          logln("Reading file: " + path_file_lst);
-
-          // Abrimos el archivo _files.lst
-          File lstFile;
-          lstFile = SD_MMC.open(path_file_lst.c_str(), FILE_READ);
-          if (!lstFile) {
-              logln("Failed to open _files.lst: " + path_file_lst);
-              return;
-          }
-      
-          lstFile.seek(0);
-      
-          // Variables para procesar el archivo
-          char line[256];
-          String strLine;
-          int n = 0;
-          //int itemsCount = 0;
-          int itemsToShow = 0;
-          FILE_TOTAL_FILES = 0;
-      
-          String searchPatternUC = search_pattern;
-          searchPatternUC.toUpperCase(); // Convertimos el patrón de búsqueda a mayúsculas
-
-          writeString("statusFILE.txt=\"Search...\"");
-      
-          // Recorremos el archivo línea por línea
-          while (lstFile.available()) {
-              strLine = lstFile.readStringUntil('\n');
-              strLine.toCharArray(line, sizeof(line));
-              n = strlen(line);
-              line[n - 1] = 0; // Eliminamos el terminador '\n'              line[n - 1] = 0; // Eliminamos el terminador '\n'
-      
-              // Extraemos los parámetros de la línea
-              tFileLST fl = getParametersFromLine(line);
-      
-              // Convertimos el nombre del archivo a mayúsculas para la comparación
-              String filenameUC = fl.fileName;
-              filenameUC.toUpperCase();
-
-              // logln("Processing file: " + fl.fileName + " (Type: " + fl.fileType + ", Seek: " + String(fl.seek) + ", IDZXDB: " + fl.IDZXDB + ")");
-              // logln("Search pattern: " + searchPatternUC);
-              // logln("Filename uppercase: " + filenameUC);
-
-              // Si el archivo cumple con el patrón de búsqueda, lo escribimos en fout
-              if (filenameUC.indexOf(searchPatternUC) != -1) 
-              {
-                  if (fl.IDZXDB != "") 
-                  {
-                    fout.printf("%d|%s|%d|%s|%s|\n", fl.ID, fl.fileType.c_str(), fl.seek, fl.fileName.c_str(), fl.IDZXDB.c_str());
-                  }
-                  else
-                  {
-                    fout.printf("%d|%s|%d|%s|\n", fl.ID, fl.fileType.c_str(), fl.seek, fl.fileName.c_str());
-                  }
-                  
-                  FILE_TOTAL_FILES++;
-              }
-      
-              // Actualizamos el estado en HMI
-              //itemsCount++;
-              itemsToShow++;
-              if (itemsToShow >= EACH_FILES_REFRESH) {
-                  writeString("statusFILE.txt=\"FOUND " + String(FILE_TOTAL_FILES) + "\"");
-                  itemsToShow = 0; // Reiniciamos el contador
-              }
-
-          }
-      
-          // Cerramos el archivo
-          lstFile.close();
-      
-          #ifdef DEBUGMODE
-              logln("Total files found: " + String(FILE_TOTAL_FILES));
-          #endif
-      }
-
-    
-      void fillWithFiles(File &fout, File &fstatus, String search_pattern)
-      {
-          // *****************************************************************************
-          //
-          // Con este metodo, leemos el directorio actual y volcamos los ficheros en fout
-          //
-          // *****************************************************************************
-
-          //char szName[256];
-          const String separator="|";
-          if (!global_dir.isDirectory()) return;
-          global_dir.seek(0);
-      
-          int lpos = 1, cdir = 0, cfiles = 0;
-          int itemsCount = 0, itemsToShow = 0;
-          FILE_TOTAL_FILES = 0;
-      
-          // Convierte el patrón de búsqueda a minúsculas una sola vez
-          search_pattern.toLowerCase();
-      
-          #ifdef DEBUGMODE
-              logln("Registering files with pattern: " + search_pattern);
-          #endif
-
-          String entry;
-          while (entry = global_dir.getNextFileName())
-          {
-              
-              if (entry == "") break;
-
-              #ifdef DEBUGMODE
-                  logln("Reading file: " + entry);
-              #endif
-
-              //esp_task_wdt_reset();
-              String fname = entry;
-              String fnameToLower = "";
-              size_t len = fname.length();
-      
-              if (len != 0)
-              {
-                  fname = String(entry).substring(String(entry).lastIndexOf('/') + 1);
-                  fnameToLower = fname;
-                  fnameToLower.toLowerCase();
-
-                  // Obtenemos la extensión del fichero
-                  const char *ext = getFileExtension(fnameToLower.c_str());
-
-                  // logln("File name: " + fnameToLower);
-                  // logln("Extension: " + String(ext));
-
-                  #ifdef DEBUGMODE
-                      logln("File: " + fname);
-                      if (ext) logln("Extension: " + String(ext));
-                      else logln("No extension found.");
-                  #endif
-
-                  if (fnameToLower.indexOf(search_pattern) != -1 || search_pattern == "")
-                  {
-                      bool isDir = isDirectoryPath(entry.c_str()); // entry.isDirectory();
-                      bool isHidden = entry[0] == '.';
-
-                      //if (ext == nullptr) ext = ""; // Si no hay extensión, asignamos cadena vacía
-
-                      if (!isDir && !isHidden)
-                      {
-                          // Compara extensión directamente (más rápido que strstr)
-                          if (strcmp(ext, "tap") == 0 || strcmp(ext, "tzx") == 0 || strcmp(ext, "pzx") == 0 ||
-                              strcmp(ext, "tsx") == 0 || strcmp(ext, "cdt") == 0 ||
-                              strcmp(ext, "wav") == 0 || strcmp(ext, "mp3") == 0 ||
-                              strcmp(ext, "flac") == 0 || strcmp(ext, "lst") == 0 ||
-                              strcmp(ext, "dsc") == 0 || strcmp(ext, "inf") == 0 ||
-                              strcmp(ext, "txt") == 0 || strcmp(ext, "radio") == 0 || 
-                              strcmp(ext, "zxdb") == 0 || strcmp(ext, "csw") == 0 || strcmp(ext, "zip") == 0)
-                          {
-                              fout.print(String(lpos)); fout.print(separator);
-                              fout.print("F"); fout.print(separator);
-                              fout.print(String(global_dir.position())); fout.print(separator);
-                              fout.print(fname); fout.println(separator);
-                              cfiles++; lpos++;
-                          }
-                      }
-                      else if (isDir && !isHidden)
-                      {
-                          fout.print(String(lpos)); fout.print(separator);
-                          fout.print("D"); fout.print(separator);
-                          fout.print(String(global_dir.position())); fout.print(separator);
-                          fout.print(fname); fout.println(separator);
-                          cdir++; lpos++;
-                      }
-                      FILE_TOTAL_FILES = cdir + cfiles;
-                      if (itemsToShow >= EACH_FILES_REFRESH)
-                      {
-                          writeString("statusFILE.txt=\"ITEMS " + String(itemsCount) + "\"");
-                          itemsToShow = 0;
-                      }
-                  }
-              }
-              //entry.close();
-              itemsCount++;
-              itemsToShow++;
-          }
-          //
-          fstatus.println("CFIL=" + String(cfiles));
-          fstatus.println("CDIR=" + String(cdir));
-      }     
-
-      bool createEmptyFile32(char* path)
-      {
-        File fFile;
-        fFile = SD_MMC.open(path, FILE_WRITE);
-        if (fFile)
+        // Abrimos el archivo original para lectura
+        File lstFile = SD_MMC.open((lstPath).c_str(), FILE_READ);
+        if (!lstFile) 
         {
-            fFile.close();
-            return true;
+            log_debug("HMI","Error opening list file.");
+            return false;
+        }
+        lstFile.seek(0);
+
+        // Creamos un archivo temporal para escribir las líneas que no se van a eliminar
+        File tmpFile = SD_MMC.open(tmpPath.c_str(), FILE_WRITE);
+        if (!tmpFile) {
+            lstFile.close();
+            log_debug("HMI","Error creating temporary file.");
+            return false;
+        }
+
+        log_debug("HMI","Processing list file...");
+
+        while (lstFile.available()) 
+        {
+            String line = lstFile.readStringUntil('\n');
+            log_debug("HMI","Processing line: " + line);
+            // Extrae el nombre del archivo de la línea
+            int idx1 = line.indexOf('|');
+            int idx2 = line.indexOf('|', idx1 + 1);
+            int idx3 = line.indexOf('|', idx2 + 1);
+            int idx4 = line.indexOf('|', idx3 + 1);
+          
+            String nombre = "";
+          
+            if (idx1 != -1 && idx2 != -1 && idx3 != -1 && idx4 != -1) {
+                nombre = line.substring(idx3 + 1, idx4);
+                nombre.trim();
+            }
+            
+            // Compara los nombres ignorando mayúsculas/minúsculas
+            nombre.toLowerCase();
+            String fileNameToDel = fileNameToRemove;
+            fileNameToDel.toLowerCase();
+            
+            // Si no coincide, la copiamos al temporal
+            if (nombre != fileNameToDel) {
+                tmpFile.println(line);
+            }
+            itemsCount++;
+        }
+        lstFile.close();
+        tmpFile.close();
+
+        // Borra el original y renombra el temporal
+        if (itemsCount != 0)
+        {
+          SD_MMC.remove(lstPath);
+          SD_MMC.rename(tmpPath, lstPath);
+          log_debug("HMI","End removing file from list.");
         }
         else
         {
-            fFile.close();
-            return false;
+          SD_MMC.remove(tmpPath);
+          log_debug("HMI","No items found in list.");
         }
-      }
 
-      bool removeFileFromLst(const String& lstPath, const String& fileNameToRemove) 
-      {
-          String tmpPath = lstPath + ".tmp";
-          logln("Removing file from list: " + fileNameToRemove + " in " + lstPath);
-          logln("Temporary file: " + tmpPath);
-          int itemsCount = 0;
+        return true;
+    }
 
-          // Abrimos el archivo original para lectura
-          File lstFile = SD_MMC.open((lstPath).c_str(), FILE_READ);
-          if (!lstFile) 
-          {
-              logln("Error opening list file.");
-              return false;
-          }
-          lstFile.seek(0);
+    void registerFiles(const String &path, const String &filename, const String &filename_inf, const String &search_pattern, bool rescan) 
+    {
+        // Construimos las rutas completas
 
-          // Creamos un archivo temporal para escribir las líneas que no se van a eliminar
-          File tmpFile = SD_MMC.open(tmpPath.c_str(), FILE_WRITE);
-          if (!tmpFile) {
-              lstFile.close();
-              logln("Error creating temporary file.");
-              return false;
-          }
+        String regFile = path + "/" + filename;
+        String statusFile = path + "/" + filename_inf;
+    
+        // Buffers para las rutas
+        char file_ch[256];
+        char filest_ch[256];
+        char path_ch[256];
+    
+        regFile.toCharArray(file_ch, sizeof(file_ch));
+        statusFile.toCharArray(filest_ch, sizeof(filest_ch));
+        path.toCharArray(path_ch, sizeof(path_ch));
+    
+        // Manejadores de archivos
+        File f, fstatus;
+    
+        log_debug("HMI","Registering. File created: " + regFile);
+        log_debug("HMI","Registering. File status created: " + statusFile);
+        log_debug("HMI","Rescan: " + String(rescan));
 
-          logln("Processing list file...");
+        // Abrimos los archivos
+        f = SD_MMC.open(file_ch, FILE_WRITE);
+        fstatus = SD_MMC.open(filest_ch, FILE_WRITE);
 
-          while (lstFile.available()) 
-          {
-              String line = lstFile.readStringUntil('\n');
-              logln("Processing line: " + line);
-              // Extrae el nombre del archivo de la línea
-              int idx1 = line.indexOf('|');
-              int idx2 = line.indexOf('|', idx1 + 1);
-              int idx3 = line.indexOf('|', idx2 + 1);
-              int idx4 = line.indexOf('|', idx3 + 1);
-            
-              String nombre = "";
-            
-              if (idx1 != -1 && idx2 != -1 && idx3 != -1 && idx4 != -1) {
-                  nombre = line.substring(idx3 + 1, idx4);
-                  nombre.trim();
-              }
-              
-              // Compara los nombres ignorando mayúsculas/minúsculas
-              nombre.toLowerCase();
-              String fileNameToDel = fileNameToRemove;
-              fileNameToDel.toLowerCase();
-              
-              // Si no coincide, la copiamos al temporal
-              if (nombre != fileNameToDel) {
-                  tmpFile.println(line);
-              }
-              itemsCount++;
-          }
-          lstFile.close();
-          tmpFile.close();
+        if (!f || !fstatus) 
+        {
+            log_debug("HMI","Error opening files for writing.");
 
-          // Borra el original y renombra el temporal
-          if (itemsCount != 0)
-          {
-            SD_MMC.remove(lstPath);
-            SD_MMC.rename(tmpPath, lstPath);
-            logln("End removing file from list.");
-          }
-          else
-          {
-            SD_MMC.remove(tmpPath);
-            logln("No items found in list.");
-          }
-
-          return true;
-      }
-
-      void registerFiles(const String &path, const String &filename, const String &filename_inf, const String &search_pattern, bool rescan) 
-      {
-          // Construimos las rutas completas
-
-          String regFile = path + "/" + filename;
-          String statusFile = path + "/" + filename_inf;
-      
-          // Buffers para las rutas
-          char file_ch[256];
-          char filest_ch[256];
-          char path_ch[256];
-      
-          regFile.toCharArray(file_ch, sizeof(file_ch));
-          statusFile.toCharArray(filest_ch, sizeof(filest_ch));
-          path.toCharArray(path_ch, sizeof(path_ch));
-      
-          // Manejadores de archivos
-          File f, fstatus;
-      
-          logln("Registering. File created: " + regFile);
-          logln("Registering. File status created: " + statusFile);
-          logln("Rescan: " + String(rescan));
-
-          // Abrimos los archivos
-          f = SD_MMC.open(file_ch, FILE_WRITE);
-          fstatus = SD_MMC.open(filest_ch, FILE_WRITE);
-  
-          if (!f || !fstatus) 
-          {
-              #ifdef DEBUGMODE
-                  logln("Error opening files for writing.");
-              #endif
-
-              writeString("statusFILE.txt=\"ERROR\"");
-              return;
-          }
-          else
-          {
-              // Escribimos la ruta en el archivo de estado
-              fstatus.println("PATH=" + path);
-
-              #ifdef DEBUGMODE
-                  logln("Registering files in path: " + path);   
-              #endif
-      
-              bool zxdb_search = (FILE_LAST_DIR.indexOf("/ONLINE/ZX/") != -1 || FILE_LAST_DIR.indexOf("/ONLINE/CPC/") != -1 || FILE_LAST_DIR.indexOf("/ONLINE/MSX/") != -1) ? true : false;
-              if (zxdb_search)
-              {
-                  // Si la ruta es ONLINE, no intentamos cargar un _files.lst previo
-                  logln("Online path, skipping loading from existing file.");
-              }
-
-              // Si es una búsqueda y no es un rescan, usamos el archivo existente
-              if (zxdb_search || (!search_pattern.isEmpty() && !rescan && f.size() > 0 && fstatus.size() > 0))
-              {
-                  logln("Filling with existing file: " + regFile);
-                  fillWithFilesFromFile(f, fstatus, search_pattern, path);
-              } 
-              else 
-              {
-                  // Registro normal
-                  fillWithFiles(f, fstatus, search_pattern);
-
-                  if (f)
-                  {
-                    f.close();
-                    f = SD_MMC.open(file_ch, FILE_READ);
-                    // Ordenamos el archivo _files.lst
-                    #ifdef DEBUGMODE
-                        logln("Sorting file...");
-                    #endif
-                    
-                    writeString("statusFILE.txt=\"SORTING\"");
-                    sortFile(f,SORT_FILES_FIRST_DIR);
-                  }
-              }
-      
-              // Cerramos los archivos
-              f.close();
-              fstatus.close();
+            writeString("statusFILE.txt=\"ERROR\"");
+            return;
         }
+        else
+        {
+            // Escribimos la ruta en el archivo de estado
+            fstatus.println("PATH=" + path);
+
+            log_debug("HMI","Registering files in path: " + path);   
+    
+            bool zxdb_search = (FILE_LAST_DIR.indexOf("/ONLINE/ZX/") != -1 || FILE_LAST_DIR.indexOf("/ONLINE/CPC/") != -1 || FILE_LAST_DIR.indexOf("/ONLINE/MSX/") != -1) ? true : false;
+            if (zxdb_search)
+            {
+                // Si la ruta es ONLINE, no intentamos cargar un _files.lst previo
+                log_debug("HMI","Online path, skipping loading from existing file.");
+            }
+
+            // Si es una búsqueda y no es un rescan, usamos el archivo existente
+            if (zxdb_search || (!search_pattern.isEmpty() && !rescan && f.size() > 0 && fstatus.size() > 0))
+            {
+                log_debug("HMI","Filling with existing file: " + regFile);
+                fillWithFilesFromFile(f, fstatus, search_pattern, path);
+            } 
+            else 
+            {
+                // Registro normal
+                fillWithFiles(f, fstatus, search_pattern);
+
+                if (f)
+                {
+                  f.close();
+                  f = SD_MMC.open(file_ch, FILE_READ);
+                  // Ordenamos el archivo _files.lst
+                  log_debug("HMI","Sorting file...");
+                  
+                  writeString("statusFILE.txt=\"SORTING\"");
+                  sortFile(f,SORT_FILES_FIRST_DIR);
+                }
+            }
+    
+            // Cerramos los archivos
+            f.close();
+            fstatus.close();
       }
+    }
 
-      tFileLST getParametersFromLine(char* line)
-      {   
-          tFileLST lineData;
-          int index = 0;
-          char* ptr = NULL;
-          const char* separator="|";
+    tFileLST getParametersFromLine(char* line)
+    {   
+        tFileLST lineData;
+        int index = 0;
+        char* ptr = NULL;
+        const char* separator="|";
 
-          ptr = strtok(line,separator);
+        ptr = strtok(line,separator);
 
-          while(ptr != NULL)
-          {
-              // Capturamos los tokens
-              switch(index)
+        while(ptr != NULL)
+        {
+            // Capturamos los tokens
+            switch(index)
+            {
+              case 0:
               {
-                case 0:
-                {
-                  lineData.ID = atoi(ptr);
-                }
-                break;
+                lineData.ID = atoi(ptr);
+              }
+              break;
 
-                case 1:
-                {
-                  lineData.type = ptr[0];
-                }
-                break;
+              case 1:
+              {
+                lineData.type = ptr[0];
+              }
+              break;
 
-                case 2:
-                {
-                  lineData.seek = atoi(ptr);
-                }
-                break;
+              case 2:
+              {
+                lineData.seek = atoi(ptr);
+              }
+              break;
 
-                case 3:
-                {
-                  // Cogemos la extensión del fichero
-                  lineData.fileName = String(ptr);
-                  int dotIdx = lineData.fileName.lastIndexOf('.');
-                  lineData.fileType = (dotIdx != -1) ? lineData.fileName.substring(dotIdx) : "";
-                  //logln("File type: " + lineData.fileType);
-                }
-                break;
+              case 3:
+              {
+                // Cogemos la extensión del fichero
+                lineData.fileName = String(ptr);
+                int dotIdx = lineData.fileName.lastIndexOf('.');
+                lineData.fileType = (dotIdx != -1) ? lineData.fileName.substring(dotIdx) : "";
+                log_debug("HMI","File type: " + lineData.fileType);
+              }
+              break;
 
-                case 4:
-                {
-                  lineData.IDZXDB = String(ptr);
-                }
-                break;
-              }          
-              ptr = strtok(NULL, separator);
-              index++;
+              case 4:
+              {
+                lineData.IDZXDB = String(ptr);
+              }
+              break;
+            }          
+            ptr = strtok(NULL, separator);
+            index++;
+        }
+
+        return lineData;
+    }
+
+    int getSeekFileLST(File &f, int posFileBrowser)
+    {
+      int seekFile = 0;
+      char line[256];
+      String sline;
+      //
+      int n;
+      int i=0;        
+
+      if (f)
+      {
+          // read lines from the file
+          while (f.available()) 
+          {
+              sline = f.readStringUntil('\n');
+              sline.toCharArray(line, sizeof(line));
+              n = strlen(line);
+              // eliminamos el terminador '\n'
+              line[n-1] = 0;
+
+              // Ahora leemos los datos de la linea
+              tFileLST ld = getParametersFromLine(line);
+
+              // si coincide con la posición buscada
+              if (posFileBrowser == ld.ID);
+              {
+                  // Devolvemos el seek
+                  return ld.seek;
+              }
           }
-
-          return lineData;
       }
 
-      int getSeekFileLST(File &f, int posFileBrowser)
-      {
-        int seekFile = 0;
+      return seekFile;
+    }
+
+    tFileLST getNextLineInFileLST(File& f)
+    {
         char line[256];
         String sline;
-        //
-        int n;
-        int i=0;        
+        int n = 0;
+
+        tFileLST ld;
+        ld.fileName= "";
+        ld.ID = -1;
+        ld.seek = -1;
+        ld.type = '\0';
 
         if (f)
         {
-            // read lines from the file
-            while (f.available()) 
+            if(f.available())
             {
                 sline = f.readStringUntil('\n');
                 sline.toCharArray(line, sizeof(line));
                 n = strlen(line);
                 // eliminamos el terminador '\n'
                 line[n-1] = 0;
-
                 // Ahora leemos los datos de la linea
-                tFileLST ld = getParametersFromLine(line);
+                ld = getParametersFromLine(line); 
+            }
+        }
+        else
+        {
+          log_debug("HMI","Error reading file. " + SOURCE_FILE_TO_MANAGE +" is closed");
+        }
 
-                // si coincide con la posición buscada
-                if (posFileBrowser == ld.ID);
-                {
-                    // Devolvemos el seek
-                    return ld.seek;
-                }
+        return ld;
+    }
+
+    void putFilePtrInPosition(File &f, int pos) 
+    {
+        if (!f) {
+            log_debug("HMI","File is not open.");
+            return;
+        }
+
+        f.seek(0); // Comenzamos desde el principio del fichero
+
+        char line[256];
+        String sline;
+        int currentLine = 0;
+
+        log_debug("HMI","Moving pointer to position: " + String(pos));
+
+        // Saltamos líneas hasta alcanzar la posición deseada
+        while (currentLine < pos && f.available()) {
+            sline = f.readStringUntil('\n');
+            sline.toCharArray(line, sizeof(line));
+            currentLine++;
+        }
+
+        log_debug("HMI","Pointer moved to position: " + String(currentLine));
+    }
+
+    void countTotalLinesInLST(const String &path, const String &sourceFile) {
+        File fFileINF;
+        String fFile = path + "/" +sourceFile;
+
+        // Abrimos el fichero _files.inf
+        fFileINF = SD_MMC.open(fFile.c_str(), FILE_READ);
+        if (!fFileINF) {
+            log_debug("HMI","Failed to open file: " + fFile);
+            return;
+        }
+
+        fFileINF.seek(0);
+
+        FILE_TOTAL_FILES = 0;
+        char line[256];
+        String sline;
+        int cdir = 0, cfil = 0;
+
+        // Leemos línea por línea
+        while (fFileINF.available()) {
+            sline = fFileINF.readStringUntil('\n');
+            sline.toCharArray(line, sizeof(line));
+
+            if (strncmp(line, "CDIR=", 5) == 0) {
+                cdir = atoi(line + 5); // Extraemos el número después de "CDIR="
+            } else if (strncmp(line, "CFIL=", 5) == 0) {
+                cfil = atoi(line + 5); // Extraemos el número después de "CFIL="
             }
         }
 
-        return seekFile;
-      }
+        FILE_TOTAL_FILES = cdir + cfil;
 
-      tFileLST getNextLineInFileLST(File& f)
-      {
-          char line[256];
-          String sline;
-          int n = 0;
+        log_debug("HMI","Total directories: " + String(cdir));
+        log_debug("HMI","Total files: " + String(cfil));
+        log_debug("HMI","Total items: " + String(FILE_TOTAL_FILES));
 
-          tFileLST ld;
-          ld.fileName= "";
-          ld.ID = -1;
-          ld.seek = -1;
-          ld.type = '\0';
+        fFileINF.close();
+    }
 
-          if (f)
-          {
-              if(f.available())
-              {
-                  sline = f.readStringUntil('\n');
-                  sline.toCharArray(line, sizeof(line));
-                  n = strlen(line);
-                  // eliminamos el terminador '\n'
-                  line[n-1] = 0;
-                  // Ahora leemos los datos de la linea
-                  ld = getParametersFromLine(line); 
-              }
-          }
-          else
-          {
-            #ifdef DEBUGMODE
-              logln("Error reading file. " + SOURCE_FILE_TO_MANAGE +" is closed");
-            #endif
-          }
+    void putFilesInList() 
+    {
+        tFileLST fl;
+        int idptr = 1; // Comenzamos desde el índice 1 (el índice 0 es para el directorio padre)
 
-          return ld;
-      }
+        // Añadimos los archivos al buffer de presentación
+        while (idptr < MAX_FILES_TO_LOAD) {
+            fl = getNextLineInFileLST(fFileLST);
 
-      void putFilePtrInPosition(File &f, int pos) 
-      {
-          if (!f) {
-              #ifdef DEBUGMODE
-                  logln("File is not open.");
-              #endif
-              return;
-          }
+            // Si llegamos al final del archivo, salimos
+            if (fl.ID == -1) {
+                log_debug("HMI","EOF reached.");
+                break;
+            }
 
-          f.seek(0); // Comenzamos desde el principio del fichero
+            // Asignamos los datos al buffer
+            FILES_BUFF[idptr].fileposition = fl.seek;
+            FILES_BUFF[idptr].path = fl.fileName;
 
-          char line[256];
-          String sline;
-          int currentLine = 0;
+            if (fl.type == 'D') {
+                FILES_BUFF[idptr].type = "DIR";
+                FILES_BUFF[idptr].isDir = true;
+            } else {
+                FILES_BUFF[idptr].isDir = false;
+                FILES_BUFF[idptr].type = fl.fileType;
+                FILES_BUFF[idptr].type.toUpperCase(); // Convertimos el tipo a mayúsculas
+            }
 
-          #ifdef DEBUGMODE
-              logln("Moving pointer to position: " + String(pos));
-          #endif
+            log_debug("HMI","File added: " + fl.fileName + " - " + fl.fileType + " - " + String(fl.ID) + " - " + String(fl.seek) + " - " + String(fl.type));
 
-          // Saltamos líneas hasta alcanzar la posición deseada
-          while (currentLine < pos && f.available()) {
-              sline = f.readStringUntil('\n');
-              sline.toCharArray(line, sizeof(line));
-              currentLine++;
-          }
+            idptr++;
+        }
+    }
 
-          #ifdef DEBUGMODE
-              logln("Pointer moved to position: " + String(currentLine));
-          #endif
-      }
+    void getFilesFromSD(bool force_rescan, const String &output_file, const String &output_file_inf, const String &search_pattern = "") 
+    {
+        // Abrimos el archivo _files.lst
+        writeString("statusFILE.txt=\"GET FILES\"");
 
-      void countTotalLinesInLST(const String &path, const String &sourceFile) {
-          File fFileINF;
-          String fFile = path + "/" +sourceFile;
+        // Abrimos ahora el _files.lst, para manejarlo
+        String fFileList = FILE_LAST_DIR + "/" + SOURCE_FILE_TO_MANAGE;
 
-          // Abrimos el fichero _files.inf
-          fFileINF = SD_MMC.open(fFile.c_str(), FILE_READ);
-          if (!fFileINF) {
-              #ifdef DEBUGMODE
-                  logln("Failed to open file: " + fFile);
-              #endif
-              return;
-          }
+        FB_READING_FILES = true;
+    
+        clearFileBuffer();
+          
+        // Aseguramos que el directorio está abierto
+        if (global_dir) 
+        {
+            global_dir.close();
+        }
 
-          fFileINF.seek(0);
+        // Abrimos el directorio
+        log_debug("HMI","Trying to open dir: " + FILE_LAST_DIR);
 
-          FILE_TOTAL_FILES = 0;
-          char line[256];
-          String sline;
-          int cdir = 0, cfil = 0;
+        global_dir = SD_MMC.open(FILE_LAST_DIR.c_str(), FILE_READ);
 
-          // Leemos línea por línea
-          while (fFileINF.available()) {
-              sline = fFileINF.readStringUntil('\n');
-              sline.toCharArray(line, sizeof(line));
+        if (!global_dir || !global_dir.isDirectory())
+        {
+            log_debug("HMI","Failed to open directory: " + FILE_LAST_DIR);  
 
-              if (strncmp(line, "CDIR=", 5) == 0) {
-                  cdir = atoi(line + 5); // Extraemos el número después de "CDIR="
-              } else if (strncmp(line, "CFIL=", 5) == 0) {
-                  cfil = atoi(line + 5); // Extraemos el número después de "CFIL="
-              }
-          }
+            FILE_DIR_OPEN_FAILED = true;
+            return;
+        }
+    
+        log_debug("HMI","Search: Directory: " + FILE_LAST_DIR + " - opened successfully.");
 
-          FILE_TOTAL_FILES = cdir + cfil;
+        FILE_DIR_OPEN_FAILED = false;
+    
+        // Si el fichero manejador no está abierto, generamos el _files.lst si es necesario
+        if (!LST_FILE_IS_OPEN) 
+        {
 
-          #ifdef DEBUGMODE
-              logln("Total directories: " + String(cdir));
-              logln("Total files: " + String(cfil));
-              logln("Total items: " + String(FILE_TOTAL_FILES));
-          #endif
-
-          fFileINF.close();
-      }
-
-      void putFilesInList() 
-      {
-          tFileLST fl;
-          int idptr = 1; // Comenzamos desde el índice 1 (el índice 0 es para el directorio padre)
-
-          // Añadimos los archivos al buffer de presentación
-          while (idptr < MAX_FILES_TO_LOAD) {
-              fl = getNextLineInFileLST(fFileLST);
-
-              // Si llegamos al final del archivo, salimos
-              if (fl.ID == -1) {
-                  #ifdef DEBUGMODE
-                      logln("EOF reached.");
-                  #endif
-                  break;
-              }
-
-              // Asignamos los datos al buffer
-              FILES_BUFF[idptr].fileposition = fl.seek;
-              FILES_BUFF[idptr].path = fl.fileName;
-
-              if (fl.type == 'D') {
-                  FILES_BUFF[idptr].type = "DIR";
-                  FILES_BUFF[idptr].isDir = true;
-              } else {
-                  FILES_BUFF[idptr].isDir = false;
-                  FILES_BUFF[idptr].type = fl.fileType;
-                  FILES_BUFF[idptr].type.toUpperCase(); // Convertimos el tipo a mayúsculas
-              }
-
-              #ifdef DEBUGMODE
-                  log("File added: ");
-                  log(fl.fileName + " - ");
-                  log(fl.fileType + " - ");
-                  log(String(fl.ID) + " - ");
-                  log(String(fl.seek) + " - ");
-                  log(String(fl.type));
-                  logln("");
-              #endif
-
-              idptr++;
-          }
-      }
-
-      void getFilesFromSD(bool force_rescan, const String &output_file, const String &output_file_inf, const String &search_pattern = "") 
-      {
-          // Abrimos el archivo _files.lst
-          writeString("statusFILE.txt=\"GET FILES\"");
-
-          // Abrimos ahora el _files.lst, para manejarlo
-          String fFileList = FILE_LAST_DIR + "/" + SOURCE_FILE_TO_MANAGE;
-
-          FB_READING_FILES = true;
-      
-          clearFileBuffer();
+            String pathTmp = "";
+            if (FILE_LAST_DIR != "/") {pathTmp = FILE_LAST_DIR + "/" + output_file;}
             
-          // Aseguramos que el directorio está abierto
-          if (global_dir) 
-          {
-              global_dir.close();
-          }
+            log_debug("HMI","Checking if LST file exists at: " + pathTmp);
+            log_debug("HMI","Force rescan: " + String(force_rescan ? "Yes" : "No"));
 
-          // Abrimos el directorio
-          #ifdef DEBUGMODE
-              logln("Trying to open dir: " + FILE_LAST_DIR);
-          #endif
-
-          global_dir = SD_MMC.open(FILE_LAST_DIR.c_str(), FILE_READ);
-
-          if (!global_dir || !global_dir.isDirectory())
-          {
-              #ifdef DEBUGMODE
-                  logln("Failed to open directory: " + FILE_LAST_DIR);  
-              #endif
-
-              FILE_DIR_OPEN_FAILED = true;
-              return;
-          }
-      
-          logln("Search: Directory: " + FILE_LAST_DIR + " - opened successfully.");
-
-          FILE_DIR_OPEN_FAILED = false;
-      
-          // Si el fichero manejador no está abierto, generamos el _files.lst si es necesario
-          if (!LST_FILE_IS_OPEN) 
-          {
-
-              String pathTmp = "";
-              if (FILE_LAST_DIR != "/") {pathTmp = FILE_LAST_DIR + "/" + output_file;}
-              
-              logln("Checking if LST file exists at: " + pathTmp);
-              logln("Force rescan: " + String(force_rescan ? "Yes" : "No"));
-
-              if (force_rescan || !SD_MMC.exists(pathTmp.c_str())) 
-              {
-                // Si el archivo no existe o se fuerza el rescan, lo generamos
-                // Si el directorio no es ONLINE, no forzamos el rescan aunque se haya pedido, para evitar destruirlo ya que es virtual
-                if (FILE_LAST_DIR.indexOf("ONLINE") == -1 && FILE_LAST_DIR.indexOf("ONLINE_CPC") == -1 && FILE_LAST_DIR.indexOf("ONLINE_MSX") == -1) force_rescan = false;
-
-                registerFiles(FILE_LAST_DIR, output_file, output_file_inf, search_pattern, force_rescan);
-              }
-
-              if (fFileLST) 
-              {
-                  fFileLST.close();
-              }
-              
-              fFileLST = SD_MMC.open(fFileList.c_str(), FILE_READ);
-              fFileLST.seek(0);
-              LST_FILE_IS_OPEN = true;
-          }
-          
-          // Si no estamos buscando, contamos las líneas en el archivo _files.inf
-          if (search_pattern == "") 
-          {
-              countTotalLinesInLST(FILE_LAST_DIR, SOURCE_FILE_INF_TO_MANAGE);
-          }
-      
-          // Añadimos el directorio padre al buffer
-          FILES_BUFF[0].isDir = true;
-          FILES_BUFF[0].type = "PAR";
-          FILES_BUFF[0].path = FILE_PREVIOUS_DIR;
-          FILES_BUFF[0].fileposition = global_dir.position();
-
-          // Posicionamos el puntero en el archivo
-          if (FILE_PTR_POS != 0) {
-              putFilePtrInPosition(fFileLST, FILE_PTR_POS - 1);
-          } else {
-              putFilePtrInPosition(fFileLST, 0);
-          }
-      
-          // Cargamos los archivos en el buffer
-          putFilesInList();
-      
-          // Cerramos el directorio
-          global_dir.close();
-          FB_READING_FILES = false;
-      }
-
-      void printFileRowsBlock(String &serialTxt, int row, int color, String szName)
-      {
-            // Ponemos los inicios de mensaje 0xFF 0xFF 0xFF
-            char t = 255;
-            switch(row)
+            if (force_rescan || !SD_MMC.exists(pathTmp.c_str())) 
             {
-              case 0:
-                  serialTxt += t;
-                  serialTxt += t;
-                  serialTxt += t;
-                  serialTxt += "file0.txt=\"" + String(szName) + "\"";
-                  serialTxt += t;
-                  serialTxt += t;
-                  serialTxt += t;
-                  serialTxt +="file0.pco=" + String(color);
-                  break;
-      
-              case 1:
-                  serialTxt += t;
-                  serialTxt += t;
-                  serialTxt += t;
-                  serialTxt +="file1.txt=\"" + String(szName) + "\"";
-                  serialTxt += t;
-                  serialTxt += t;
-                  serialTxt += t;
-                  serialTxt +="file1.pco=" + String(color);
-                  break;
-      
-              case 2:
-                  serialTxt += t;
-                  serialTxt += t;
-                  serialTxt += t;
-                  serialTxt +="file2.txt=\"" + String(szName) + "\"";
-                  serialTxt += t;
-                  serialTxt += t;
-                  serialTxt += t;
-                  serialTxt +="file2.pco=" + String(color);
-                  break;
-      
-              case 3:
-                  serialTxt += t;
-                  serialTxt += t;
-                  serialTxt += t;
-                  serialTxt +="file3.txt=\"" + String(szName) + "\"";
-                  serialTxt += t;
-                  serialTxt += t;
-                  serialTxt += t;
-                  serialTxt +="file3.pco=" + String(color);
-                  break;
-      
-              case 4:
-                  serialTxt += t;
-                  serialTxt += t;
-                  serialTxt += t;
-                  serialTxt +="file4.txt=\"" + String(szName) + "\"";
-                  serialTxt += t;
-                  serialTxt += t;
-                  serialTxt += t;
-                  serialTxt +="file4.pco=" + String(color);
-                  break;
-      
-              case 5:
-                  serialTxt += t;
-                  serialTxt += t;
-                  serialTxt += t;
-                  serialTxt +="file5.txt=\"" + String(szName) + "\"";
-                  serialTxt += t;
-                  serialTxt += t;
-                  serialTxt += t;
-                  serialTxt +="file5.pco=" + String(color);
-                  break;
-      
-              case 6:
-                  serialTxt += t;
-                  serialTxt += t;
-                  serialTxt += t;
-                  serialTxt +="file6.txt=\"" + String(szName) + "\"";
-                  serialTxt += t;
-                  serialTxt += t;
-                  serialTxt += t;
-                  serialTxt +="file6.pco=" + String(color);
-                  break;
-      
-              case 7:
-                  serialTxt += t;
-                  serialTxt += t;
-                  serialTxt += t;
-                  serialTxt +="file7.txt=\"" + String(szName) + "\"";
-                  serialTxt += t;
-                  serialTxt += t;
-                  serialTxt += t;
-                  serialTxt +="file7.pco=" + String(color);
-                  break;
-      
-              case 8:
-                  serialTxt += t;
-                  serialTxt += t;
-                  serialTxt += t;
-                  serialTxt +="file8.txt=\"" + String(szName) + "\"";
-                  serialTxt += t;
-                  serialTxt += t;
-                  serialTxt += t;
-                  serialTxt +="file8.pco=" + String(color);
-                  break;
-      
-              case 9:
-                  serialTxt += t;
-                  serialTxt += t;
-                  serialTxt += t;
-                  serialTxt +="file9.txt=\"" + String(szName) + "\"";
-                  serialTxt += t;
-                  serialTxt += t;
-                  serialTxt += t;
-                  serialTxt +="file9.pco=" + String(color);
-                  break;
-      
-              case 10:
-                  serialTxt += t;
-                  serialTxt += t;
-                  serialTxt += t;
-                  serialTxt +="file10.txt=\"" + String(szName) + "\"";
-                  serialTxt += t;
-                  serialTxt += t;
-                  serialTxt += t;
-                  serialTxt +="file10.pco=" + String(color);
-                  break;
-      
-              case 11:
-                  serialTxt += t;
-                  serialTxt += t;
-                  serialTxt += t;
-                  serialTxt +="file11.txt=\"" + String(szName) + "\"";
-                  serialTxt += t;
-                  serialTxt += t;
-                  serialTxt += t;
-                  serialTxt +="file11.pco=" + String(color);
-                  break;
-      
-              case 12:
-                  serialTxt += t;
-                  serialTxt += t;
-                  serialTxt += t;
-                  serialTxt +="file12.txt=\"" + String(szName) + "\"";
-                  serialTxt += t;
-                  serialTxt += t;
-                  serialTxt += t;
-                  serialTxt +="file12.pco=" + String(color);
-                  break;
-      
-            }  
+              // Si el archivo no existe o se fuerza el rescan, lo generamos
+              // Si el directorio no es ONLINE, no forzamos el rescan aunque se haya pedido, para evitar destruirlo ya que es virtual
+              if (FILE_LAST_DIR.indexOf("ONLINE") == -1 && FILE_LAST_DIR.indexOf("ONLINE_CPC") == -1 && FILE_LAST_DIR.indexOf("ONLINE_MSX") == -1) force_rescan = false;
 
-            // Ponemos los finales de mensaje 0xFF 0xFF 0xFF
-            serialTxt += t;
-            serialTxt += t;
-            serialTxt += t;
-      }
-      
-      String getPreviousDirFromPath(String path)
-      {
-          String strTmp = INITFILEPATH;
-          //strncpy(strTmp,&INITFILEPATH[0],2);
+              registerFiles(FILE_LAST_DIR, output_file, output_file_inf, search_pattern, force_rescan);
+            }
 
-          #ifdef DEBUGMODE
-            logln("");
-            logln("Current dir: " + path);
-          #endif
+            if (fFileLST) 
+            {
+                fFileLST.close();
+            }
+            
+            fFileLST = SD_MMC.open(fFileList.c_str(), FILE_READ);
+            fFileLST.seek(0);
+            LST_FILE_IS_OPEN = true;
+        }
+        
+        // Si no estamos buscando, contamos las líneas en el archivo _files.inf
+        if (search_pattern == "") 
+        {
+            countTotalLinesInLST(FILE_LAST_DIR, SOURCE_FILE_INF_TO_MANAGE);
+        }
+    
+        // Añadimos el directorio padre al buffer
+        FILES_BUFF[0].isDir = true;
+        FILES_BUFF[0].type = "PAR";
+        FILES_BUFF[0].path = FILE_PREVIOUS_DIR;
+        FILES_BUFF[0].fileposition = global_dir.position();
 
-          int lpath = path.length();
-          
-          for (int n=lpath-2;n>1;n--)
+        // Posicionamos el puntero en el archivo
+        if (FILE_PTR_POS != 0) {
+            putFilePtrInPosition(fFileLST, FILE_PTR_POS - 1);
+        } else {
+            putFilePtrInPosition(fFileLST, 0);
+        }
+    
+        // Cargamos los archivos en el buffer
+        putFilesInList();
+    
+        // Cerramos el directorio
+        global_dir.close();
+        FB_READING_FILES = false;
+    }
+
+    void printFileRowsBlock(String &serialTxt, int row, int color, String szName)
+    {
+          // Ponemos los inicios de mensaje 0xFF 0xFF 0xFF
+          char t = 255;
+          switch(row)
           {
-              char chrRead = path[n];
-              
-              if (chrRead == '/')
-              {
-                  //Copiamos ahora el trozo de cadena restante
-                  strTmp = path.substring(0,n+1);
-                  break;
-              }
-          }
+            case 0:
+                serialTxt += t;
+                serialTxt += t;
+                serialTxt += t;
+                serialTxt += "file0.txt=\"" + String(szName) + "\"";
+                serialTxt += t;
+                serialTxt += t;
+                serialTxt += t;
+                serialTxt +="file0.pco=" + String(color);
+                break;
+    
+            case 1:
+                serialTxt += t;
+                serialTxt += t;
+                serialTxt += t;
+                serialTxt +="file1.txt=\"" + String(szName) + "\"";
+                serialTxt += t;
+                serialTxt += t;
+                serialTxt += t;
+                serialTxt +="file1.pco=" + String(color);
+                break;
+    
+            case 2:
+                serialTxt += t;
+                serialTxt += t;
+                serialTxt += t;
+                serialTxt +="file2.txt=\"" + String(szName) + "\"";
+                serialTxt += t;
+                serialTxt += t;
+                serialTxt += t;
+                serialTxt +="file2.pco=" + String(color);
+                break;
+    
+            case 3:
+                serialTxt += t;
+                serialTxt += t;
+                serialTxt += t;
+                serialTxt +="file3.txt=\"" + String(szName) + "\"";
+                serialTxt += t;
+                serialTxt += t;
+                serialTxt += t;
+                serialTxt +="file3.pco=" + String(color);
+                break;
+    
+            case 4:
+                serialTxt += t;
+                serialTxt += t;
+                serialTxt += t;
+                serialTxt +="file4.txt=\"" + String(szName) + "\"";
+                serialTxt += t;
+                serialTxt += t;
+                serialTxt += t;
+                serialTxt +="file4.pco=" + String(color);
+                break;
+    
+            case 5:
+                serialTxt += t;
+                serialTxt += t;
+                serialTxt += t;
+                serialTxt +="file5.txt=\"" + String(szName) + "\"";
+                serialTxt += t;
+                serialTxt += t;
+                serialTxt += t;
+                serialTxt +="file5.pco=" + String(color);
+                break;
+    
+            case 6:
+                serialTxt += t;
+                serialTxt += t;
+                serialTxt += t;
+                serialTxt +="file6.txt=\"" + String(szName) + "\"";
+                serialTxt += t;
+                serialTxt += t;
+                serialTxt += t;
+                serialTxt +="file6.pco=" + String(color);
+                break;
+    
+            case 7:
+                serialTxt += t;
+                serialTxt += t;
+                serialTxt += t;
+                serialTxt +="file7.txt=\"" + String(szName) + "\"";
+                serialTxt += t;
+                serialTxt += t;
+                serialTxt += t;
+                serialTxt +="file7.pco=" + String(color);
+                break;
+    
+            case 8:
+                serialTxt += t;
+                serialTxt += t;
+                serialTxt += t;
+                serialTxt +="file8.txt=\"" + String(szName) + "\"";
+                serialTxt += t;
+                serialTxt += t;
+                serialTxt += t;
+                serialTxt +="file8.pco=" + String(color);
+                break;
+    
+            case 9:
+                serialTxt += t;
+                serialTxt += t;
+                serialTxt += t;
+                serialTxt +="file9.txt=\"" + String(szName) + "\"";
+                serialTxt += t;
+                serialTxt += t;
+                serialTxt += t;
+                serialTxt +="file9.pco=" + String(color);
+                break;
+    
+            case 10:
+                serialTxt += t;
+                serialTxt += t;
+                serialTxt += t;
+                serialTxt +="file10.txt=\"" + String(szName) + "\"";
+                serialTxt += t;
+                serialTxt += t;
+                serialTxt += t;
+                serialTxt +="file10.pco=" + String(color);
+                break;
+    
+            case 11:
+                serialTxt += t;
+                serialTxt += t;
+                serialTxt += t;
+                serialTxt +="file11.txt=\"" + String(szName) + "\"";
+                serialTxt += t;
+                serialTxt += t;
+                serialTxt += t;
+                serialTxt +="file11.pco=" + String(color);
+                break;
+    
+            case 12:
+                serialTxt += t;
+                serialTxt += t;
+                serialTxt += t;
+                serialTxt +="file12.txt=\"" + String(szName) + "\"";
+                serialTxt += t;
+                serialTxt += t;
+                serialTxt += t;
+                serialTxt +="file12.pco=" + String(color);
+                break;
+    
+          }  
 
-          #ifdef DEBUGMODE
-            logln("");
-            logln("Next dir: " + strTmp);
-          #endif
-
-          return strTmp;
-      }
+          // Ponemos los finales de mensaje 0xFF 0xFF 0xFF
+          serialTxt += t;
+          serialTxt += t;
+          serialTxt += t;
+    }
       
-      void showInformationAboutFiles()
-      {
-          // Limpiamos el path, para evitar cargar un fichero no seleccionado.
-          writeString("path.txt=\"\"");  
-          // Indicamos el path actual
-          writeString("currentDir.txt=\"" + String(FILE_LAST_DIR_LAST) + "\"");
-          // Actualizamos el total del ficheros leidos anteriormente.
-          writeString("statusFILE.txt=\"ITEMS  " + String(FILE_TOTAL_FILES) +"\"");         
-          
-          // Obtenemos la pagina mostrada del listado de ficheros
-          int totalPages = ((FILE_TOTAL_FILES) / TOTAL_FILES_IN_BROWSER_PAGE);
-          
-          if ((FILE_TOTAL_FILES) % TOTAL_FILES_IN_BROWSER_PAGE != 0)
-          { 
-              totalPages+=1;
-          }
+    void showInformationAboutFiles()
+    {
+        // Limpiamos el path, para evitar cargar un fichero no seleccionado.
+        writeString("path.txt=\"\"");  
+        // Indicamos el path actual
+        writeString("currentDir.txt=\"" + String(FILE_LAST_DIR_LAST) + "\"");
+        // Actualizamos el total del ficheros leidos anteriormente.
+        writeString("statusFILE.txt=\"ITEMS  " + String(FILE_TOTAL_FILES) +"\"");         
+        
+        // Obtenemos la pagina mostrada del listado de ficheros
+        int totalPages = ((FILE_TOTAL_FILES) / TOTAL_FILES_IN_BROWSER_PAGE);
+        
+        if ((FILE_TOTAL_FILES) % TOTAL_FILES_IN_BROWSER_PAGE != 0)
+        { 
+            totalPages+=1;
+        }
 
-          int currentPage = (FILE_PTR_POS / TOTAL_FILES_IN_BROWSER_PAGE) + 1;
+        int currentPage = (FILE_PTR_POS / TOTAL_FILES_IN_BROWSER_PAGE) + 1;
 
-          // Actualizamos el total del ficheros leidos anteriormente.
-          //writeString("tPage.txt=\"" + String(totalPages) +"\"");
-          writeString("cPage.txt=\"" + String(currentPage) +" - " + String(totalPages) + "\"");
-      }
-           
-      void putFilesInScreen()
-      {
+        // Actualizamos el total del ficheros leidos anteriormente.
+        //writeString("tPage.txt=\"" + String(totalPages) +"\"");
+        writeString("cPage.txt=\"" + String(currentPage) +" - " + String(totalPages) + "\"");
+    }
+          
+    void putFilesInScreen()
+    {
+    
+      //Antes de empezar, limpiamos el buffer
+      //para evitar que se colapse
+      #ifdef DEBUGMOCE
+        logAlert("Showing files in browser");
+      #endif
       
-        //Antes de empezar, limpiamos el buffer
-        //para evitar que se colapse
+      int pos_in_HMI_file = 0;
+      String szName = "";
+      String type="";
+    
+      int color = 65535; //60868
+      
+      // Esto es solo para el parent dir, para que siempre salga arriba
+      szName = FILES_BUFF[0].path;
+      color = 2016;  // Verde
+      szName = String(".. ") + szName;
+      
+      writeString("");
+      writeString("prevDir.txt=\"" + String(szName) + "\"");
+      writeString("");
+      writeString("prevDir.pco=" + String(color));
+                
+      String mens = "";
+      for (int i=1;i < MAX_FILES_TO_LOAD;i++)
+      {
+            szName = FILES_BUFF[i].path;
+            type = FILES_BUFF[i].type;
+            
+            log_debug("HMI","File [" + String(i) + "] - " + szName + " - type: " + type);
+
+            // Convertimos a mayusculas el tipo
+            type.toUpperCase();
+
+            // Lo trasladamos a la pantalla
+            if (type == "DIR")
+            {
+                //Directorio
+                color = DIR_COLOR;  // Amarillo
+                szName = String("<DIR>  ") + szName;
+                szName.toUpperCase();
+            }     
+            else if (type == ".DSC")
+            {
+              color = DSC_FILE_COLOR;  // Negro - Indica que es un fichero DSC
+            }
+            else if (type == ".ZIP")
+            {
+              color = ZIP_FILE_COLOR;
+            }
+            else if (type == ".TAP" || type == ".TZX" || type == ".TSX" || type == ".CDT" || type == ".PZX" || type == ".WAV" || type == ".MP3" || type == ".FLAC" || type == ".RADIO" || type == ".ZXDB" || type == ".CPCDB" || type == ".MSXDB" || type == ".ZIP" || type == ".CSW" || type == ".O" || type == ".P" || type == ".80" || type == ".81")
+            {
+                //Ficheros
+                if (SD_MMC.exists("/fav/" + szName))
+                {
+                  // Si estan dentro de /FAV
+                  color = FAVORITE_FILE_COLOR;   // Cyan - Indica que esta en favoritos
+                }
+                else
+                {
+                  // En general
+                  color = DEFAULT_COLOR;   // Blanco
+                }
+                
+            }
+            else
+            {
+                // Resto de ficheros
+                color = OTHER_FILES_COLOR;  // gris apagado
+            }
+    
+            printFileRowsBlock(mens,i-1, color, szName);
+            // printFileRows(i-1, color, szName);
+            // Delay necesario para un correcto listado en pantalla.
+            // delay(2);
+
+      }
+
+      // Ahora vamos a redibujar dos veces
+      writeStringBlock(mens);
+      // delay(5);
+      // writeStringBlock(mens);
+
+      showInformationAboutFiles();        
+    
+    }
+
+    void jumpToDir(String newDir)
+    {
+        // Cambia al nuevo directorio
+        //FILE_BROWSER_SEARCHING = false;  
+        FILE_LAST_DIR_LAST = INITFILEPATH;
+        FILE_LAST_DIR = newDir;
+        FILE_PREVIOUS_DIR = INITFILEPATH;
+        // Open root directory
+        FILE_PTR_POS = 1;
+        IN_THE_SAME_DIR = false;
+        getFilesFromSD(false,SOURCE_FILE_TO_MANAGE,SOURCE_FILE_INF_TO_MANAGE);
+        putFilesInScreen();
+    }
+
+    void putInHome()
+    {
+        //FILE_BROWSER_SEARCHING = false;  
+        FILE_LAST_DIR_LAST = INITFILEPATH;
+        FILE_LAST_DIR = INITFILEPATH;
+        FILE_PREVIOUS_DIR = INITFILEPATH;
+        // Open root directory
+        FILE_PTR_POS = 1;
+        IN_THE_SAME_DIR = false;
+        // clearFilesInScreen(); // 02/12/2024
+        getFilesFromSD(false,SOURCE_FILE_TO_MANAGE,SOURCE_FILE_INF_TO_MANAGE);
+        putFilesInScreen();
+    }
+    
+    void findTheTextInFiles()
+    {
+        // Hacemos una busqueda
+        SOURCE_FILE_TO_MANAGE = "_fsearch.lst";
+        SOURCE_FILE_INF_TO_MANAGE = "_fsearch.inf";
+
+        LST_FILE_IS_OPEN = false;
+        if (fFileLST)
+        {
+          fFileLST.close();
+        }
+
+        FILE_PTR_POS = 1;
+        writeString("statusFILE.txt=\"SEARCHING\""); 
+        getFilesFromSD(true,SOURCE_FILE_TO_MANAGE,SOURCE_FILE_INF_TO_MANAGE,FILE_TXT_TO_SEARCH);
+        //putFilesInScreen();
+        refreshFiles(); //07/11/2024          
+    }
+    
+    void refreshFiles()
+    {
         #ifdef DEBUGMOCE
-          logAlert("Showing files in browser");
+          logAlert("Refreshing file browser");
         #endif
         
-        int pos_in_HMI_file = 0;
-        String szName = "";
-        String type="";
-      
-        int color = 65535; //60868
+        // clearFilesInScreen(); // 02/12/2024
+        putFilesInScreen();          
+    }
+
+    void resetBlockIndicators()
+    {
+        PROGRAM_NAME = "";
+        PROGRAM_NAME_2 = "";
+        strcpy(LAST_NAME,"              ");
+        strcpy(LAST_TYPE,"                                   ");
+        LAST_SIZE = 0;
+
+        writeString("tape.totalBlocks.val=0");
+        writeString("tape.currentBlock.val=0");
+        writeString("tape.progressTotal.val=0");
+        writeString("tape.progressBlock.val=0");
+
+        TOTAL_BLOCKS = 0;
+        BLOCK_SELECTED = 0;
+        BYTES_LOADED = 0;     
         
-        // Esto es solo para el parent dir, para que siempre salga arriba
-        szName = FILES_BUFF[0].path;
-        color = 2016;  // Verde
-        szName = String(".. ") + szName;
+    }
+
+    
+    public:
+
+    String getPreviousDirFromPath(String path)
+    {
+        String strTmp = INITFILEPATH;
+        //strncpy(strTmp,&INITFILEPATH[0],2);
+
+        log_debug("HMI","Current dir: " + path);
+
+        int lpath = path.length();
         
-        writeString("");
-        writeString("prevDir.txt=\"" + String(szName) + "\"");
-        writeString("");
-        writeString("prevDir.pco=" + String(color));
-                  
-        String mens = "";
-        for (int i=1;i < MAX_FILES_TO_LOAD;i++)
+        for (int n=lpath-2;n>1;n--)
         {
-              szName = FILES_BUFF[i].path;
-              type = FILES_BUFF[i].type;
-              
-              #ifdef DEBUGMODE
-                logln("File [" + String(i) + "] - " + szName + " - type: " + type);
-              #endif
-
-              // Convertimos a mayusculas el tipo
-              type.toUpperCase();
-
-              // Lo trasladamos a la pantalla
-              if (type == "DIR")
-              {
-                  //Directorio
-                  color = DIR_COLOR;  // Amarillo
-                  szName = String("<DIR>  ") + szName;
-                  szName.toUpperCase();
-              }     
-              else if (type == ".DSC")
-              {
-                color = DSC_FILE_COLOR;  // Negro - Indica que es un fichero DSC
-              }
-              else if (type == ".ZIP")
-              {
-                color = ZIP_FILE_COLOR;
-              }
-              else if (type == ".TAP" || type == ".TZX" || type == ".TSX" || type == ".CDT" || type == ".PZX" || type == ".WAV" || type == ".MP3" || type == ".FLAC" || type == ".RADIO" || type == ".ZXDB" || type == ".CPCDB" || type == ".MSXDB" || type == ".ZIP" || type == ".CSW")
-              {
-                  //Ficheros
-                  if (SD_MMC.exists("/fav/" + szName))
-                  {
-                    // Si estan dentro de /FAV
-                    color = FAVORITE_FILE_COLOR;   // Cyan - Indica que esta en favoritos
-                  }
-                  else
-                  {
-                    // En general
-                    color = DEFAULT_COLOR;   // Blanco
-                  }
-                  
-              }
-              else
-              {
-                  // Resto de ficheros
-                  color = OTHER_FILES_COLOR;  // gris apagado
-              }
-      
-              printFileRowsBlock(mens,i-1, color, szName);
-              // printFileRows(i-1, color, szName);
-              // Delay necesario para un correcto listado en pantalla.
-              // delay(2);
-
-        }
-
-        // Ahora vamos a redibujar dos veces
-        writeStringBlock(mens);
-        // delay(5);
-        // writeStringBlock(mens);
-
-        showInformationAboutFiles();        
-      
-      }
-
-      void jumpToDir(String newDir)
-      {
-          // Cambia al nuevo directorio
-          //FILE_BROWSER_SEARCHING = false;  
-          FILE_LAST_DIR_LAST = INITFILEPATH;
-          FILE_LAST_DIR = newDir;
-          FILE_PREVIOUS_DIR = INITFILEPATH;
-          // Open root directory
-          FILE_PTR_POS = 1;
-          IN_THE_SAME_DIR = false;
-          getFilesFromSD(false,SOURCE_FILE_TO_MANAGE,SOURCE_FILE_INF_TO_MANAGE);
-          putFilesInScreen();
-      }
-
-      void putInHome()
-      {
-          //FILE_BROWSER_SEARCHING = false;  
-          FILE_LAST_DIR_LAST = INITFILEPATH;
-          FILE_LAST_DIR = INITFILEPATH;
-          FILE_PREVIOUS_DIR = INITFILEPATH;
-          // Open root directory
-          FILE_PTR_POS = 1;
-          IN_THE_SAME_DIR = false;
-          // clearFilesInScreen(); // 02/12/2024
-          getFilesFromSD(false,SOURCE_FILE_TO_MANAGE,SOURCE_FILE_INF_TO_MANAGE);
-          putFilesInScreen();
-      }
-      
-      void findTheTextInFiles()
-      {
-          // Hacemos una busqueda
-          SOURCE_FILE_TO_MANAGE = "_fsearch.lst";
-          SOURCE_FILE_INF_TO_MANAGE = "_fsearch.inf";
-
-          LST_FILE_IS_OPEN = false;
-          if (fFileLST)
-          {
-            fFileLST.close();
-          }
-
-          FILE_PTR_POS = 1;
-          writeString("statusFILE.txt=\"SEARCHING\""); 
-          getFilesFromSD(true,SOURCE_FILE_TO_MANAGE,SOURCE_FILE_INF_TO_MANAGE,FILE_TXT_TO_SEARCH);
-          //putFilesInScreen();
-          refreshFiles(); //07/11/2024          
-      }
-      
-      void refreshFiles()
-      {
-          #ifdef DEBUGMOCE
-            logAlert("Refreshing file browser");
-          #endif
-          
-          // clearFilesInScreen(); // 02/12/2024
-          putFilesInScreen();          
-      }
-
-      void resetBlockIndicators()
-      {
-          PROGRAM_NAME = "";
-          PROGRAM_NAME_2 = "";
-          strcpy(LAST_NAME,"              ");
-          strcpy(LAST_TYPE,"                                   ");
-          LAST_SIZE = 0;
-
-          writeString("tape.totalBlocks.val=0");
-          writeString("tape.currentBlock.val=0");
-          writeString("tape.progressTotal.val=0");
-          writeString("tape.progressBlock.val=0");
-
-          TOTAL_BLOCKS = 0;
-          BLOCK_SELECTED = 0;
-          BYTES_LOADED = 0;     
-          
-      }
- 
-     
-      public:
-
-
-
-      void reloadCustomDir(String path)
-      {
-        FILE_LAST_DIR=path;
-        getFilesFromSD(true,SOURCE_FILE_TO_MANAGE,SOURCE_FILE_INF_TO_MANAGE);
-      }
-
-      void resetIndicators()
-      {
-        resetBlockIndicators();
-      }
-
-      // void saveID2B(int valEn)
-      // {
-      //   // Almacena la polarizacion en el fichero abierto en un bloque ID 0x2B
-      //   if(FILE_SELECTED)
-      //   {
-      //     // 
-      //   }
-      // }
-
-      void activateWifi(bool enable)
-      {
-          if(enable)
-          {
-            if(WIFI_ENABLE && !REC)
+            char chrRead = path[n];
+            
+            if (chrRead == '/')
             {
-              WiFi.mode(WIFI_STA);
-              WiFi.begin(ssid, password);
-              writeString("tape.wifiInd.pco=60868");
+                //Copiamos ahora el trozo de cadena restante
+                strTmp = path.substring(0,n+1);
+                break;
             }
-          }
-          else
+        }
+
+        log_debug("HMI","Next dir: " + strTmp);
+
+        return strTmp;
+    }
+
+    void reloadCustomDir(String path)
+    {
+      FILE_LAST_DIR=path;
+      getFilesFromSD(true,SOURCE_FILE_TO_MANAGE,SOURCE_FILE_INF_TO_MANAGE);
+    }
+
+    void resetIndicators()
+    {
+      resetBlockIndicators();
+    }
+
+    // void saveID2B(int valEn)
+    // {
+    //   // Almacena la polarizacion en el fichero abierto en un bloque ID 0x2B
+    //   if(FILE_SELECTED)
+    //   {
+    //     // 
+    //   }
+    // }
+
+    void activateWifi(bool enable)
+    {
+        if(enable)
+        {
+          if(WIFI_ENABLE && !REC)
           {
-            WiFi.disconnect(true);
-            WiFi.mode(WIFI_OFF);
-            WIFI_CONNECTED = false;
-            //
-            writeString("tape.wifiInd.pco=23275");
+            WiFi.mode(WIFI_STA);
+            WiFi.begin(ssid, password);
+            writeString("tape.wifiInd.pco=60868");
           }
-      }
+        }
+        else
+        {
+          WiFi.disconnect(true);
+          WiFi.mode(WIFI_OFF);
+          WIFI_CONNECTED = false;
+          //
+          writeString("tape.wifiInd.pco=23275");
+        }
+    }
 
-      void reloadDir(bool force_rescan = true)
-      {
-          // Recarga el directorio
-          FILE_PTR_POS = 1;
+    void reloadDir(bool force_rescan = true)
+    {
+        // Recarga el directorio
+        FILE_PTR_POS = 1;
 
-          LST_FILE_IS_OPEN = false;
-          if (fFileLST)
-          {
-            fFileLST.close();
+        LST_FILE_IS_OPEN = false;
+        if (fFileLST)
+        {
+          fFileLST.close();
+        }
+        LAST_MESSAGE = "Scanning files ...";
+        if (force_rescan) {
+            getFilesFromSD(force_rescan,SOURCE_FILE_TO_MANAGE,SOURCE_FILE_INF_TO_MANAGE);
+        }
+        refreshFiles();
+    }
+
+    void firstLoadingFilesFB()
+    {
+        // Carga por primera vez ficheros en el filebrowser
+        getFilesFromSD(false,SOURCE_FILE_TO_MANAGE,SOURCE_FILE_INF_TO_MANAGE);
+        putFilesInScreen();        
+    }
+
+    void copyFile(File &fSource, File &fTarget)
+    {
+        size_t n;  
+        uint8_t buf[1024];
+        int prgCopy = 0;
+        int bytesRead = 0; 
+
+        while ((n = fSource.read(buf, sizeof(buf))) > 0) 
+        {
+          // Escribimos
+          fTarget.write(buf, n);
+          // Actualizamos indicacion
+          bytesRead +=n;
+          prgCopy = (bytesRead * 100) / fSource.size();
+          // Mostramos
+          if (prgCopy % 100 == 0) {
+              writeString("statusFILE.txt=\"COPY " + String(prgCopy) + "%\"");
           }
-          LAST_MESSAGE = "Scanning files ...";
-          if (force_rescan) {
-              getFilesFromSD(force_rescan,SOURCE_FILE_TO_MANAGE,SOURCE_FILE_INF_TO_MANAGE);
-          }
-          refreshFiles();
-      }
 
-      void firstLoadingFilesFB()
+        }        
+    }
+
+    void verifyCommand(String strCmd) 
+    {
+      
+      // Reiniciamos el comando
+      LAST_COMMAND = "";
+
+      // Selección de bloque desde keypad - pantalla
+      if(strCmd.indexOf("RSET") != -1)
       {
-          // Carga por primera vez ficheros en el filebrowser
-          getFilesFromSD(false,SOURCE_FILE_TO_MANAGE,SOURCE_FILE_INF_TO_MANAGE);
-          putFilesInScreen();        
+        delay(1000);
+        ESP.restart();
       }
-
-      void copyFile(File &fSource, File &fTarget)
+      else if (strCmd.indexOf("YES") != -1)
       {
-          size_t n;  
-          uint8_t buf[1024];
-          int prgCopy = 0;
-          int bytesRead = 0; 
-
-          while ((n = fSource.read(buf, sizeof(buf))) > 0) 
-          {
-            // Escribimos
-            fTarget.write(buf, n);
-            // Actualizamos indicacion
-            bytesRead +=n;
-            prgCopy = (bytesRead * 100) / fSource.size();
-            // Mostramos
-            if (prgCopy % 100 == 0) {
-                writeString("statusFILE.txt=\"COPY " + String(prgCopy) + "%\"");
-            }
-
-          }        
+          YES = true;
+          NO = false;
       }
-
-      void verifyCommand(String strCmd) 
+      else if (strCmd.indexOf("NO") != -1)
       {
+          YES = false;
+          NO = true;
+      }
+      else if (strCmd.indexOf("DSD") != -1)
+      {
+          DISABLE_SD = true;
+      }
+      // Enable Powerled oscilation
+      else if (strCmd.indexOf("PLE=") != -1) 
+      {
+        //Cogemos el valor
+        uint8_t buff[8];
+        strCmd.getBytes(buff, 7);
+        int valEn = (int)buff[4];
+        //
+        if (valEn==1)
+        {
+          ENABLE_POWER_LED = true;
+        }
+        else
+        {
+          ENABLE_POWER_LED = false;
+        }
+
+        saveHMIcfg("PLEopt");
+      }    
+      else if (strCmd.indexOf("SFF=") != -1) 
+      {
+        //Cogemos el valor
+        uint8_t buff[8];
+        strCmd.getBytes(buff, 7);
+        int valEn = (int)buff[4];
+        //
+        if (valEn==1)
+        {
+          SORT_FILES_FIRST_DIR = false;
+        }
+        else
+        {
+          SORT_FILES_FIRST_DIR = true;
+        }
+
+        saveHMIcfg("SFFopt");
+      }   
+      else if (strCmd.indexOf("PLD=") != -1) 
+      {
+        //Cogemos el valor
+        uint8_t buff[8];
+        strCmd.getBytes(buff, 7);
+        int valEn = (int)buff[4];
+        //
+        if (valEn==1)
+        {
+          POWER_LED_MODE = false;
+        }
+        else
+        {
+          POWER_LED_MODE = true;
+        }
+
+        saveHMIcfg("PLDopt");
+      }     
+      else if (strCmd.indexOf("HVK=") != -1) 
+      {
+        // Hide Virtual Keyboard
+
+        //Cogemos el valor
+        uint8_t buff[8];
+        strCmd.getBytes(buff, 7);
+        int valEn = (int)buff[4];
+        //
+        if (valEn==1)
+        {
+          HIDE_VIRTUAL_KEY = true;
+        }
+        else
+        {
+          HIDE_VIRTUAL_KEY = false;
+        }
+
+        saveHMIcfg("HVKopt");
+      }                       
+      // ✅ CSW FFWD Speed: CSW_FFWD=XX (XX = 01 a 10 = 1% a 10%)
+      else if (strCmd.indexOf("CSW_FFWD=") != -1)
+      {
+        uint8_t buff[12];
+        strCmd.getBytes(buff, 11);
+        int ffwd_pct = ((int)buff[9] - 48) * 10 + ((int)buff[10] - 48);  // Two digits
+        if (ffwd_pct < 1) ffwd_pct = 1;
+        if (ffwd_pct > 10) ffwd_pct = 10;
         
-        // Reiniciamos el comando
-        LAST_COMMAND = "";
-
-        // Selección de bloque desde keypad - pantalla
-        if(strCmd.indexOf("RSET") != -1)
+        float ffwd_speed = (float)ffwd_pct / 100.0;
+        setCSWSeekSpeed(ffwd_speed, CSW_RWD_SPEED);
+        log_debug("HMI","CSW FFWD Speed set to: " + String(ffwd_pct) + "%");
+      }
+      // ✅ CSW RWD Speed: CSW_RWD=XX (XX = 01 a 10 = 1% a 10%)
+      else if (strCmd.indexOf("CSW_RWD=") != -1)
+      {
+        uint8_t buff[12];
+        strCmd.getBytes(buff, 10);
+        int rwd_pct = ((int)buff[8] - 48) * 10 + ((int)buff[9] - 48);  // Two digits
+        if (rwd_pct < 1) rwd_pct = 1;
+        if (rwd_pct > 10) rwd_pct = 10;
+        
+        float rwd_speed = (float)rwd_pct / 100.0;
+        setCSWSeekSpeed(CSW_FFWD_SPEED, rwd_speed);
+        log_debug("HMI","CSW RWD Speed set to: " + String(rwd_pct) + "%");
+      }   
+      else if (strCmd.indexOf("DHCP=") != -1) 
+      {
+        //Cogemos el valor
+        uint8_t buff[8];
+        strCmd.getBytes(buff, 7);
+        int valEn = (int)buff[5];
+        //
+        if (valEn==1)
         {
-          delay(1000);
-          ESP.restart();
+          DHCP_ENABLE = true;
         }
-        else if (strCmd.indexOf("YES") != -1)
+        else
         {
-            YES = true;
-            NO = false;
+          DHCP_ENABLE = false;
         }
-        else if (strCmd.indexOf("NO") != -1)
-        {
-            YES = false;
-            NO = true;
-        }
-        else if (strCmd.indexOf("DSD") != -1)
-        {
-            DISABLE_SD = true;
-        }
-        // Enable Powerled oscilation
-        else if (strCmd.indexOf("PLE=") != -1) 
-        {
-          //Cogemos el valor
-          uint8_t buff[8];
-          strCmd.getBytes(buff, 7);
-          int valEn = (int)buff[4];
-          //
-          if (valEn==1)
+
+        log_debug("HMI","DHCP enabled: " + String(DHCP_ENABLE));
+        saveHMIcfg("DHCPFopt");
+      }               
+      else if (strCmd.indexOf("BKX=") != -1) 
+      {
+          // Con este procedimiento capturamos el bloque seleccionado
+          // desde la pantalla.
+          if (TAPESTATE == 10 || TAPESTATE == 3 || TAPESTATE == 2)
           {
-            ENABLE_POWER_LED = true;
-          }
-          else
-          {
-            ENABLE_POWER_LED = false;
-          }
-
-          saveHMIcfg("PLEopt");
-        }    
-        else if (strCmd.indexOf("SFF=") != -1) 
-        {
-          //Cogemos el valor
-          uint8_t buff[8];
-          strCmd.getBytes(buff, 7);
-          int valEn = (int)buff[4];
-          //
-          if (valEn==1)
-          {
-            SORT_FILES_FIRST_DIR = false;
-          }
-          else
-          {
-            SORT_FILES_FIRST_DIR = true;
-          }
-
-          saveHMIcfg("SFFopt");
-        }   
-        else if (strCmd.indexOf("PLD=") != -1) 
-        {
-          //Cogemos el valor
-          uint8_t buff[8];
-          strCmd.getBytes(buff, 7);
-          int valEn = (int)buff[4];
-          //
-          if (valEn==1)
-          {
-            POWER_LED_MODE = false;
-          }
-          else
-          {
-            POWER_LED_MODE = true;
-          }
-
-          saveHMIcfg("PLDopt");
-        }     
-        else if (strCmd.indexOf("HVK=") != -1) 
-        {
-          // Hide Virtual Keyboard
-
-          //Cogemos el valor
-          uint8_t buff[8];
-          strCmd.getBytes(buff, 7);
-          int valEn = (int)buff[4];
-          //
-          if (valEn==1)
-          {
-            HIDE_VIRTUAL_KEY = true;
-          }
-          else
-          {
-            HIDE_VIRTUAL_KEY = false;
-          }
-
-          saveHMIcfg("HVKopt");
-        }                       
-        else if (strCmd.indexOf("RBUF=") != -1) 
-        {
-          //Cogemos el valor
-          uint8_t buff[8];
-          strCmd.getBytes(buff, 7);
-          int valEn = (int)buff[5];
-          //
-          if (valEn==1)
-          {
-            RADIO_BUFFERED = true;
-          }
-          else
-          {
-            RADIO_BUFFERED = false;
-          }
-
-          logln("Radio buffered: " + String(RADIO_BUFFERED));
-          saveHMIcfg("RBUFopt");
-        }
-        // ✅ CSW FFWD Speed: CSW_FFWD=XX (XX = 01 a 10 = 1% a 10%)
-        else if (strCmd.indexOf("CSW_FFWD=") != -1)
-        {
-          uint8_t buff[12];
-          strCmd.getBytes(buff, 11);
-          int ffwd_pct = ((int)buff[9] - 48) * 10 + ((int)buff[10] - 48);  // Two digits
-          if (ffwd_pct < 1) ffwd_pct = 1;
-          if (ffwd_pct > 10) ffwd_pct = 10;
-          
-          float ffwd_speed = (float)ffwd_pct / 100.0;
-          setCSWSeekSpeed(ffwd_speed, CSW_RWD_SPEED);
-          logln("CSW FFWD Speed set to: " + String(ffwd_pct) + "%");
-        }
-        // ✅ CSW RWD Speed: CSW_RWD=XX (XX = 01 a 10 = 1% a 10%)
-        else if (strCmd.indexOf("CSW_RWD=") != -1)
-        {
-          uint8_t buff[12];
-          strCmd.getBytes(buff, 10);
-          int rwd_pct = ((int)buff[8] - 48) * 10 + ((int)buff[9] - 48);  // Two digits
-          if (rwd_pct < 1) rwd_pct = 1;
-          if (rwd_pct > 10) rwd_pct = 10;
-          
-          float rwd_speed = (float)rwd_pct / 100.0;
-          setCSWSeekSpeed(CSW_FFWD_SPEED, rwd_speed);
-          logln("CSW RWD Speed set to: " + String(rwd_pct) + "%");
-        }   
-        else if (strCmd.indexOf("DHCP=") != -1) 
-        {
-          //Cogemos el valor
-          uint8_t buff[8];
-          strCmd.getBytes(buff, 7);
-          int valEn = (int)buff[5];
-          //
-          if (valEn==1)
-          {
-            DHCP_ENABLE = true;
-          }
-          else
-          {
-            DHCP_ENABLE = false;
-          }
-
-          logln("DHCP enabled: " + String(DHCP_ENABLE));
-          saveHMIcfg("DHCPFopt");
-        }               
-        else if (strCmd.indexOf("BKX=") != -1) 
-        {
-            // Con este procedimiento capturamos el bloque seleccionado
-            // desde la pantalla.
-            if (TAPESTATE == 10 || TAPESTATE == 3 || TAPESTATE == 2)
-            {
-              uint8_t buff[8];
-
-              strCmd.getBytes(buff, 7);
-              long val = (long)((int)buff[4] + (256*(int)buff[5]) + (65536*(int)buff[6]));
-              String num = String(val);
-
-              logln("Block selected: " + num);
-              logln("Block total: " + String(TOTAL_BLOCKS));
-
-              BLOCK_SELECTED = num.toInt();
-
-              // Esto lo hacemos para poder actualizar la info del bloque
-              if (!IRADIO_EN)
-              {
-                  if (BLOCK_SELECTED > (TOTAL_BLOCKS-2))
-                  {
-                    BLOCK_SELECTED = TOTAL_BLOCKS - 1;
-                  }
-                  else if (BLOCK_SELECTED < 1)
-                  {
-                    BLOCK_SELECTED = 1;
-                  }  
-
-                  if (TYPE_FILE_LOAD == "TAP")
-                  {
-                    BLOCK_SELECTED -= 1;
-                  }
-              }
-              // Espermos unos ms para que de tiempo a la pantalla
-              delay(250);
-
-              UPDATE = true;
-              START_FFWD_ANIMATION = true;
-            }
-        }
-        else if (strCmd.indexOf("REL=") != -1)
-        {
-            // Recarga la pantalla de ficheros
-            firstLoadingFilesFB();
-        }
-        else if (strCmd.indexOf("PAG=") != -1) 
-        {
-            // Con este procedimiento obtenemos la pàgina del filebrowser
-            // que se desea visualizar
             uint8_t buff[8];
+
             strCmd.getBytes(buff, 7);
             long val = (long)((int)buff[4] + (256*(int)buff[5]) + (65536*(int)buff[6]));
             String num = String(val);
-            int pageSelected = num.toInt();
 
+            log_debug("HMI","Block selected: " + num);
+            log_debug("HMI","Block total: " + String(TOTAL_BLOCKS));
 
-            // Vemos que pagina tenemos abierta
-            if (FILE_BROWSER_OPEN)
+            BLOCK_SELECTED = num.toInt();
+
+            // Esto lo hacemos para poder actualizar la info del bloque
+            if (!IRADIO_EN)
             {
-                // Calculamos el total de páginas
-                int totalPages = (FILE_TOTAL_FILES / TOTAL_FILES_IN_BROWSER_PAGE);
-                if (FILE_TOTAL_FILES % TOTAL_FILES_IN_BROWSER_PAGE != 0)
+                if (BLOCK_SELECTED > (TOTAL_BLOCKS-2))
                 {
-                    totalPages+=1;
-                }            
-
-                #ifdef DEBUGMODE
-                  logln("");
-                  logln("Page selected: " + String(pageSelected+1) + "/" + String(totalPages));
-                #endif
-
-                // Controlamos que no nos salgamos del total de páginas
-                if ((pageSelected+1) <= totalPages)
-                {
-                    // Cogemos el primer item y refrescamos
-                    FILE_PTR_POS = (pageSelected * TOTAL_FILES_IN_BROWSER_PAGE) + 1;
+                  BLOCK_SELECTED = TOTAL_BLOCKS - 1;
                 }
-                else
+                else if (BLOCK_SELECTED < 1)
                 {
-                    // Posicionamos entonces en la ultima página
-                    pageSelected = totalPages-1;
-                    // Cogemos el primer item y refrescamos
-                    FILE_PTR_POS = (pageSelected * TOTAL_FILES_IN_BROWSER_PAGE) + 1;
+                  BLOCK_SELECTED = 1;
+                }  
+
+                if (TYPE_FILE_LOAD == "TAP")
+                {
+                  BLOCK_SELECTED -= 1;
                 }
-                
-                // Actualizamos la lista con la posición nueva del puntero
-                getFilesFromSD(false,SOURCE_FILE_TO_MANAGE,SOURCE_FILE_INF_TO_MANAGE);
-                // Refrescamos el listado de ficheros visualizado
-                refreshFiles();                   
             }
-            else if (BLOCK_BROWSER_OPEN)
-            {
-                // Calculamos el total de páginas
-                int totalPages = ((TOTAL_BLOCKS-1) / MAX_BLOCKS_IN_BROWSER);
-                if ((TOTAL_BLOCKS-1) % MAX_BLOCKS_IN_BROWSER != 0)
-                {
-                    totalPages+=1;
-                } 
+            // Espermos unos ms para que de tiempo a la pantalla
+            delay(250);
 
-                // Controlamos que no nos salgamos del total de páginas
-                if ((pageSelected+1) <= totalPages)
-                {
-                    // Cogemos el primer item y refrescamos
-                    BB_PTR_ITEM = (pageSelected * MAX_BLOCKS_IN_BROWSER);
-                }
-                else
-                {
-                    // Posicionamos entonces en la ultima página
-                    pageSelected = totalPages-1;
-                    // Cogemos el primer item y refrescamos
-                    BB_PTR_ITEM = (pageSelected * MAX_BLOCKS_IN_BROWSER);
-                }
+            UPDATE = true;
+            START_FFWD_ANIMATION = true;
+          }
+      }
+      else if (strCmd.indexOf("REL=") != -1)
+      {
+          // Recarga la pantalla de ficheros
+          firstLoadingFilesFB();
+      }
+      else if (strCmd.indexOf("PAG=") != -1) 
+      {
+          // Con este procedimiento obtenemos la pàgina del filebrowser
+          // que se desea visualizar
+          uint8_t buff[8];
+          strCmd.getBytes(buff, 7);
+          long val = (long)((int)buff[4] + (256*(int)buff[5]) + (65536*(int)buff[6]));
+          String num = String(val);
+          int pageSelected = num.toInt();
 
 
-                BB_PAGE_SELECTED = pageSelected+1;
-                BB_UPDATE = true;
-            }
-       
-        }      
-        else if (strCmd.indexOf("INFB") != -1) 
-        {
-            // Con este comando nos indica la pantalla que 
-            // está en modo FILEBROWSER
-            //proccesingEject();            
-            FILE_BROWSER_OPEN = true;
-            #ifdef DEBUGMODE
-              logAlert("INFB output: File browser open");
-            #endif
+          // Vemos que pagina tenemos abierta
+          if (FILE_BROWSER_OPEN)
+          {
+              // *******************************************************
+              //
+              //                     File Browser
+              //
+              // *******************************************************
 
-        }
-        else if (strCmd.indexOf("SHR") != -1) 
-        {
-            // Con este comando nos indica la pantalla que 
-            // está en modo searching
-            //FILE_BROWSER_SEARCHING = true;
-            findTheTextInFiles();      
-        }
-        else if (strCmd.indexOf("OUTFB") != -1) 
-        {
+              // Calculamos el total de páginas
+              int totalPages = (FILE_TOTAL_FILES / TOTAL_FILES_IN_BROWSER_PAGE);
+              if (FILE_TOTAL_FILES % TOTAL_FILES_IN_BROWSER_PAGE != 0)
+              {
+                  totalPages+=1;
+              }            
 
-            // Con este comando nos indica la pantalla que 
-            // está SALE del modo FILEBROWSER
-            FILE_BROWSER_OPEN = false;
-            ENABLE_ROTATE_FILEBROWSER = false;
-            #ifdef DEBUGMODE
-              logAlert("OUTFB output: File browser closed");
-            #endif
-        }
-        else if (strCmd.indexOf("GFIL") != -1) 
-        {
-            // Con este comando nos indica la pantalla que quiere
-            // le devolvamos ficheros en la posición actual del puntero
+              log_debug("HMI","Page selected: " + String(pageSelected+1) + "/" + String(totalPages));
+
+              // Controlamos que no nos salgamos del total de páginas
+              if ((pageSelected+1) <= totalPages)
+              {
+                  // Cogemos el primer item y refrescamos
+                  FILE_PTR_POS = (pageSelected * TOTAL_FILES_IN_BROWSER_PAGE) + 1;
+              }
+              else
+              {
+                  // Posicionamos entonces en la ultima página
+                  pageSelected = totalPages-1;
+                  // Cogemos el primer item y refrescamos
+                  FILE_PTR_POS = (pageSelected * TOTAL_FILES_IN_BROWSER_PAGE) + 1;
+              }
+              
+              // Actualizamos la lista con la posición nueva del puntero
+              getFilesFromSD(false,SOURCE_FILE_TO_MANAGE,SOURCE_FILE_INF_TO_MANAGE);
+              // Refrescamos el listado de ficheros visualizado
+              refreshFiles();                   
+          }
+          else if (BB_OPEN)
+          {
+              // *******************************************************
+              //
+              //                     Block Browser
+              //
+              // *******************************************************
+              // Calculamos el total de páginas
+              int totalPages = ((TOTAL_BLOCKS-1) / MAX_BLOCKS_IN_BROWSER);
+              if ((TOTAL_BLOCKS-1) % MAX_BLOCKS_IN_BROWSER != 0)
+              {
+                  totalPages+=1;
+              } 
+
+              // Controlamos que no nos salgamos del total de páginas
+              if ((pageSelected+1) <= totalPages)
+              {
+                  // Cogemos el primer item y refrescamos
+                  BB_PTR_ITEM = (pageSelected * MAX_BLOCKS_IN_BROWSER);
+              }
+              else
+              {
+                  // Posicionamos entonces en la ultima página
+                  pageSelected = totalPages-1;
+                  // Cogemos el primer item y refrescamos
+                  BB_PTR_ITEM = (pageSelected * MAX_BLOCKS_IN_BROWSER);
+              }
+
+
+              BB_PAGE_SELECTED = pageSelected+1;
+              BB_UPDATE = true;
+          }
       
-            #ifdef DEBUGMODE
-              logAlert("GFIL output: Getting files");
-            #endif
+      }      
+      else if (strCmd.indexOf("INFB") != -1) 
+      {
+          // Con este comando nos indica la pantalla que 
+          // está en modo FILEBROWSER
+          //proccesingEject();            
+          FILE_BROWSER_OPEN = true;
+          #ifdef DEBUGMODE
+            logAlert("INFB output: File browser open");
+          #endif
 
-            // Hemos quitado esto para que se ponga en FALSE cuando haga ejecting y no antes
-            //FILE_PREPARED = false;
-            FILE_SELECTED = false;
+      }
+      else if (strCmd.indexOf("SHR") != -1) 
+      {
+          // Con este comando nos indica la pantalla que 
+          // está en modo searching
+          //FILE_BROWSER_SEARCHING = true;
+          findTheTextInFiles();      
+      }
+      else if (strCmd.indexOf("OUTFB") != -1) 
+      {
 
-            resetIndicators();
+          // Con este comando nos indica la pantalla que 
+          // está SALE del modo FILEBROWSER
+          FILE_BROWSER_OPEN = false;
+          ENABLE_ROTATE_FILEBROWSER = false;
+          #ifdef DEBUGMODE
+            logAlert("OUTFB output: File browser closed");
+          #endif
+      }
+      else if (strCmd.indexOf("GFIL") != -1) 
+      {
+          // Con este comando nos indica la pantalla que quiere
+          // le devolvamos ficheros en la posición actual del puntero
+    
+          #ifdef DEBUGMODE
+            logAlert("GFIL output: Getting files");
+          #endif
 
-            if (FILE_LAST_DIR_LAST != FILE_LAST_DIR)
+          // Hemos quitado esto para que se ponga en FALSE cuando haga ejecting y no antes
+          //FILE_PREPARED = false;
+          FILE_SELECTED = false;
+
+          resetIndicators();
+
+          if (FILE_LAST_DIR_LAST != FILE_LAST_DIR)
+          {
+
+              // if (global_dir)
+              // {
+              //     global_dir.close();
+              // }
+
+              getFilesFromSD(false,SOURCE_FILE_TO_MANAGE,SOURCE_FILE_INF_TO_MANAGE,"");
+              //refreshFiles(); //07/11/2024 - Ojo!
+          }
+
+          if (!FILE_DIR_OPEN_FAILED)
+          {
+              // clearFilesInScreen(); // 02/12/2024
+              putFilesInScreen();
+              FILE_STATUS = 1;
+              // El GFIL desconecta el filtro de busqueda
+              //FILE_BROWSER_SEARCHING = false;                   
+          }            
+      }
+      else if (strCmd.indexOf("RFSH") != -1) 
+      {
+          // No se hace rescan en los subdirectorios de /ONLINE porque destruye el catalogo
+          if (!FB_READING_FILES && !(FILE_LAST_DIR.indexOf("/ONLINE/ZX/") != -1) && !(FILE_LAST_DIR.indexOf("/ONLINE/CPC/") != -1) && !(FILE_LAST_DIR.indexOf("/ONLINE/MSX/") != -1))
+          {
+            reloadDir();
+            REGENERATE_IDX = true;
+          }
+          else
+          {
+            // Detenemos la lectura
+            FB_CANCEL_READING_FILES = true;
+          }
+      }
+      else if (strCmd.indexOf("FINI") != -1) 
+      {
+          // Posicionamos entonces en la primera página
+          // Cogemos el primer item y refrescamos
+          FILE_PTR_POS = 1;
+          // Actualizamos la lista con la posición nueva del puntero
+          getFilesFromSD(false,SOURCE_FILE_TO_MANAGE,SOURCE_FILE_INF_TO_MANAGE);
+          // Refrescamos el listado de ficheros visualizado
+          refreshFiles();  
+          delay(125);
+          showInformationAboutFiles();                     
+      }
+      else if (strCmd.indexOf("FEND") != -1) 
+      {
+          // Posicionamos entonces en la ultima página
+          int totalPages = ((FILE_TOTAL_FILES) / TOTAL_FILES_IN_BROWSER_PAGE);
+          // Cogemos el primer item y refrescamos
+          FILE_PTR_POS = (totalPages * TOTAL_FILES_IN_BROWSER_PAGE) + 1;
+          // Actualizamos la lista con la posición nueva del puntero
+          getFilesFromSD(false,SOURCE_FILE_TO_MANAGE,SOURCE_FILE_INF_TO_MANAGE);
+          // Refrescamos el listado de ficheros visualizado
+          refreshFiles(); 
+          delay(125);
+          showInformationAboutFiles();                       
+      }        
+      else if (strCmd.indexOf("FPUP") != -1) 
+      {
+          // Con este comando nos indica la pantalla que quiere
+          // le devolvamos ficheros en la posición actual del puntero
+          FILE_PTR_POS = FILE_PTR_POS - TOTAL_FILES_IN_BROWSER_PAGE;
+    
+          if (FILE_PTR_POS < 0)
+          {
+              FILE_PTR_POS = 1;
+          }
+
+          getFilesFromSD(false,SOURCE_FILE_TO_MANAGE,SOURCE_FILE_INF_TO_MANAGE);
+          refreshFiles();
+          delay(125);
+          showInformationAboutFiles();            
+      }
+      else if (strCmd.indexOf("FPDOWN") != -1) 
+      {
+          // Con este comando nos indica la pantalla que quiere
+          // le devolvamos ficheros en la posición actual del puntero
+          FILE_PTR_POS = FILE_PTR_POS + TOTAL_FILES_IN_BROWSER_PAGE;
+
+          log_debug("HMI","files in page: " + String(FILE_TOTAL_FILES-1));
+
+          if (FILE_PTR_POS > (FILE_TOTAL_FILES))
+          {
+              // Hacemos esto para permanecer en la misma pagina
+              FILE_PTR_POS -= TOTAL_FILES_IN_BROWSER_PAGE;
+          }
+
+          getFilesFromSD(false,SOURCE_FILE_TO_MANAGE,SOURCE_FILE_INF_TO_MANAGE);
+          refreshFiles();
+          delay(125);
+          showInformationAboutFiles();
+      }
+      else if (strCmd.indexOf("FPHOME") != -1) 
+      {
+          // Con este comando nos indica la pantalla que quiere
+          // le devolvamos ficheros en la posición actual del puntero
+          SOURCE_FILE_TO_MANAGE = "_files.lst";
+          SOURCE_FILE_INF_TO_MANAGE = "_files.inf"; 
+
+          LST_FILE_IS_OPEN = false;
+          if (fFileLST)
+          {
+            fFileLST.close();
+          }
+
+          putInHome();
+        
+          getFilesFromSD(false,SOURCE_FILE_TO_MANAGE,SOURCE_FILE_INF_TO_MANAGE);
+          refreshFiles(); 
+      }        
+      else if (strCmd.indexOf("FAV=") != -1) 
+      {
+          
+          #ifdef DEBUGMODE
+            logAlert("FAV Command");
+          #endif                  
+
+          // Con este comando añadimos el fichero seleccionado a la carpeta favoritos si no existe
+          // Con este comando
+          // devolvamos el fichero que se ha seleccionado en la pantalla
+          uint8_t buff[8];
+          strCmd.getBytes(buff, 7);
+          long val = (long)((int)buff[4] + (256*(int)buff[5]) + (65536*(int)buff[6]));
+          String num = String(val);
+    
+          FILE_IDX_SELECTED = num.toInt();
+          FILE_SELECTED = false;
+    
+          //Extraemos el fichero
+          String fileName  = FILES_BUFF[FILE_IDX_SELECTED+1].path;
+          String fToFav = FILE_LAST_DIR + "/" + fileName;                         
+    
+          #ifdef DEBUGMODE
+            logAlert("Filename: " + fileName);
+            logAlert("Full path: " + fToFav);
+          #endif
+
+          // Cambiamos el estado de fichero seleccionado
+          if (fToFav != "")
+          {
+              #ifdef DEBUGMODE
+                logAlert("File was selected to move to favorite dir");
+              #endif
+
+              // Ahora lo cargamos en favorito.
+              String pSource = fToFav;
+              String pTarget = "/fav/" + fileName;
+
+              log_debug("HMI","Source file: " + pSource);
+              log_debug("HMI","Target file: " + pTarget);
+              
+              //Esto lo hacemos para ver si el directorio existe
+              String favDir = "/FAV";
+
+              if (SD_MMC.open(favDir))
+              {
+                  #ifdef DEBUGMODE
+                    logAlert("FAV ok");
+                  #endif
+                  // Si el fichero no existe en favoritos, lo copio
+                  log_debug("HMI","Checking if file exists in FAV ..." + pTarget);
+                  if (!SD_MMC.exists(pTarget))
+                  {
+                      if (copyFileFS(pSource.c_str(), pTarget.c_str()))
+                      {
+                        writeString("statusFILE.txt=\"COPY 100%\"");
+                        logAlert("File copied to FAV.");
+                      }
+                      else
+                      {
+                        writeString("statusFILE.txt=\"COPY ERROR\"");
+                        logAlert("Error! Copy failed");
+                      }           
+                  }
+                  else
+                  {
+                      log_debug("HMI","File already in FAV.");
+                  }                  
+              }
+              else
+              {
+                log_debug("HMI","Error! directory /FAV not created.");
+              }
+          }     
+      }              
+      else if (strCmd.indexOf("BBOPEN") != -1)
+      {
+        // Block browser abierto
+        //
+        // *************************************************************************************************
+        //
+        // NOTA: El tipo de BLOCK BROWSER sea DATA o AUDIO depende del logo visualizado
+        //       esto se controla en el HMI. El HMI decide si visualizar el panel para AUDIO o para TAP/TZX
+        //
+        // *************************************************************************************************
+        //
+        BB_OPEN = true;
+        //BLOCK_BROWSER_OPEN = true;
+      }
+      else if (strCmd.indexOf("BBCL=") != -1)
+      {
+        // Block browser cerrado con ID seleccionado o -1 para ninguno
+        // Con este procedimiento obtenemos la pàgina del filebrowser
+        // que se desea visualizar
+        int posEq = strCmd.indexOf("=");
+        String sbstr = strCmd.substring(posEq+1);
+
+        // Obtenemos el ID seleccionado
+        int idsel = sbstr.toInt();
+        int blsel = (MAX_BLOCKS_IN_BROWSER * BB_PAGE_SELECTED) - (MAX_BLOCKS_IN_BROWSER - idsel);
+
+        log_debug("HMI","Bloque seleccionado: " + String(blsel));
+
+        if (blsel >= 0 && blsel <= TOTAL_BLOCKS)
+        {
+          if (TYPE_FILE_LOAD != "TAP")
+          {
+            BLOCK_SELECTED = blsel;
+          }
+          else
+          {
+            BLOCK_SELECTED = blsel - 1;
+          }
+          writeString("tape.currentBlock.val=" + String(BLOCK_SELECTED));
+        }         
+        
+        // Delay para esperar a que el browser se cierre
+        delay(250);
+
+        BB_OPEN = false;
+        //BLOCK_BROWSER_OPEN = false;
+        UPDATE_HMI = true;
+      }        
+      else if (strCmd.indexOf("BDOWN") != -1)
+      {
+        // Pagina arriba block browser
+        BB_PTR_ITEM += MAX_BLOCKS_IN_BROWSER;
+
+        if (BB_PTR_ITEM > TOTAL_BLOCKS - 1)
+        {
+          BB_PTR_ITEM -= MAX_BLOCKS_IN_BROWSER;
+        }
+
+        BB_PAGE_SELECTED = (BB_PTR_ITEM / MAX_BLOCKS_IN_BROWSER) + 1;
+        BB_UPDATE = true;
+
+      }
+      else if (strCmd.indexOf("BUP") != -1)
+      {
+        // Pagina arriba block browser
+        BB_PTR_ITEM -= MAX_BLOCKS_IN_BROWSER;
+
+        if (BB_PTR_ITEM < 0)
+        {
+          BB_PTR_ITEM = 0;
+        }
+
+        BB_PAGE_SELECTED = (BB_PTR_ITEM / MAX_BLOCKS_IN_BROWSER) + 1;
+        BB_UPDATE = true;
+
+      }
+      else if (strCmd.indexOf("BHOME") != -1)
+      {
+        // Pagina arriba block browser
+        BB_PTR_ITEM = 0;
+        BB_PAGE_SELECTED = 1;
+        BB_UPDATE = true;
+      }        
+      else if (strCmd.indexOf("BPDOWN") != -1)
+      {
+        // Pagina arriba block browser
+
+        // // Pagina arriba block browser
+        // BB_PTR_ITEM += MAX_BLOCKS_IN_BROWSER;
+
+        // if (BB_PTR_ITEM > TOTAL_BLOCKS - 1)
+        // {
+        //   BB_PTR_ITEM -= MAX_BLOCKS_IN_BROWSER;
+        // }
+
+        // BB_PAGE_SELECTED = (BB_PTR_ITEM / MAX_BLOCKS_IN_BROWSER) + 1;
+        // BB_UPDATE = true;
+        
+        if (TOTAL_BLOCKS > MAX_BLOCKS_IN_BROWSER)
+        {
+          // Podemos bajar paginas
+          BB_PTR_ITEM += (MAX_BLOCKS_IN_BROWSER * 10);
+          // Si sobrepasamos el final, mostramos la ultima pagina
+          if (BB_PTR_ITEM > TOTAL_BLOCKS - 1)
+          {
+            // Ultima pagina.
+            int n = TOTAL_BLOCKS / MAX_BLOCKS_IN_BROWSER;
+            BB_PTR_ITEM = (TOTAL_BLOCKS - (TOTAL_BLOCKS - (MAX_BLOCKS_IN_BROWSER * n)));
+          }
+          
+          // Info de la pagina vista
+          BB_PAGE_SELECTED = (BB_PTR_ITEM / MAX_BLOCKS_IN_BROWSER) + 1;
+          BB_UPDATE = true;            
+        }
+      }
+      else if (strCmd.indexOf("BPUP") != -1)
+      {
+        // Pagina arriba block browser
+        BB_PTR_ITEM -= (MAX_BLOCKS_IN_BROWSER * 10);
+
+        if (BB_PTR_ITEM < 0)
+        {
+          BB_PTR_ITEM = 0;
+        }
+
+        BB_PAGE_SELECTED = (BB_PTR_ITEM / MAX_BLOCKS_IN_BROWSER) + 1;
+        BB_UPDATE = true;
+
+      }        
+      else if (strCmd.indexOf("CHD=") != -1) 
+      {
+          uint32_t val=0;
+
+          // Con este comando capturamos el directorio a cambiar
+          uint8_t buff[8] = {0}; // Inicializamos el buffer a 0
+          strCmd.getBytes(buff, 7);  // getBytes no devuelve size_t
+          
+          // Verificación de seguridad - verificamos directamente los bytes del comando
+          if (buff[0] == 'C' && buff[1] == 'H' && buff[2] == 'D' && buff[3] == '=') {
+              // Construimos el valor usando máscaras y shifts para evitar desbordamientos
+              val = ((uint32_t)buff[4]) | 
+                            ((uint32_t)buff[5] << 8) | 
+                            ((uint32_t)buff[6] << 16);
+              
+              // Verificación adicional del rango
+              if (val < MAX_FILES_TO_LOAD) {
+                  int indexFileSelected = static_cast<int>(val);
+                  FILE_IDX_SELECTED = indexFileSelected;
+                  // ... resto del código existente ...
+              } else {
+                  log_error("HMI","Error: Invalid file index value: " + String(val));
+                  writeString("currentDir.txt=\">> Error: Invalid index value <<\"");
+                  return;
+              }
+          } else {
+              log_error("HMI","Error: Invalid CHD command format");
+              writeString("currentDir.txt=\">> Error: Invalid command format <<\"");
+              return;
+          }
+
+          //String num = String(val);
+          int indexFileSelected = static_cast<int> (val);
+    
+          //Cogemos el directorio
+          if (indexFileSelected > sizeof(FILES_BUFF))
+          {
+            // Regeneramos el directorio de manera automática.
+            log_error("HMI","File index out of range: " + String(indexFileSelected));
+            //
+            writeString("currentDir.txt=\">> HMI error. Idx out of range <<\"");
+            //FILE_IDX_SELECTED = 13;
+            //reloadDir();
+          }
+          else
+          {
+            // Actuamos sobre la seleccion en HMI
+            FILE_IDX_SELECTED = indexFileSelected;   
+            //      
+            
+            if (FILE_LAST_DIR == "/")
             {
+              FILE_DIR_TO_CHANGE = FILE_LAST_DIR + FILES_BUFF[FILE_IDX_SELECTED+1].path;
+            }
+            else
+            {
+              FILE_DIR_TO_CHANGE = FILE_LAST_DIR + "/" + FILES_BUFF[FILE_IDX_SELECTED+1].path;
+            }
 
-                // if (global_dir)
-                // {
-                //     global_dir.close();
-                // }
+            log_debug("HMI","Dir to change " + FILE_DIR_TO_CHANGE);
+            
+            IN_THE_SAME_DIR = false;
+      
+            // Guardamos para poder volver atrás
+            String dir_ch = FILE_DIR_TO_CHANGE;
+            if (dir_ch.endsWith("/") && dir_ch.length() > 1) dir_ch.remove(dir_ch.length() - 1);
 
-                getFilesFromSD(false,SOURCE_FILE_TO_MANAGE,SOURCE_FILE_INF_TO_MANAGE,"");
-                //refreshFiles(); //07/11/2024 - Ojo!
+            //
+            log_debug("HMI","Changing to dir: " + dir_ch);
+
+            //
+            FILE_PREVIOUS_DIR = FILE_LAST_DIR;
+            FILE_LAST_DIR = dir_ch;
+            FILE_LAST_DIR_LAST = FILE_LAST_DIR;
+      
+            FILE_PTR_POS = 1;
+            // clearFilesInScreen(); // 02/12/2024
+            writeString("statusFILE.txt=\"READING\"");  
+
+            if (fFileLST)
+            {
+              fFileLST.close();
+              LST_FILE_IS_OPEN = false;
+            }
+
+            String recDirTmp = FILE_LAST_DIR;
+            recDirTmp.toUpperCase();
+            if (recDirTmp == "/FAV/" || recDirTmp == "/REC/" || recDirTmp == "/WAV" || recDirTmp == "/DOWNLOAD" || recDirTmp == "/DOWNLOAD_CPC" || recDirTmp == "/DOWNLOAD_MSX" || recDirTmp == "/ONLINE" || recDirTmp == "/ONLINE_CPC" || recDirTmp == "/ONLINE_MSX")
+            {
+              getFilesFromSD(true,SOURCE_FILE_TO_MANAGE,SOURCE_FILE_INF_TO_MANAGE);
+            }
+            else
+            {
+              getFilesFromSD(false,SOURCE_FILE_TO_MANAGE,SOURCE_FILE_INF_TO_MANAGE);
             }
 
             if (!FILE_DIR_OPEN_FAILED)
             {
-                // clearFilesInScreen(); // 02/12/2024
+                //putFilesInScreen();
                 putFilesInScreen();
-                FILE_STATUS = 1;
-                // El GFIL desconecta el filtro de busqueda
-                //FILE_BROWSER_SEARCHING = false;                   
-            }            
-        }
-        else if (strCmd.indexOf("RFSH") != -1) 
-        {
-            // No se hace rescan en los subdirectorios de /ONLINE porque destruye el catalogo
-            if (!FB_READING_FILES && !(FILE_LAST_DIR.indexOf("/ONLINE/ZX/") != -1) && !(FILE_LAST_DIR.indexOf("/ONLINE/CPC/") != -1) && !(FILE_LAST_DIR.indexOf("/ONLINE/MSX/") != -1))
-            {
-              reloadDir();
-              REGENERATE_IDX = true;
             }
             else
             {
-              // Detenemos la lectura
-              FB_CANCEL_READING_FILES = true;
-            }
-        }
-        else if (strCmd.indexOf("FINI") != -1) 
-        {
-            // Posicionamos entonces en la primera página
-            // Cogemos el primer item y refrescamos
-            FILE_PTR_POS = 1;
-            // Actualizamos la lista con la posición nueva del puntero
-            getFilesFromSD(false,SOURCE_FILE_TO_MANAGE,SOURCE_FILE_INF_TO_MANAGE);
-            // Refrescamos el listado de ficheros visualizado
-            refreshFiles();  
-            delay(125);
-            showInformationAboutFiles();                     
-        }
-        else if (strCmd.indexOf("FEND") != -1) 
-        {
-            // Posicionamos entonces en la ultima página
-            int totalPages = ((FILE_TOTAL_FILES) / TOTAL_FILES_IN_BROWSER_PAGE);
-            // Cogemos el primer item y refrescamos
-            FILE_PTR_POS = (totalPages * TOTAL_FILES_IN_BROWSER_PAGE) + 1;
-            // Actualizamos la lista con la posición nueva del puntero
-            getFilesFromSD(false,SOURCE_FILE_TO_MANAGE,SOURCE_FILE_INF_TO_MANAGE);
-            // Refrescamos el listado de ficheros visualizado
-            refreshFiles(); 
-            delay(125);
-            showInformationAboutFiles();                       
-        }        
-        else if (strCmd.indexOf("FPUP") != -1) 
-        {
-            // Con este comando nos indica la pantalla que quiere
-            // le devolvamos ficheros en la posición actual del puntero
-            FILE_PTR_POS = FILE_PTR_POS - TOTAL_FILES_IN_BROWSER_PAGE;
-      
-            if (FILE_PTR_POS < 0)
+              log_error("HMI","Error to open directory");
+            }          
+          }
+    
+          //clearRotate();
+
+      }
+      else if (strCmd.indexOf("PAR=") != -1) 
+      {
+          // Con este comando capturamos el directorio padre
+          String oldDir = FILE_PREVIOUS_DIR;
+          
+          LST_FILE_IS_OPEN = false;
+          if (fFileLST)
+          {
+            fFileLST.close();
+          }
+
+          // Forzamos a leer el repositorio de ficheros del directorio.
+          SOURCE_FILE_TO_MANAGE = "_files.lst"; 
+          SOURCE_FILE_INF_TO_MANAGE = "_files.inf"; 
+
+          //Cogemos el directorio padre que siempre estará en el prevDir y por tanto
+          //no hay que calcular la posición
+          FILE_DIR_TO_CHANGE = FILES_BUFF[0].path;    
+          if (FILE_DIR_TO_CHANGE.endsWith("/") && FILE_DIR_TO_CHANGE.length() > 1) FILE_DIR_TO_CHANGE.remove(FILE_DIR_TO_CHANGE.length() - 1);
+
+          FILE_LAST_DIR = FILE_DIR_TO_CHANGE;
+          FILE_LAST_DIR_LAST = FILE_LAST_DIR;
+
+          if (FILE_DIR_TO_CHANGE.length() == 1)
+          {
+              //Es el nivel mas alto
+              FILE_PREVIOUS_DIR = INITFILEPATH;
+          }
+          else
+          {
+              //Cogemos el directorio anterior de la cadena
+              FILE_PREVIOUS_DIR = getPreviousDirFromPath(FILE_LAST_DIR);
+          }
+
+          //
+          //
+          FILE_PTR_POS = 1;    
+          getFilesFromSD(false,SOURCE_FILE_TO_MANAGE,SOURCE_FILE_INF_TO_MANAGE);
+          refreshFiles();
+          delay(125);
+          showInformationAboutFiles();            
+          
+          // 
+          if (!FILE_DIR_OPEN_FAILED)
+          {
+              putFilesInScreen();
+          }
+          else
+          {
+              // Error
+              writeString("currentDir.txt=\">> Error opening directory. <<\"");
+              delay(1500);
+              writeString("currentDir.txt=\"" + String(FILE_LAST_DIR_LAST) + "\"");             
+          }
+
+          refreshFiles();
+
+          //clearRotate();
+
+    
+      }
+      else if (strCmd.indexOf("ROT=") != -1) 
+      {
+          // Con este comando capturamos el fichero a rotar
+          uint8_t buff[8];
+          strCmd.getBytes(buff, 7);
+          long val = (long)((int)buff[4] + (256*(int)buff[5]) + (65536*(int)buff[6]));
+          String num = String(val);
+    
+          int idx = num.toInt();  
+          log_debug("HMI","Rotating index: " + String(idx));
+
+          if (idx >=0 && idx < 14)
+          {
+            ROTATE_FILENAME = FILES_BUFF[idx+1].path;
+            ENABLE_ROTATE_FILEBROWSER = true;  
+          }
+          else
+          {
+            ROTATE_FILENAME = "";
+            ENABLE_ROTATE_FILEBROWSER = false;
+          }
+
+          log_debug("HMI","Rotating filename: " + ROTATE_FILENAME);
+          log_debug("HMI","Rotating enable: " + String(ENABLE_ROTATE_FILEBROWSER));
+
+          
+          // Esto lo hacemos para que no se quede pillado en el ultimo cuando ha hecho un rotate
+          //writeString("file.lastPressed.val=15");
+          
+      }
+      else if (strCmd.indexOf("ROC=") != -1)
+      {
+        ROTATE_FILENAME = "";
+        ENABLE_ROTATE_FILEBROWSER = false;          
+      } 
+      else if (strCmd.indexOf("TRS=") != -1) 
+      {
+          // Con este comando
+          // Borramos el fichero que se ha seleccionado en la pantalla
+          uint8_t buff[8];
+          strCmd.getBytes(buff, 7);
+
+          long val = (long)((int)buff[4] + (256*(int)buff[5]) + (65536*(int)buff[6]));
+          String num = String(val);
+    
+          FILE_IDX_SELECTED = num.toInt();
+          FILE_SELECTED_DELETE = false;
+    
+          FILE_TO_DELETE = FILE_LAST_DIR + "/" + FILES_BUFF[FILE_IDX_SELECTED+1].path;      
+          FILE_SELECTED_DELETE = true; 
+
+
+          if (FILE_SELECTED_DELETE)
+          {
+            // Lo Borramos
+              File mf = SD_MMC.open(FILE_TO_DELETE,FILE_WRITE);
+
+              if (!mf)
+              {
+                writeString("currentDir.txt=\">> Error. File not writeable <<\"");
+                delay(1500);
+                writeString("currentDir.txt=\"" + String(FILE_LAST_DIR_LAST) + "\"");                  
+                mf.close();
+                FILE_SELECTED_DELETE = false;
+              }
+              else
+              {
+                  mf.close();
+
+                  if (!SD_MMC.remove(FILE_TO_DELETE))
+                  {
+                    log_error("HMI","Error to remove file. " + FILE_TO_DELETE);
+                    
+                    writeString("currentDir.txt=\">> Error. File not removed <<\"");
+                    delay(1500);
+                    writeString("currentDir.txt=\"" + String(FILE_LAST_DIR_LAST) + "\"");    
+                    FILE_SELECTED_DELETE = false;              
+                  }
+                  else
+                  {
+                    FILE_SELECTED_DELETE = false;
+                    log_debug("HMI","File remove. " + FILE_TO_DELETE);
+                  }                  
+              }
+
+              // Tras borrar hacemos un rescan
+              log_debug("HMI","Rescanning files ... in dir: " + FILE_LAST_DIR_LAST + "/_files.lst");
+              //removeFileFromLst(FILE_LAST_DIR_LAST + "/_files.lst", FILES_BUFF[FILE_IDX_SELECTED+1].path);
+              reloadDir();
+          }
+          else
+          {
+            writeString("currentDir.txt=\">> First, select a file. <<\"");
+          }
+      }      
+      // Load file - Carga en el TAPE el fichero seleccionado en pantalla
+      else if (strCmd.indexOf("LFI=") != -1) 
+      {
+          // Con este comando
+          // devolvamos el fichero que se ha seleccionado en la pantalla
+          uint8_t buff[8];
+          strCmd.getBytes(buff, 7);
+          long val = (long)((int)buff[4] + (256*(int)buff[5]) + (65536*(int)buff[6]));
+          String num = String(val);
+    
+          FILE_IDX_SELECTED = num.toInt();
+          FILE_SELECTED = false;
+
+          log_debug("HMI","File selected: " + String(FILE_IDX_SELECTED));
+
+          // Path completo del fichero
+          if (FILE_IDX_SELECTED >=0 && FILE_IDX_SELECTED < 14)
+          {
+            PATH_FILE_TO_LOAD = FILE_LAST_DIR + "/" + FILES_BUFF[FILE_IDX_SELECTED+1].path;  
+            // Fichero sin path
+            FILE_LOAD = FILES_BUFF[FILE_IDX_SELECTED+1].path;                
+
+            log_debug("HMI","File path to load: " + PATH_FILE_TO_LOAD);
+            log_debug("HMI","File name only   : " + FILE_LOAD);
+
+            if (FILE_LOAD.indexOf(".zxdb") != -1)
             {
-                FILE_PTR_POS = 1;
+              // Es un fichero virtual ZXDB. Hay que descargarlo primero.
+              log_debug("HMI","File is a virtual ZXDB file. Downloading ...");
+              // Cogemos el nombre del fichero sin .zxdb
+              String tittle = FILE_LOAD.substring(0, FILE_LOAD.length() - 5);
+              // Buscamos en _files.lst el ID que le corresponde a ese fichero para descargarlo
+              String idFile = getIdOfFileInLst(FILE_LAST_DIR + "/_files.lst", FILES_BUFF[FILE_IDX_SELECTED+1].path);
+
+              if (idFile != "")
+              {
+                log_debug("HMI","File id to download: " + idFile);
+                log_debug("HMI","Title of file to download: " + tittle);
+                log_debug("HMI","Starting download from ZXDB ...");
+
+                LAST_MESSAGE = "Trying to download from ZXDB. Please wait ...";
+                myNex.writeStr("tape.g0.txt", LAST_MESSAGE.c_str());
+                delay(500);
+
+                downloadFromZXDB(idFile, tittle);
+              }
+
             }
-
-            getFilesFromSD(false,SOURCE_FILE_TO_MANAGE,SOURCE_FILE_INF_TO_MANAGE);
-            refreshFiles();
-            delay(125);
-            showInformationAboutFiles();            
-        }
-        else if (strCmd.indexOf("FPDOWN") != -1) 
-        {
-            // Con este comando nos indica la pantalla que quiere
-            // le devolvamos ficheros en la posición actual del puntero
-            FILE_PTR_POS = FILE_PTR_POS + TOTAL_FILES_IN_BROWSER_PAGE;
-  
-            #ifdef DEBUGMODE
-              logln("");
-              logln("files in page: " + String(FILE_TOTAL_FILES-1));
-            #endif
-
-            if (FILE_PTR_POS > (FILE_TOTAL_FILES))
+            else if (FILE_LOAD.indexOf(".cpcdb") != -1)
             {
-                // Hacemos esto para permanecer en la misma pagina
-                FILE_PTR_POS -= TOTAL_FILES_IN_BROWSER_PAGE;
+              // Es un fichero virtual CPCDB. Hay que descargarlo primero.
+              log_debug("HMI","File is a virtual CPCDB file. Downloading ...");
+              // Cogemos el nombre del fichero sin .cpcdb
+              String tittle = FILE_LOAD.substring(0, FILE_LOAD.length() - 6);
+              // Buscamos en _files.lst el nombre real del CDT
+              String cdtFileName = getIdOfFileInLst(FILE_LAST_DIR + "/_files.lst", FILES_BUFF[FILE_IDX_SELECTED+1].path);
+
+              if (cdtFileName != "")
+              {
+                log_debug("HMI","CDT file to download: " + cdtFileName);
+                log_debug("HMI","Title of file to download: " + tittle);
+                log_debug("HMI","Starting download from CPCDB ...");
+                downloadFromCPCDB(cdtFileName, tittle);
+              }
+
             }
-
-            getFilesFromSD(false,SOURCE_FILE_TO_MANAGE,SOURCE_FILE_INF_TO_MANAGE);
-            refreshFiles();
-            delay(125);
-            showInformationAboutFiles();
-        }
-        else if (strCmd.indexOf("FPHOME") != -1) 
-        {
-            // Con este comando nos indica la pantalla que quiere
-            // le devolvamos ficheros en la posición actual del puntero
-            SOURCE_FILE_TO_MANAGE = "_files.lst";
-            SOURCE_FILE_INF_TO_MANAGE = "_files.inf"; 
-
-            LST_FILE_IS_OPEN = false;
-            if (fFileLST)
+            else if (FILE_LOAD.indexOf(".msxdb") != -1)
             {
-              fFileLST.close();
+              // Es un fichero virtual MSXDB. Hay que descargarlo primero.
+              log_debug("HMI","File is a virtual MSXDB file. Downloading ...");
+              // Cogemos el nombre del fichero sin .msxdb
+              String tittle = FILE_LOAD.substring(0, FILE_LOAD.length() - 6);
+              // Buscamos en _files.lst la ruta real del CAS (e.g. "CLOAD/Game (EU).cas")
+              String casFileName = getIdOfFileInLst(FILE_LAST_DIR + "/_files.lst", FILES_BUFF[FILE_IDX_SELECTED+1].path);
+
+              if (casFileName != "")
+              {
+                log_debug("HMI","CAS file to download: " + casFileName);
+                log_debug("HMI","Title of file to download: " + tittle);
+                log_debug("HMI","Starting download from MSXDB ...");
+                downloadFromMSXDB(casFileName, tittle);
+              }
+
             }
-
-            putInHome();
-         
-            getFilesFromSD(false,SOURCE_FILE_TO_MANAGE,SOURCE_FILE_INF_TO_MANAGE);
-            refreshFiles(); 
-        }        
-        else if (strCmd.indexOf("FAV=") != -1) 
-        {
-            
-            #ifdef DEBUGMODE
-              logAlert("FAV Command");
-            #endif                  
-
-            // Con este comando añadimos el fichero seleccionado a la carpeta favoritos si no existe
-            // Con este comando
-            // devolvamos el fichero que se ha seleccionado en la pantalla
-            uint8_t buff[8];
-            strCmd.getBytes(buff, 7);
-            long val = (long)((int)buff[4] + (256*(int)buff[5]) + (65536*(int)buff[6]));
-            String num = String(val);
-      
-            FILE_IDX_SELECTED = num.toInt();
-            FILE_SELECTED = false;
-      
-            //Extraemos el fichero
-            String fileName  = FILES_BUFF[FILE_IDX_SELECTED+1].path;
-            String fToFav = FILE_LAST_DIR + "/" + fileName;                         
-      
-            #ifdef DEBUGMODE
-              logAlert("Filename: " + fileName);
-              logAlert("Full path: " + fToFav);
-            #endif
-
-            // Cambiamos el estado de fichero seleccionado
-            if (fToFav != "")
+            else
             {
-                #ifdef DEBUGMODE
-                  logAlert("File was selected to move to favorite dir");
-                #endif
-
-                // Ahora lo cargamos en favorito.
-                String pSource = fToFav;
-                String pTarget = "/fav/" + fileName;
-
-                #ifdef DEBUGMODE
-                  logln("");
-                  log("Source file: " + pSource);
-                  logln("");
-                  log("Target file: " + pTarget);
-                  logln("");
-                #endif
-                
-                //Esto lo hacemos para ver si el directorio existe
-                String favDir = "/FAV";
-
-                if (SD_MMC.open(favDir))
+                // Comprobamos que la ruta es existente
+                if (!SD_MMC.exists(PATH_FILE_TO_LOAD))
                 {
-                    #ifdef DEBUGMODE
-                      logAlert("FAV ok");
-                    #endif
-                    // Si el fichero no existe en favoritos, lo copio
-                    logln("Checking if file exists in FAV ..." + pTarget);
-                    if (!SD_MMC.exists(pTarget))
-                    {
-                        if (copyFileFS(pSource.c_str(), pTarget.c_str()))
-                        {
-                          writeString("statusFILE.txt=\"COPY 100%\"");
-                          logAlert("File copied to FAV.");
-                        }
-                        else
-                        {
-                          writeString("statusFILE.txt=\"COPY ERROR\"");
-                          logAlert("Error! Copy failed");
-                        }           
-                    }
-                    else
-                    {
-                        #ifdef DEBUGMODE
-                          logln("");
-                          log("File already in FAV.");
-                        #endif
-                    }                  
+                  #ifdef DEBUGMODE
+                    logAlert("File not exists: " + PATH_FILE_TO_LOAD);
+                  #endif
+                  PATH_FILE_TO_LOAD = "";
+                  FILE_LOAD = "";
+                  FILE_SELECTED = false;
                 }
                 else
                 {
                   #ifdef DEBUGMODE
-                    logln("");
-                    log("Error! directory /FAV not created.");
+                    logAlert("File exists: " + PATH_FILE_TO_LOAD);
                   #endif
-                }
-            }     
-        }              
-        else if (strCmd.indexOf("BBOPEN") != -1)
-        {
-          // Block browser abierto
-          //
-          // *************************************************************************************************
-          //
-          // NOTA: El tipo de BLOCK BROWSER sea DATA o AUDIO depende del logo visualizado
-          //       esto se controla en el HMI. El HMI decide si visualizar el panel para AUDIO o para TAP/TZX
-          //
-          // *************************************************************************************************
-          //
-          BB_OPEN = true;
-          BLOCK_BROWSER_OPEN = true;
-        }
-        else if (strCmd.indexOf("BBCL=") != -1)
-        {
-          // Block browser cerrado con ID seleccionado o -1 para ninguno
-          // Con este procedimiento obtenemos la pàgina del filebrowser
-          // que se desea visualizar
-          int posEq = strCmd.indexOf("=");
-          String sbstr = strCmd.substring(posEq+1);
+                  FILE_SELECTED = true;
 
-          // Obtenemos el ID seleccionado
-          int idsel = sbstr.toInt();
-          int blsel = (MAX_BLOCKS_IN_BROWSER * BB_PAGE_SELECTED) - (MAX_BLOCKS_IN_BROWSER - idsel);
-
-          //logln("Bloque seleccionado: " + String(blsel));
-
-          if (blsel >= 0 && blsel <= TOTAL_BLOCKS)
-          {
-            if (TYPE_FILE_LOAD != "TAP")
-            {
-              BLOCK_SELECTED = blsel;
+                  // Guardamos esto en el fichero de last.txt
+                  saveLastMedia(PATH_FILE_TO_LOAD);                
+                }                
             }
-            else
-            {
-              BLOCK_SELECTED = blsel - 1;
-            }
-            writeString("tape.currentBlock.val=" + String(BLOCK_SELECTED));
-          }         
-          // Delay para esperar a que el browser se cierre
-          delay(250);
-          BB_OPEN = false;
-          BLOCK_BROWSER_OPEN = false;
-          UPDATE_HMI = true;
-        }        
-        else if (strCmd.indexOf("BDOWN") != -1)
-        {
-          // Pagina arriba block browser
-          BB_PTR_ITEM += MAX_BLOCKS_IN_BROWSER;
-
-          if (BB_PTR_ITEM > TOTAL_BLOCKS - 1)
+          }
+          else
           {
-            BB_PTR_ITEM -= MAX_BLOCKS_IN_BROWSER;
+            PATH_FILE_TO_LOAD = "";
+          }
+    
+          log_debug("HMI","File to load = " + PATH_FILE_TO_LOAD);
+
+          FILE_STATUS = 0;
+    
+          //FILE_BROWSER_OPEN = false;
+    
+      }   
+      // Configuración de frecuencias de muestreo
+      // Indica que la pantalla está activa
+      else if (strCmd.indexOf("LCDON") != -1) 
+      {
+          LCD_ON = true;
+      }
+      // Control de TAPE
+      else if (strCmd.indexOf("FFWD") != -1) 
+      {
+          log_info("HMI","FFWD pressed");
+          FFWIND = true;
+          RWIND = false;
+          KEEP_FFWIND = false;
+
+          if (CURRENT_PAGE == PAGE_SPOTIFY)
+          {
+            verifyCommand("SPO4");
+          }
+      }
+      else if (strCmd.indexOf("RWD") != -1) 
+      {
+          log_info("HMI","RWD pressed");
+          FFWIND = false;
+          RWIND = true;
+          KEEP_RWIND = false;
+
+          if (CURRENT_PAGE == PAGE_SPOTIFY)
+          {
+            verifyCommand("SPO1");
           }
 
-          BB_PAGE_SELECTED = (BB_PTR_ITEM / MAX_BLOCKS_IN_BROWSER) + 1;
-          BB_UPDATE = true;
-
-        }
-        else if (strCmd.indexOf("BUP") != -1)
+      }
+      else if (strCmd.indexOf("SFWD") != -1) 
+      {
+          log_debug("HMI","S_FFWD pressed");
+          FFWIND = false;
+          RWIND = false;
+          KEEP_FFWIND = true;
+          KEEP_RWIND = false;
+      }
+      else if (strCmd.indexOf("TTWD") != -1) 
+      {
+          log_debug("HMI","S_RWD pressed");
+          FFWIND = false;
+          RWIND = false;
+          KEEP_RWIND = true;
+          KEEP_FFWIND = false;
+      }        
+      else if (strCmd.indexOf("PLAY") != -1) 
+      {
+        if (isSDCardMounted())
         {
-          // Pagina arriba block browser
-          BB_PTR_ITEM -= MAX_BLOCKS_IN_BROWSER;
-
-          if (BB_PTR_ITEM < 0)
-          {
-            BB_PTR_ITEM = 0;
-          }
-
-          BB_PAGE_SELECTED = (BB_PTR_ITEM / MAX_BLOCKS_IN_BROWSER) + 1;
-          BB_UPDATE = true;
-
-        }
-        else if (strCmd.indexOf("BHOME") != -1)
-        {
-          // Pagina arriba block browser
-          BB_PTR_ITEM = 0;
-          BB_PAGE_SELECTED = 1;
-          BB_UPDATE = true;
-        }        
-        else if (strCmd.indexOf("BPDOWN") != -1)
-        {
-          // Pagina arriba block browser
-
-          // // Pagina arriba block browser
-          // BB_PTR_ITEM += MAX_BLOCKS_IN_BROWSER;
-
-          // if (BB_PTR_ITEM > TOTAL_BLOCKS - 1)
-          // {
-          //   BB_PTR_ITEM -= MAX_BLOCKS_IN_BROWSER;
-          // }
-
-          // BB_PAGE_SELECTED = (BB_PTR_ITEM / MAX_BLOCKS_IN_BROWSER) + 1;
-          // BB_UPDATE = true;
-          
-          if (TOTAL_BLOCKS > MAX_BLOCKS_IN_BROWSER)
-          {
-            // Podemos bajar paginas
-            BB_PTR_ITEM += (MAX_BLOCKS_IN_BROWSER * 10);
-            // Si sobrepasamos el final, mostramos la ultima pagina
-            if (BB_PTR_ITEM > TOTAL_BLOCKS - 1)
-            {
-              // Ultima pagina.
-              int n = TOTAL_BLOCKS / MAX_BLOCKS_IN_BROWSER;
-              BB_PTR_ITEM = (TOTAL_BLOCKS - (TOTAL_BLOCKS - (MAX_BLOCKS_IN_BROWSER * n)));
-            }
-            
-            // Info de la pagina vista
-            BB_PAGE_SELECTED = (BB_PTR_ITEM / MAX_BLOCKS_IN_BROWSER) + 1;
-            BB_UPDATE = true;            
-          }
-        }
-        else if (strCmd.indexOf("BPUP") != -1)
-        {
-          // Pagina arriba block browser
-          BB_PTR_ITEM -= (MAX_BLOCKS_IN_BROWSER * 10);
-
-          if (BB_PTR_ITEM < 0)
-          {
-            BB_PTR_ITEM = 0;
-          }
-
-          BB_PAGE_SELECTED = (BB_PTR_ITEM / MAX_BLOCKS_IN_BROWSER) + 1;
-          BB_UPDATE = true;
-
-        }        
-        else if (strCmd.indexOf("CHD=") != -1) 
-        {
-            uint32_t val=0;
-            // Con este comando capturamos el directorio a cambiar
-            // uint8_t buff[8];
-            // strCmd.getBytes(buff, 7);
-
-            // #ifdef DEBUGMODE
-            //   for (int i=0;i<8;i++)
-            //   {
-            //     logln("Byte " + String(i) + ": " + String(buff[i]));
-            //   }
-            // #endif
-            
-            // long val = (long)((int)buff[4] + (256*(int)buff[5]) + (65536*(int)buff[6]));
-
-            // Con este comando capturamos el directorio a cambiar
-            uint8_t buff[8] = {0}; // Inicializamos el buffer a 0
-            strCmd.getBytes(buff, 7);  // getBytes no devuelve size_t
-            
-            // Verificación de seguridad - verificamos directamente los bytes del comando
-            if (buff[0] == 'C' && buff[1] == 'H' && buff[2] == 'D' && buff[3] == '=') {
-                // Construimos el valor usando máscaras y shifts para evitar desbordamientos
-                val = ((uint32_t)buff[4]) | 
-                              ((uint32_t)buff[5] << 8) | 
-                              ((uint32_t)buff[6] << 16);
-                
-                // Verificación adicional del rango
-                if (val < MAX_FILES_TO_LOAD) {
-                    int indexFileSelected = static_cast<int>(val);
-                    FILE_IDX_SELECTED = indexFileSelected;
-                    // ... resto del código existente ...
-                } else {
-                    logln("Error: Invalid file index value: " + String(val));
-                    writeString("currentDir.txt=\">> Error: Invalid index value <<\"");
-                    return;
-                }
-            } else {
-                logln("Error: Invalid CHD command format");
-                writeString("currentDir.txt=\">> Error: Invalid command format <<\"");
-                return;
-            }
-
-            //String num = String(val);
-            int indexFileSelected = static_cast<int> (val);
-      
-            //Cogemos el directorio
-            if (indexFileSelected > sizeof(FILES_BUFF))
-            {
-              // Regeneramos el directorio de manera automática.
-              logln("File index out of range: " + String(indexFileSelected));
-              //
-              writeString("currentDir.txt=\">> HMI error. Idx out of range <<\"");
-              //FILE_IDX_SELECTED = 13;
-              //reloadDir();
-            }
-            else
-            {
-              // Actuamos sobre la seleccion en HMI
-              FILE_IDX_SELECTED = indexFileSelected;   
-              //      
-              
-              if (FILE_LAST_DIR == "/")
-              {
-                FILE_DIR_TO_CHANGE = FILE_LAST_DIR + FILES_BUFF[FILE_IDX_SELECTED+1].path;
-              }
-              else
-              {
-                FILE_DIR_TO_CHANGE = FILE_LAST_DIR + "/" + FILES_BUFF[FILE_IDX_SELECTED+1].path;
-              }
-
-              #ifdef DEBUGMODE
-                logln("Dir to change " + FILE_DIR_TO_CHANGE);
-              #endif
-              
-              IN_THE_SAME_DIR = false;
-        
-              // Guardamos para poder volver atrás
-              String dir_ch = FILE_DIR_TO_CHANGE;
-              if (dir_ch.endsWith("/") && dir_ch.length() > 1) dir_ch.remove(dir_ch.length() - 1);
-
-              //
-              logln("Changing to dir: " + dir_ch);
-
-              //
-              FILE_PREVIOUS_DIR = FILE_LAST_DIR;
-              FILE_LAST_DIR = dir_ch;
-              FILE_LAST_DIR_LAST = FILE_LAST_DIR;
-        
-              FILE_PTR_POS = 1;
-              // clearFilesInScreen(); // 02/12/2024
-              writeString("statusFILE.txt=\"READING\"");  
-
-              //logln("Paso 1");
-              if (fFileLST)
-              {
-                fFileLST.close();
-                LST_FILE_IS_OPEN = false;
-              }
-
-              //logln("Paso 2");
-
-              String recDirTmp = FILE_LAST_DIR;
-              recDirTmp.toUpperCase();
-              if (recDirTmp == "/FAV/" || recDirTmp == "/REC/" || recDirTmp == "/WAV" || recDirTmp == "/DOWNLOAD" || recDirTmp == "/DOWNLOAD_CPC" || recDirTmp == "/DOWNLOAD_MSX" || recDirTmp == "/ONLINE" || recDirTmp == "/ONLINE_CPC" || recDirTmp == "/ONLINE_MSX")
-              {
-                getFilesFromSD(true,SOURCE_FILE_TO_MANAGE,SOURCE_FILE_INF_TO_MANAGE);
-              }
-              else
-              {
-                getFilesFromSD(false,SOURCE_FILE_TO_MANAGE,SOURCE_FILE_INF_TO_MANAGE);
-              }
-
-              if (!FILE_DIR_OPEN_FAILED)
-              {
-                  //putFilesInScreen();
-                  putFilesInScreen();
-              }
-              else
-              {
-                #ifdef DEBUGMODE
-                  logln("Error to open directory");
-                #endif
-              }          
-            }
-     
-            //clearRotate();
-
-        }
-        else if (strCmd.indexOf("PAR=") != -1) 
-        {
-            // Con este comando capturamos el directorio padre
-            String oldDir = FILE_PREVIOUS_DIR;
-            
-            LST_FILE_IS_OPEN = false;
-            if (fFileLST)
-            {
-              fFileLST.close();
-            }
-
-            // Forzamos a leer el repositorio de ficheros del directorio.
-            SOURCE_FILE_TO_MANAGE = "_files.lst"; 
-            SOURCE_FILE_INF_TO_MANAGE = "_files.inf"; 
-
-            //Cogemos el directorio padre que siempre estará en el prevDir y por tanto
-            //no hay que calcular la posición
-            FILE_DIR_TO_CHANGE = FILES_BUFF[0].path;    
-            if (FILE_DIR_TO_CHANGE.endsWith("/") && FILE_DIR_TO_CHANGE.length() > 1) FILE_DIR_TO_CHANGE.remove(FILE_DIR_TO_CHANGE.length() - 1);
-
-            FILE_LAST_DIR = FILE_DIR_TO_CHANGE;
-            FILE_LAST_DIR_LAST = FILE_LAST_DIR;
-
-            if (FILE_DIR_TO_CHANGE.length() == 1)
-            {
-                //Es el nivel mas alto
-                FILE_PREVIOUS_DIR = INITFILEPATH;
-            }
-            else
-            {
-                //Cogemos el directorio anterior de la cadena
-                FILE_PREVIOUS_DIR = getPreviousDirFromPath(FILE_LAST_DIR);
-            }
-
-            //
-            //
-            FILE_PTR_POS = 1;    
-            getFilesFromSD(false,SOURCE_FILE_TO_MANAGE,SOURCE_FILE_INF_TO_MANAGE);
-            refreshFiles();
-            delay(125);
-            showInformationAboutFiles();            
-            
-            // 
-            if (!FILE_DIR_OPEN_FAILED)
-            {
-                putFilesInScreen();
-            }
-            else
-            {
-                // Error
-                writeString("currentDir.txt=\">> Error opening directory. <<\"");
-                delay(1500);
-                writeString("currentDir.txt=\"" + String(FILE_LAST_DIR_LAST) + "\"");             
-            }
-
-            refreshFiles();
-
-            //clearRotate();
-
-      
-        }
-        else if (strCmd.indexOf("ROT=") != -1) 
-        {
-            // Con este comando capturamos el fichero a rotar
-            uint8_t buff[8];
-            strCmd.getBytes(buff, 7);
-            long val = (long)((int)buff[4] + (256*(int)buff[5]) + (65536*(int)buff[6]));
-            String num = String(val);
-      
-            int idx = num.toInt();  
-            logln("Rotating index: " + String(idx));
-
-            if (idx >=0 && idx < 14)
-            {
-              ROTATE_FILENAME = FILES_BUFF[idx+1].path;
-              ENABLE_ROTATE_FILEBROWSER = true;  
-            }
-            else
-            {
-              ROTATE_FILENAME = "";
-              ENABLE_ROTATE_FILEBROWSER = false;
-            }
-
-            logln("Rotating filename: " + ROTATE_FILENAME);
-            logln("Rotating enable: " + String(ENABLE_ROTATE_FILEBROWSER));
-
-            
-            // Esto lo hacemos para que no se quede pillado en el ultimo cuando ha hecho un rotate
-            //writeString("file.lastPressed.val=15");
-           
-        }
-        else if (strCmd.indexOf("ROC=") != -1)
-        {
-          ROTATE_FILENAME = "";
-          ENABLE_ROTATE_FILEBROWSER = false;          
-        } 
-        else if (strCmd.indexOf("TRS=") != -1) 
-        {
-            // Con este comando
-            // Borramos el fichero que se ha seleccionado en la pantalla
-            uint8_t buff[8];
-            strCmd.getBytes(buff, 7);
-
-            long val = (long)((int)buff[4] + (256*(int)buff[5]) + (65536*(int)buff[6]));
-            String num = String(val);
-      
-            FILE_IDX_SELECTED = num.toInt();
-            FILE_SELECTED_DELETE = false;
-      
-            FILE_TO_DELETE = FILE_LAST_DIR + "/" + FILES_BUFF[FILE_IDX_SELECTED+1].path;      
-            FILE_SELECTED_DELETE = true; 
-
-
-            if (FILE_SELECTED_DELETE)
-            {
-              // Lo Borramos
-                File mf = SD_MMC.open(FILE_TO_DELETE,FILE_WRITE);
-
-                if (!mf)
-                {
-                  writeString("currentDir.txt=\">> Error. File not writeable <<\"");
-                  delay(1500);
-                  writeString("currentDir.txt=\"" + String(FILE_LAST_DIR_LAST) + "\"");                  
-                  mf.close();
-                  FILE_SELECTED_DELETE = false;
-                }
-                else
-                {
-                    mf.close();
-
-                    if (!SD_MMC.remove(FILE_TO_DELETE))
-                    {
-                      #ifdef DEBUGMODE
-                        logln("Error to remove file. " + FILE_TO_DELETE);
-                      #endif
-                      
-                      logln("File not removed. " + FILE_TO_DELETE);
-
-                      writeString("currentDir.txt=\">> Error. File not removed <<\"");
-                      delay(1500);
-                      writeString("currentDir.txt=\"" + String(FILE_LAST_DIR_LAST) + "\"");    
-                      FILE_SELECTED_DELETE = false;              
-                    }
-                    else
-                    {
-                      FILE_SELECTED_DELETE = false;
-                      logln("File remove. " + FILE_TO_DELETE);
-                    }                  
-                }
-
-                // Tras borrar hacemos un rescan
-                logln("Rescanning files ... in dir: " + FILE_LAST_DIR_LAST + "/_files.lst");
-                //removeFileFromLst(FILE_LAST_DIR_LAST + "/_files.lst", FILES_BUFF[FILE_IDX_SELECTED+1].path);
-                reloadDir();
-            }
-            else
-            {
-              writeString("currentDir.txt=\">> First, select a file. <<\"");
-            }
-        }      
-        // Load file - Carga en el TAPE el fichero seleccionado en pantalla
-        else if (strCmd.indexOf("LFI=") != -1) 
-        {
-            // Con este comando
-            // devolvamos el fichero que se ha seleccionado en la pantalla
-            uint8_t buff[8];
-            strCmd.getBytes(buff, 7);
-            long val = (long)((int)buff[4] + (256*(int)buff[5]) + (65536*(int)buff[6]));
-            String num = String(val);
-      
-            FILE_IDX_SELECTED = num.toInt();
-            FILE_SELECTED = false;
-
-            logln("File selected: " + String(FILE_IDX_SELECTED));
-
-            // Path completo del fichero
-            if (FILE_IDX_SELECTED >=0 && FILE_IDX_SELECTED < 14)
-            {
-              PATH_FILE_TO_LOAD = FILE_LAST_DIR + "/" + FILES_BUFF[FILE_IDX_SELECTED+1].path;  
-              // Fichero sin path
-              FILE_LOAD = FILES_BUFF[FILE_IDX_SELECTED+1].path;                
-
-              logln("File path to load: " + PATH_FILE_TO_LOAD);
-              logln("File name only   : " + FILE_LOAD);
-
-              if (FILE_LOAD.indexOf(".zxdb") != -1)
-              {
-                // Es un fichero virtual ZXDB. Hay que descargarlo primero.
-                logln("File is a virtual ZXDB file. Downloading ...");
-                // Cogemos el nombre del fichero sin .zxdb
-                String tittle = FILE_LOAD.substring(0, FILE_LOAD.length() - 5);
-                // Buscamos en _files.lst el ID que le corresponde a ese fichero para descargarlo
-                String idFile = getIdOfFileInLst(FILE_LAST_DIR + "/_files.lst", FILES_BUFF[FILE_IDX_SELECTED+1].path);
-
-                if (idFile != "")
-                {
-                  logln("File id to download: " + idFile);
-                  logln("Title of file to download: " + tittle);
-                  logln("Starting download from ZXDB ...");
-                  downloadFromZXDB(idFile, tittle);
-                }
-
-              }
-              else if (FILE_LOAD.indexOf(".cpcdb") != -1)
-              {
-                // Es un fichero virtual CPCDB. Hay que descargarlo primero.
-                logln("File is a virtual CPCDB file. Downloading ...");
-                // Cogemos el nombre del fichero sin .cpcdb
-                String tittle = FILE_LOAD.substring(0, FILE_LOAD.length() - 6);
-                // Buscamos en _files.lst el nombre real del CDT
-                String cdtFileName = getIdOfFileInLst(FILE_LAST_DIR + "/_files.lst", FILES_BUFF[FILE_IDX_SELECTED+1].path);
-
-                if (cdtFileName != "")
-                {
-                  logln("CDT file to download: " + cdtFileName);
-                  logln("Title of file to download: " + tittle);
-                  logln("Starting download from CPCDB ...");
-                  downloadFromCPCDB(cdtFileName, tittle);
-                }
-
-              }
-              else if (FILE_LOAD.indexOf(".msxdb") != -1)
-              {
-                // Es un fichero virtual MSXDB. Hay que descargarlo primero.
-                logln("File is a virtual MSXDB file. Downloading ...");
-                // Cogemos el nombre del fichero sin .msxdb
-                String tittle = FILE_LOAD.substring(0, FILE_LOAD.length() - 6);
-                // Buscamos en _files.lst la ruta real del CAS (e.g. "CLOAD/Game (EU).cas")
-                String casFileName = getIdOfFileInLst(FILE_LAST_DIR + "/_files.lst", FILES_BUFF[FILE_IDX_SELECTED+1].path);
-
-                if (casFileName != "")
-                {
-                  logln("CAS file to download: " + casFileName);
-                  logln("Title of file to download: " + tittle);
-                  logln("Starting download from MSXDB ...");
-                  downloadFromMSXDB(casFileName, tittle);
-                }
-
-              }
-              else
-              {
-                  // Comprobamos que la ruta es existente
-                  if (!SD_MMC.exists(PATH_FILE_TO_LOAD))
-                  {
-                    #ifdef DEBUGMODE
-                      logAlert("File not exists: " + PATH_FILE_TO_LOAD);
-                    #endif
-                    PATH_FILE_TO_LOAD = "";
-                    FILE_LOAD = "";
-                    FILE_SELECTED = false;
-                  }
-                  else
-                  {
-                    #ifdef DEBUGMODE
-                      logAlert("File exists: " + PATH_FILE_TO_LOAD);
-                    #endif
-                    FILE_SELECTED = true;
-
-                    // Guardamos esto en el fichero de last.txt
-                    saveLastMedia(PATH_FILE_TO_LOAD);                
-                  }                
-              }
-            }
-            else
-            {
-              PATH_FILE_TO_LOAD = "";
-            }
-      
-            #ifdef DEBUGMODE
-              logln("");
-              logln("File to load = ");
-              log(PATH_FILE_TO_LOAD);
-              logln("");
-            #endif
-
-            FILE_STATUS = 0;
-      
-            //FILE_BROWSER_OPEN = false;
-      
-        }   
-        // Configuración de frecuencias de muestreo
-        else if (strCmd.indexOf("FRQ1") != -1)
-        {
-          DfreqCPU = 3250000.0;
-        }
-        else if (strCmd.indexOf("FRQ2") != -1)
-        {
-          DfreqCPU = 3300000.0;
-        }
-        else if (strCmd.indexOf("FRQ3") != -1)
-        {
-          DfreqCPU = 3330000.0;
-        }
-        else if (strCmd.indexOf("FRQ4") != -1)
-        {
-          DfreqCPU = 3350000.0;
-        }
-        else if (strCmd.indexOf("FRQ5") != -1)
-        {
-          DfreqCPU = 3400000.0;
-        }
-        else if (strCmd.indexOf("FRQ6") != -1)
-        {
-          DfreqCPU = 3430000.0;
-        }
-        else if (strCmd.indexOf("FRQ7") != -1)
-        {
-          DfreqCPU = 3450000.0;
-        }
-        else if (strCmd.indexOf("FRQ8") != -1)
-        {
-          DfreqCPU = 3500000.0;
-        }
-        // Indica que la pantalla está activa
-        else if (strCmd.indexOf("LCDON") != -1) 
-        {
-            LCD_ON = true;
-        }
-        // Control de TAPE
-        else if (strCmd.indexOf("FFWD") != -1) 
-        {
-            logln("FFWD pressed");
-            FFWIND = true;
-            RWIND = false;
-            KEEP_FFWIND = false;
-
-            if (CURRENT_PAGE == PAGE_SPOTIFY)
-            {
-              verifyCommand("SPO4");
-            }
-        }
-        else if (strCmd.indexOf("RWD") != -1) 
-        {
-            logln("RWD pressed");
-            FFWIND = false;
-            RWIND = true;
-            KEEP_RWIND = false;
-
-            if (CURRENT_PAGE == PAGE_SPOTIFY)
-            {
-              verifyCommand("SPO1");
-            }
-
-        }
-        else if (strCmd.indexOf("SFWD") != -1) 
-        {
-            //logln("S_FFWD pressed");
-            FFWIND = false;
-            RWIND = false;
-            KEEP_FFWIND = true;
-        }
-        else if (strCmd.indexOf("TTWD") != -1) 
-        {
-            //logln("S_RWD pressed");
-            FFWIND = false;
-            RWIND = false;
-            KEEP_RWIND = true;
-        }        
-        else if (strCmd.indexOf("PLAY") != -1) 
-        {
-
-          #ifdef DEBUGMODE
-            logAlert("PLAY pressed.");
-          #endif
+          log_info("HMI","PLAY pressed.");
 
           PLAY = true;
           PAUSE = false;
@@ -2842,102 +2613,90 @@ private:
           if (CURRENT_PAGE == PAGE_SPOTIFY)
           {
             verifyCommand("SPO2");
-          }
-          
-
-        }   
-        else if (strCmd.indexOf("REC") != -1) 
-        {
-
-          #ifdef DEBUGMODE
-            logAlert("REC pressed.");
-          #endif
-
-          // Pagina del TAPE
-          if (CURRENT_PAGE == PAGE_TAPE)
-          {
-            if (IRADIO_EN)
-            {
-              REC = true;
-            }
-            else
-            {
-              REC = true;
-              BTNREC_PRESSED = true;
-
-              PLAY = false;
-              PAUSE = false;
-              STOP = false;
-              ABORT = false;
-              EJECT = false;
-            }    
           }        
-          else if (CURRENT_PAGE == PAGE_TAPE0)
+        }
+      }   
+      else if (strCmd.indexOf("REC") != -1) 
+      {
+
+        log_debug("HMI","REC pressed.");
+
+        // Pagina del TAPE
+        if (CURRENT_PAGE == PAGE_TAPE)
+        {
+          if (IRADIO_EN)
           {
-            //
+            REC = true;
+          }
+          else
+          {
+            REC = true;
+            BTNREC_PRESSED = true;
+
             PLAY = false;
             PAUSE = false;
             STOP = false;
-            REC = true;
             ABORT = false;
             EJECT = false;
-            BTNREC_PRESSED = true;
-            writeString("page tape");
-          }
-          
-
-          
-        }
-        else if (strCmd.indexOf("PAUSE") != -1) 
+          }    
+        }        
+        else if (CURRENT_PAGE == PAGE_TAPE0)
         {
-
-          #ifdef DEBUGMODE
-            logAlert("PAUSE pressed.");
-          #endif
-
-          PLAY = false;
-          PAUSE = true;
-          STOP = false;
-          REC = false;
-          ABORT = true;
-          EJECT = false;
-          //updateInformationMainPage();
-        }    
-        else if (strCmd.indexOf("STOP") != -1) 
-        {
-
-          #ifdef DEBUGMODE
-            logAlert("STOP pressed.");
-          #endif
-
+          log_debug("HMI","REC pressed.");
           PLAY = false;
           PAUSE = false;
-          STOP = true;
-          REC = false;
-          ABORT = true;
+          STOP = false;
+          REC = true;
+          ABORT = false;
           EJECT = false;
+          BTNREC_PRESSED = true;
+          writeString("page tape");
+        }
+        
 
-          BLOCK_SELECTED = 0;
-          BYTES_LOADED = 0;
+        
+      }
+      else if (strCmd.indexOf("PAUSE") != -1) 
+      {
 
-          if (CURRENT_PAGE == PAGE_SPOTIFY)
-          {
-            verifyCommand("SPO3");
-          }
+        log_debug("HMI","PAUSE pressed.");
 
-        }     
-        else if (strCmd.indexOf("EJECT") != -1) 
+        PLAY = false;
+        PAUSE = true;
+        STOP = false;
+        REC = false;
+        ABORT = true;
+        EJECT = false;
+        //updateInformationMainPage();
+      }    
+      else if (strCmd.indexOf("STOP") != -1) 
+      {
+
+        log_debug("HMI","STOP pressed.");
+
+        PLAY = false;
+        PAUSE = false;
+        STOP = true;
+        REC = false;
+        ABORT = true;
+        EJECT = false;
+
+        BLOCK_SELECTED = 0;
+        BYTES_LOADED = 0;
+
+        if (CURRENT_PAGE == PAGE_SPOTIFY)
         {
-          #ifdef DEBUGMODE
-            logAlert("EJECT pressed.");
-          #endif
+          verifyCommand("SPO3");
+        }
 
-          logln("Status of PAUSE_REQ: " + String(STOP_OR_PAUSE_REQUEST));
+      }     
+      else if (strCmd.indexOf("EJECT") != -1) 
+      {
+        if (isSDCardMounted)
+        {
+          log_debug("HMI","EJECT pressed.");
 
-          // Si no se esta solicitando un STOP o PAUSE aun
-          // if (!STOP_OR_PAUSE_REQUEST || PZX_EJECT_RQT)
-          // {
-          //PZX_EJECT_RQT = false;
+          log_debug("HMI","Status of PAUSE_REQ: " + String(STOP_OR_PAUSE_REQUEST));
 
           PLAY = false;
           PAUSE = false;
@@ -2975,3232 +2734,2950 @@ private:
           // Entramos en el file browser
           writeString("page file");          
           delay(125);
-          refreshFiles();
-        }    
-        else if (strCmd.indexOf("VLI=") != -1) 
-        {
-          //Cogemos el valor
-          uint8_t buff[8];
-          strCmd.getBytes(buff, 7);
-          int valVol = (int)buff[4];
-
-          if (valVol == 1)
-          {
-              VOL_LIMIT_HEADPHONE = true;
-
-              if (MAIN_VOL > MAX_VOL_FOR_HEADPHONE_LIMIT)
-              {
-                MAIN_VOL = MAX_VOL_FOR_HEADPHONE_LIMIT;
-              }
-
-              if (MAIN_VOL_R > MAX_VOL_FOR_HEADPHONE_LIMIT)
-              {
-                MAIN_VOL_R = MAX_VOL_FOR_HEADPHONE_LIMIT;
-              }     
-
-              if (MAIN_VOL_L > MAX_VOL_FOR_HEADPHONE_LIMIT)
-              {
-                MAIN_VOL_L = MAX_VOL_FOR_HEADPHONE_LIMIT;
-              }
-          }
-          else
-          {
-              // 
-              VOL_LIMIT_HEADPHONE = false;
-              // 
-              MAIN_VOL = myNex.readNumber("menuAudio.volM.val");
-              MAIN_VOL_R = myNex.readNumber("menuAudio.volR.val");
-              MAIN_VOL_L = myNex.readNumber("menuAudio.volL.val");
-          }
-          
-          // Actualizamos el master slide
-          myNex.writeNum("menuAudio.volM.val", int(MAIN_VOL));
-          myNex.writeNum("menuAudio.volLevelM.val", int(MAIN_VOL));
-          myNex.writeStr("tape.tapeVol.txt",String(int(MAIN_VOL)) + "%");
-          
-          // Almacenamos en NVS
-          saveHMIcfg("VLIopt");
-          saveVolSliders();
-
-          setVolumenOutput();
-
+          refreshFiles();          
         }
-        // Ajuste del volumen
-        else if (strCmd.indexOf("BOS=") != -1) 
+        else
         {
-          //Cogemos el valor
-          uint8_t buff[8];
-          strCmd.getBytes(buff, 7);
-          int valVol = (int)buff[4];
-          BOOSTER_VOLUME = valVol==1 ? true : false;
-          logln("Booster volume: " + String(BOOSTER_VOLUME));
-          VolumeStreamConfig volumeCfg;
-          volumeCfg.copyFrom(volumeStream.audioInfo());
-          volumeCfg.allow_boost = BOOSTER_VOLUME;
-          volumeStream.setAudioInfo(volumeCfg);
-          saveHMIcfg("BOSopt");
+          EJECT = false;
+          log_info("HMI","EJECT pressed but SD card not mounted.");
         }
-        else if (strCmd.indexOf("BAL=") != -1) 
+
+      }    
+      else if (strCmd.indexOf("VLI=") != -1) 
+      {
+        //Cogemos el valor
+        uint8_t buff[8];
+        strCmd.getBytes(buff, 7);
+        int valVol = (int)buff[4];
+
+        if (valVol == 1)
         {
-          //Cogemos el valor
-          uint8_t buff[8];
-          strCmd.getBytes(buff, 7);
-          int valVol = (int)buff[4];
-          BALANCE_VOL = valVol;
+            VOL_LIMIT_HEADPHONE = true;
 
-          float b = (BALANCE_VOL - 50) / 50;
-          float factor_L = cos((b + 1) * 3.1415 / 4);    
-          float factor_R = sin((b + 1) * 3.1415 / 4);
-          
-          //Primero los ponemos al máximo para poder operar correctamente
-          //MAIN_VOL_L = MAIN_VOL_R = 100;
-
-          int salida_L = MAIN_VOL_L * factor_L;
-          int salida_R = MAIN_VOL_R * factor_R;
-
-          myNex.writeNum("menuAudio.volL.val", int(salida_L));
-          myNex.writeNum("menuAudio.volR.val", int(salida_R));
-          myNex.writeNum("menuAudio.volLevelL.val", int(salida_L));
-          myNex.writeNum("menuAudio.volLevel.val", int(salida_R));
-
-          //
-          MAIN_VOL_L = salida_L;
-          MAIN_VOL_R = salida_R;
-
-          // Aplicamos el balance en la salida
-          setVolumenOutput();
-
-          //MASTER_VOL = valVol;
-          saveHMIcfg("BALopt");
-          //
-          logln("Balance: " + String(BALANCE_VOL / 100));
-        }
-        // Ajuste del volumen
-        else if (strCmd.indexOf("VOL=") != -1) 
-        {
-          //Cogemos el valor
-          uint8_t buff[8];
-          strCmd.getBytes(buff, 7);
-          int valVol = (int)buff[4];
-          MAIN_VOL = valVol;
-
-          if (VOL_LIMIT_HEADPHONE)
-          {
-              if (MAIN_VOL > MAX_VOL_FOR_HEADPHONE_LIMIT)
-              {
-                MAIN_VOL = MAX_VOL_FOR_HEADPHONE_LIMIT;
-              }                 
-          }
-          //MASTER_VOL = valVol;
-          saveHMIcfg("VOLMopt");
-          myNex.writeStr("tape.tapeVol.txt",String(int(MAIN_VOL)) + "%");
-
-          kitStream.setVolume(MAIN_VOL / 100.0f);
-          //setVolumenOutput();
-
-          //
-          VOL_CHANGE = true;
-          //
-          logln("Master Volume: " + String(MAIN_VOL / 100));
-        }
-        // Ajuste el vol canal R
-        else if (strCmd.indexOf("VRR=") != -1) 
-        {
-          //Cogemos el valor
-          uint8_t buff[8];
-          strCmd.getBytes(buff, 7);
-          int valVol = (int)buff[4];
-
-          MAIN_VOL_R = valVol;
-          if (VOL_LIMIT_HEADPHONE)
-          {
-            if (MAIN_VOL_R > MAX_VOL_FOR_HEADPHONE_LIMIT)
-            {
-              MAIN_VOL_R = MAX_VOL_FOR_HEADPHONE_LIMIT;
-            }
-          }          
-
-          saveVolSliders();
-          setVolumenOutput();
-       
-          VOL_CHANGE = true;
-
-        }
-        // Ajuste el vol canal L
-        else if (strCmd.indexOf("VLL=") != -1) 
-        {
-          //Cogemos el valor
-          uint8_t buff[8];
-          strCmd.getBytes(buff, 7);
-          int valVol = (int)buff[4];
-          MAIN_VOL_L = valVol;
-          
-          if (VOL_LIMIT_HEADPHONE)
-          {
-            if (MAIN_VOL_L > MAX_VOL_FOR_HEADPHONE_LIMIT)
-            {
-              MAIN_VOL_L = MAX_VOL_FOR_HEADPHONE_LIMIT;
-            }
-          }
-
-
-          // Ajustamos el volumen
-          #ifdef DEBUGMODE
-            logln("");
-            logln("L-Channel volume value=" + String(MAIN_VOL * MAIN_VOL_L / 100));
-            logln("");
-          #endif
-
-          saveVolSliders();
-          
-          setVolumenOutput();
-     
-          VOL_CHANGE = true;
-
-        }
-        else if (strCmd.indexOf("EQH=") != -1) 
-        {
-          //Cogemos el valor
-          uint8_t buff[8];
-          strCmd.getBytes(buff, 7);
-          int valVol = (int)buff[4];
-
-          EQ_HIGH = valVol/100.0;      
-          EQ_CHANGE = true;    
-          //logln("EQ HIGH: " + String(EQ_HIGH)); 
-          saveHMIcfg("EQHopt");
-        } 
-        else if (strCmd.indexOf("EQM=") != -1) 
-        {
-          //Cogemos el valor
-          uint8_t buff[8];
-          strCmd.getBytes(buff, 7);
-          int valVol = (int)buff[4];
-
-          EQ_MID = valVol/100.0;          
-          EQ_CHANGE = true;    
-          //logln("EQ MID: " + String(EQ_MID)); 
-          saveHMIcfg("EQMopt");
-        }   
-        else if (strCmd.indexOf("EQL=") != -1) 
-        {
-          //Cogemos el valor
-          uint8_t buff[8];
-          strCmd.getBytes(buff, 7);
-          int valVol = (int)buff[4];
-
-          EQ_LOW = valVol/100.0;          
-          EQ_CHANGE = true;   
-          //logln("EQ LOW: " + String(EQ_LOW)); 
-          saveHMIcfg("EQLopt");
-        }      
-        else if (strCmd.indexOf("TON=") != -1) 
-        {
-          //Cogemos el valor
-          uint8_t buff[8];
-          strCmd.getBytes(buff, 7);
-          int valVol = (int)buff[4];
-
-          // Le cambiamos el signo para que cuando seleccionemos -1 sea bajar tono en vez de quitar una muestra que es todo lo contrario (aumentar frecuencia)
-          // y lo mismo con el +1
-          AZIMUT = valVol;
-          C64_TIMING_BIAS = (AZIMUT - 5) * (BIAS_FACTOR_TAP_C64);
-          logln("C64_TIMING_BIAS: " + String(C64_TIMING_BIAS, 8) + " samples");
-
-          //TONE_ADJUST = (-210)*(TONE_ADJUSTMENT_ZX_SPECTRUM + (valVol-TONE_ADJUSTMENT_ZX_SPECTRUM_LIMIT));         
-          TONE_ADJUST = 0;
-          SAMPLES_ADJUST = (TONE_ADJUSTMENT_ZX_SPECTRUM + (valVol-TONE_ADJUSTMENT_ZX_SPECTRUM_LIMIT));
-          logln("TONE: " + String(TONE_ADJUST) + " Hz"); 
-
-          if ((AZIMUT != 0) && !WAV_8BIT_MONO && !REM_DETECTED)
-          {
-            myNex.writeStr("tape.wavind.txt", "AZI");
-          }
-          //saveHMIcfg("EQLopt");
-        }    
-        else if (strCmd.indexOf("WWW") != -1) 
-        {
-          // Salta al directorio de ZXDB online.
-          logln("Jumping to ZXDB dir.");
-          // Con este comando nos indica la pantalla que quiere
-          // le devolvamos ficheros en la posición actual del puntero
-          SOURCE_FILE_TO_MANAGE = "_files.lst";
-          SOURCE_FILE_INF_TO_MANAGE = "_files.inf"; 
-
-          LST_FILE_IS_OPEN = false;
-          if (fFileLST)
-          {
-            fFileLST.close();
-          }
-
-          jumpToDir("/ONLINE");
-          getFilesFromSD(true,SOURCE_FILE_TO_MANAGE,SOURCE_FILE_INF_TO_MANAGE);
-          refreshFiles();           
-        }
-        else if (strCmd.indexOf("CCPC") != -1)
-        {
-          // Salta al directorio de CPCDB online (Amstrad CPC).
-          logln("Jumping to CPCDB dir.");
-          SOURCE_FILE_TO_MANAGE = "_files.lst";
-          SOURCE_FILE_INF_TO_MANAGE = "_files.inf";
-
-          LST_FILE_IS_OPEN = false;
-          if (fFileLST)
-          {
-            fFileLST.close();
-          }
-
-          jumpToDir("/ONLINE_CPC");
-          getFilesFromSD(true,SOURCE_FILE_TO_MANAGE,SOURCE_FILE_INF_TO_MANAGE);
-          refreshFiles();
-        }
-        else if (strCmd.indexOf("CMSX") != -1)
-        {
-          // Salta al directorio de MSXDB online (MSX).
-          logln("Jumping to MSXDB dir.");
-          SOURCE_FILE_TO_MANAGE = "_files.lst";
-          SOURCE_FILE_INF_TO_MANAGE = "_files.inf";
-
-          LST_FILE_IS_OPEN = false;
-          if (fFileLST)
-          {
-            fFileLST.close();
-          }
-
-          jumpToDir("/ONLINE_MSX");
-          getFilesFromSD(true,SOURCE_FILE_TO_MANAGE,SOURCE_FILE_INF_TO_MANAGE);
-          refreshFiles();
-        }
-        else if (strCmd.indexOf("RADI") != -1)
-        {
-          // Salta al directorio de RADIO internet.
-          logln("Jumping to internet radio dir.");
-          IRADIO_EN = true;
-          // Con este comando nos indica la pantalla que quiere
-          // le devolvamos ficheros en la posición actual del puntero
-          SOURCE_FILE_TO_MANAGE = "_files.lst";
-          SOURCE_FILE_INF_TO_MANAGE = "_files.inf"; 
-
-          LST_FILE_IS_OPEN = false;
-          if (fFileLST)
-          {
-            fFileLST.close();
-          }
-
-          jumpToDir("/RADIO");
-        
-          getFilesFromSD(false,SOURCE_FILE_TO_MANAGE,SOURCE_FILE_INF_TO_MANAGE);
-          refreshFiles();            
-        }
-        // Devuelve el % de filtrado aplicado en pantalla. Filtro del recording
-        else if (strCmd.indexOf("THR=") != -1) 
-        {
-          //Cogemos el valor
-          uint8_t buff[8];
-          strCmd.getBytes(buff, 7);
-          int valThr = (int)buff[4];
-          SCHMITT_THR = valThr;
-          logln("Threshold value=" + String(SCHMITT_THR));
-        }
-        else if (strCmd.indexOf("AMP=") != -1) 
-        {
-          //Cogemos el valor
-          uint8_t buff[8];
-          strCmd.getBytes(buff, 7);
-          int valAmp = (int)buff[4];
-          SCHMITT_AMP = valAmp;
-          logln("Amplification value=" + String(SCHMITT_AMP));
-        } 
-        else if (strCmd.indexOf("IVO=") != -1) 
-        {
-          //Cogemos el valor
-          uint8_t buff[8];
-          strCmd.getBytes(buff, 7);
-          int valInVol = (int)buff[4];
-          IN_REC_VOL = valInVol/100.0; // Valor en %
-          logln("Input rec gain=" + String(IN_REC_VOL));
-          // Ajustamos el input gain
-          kitStream.setInputVolume(IN_REC_VOL); // Ajustamos el volumen de entrada al 50%          
-        } 
-        //IN_REC_VOL
-        // else if (strCmd.indexOf("OFS=") != -1) 
-        // {
-        //   //Cogemos el valor
-        //   PULSE_OFFSET = myNex.readNumber("menuAudio3.offset.val");;
-        //   logln("Offset value=" + String(PULSE_OFFSET));
-        // }                        
-        // Habilitar terminadores para forzar siguiente pulso a HIGH
-        else if (strCmd.indexOf("C64=") != -1) 
-        {
-          //Cogemos el valor
-          uint8_t buff[8];
-          strCmd.getBytes(buff, 7);
-          int valEn = (int)buff[4];
-          //
-          if (valEn==1)
-          {
-              // Habilita terminadores
-              C64_MODE = true;
-          }
-          else
-          {
-              // Deshabilita terminadores
-              C64_MODE = false;
-          }
-
-          // #ifdef DEBUGMODE
-            //logln("");
-            logln("C64 Mode ENABLE =" + String(C64_MODE));
-          // #endif
-        }
-        else if (strCmd.indexOf("RS1=") != -1) 
-        {
-          //
-          // Remove CSW silences (for C64 FPGA with REM patched)
-          //
-
-          //Cogemos el valor
-          uint8_t buff[8];
-          strCmd.getBytes(buff, 7);
-          int valEn = (int)buff[4];
-          //
-          if (valEn==1)
-          {
-              // Habilita terminadores
-              REMOVE_SILENCES_CSW = true;
-          }
-          else
-          {
-              // Deshabilita terminadores
-              REMOVE_SILENCES_CSW = false;
-          }
-
-          // #ifdef DEBUGMODE
-            //logln("");
-            logln("Remove CSW silences ENABLE =" + String(REMOVE_SILENCES_CSW));
-          // #endif
-        }        
-        else if (strCmd.indexOf("48K=") != -1) 
-        {
-          //Cogemos el valor
-          uint8_t buff[8];
-          strCmd.getBytes(buff, 7);
-          int valEn = (int)buff[4];
-          //
-          if (valEn==1)
-          {
-              // Habilita terminadores
-              SILENCE_COMPENSATION_48K_EN = true;
-          }
-          else
-          {
-              // Deshabilita terminadores
-              SILENCE_COMPENSATION_48K_EN = false;
-          }
-
-          // #ifdef DEBUGMODE
-            //logln("");
-            logln("48K Silence Compensation ENABLE =" + String(SILENCE_COMPENSATION_48K_EN));
-          // #endif
-        }        
-        // Polarización de la señal
-        else if (strCmd.indexOf("PLZ=") != -1) 
-        {
-          //Cogemos el valor
-          uint8_t buff[8];
-          strCmd.getBytes(buff, 7);
-          int valEn = (int)buff[4];
-          //
-          INVERSETRAIN = valEn;
-          if (valEn==0)
-          {
-              // Empieza en DOWN
-              POLARIZATION = up;
-              EDGE_EAR_IS = up;
-              //INVERSETRAIN = false;
-          }
-          else
-          {
-              // Empieza en UP
-              POLARIZATION = down;
-              EDGE_EAR_IS = down;
-              //INVERSETRAIN = true;
-          }
-
-          logln("");
-          logln("Polarization =" + String(INVERSETRAIN));
-
-          if (TYPE_FILE_LOAD == "WAV" || TYPE_FILE_LOAD == "TAP" || TYPE_FILE_LOAD == "TZX")
-          {
-            LAST_MESSAGE = "Polarization changed. Please, reload the file.";
-            EJECT = true;
-          }
-
-        }
-        // Nivel LOW a cero
-        else if (strCmd.indexOf("ZER=") != -1) 
-        {
-          //Cogemos el valor
-          uint8_t buff[8];
-          strCmd.getBytes(buff, 7);
-          int valEn = (int)buff[4];
-          //
-          if (valEn==1)
-          {
-              // El nivel bajo es 0
-              ZEROLEVEL = true;
-          }
-          else
-          {
-              // El nivel bajo es -32768
-              ZEROLEVEL = false;
-          }
-          
-          //logln("");
-          //logln("Down level is ZERO =" + String(ZEROLEVEL));
-
-        }
-        // Enable Schmitt Trigger threshold adjust
-        else if (strCmd.indexOf("ESH=") != -1) 
-        {
-          //Cogemos el valor
-          uint8_t buff[8];
-          strCmd.getBytes(buff, 7);
-          int valEn = (int)buff[4];
-          //
-          if (valEn==1)
-          {
-              EN_SCHMITT_CHANGE = true;
-          }
-          else
-          {
-              EN_SCHMITT_CHANGE = false;
-          }
-
-          logln("");
-          logln("Threshold enable=" + String(EN_SCHMITT_CHANGE));
-
-        }
-        // Enable MIC inversion
-        else if (strCmd.indexOf("EIN=") != -1) 
-        {
-          //Cogemos el valor
-          uint8_t buff[8];
-          strCmd.getBytes(buff, 7);
-          int valEn = (int)buff[4];
-          //
-          if (valEn==1)
-          {
-            EN_EAR_INVERSION = true;
-          }
-          else
-          {
-            EN_EAR_INVERSION = false;
-          }
-
-          logln("");
-          logln("Enable EAR inversion=" + String(EN_EAR_INVERSION));
-
-        }        
-        // Mutea la salida amplificada
-        else if (strCmd.indexOf("MAM=") != -1) 
-        {
-          //Cogemos el valor
-          uint8_t buff[8];
-          strCmd.getBytes(buff, 7);
-          int valEn = (int)buff[4];
-          //
-          ACTIVE_AMP = !valEn;
-
-          // Almacenamos en NVS
-          saveHMIcfg("MAMopt");
-
-          if (ACTIVE_AMP)
-          {
-            // Bajamos el volumen del speaker que esta en el canal amplificado IZQ
-            MAIN_VOL_L = 5;
-          }
-          else
-          {
-            MAIN_VOL_L = MAIN_VOL_R;
-          }
-
-          // Actualizamos el HMI
-          writeString("menuAudio.volL.val=" + String(MAIN_VOL_L));
-          writeString("menuAudio.volLevel.val=" + String(MAIN_VOL_L));
-
-          // Habilitamos el amplificador de salida
-          kitStream.setPAPower(ACTIVE_AMP);
-          logln("Active amp=" + String(ACTIVE_AMP));
-          AMP_CHANGE = true;
-        }        
-        // Habilita los dos canales
-        else if (strCmd.indexOf("STE=") != -1) 
-        {
-          //Cogemos el valor
-          uint8_t buff[8];
-          strCmd.getBytes(buff, 7);
-          int valEn = (int)buff[4];
-          //
-          EN_STEREO = valEn;
-
-          // Almacenamos en NVS
-          saveHMIcfg("STEopt");
-          // Almacenamos en NVS tambien el mute
-          saveHMIcfg("MAMopt");
-          //logln("Mute enable=" + String(EN_STEREO));
-        }
-        // Habilita el Speaker
-        else if (strCmd.indexOf("SPK=") != -1) 
-        {
-          //Cogemos el valor
-          uint8_t buff[8];
-          strCmd.getBytes(buff, 7);
-          int valEn = (int)buff[4];
-          //
-          if (valEn==1)
-          {
-              EN_SPEAKER = true;
-              // Activamos el amplificador
-              kitStream.setPAPower(true);
-              writeString("menuAudio.muteAmp.val=0");
-              writeString("menuAudio.muteAmp.val=0");
-          }
-          else
-          {
-              EN_SPEAKER = false;
-              kitStream.setPAPower(ACTIVE_AMP && EN_SPEAKER);
-              //kitStream.setSpeakerActive(false);
-          }
-
-          // Almacenamos en NVS
-          saveHMIcfg("SPKopt");
-          SPK_CHANGE = true;
-          //logln("Speaker enable=" + String(EN_SPEAKER));
-        }
-        
-        // Enable MIC left channel - Option
-        // else if (strCmd.indexOf("EMI=") != -1) 
-        // {
-        //   //Cogemos el valor
-        //   uint8_t buff[8];
-        //   strCmd.getBytes(buff, 7);
-        //   int valEn = (int)buff[4];
-        //   //
-        //   if (valEn==1)
-        //   {
-        //       SWAP_MIC_CHANNEL = true;
-        //   }
-        //   else
-        //   {
-        //       SWAP_MIC_CHANNEL = false;
-        //   }
-        //   //logln("MIC LEFT enable=" + String(SWAP_MIC_CHANNEL));
-        // }
-        // Enable MIC left channel - Option
-        // else if (strCmd.indexOf("EAR=") != -1) 
-        // {
-        //   //Cogemos el valor
-        //   uint8_t buff[8];
-        //   strCmd.getBytes(buff, 7);
-        //   int valEn = (int)buff[4];
-        //   //
-        //   if (valEn==1)
-        //   {
-        //       SWAP_EAR_CHANNEL = true;
-
-        //   }
-        //   else
-        //   {
-        //       SWAP_EAR_CHANNEL = false;
-        //   }
-
-        //   // Ahora mutamos el Amplificador en ambos estados del SWAP
-        //   // ya que el usuario decida si lo activa al quitar el swap
-        //   ACTIVE_AMP = false;
-        //   writeString("menuAudio.mutAmp.val=1");
-        //   // Habilitamos/Deshabilitamos el amplificador
-        //   kitStream.setPAPower(ACTIVE_AMP);
-        //   //logln("EAR LEFT enable=" + String(SWAP_EAR_CHANNEL));
-        // }
-        // Save polarization in ID 0x2B
-        else if (strCmd.indexOf("SAV") != -1) 
-        {
-          //Guardamos la configuracion en un fichero
-          String path = FILE_LAST_DIR;
-          String tmpPath = PATH_FILE_TO_LOAD;
-          char strpath[tmpPath.length() + 5] = {};
-          strcpy(strpath,tmpPath.c_str());
-          strcat(strpath,".cfg");
-
-          File cfg;
-
-          //logln("");
-          //logln("Saving configuration in " + String(strpath));
-          cfg = SD_MMC.open(strpath, FILE_WRITE);
-
-          if (cfg)
-          {
-            // Creamos el fichero de configuracion.
- 
-            //logln("");
-            //logln("file created - ");
-
-            // Ahora escribimos la configuracion
-            cfg.println("<freq>"+ String(SAMPLING_RATE) +"</freq>");        
-            cfg.println("<zerolevel>" + String(ZEROLEVEL) + "</zerolevel>");
-            //cfg.println("<blockend>" + String(APPLY_END) + "</blockend>");   
-
-            if (INVERSETRAIN)
-            {
-               cfg.println("<polarized>1</polarized>");       
-            } 
-            else
-            {
-              cfg.println("<polarized>0</polarized>");
-            }
-            cfg.println("<azimut>" + String(AZIMUT) + "</azimut>");
-
-          }
-          
-          cfg.close();
-
-          #ifdef DEBUGMODE
-            log("Config. saved");
-          #endif
-        }
-        // // Sampling rate TZX
-        // else if (strCmd.indexOf("SAM=") != -1) 
-        // {
-        //   //Cogemos el valor
-        //   uint8_t buff[8];
-        //   strCmd.getBytes(buff, 7);
-        //   int valEn = (int)buff[4];
-        //   //
-        //   if (valEn==0)
-        //   {
-        //       BASE_SR = 48000;
-        //       BASE_SR_TAP = 48000;
-        //       //writeString("tape.lblFreq.txt=\"48KHz\"" );
-        //   }
-        //   else if(valEn==1)
-        //   {
-        //       BASE_SR = 44100;
-        //       BASE_SR_TAP = 44100;
-        //       //writeString("tape.lblFreq.txt=\"44KHz\"" );
-        //   }
-        //   else if(valEn==2)
-        //   {
-        //       BASE_SR = 32000;
-        //       BASE_SR_TAP = 32000;
-        //       //writeString("tape.lblFreq.txt=\"32KHz\"" );
-        //   }
-        //   else if(valEn==3)
-        //   {
-        //       BASE_SR = STANDARD_SR_8_BIT_MACHINE;
-        //       BASE_SR_TAP = STANDARD_SR_8_BIT_MACHINE_TAP;
-        //       //writeString("tape.lblFreq.txt=\"22KHz\"" );
-        //   }
-        //   //
-        //   writeString("tape.lblFreq.txt=\"" + String(int(BASE_SR/1000)) + "KHz\"" );
-        //   writeString("tape0.lblFreq.txt=\"" + String(int(BASE_SR/1000)) + "KHz\"" );
-         
-        //   // Cambiamos el sampling rate
-        //   // CAmbiamos el sampling rate del hardware de salida
-        //   // auto cfg = akit.defaultConfig();
-        //   // cfg.sample_rate = SAMPLING_RATE;
-        //   // akit.setAudioInfo(cfg);
-
-        //   auto cfg2 = kitStream.audioInfo();
-        //   cfg2.sample_rate = SAMPLING_RATE;
-        //   kitStream.setAudioInfo(cfg2);
-
-        //   #ifdef DEBUGMODE
-        //     log("Sampling rate =" + String(SAMPLING_RATE));
-        //   #endif
-        // }
-        // else if (strCmd.indexOf("CFR=") != -1) 
-        // {
-        //   //Cogemos el valor
-        //   uint8_t buff[8];
-        //   strCmd.getBytes(buff, 7);
-        //   int valEn = (int)buff[4];
-        //   //
-        //   if (valEn==1)
-        //   {
-        //       WAV_SAMPLING_RATE = myNex.readNumber("menuAudio4.va0.val");
-        //       //logln("Custom sampling rate: " + String(WAV_SAMPLING_RATE));
-        //   }
-
-        //   WAV_UPDATE_SR = true;                         
-          
-        //   #ifdef DEBUGMODE
-        //     log("Customo WAV Sampling rate =" + String(WAV_SAMPLING_RATE));
-        //   #endif
-        // }         
-        // else if (strCmd.indexOf("WSR=") != -1) 
-        // {
-        //   //Cogemos el valor
-        //   uint8_t buff[8];
-        //   strCmd.getBytes(buff, 7);
-        //   int valEn = (int)buff[4];
-        //   //
-        //   if (valEn==0)
-        //   {
-        //       WAV_SAMPLING_RATE = 48000;
-        //       // writeString("tape.lblFreq.txt=\"48KHz\"" );
-        //   }
-        //   else if(valEn==1)
-        //   {
-        //       WAV_SAMPLING_RATE = 44100;
-        //       // writeString("tape.lblFreq.txt=\"44KHz\"" );
-        //   }
-        //   else if(valEn==2)
-        //   {
-        //       WAV_SAMPLING_RATE = 32000;
-        //       // writeString("tape.lblFreq.txt=\"32KHz\"" );
-        //   }
-        //   else if(valEn==3)
-        //   {
-        //       WAV_SAMPLING_RATE = 22050;
-        //       // writeString("tape.lblFreq.txt=\"22KHz\"" );
-        //   }
-        //   else if(valEn==4)
-        //   {
-        //       WAV_SAMPLING_RATE = 11025;
-        //       // writeString("tape.lblFreq.txt=\"22KHz\"" );
-        //   }           
-          
-        //   WAV_UPDATE_SR = true;
-          
-        //   #ifdef DEBUGMODE
-        //     log("WAV Sampling rate =" + String(WAV_SAMPLING_RATE));
-        //   #endif
-        // }  
-        // else if (strCmd.indexOf("WMO=") != -1) 
-        // {
-        //   //Cogemos el valor
-        //   uint8_t buff[8];
-        //   strCmd.getBytes(buff, 7);
-        //   int valEn = (int)buff[4];
-        //   //
-        //   if (valEn==1)
-        //   {
-        //       // Habilitar MONO
-        //       WAV_CHAN = 1;
-        //   }
-        //   else
-        //   {
-        //       // Habilitar STEREO
-        //       WAV_CHAN = 2;
-        //   }
-          
-        //   WAV_UPDATE_CH = true;
-
-        //   #ifdef DEBUGMODE
-        //     logln("WAV chanels =" + String(WAV_CHAN));
-        //   #endif
-
-        // }     
-        // else if (strCmd.indexOf("W8B=") != -1) 
-        // {
-        //   //Cogemos el valor
-        //   uint8_t buff[8];
-        //   strCmd.getBytes(buff, 7);
-        //   int valEn = (int)buff[4];
-        //   //
-        //   if (valEn==1)
-        //   {
-        //       // Habilita terminadores
-        //       WAV_BITS_PER_SAMPLE = 8;
-        //   }
-        //   else
-        //   {
-        //       // Deshabilita terminadores
-        //       WAV_BITS_PER_SAMPLE = 16;
-        //   }
-
-        //   WAV_UPDATE_BS = true;
-
-        //   #ifdef DEBUGMODE
-        //     logln("WAV bits =" + String(WAV_BITS_PER_SAMPLE));
-        //   #endif
-        // }                 
-        // Habilitar recording sobre WAV file
-        else if (strCmd.indexOf("WAV=") != -1) 
-        {
-          //Cogemos el valor
-          uint8_t buff[8];
-          strCmd.getBytes(buff, 7);
-          int valEn = (int)buff[4];
-          //
-          if (valEn==1)
-          {
-              // Habilita
-              MODEWAV = true;
-              // Ambas no pueden estar habilitadas
-              PLAY_TO_WAV_FILE = false;
-          }
-          else
-          {
-              // Deshabilita
-              MODEWAV = false;
-          }
-
-          #ifdef DEBUGMODE
-            logln("Modo WAV =" + String(MODEWAV));
-          #endif
-        }
-        // Habilitar play to WAV file file
-        else if (strCmd.indexOf("PTW=") != -1) 
-        {
-          //Cogemos el valor
-          uint8_t buff[8];
-          strCmd.getBytes(buff, 7);
-          int valEn = (int)buff[4];
-          //
-          if (valEn==1)
-          {
-              // Habilita
-              OUT_TO_WAV = true;
-              PLAY_TO_WAV_FILE = true;
-          }
-          else
-          {
-              // Deshabilita
-              OUT_TO_WAV = false;
-              PLAY_TO_WAV_FILE = false;
-          }
-
-          #ifdef DEBUGMODE
-            logln("Modo Out to WAV =" + String(OUT_TO_WAV));
-          #endif
-        }
-        else if (strCmd.indexOf("C44=") != -1) 
-        {
-          //Cogemos el valor
-          uint8_t buff[8];
-          strCmd.getBytes(buff, 7);
-          int valEn = (int)buff[4];
-          //
-          if (valEn==1)
-          {
-              // Habilita
-              OUT_TO_WAV = true;
-              PLAY_TO_WAV_FILE = true;
-              CHOOSE_WAV_REC_44 = true;
-          }
-          else
-          {
-              // Deshabilita
-              OUT_TO_WAV = false;
-              PLAY_TO_WAV_FILE = false;
-              CHOOSE_WAV_REC_44 = false;
-          }
-
-          #ifdef DEBUGMODE
-            logln("Modo Out to WAV at 44.1KHz=" + String(OUT_TO_WAV));
-          #endif
-        }        
-        // Habilitar play to WAV file file
-        else if (strCmd.indexOf("WA8=") != -1) 
-        {
-          //Cogemos el valor
-          uint8_t buff[8];
-          strCmd.getBytes(buff, 7);
-          int valEn = (int)buff[4];
-          //
-          if (valEn==1)
-          {
-              // Habilita
-              WAV_8BIT_MONO = true;
-          }
-          else
-          {
-              // Deshabilita
-              WAV_8BIT_MONO = false;
-          }
-
-          #ifdef DEBUGMODE
-            logln("Modo WAV mono 8-bits =" + String(WAV_8BIT_MONO));
-          #endif
-        }
-        // Deshabilitar Auto Stop en WAV and MP3 player.
-        else if (strCmd.indexOf("DPS=") != -1) 
-        {
-          //Cogemos el valor
-          uint8_t buff[8];
-          strCmd.getBytes(buff, 7);
-          int valEn = (int)buff[4];
-          //
-          disable_auto_media_stop = !disable_auto_media_stop;
-          
-          logln("DPS: " + String(disable_auto_media_stop));
-
-          if (!disable_auto_media_stop)
-          {
-            // Play auto-stop
-            writeString("tape.playType.txt=\"*\"");
-            writeString("tape0.playType.txt=\"*\"");
-            writeString("tape.playType.y=3");
-            writeString("tape0.playType.y=3");
-            writeString("doevents");
-          }
-          else
-          {
-            // Play continuo
-            writeString("tape.playType.txt=\"C\"");
-            writeString("tape0.playType.txt=\"C\"");
-            writeString("tape.playType.y=6");
-            writeString("tape0.playType.y=6");
-            writeString("doevents");
-          }          
-
-          #ifdef DEBUGMODE
-            logln("Modo Auto STOP player =" + String(OUT_TO_WAV));
-          #endif
-        }        
-        // Habilitar Audio output cuando está grabando.
-        else if (strCmd.indexOf("LOO=") != -1) 
-        {
-          //Cogemos el valor
-          uint8_t buff[8];
-          strCmd.getBytes(buff, 7);
-          int valEn = (int)buff[4];
-          //
-          if (valEn==1)
-          {
-              // Activa el loop de audio
-              REC_AUDIO_LOOP = true;
-          }
-          else
-          {
-              REC_AUDIO_LOOP = false;
-          }
-        }
-        // Habilitar/Des WiFi RADIO.
-        else if (strCmd.indexOf("WIF=") != -1) 
-        {
-          //Cogemos el valor
-          uint8_t buff[8];
-          strCmd.getBytes(buff, 7);
-          int valEn = (int)buff[4];
-          //
-          if (valEn==1)
-          {
-              WIFI_ENABLE = true;
-          }
-          else
-          {
-              WIFI_ENABLE = false;
-          }
-
-          if (WIFI_ENABLE)
-          {
-              activateWifi(true);
-          }
-          else
-          {
-              activateWifi(false);
-          }    
-          
-          saveHMIcfg("WIFIopt");
-        }
-        // Show data debug by serial console
-        else if (strCmd.indexOf("SDD=") != -1) 
-        {
-          //Cogemos el valor
-          uint8_t buff[8];
-          strCmd.getBytes(buff, 7);
-          int valEn = (int)buff[4];
-          //
-          if (valEn==1)
-          {
-              SHOW_DATA_DEBUG = true;
-          }
-          else
-          {
-              SHOW_DATA_DEBUG = false;
-          }
-          //logln("SHOW_DATA_DEBUG enable=" + String(SHOW_DATA_DEBUG));
-        }     
-        // Parametrizado del timming maquinas. ROM estandar (no se usa)
-        // else if (strCmd.indexOf("MP1=") != -1) 
-        // {
-        //   //minSync1
-        //   uint8_t buff[8];
-        //   strCmd.getBytes(buff, 7);
-        //   int val = (int)buff[4];
-        //   //
-        //   MIN_SYNC=val;
-        //   //logln("MP1=" + String(MIN_SYNC));
-        // }
-        // else if (strCmd.indexOf("MP2=") != -1) 
-        // {
-        //   //maxSync1
-        //   uint8_t buff[8];
-        //   strCmd.getBytes(buff, 7);
-        //   int val = (int)buff[4];
-        //   //
-        //   MAX_SYNC=val;
-        //   //logln("MP2=" + String(MAX_SYNC));
-        // }
-        // else if (strCmd.indexOf("MP3=") != -1) 
-        // {
-        //   //minBit0
-        //   uint8_t buff[8];
-        //   strCmd.getBytes(buff, 7);
-        //   int val = (int)buff[4];
-        //   //
-        //   MIN_BIT0=val;
-        //   //logln("MP3=" + String(MIN_BIT0));
-        // }
-        // else if (strCmd.indexOf("MP4=") != -1) 
-        // {
-        //   //maxBit0
-        //   uint8_t buff[8];
-        //   strCmd.getBytes(buff, 7);
-        //   int val = (int)buff[4];
-        //   //
-        //   MAX_BIT0=val;
-        //   //logln("MP4=" + String(MAX_BIT0));
-        // }
-        // else if (strCmd.indexOf("MP5=") != -1) 
-        // {
-        //   //minBit1
-        //   uint8_t buff[8];
-        //   strCmd.getBytes(buff, 7);
-        //   int val = (int)buff[4];
-        //   //
-        //   MIN_BIT1=val;
-        //   //logln("MP5=" + String(MIN_BIT1));
-        // }
-        // else if (strCmd.indexOf("MP6=") != -1) 
-        // {
-        //   //maxBit1
-        //   uint8_t buff[8];
-        //   strCmd.getBytes(buff, 7);
-        //   int val = (int)buff[4];
-        //   //
-        //   MAX_BIT1=val;
-        //   //logln("MP6=" + String(MAX_BIT1));
-        // }
-        // else if (strCmd.indexOf("MP7=") != -1) 
-        // {
-        //   //max pulses lead
-        //   uint8_t buff[8];
-        //   strCmd.getBytes(buff, 7);
-
-        //   // logln("0: " + String((char)buff[0]));
-        //   // logln("1: " + String((char)buff[1]));
-        //   // logln("2: " + String((char)buff[2]));
-        //   // logln("3: " + String((char)buff[3]));
-        //   // logln("4: " + String(buff[4]));
-        //   // logln("5: " + String(buff[5]));
-        //   // logln("6: " + String(buff[6]));
-        //   // logln("7: " + String(buff[7]));
-
-        //   long val = (long)((int)buff[4] + (256*(int)buff[5]) + (65536*(int)buff[6]));
-        //   //
-        //   MAX_PULSES_LEAD=val;
-        //   //logln("MP7=" + String(MAX_PULSES_LEAD));
-        // }
-        // else if (strCmd.indexOf("MP8=") != -1) 
-        // {
-        //   //minLead
-        //   uint8_t buff[8];
-        //   strCmd.getBytes(buff, 7);
-        //   int val = (int)buff[4];
-        //   //
-        //   MIN_LEAD=val;
-        //   //logln("MP8=" + String(MIN_LEAD));
-        // }
-        // else if (strCmd.indexOf("MP9=") != -1) 
-        // {
-        //   //maxLead
-        //   uint8_t buff[8];
-        //   strCmd.getBytes(buff, 7);
-        //   int val = buff[4];
-        //   //
-        // MAX_LEAD=val;
-        //   //logln("MP9=" + String(MAX_LEAD));
-        // }
-        // Control de volumen por botones - MASTER
-        else if (strCmd.indexOf("VOLUP") != -1) 
-        {
-          MAIN_VOL += 1;
-          
-          if (VOL_LIMIT_HEADPHONE)
-          {
             if (MAIN_VOL > MAX_VOL_FOR_HEADPHONE_LIMIT)
             {
               MAIN_VOL = MAX_VOL_FOR_HEADPHONE_LIMIT;
             }
+
+            if (MAIN_VOL_R > MAX_VOL_FOR_HEADPHONE_LIMIT)
+            {
+              MAIN_VOL_R = MAX_VOL_FOR_HEADPHONE_LIMIT;
+            }     
+
+            if (MAIN_VOL_L > MAX_VOL_FOR_HEADPHONE_LIMIT)
+            {
+              MAIN_VOL_L = MAX_VOL_FOR_HEADPHONE_LIMIT;
+            }
+        }
+        else
+        {
+            // 
+            VOL_LIMIT_HEADPHONE = false;
+            // 
+            MAIN_VOL = myNex.readNumber("menuAudio.volM.val");
+            MAIN_VOL_R = myNex.readNumber("menuAudio.volR.val");
+            MAIN_VOL_L = myNex.readNumber("menuAudio.volL.val");
+        }
+        
+        // Actualizamos el master slide
+        myNex.writeNum("menuAudio.volM.val", int(MAIN_VOL));
+        myNex.writeNum("menuAudio.volLevelM.val", int(MAIN_VOL));
+        myNex.writeStr("tape.tapeVol.txt",String(int(MAIN_VOL)) + "%");
+        
+        // Almacenamos en NVS
+        saveHMIcfg("VLIopt");
+        saveVolSliders();
+
+        setVolumenOutput();
+
+      }
+      // Ajuste del volumen
+      else if (strCmd.indexOf("BOS=") != -1) 
+      {
+        //Cogemos el valor
+        uint8_t buff[8];
+        strCmd.getBytes(buff, 7);
+        int valVol = (int)buff[4];
+        BOOSTER_VOLUME = valVol==1 ? true : false;
+        log_debug("HMI","Booster volume: " + String(BOOSTER_VOLUME));
+        VolumeStreamConfig volumeCfg;
+        volumeCfg.copyFrom(volumeStream.audioInfo());
+        volumeCfg.allow_boost = BOOSTER_VOLUME;
+        volumeStream.setAudioInfo(volumeCfg);
+        saveHMIcfg("BOSopt");
+      }
+      else if (strCmd.indexOf("BAL=") != -1) 
+      {
+        //Cogemos el valor
+        uint8_t buff[8];
+        strCmd.getBytes(buff, 7);
+        int valVol = (int)buff[4];
+        BALANCE_VOL = valVol;
+
+        float b = (BALANCE_VOL - 50) / 50;
+        float factor_L = cos((b + 1) * 3.1415 / 4);    
+        float factor_R = sin((b + 1) * 3.1415 / 4);
+        
+        //Primero los ponemos al máximo para poder operar correctamente
+        //MAIN_VOL_L = MAIN_VOL_R = 100;
+
+        int salida_L = MAIN_VOL_L * factor_L;
+        int salida_R = MAIN_VOL_R * factor_R;
+
+        myNex.writeNum("menuAudio.volL.val", int(salida_L));
+        myNex.writeNum("menuAudio.volR.val", int(salida_R));
+        myNex.writeNum("menuAudio.volLevelL.val", int(salida_L));
+        myNex.writeNum("menuAudio.volLevel.val", int(salida_R));
+
+        //
+        MAIN_VOL_L = salida_L;
+        MAIN_VOL_R = salida_R;
+
+        // Aplicamos el balance en la salida
+        setVolumenOutput();
+        saveHMIcfg("BALopt");
+        //
+        log_debug("HMI","Balance: " + String(BALANCE_VOL / 100));
+      }
+      // Ajuste del volumen
+      else if (strCmd.indexOf("VOL=") != -1) 
+      {
+        //Cogemos el valor
+        uint8_t buff[8];
+        strCmd.getBytes(buff, 7);
+        int valVol = (int)buff[4];
+        MAIN_VOL = valVol;
+
+        if (VOL_LIMIT_HEADPHONE)
+        {
+            if (MAIN_VOL > MAX_VOL_FOR_HEADPHONE_LIMIT)
+            {
+              MAIN_VOL = MAX_VOL_FOR_HEADPHONE_LIMIT;
+            }                 
+        }
+
+        // Guardamos en la partición NVS los valores de los sliders
+        saveVolSliders();
+        myNex.writeStr("tape.tapeVol.txt",String(int(MAIN_VOL)) + "%");
+
+        kitStream.setVolume(MAIN_VOL / 100.0f);
+        //
+        VOL_CHANGE = true;
+        //
+        log_debug("HMI","Master Volume: " + String(MAIN_VOL / 100));
+      }
+      // Ajuste el vol canal R
+      else if (strCmd.indexOf("VRR=") != -1) 
+      {
+        //Cogemos el valor
+        uint8_t buff[8];
+        strCmd.getBytes(buff, 7);
+        int valVol = (int)buff[4];
+
+        MAIN_VOL_R = valVol;
+        if (VOL_LIMIT_HEADPHONE)
+        {
+          if (MAIN_VOL_R > MAX_VOL_FOR_HEADPHONE_LIMIT)
+          {
+            MAIN_VOL_R = MAX_VOL_FOR_HEADPHONE_LIMIT;
+          }
+        }          
+
+        // Guardamos en la partición NVS los valores de los sliders
+        saveVolSliders();
+        setVolumenOutput();
+        VOL_CHANGE = true;
+
+      }
+      // Ajuste el vol canal L
+      else if (strCmd.indexOf("VLL=") != -1) 
+      {
+        //Cogemos el valor
+        uint8_t buff[8];
+        strCmd.getBytes(buff, 7);
+        int valVol = (int)buff[4];
+        MAIN_VOL_L = valVol;
+        
+        if (VOL_LIMIT_HEADPHONE)
+        {
+          if (MAIN_VOL_L > MAX_VOL_FOR_HEADPHONE_LIMIT)
+          {
+            MAIN_VOL_L = MAX_VOL_FOR_HEADPHONE_LIMIT;
+          }
+        }
+
+
+        // Ajustamos el volumen
+        log_debug("HMI","");
+        log_debug("HMI","L-Channel volume value=" + String(MAIN_VOL * MAIN_VOL_L / 100));
+        log_debug("HMI","");
+
+        // Guardamos en la partición NVS los valores de los sliders
+        saveVolSliders();
+        setVolumenOutput();
+    
+        VOL_CHANGE = true;
+
+      }
+      else if (strCmd.indexOf("EQH=") != -1) 
+      {
+        //Cogemos el valor
+        uint8_t buff[8];
+        strCmd.getBytes(buff, 7);
+        int valVol = (int)buff[4];
+
+        EQ_HIGH = valVol/100.0;      
+        EQ_CHANGE = true;    
+        log_debug("HMI","EQ HIGH: " + String(EQ_HIGH)); 
+        saveHMIcfg("EQHopt");
+      } 
+      else if (strCmd.indexOf("EQM=") != -1) 
+      {
+        //Cogemos el valor
+        uint8_t buff[8];
+        strCmd.getBytes(buff, 7);
+        int valVol = (int)buff[4];
+
+        EQ_MID = valVol/100.0;          
+        EQ_CHANGE = true;    
+        log_debug("HMI","EQ MID: " + String(EQ_MID)); 
+        saveHMIcfg("EQMopt");
+      }   
+      else if (strCmd.indexOf("EQL=") != -1) 
+      {
+        //Cogemos el valor
+        uint8_t buff[8];
+        strCmd.getBytes(buff, 7);
+        int valVol = (int)buff[4];
+
+        EQ_LOW = valVol/100.0;          
+        EQ_CHANGE = true;   
+        log_debug("HMI","EQ LOW: " + String(EQ_LOW)); 
+        saveHMIcfg("EQLopt");
+      }      
+      else if (strCmd.indexOf("TON=") != -1) 
+      {
+        //Cogemos el valor
+        uint8_t buff[8];
+        strCmd.getBytes(buff, 7);
+        int valVol = (int)buff[4];
+
+        // Le cambiamos el signo para que cuando seleccionemos -1 sea bajar tono en vez de quitar una muestra que es todo lo contrario (aumentar frecuencia)
+        // y lo mismo con el +1
+        AZIMUT = valVol;
+        C64_TIMING_BIAS = (AZIMUT - 5) * (BIAS_FACTOR_TAP_C64);
+        log_debug("HMI","C64_TIMING_BIAS: " + String(C64_TIMING_BIAS, 8) + " samples");
+
+        TONE_ADJUST = (-210)*(TONE_ADJUSTMENT_ZX_SPECTRUM + (valVol-TONE_ADJUSTMENT_ZX_SPECTRUM_LIMIT));         
+        //TONE_ADJUST = 0;
+        SAMPLES_ADJUST = (TONE_ADJUSTMENT_ZX_SPECTRUM + (valVol-TONE_ADJUSTMENT_ZX_SPECTRUM_LIMIT));
+        log_debug("HMI","TONE: " + String(TONE_ADJUST) + " Hz"); 
+
+        if ((AZIMUT != 0) && !WAV_8BIT_MONO && !REM_DETECTED)
+        {
+          myNex.writeStr("tape.wavind.txt", "AZI");
+        }
+        //saveHMIcfg("EQLopt");
+      }    
+      else if (strCmd.indexOf("WWW") != -1) 
+      {
+        // Salta al directorio de ZXDB online.
+        log_debug("HMI","Jumping to ZXDB dir.");
+        // Con este comando nos indica la pantalla que quiere
+        // le devolvamos ficheros en la posición actual del puntero
+        SOURCE_FILE_TO_MANAGE = "_files.lst";
+        SOURCE_FILE_INF_TO_MANAGE = "_files.inf"; 
+
+        LST_FILE_IS_OPEN = false;
+        if (fFileLST)
+        {
+          fFileLST.close();
+        }
+
+        jumpToDir("/ONLINE");
+        getFilesFromSD(true,SOURCE_FILE_TO_MANAGE,SOURCE_FILE_INF_TO_MANAGE);
+        refreshFiles();           
+      }
+      else if (strCmd.indexOf("CCPC") != -1)
+      {
+        // Salta al directorio de CPCDB online (Amstrad CPC).
+        log_debug("HMI","Jumping to CPCDB dir.");
+        SOURCE_FILE_TO_MANAGE = "_files.lst";
+        SOURCE_FILE_INF_TO_MANAGE = "_files.inf";
+
+        LST_FILE_IS_OPEN = false;
+        if (fFileLST)
+        {
+          fFileLST.close();
+        }
+
+        jumpToDir("/ONLINE_CPC");
+        getFilesFromSD(true,SOURCE_FILE_TO_MANAGE,SOURCE_FILE_INF_TO_MANAGE);
+        refreshFiles();
+      }
+      else if (strCmd.indexOf("CMSX") != -1)
+      {
+        // Salta al directorio de MSXDB online (MSX).
+        log_debug("HMI","Jumping to MSXDB dir.");
+        SOURCE_FILE_TO_MANAGE = "_files.lst";
+        SOURCE_FILE_INF_TO_MANAGE = "_files.inf";
+
+        LST_FILE_IS_OPEN = false;
+        if (fFileLST)
+        {
+          fFileLST.close();
+        }
+
+        jumpToDir("/ONLINE_MSX");
+        getFilesFromSD(true,SOURCE_FILE_TO_MANAGE,SOURCE_FILE_INF_TO_MANAGE);
+        refreshFiles();
+      }
+      else if (strCmd.indexOf("RADI") != -1)
+      {
+        // Salta al directorio de RADIO internet.
+        log_debug("HMI","Jumping to internet radio dir.");
+        IRADIO_EN = true;
+        // Con este comando nos indica la pantalla que quiere
+        // le devolvamos ficheros en la posición actual del puntero
+        SOURCE_FILE_TO_MANAGE = "_files.lst";
+        SOURCE_FILE_INF_TO_MANAGE = "_files.inf"; 
+
+        LST_FILE_IS_OPEN = false;
+        if (fFileLST)
+        {
+          fFileLST.close();
+        }
+
+        jumpToDir("/RADIO");
+      
+        getFilesFromSD(false,SOURCE_FILE_TO_MANAGE,SOURCE_FILE_INF_TO_MANAGE);
+        refreshFiles();            
+      }
+      // Devuelve el % de filtrado aplicado en pantalla. Filtro del recording
+      else if (strCmd.indexOf("THR=") != -1) 
+      {
+        //Cogemos el valor
+        uint8_t buff[8];
+        strCmd.getBytes(buff, 7);
+        int valThr = (int)buff[4];
+        SCHMITT_THR = valThr;
+        log_debug("HMI","Threshold value=" + String(SCHMITT_THR));
+      }
+      else if (strCmd.indexOf("AMP=") != -1) 
+      {
+        //Cogemos el valor
+        uint8_t buff[8];
+        strCmd.getBytes(buff, 7);
+        int valAmp = (int)buff[4];
+        SCHMITT_AMP = valAmp;
+        log_debug("HMI","Amplification value=" + String(SCHMITT_AMP));
+      } 
+      else if (strCmd.indexOf("IVO=") != -1) 
+      {
+        //Cogemos el valor
+        uint8_t buff[8];
+        strCmd.getBytes(buff, 7);
+        int valInVol = (int)buff[4];
+        IN_REC_VOL = valInVol/100.0; // Valor en %
+        log_debug("HMI","Input rec gain=" + String(IN_REC_VOL));
+        //
+        saveHMIcfg("IVOopt");
+        // Ajustamos el input gain
+        kitStream.setInputVolume(IN_REC_VOL); // Ajustamos el volumen de entrada al 50%          
+      } 
+      else if (strCmd.indexOf("C64=") != -1) 
+      {
+        //Cogemos el valor
+        uint8_t buff[8];
+        strCmd.getBytes(buff, 7);
+        int valEn = (int)buff[4];
+        //
+        if (valEn==1)
+        {
+            // Habilita terminadores
+            C64_MODE = true;
+        }
+        else
+        {
+            // Deshabilita terminadores
+            C64_MODE = false;
+        }
+
+        log_debug("HMI","C64 Mode ENABLE =" + String(C64_MODE));
+      }
+      else if (strCmd.indexOf("RS1=") != -1) 
+      {
+        //
+        // Remove CSW silences (for C64 FPGA with REM patched)
+        //
+
+        //Cogemos el valor
+        uint8_t buff[8];
+        strCmd.getBytes(buff, 7);
+        int valEn = (int)buff[4];
+        //
+        if (valEn==1)
+        {
+            // Habilita terminadores
+            REMOVE_SILENCES_CSW = true;
+        }
+        else
+        {
+            // Deshabilita terminadores
+            REMOVE_SILENCES_CSW = false;
+        }
+
+        log_debug("HMI","Remove CSW silences ENABLE =" + String(REMOVE_SILENCES_CSW));
+      }        
+      else if (strCmd.indexOf("48K=") != -1) 
+      {
+        //Cogemos el valor
+        uint8_t buff[8];
+        strCmd.getBytes(buff, 7);
+        int valEn = (int)buff[4];
+        //
+        if (valEn==1)
+        {
+            // Habilita terminadores
+            SILENCE_COMPENSATION_48K_EN = true;
+        }
+        else
+        {
+            // Deshabilita terminadores
+            SILENCE_COMPENSATION_48K_EN = false;
+        }
+
+        log_debug("HMI","48K Silence Compensation ENABLE =" + String(SILENCE_COMPENSATION_48K_EN));
+      }        
+      // Polarización de la señal
+      else if (strCmd.indexOf("PLZ=") != -1) 
+      {
+        //Cogemos el valor
+        uint8_t buff[8];
+        strCmd.getBytes(buff, 7);
+        int valEn = (int)buff[4];
+        //
+        INVERSETRAIN = valEn;
+        if (valEn==0)
+        {
+            // Empieza en DOWN
+            POLARIZATION = up;
+            EDGE_EAR_IS = up;
+            //INVERSETRAIN = false;
+        }
+        else
+        {
+            // Empieza en UP
+            POLARIZATION = down;
+            EDGE_EAR_IS = down;
+            //INVERSETRAIN = true;
+        }
+
+        log_debug("HMI","");
+        log_debug("HMI","Polarization =" + String(INVERSETRAIN));
+
+        if (TYPE_FILE_LOAD == "WAV" || TYPE_FILE_LOAD == "TAP" || TYPE_FILE_LOAD == "TZX" || TYPE_FILE_LOAD == "ZX80" || TYPE_FILE_LOAD == "ZX81")
+        {
+          LAST_MESSAGE = "Polarization changed. Please, reload the file.";
+          EJECT = true;
+        }
+
+      }
+      // Nivel LOW a cero
+      else if (strCmd.indexOf("ZER=") != -1) 
+      {
+        //Cogemos el valor
+        uint8_t buff[8];
+        strCmd.getBytes(buff, 7);
+        int valEn = (int)buff[4];
+        //
+        if (valEn==1)
+        {
+            // El nivel bajo es 0
+            ZEROLEVEL = true;
+        }
+        else
+        {
+            // El nivel bajo es -32768
+            ZEROLEVEL = false;
+        }
+        
+        log_debug("HMI","Down level is ZERO =" + String(ZEROLEVEL));
+
+      }
+      // Enable Schmitt Trigger threshold adjust
+      else if (strCmd.indexOf("ESH=") != -1) 
+      {
+        //Cogemos el valor
+        uint8_t buff[8];
+        strCmd.getBytes(buff, 7);
+        int valEn = (int)buff[4];
+        //
+        if (valEn==1)
+        {
+            EN_SCHMITT_CHANGE = true;
+        }
+        else
+        {
+            EN_SCHMITT_CHANGE = false;
+        }
+
+        log_debug("HMI","Threshold enable=" + String(EN_SCHMITT_CHANGE));
+
+      }
+      // Enable MIC inversion
+      else if (strCmd.indexOf("EIN=") != -1) 
+      {
+        //Cogemos el valor
+        uint8_t buff[8];
+        strCmd.getBytes(buff, 7);
+        int valEn = (int)buff[4];
+        //
+        if (valEn==1)
+        {
+          EN_EAR_INVERSION = true;
+        }
+        else
+        {
+          EN_EAR_INVERSION = false;
+        }
+
+        log_debug("HMI","Enable EAR inversion=" + String(EN_EAR_INVERSION));
+
+      }        
+      // Mutea la salida amplificada
+      else if (strCmd.indexOf("MAM=") != -1) 
+      {
+        //Cogemos el valor
+        uint8_t buff[8];
+        strCmd.getBytes(buff, 7);
+        int valEn = (int)buff[4];
+        //
+        ACTIVE_AMP = !valEn;
+
+        // Almacenamos en NVS
+        saveHMIcfg("MAMopt");
+
+        if (ACTIVE_AMP)
+        {
+          // Bajamos el volumen del speaker que esta en el canal amplificado IZQ
+          MAIN_VOL_L = 5;
+        }
+        else
+        {
+          MAIN_VOL_L = MAIN_VOL_R;
+        }
+
+        // Actualizamos el HMI
+        writeString("menuAudio.volL.val=" + String(MAIN_VOL_L));
+        writeString("menuAudio.volLevel.val=" + String(MAIN_VOL_L));
+
+        // Habilitamos el amplificador de salida
+        kitStream.setPAPower(ACTIVE_AMP);
+        log_debug("HMI","Active amp=" + String(ACTIVE_AMP));
+        AMP_CHANGE = true;
+      }        
+      // Habilita los dos canales
+      else if (strCmd.indexOf("STE=") != -1) 
+      {
+        //Cogemos el valor
+        uint8_t buff[8];
+        strCmd.getBytes(buff, 7);
+        int valEn = (int)buff[4];
+        //
+        EN_STEREO = valEn;
+
+        // Almacenamos en NVS
+        saveHMIcfg("STEopt");
+        // Almacenamos en NVS tambien el mute
+        saveHMIcfg("MAMopt");
+        log_debug("HMI","Mute enable=" + String(EN_STEREO));
+      }
+      // Habilita el Speaker
+      else if (strCmd.indexOf("SPK=") != -1) 
+      {
+        //Cogemos el valor
+        uint8_t buff[8];
+        strCmd.getBytes(buff, 7);
+        int valEn = (int)buff[4];
+        //
+        if (valEn==1)
+        {
+            EN_SPEAKER = true;
+            // Activamos el amplificador
+            kitStream.setPAPower(true);
+            writeString("menuAudio.muteAmp.val=0");
+            writeString("menuAudio.muteAmp.val=0");
+        }
+        else
+        {
+            EN_SPEAKER = false;
+            kitStream.setPAPower(ACTIVE_AMP && EN_SPEAKER);
+            //kitStream.setSpeakerActive(false);
+        }
+
+        // Almacenamos en NVS
+        saveHMIcfg("SPKopt");
+        SPK_CHANGE = true;
+        log_debug("HMI","Speaker enable=" + String(EN_SPEAKER));
+      }
+      // Save polarization in ID 0x2B
+      else if (strCmd.indexOf("SAV") != -1) 
+      {
+        //Guardamos la configuracion en un fichero
+        String path = FILE_LAST_DIR;
+        String tmpPath = PATH_FILE_TO_LOAD;
+        char strpath[tmpPath.length() + 5] = {};
+        strcpy(strpath,tmpPath.c_str());
+        strcat(strpath,".cfg");
+
+        File cfg;
+
+        log_debug("HMI","Saving configuration in " + String(strpath));
+        cfg = SD_MMC.open(strpath, FILE_WRITE);
+
+        if (cfg)
+        {
+          // Creamos el fichero de configuracion.
+
+          log_debug("HMI","File created - ");
+
+          // Ahora escribimos la configuracion
+          cfg.println("<freq>"+ String(SAMPLING_RATE) +"</freq>");        
+          cfg.println("<zerolevel>" + String(ZEROLEVEL) + "</zerolevel>");
+
+          if (INVERSETRAIN)
+          {
+              cfg.println("<polarized>1</polarized>");       
+          } 
+          else
+          {
+            cfg.println("<polarized>0</polarized>");
+          }
+          cfg.println("<azimut>" + String(AZIMUT) + "</azimut>");
+
+        }
+        
+        cfg.close();
+
+        log_debug("HMI","Config. saved");
+      }
+      // Habilitar recording sobre WAV file
+      else if (strCmd.indexOf("WAV=") != -1) 
+      {
+        //Cogemos el valor
+        uint8_t buff[8];
+        strCmd.getBytes(buff, 7);
+        int valEn = (int)buff[4];
+        //
+        if (valEn==1)
+        {
+            // Habilita
+            MODEWAV = true;
+            // Ambas no pueden estar habilitadas
+            PLAY_TO_WAV_FILE = false;
+        }
+        else
+        {
+            // Deshabilita
+            MODEWAV = false;
+        }
+
+        log_debug("HMI","Modo WAV =" + String(MODEWAV));
+      }
+      // Habilitar play to WAV file file
+      else if (strCmd.indexOf("PTW=") != -1) 
+      {
+        //Cogemos el valor
+        uint8_t buff[8];
+        strCmd.getBytes(buff, 7);
+        int valEn = (int)buff[4];
+        //
+        if (valEn==1)
+        {
+            // Habilita
+            OUT_TO_WAV = true;
+            PLAY_TO_WAV_FILE = true;
+        }
+        else
+        {
+            // Deshabilita
+            OUT_TO_WAV = false;
+            PLAY_TO_WAV_FILE = false;
+        }
+
+        log_debug("HMI","Modo Out to WAV =" + String(OUT_TO_WAV));
+      }
+      else if (strCmd.indexOf("C44=") != -1) 
+      {
+        //Cogemos el valor
+        uint8_t buff[8];
+        strCmd.getBytes(buff, 7);
+        int valEn = (int)buff[4];
+        //
+        if (valEn==1)
+        {
+            // Habilita
+            OUT_TO_WAV = true;
+            PLAY_TO_WAV_FILE = true;
+            CHOOSE_WAV_REC_44 = true;
+        }
+        else
+        {
+            // Deshabilita
+            OUT_TO_WAV = false;
+            PLAY_TO_WAV_FILE = false;
+            CHOOSE_WAV_REC_44 = false;
+        }
+
+        log_debug("HMI","Modo Out to WAV at 44.1KHz=" + String(OUT_TO_WAV));
+      }        
+      // Habilitar play to WAV file file a 8-bits
+      else if (strCmd.indexOf("WA8=") != -1) 
+      {
+        //Cogemos el valor
+        uint8_t buff[8];
+        strCmd.getBytes(buff, 7);
+        int valEn = (int)buff[4];
+        //
+        if (valEn==1)
+        {
+            // Habilita
+            WAV_8BIT_MONO = true;
+        }
+        else
+        {
+            // Deshabilita
+            WAV_8BIT_MONO = false;
+        }
+
+        log_debug("HMI","Modo WAV mono 8-bits =" + String(WAV_8BIT_MONO));
+      }
+      // Habilitar Codec ADPCM
+      else if (strCmd.indexOf("ADP=") != -1) 
+      {
+        //Cogemos el valor
+        uint8_t buff[8];
+        strCmd.getBytes(buff, 7);
+        int valEn = (int)buff[4];
+        //
+        if (valEn==1)
+        {
+            // Habilita
+            USE_ADPCM_CODEC = true;
+        }
+        else
+        {
+            // Deshabilita
+            USE_ADPCM_CODEC = false;
+        }
+
+        log_debug("HMI","Modo ADPCM Codec =" + String(USE_ADPCM_CODEC));
+      }       
+      else if (strCmd.indexOf("BAU1") != -1) 
+      {
+        //Cogemos el valor
+        TAPE_BAUDRATE = 1;
+        log_debug("HMI","Baud rate = 1200");
+      }         
+      else if (strCmd.indexOf("BAU2") != -1) 
+      {
+        //Cogemos el valor
+        TAPE_BAUDRATE = 2;
+        log_debug("HMI","Baud rate = 2400");
+      }         
+      else if (strCmd.indexOf("BAU3") != -1) 
+      {
+        //Cogemos el valor
+        TAPE_BAUDRATE = 3;
+        log_debug("HMI","Baud rate = 3600");
+      }         
+      else if (strCmd.indexOf("BAU4") != -1) 
+      {
+        //Cogemos el valor
+        TAPE_BAUDRATE = 3.21;
+        log_debug("HMI","Baud rate = 3850");
+      }         
+      // Deshabilitar Auto Stop en WAV and MP3 player.
+      else if (strCmd.indexOf("DPS=") != -1) 
+      {
+        //Cogemos el valor
+        uint8_t buff[8];
+        strCmd.getBytes(buff, 7);
+        int valEn = (int)buff[4];
+        //
+        disable_auto_media_stop = !disable_auto_media_stop;
+        
+        log_debug("HMI","DPS: " + String(disable_auto_media_stop));
+
+        if (!disable_auto_media_stop)
+        {
+          // Play auto-stop
+          writeString("tape.playType.txt=\"*\"");
+          writeString("tape0.playType.txt=\"*\"");
+          writeString("tape.playType.y=3");
+          writeString("tape0.playType.y=3");
+          writeString("doevents");
+        }
+        else
+        {
+          // Play continuo
+          writeString("tape.playType.txt=\"C\"");
+          writeString("tape0.playType.txt=\"C\"");
+          writeString("tape.playType.y=6");
+          writeString("tape0.playType.y=6");
+          writeString("doevents");
+        }          
+
+        log_debug("HMI","Modo Auto STOP player =" + String(OUT_TO_WAV));
+      }        
+      // Habilitar Audio output cuando está grabando.
+      else if (strCmd.indexOf("LOO=") != -1) 
+      {
+        //Cogemos el valor
+        uint8_t buff[8];
+        strCmd.getBytes(buff, 7);
+        int valEn = (int)buff[4];
+        //
+        if (valEn==1)
+        {
+            // Activa el loop de audio
+            REC_AUDIO_LOOP = true;
+        }
+        else
+        {
+            REC_AUDIO_LOOP = false;
+        }
+      }
+      // Habilitar/Des WiFi RADIO.
+      else if (strCmd.indexOf("WIF=") != -1) 
+      {
+        //Cogemos el valor
+        uint8_t buff[8];
+        strCmd.getBytes(buff, 7);
+        int valEn = (int)buff[4];
+        //
+        if (valEn==1)
+        {
+            WIFI_ENABLE = true;
+        }
+        else
+        {
+            WIFI_ENABLE = false;
+        }
+
+        if (WIFI_ENABLE)
+        {
+            activateWifi(true);
+        }
+        else
+        {
+            activateWifi(false);
+        }    
+        
+        saveHMIcfg("WIFIopt");
+      }
+      // Show data debug by serial console
+      else if (strCmd.indexOf("SDD=") != -1) 
+      {
+        //Cogemos el valor
+        uint8_t buff[8];
+        strCmd.getBytes(buff, 7);
+        int valEn = (int)buff[4];
+        //
+        if (valEn==1)
+        {
+            SHOW_DATA_DEBUG = true;
+        }
+        else
+        {
+            SHOW_DATA_DEBUG = false;
+        }
+        log_debug("HMI","SHOW_DATA_DEBUG enable=" + String(SHOW_DATA_DEBUG));
+      }     
+      else if (strCmd.indexOf("VOLUP") != -1) 
+      {
+        MAIN_VOL += 1;
+        
+        if (VOL_LIMIT_HEADPHONE)
+        {
+          if (MAIN_VOL > MAX_VOL_FOR_HEADPHONE_LIMIT)
+          {
+            MAIN_VOL = MAX_VOL_FOR_HEADPHONE_LIMIT;
+          }
+        }
+        else
+        {
+          if (MAIN_VOL > 100)
+          {
+            MAIN_VOL = 100;
+          }
+        }
+
+        myNex.writeNum("menuAudio.volM.val", int(MAIN_VOL));
+        myNex.writeNum("menuAudio.volLevelM.val", int(MAIN_VOL));
+        myNex.writeStr("tape.tapeVol.txt",String(int(MAIN_VOL)) + "%");
+        
+        //kitStream.setVolume(MAIN_VOL / 100);
+        setVolumenOutput();
+
+
+      }        
+      else if (strCmd.indexOf("VOLDW") != -1) 
+      {
+        MAIN_VOL -= 1;
+        
+        if (MAIN_VOL < 0)
+        {
+          MAIN_VOL = 0;
+        }
+
+        myNex.writeNum("menuAudio.volM.val", int(MAIN_VOL));
+        myNex.writeNum("menuAudio.volLevelM.val", int(MAIN_VOL));
+        myNex.writeStr("tape.tapeVol.txt",String(int(MAIN_VOL)) + "%");
+
+
+        //kitStream.setVolume(MAIN_VOL / 100);
+        setVolumenOutput();
+        log_debug("HMI","VOL DOWN");
+      }
+      else if (strCmd.indexOf("TONE") != -1) 
+      {
+          SAMPLINGTEST = true;
+      }
+      // Busqueda de ficheros
+      else if (strCmd.indexOf("TXTF=") != -1) 
+      {
+        //Cogemos el valor
+        uint8_t buff[50];
+        strCmd.getBytes(buff, 50);
+        const int lencmd = 5;
+        int n = lencmd;
+        char phrase[50];
+        char str = (char)buff[n];
+
+        while (str != '@') 
+        {
+          phrase[n - lencmd] += (char)buff[n];
+          n++;
+          str = (char)buff[n];
+        }
+
+        #ifdef DEBUGMODE
+          log_debug("HMI","Search mode.");
+          log_debug("HMI","Text to search: ");
+          log_debug("HMI",phrase);
+        #endif
+
+        // Ahora localizamos los ficheros
+        String(tmpPhrase) = phrase;
+        tmpPhrase.trim();
+        FILE_TXT_TO_SEARCH = tmpPhrase;
+        //FILE_BROWSER_SEARCHING = true;
+        
+        findTheTextInFiles();
+      }
+      else if (strCmd.indexOf("ZXDB=") != -1)
+      {
+        //Cogemos el valor
+        uint8_t buff[8];
+        strCmd.getBytes(buff, 7);
+        char str = (char)buff[5];
+        //
+        log_debug("HMI","Update ZXDB with letter: " + String(str));
+        updateZXDB(String(str));
+      }
+      else if (strCmd.indexOf("CPCD=") != -1)
+      {
+        // Actualizar catálogo CPCDB para una letra
+        uint8_t buff[8];
+        strCmd.getBytes(buff, 7);
+        char str = (char)buff[5];
+        log_debug("HMI","Update CPCDB with letter: " + String(str));
+        updateCPCDB(String(str));
+      }
+      else if (strCmd.indexOf("MSXD=") != -1)
+      {
+        // Actualizar catálogo MSXDB para una letra
+        uint8_t buff[8];
+        strCmd.getBytes(buff, 7);
+        char str = (char)buff[5];
+        log_debug("HMI","Update MSXDB with letter: " + String(str));
+        updateMSXDB(String(str));
+      }
+      else if (strCmd.indexOf("PDEBUG") != -1)
+      {
+          // Estamos en la pantalla DEBUG
+          log_debug("HMI","PAGE DEBUG");
+          CURRENT_PAGE = PAGE_DEBUG;
+      }
+      else if (strCmd.indexOf("KEYDB") != -1)
+      {
+          // Estamos en la pantalla DEBUG
+          log_debug("HMI","PAGE KEYPAD Debug");
+          CURRENT_PAGE = PAGE_KEYDEBUG;
+      }        
+      else if (strCmd.indexOf("PMENU1") != -1)
+      {
+          if (CURRENT_PAGE == PAGE_MENU_GENERAL_SETTINGS) {
+            return;
+          }
+          CURRENT_PAGE = PAGE_MENU_GENERAL_SETTINGS;
+          delay(125);
+          myNex.writeNum("menu.dhcp.val", int(DHCP_ENABLE));
+          delay(125);
+          myNex.writeNum("menu.dhcp.val", int(DHCP_ENABLE));           
+      }
+      
+      else if (strCmd.indexOf("PMENU0") != -1)
+      {
+          // Estamos en la pantalla MENU
+          CURRENT_PAGE = PAGE_MENU_GENERAL_SETTINGS_EXT;
+          writeString("mainmenu.verFirmware.txt=\" powadcr " + String(VERSION) + "\"");     
+      }  
+      else if (strCmd.indexOf("PMENU2") != -1)
+      {
+          // Estamos en la pantalla MENU
+          log_debug("HMI","PAGE MENU(Eq)");
+          CURRENT_PAGE = PAGE_EQ;
+          delay(500);          
+          myNex.writeNum("menuEq.eqHigh.val", int(EQ_HIGH*100));
+          myNex.writeNum("menuEq.eqMid.val", int(EQ_MID*100));
+          myNex.writeNum("menuEq.eqLow.val", int(EQ_LOW*100));          
+          myNex.writeNum("menuEq.eqHighL.val", int(EQ_HIGH*100));
+          myNex.writeNum("menuEq.eqMidL.val", int(EQ_MID*100));
+          myNex.writeNum("menuEq.eqLowL.val", int(EQ_LOW*100));          
+      }
+      else if (strCmd.indexOf("PMENU3") != -1)
+      {
+          log_debug("HMI","PAGE MENU(Next)");
+          CURRENT_PAGE = 3;
+          //delay(150);          
+          switch((int)ceil(TAPE_BAUDRATE))
+          {
+            case 1:
+            {
+              // 1200 - x1
+              myNex.writeNum("menuAudio2.baud1.val", 1);  
+              myNex.writeNum("menuAudio2.baud2.val", 0);  
+              myNex.writeNum("menuAudio2.baud3.val", 0);  
+              myNex.writeNum("menuAudio2.baud4.val", 0);  
+            }
+            break;
+
+            case 2:
+            {
+              // 2400 - x2
+              myNex.writeNum("menuAudio2.baud2.val", 1);  
+              myNex.writeNum("menuAudio2.baud1.val", 0);  
+              myNex.writeNum("menuAudio2.baud3.val", 0);  
+              myNex.writeNum("menuAudio2.baud4.val", 0);
+            }
+            break;
+
+            case 3:
+            {
+              //3600 - x3
+              myNex.writeNum("menuAudio2.baud3.val", 1);
+              myNex.writeNum("menuAudio2.baud1.val", 0);  
+              myNex.writeNum("menuAudio2.baud2.val", 0);  
+              myNex.writeNum("menuAudio2.baud4.val", 0);  
+            }
+            break;
+
+            case 4:
+            {
+              //3850 - x3.21
+              myNex.writeNum("menuAudio2.baud4.val", 1);
+              myNex.writeNum("menuAudio2.baud1.val", 0);  
+              myNex.writeNum("menuAudio2.baud2.val", 0);  
+              myNex.writeNum("menuAudio2.baud3.val", 0);  
+            }
+            break;
+          }
+      }  
+      else if (strCmd.indexOf("PMENU4") != -1)
+      {
+      }         
+      else if (strCmd.indexOf("PMENU5") != -1)
+      {
+          log_debug("HMI","PAGE MENU(Next)");
+          CURRENT_PAGE = 5;
+          //delay(150);          
+          myNex.writeNum("menu2.pwled.val", int(!POWER_LED_MODE));
+          myNex.writeNum("menu2.c0.val", int(HIDE_VIRTUAL_KEY));
+          myNex.writeNum("menu2.sortFil.val", int(SORT_FILES_FIRST_DIR));   
+          
+          if (HIDE_VIRTUAL_KEY)
+          {
+            myNex.writeNum("tape0.p1.pic",54);
+            myNex.writeNum("tape.p0.pic",54);
           }
           else
           {
-            if (MAIN_VOL > 100)
-            {
-              MAIN_VOL = 100;
-            }
+            myNex.writeNum("tape0.p1.pic",48);
+            myNex.writeNum("tape.p0.pic",48);
           }
-
-          myNex.writeNum("menuAudio.volM.val", int(MAIN_VOL));
-          myNex.writeNum("menuAudio.volLevelM.val", int(MAIN_VOL));
-          myNex.writeStr("tape.tapeVol.txt",String(int(MAIN_VOL)) + "%");
-          
-          //kitStream.setVolume(MAIN_VOL / 100);
-          setVolumenOutput();
-
-
-        }        
-        else if (strCmd.indexOf("VOLDW") != -1) 
-        {
-          MAIN_VOL -= 1;
-          
-          if (MAIN_VOL < 0)
-          {
-            MAIN_VOL = 0;
-          }
-
-          myNex.writeNum("menuAudio.volM.val", int(MAIN_VOL));
-          myNex.writeNum("menuAudio.volLevelM.val", int(MAIN_VOL));
-          myNex.writeStr("tape.tapeVol.txt",String(int(MAIN_VOL)) + "%");
-
-
-          //kitStream.setVolume(MAIN_VOL / 100);
-          setVolumenOutput();
-
-
-          // logln("");
-          // logln("VOL DOWN");
-          // logln("");
-        }
-        else if (strCmd.indexOf("TONE") != -1) 
-        {
-            SAMPLINGTEST = true;
-        }
-        // Busqueda de ficheros
-        else if (strCmd.indexOf("TXTF=") != -1) 
-        {
-          //Cogemos el valor
-          uint8_t buff[50];
-          strCmd.getBytes(buff, 50);
-          const int lencmd = 5;
-          int n = lencmd;
-          char phrase[50];
-          char str = (char)buff[n];
-
-          while (str != '@') 
-          {
-            phrase[n - lencmd] += (char)buff[n];
-            n++;
-            str = (char)buff[n];
-          }
-
-          #ifdef DEBUGMODE
-            logln("");
-            log("Search mode.");
-            logln("");
-            log("Text to search: ");
-            log(phrase);
-          #endif
-
-          // Ahora localizamos los ficheros
-          String(tmpPhrase) = phrase;
-          tmpPhrase.trim();
-          FILE_TXT_TO_SEARCH = tmpPhrase;
-          //FILE_BROWSER_SEARCHING = true;
-          
-          findTheTextInFiles();
-        }
-        else if (strCmd.indexOf("ZXDB=") != -1)
-        {
-          //Cogemos el valor
-          uint8_t buff[8];
-          strCmd.getBytes(buff, 7);
-          char str = (char)buff[5];
+      }         
+      else if (strCmd.indexOf("PTAPE") != -1)
+      {
+          // Estamos en la pantalla TAPE
+          log_debug("HMI","PAGE TAPE");
+          CURRENT_PAGE = 1;
+          updateInformationMainPage(true);
+          TAPE_PAGE_SHOWN = true;
+          RADIO_PAGE_SHOWN = true;
+      }
+      else if (strCmd.indexOf("PSPOT") != -1)
+      {
+          // Estamos en la pantalla TAPE
+          log_debug("HMI","PAGE SPOTIFY");
+          CURRENT_PAGE = PAGE_SPOTIFY;
+      }
+      else if (strCmd.indexOf("0TAPE") != -1)
+      {
+          // Estamos en la pantalla TAPE
+          log_debug("HMI","PAGE TAPE0");
+          CURRENT_PAGE = PAGE_TAPE0;
+          //updateInformationMainPage(true);
+          TAPE_PAGE_SHOWN = false;
+          RADIO_PAGE_SHOWN = false;
+          TAPE0_PAGE_SHOWN = true;
+      }      
+      else if (strCmd.indexOf("PCLOCK") != -1)
+      {
+          // Estamos en la pantalla TAPE
+          log_debug("HMI","PAGE CLOCK");
+          CURRENT_PAGE = PAGE_CLOCK;
+          //updateInformationMainPage(true);
+          TAPE_PAGE_SHOWN = false;
+          RADIO_PAGE_SHOWN = false;
           //
-          logln("Update ZXDB with letter: " + String(str));
-          updateZXDB(String(str));
+      }              
+      else if (strCmd.indexOf("CHKUPD") != -1)
+      {
+        //-------------------------------------------------------------------------
+        //
+        // Buscamos nueva firmware
+        //
+        //-------------------------------------------------------------------------
+        #ifdef AUTO_UPDATE    
+          if (WIFI_CONNECTED) 
+          {
+            log_info("HMI","Manual firmware update requested");
+            myNex.writeStr("update.status.txt","Please wait...");
+            manualFirmwareUpdate();        
+          } else {
+            myNex.writeStr("update.status.txt","WiFi required for updates");
+          }
+        #endif          
+      }    
+      else if (strCmd.indexOf("IDSC=") != -1) 
+      {
+        uint8_t buff[8];
+        strCmd.getBytes(buff, 7);
+        int val = (int)buff[5];
+        //
+        if (val==1)
+        {IGNORE_DSC = true;}
+        else  
+        {IGNORE_DSC = false;}
+      }    
+      else if (strCmd.indexOf("SKN=") != -1) 
+      {
+        //Cogemos el valor
+        uint8_t buff[8];
+        strCmd.getBytes(buff, 7);
+        int valEn = (int)buff[4];
+        //
+        switch (valEn)
+        {
+          case 49:
+            //Powa skin
+            SKIN_SELECTED = 1;
+            break;
+          case 50:
+            // Amstrad
+            SKIN_SELECTED = 2;
+            break;
+          case 51:
+            // Commodore
+            SKIN_SELECTED = 3;
+            break;            
+          case 52:
+            // Spectrum
+            SKIN_SELECTED = 4;
+            break;
+          case 53:
+            // MSX
+            SKIN_SELECTED = 5;
+            break;              
+          default:
+            // Powa skin
+            SKIN_SELECTED = 1;
         }
-        else if (strCmd.indexOf("CPCD=") != -1)
+
+        saveHMIcfg("SKINopt");
+
+        log_info("HMI","Skin selection=" + String(valEn));
+
+      }            
+      else if (strCmd.indexOf("UPDATE") != -1)
+      {
+        //-------------------------------------------------------------------------
+        //
+        // Buscamos nueva firmware
+        //
+        //-------------------------------------------------------------------------
+        // Paramos toda la reproducción de medios
+        PLAY = false;
+        PAUSE = false;
+        STOP = true;
+        REC = false;
+        ABORT = true;
+        EJECT = false;
+        BLOCK_SELECTED = 0;
+        BYTES_LOADED = 0;
+        myNex.writeStr("update.status.txt","Stop player ...");
+        
+        delay(1000);
+        
+        // Actualizamos
+        #ifdef AUTO_UPDATE    
+          // -------------------------------------------------------------------------
+          // Actualizacion del HMI
+          // -------------------------------------------------------------------------
+          updateHMIfirmware();
+          delay(5000);
+          // -------------------------------------------------------------------------
+          // Actualización OTA por SD
+          // -------------------------------------------------------------------------
+          updateESP32firmware();
+          myNex.writeStr("update.status.txt","Rebooting powaDCR ...");
+          delay(2000);
+          ESP.restart();
+        #endif          
+      }           
+      else
+      {}
+
+    //Fin del procedimiento
+    }        
+
+    void writeString(String stringData) 
+    {
+    
+        // Esperamos a que todos los datos salientes se hayan enviado
+        SerialHW.flush();
+        // Enviamos el comando de inicio de datos
+        SerialHW.write(0xff);
+        SerialHW.write(0xff);
+        SerialHW.write(0xff);
+    
+        for (int i = 0; i < stringData.length(); i++) 
         {
-          // Actualizar catálogo CPCDB para una letra
-          uint8_t buff[8];
-          strCmd.getBytes(buff, 7);
-          char str = (char)buff[5];
-          logln("Update CPCDB with letter: " + String(str));
-          updateCPCDB(String(str));
+          // Enviamos los datos
+          SerialHW.write(stringData[i]);
         }
-        else if (strCmd.indexOf("MSXD=") != -1)
+    
+        // Indicamos a la pantalla que ya hemos enviado todos
+        // los datos, con este triple uint8_t 0xFF
+        SerialHW.write(0xff);
+        SerialHW.write(0xff);
+        SerialHW.write(0xff);
+        //
+        SerialHW.flush();
+
+    }
+    
+    void writeStringBlock(String stringData) 
+    {
+        
+        // Esperamos a que todos los datos salientes se hayan enviado
+        SerialHW.flush();
+        //
+        for (int i = 0; i < stringData.length(); i++) 
         {
-          // Actualizar catálogo MSXDB para una letra
-          uint8_t buff[8];
-          strCmd.getBytes(buff, 7);
-          char str = (char)buff[5];
-          logln("Update MSXDB with letter: " + String(str));
-          updateMSXDB(String(str));
+          // Enviamos los datos
+          SerialHW.write(stringData[i]);
         }
-        else if (strCmd.indexOf("PDEBUG") != -1)
+        //
+        SerialHW.flush();
+    }      
+
+    void write(String stringData)
+    {
+        SerialHW.flush();
+        //
+        for (int i = 0; i < stringData.length(); i++) 
         {
-            // Estamos en la pantalla DEBUG
-            #ifdef DEBUGMODE
-              logAlert("PAGE DEBUG");
-            #endif
-            CURRENT_PAGE = PAGE_DEBUG;
+          // Enviamos los datos
+          SerialHW.write(stringData[i]);
         }
-        else if (strCmd.indexOf("KEYDB") != -1)
+        //
+        SerialHW.flush();
+    }
+
+    void sendbin(char *data)
+    {
+        SerialHW.flush();
+        for (int i = 0; i < sizeof(data); i++) 
         {
-            // Estamos en la pantalla DEBUG
-            #ifdef DEBUGMODE
-              logAlert("PAGE KEYPAD Debug");
-            #endif
-            CURRENT_PAGE = PAGE_KEYDEBUG;
-        }        
-        else if (strCmd.indexOf("PMENU1") != -1)
+          // Enviamos los datos
+          SerialHW.write(data[i]);
+        }
+        SerialHW.flush();
+    }
+
+    void setBasicFileInformation(int id, int group, char* name,char* typeName,int size, bool playeable)
+    {
+        // El ID y el GROUP solo tiene sentido en .TZX version y compatibles pero no en TAP
+        if(size < 0)
+        {size=0;}
+
+        if (id == 33)
         {
-            if (CURRENT_PAGE == PAGE_MENU_GENERAL_SETTINGS) {
-              return;
-            }
-            CURRENT_PAGE = PAGE_MENU_GENERAL_SETTINGS;
-            delay(125);
-            myNex.writeNum("menu.dhcp.val", int(DHCP_ENABLE));
-            delay(125);
-            myNex.writeNum("menu.dhcp.val", int(DHCP_ENABLE));           
+          LAST_GROUP = "[META BLK: " + String(group) + "]";
+        }
+        else if (id == 34)
+        {
+          LAST_GROUP = "[END MET.BLK]";
+        }
+        else
+        {
+          LAST_GROUP = "";
         }
         
-        else if (strCmd.indexOf("PMENU0") != -1)
+        LAST_SIZE = size;
+        strncpy(LAST_NAME,name,14);
+        strncpy(LAST_TYPE,typeName,35);
+
+
+        if (!playeable)
         {
-            // Estamos en la pantalla MENU
-            CURRENT_PAGE = PAGE_MENU_GENERAL_SETTINGS_EXT;
-            writeString("mainmenu.verFirmware.txt=\" powadcr " + String(VERSION) + "\"");     
-        }  
-        else if (strCmd.indexOf("PMENU2") != -1)
-        {
-            // Estamos en la pantalla MENU
-            #ifdef DEBUGMODE
-              logAlert("PAGE MENU(Eq)");
-            #endif
-            CURRENT_PAGE = PAGE_EQ;
-            delay(500);          
-            myNex.writeNum("menuEq.eqHigh.val", int(EQ_HIGH*100));
-            myNex.writeNum("menuEq.eqMid.val", int(EQ_MID*100));
-            myNex.writeNum("menuEq.eqLow.val", int(EQ_LOW*100));          
-            myNex.writeNum("menuEq.eqHighL.val", int(EQ_HIGH*100));
-            myNex.writeNum("menuEq.eqMidL.val", int(EQ_MID*100));
-            myNex.writeNum("menuEq.eqLowL.val", int(EQ_LOW*100));          
+          LAST_SIZE = 0;
         }
-        else if (strCmd.indexOf("PMENU3") != -1)
+        // }
+        // else
+        // {
+        //   LAST_SIZE = 0;
+        //   strncpy(LAST_NAME,"...",14);
+        //   strncpy(LAST_TYPE,typeName,35);
+        // }
+    }
+
+    void clearInformationFile()
+    {
+        PROGRAM_NAME = "";
+        lastPrgName = "";
+        PROGRAM_NAME_2 = "";
+        lastPrgName2 = "";
+        LAST_SIZE = 0;
+        strncpy(LAST_NAME,"",1);
+        strncpy(LAST_TYPE,"",1);
+        lastType = "";
+        LAST_GROUP = "";
+        lastGrp = "";
+        lastBl1 = BLOCK_SELECTED = 0;
+        lastBl2 = TOTAL_BLOCKS = 0;
+        lastPr1 = PROGRESS_BAR_BLOCK_VALUE = 0;
+        lastPr2 = PROGRESS_BAR_TOTAL_VALUE = 0;
+
+
+        // Forzamos un actualizado de la información del tape
+        // writeString("name.txt=\"" + PROGRAM_NAME + " : " + PROGRAM_NAME_2 + "\"");
+        writeString("name.txt=\"" + PROGRAM_NAME + "\"");
+        writeString("tape2.name.txt=\"" + PROGRAM_NAME + " : " + PROGRAM_NAME_2 + "\"");
+        writeString("size.txt=\"0 bytes\"");
+        writeString("tape2.size.txt=\"0 bytes\"");
+        writeString("type.txt=\"" + String(LAST_TYPE) + " " + LAST_GROUP + "\"");
+        writeString("tape2.type.txt=\"" + String(LAST_TYPE) + " " + LAST_GROUP + "\"");
+        writeString("progression.val=" + String(PROGRESS_BAR_BLOCK_VALUE));   
+        writeString("progressTotal.val=" + String(PROGRESS_BAR_TOTAL_VALUE));
+        writeString("progressBlock.val=" + String(PROGRESS_BAR_BLOCK_VALUE));
+        writeString("totalBlocks.val=" + String(TOTAL_BLOCKS));       
+        writeString("currentBlock.val=" + String(BLOCK_SELECTED + 1));                              
+    }
+
+    void writeXSTR(int x, int y, int w, int h, int font, int ink, int bckColor, int xcenter, int ycenter, int maxChar, String txt)
+    {       
+        // usage: xstr <x>,<y>,<w>,<h>,<font>,<pco>,<bco>,<xcen>,<ycen>,<sta>,<text>
+        // 
+        // <x> is the x coordinate of upper left corner of defined text area
+        // <y> is the y coordinate of upper left corner of defined text area
+        // <w> is the width of the defined text area
+        // <h> is the height of the defined text area
+        // <font> is the number of the Resource Font
+        // <pco> is the foreground color of text (Color Constant or 565 color value)
+        // <bco> is a) background color of text, or b) picid if <sta> is set to 0 or 2
+        // <xcen> is the Horizontal Alignment (0 – left, 1 – centered, 2 – right)
+        // <ycen> is the Vertical Alignment (0 – top/upper, 1 – center, 3 – bottom/lower)
+        // <sta> is background Fill (0 – crop image, 1 – solid color, 2 – image, 3 – none)
+        // <text> is the string content (constant or .txt attribute), ie “China”, or va0.txt
+        // 
+        // Example:
+        // xstr 10,10,100,30,1,WHITE,GREEN,1,1,1,va0.txt
+        
+        
+        String strToSend = "";
+        char strClear[maxChar] = {" "};
+
+        strToSend = "xstr " + String(x) + "," 
+                                  + String(y) + "," 
+                                  + String(w) + "," 
+                                  + String(h) + "," 
+                                  + String(font) + "," 
+                                  + String(ink) + "," 
+                                  + String(bckColor) + "," 
+                                  + String(xcenter) + "," 
+                                  + String(ycenter) + ","
+                                  +  String(2) + ","
+                                  + "\"" + strClear + "\"";
+        writeString(strToSend);
+        writeString("doevents");
+        strToSend = "xstr " + String(x) + "," 
+                                  + String(y) + "," 
+                                  + String(w) + "," 
+                                  + String(h) + "," 
+                                  + String(font) + "," 
+                                  + String(ink) + "," 
+                                  + String(bckColor) + "," 
+                                  + String(xcenter) + "," 
+                                  + String(ycenter) + ","
+                                  +  String(3) + ","
+                                  + "\"" + txt  + "\"";
+        writeString(strToSend);
+
+    }
+
+    void refreshInfoDebug()
+    {
+      myNex.writeStr("debug.dataOffset1.txt",dataOffset1);
+      myNex.writeStr("debug.dataOffset2.txt",dataOffset2);
+      myNex.writeStr("debug.dataOffset3.txt",dataOffset3);
+      myNex.writeStr("debug.dataOffset4.txt",dataOffset4);
+
+      myNex.writeStr("debug.offset1.txt",Offset1);
+      myNex.writeStr("debug.offset2.txt",Offset2);
+      myNex.writeStr("debug.offset3.txt",Offset3);
+      myNex.writeStr("debug.offset4.txt",Offset4);
+
+      // DEBUG Information
+      myNex.writeStr("debug.blockLoading.txt",String(BLOCK_SELECTED));
+      
+      // Informacion de particiones
+      myNex.writeStr("debug.partLoading.txt",String(PARTITION_BLOCK+1));
+      myNex.writeStr("debug.totalParts.txt", (TOTAL_PARTS > 0) ? String(TOTAL_PARTS) : "1");
+
+      // Esto solo para TAP
+      myNex.writeStr("debug.dbgBlkInfo.txt",dbgBlkInfo);
+      myNex.writeStr("debug.dbgPauseAB.txt",dbgPauseAB);
+      myNex.writeStr("debug.dbgSync1.txt",dbgSync1);
+      myNex.writeStr("debug.dbgSync2.txt",dbgSync2);
+      myNex.writeStr("debug.dbgBit1.txt",dbgBit1);
+      myNex.writeStr("debug.dbgBit0.txt",dbgBit0);
+      myNex.writeStr("debug.dbgTState.txt",dbgTState);
+      myNex.writeStr("debug.dbgRep.txt",dbgRep);      
+    }
+
+    void updateInformationMainPage(bool FORZE_REFRESH = false) 
+    {            
+        int blType = 0;
+        String blName = "";
+        // Para el caso de los players, no se usa esto.
+        if (TYPE_FILE_LOAD != "MP3" && TYPE_FILE_LOAD != "WAV" && TYPE_FILE_LOAD != "FLAC" && TYPE_FILE_LOAD != "RADIO")
         {
-        }  
-        else if (strCmd.indexOf("PMENU4") != -1)
-        {
-        }         
-        else if (strCmd.indexOf("PMENU5") != -1)
-        {
-            #ifdef DEBUGMODE
-              logAlert("PAGE MENU(Next)");
-            #endif
-            CURRENT_PAGE = 5;
-            delay(500);          
-            myNex.writeNum("menu2.pwled.val", int(!POWER_LED_MODE));
-            myNex.writeNum("menu2.c0.val", int(HIDE_VIRTUAL_KEY));
-            myNex.writeNum("menu2.sortFil.val", int(SORT_FILES_FIRST_DIR));   
+              if ((STOP || PAUSE) && !REC)
+              {
+                PROGRAM_NAME = FILE_LOAD;
+              }
+              else
+              {
+                  if (PLAY)
+                  {
+                      if (TYPE_FILE_LOAD == "TAP")
+                      {
+                        blName = myTAP.descriptor[BLOCK_SELECTED].name;
+                        blType = myTAP.descriptor[BLOCK_SELECTED].type;
+                      }
+                      else if (TYPE_FILE_LOAD == "TZX")
+                      {
+
+                        log_debug("HMI","REC mode" + String(REC));
+                        blName = myTZX.descriptor[BLOCK_SELECTED].name;
+                        blType = myTZX.descriptor[BLOCK_SELECTED].type;
+                      }
+                      else if (TYPE_FILE_LOAD == "PZX")
+                      {
+                        blName = myPZX.descriptor[BLOCK_SELECTED].name;
+                        blType = 0;
+                      }
+                      else
+                      {
+                        blName = "";
+                        blType = 0;
+                      }
+
+                      // Si no hay nombre, ponemos "..."
+                      blName.trim();
+                      
+                      if (blName != "")
+                      {
+                          PROGRAM_NAME = blName;
+
+                          if (blType == 1)
+                          {
+                            PROGRAM_NAME = "BYTE: " + PROGRAM_NAME;
+                            LAST_PROGRAM_NAME = PROGRAM_NAME;
+                          }
+                          else if (blType == 7)
+                          {
+                            // Screen
+                            PROGRAM_NAME = "BYTE: " + PROGRAM_NAME;
+                            LAST_PROGRAM_NAME = PROGRAM_NAME;
+                          }
+                          else if (blType == 0)
+                          {
+                            PROGRAM_NAME = "PROGRAM: " + PROGRAM_NAME;
+                            LAST_PROGRAM_NAME = PROGRAM_NAME;
+                          }                       
+                      }
+                      else
+                      {
+                          // Si no hay nombre, ponemos el nombre del fichero
+                          if (C64_TAP_INSIDE || TYPE_FILE_LOAD == "ZX81" || TYPE_FILE_LOAD == "ZX80" || TYPE_FILE_LOAD == "ORIC")
+                          {
+                            PROGRAM_NAME = FILE_LOAD;
+                          }
+                          else
+                          {
+                            PROGRAM_NAME = LAST_PROGRAM_NAME + " [code]";
+                          }
+                          
+                      }       
+                    }                                
+              }                  
+
+              if (PLAY)
+              {
+                if (CURRENT_PAGE == PAGE_DEBUG)
+                {
+                    refreshInfoDebug();
+                }
+              }
+
+              if (TOTAL_BLOCKS != 0 || REC || EJECT || FORZE_REFRESH) 
+              {
             
-            if (HIDE_VIRTUAL_KEY)
+                  // Enviamos información al HMI
+                  if (TYPE_FILE_LOAD != "TAP" || REC || FORZE_REFRESH)
+                  {
+                      // Para TZX
+                      if (lastPrgName!=PROGRAM_NAME)// || lastPrgName2!=PROGRAM_NAME_2)
+                      {
+                        writeString("name.txt=\"" + PROGRAM_NAME + "\"");
+                        writeString("tape2.name.txt=\"" + PROGRAM_NAME + " : " + PROGRAM_NAME_2 + "\"");
+                      }
+                      lastPrgName = PROGRAM_NAME;
+                      lastPrgName2 = PROGRAM_NAME_2;
+                  }
+                  else
+                  {
+                      // Para TAP
+                      if (lastPrgName!=PROGRAM_NAME || FORZE_REFRESH)
+                      {
+                        writeString("name.txt=\"" + PROGRAM_NAME + "\"");
+                        writeString("tape2.name.txt=\"" + PROGRAM_NAME + "\"");
+                      }
+                      lastPrgName = PROGRAM_NAME;
+                  }
+                  
+                  if (lstLastSize!=LAST_SIZE || FORZE_REFRESH)
+                  {
+                      if (LAST_SIZE > 9999)
+                      {
+                        writeString("size.txt=\"" + String(LAST_SIZE / 1024) + " Kb\"");
+                        writeString("tape2.size.txt=\"" + String(LAST_SIZE / 1024) + " Kb\"");
+                      }
+                      else
+                      {
+                        writeString("size.txt=\"" + String(LAST_SIZE) + " bytes\"");
+                        writeString("tape2.size.txt=\"" + String(LAST_SIZE) + " bytes\"");
+                      }
+                  }
+
+                  lstLastSize = LAST_SIZE;
+
+                  String cmpTypeStr = String(LAST_NAME);
+                  cmpTypeStr.trim();
+
+
+                  if (TYPE_FILE_LOAD != "TAP" || REC || FORZE_REFRESH)
+                  {
+                      if (lastType!=LAST_TYPE || lastGrp!=LAST_GROUP || FORZE_REFRESH)
+                      { 
+                        writeString("type.txt=\"" + String(LAST_TYPE) + " " + LAST_GROUP + "\"");
+                        writeString("tape2.type.txt=\"" + String(LAST_TYPE) + " " + LAST_GROUP + "\"");
+                      }
+                      lastType = LAST_TYPE;
+                      lastGrp = LAST_GROUP;
+                  }
+                  else
+                  {
+
+                      if (lastType!=LAST_TYPE || FORZE_REFRESH)
+                      { 
+                        writeString("type.txt=\"" + String(LAST_TYPE) + "\"");
+                        writeString("tape2.type.txt=\"" + String(LAST_TYPE) + "\"");
+                      }
+                      lastType = LAST_TYPE;     
+
+                      if (lastPrgName!=PROGRAM_NAME || FORZE_REFRESH)
+                      {
+                        writeString("name.txt=\"" + PROGRAM_NAME + "\"");
+                        writeString("tape2.name.txt=\"" + PROGRAM_NAME + "\"");
+                      }
+                      lastPrgName = PROGRAM_NAME;                
+                  }
+
+              }
+
+              if (lastBl1 != TOTAL_BLOCKS || FORZE_REFRESH)
+              {
+                  if (TOTAL_BLOCKS == 0)
+                  {
+                    writeString("totalBlocks.val=" + String(TOTAL_BLOCKS));
+                  }
+                  else
+                  {
+                    writeString("totalBlocks.val=" + String(TOTAL_BLOCKS-1));                
+                  }
+              }
+              lastBl1 = TOTAL_BLOCKS;
+
+              if (lastBl2 != BLOCK_SELECTED || FORZE_REFRESH)
+              {
+                  if(TYPE_FILE_LOAD == "TAP")
+                  {
+                      writeString("currentBlock.val=" + String(BLOCK_SELECTED + 1));
+                  }
+                  else
+                  {
+                      writeString("currentBlock.val=" + String(BLOCK_SELECTED));
+                  }
+                  lastBl2 = BLOCK_SELECTED;
+              }            
+        }
+
+        // Actualizamos el LAST_MESSAGE
+        if (lastMsn != LAST_MESSAGE || FORZE_REFRESH)
+        {
+          writeString("g0.txt=\"" + LAST_MESSAGE + "\"");
+          // writeXSTR(66,247,342,16,2,65535,0,1,1,50,LAST_MESSAGE);
+        }
+        lastMsn = LAST_MESSAGE;
+        
+        // Actualizamos la barra de progreso
+        if (lastPr1 != PROGRESS_BAR_BLOCK_VALUE || FORZE_REFRESH)
+        {writeString("progressBlock.val=" + String(PROGRESS_BAR_BLOCK_VALUE));}
+        lastPr1 = PROGRESS_BAR_BLOCK_VALUE;
+
+        if (lastPr2 != PROGRESS_BAR_TOTAL_VALUE || FORZE_REFRESH)
+        {writeString("progressTotal.val=" + String(PROGRESS_BAR_TOTAL_VALUE));}
+        lastPr2 = PROGRESS_BAR_TOTAL_VALUE;
+
+                          
+        if (CURRENT_PAGE == PAGE_MENU_GENERAL_SETTINGS)
+        {
+          updateMem();
+        }
+        
+    }
+    
+    int getEndCharPosition(String str,int start)
+    {
+      int pos=-1;
+      int stateCr=0;
+      for (int i = start; i < str.length(); i++) 
+      {
+        char cr = str[i];
+
+        // Buscamos 0xFF 0xFF 0xFF
+        switch(stateCr)
+        {
+          case 0:
+            // Es el primero
+            if(int(cr)==32)
             {
-              myNex.writeNum("tape0.p1.pic",54);
-              myNex.writeNum("tape.p0.pic",54);
+              stateCr=1;
+            }              
+            else
+            {
+              stateCr=0;
+              pos = -1;
+            }
+            break;
+
+          case 1:
+            // Es el segundo
+            if(int(cr)==32)
+            {
+              stateCr=2;
+            }              
+            else
+            {
+              stateCr=0;
+              pos = -1;
+            }
+            break;
+          
+          case 2:
+            // Es el separador
+            if(int(cr)==32)
+            {
+              pos = i;
+              i=str.length();
             }
             else
             {
-              myNex.writeNum("tape0.p1.pic",48);
-              myNex.writeNum("tape.p0.pic",48);
+              stateCr=0;
+              pos = -1;
             }
-        }         
-        else if (strCmd.indexOf("PTAPE") != -1)
-        {
-            // Estamos en la pantalla TAPE
-            #ifdef DEBUGMODE
-              logAlert("PAGE TAPE");
-            #endif
-            CURRENT_PAGE = 1;
-            updateInformationMainPage(true);
-            TAPE_PAGE_SHOWN = true;
-            RADIO_PAGE_SHOWN = true;
+            break;
         }
-        else if (strCmd.indexOf("PSPOT") != -1)
+
+      }
+
+      return pos;
+    }
+
+    void getSeveralCommands(String strCmd)
+    {
+
+        String str = "";
+        int cStart=0;
+        int lastcStart=0;
+
+        // Buscamos el separador de comandos que es 
+        // 0x32 0x32 0x32
+        
+        log_debug("HMI","Several commands routine");
+
+        int cPos = getEndCharPosition(strCmd,cStart);          
+
+        if (cPos==-1)
         {
-            // Estamos en la pantalla TAPE
-            #ifdef DEBUGMODE
-              logAlert("PAGE SPOTIFY");
-            #endif
-            CURRENT_PAGE = PAGE_SPOTIFY;
+          // Solo hay un comando
+          log_debug("HMI","Only one command");
+
+          verifyCommand(strCmd);
         }
-        else if (strCmd.indexOf("0TAPE") != -1)
-        {
-            // Estamos en la pantalla TAPE
-            #ifdef DEBUGMODE
-              logAlert("PAGE TAPE0");
-            #endif
-            CURRENT_PAGE = PAGE_TAPE0;
-            //updateInformationMainPage(true);
-            TAPE_PAGE_SHOWN = false;
-            RADIO_PAGE_SHOWN = false;
-            TAPE0_PAGE_SHOWN = true;
-        }      
-        else if (strCmd.indexOf("PCLOCK") != -1)
-        {
-            // Estamos en la pantalla TAPE
-            #ifdef DEBUGMODE
-              logAlert("PAGE CLOCK");
-            #endif
-            CURRENT_PAGE = PAGE_CLOCK;
-            //updateInformationMainPage(true);
-            TAPE_PAGE_SHOWN = false;
-            RADIO_PAGE_SHOWN = false;
-            //
-        }    
-        else if (strCmd.indexOf("SPO4") != -1)
-        {
-            // Spotify PREV TRACK
-            //updateInformationMainPage(true);
-            if (SPOTIFY_CONTROL)
-            {
-              sp->skip_to_next();
-            }
-            //
-        }                  
-        else if (strCmd.indexOf("SPO1") != -1)
-        {
-            // Spotify PREV TRACK
-            //updateInformationMainPage(true);
-            if (SPOTIFY_CONTROL)
-            {
-              sp->skip_to_previous();
-            }
-            //
-        }     
-        else if (strCmd.indexOf("SPO2") != -1)
-        {
-            // Spotify PLAY/PAUSE
-            //updateInformationMainPage(true);
-            if (SPOTIFY_CONTROL)
-            {
-              sp->play();
-            }
-            //
-        }     
-        else if (strCmd.indexOf("SPO3") != -1)
-        {
-            // Spotify NEXT TRACK
-            //updateInformationMainPage(true);
-            if (SPOTIFY_CONTROL)
-            { 
-              sp->pause();
-            }
-            //
-        }            
-        else if (strCmd.indexOf("CHKUPD") != -1)
-        {
-          //-------------------------------------------------------------------------
-          //
-          // Buscamos nueva firmware
-          //
-          //-------------------------------------------------------------------------
-          #ifdef AUTO_UPDATE    
-            if (WIFI_CONNECTED) 
-            {
-              logln("Manual firmware update requested");
-              myNex.writeStr("update.status.txt","Please wait...");
-              manualFirmwareUpdate();        
-            } else {
-              myNex.writeStr("update.status.txt","WiFi required for updates");
-            }
-          #endif          
-        }    
-        else if (strCmd.indexOf("IDSC=") != -1) 
-        {
-          uint8_t buff[8];
-          strCmd.getBytes(buff, 7);
-          int val = (int)buff[5];
-          //
-          if (val==1)
-          {IGNORE_DSC = true;}
-          else  
-          {IGNORE_DSC = false;}
-        }    
-        else if (strCmd.indexOf("SKN=") != -1) 
-        {
-          //Cogemos el valor
-          uint8_t buff[8];
-          strCmd.getBytes(buff, 7);
-          int valEn = (int)buff[4];
-          //
-          switch (valEn)
-          {
-            case 49:
-              //Powa skin
-              SKIN_SELECTED = 1;
-              break;
-            case 50:
-              // Amstrad
-              SKIN_SELECTED = 2;
-              break;
-            case 51:
-              // Commodore
-              SKIN_SELECTED = 3;
-              break;            
-            case 52:
-              // Spectrum
-              SKIN_SELECTED = 4;
-              break;
-            case 53:
-              // MSX
-              SKIN_SELECTED = 5;
-              break;              
-            default:
-              // Powa skin
-              SKIN_SELECTED = 1;
-          }
-
-          saveHMIcfg("SKINopt");
-
-          logln("");
-          logln("Skin selection=" + String(valEn));
-
-        }            
-        else if (strCmd.indexOf("UPDATE") != -1)
-        {
-          //-------------------------------------------------------------------------
-          //
-          // Buscamos nueva firmware
-          //
-          //-------------------------------------------------------------------------
-          // Paramos toda la reproducción de medios
-          PLAY = false;
-          PAUSE = false;
-          STOP = true;
-          REC = false;
-          ABORT = true;
-          EJECT = false;
-          BLOCK_SELECTED = 0;
-          BYTES_LOADED = 0;
-          myNex.writeStr("update.status.txt","Stop player ...");
-          
-          delay(1000);
-          
-          // Actualizamos
-          #ifdef AUTO_UPDATE    
-            // -------------------------------------------------------------------------
-            // Actualizacion del HMI
-            // -------------------------------------------------------------------------
-            updateHMIfirmware();
-            delay(5000);
-            // -------------------------------------------------------------------------
-            // Actualización OTA por SD
-            // -------------------------------------------------------------------------
-            updateESP32firmware();
-            myNex.writeStr("update.status.txt","Rebooting powaDCR ...");
-            delay(2000);
-            ESP.restart();
-          #endif          
-        }           
         else
-        {}
-
-      //Fin del procedimiento
-      }        
-
-      void writeString(String stringData) 
-      {
-      
-          // Esperamos a que todos los datos salientes se hayan enviado
-          SerialHW.flush();
-          // Enviamos el comando de inicio de datos
-          SerialHW.write(0xff);
-          SerialHW.write(0xff);
-          SerialHW.write(0xff);
-      
-          for (int i = 0; i < stringData.length(); i++) 
+        {
+          // Hay varios
+          while(cPos < strCmd.length() && cPos!=-1)
           {
-            // Enviamos los datos
-            SerialHW.write(stringData[i]);
-          }
-      
-          // Indicamos a la pantalla que ya hemos enviado todos
-          // los datos, con este triple uint8_t 0xFF
-          SerialHW.write(0xff);
-          SerialHW.write(0xff);
-          SerialHW.write(0xff);
-          //
-          SerialHW.flush();
+            log_debug("HMI","Start,pos,last: " + String(cStart) + "," + String(cPos) + "," + String(lastcStart));
 
-      }
-      
-      void writeStringBlock(String stringData) 
-      {
-          
-          // Esperamos a que todos los datos salientes se hayan enviado
-          SerialHW.flush();
-          //
-          for (int i = 0; i < stringData.length(); i++) 
-          {
-            // Enviamos los datos
-            SerialHW.write(stringData[i]);
-          }
-          //
-          SerialHW.flush();
-      }      
+            str=strCmd.substring(cStart,cPos-2);
 
-      void write(String stringData)
-      {
-          SerialHW.flush();
-          //
-          for (int i = 0; i < stringData.length(); i++) 
-          {
-            // Enviamos los datos
-            SerialHW.write(stringData[i]);
+            log_debug("HMI","Command: " + str);
+
+            // Verificamos el comando
+            log_debug("HMI","Verify comando: " + str);
+            verifyCommand(str);
+            // Adelantamos el puntero
+            cStart = cPos+1;
+            // Buscamos el siguiente
+            cPos = getEndCharPosition(strCmd,cStart);              
           }
-          //
-          SerialHW.flush();
+        }
+    }
+
+    void readUART()
+    {
+      // Esperamos a que todos los datos salientes se hayan enviado
+      SerialHW.flush();
+
+      while (SerialHW.available() > 0)
+      {
+        String strCmd = SerialHW.readString();
+        getSeveralCommands(strCmd);
       }
 
-      void sendbin(char *data)
+      // Limpiamos el buffer de entrada
+      while (SerialHW.available() > 0) 
       {
-          SerialHW.flush();
-          for (int i = 0; i < sizeof(data); i++) 
-          {
-            // Enviamos los datos
-            SerialHW.write(data[i]);
-          }
-          SerialHW.flush();
+        SerialHW.read(); // Lee y descarta los datos
+      }
+      // }
+    }
+
+    String readStr() 
+    {
+      String strCmd = "";
+
+      // Esperamos a que todos los datos salientes se hayan enviado
+      SerialHW.flush();
+
+      if (SerialHW.available() >= 1) 
+      {
+        // get the new uint8_t:
+        while (SerialHW.available())
+        {
+          strCmd = SerialHW.readString();
+        }
+        return strCmd;
+      }
+      else
+      {
+        return "";
+      }
+    }
+
+    u_int8_t* readByte() 
+    {
+      uint8_t *b;
+
+      // Esperamos a que todos los datos salientes se hayan enviado
+      SerialHW.flush();
+
+      if (SerialHW.available() >= 1) 
+      {
+        // get the new uint8_t:
+        while (SerialHW.available())
+        {
+          SerialHW.readBytes(b,1);
+        }
+        return b;
+      }
+      else
+      {
+        return 0;
+      }
+    }
+
+    void getMemFree()
+    {
+        log_debug("HMI","> MEM REPORT");
+        log_debug("HMI","------------------------------------------------------------");
+        log_debug("HMI","Total heap: " + String(ESP.getHeapSize() / 1024) + "KB");
+        log_debug("HMI","Free heap: " + String(ESP.getFreeHeap() / 1024) + "KB");
+        log_debug("HMI","Total PSRAM: " + String(ESP.getPsramSize() / 1024) + "KB");
+        log_debug("HMI","Free PSRAM: " + String (ESP.getFreePsram() / 1024) + "KB");  
+        log_debug("HMI","------------------------------------------------------------");
+        //
+        updateMem();
+    }           
+
+    void updateMem()
+    {
+        // Solo actualizar cada 1 segundo
+        static unsigned long _lastMemUpdate = 0;
+        if (millis() - _lastMemUpdate < 1000) return;
+        _lastMemUpdate = millis();
+
+        // Evitar ejecución simultánea desde ambos cores
+        static volatile bool _updatingMem = false;
+        if (_updatingMem) return;
+        _updatingMem = true;
+
+        UBaseType_t hwm_core0 = uxTaskGetStackHighWaterMark(Task0);
+        UBaseType_t hwm_core1 = uxTaskGetStackHighWaterMark(Task1);
+
+        // Usamos valores cacheados para totales (no cambian nunca tras el boot)
+        uint32_t psramTotal = CACHED_PSRAM_TOTAL_KB;
+        uint32_t heapTotal = CACHED_HEAP_TOTAL_KB;
+        uint32_t psramFree = ESP.getFreePsram() / 1024;
+        uint32_t heapFree = ESP.getFreeHeap() / 1024;
+
+        if (lst_stackFreeCore0 != stackFreeCore0 || lst_psram_used != psramTotal || lst_stack_used != heapTotal)
+        {
+          #ifdef DEBUGMODE
+            writeString("menu.totalPSRAM.txt=\"Task0: " + String(stackFreeCore0) + " KB | " + String(psramTotal) + " KB | " + String(heapTotal) + " KB\"");
+          #else
+            writeString("menu.totalPSRAM.txt=\"" + String(psramTotal) + " KB | " + String(heapTotal) + " KB\"");
+          #endif
+        }
+
+        lst_stackFreeCore0 = BLOCK_SELECTED;
+        lst_psram_used = psramTotal;
+        lst_stack_used = heapTotal;
+
+        if (lst_stackFreeCore1 != stackFreeCore1 || lst_psram_free != psramFree || lst_stack_free != heapFree)
+        {
+          #ifdef DEBUGMODE
+            writeString("menu.freePSRAM.txt=\"Task1: "  + String(stackFreeCore1) + " KB | " + String(psramFree) + " KB | " + String(heapFree) + " KB\"");
+          #else
+            writeString("menu.freePSRAM.txt=\""  + String(psramFree) + " KB | " + String(heapFree) + " KB | " + String(hwm_core0 * 4 / 1024) + "KB | " + String(hwm_core1 * 4 / 1024) + " KB\"");
+          #endif
+        }
+        lst_stackFreeCore1 = BLOCK_SELECTED;
+        lst_psram_free = psramFree;
+        lst_stack_free = heapFree;
+
+        _updatingMem = false;
+    }
+
+    void refreshPulseIcons(bool polValue, bool lvlLowZeroValue)
+    {            
+        if (polValue == 1) 
+        {
+            if (lvlLowZeroValue == 1)
+            {          
+              writeString("tape.pulseInd.pic=36");
+              writeString("tape0.pulseInd.pic=36");
+            }
+            else
+            {
+              writeString("tape.pulseInd.pic=33");
+              writeString("tape0.pulseInd.pic=33");
+            }
+        }
+        else
+        {
+            if (lvlLowZeroValue == 1)
+            {          
+              writeString("tape.pulseInd.pic=35");
+              writeString("tape0.pulseInd.pic=35");
+            }
+            else
+            {
+              writeString("tape.pulseInd.pic=34");
+              writeString("tape0.pulseInd.pic=34");
+            }          
+        }
+    }  
+
+    String getFileExtension(const String &fileName) {
+      int dotIndex = fileName.lastIndexOf('.');
+      if (dotIndex != -1) {
+          // Si hay un punto, extraemos la extensión
+          fileName.substring(dotIndex + 1).toUpperCase();
+          return fileName.substring(dotIndex + 1); // Devuelve la extensión sin el punto
+      }
+      return ""; // Devuelve una cadena vacía si no hay extensión
+    }
+
+    String getFileNameFromPath(const String &filePath) {
+        int lastSlash = filePath.lastIndexOf('/');
+        if (lastSlash == -1) {
+            lastSlash = filePath.lastIndexOf('\\'); // Por si se usa '\' como separador
+        }
+        if (lastSlash != -1) {
+            return filePath.substring(lastSlash + 1); // Devuelve el nombre del archivo
+        }
+        return filePath; // Si no hay separador, devuelve la cadena completa
+    }
+
+    void openBlockMediaBrowser(tAudioList* source) 
+    {
+        int totalblocks = 0;
+        
+        if (IRADIO_EN) 
+        {
+          // Esto lo hacemos para la visualizacion
+          totalblocks = TOTAL_BLOCKS + 1; 
+        }
+        else
+        {
+          totalblocks = TOTAL_BLOCKS;
+        }
+
+        int max = MAX_BLOCKS_IN_BROWSER;
+        if (totalblocks > max) {
+            max = MAX_BLOCKS_IN_BROWSER;
+        } else {
+            max = totalblocks - 1;
+        }
+        BB_BROWSER_MAX = max;
+
+        // Paso 0: Información general
+        if (BB_BROWSER_STEP == 0) {
+            BB_PAGE_SELECTED = (BB_PTR_ITEM / MAX_BLOCKS_IN_BROWSER) + 1;
+
+            myNex.writeStr("mp3browser.path.txt",HMI_FNAME);
+            myNex.writeStr("mp3browser.totalBl.txt",String(totalblocks - 1));
+            myNex.writeStr("mp3browser.bbpag.txt",String(BB_PAGE_SELECTED));
+            myNex.writeStr("mp3browser.size0.txt","SIZE[MB]");
+
+            double ctpage = (double)totalblocks / (double)MAX_BLOCKS_IN_BROWSER;
+            int totalPages = trunc(ctpage);
+            if ((totalblocks % MAX_BLOCKS_IN_BROWSER != 0) && ctpage > 1) {
+                totalPages += 1;
+            }
+            myNex.writeStr("mp3browser.totalPag.txt",String(totalPages));
+
+            BB_BROWSER_STEP = 1; // Siguiente paso: primer item
+            return;
+        }
+
+        // Paso 1..max: Mostrar cada item
+        int i = BB_BROWSER_STEP;
+        if (i <= BB_BROWSER_MAX) 
+        {
+            if (i + BB_PTR_ITEM > totalblocks - 1) 
+            {
+                myNex.writeStr("mp3browser.id" + String(i) + ".txt","");
+                myNex.writeStr("mp3browser.name" + String(i) + ".txt","");
+            } 
+            else 
+            {
+              if (IRADIO_EN)
+              {
+                myNex.writeStr("mp3browser.id" + String(i) + ".txt",String(i + BB_PTR_ITEM));
+                myNex.writeStr("mp3browser.name" + String(i) + ".txt",source[i + BB_PTR_ITEM - 1].filename);              
+              }
+              else
+              {
+                String name = source[i + BB_PTR_ITEM - 1].filename;
+                myNex.writeStr("mp3browser.id" + String(i) + ".txt",String(i + BB_PTR_ITEM));
+                myNex.writeStr("mp3browser.name" + String(i) + ".txt",getFileNameFromPath(name));
+              }
+            }                
+            BB_BROWSER_STEP++;
+            // Si hemos terminado, reseteamos flags
+            if (BB_BROWSER_STEP > BB_BROWSER_MAX) {
+                BB_OPEN = false;
+                BB_UPDATE = false;
+                BB_BROWSER_STEP = 0;
+            }
+        }
+    }
+    
+    void openBlocksBrowser(const tTZX& myTZX, const tTAP& myTAP, const tPZX& myPZX)
+    {
+      // Rellenamos el browser con todos los bloques
+      const int pa = 5;
+      int max = MAX_BLOCKS_IN_BROWSER;
+      int totalPages = 0;
+
+      // TOTAL_BLOCKS incluye +1, así que el número real de bloques es TOTAL_BLOCKS - 1
+      int realBlockCount = TOTAL_BLOCKS > 0 ? TOTAL_BLOCKS - 1 : 0;
+      if (realBlockCount > max)
+      {
+        max = MAX_BLOCKS_IN_BROWSER;
+      }
+      else
+      {
+        max = realBlockCount;
       }
 
-      void setBasicFileInformation(int id, int group, char* name,char* typeName,int size, bool playeable)
+      BB_PAGE_SELECTED = (BB_PTR_ITEM / MAX_BLOCKS_IN_BROWSER) + 1;
+
+      myNex.writeStr("blocks.path.txt",HMI_FNAME);
+      myNex.writeStr("blocks.totalBl.txt",String(TOTAL_BLOCKS > 0 ? TOTAL_BLOCKS -1 : 0));
+      myNex.writeStr("blocks.bbpag.txt",String(BB_PAGE_SELECTED));  
+      myNex.writeStr("blocks.size0.txt","SIZE[B]");
+
+      totalPages = (TOTAL_BLOCKS > 0) ? ((TOTAL_BLOCKS - 1) / MAX_BLOCKS_IN_BROWSER) + 1 : 1;
+      myNex.writeStr("blocks.totalPag.txt",String(totalPages));
+
+      for (int i = 1; i <= max; i++)
       {
-          // El ID y el GROUP solo tiene sentido en .TZX version y compatibles pero no en TAP
-          if(size < 0)
-          {size=0;}
+        // ✅ LÓGICA DE INDEXACIÓN UNIFICADA Y SEGURA
+        int real_idx = (i - 1) + BB_PTR_ITEM;
 
-          if (id == 33)
-          {
-            LAST_GROUP = "[META BLK: " + String(group) + "]";
-          }
-          else if (id == 34)
-          {
-            LAST_GROUP = "[END MET.BLK]";
-          }
-          else
-          {
-            LAST_GROUP = "";
-          }
-          
-          LAST_SIZE = size;
-          strncpy(LAST_NAME,name,14);
-          strncpy(LAST_TYPE,typeName,35);
-
-
-          if (!playeable)
-          {
-            LAST_SIZE = 0;
-          }
+        if (real_idx >= TOTAL_BLOCKS - 1)
+        {
+          // Si el índice está fuera de rango, limpiamos la línea
+          myNex.writeStr("blocks.id" + String(i) + ".txt","");
+          delay(pa);
+          myNex.writeStr("blocks.data" + String(i) + ".txt","");
+          delay(pa);
+          myNex.writeStr("blocks.size" + String(i) + ".txt","");
+          delay(pa);
+          myNex.writeStr("blocks.name" + String(i) + ".txt","");
+          delay(pa);
+        }
+        else
+        {
+          // Si el índice es seguro, rellenamos la información
+          // if (TYPE_FILE_LOAD != "PZX")
+          // {
+          //   myNex.writeStr("blocks.id" + String(i) + ".txt",String(real_idx+1));
           // }
           // else
           // {
-          //   LAST_SIZE = 0;
-          //   strncpy(LAST_NAME,"...",14);
-          //   strncpy(LAST_TYPE,typeName,35);
+          myNex.writeStr("blocks.id" + String(i) + ".txt",String(real_idx + 1));
           // }
-      }
+          delay(pa);
 
-      void clearInformationFile()
-      {
-          PROGRAM_NAME = "";
-          lastPrgName = "";
-          PROGRAM_NAME_2 = "";
-          lastPrgName2 = "";
-          LAST_SIZE = 0;
-          strncpy(LAST_NAME,"",1);
-          strncpy(LAST_TYPE,"",1);
-          lastType = "";
-          LAST_GROUP = "";
-          lastGrp = "";
-          lastBl1 = BLOCK_SELECTED = 0;
-          lastBl2 = TOTAL_BLOCKS = 0;
-          lastPr1 = PROGRESS_BAR_BLOCK_VALUE = 0;
-          lastPr2 = PROGRESS_BAR_TOTAL_VALUE = 0;
-
-
-          // Forzamos un actualizado de la información del tape
-          // writeString("name.txt=\"" + PROGRAM_NAME + " : " + PROGRAM_NAME_2 + "\"");
-          writeString("name.txt=\"" + PROGRAM_NAME + "\"");
-          writeString("tape2.name.txt=\"" + PROGRAM_NAME + " : " + PROGRAM_NAME_2 + "\"");
-          writeString("size.txt=\"0 bytes\"");
-          writeString("tape2.size.txt=\"0 bytes\"");
-          writeString("type.txt=\"" + String(LAST_TYPE) + " " + LAST_GROUP + "\"");
-          writeString("tape2.type.txt=\"" + String(LAST_TYPE) + " " + LAST_GROUP + "\"");
-          writeString("progression.val=" + String(PROGRESS_BAR_BLOCK_VALUE));   
-          writeString("progressTotal.val=" + String(PROGRESS_BAR_TOTAL_VALUE));
-          writeString("progressBlock.val=" + String(PROGRESS_BAR_BLOCK_VALUE));
-          writeString("totalBlocks.val=" + String(TOTAL_BLOCKS));       
-          writeString("currentBlock.val=" + String(BLOCK_SELECTED + 1));                              
-      }
-
-      void writeXSTR(int x, int y, int w, int h, int font, int ink, int bckColor, int xcenter, int ycenter, int maxChar, String txt)
-      {       
-          // usage: xstr <x>,<y>,<w>,<h>,<font>,<pco>,<bco>,<xcen>,<ycen>,<sta>,<text>
-          // 
-          // <x> is the x coordinate of upper left corner of defined text area
-          // <y> is the y coordinate of upper left corner of defined text area
-          // <w> is the width of the defined text area
-          // <h> is the height of the defined text area
-          // <font> is the number of the Resource Font
-          // <pco> is the foreground color of text (Color Constant or 565 color value)
-          // <bco> is a) background color of text, or b) picid if <sta> is set to 0 or 2
-          // <xcen> is the Horizontal Alignment (0 – left, 1 – centered, 2 – right)
-          // <ycen> is the Vertical Alignment (0 – top/upper, 1 – center, 3 – bottom/lower)
-          // <sta> is background Fill (0 – crop image, 1 – solid color, 2 – image, 3 – none)
-          // <text> is the string content (constant or .txt attribute), ie “China”, or va0.txt
-          // 
-          // Example:
-          // xstr 10,10,100,30,1,WHITE,GREEN,1,1,1,va0.txt
-          
-          
-          String strToSend = "";
-          char strClear[maxChar] = {" "};
-
-          strToSend = "xstr " + String(x) + "," 
-                                    + String(y) + "," 
-                                    + String(w) + "," 
-                                    + String(h) + "," 
-                                    + String(font) + "," 
-                                    + String(ink) + "," 
-                                    + String(bckColor) + "," 
-                                    + String(xcenter) + "," 
-                                    + String(ycenter) + ","
-                                    +  String(2) + ","
-                                    + "\"" + strClear + "\"";
-          writeString(strToSend);
-          writeString("doevents");
-          strToSend = "xstr " + String(x) + "," 
-                                    + String(y) + "," 
-                                    + String(w) + "," 
-                                    + String(h) + "," 
-                                    + String(font) + "," 
-                                    + String(ink) + "," 
-                                    + String(bckColor) + "," 
-                                    + String(xcenter) + "," 
-                                    + String(ycenter) + ","
-                                    +  String(3) + ","
-                                    + "\"" + txt  + "\"";
-          writeString(strToSend);
-
-      }
-
-      void refreshInfoDebug()
-      {
-        myNex.writeStr("debug.dataOffset1.txt",dataOffset1);
-        myNex.writeStr("debug.dataOffset2.txt",dataOffset2);
-        myNex.writeStr("debug.dataOffset3.txt",dataOffset3);
-        myNex.writeStr("debug.dataOffset4.txt",dataOffset4);
-
-        myNex.writeStr("debug.offset1.txt",Offset1);
-        myNex.writeStr("debug.offset2.txt",Offset2);
-        myNex.writeStr("debug.offset3.txt",Offset3);
-        myNex.writeStr("debug.offset4.txt",Offset4);
-
-        // DEBUG Information
-        myNex.writeStr("debug.blockLoading.txt",String(BLOCK_SELECTED));
-        
-        // Informacion de particiones
-        myNex.writeStr("debug.partLoading.txt",String(PARTITION_BLOCK+1));
-        myNex.writeStr("debug.totalParts.txt", (TOTAL_PARTS > 0) ? String(TOTAL_PARTS) : "1");
-
-        // Esto solo para TAP
-        myNex.writeStr("debug.dbgBlkInfo.txt",dbgBlkInfo);
-        myNex.writeStr("debug.dbgPauseAB.txt",dbgPauseAB);
-        myNex.writeStr("debug.dbgSync1.txt",dbgSync1);
-        myNex.writeStr("debug.dbgSync2.txt",dbgSync2);
-        myNex.writeStr("debug.dbgBit1.txt",dbgBit1);
-        myNex.writeStr("debug.dbgBit0.txt",dbgBit0);
-        myNex.writeStr("debug.dbgTState.txt",dbgTState);
-        myNex.writeStr("debug.dbgRep.txt",dbgRep);      
-      }
-
-      void updateInformationMainPage(bool FORZE_REFRESH = false) 
-      {            
-          int blType = 0;
-          String blName = "";
-          // Para el caso de los players, no se usa esto.
-          if (TYPE_FILE_LOAD != "MP3" && TYPE_FILE_LOAD != "WAV" && TYPE_FILE_LOAD != "FLAC" && TYPE_FILE_LOAD != "RADIO")
+          if (TYPE_FILE_LOAD == "TZX" || TYPE_FILE_LOAD == "CDT" || TYPE_FILE_LOAD == "TSX")
           {
-                if ((STOP || PAUSE) && !REC)
-                {
-                  PROGRAM_NAME = FILE_LOAD;
-                }
-                else
-                {
-                    if (PLAY)
-                    {
-                        if (TYPE_FILE_LOAD == "TAP")
-                        {
-                          blName = myTAP.descriptor[BLOCK_SELECTED].name;
-                          blType = myTAP.descriptor[BLOCK_SELECTED].type;
-                        }
-                        else if (TYPE_FILE_LOAD == "TZX")
-                        {
-
-                          //logln("REC mode" + String(REC));
-                          blName = myTZX.descriptor[BLOCK_SELECTED].name;
-                          blType = myTZX.descriptor[BLOCK_SELECTED].type;
-                        }
-                        else if (TYPE_FILE_LOAD == "PZX")
-                        {
-                          blName = myPZX.descriptor[BLOCK_SELECTED].name;
-                          blType = 0;
-                        }
-                        else
-                        {
-                          blName = "";
-                          blType = 0;
-                        }
-
-                        // Si no hay nombre, ponemos "..."
-                        blName.trim();
-                        
-                        if (blName != "")
-                        {
-                            PROGRAM_NAME = blName;
-
-                            if (blType == 1)
-                            {
-                              PROGRAM_NAME = "BYTE: " + PROGRAM_NAME;
-                              LAST_PROGRAM_NAME = PROGRAM_NAME;
-                            }
-                            else if (blType == 7)
-                            {
-                              // Screen
-                              PROGRAM_NAME = "BYTE: " + PROGRAM_NAME;
-                              LAST_PROGRAM_NAME = PROGRAM_NAME;
-                            }
-                            else if (blType == 0)
-                            {
-                              PROGRAM_NAME = "PROGRAM: " + PROGRAM_NAME;
-                              LAST_PROGRAM_NAME = PROGRAM_NAME;
-                            }                       
-                        }
-                        else
-                        {
-                            // Si no hay nombre, ponemos "..."
-                            if (C64_TAP_INSIDE)
-                            {
-                              PROGRAM_NAME = FILE_LOAD;
-                            }
-                            else
-                            {
-                              PROGRAM_NAME = LAST_PROGRAM_NAME + " [code]";
-                            }
-                            
-                        }       
-                      }                                
-                }                  
-
-                if (PLAY)
-                {
-                  if (CURRENT_PAGE == PAGE_DEBUG)
-                  {
-                      refreshInfoDebug();
-                  }
-                }
-
-                if (TOTAL_BLOCKS != 0 || REC || EJECT || FORZE_REFRESH) 
-                {
-              
-                    // Enviamos información al HMI
-                    if (TYPE_FILE_LOAD != "TAP" || REC || FORZE_REFRESH)
-                    {
-                        // Para TZX
-                        if (lastPrgName!=PROGRAM_NAME)// || lastPrgName2!=PROGRAM_NAME_2)
-                        {
-                          writeString("name.txt=\"" + PROGRAM_NAME + "\"");
-                          writeString("tape2.name.txt=\"" + PROGRAM_NAME + " : " + PROGRAM_NAME_2 + "\"");
-                        }
-                        lastPrgName = PROGRAM_NAME;
-                        lastPrgName2 = PROGRAM_NAME_2;
-                    }
-                    else
-                    {
-                        // Para TAP
-                        if (lastPrgName!=PROGRAM_NAME || FORZE_REFRESH)
-                        {
-                          writeString("name.txt=\"" + PROGRAM_NAME + "\"");
-                          writeString("tape2.name.txt=\"" + PROGRAM_NAME + "\"");
-                        }
-                        lastPrgName = PROGRAM_NAME;
-                    }
-                    
-                    if (lstLastSize!=LAST_SIZE || FORZE_REFRESH)
-                    {
-                        if (LAST_SIZE > 9999)
-                        {
-                          writeString("size.txt=\"" + String(LAST_SIZE / 1024) + " Kb\"");
-                          writeString("tape2.size.txt=\"" + String(LAST_SIZE / 1024) + " Kb\"");
-                        }
-                        else
-                        {
-                          writeString("size.txt=\"" + String(LAST_SIZE) + " bytes\"");
-                          writeString("tape2.size.txt=\"" + String(LAST_SIZE) + " bytes\"");
-                        }
-                    }
-
-                    lstLastSize = LAST_SIZE;
-
-                    String cmpTypeStr = String(LAST_NAME);
-                    cmpTypeStr.trim();
-
-
-                    if (TYPE_FILE_LOAD != "TAP" || REC || FORZE_REFRESH)
-                    {
-                        if (lastType!=LAST_TYPE || lastGrp!=LAST_GROUP || FORZE_REFRESH)
-                        { 
-                          writeString("type.txt=\"" + String(LAST_TYPE) + " " + LAST_GROUP + "\"");
-                          writeString("tape2.type.txt=\"" + String(LAST_TYPE) + " " + LAST_GROUP + "\"");
-                        }
-                        lastType = LAST_TYPE;
-                        lastGrp = LAST_GROUP;
-                    }
-                    else
-                    {
-
-                        if (lastType!=LAST_TYPE || FORZE_REFRESH)
-                        { 
-                          writeString("type.txt=\"" + String(LAST_TYPE) + "\"");
-                          writeString("tape2.type.txt=\"" + String(LAST_TYPE) + "\"");
-                        }
-                        lastType = LAST_TYPE;     
-
-                        if (lastPrgName!=PROGRAM_NAME || FORZE_REFRESH)
-                        {
-                          writeString("name.txt=\"" + PROGRAM_NAME + "\"");
-                          writeString("tape2.name.txt=\"" + PROGRAM_NAME + "\"");
-                        }
-                        lastPrgName = PROGRAM_NAME;                
-                    }
-
-                }
-
-                if (lastBl1 != TOTAL_BLOCKS || FORZE_REFRESH)
-                {
-                    if (TOTAL_BLOCKS == 0)
-                    {
-                      writeString("totalBlocks.val=" + String(TOTAL_BLOCKS));
-                    }
-                    else
-                    {
-                      writeString("totalBlocks.val=" + String(TOTAL_BLOCKS-1));                
-                    }
-                }
-                lastBl1 = TOTAL_BLOCKS;
-
-                if (lastBl2 != BLOCK_SELECTED || FORZE_REFRESH)
-                {
-                    if(TYPE_FILE_LOAD == "TAP")
-                    {
-                        writeString("currentBlock.val=" + String(BLOCK_SELECTED + 1));
-                    }
-                    else
-                    {
-                        writeString("currentBlock.val=" + String(BLOCK_SELECTED));
-                    }
-                    lastBl2 = BLOCK_SELECTED;
-                }            
+              // ... (lógica TZX usando real_idx)
+              // Colores, etc.
+              myNex.writeStr("blocks.data" + String(i) + ".txt",myTZX.descriptor[real_idx + 1].typeName);
+              delay(pa);
+              myNex.writeStr("blocks.name" + String(i) + ".txt",myTZX.descriptor[real_idx + 1].name);
+              delay(pa);
+              myNex.writeStr("blocks.size" + String(i) + ".txt",String(myTZX.descriptor[real_idx + 1].size));
+              delay(pa);
           }
-
-          // Actualizamos el LAST_MESSAGE
-          if (lastMsn != LAST_MESSAGE || FORZE_REFRESH)
+          else if (TYPE_FILE_LOAD == "PZX")
           {
-            writeString("g0.txt=\"" + LAST_MESSAGE + "\"");
-            // writeXSTR(66,247,342,16,2,65535,0,1,1,50,LAST_MESSAGE);
-          }
-          lastMsn = LAST_MESSAGE;
-          
-          // Actualizamos la barra de progreso
-          if (lastPr1 != PROGRESS_BAR_BLOCK_VALUE || FORZE_REFRESH)
-          {writeString("progressBlock.val=" + String(PROGRESS_BAR_BLOCK_VALUE));}
-          lastPr1 = PROGRESS_BAR_BLOCK_VALUE;
-
-          if (lastPr2 != PROGRESS_BAR_TOTAL_VALUE || FORZE_REFRESH)
-          {writeString("progressTotal.val=" + String(PROGRESS_BAR_TOTAL_VALUE));}
-          lastPr2 = PROGRESS_BAR_TOTAL_VALUE;
-
-                            
-          if (CURRENT_PAGE == PAGE_MENU_GENERAL_SETTINGS)
-          {
-            updateMem();
-          }
-          
-      }
-      
-      int getEndCharPosition(String str,int start)
-      {
-        //logln(">> " + str);
-        int pos=-1;
-        int stateCr=0;
-        for (int i = start; i < str.length(); i++) 
-        {
-          char cr = str[i];
-          //logln(String(cr) + " - " + String(int(cr)));
-
-          // Buscamos 0xFF 0xFF 0xFF
-          switch(stateCr)
-          {
-            case 0:
-              // Es el primero
-              if(int(cr)==32)
-              {
-                stateCr=1;
-              }              
-              else
-              {
-                stateCr=0;
-                pos = -1;
-              }
-              break;
-
-            case 1:
-              // Es el segundo
-              if(int(cr)==32)
-              {
-                stateCr=2;
-              }              
-              else
-              {
-                stateCr=0;
-                pos = -1;
-              }
-              break;
+            // ✅ LÓGICA PZX CORREGIDA USANDO real_idx
+            myNex.writeStr("blocks.data" + String(i) + ".txt","PZX Block");
+            delay(pa);
             
-            case 2:
-              // Es el separador
-              if(int(cr)==32)
-              {
-                pos = i;
-                i=str.length();
-              }
-              else
-              {
-                stateCr=0;
-                pos = -1;
-              }
-              break;
-          }
-
-        }
-
-        //logln("Pos: " + String(pos));
-        return pos;
-      }
-
-      void getSeveralCommands(String strCmd)
-      {
-
-          String str = "";
-          int cStart=0;
-          int lastcStart=0;
-
-          // Buscamos el separador de comandos que es 
-          // 0x32 0x32 0x32
-          
-          #ifdef DEBUGMODE
-            logln("");
-            logln("Several commands routine");
-          #endif
-
-          int cPos = getEndCharPosition(strCmd,cStart);          
-
-          if (cPos==-1)
-          {
-            // Solo hay un comando
-            #ifdef DEBUGMODE
-              logln("");
-              logln("Only one command");
-            #endif
-
-            verifyCommand(strCmd);
-          }
-          else
-          {
-            // Hay varios
-            while(cPos < strCmd.length() && cPos!=-1)
-            {
-              #ifdef DEBUGMODE
-                logln("");
-                logln("Start,pos,last: " + String(cStart) + "," + String(cPos) + "," + String(lastcStart));
-              #endif
-
-              str=strCmd.substring(cStart,cPos-2);
-
-              #ifdef DEBUGMODE
-                logln("");
-                logln("Command: " + str);
-              #endif
-
-              // Verificamos el comando
-              //logln("Verify comando: " + str);
-              verifyCommand(str);
-              // Adelantamos el puntero
-              cStart = cPos+1;
-              // Buscamos el siguiente
-              cPos = getEndCharPosition(strCmd,cStart);              
-            }
-          }
-      }
-
-      void readUART()
-      {
-        // Esperamos a que todos los datos salientes se hayan enviado
-        SerialHW.flush();
-
-        while (SerialHW.available() > 0)
-        {
-          String strCmd = SerialHW.readString();
-          getSeveralCommands(strCmd);
-        }
-
-        // Limpiamos el buffer de entrada
-        while (SerialHW.available() > 0) 
-        {
-          SerialHW.read(); // Lee y descarta los datos
-        }
-        // }
-      }
-
-      String readStr() 
-      {
-        String strCmd = "";
-
-        // Esperamos a que todos los datos salientes se hayan enviado
-        SerialHW.flush();
-
-        if (SerialHW.available() >= 1) 
-        {
-          // get the new uint8_t:
-          while (SerialHW.available())
-          {
-            strCmd = SerialHW.readString();
-          }
-          return strCmd;
-        }
-        else
-        {
-          return "";
-        }
-      }
-
-      u_int8_t* readByte() 
-      {
-        uint8_t *b;
-
-        // Esperamos a que todos los datos salientes se hayan enviado
-        SerialHW.flush();
-
-        if (SerialHW.available() >= 1) 
-        {
-          // get the new uint8_t:
-          while (SerialHW.available())
-          {
-            SerialHW.readBytes(b,1);
-          }
-          return b;
-        }
-        else
-        {
-          return 0;
-        }
-      }
-
-      void getMemFree()
-      {
-          #ifdef DEBUGMODE
-            logln("");
-            logln("");
-            logln("> MEM REPORT");
-            logln("------------------------------------------------------------");
-            logln("");
-            logln("Total heap: " + String(ESP.getHeapSize() / 1024) + "KB");
-            logln("Free heap: " + String(ESP.getFreeHeap() / 1024) + "KB");
-            logln("Total PSRAM: " + String(ESP.getPsramSize() / 1024) + "KB");
-            logln("Free PSRAM: " + String (ESP.getFreePsram() / 1024) + "KB");  
-            logln("");
-            logln("------------------------------------------------------------");
-          #endif
-          //
-          updateMem();
-      }           
-
-      void updateMem()
-      {
-          // Solo actualizar cada 1 segundo
-          static unsigned long _lastMemUpdate = 0;
-          if (millis() - _lastMemUpdate < 1000) return;
-          _lastMemUpdate = millis();
-
-          // Evitar ejecución simultánea desde ambos cores
-          static volatile bool _updatingMem = false;
-          if (_updatingMem) return;
-          _updatingMem = true;
-
-          UBaseType_t hwm_core0 = uxTaskGetStackHighWaterMark(Task0);
-          UBaseType_t hwm_core1 = uxTaskGetStackHighWaterMark(Task1);
-
-          // Usamos valores cacheados para totales (no cambian nunca tras el boot)
-          uint32_t psramTotal = CACHED_PSRAM_TOTAL_KB;
-          uint32_t heapTotal = CACHED_HEAP_TOTAL_KB;
-          uint32_t psramFree = ESP.getFreePsram() / 1024;
-          uint32_t heapFree = ESP.getFreeHeap() / 1024;
-
-          if (lst_stackFreeCore0 != stackFreeCore0 || lst_psram_used != psramTotal || lst_stack_used != heapTotal)
-          {
-            #ifdef DEBUGMODE
-              writeString("menu.totalPSRAM.txt=\"Task0: " + String(stackFreeCore0) + " KB | " + String(psramTotal) + " KB | " + String(heapTotal) + " KB\"");
-            #else
-              writeString("menu.totalPSRAM.txt=\"" + String(psramTotal) + " KB | " + String(heapTotal) + " KB\"");
-            #endif
-          }
-
-          lst_stackFreeCore0 = BLOCK_SELECTED;
-          lst_psram_used = psramTotal;
-          lst_stack_used = heapTotal;
-
-          if (lst_stackFreeCore1 != stackFreeCore1 || lst_psram_free != psramFree || lst_stack_free != heapFree)
-          {
-            #ifdef DEBUGMODE
-              writeString("menu.freePSRAM.txt=\"Task1: "  + String(stackFreeCore1) + " KB | " + String(psramFree) + " KB | " + String(heapFree) + " KB\"");
-            #else
-              writeString("menu.freePSRAM.txt=\""  + String(psramFree) + " KB | " + String(heapFree) + " KB | " + String(hwm_core0 * 4 / 1024) + "KB | " + String(hwm_core1 * 4 / 1024) + " KB\"");
-            #endif
-          }
-          lst_stackFreeCore1 = BLOCK_SELECTED;
-          lst_psram_free = psramFree;
-          lst_stack_free = heapFree;
-
-          _updatingMem = false;
-      }
-
-      void refreshPulseIcons(bool polValue, bool lvlLowZeroValue)
-      {            
-          if (polValue == 1) 
-          {
-              if (lvlLowZeroValue == 1)
-              {          
-                writeString("tape.pulseInd.pic=36");
-                writeString("tape0.pulseInd.pic=36");
-              }
-              else
-              {
-                writeString("tape.pulseInd.pic=33");
-                writeString("tape0.pulseInd.pic=33");
-              }
-          }
-          else
-          {
-              if (lvlLowZeroValue == 1)
-              {          
-                writeString("tape.pulseInd.pic=35");
-                writeString("tape0.pulseInd.pic=35");
-              }
-              else
-              {
-                writeString("tape.pulseInd.pic=34");
-                writeString("tape0.pulseInd.pic=34");
-              }          
-          }
-      }  
-
-      String getFileExtension(const String &fileName) {
-        int dotIndex = fileName.lastIndexOf('.');
-        if (dotIndex != -1) {
-            // Si hay un punto, extraemos la extensión
-            fileName.substring(dotIndex + 1).toUpperCase();
-            return fileName.substring(dotIndex + 1); // Devuelve la extensión sin el punto
-        }
-        return ""; // Devuelve una cadena vacía si no hay extensión
-      }
-
-      String getFileNameFromPath(const String &filePath) {
-          int lastSlash = filePath.lastIndexOf('/');
-          if (lastSlash == -1) {
-              lastSlash = filePath.lastIndexOf('\\'); // Por si se usa '\' como separador
-          }
-          if (lastSlash != -1) {
-              return filePath.substring(lastSlash + 1); // Devuelve el nombre del archivo
-          }
-          return filePath; // Si no hay separador, devuelve la cadena completa
-      }
-
-// Variables globales de control
-
-      void openBlockMediaBrowser(tAudioList* source) 
-      {
-          int totalblocks = 0;
-          
-          if (IRADIO_EN) 
-          {
-            // Esto lo hacemos para la visualizacion
-            totalblocks = TOTAL_BLOCKS + 1; 
-          }
-          else
-          {
-            totalblocks = TOTAL_BLOCKS;
-          }
-
-          int max = MAX_BLOCKS_IN_BROWSER;
-          if (totalblocks > max) {
-              max = MAX_BLOCKS_IN_BROWSER;
-          } else {
-              max = totalblocks - 1;
-          }
-          BB_BROWSER_MAX = max;
-
-          // Paso 0: Información general
-          if (BB_BROWSER_STEP == 0) {
-              BB_PAGE_SELECTED = (BB_PTR_ITEM / MAX_BLOCKS_IN_BROWSER) + 1;
-
-              myNex.writeStr("mp3browser.path.txt",HMI_FNAME);
-              myNex.writeStr("mp3browser.totalBl.txt",String(totalblocks - 1));
-              myNex.writeStr("mp3browser.bbpag.txt",String(BB_PAGE_SELECTED));
-              myNex.writeStr("mp3browser.size0.txt","SIZE[MB]");
-              // writeString("mp3browser.path.txt=\"" + HMI_FNAME + "\"");
-              // writeString("mp3browser.totalBl.txt=\"" + String(totalblocks - 1) + "\"");
-              // writeString("mp3browser.bbpag.txt=\"" + String(BB_PAGE_SELECTED) + "\"");
-              // writeString("mp3browser.size0.txt=\"SIZE[MB]\"");
-
-              double ctpage = (double)totalblocks / (double)MAX_BLOCKS_IN_BROWSER;
-              int totalPages = trunc(ctpage);
-              if ((totalblocks % MAX_BLOCKS_IN_BROWSER != 0) && ctpage > 1) {
-                  totalPages += 1;
-              }
-              myNex.writeStr("mp3browser.totalPag.txt",String(totalPages));
-              // writeString("mp3browser.totalPag.txt=\"" + String(totalPages) + "\"");
-
-              BB_BROWSER_STEP = 1; // Siguiente paso: primer item
-              return;
-          }
-
-          // Paso 1..max: Mostrar cada item
-          int i = BB_BROWSER_STEP;
-          if (i <= BB_BROWSER_MAX) 
-          {
-              if (i + BB_PTR_ITEM > totalblocks - 1) 
-              {
-                  myNex.writeStr("mp3browser.id" + String(i) + ".txt","");
-                  myNex.writeStr("mp3browser.name" + String(i) + ".txt","");
-                  // writeString("mp3browser.id" + String(i) + ".txt=\"\"");
-                  // writeString("mp3browser.name" + String(i) + ".txt=\"\"");
-              } 
-              else 
-              {
-                if (IRADIO_EN)
-                {
-                  myNex.writeStr("mp3browser.id" + String(i) + ".txt",String(i + BB_PTR_ITEM));
-                  myNex.writeStr("mp3browser.name" + String(i) + ".txt",source[i + BB_PTR_ITEM - 1].filename);
-                  // writeString("mp3browser.id" + String(i) + ".txt=\"" + String(i + BB_PTR_ITEM) + "\"");
-                  // writeString("mp3browser.name" + String(i) + ".txt=\"" + source[i + BB_PTR_ITEM - 1].filename + "\"");                      
-                }
-                else
-                {
-                  String name = source[i + BB_PTR_ITEM - 1].filename;
-                  myNex.writeStr("mp3browser.id" + String(i) + ".txt",String(i + BB_PTR_ITEM));
-                  myNex.writeStr("mp3browser.name" + String(i) + ".txt",getFileNameFromPath(name));
-                  //
-                  // writeString("mp3browser.id" + String(i) + ".txt=\"" + String(i + BB_PTR_ITEM) + "\"");
-                  // writeString("mp3browser.name" + String(i) + ".txt=\"" + getFileNameFromPath(name) + "\"");
-                }
-              }                
-              BB_BROWSER_STEP++;
-              // Si hemos terminado, reseteamos flags
-              if (BB_BROWSER_STEP > BB_BROWSER_MAX) {
-                  BB_OPEN = false;
-                  BB_UPDATE = false;
-                  BB_BROWSER_STEP = 0;
-              }
-          }
-      }
-      
-      void openBlocksBrowser(const tTZX& myTZX, const tTAP& myTAP, const tPZX& myPZX)
-      {
-        // Rellenamos el browser con todos los bloques
-        const int pa = 5;
-        int max = MAX_BLOCKS_IN_BROWSER;
-        int totalPages = 0;
-
-        // TOTAL_BLOCKS incluye +1, así que el número real de bloques es TOTAL_BLOCKS - 1
-        int realBlockCount = TOTAL_BLOCKS > 0 ? TOTAL_BLOCKS - 1 : 0;
-        if (realBlockCount > max)
-        {
-          max = MAX_BLOCKS_IN_BROWSER;
-        }
-        else
-        {
-          max = realBlockCount;
-        }
-
-        BB_PAGE_SELECTED = (BB_PTR_ITEM / MAX_BLOCKS_IN_BROWSER) + 1;
-
-        myNex.writeStr("blocks.path.txt",HMI_FNAME);
-        myNex.writeStr("blocks.totalBl.txt",String(TOTAL_BLOCKS > 0 ? TOTAL_BLOCKS -1 : 0));
-        myNex.writeStr("blocks.bbpag.txt",String(BB_PAGE_SELECTED));  
-        myNex.writeStr("blocks.size0.txt","SIZE[B]");
-
-        totalPages = (TOTAL_BLOCKS > 0) ? ((TOTAL_BLOCKS - 1) / MAX_BLOCKS_IN_BROWSER) + 1 : 1;
-        myNex.writeStr("blocks.totalPag.txt",String(totalPages));
-
-        for (int i = 1; i <= max; i++)
-        {
-          // ✅ LÓGICA DE INDEXACIÓN UNIFICADA Y SEGURA
-          int real_idx = (i - 1) + BB_PTR_ITEM;
-
-          if (real_idx >= TOTAL_BLOCKS - 1)
-          {
-            // Si el índice está fuera de rango, limpiamos la línea
-            myNex.writeStr("blocks.id" + String(i) + ".txt","");
-            delay(pa);
-            myNex.writeStr("blocks.data" + String(i) + ".txt","");
-            delay(pa);
-            myNex.writeStr("blocks.size" + String(i) + ".txt","");
-            delay(pa);
-            myNex.writeStr("blocks.name" + String(i) + ".txt","");
-            delay(pa);
-          }
-          else
-          {
-            // Si el índice es seguro, rellenamos la información
-            // if (TYPE_FILE_LOAD != "PZX")
-            // {
-            //   myNex.writeStr("blocks.id" + String(i) + ".txt",String(real_idx+1));
-            // }
-            // else
-            // {
-            myNex.writeStr("blocks.id" + String(i) + ".txt",String(real_idx + 1));
-            // }
+            // Esta llamada ahora es segura
+            myNex.writeStr("blocks.name" + String(i) + ".txt",String(myPZX.descriptor[real_idx].typeName));
             delay(pa);
 
-            if (TYPE_FILE_LOAD == "TZX" || TYPE_FILE_LOAD == "CDT" || TYPE_FILE_LOAD == "TSX")
-            {
-                // ... (lógica TZX usando real_idx)
-                // Colores, etc.
-                myNex.writeStr("blocks.data" + String(i) + ".txt",myTZX.descriptor[real_idx + 1].typeName);
-                delay(pa);
-                myNex.writeStr("blocks.name" + String(i) + ".txt",myTZX.descriptor[real_idx + 1].name);
-                delay(pa);
-                myNex.writeStr("blocks.size" + String(i) + ".txt",String(myTZX.descriptor[real_idx + 1].size));
-                delay(pa);
-            }
-            else if (TYPE_FILE_LOAD == "PZX")
-            {
-              // ✅ LÓGICA PZX CORREGIDA USANDO real_idx
-              myNex.writeStr("blocks.data" + String(i) + ".txt","PZX Block");
-              delay(pa);
-              
-              // Esta llamada ahora es segura
-              myNex.writeStr("blocks.name" + String(i) + ".txt",String(myPZX.descriptor[real_idx].typeName));
-              delay(pa);
-
-              myNex.writeStr("blocks.size" + String(i) + ".txt",String(myPZX.descriptor[real_idx].size));
-              delay(pa);
-            }
-            else // TAP
-            {
-              // ✅ LÓGICA TAP CORREGIDA USANDO real_idx
-              myNex.writeStr("blocks.data" + String(i) + ".txt",myTAP.descriptor[real_idx].typeName);
-              delay(pa);  
-              myNex.writeStr("blocks.name" + String(i) + ".txt",myTAP.descriptor[real_idx].name);
-              delay(pa);
-              myNex.writeStr("blocks.size" + String(i) + ".txt",String(myTAP.descriptor[real_idx].size));
-              delay(pa);
-            }
+            myNex.writeStr("blocks.size" + String(i) + ".txt",String(myPZX.descriptor[real_idx].size));
+            delay(pa);
+          }
+          else // TAP
+          {
+            // ✅ LÓGICA TAP CORREGIDA USANDO real_idx
+            myNex.writeStr("blocks.data" + String(i) + ".txt",myTAP.descriptor[real_idx].typeName);
+            delay(pa);  
+            myNex.writeStr("blocks.name" + String(i) + ".txt",myTAP.descriptor[real_idx].name);
+            delay(pa);
+            myNex.writeStr("blocks.size" + String(i) + ".txt",String(myTAP.descriptor[real_idx].size));
+            delay(pa);
           }
         }
       }
-      
-
-      // ---------------------------------------------------------------------------------------
-      // HTTPClient
-      // ---------------------------------------------------------------------------------------
-    #ifdef AUTO_UPDATE 
-    
-    // ✅ FUNCIÓN SIMPLE PARA OBTENER ÚLTIMO TAG
-    String getLatestReleaseTag() {
-        if (!WIFI_CONNECTED) {
-            logln("Error: WiFi not connected");
-            LAST_MESSAGE = "WiFi not connected";
-            return "";
-        }
-        
-        HTTPClient http;
-        WiFiClientSecure client;
-        client.setInsecure();
-        
-        String apiUrl = "https://api.github.com/repos/hash6iron/powadcr/releases/latest";
-        
-        http.begin(client, apiUrl);
-        http.addHeader("User-Agent", "PowaDCR/" + String(VERSION));
-        
-        logln("Getting latest release from: " + apiUrl);
-        myNex.writeStr("update.status.txt","Checking latest version...");
-        
-        int httpCode = http.GET();
-        
-        if (httpCode != HTTP_CODE_OK) {
-            logln("HTTP error: " + String(httpCode));
-            myNex.writeStr("update.status.txt","GitHub API error: " + String(httpCode));
-            http.end();
-            return "";
-        }
-        
-        String payload = http.getString();
-        http.end();
-        
-        // ✅ PARSEAR JSON SIMPLE - SOLO EL TAG
-        DynamicJsonDocument doc(4096);
-        if (deserializeJson(doc, payload) != DeserializationError::Ok) {
-            logln("JSON parse error");
-            myNex.writeStr("update.status.txt","Parse error");
-            return "";
-        }
-        
-        String tagName = doc["tag_name"].as<String>();
-        
-        logln("Latest release tag: " + tagName);
-        myNex.writeStr("update.status.txt","Latest version: " + tagName);
-        
-        return tagName;
     }
+      
 
-    // Busca en _files.lst el ID correspondiente a un fichero .zxdb
-    // lstPath  : ruta completa al _files.lst  (e.g. "/ONLINE/A/_files.lst")
-    // fileName : nombre del fichero con extensión (e.g. "Manic Miner.zxdb")
-    // Retorna  : el ID de 7 dígitos, o "" si no se encuentra
-    // Formato de línea: {lineNum}|F|0|{title}.zxdb|{id}
-    String getIdOfFileInLst(const String& lstPath, const String& fileName)
+  // ---------------------------------------------------------------------------------------
+  // HTTPClient
+  // ---------------------------------------------------------------------------------------
+  #ifdef AUTO_UPDATE 
+  
+  // ✅ FUNCIÓN SIMPLE PARA OBTENER ÚLTIMO TAG
+  String getLatestReleaseTag() {
+      if (!WIFI_CONNECTED) {
+          #ifdef ERROR_LOG
+          log_error("OTA", "WiFi not connected");
+          #endif
+          LAST_MESSAGE = "WiFi not connected";
+          return "";
+      }
+      
+      HTTPClient http;
+      WiFiClientSecure client;
+      client.setInsecure();
+      
+      String apiUrl = "https://api.github.com/repos/hash6iron/powadcr/releases/latest";
+      
+      http.begin(client, apiUrl);
+      http.addHeader("User-Agent", "PowaDCR/" + String(VERSION));
+      
+      #ifdef INFO_LOG
+      log_info("OTA", "Getting latest release from: " + apiUrl);
+      #endif
+      myNex.writeStr("update.status.txt","Checking latest version...");
+      
+      int httpCode = http.GET();
+      
+      if (httpCode != HTTP_CODE_OK) {
+          #ifdef ERROR_LOG
+          log_error("OTA", "HTTP error: " + String(httpCode));
+          #endif
+          myNex.writeStr("update.status.txt","GitHub API error: " + String(httpCode));
+          http.end();
+          return "";
+      }
+      
+      String payload = http.getString();
+      http.end();
+      
+      // ✅ PARSEAR JSON SIMPLE - SOLO EL TAG
+      DynamicJsonDocument doc(4096);
+      if (deserializeJson(doc, payload) != DeserializationError::Ok) {
+          #ifdef ERROR_LOG
+          log_error("OTA", "JSON parse error");
+          #endif
+          myNex.writeStr("update.status.txt","Parse error");
+          return "";
+      }
+      
+      String tagName = doc["tag_name"].as<String>();
+      
+      #ifdef INFO_LOG
+      log_info("OTA", "Latest release tag: " + tagName);
+      #endif
+      myNex.writeStr("update.status.txt","Latest version: " + tagName);
+      
+      return tagName;
+  }
+
+  // Busca en _files.lst el ID correspondiente a un fichero .zxdb
+  // lstPath  : ruta completa al _files.lst  (e.g. "/ONLINE/A/_files.lst")
+  // fileName : nombre del fichero con extensión (e.g. "Manic Miner.zxdb")
+  // Retorna  : el ID de 7 dígitos, o "" si no se encuentra
+  // Formato de línea: {lineNum}|F|0|{title}.zxdb|{id}
+  String getIdOfFileInLst(const String& lstPath, const String& fileName)
+  {
+    File lst = SD_MMC.open(lstPath.c_str(), FILE_READ);
+    if (!lst)
     {
-      File lst = SD_MMC.open(lstPath.c_str(), FILE_READ);
-      if (!lst)
-      {
-        logln("getIdOfFileInLst: no se pudo abrir " + lstPath);
-        return "";
-      }
-
-      while (lst.available())
-      {
-        String line = lst.readStringUntil('\n');
-        line.trim();
-        if (line.length() == 0) continue;
-
-        // Formato: lineNum|F|0|title.zxdb|id
-        // Buscamos el campo 4 (índice 3, base 0) que contiene el nombre del fichero
-        int f1 = line.indexOf('|');                        // después de lineNum
-        int f2 = (f1 != -1) ? line.indexOf('|', f1+1) : -1; // después de F
-        int f3 = (f2 != -1) ? line.indexOf('|', f2+1) : -1; // después de 0
-        int f4 = (f3 != -1) ? line.indexOf('|', f3+1) : -1; // después de title
-
-        if (f3 == -1 || f4 == -1) continue;
-
-        String titleInLine = line.substring(f3+1, f4);
-        titleInLine.trim();
-
-        if (titleInLine == fileName)
-        {
-          String id = line.substring(f4+1);
-          id.trim();
-          lst.close();
-          logln("getIdOfFileInLst: encontrado ID=" + id + " para " + fileName);
-          return id;
-        }
-      }
-
-      lst.close();
-      logln("getIdOfFileInLst: no encontrado " + fileName + " en " + lstPath);
+      log_debug("HMI","getIdOfFileInLst: no se pudo abrir " + lstPath);
       return "";
     }
 
-    // ✅ FUNCIÓN OPTIMIZADA PARA ARCHIVOS GRANDES
-    bool downloadFileSimple(const String& url, const String& localPath) {
-        HTTPClient http;
-        WiFiClient* client = nullptr;
-        WiFiClientSecure* secureClient = nullptr;
-        
-        // ✅ HTTP O HTTPS
-        if (url.startsWith("https://")) {
-            secureClient = new WiFiClientSecure();
-            secureClient->setInsecure();
-            http.begin(*secureClient, url);
-        } else {
-            client = new WiFiClient();
-            http.begin(*client, url);
-        }
-        
-        // ✅ TIMEOUTS LARGOS PARA ARCHIVOS GRANDES
-        http.setTimeout(300000);  // 5 minutos
-        http.setConnectTimeout(30000); // 30 segundos para conectar
-        
-        http.addHeader("User-Agent", "PowaDCR/" + String(VERSION));
-        http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
-        
-        int httpCode = http.GET();
-        
-        if (httpCode != HTTP_CODE_OK) {
-            logln("HTTP error downloading: " + String(httpCode));
-            
-            // ✅ MANEJO ESPECÍFICO DE REDIRECCIONES
-            if (httpCode == HTTP_CODE_FOUND || httpCode == HTTP_CODE_MOVED_PERMANENTLY) {
-                String redirectURL = http.getLocation();
-                logln("Redirect to: " + redirectURL);
-                
-                http.end();
-                if (client) delete client;
-                if (secureClient) delete secureClient;
-                
-                return downloadFileSimple(redirectURL, localPath);
-            }
-            
-            http.end();
-            if (client) delete client;
-            if (secureClient) delete secureClient;
-            return false;
-        }
-        
-        // ✅ OBTENER TAMAÑO DEL ARCHIVO
-        int contentLength = http.getSize();
-        logln("File size: " + String(contentLength) + " bytes");
-        
-        if (contentLength > 0) {
-            LAST_MESSAGE = "Downloading " + String(contentLength / 1024) + " KB...";
-            writeString("statusFILE.txt=\"" + LAST_MESSAGE + "\"");
-        }
-        
-        // ✅ CREAR ARCHIVO
-        File file = SD_MMC.open(localPath.c_str(), FILE_WRITE);
-        if (!file) {
-            logln("Cannot create file: " + localPath);
-            http.end();
-            if (client) delete client;
-            if (secureClient) delete secureClient;
-            return false;
-        }
-        
-        // ✅ BUFFER MÁS GRANDE PARA ARCHIVOS GRANDES
-        const size_t bufferSize = 8192; // 8KB buffer
-        uint8_t* buffer = (uint8_t*)malloc(bufferSize);
-        
-        if (!buffer) {
-            logln("Cannot allocate buffer");
-            file.close();
-            http.end();
-            if (client) delete client;
-            if (secureClient) delete secureClient;
-            return false;
-        }
-        
-        WiFiClient* stream = http.getStreamPtr();
-        size_t totalBytes = 0;
-        unsigned long lastProgressUpdate = 0;
-        
-        // ✅ DESCARGAR CON PROGRESO
-        while (http.connected() && (contentLength <= 0 || totalBytes < contentLength)) {
-            
-            // ✅ VERIFICAR DATOS DISPONIBLES
-            size_t availableData = stream->available();
-            if (availableData == 0) {
-                delay(10);
-                continue;
-            }
-            
-            // ✅ LEER EN CHUNKS GRANDES
-            size_t bytesToRead = min(availableData, bufferSize);
-            size_t bytesRead = stream->readBytes(buffer, bytesToRead);
-            
-            if (bytesRead == 0) {
-                delay(10);
-                continue;
-            }
-            
-            // ✅ ESCRIBIR AL ARCHIVO EN CHUNKS
-            size_t bytesWritten = file.write(buffer, bytesRead);
-            if (bytesWritten != bytesRead) {
-                logln("Write error - Expected: " + String(bytesRead) + ", Written: " + String(bytesWritten));
-                break;
-            }
-            
-            totalBytes += bytesRead;
-            
-            // ✅ PROGRESO CADA 2 SEGUNDOS
-            if (millis() - lastProgressUpdate > 2000) {
-                if (contentLength > 0) {
-                    int progress = (totalBytes * 100) / contentLength;
-                    LAST_MESSAGE = "Downloaded " + String(progress) + "% (" + String(totalBytes / 1024) + " KB)";
-                } else {
-                    LAST_MESSAGE = "Downloaded " + String(totalBytes / 1024) + " KB";
-                }
-                writeString("statusFILE.txt=\"" + LAST_MESSAGE + "\"");
-                lastProgressUpdate = millis();
-                
-                // ✅ FLUSH PERIÓDICO PARA ARCHIVOS GRANDES
-                file.flush();
-                
-                logln("Progress: " + String(totalBytes) + " / " + String(contentLength) + " bytes");
-            }
-            
-            // ✅ YIELD PARA NO BLOQUEAR WATCHDOG
-            yield();
-            delay(1);
-        }
-        
-        // ✅ LIMPIEZA
-        free(buffer);
-        file.flush();
-        file.close();
-        http.end();
-        
-        if (client) delete client;
-        if (secureClient) delete secureClient;
-        
-        // ✅ VERIFICAR DESCARGA COMPLETA
-        bool success = false;
-        if (contentLength > 0) {
-            success = (totalBytes >= contentLength * 0.99); // Tolerancia del 1%
-        } else {
-            success = (totalBytes > 1000); // Al menos 1KB descargado
-        }
-        
-        if (success) {
-            logln("Download completed successfully!");
-            logln("Total bytes downloaded: " + String(totalBytes));
-            return true;
-        } else {
-            logln("Download failed or incomplete");
-            logln("Expected: " + String(contentLength) + " bytes");
-            logln("Downloaded: " + String(totalBytes) + " bytes");
-            
-            // ✅ ELIMINAR ARCHIVO INCOMPLETO
-            if (SD_MMC.exists(localPath.c_str())) {
-                SD_MMC.remove(localPath.c_str());
-                logln("Incomplete file deleted");
-            }
-            
-            return false;
-        }
-    }
-
-    // ✅ FUNCIÓN SIMPLE PARA DESCARGAR FIRMWARE - SIN VERIFICACIÓN DE ESPACIO
-    bool downloadFirmwareFiles(const String& tagVersion) {
-        if (tagVersion.length() == 0) {
-            logln("Error: No tag version provided");
-            myNex.writeStr("update.status.txt", "No version specified");
-            return false;
-        }
-        
-        // ✅ URLs DE DESCARGA DIRECTA
-        String firmwareUrl = "https://github.com/hash6iron/powadcr/releases/download/" + tagVersion + "/firmware.bin";
-        String interfaceUrl = "https://github.com/hash6iron/powadcr/releases/download/" + tagVersion + "/"+ HMI_MODEL +".tft";
-        
-        // ✅ RUTAS LOCALES
-        String firmwarePath = "/firmware.bin";
-        String interfacePath = "/"+ HMI_MODEL +".tft";
-        
-        logln("Downloading firmware files for version: " + tagVersion);
-        myNex.writeStr("update.status.txt", "Downloading " + tagVersion + "...");
-        
-        // ✅ DESCARGAR FIRMWARE.BIN (EL MÁS GRANDE)
-        logln("Downloading: " + firmwareUrl);
-        myNex.writeStr("update.status.txt", "Downloading firmware.bin (>1MB)...");
-        
-        if (!downloadFileSimple(firmwareUrl, firmwarePath)) {
-            logln("Failed to download firmware.bin");
-            myNex.writeStr("update.status.txt","Failed: firmware.bin");
-            return false;
-        }
-        
-        // ✅ PAUSA ENTRE DESCARGAS
-        delay(2000);
-        
-        // ✅ DESCARGAR POWADCR_IFACE.TFT
-        logln("Downloading: " + interfaceUrl);
-        myNex.writeStr("update.status.txt", "Downloading interface...");
-        
-        if (!downloadFileSimple(interfaceUrl, interfacePath)) {
-            logln("Failed to download " + HMI_MODEL + ".tft");
-            myNex.writeStr("update.status.txt","Failed: " + HMI_MODEL + ".tft");
-            return false;
-        }
-        
-        // ✅ VERIFICAR TAMAÑOS BÁSICOS (OPCIONAL)
-        File firmwareFile = SD_MMC.open(firmwarePath.c_str(), FILE_READ);
-        File interfaceFile = SD_MMC.open(interfacePath.c_str(), FILE_READ);
-        
-        if (firmwareFile && interfaceFile) {
-            size_t firmwareSize = firmwareFile.size();
-            size_t interfaceSize = interfaceFile.size();
-            
-            logln("Firmware size: " + String(firmwareSize) + " bytes");
-            logln("Interface size: " + String(interfaceSize) + " bytes");
-            
-            // Verificación básica de tamaños mínimos
-            if (firmwareSize > 1000000 && interfaceSize > 2000000) { // Firmware >1MB, Interface >2MB
-                
-                myNex.writeStr("update.status.txt", "Files downloaded");
-                logln("Both files downloaded successfully!");
-                
-                firmwareFile.close();
-                interfaceFile.close();
-                return true;
-            } else {
-                logln("Downloaded files seem too small - possible corruption");
-                myNex.writeStr("update.status.txt","Downloaded files corrupted");
-                // Eliminar archivos corruptos
-                SD_MMC.remove(firmwarePath.c_str());
-                SD_MMC.remove("/powadcr_iface.tft");
-            }
-        }
-        
-        if (firmwareFile) firmwareFile.close();
-        if (interfaceFile) interfaceFile.close();
-        
-        return false;
-    }
-    
-    // ✅ FUNCIÓN PRINCIPAL PARA ACTUALIZACIÓN MANUAL
-    // Compara dos versiones tipo vA.BrX.Y. Devuelve true si latest > current
-    bool isVersionNewer(const String& latest, const String& current) {
-      // Elimina la 'v' inicial si existe
-      String l = latest;
-      String c = current;
-      if (l.startsWith("v")) l = l.substring(1);
-      if (c.startsWith("v")) c = c.substring(1);
-
-      // Busca los componentes: A.BrX.Y
-      int la = l.indexOf('.');
-      int lb = l.indexOf('r');
-      int lx = l.lastIndexOf('.');
-      int ca = c.indexOf('.');
-      int cb = c.indexOf('r');
-      int cx = c.lastIndexOf('.');
-
-      int lA = l.substring(0, la).toInt();
-      int cA = c.substring(0, ca).toInt();
-      int lB = l.substring(la+1, lb).toInt();
-      int cB = c.substring(ca+1, cb).toInt();
-      int lX = l.substring(lb+1, lx).toInt();
-      int cX = c.substring(cb+1, cx).toInt();
-      int lY = l.substring(lx+1).toInt();
-      int cY = c.substring(cx+1).toInt();
-
-      if (lA > cA) return true;
-      if (lA < cA) return false;
-      if (lB > cB) return true;
-      if (lB < cB) return false;
-      if (lX > cX) return true;
-      if (lX < cX) return false;
-      if (lY > cY) return true;
-      return false;
-    }
-
-    void manualFirmwareUpdate() {
-      logln("=== MANUAL FIRMWARE UPDATE ===");
-      // ✅ PASO 1: OBTENER ÚLTIMO TAG
-      String latestTag = getLatestReleaseTag();
-      if (latestTag.length() == 0) {
-        LAST_MESSAGE = "Failed to get version info";
-        writeString("statusFILE.txt=" + LAST_MESSAGE + "\"");
-        return;
-      }
-      // ✅ COMPARAR CON VERSIÓN ACTUAL
-      String currentVersion = String(VERSION);
-      HMI_MODEL = myNex.readStr("update.firmVersion.txt");
-      myNex.writeStr("update.cVersion.txt",currentVersion.c_str());
-      myNex.writeStr("update.nVersion.txt",latestTag.c_str());
-
-      logln("Current version: " + currentVersion);
-      logln("Latest version: " + latestTag);
-
-      if (!isVersionNewer(latestTag, currentVersion)) {
-        myNex.writeStr("update.status.txt","No update needed");
-        logln("No update needed");
-        return;
-      }
-      // ✅ PASO 2: DESCARGAR ARCHIVOS
-      myNex.writeStr("update.status.txt","New update available");
-      if (downloadFirmwareFiles(latestTag)) {
-        myNex.writeStr("update.status.txt","All firmwares downloaded. Update now.");
-        logln("Firmware update downloaded successfully!");
-        logln("Files ready: /firmware.bin and /powadcr_iface.tft");
-      } else {
-        myNex.writeStr("update.status.txt","Update failed.");
-        logln("Firmware update failed!");
-      }
-    }
-
-    #endif
-
-    void updateHMIfirmware()
+    while (lst.available())
     {
-      char strpathtft[128] = {};
-      String hmifile = "/" + myNex.readStr("update.firmVersion.txt") + ".tft";
-      logln("Search for HMI file: " + hmifile);
+      String line = lst.readStringUntil('\n');
+      line.trim();
+      if (line.length() == 0) continue;
+
+      // Formato: lineNum|F|0|title.zxdb|id
+      // Buscamos el campo 4 (índice 3, base 0) que contiene el nombre del fichero
+      int f1 = line.indexOf('|');                        // después de lineNum
+      int f2 = (f1 != -1) ? line.indexOf('|', f1+1) : -1; // después de F
+      int f3 = (f2 != -1) ? line.indexOf('|', f2+1) : -1; // después de 0
+      int f4 = (f3 != -1) ? line.indexOf('|', f3+1) : -1; // después de title
+
+      if (f3 == -1 || f4 == -1) continue;
+
+      String titleInLine = line.substring(f3+1, f4);
+      titleInLine.trim();
+
+      if (titleInLine == fileName)
+      {
+        String id = line.substring(f4+1);
+        id.trim();
+        lst.close();
+        log_debug("HMI","getIdOfFileInLst: encontrado ID=" + id + " para " + fileName);
+        return id;
+      }
+    }
+
+    lst.close();
+    log_debug("HMI","getIdOfFileInLst: no encontrado " + fileName + " en " + lstPath);
+    return "";
+  }
+
+  // ✅ FUNCIÓN OPTIMIZADA PARA ARCHIVOS GRANDES
+  bool downloadFileSimple(const String& url, const String& localPath) {
+      HTTPClient http;
+      WiFiClient* client = nullptr;
+      WiFiClientSecure* secureClient = nullptr;
       
-      strcpy(strpathtft, hmifile.c_str());
-
-      File firmwaretft = SD_MMC.open(strpathtft, FILE_READ);
-      if (firmwaretft)
-      {
-        //writeStatusLCD("New display firmware");
-        myNex.writeStr("update.status.txt","Start to flashing display ...");
-        delay(2000);
-        // NOTA: Este metodo necesita que la pantalla esté alimentada con 5V
-        uploadFirmDisplay(strpathtft);
-        // Esperamos al reinicio de la pantalla
-        myNex.writeStr("screen.statusLCD.txt","Waiting for update page ...");
-        delay(3000);
-        writeString("page update");
-        writeString("page update");
-        delay(500);   
-        //
-        myNex.writeStr("update.status.txt","Display firmware updated");
-        //tapeAnimationOFF();       
+      // ✅ HTTP O HTTPS
+      if (url.startsWith("https://")) {
+          secureClient = new WiFiClientSecure();
+          secureClient->setInsecure();
+          http.begin(*secureClient, url);
+      } else {
+          client = new WiFiClient();
+          http.begin(*client, url);
       }
-      else
-      {
-        myNex.writeStr("update.status.txt","No display firmware found");
-        delay(2000);
+      
+      // ✅ TIMEOUTS LARGOS PARA ARCHIVOS GRANDES
+      http.setTimeout(65535);  // Tiempo total de la operación - Antes teniamos 300000
+      http.setConnectTimeout(30000); // 30 segundos para conectar
+      
+      http.addHeader("User-Agent", "PowaDCR/" + String(VERSION));
+      http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
+      
+      int httpCode = http.GET();
+      
+      if (httpCode != HTTP_CODE_OK) {
+          log_error("HMI","HTTP error downloading: " + String(httpCode));
+          
+          // ✅ MANEJO ESPECÍFICO DE REDIRECCIONES
+          if (httpCode == HTTP_CODE_FOUND || httpCode == HTTP_CODE_MOVED_PERMANENTLY) {
+              String redirectURL = http.getLocation();
+              log_debug("HMI","Redirect to: " + redirectURL);
+              
+              http.end();
+              if (client) delete client;
+              if (secureClient) delete secureClient;
+              
+              return downloadFileSimple(redirectURL, localPath);
+          }
+          
+          http.end();
+          if (client) delete client;
+          if (secureClient) delete secureClient;
+          return false;
       }
+      
+      // ✅ OBTENER TAMAÑO DEL ARCHIVO
+      int contentLength = http.getSize();
+      log_debug("HMI","File size: " + String(contentLength) + " bytes");
+      
+      if (contentLength > 0) {
+          LAST_MESSAGE = "Downloading " + String(contentLength / 1024) + " KB...";
+          writeString("statusFILE.txt=\"" + LAST_MESSAGE + "\"");
+      }
+      
+      // ✅ CREAR ARCHIVO
+      File file = SD_MMC.open(localPath.c_str(), FILE_WRITE);
+      if (!file) {
+          log_error("HMI","Cannot create file: " + localPath);
+          http.end();
+          if (client) delete client;
+          if (secureClient) delete secureClient;
+          return false;
+      }
+      
+      // ✅ BUFFER MÁS GRANDE PARA ARCHIVOS GRANDES
+      const size_t bufferSize = 8192; // 8KB buffer
+      uint8_t* buffer = (uint8_t*)malloc(bufferSize);
+      
+      if (!buffer) {
+          log_error("HMI","Cannot allocate buffer");
+          file.close();
+          http.end();
+          if (client) delete client;
+          if (secureClient) delete secureClient;
+          return false;
+      }
+      
+      WiFiClient* stream = http.getStreamPtr();
+      size_t totalBytes = 0;
+      unsigned long lastProgressUpdate = 0;
+      
+      // ✅ DESCARGAR CON PROGRESO
+      while (http.connected() && (contentLength <= 0 || totalBytes < contentLength)) {
+          
+          // ✅ VERIFICAR DATOS DISPONIBLES
+          size_t availableData = stream->available();
+          if (availableData == 0) {
+              delay(10);
+              continue;
+          }
+          
+          // ✅ LEER EN CHUNKS GRANDES
+          size_t bytesToRead = min(availableData, bufferSize);
+          size_t bytesRead = stream->readBytes(buffer, bytesToRead);
+          
+          if (bytesRead == 0) {
+              delay(10);
+              continue;
+          }
+          
+          // ✅ ESCRIBIR AL ARCHIVO EN CHUNKS
+          size_t bytesWritten = file.write(buffer, bytesRead);
+          if (bytesWritten != bytesRead) {
+              log_error("HMI","Write error - Expected: " + String(bytesRead) + ", Written: " + String(bytesWritten));
+              break;
+          }
+          
+          totalBytes += bytesRead;
+          
+          // ✅ PROGRESO CADA 2 SEGUNDOS
+          if (millis() - lastProgressUpdate > 2000) {
+              if (contentLength > 0) {
+                  int progress = (totalBytes * 100) / contentLength;
+                  LAST_MESSAGE = "Downloaded " + String(progress) + "% (" + String(totalBytes / 1024) + " KB)";
+              } else {
+                  LAST_MESSAGE = "Downloaded " + String(totalBytes / 1024) + " KB";
+              }
+              writeString("statusFILE.txt=\"" + LAST_MESSAGE + "\"");
+              lastProgressUpdate = millis();
+              
+              // ✅ FLUSH PERIÓDICO PARA ARCHIVOS GRANDES
+              file.flush();
+              
+              log_debug("HMI","Progress: " + String(totalBytes) + " / " + String(contentLength) + " bytes");
+              // Informacion de la descarga
+              myNex.writeStr("update.status.txt", "Downloading " + String(totalBytes / 1024) + " / " + String(contentLength / 1024) + " KB");
+              // Barra de progreso
+              myNex.writeNum("update.prgBar.val", (contentLength > 0) ? (totalBytes * 100) / contentLength : 0);
+          }
+          
+          // ✅ YIELD PARA NO BLOQUEAR WATCHDOG
+          yield();
+          delay(1);
+      }
+      
+      // ✅ LIMPIEZA
+      free(buffer);
+      file.flush();
+      file.close();
+      http.end();
+      
+      if (client) delete client;
+      if (secureClient) delete secureClient;
+      
+      // ✅ VERIFICAR DESCARGA COMPLETA
+      bool success = false;
+      if (contentLength > 0) {
+          success = (totalBytes >= contentLength * 0.99); // Tolerancia del 1%
+      } else {
+          success = (totalBytes > 1000); // Al menos 1KB descargado
+      }
+      
+      if (success) {
+          log_debug("HMI","Download completed successfully!");
+          log_debug("HMI","Total bytes downloaded: " + String(totalBytes));
+          return true;
+      } else {
+          log_error("HMI","Download failed or incomplete");
+          log_error("HMI","Expected: " + String(contentLength) + " bytes");
+          log_error("HMI","Downloaded: " + String(totalBytes) + " bytes");
+          
+          // ✅ ELIMINAR ARCHIVO INCOMPLETO
+          if (SD_MMC.exists(localPath.c_str())) {
+              SD_MMC.remove(localPath.c_str());
+              log_debug("HMI","Incomplete file deleted");
+          }
+          
+          return false;
+      }
+  }
+
+  // ✅ FUNCIÓN SIMPLE PARA DESCARGAR FIRMWARE - SIN VERIFICACIÓN DE ESPACIO
+  bool downloadFirmwareFiles(const String& tagVersion) 
+  {
+      if (tagVersion.length() == 0) {
+          log_error("HMI","Error: No tag version provided");
+          myNex.writeStr("update.status.txt", "No version specified");
+          return false;
+      }
+      
+      // ✅ URLs DE DESCARGA DIRECTA
+      String firmwareUrl = "https://github.com/hash6iron/powadcr/releases/download/" + tagVersion + "/firmware.bin";
+      String interfaceUrl = "https://github.com/hash6iron/powadcr/releases/download/" + tagVersion + "/"+ HMI_MODEL +".tft";
+      
+      // ✅ RUTAS LOCALES
+      String firmwarePath = "/firmware.bin";
+      String interfacePath = "/"+ HMI_MODEL +".tft";
+      
+      log_debug("HMI","Downloading firmware files for version: " + tagVersion);
+      myNex.writeStr("update.status.txt", "Downloading " + tagVersion + "...");
+      
+      // ✅ DESCARGAR FIRMWARE.BIN (EL MÁS GRANDE)
+      log_debug("HMI","Downloading: " + firmwareUrl);
+      myNex.writeStr("update.status.txt", "Downloading firmware.bin (>1MB)...");
+      
+      if (!downloadFileSimple(firmwareUrl, firmwarePath)) {
+          log_error("HMI","Failed to download firmware.bin");
+          myNex.writeStr("update.status.txt","Failed: firmware.bin");
+          return false;
+      }
+      
+      // ✅ PAUSA ENTRE DESCARGAS
+      delay(2000);
+      
+      // ✅ DESCARGAR POWADCR_IFACE.TFT
+      log_debug("HMI","Downloading: " + interfaceUrl);
+      myNex.writeStr("update.status.txt", "Downloading interface...");
+      
+      if (!downloadFileSimple(interfaceUrl, interfacePath)) {
+          log_error("HMI","Failed to download " + HMI_MODEL + ".tft");
+          myNex.writeStr("update.status.txt","Failed: " + HMI_MODEL + ".tft");
+          return false;
+      }
+      
+      // ✅ VERIFICAR TAMAÑOS BÁSICOS (OPCIONAL)
+      File firmwareFile = SD_MMC.open(firmwarePath.c_str(), FILE_READ);
+      File interfaceFile = SD_MMC.open(interfacePath.c_str(), FILE_READ);
+      
+      if (firmwareFile && interfaceFile) {
+          size_t firmwareSize = firmwareFile.size();
+          size_t interfaceSize = interfaceFile.size();
+          
+          log_debug("HMI","Firmware size: " + String(firmwareSize) + " bytes");
+          log_debug("HMI","Interface size: " + String(interfaceSize) + " bytes");
+          
+          // Verificación básica de tamaños mínimos
+          if (firmwareSize > 1000000 && interfaceSize > 2000000) { // Firmware >1MB, Interface >2MB
+              
+              myNex.writeStr("update.status.txt", "Files downloaded");
+              log_debug("HMI","Both files downloaded successfully!");
+              
+              firmwareFile.close();
+              interfaceFile.close();
+              return true;
+          } else {
+              log_error("HMI","Downloaded files seem too small - possible corruption");
+              myNex.writeStr("update.status.txt","Downloaded files corrupted");
+              // Eliminar archivos corruptos
+              SD_MMC.remove(firmwarePath.c_str());
+              SD_MMC.remove("/powadcr_iface.tft");
+          }
+      }
+      
+      if (firmwareFile) firmwareFile.close();
+      if (interfaceFile) interfaceFile.close();
+      
+      return false;
+  }
+  
+  // ✅ FUNCIÓN PRINCIPAL PARA ACTUALIZACIÓN MANUAL
+  // Compara dos versiones tipo vA.BrX.Y. Devuelve true si latest > current
+  bool isVersionNewer(const String& latest, const String& current) {
+    // Elimina la 'v' inicial si existe
+    String l = latest;
+    String c = current;
+    if (l.startsWith("v")) l = l.substring(1);
+    if (c.startsWith("v")) c = c.substring(1);
+
+    // Busca los componentes: A.BrX.Y
+    int la = l.indexOf('.');
+    int lb = l.indexOf('r');
+    int lx = l.lastIndexOf('.');
+    int ca = c.indexOf('.');
+    int cb = c.indexOf('r');
+    int cx = c.lastIndexOf('.');
+
+    int lA = l.substring(0, la).toInt();
+    int cA = c.substring(0, ca).toInt();
+    int lB = l.substring(la+1, lb).toInt();
+    int cB = c.substring(ca+1, cb).toInt();
+    int lX = l.substring(lb+1, lx).toInt();
+    int cX = c.substring(cb+1, cx).toInt();
+    int lY = l.substring(lx+1).toInt();
+    int cY = c.substring(cx+1).toInt();
+
+    if (lA > cA) return true;
+    if (lA < cA) return false;
+    if (lB > cB) return true;
+    if (lB < cB) return false;
+    if (lX > cX) return true;
+    if (lX < cX) return false;
+    if (lY > cY) return true;
+    return false;
+  }
+
+  void manualFirmwareUpdate() {
+    log_info("HMI","=== MANUAL FIRMWARE UPDATE ===");
+    // ✅ PASO 1: OBTENER ÚLTIMO TAG
+    String latestTag = getLatestReleaseTag();
+    if (latestTag.length() == 0) {
+      LAST_MESSAGE = "Failed to get version info";
+      writeString("statusFILE.txt=" + LAST_MESSAGE + "\"");
+      return;
     }
+    // ✅ COMPARAR CON VERSIÓN ACTUAL
+    String currentVersion = String(VERSION);
+    HMI_MODEL = myNex.readStr("update.firmVersion.txt");
+    myNex.writeStr("update.cVersion.txt",currentVersion.c_str());
+    myNex.writeStr("update.nVersion.txt",latestTag.c_str());
 
-    void onOTAStart()
-    {
-      //pageScreenIsShown = false;
+    log_info("HMI","Current version: " + currentVersion);
+    log_info("HMI","Latest version: " + latestTag);
+
+    if (!isVersionNewer(latestTag, currentVersion)) {
+      myNex.writeStr("update.status.txt","No update needed");
+      log_info("HMI","No update needed");
+      return;
     }
+    // ✅ PASO 2: DESCARGAR ARCHIVOS
+    myNex.writeStr("update.status.txt","New update available");
+    if (downloadFirmwareFiles(latestTag)) {
+      myNex.writeStr("update.status.txt","All firmwares downloaded. PRESS 'Update' now.");
+      log_info("HMI","Firmware update downloaded successfully!");
+      log_info("HMI","Files ready: /firmware.bin and /powadcr_iface.tft");
+    } else {
+      myNex.writeStr("update.status.txt","Update failed.");
+      log_error("HMI","Firmware update failed!");
+    }
+  }
 
-    static void onOTAProgress(size_t currSize, size_t totalSize)
+  #endif
+
+  void updateHMIfirmware()
+  {
+    char strpathtft[128] = {};
+    String hmifile = "/" + myNex.readStr("update.firmVersion.txt") + ".tft";
+    log_info("HMI","Search for HMI file: " + hmifile);
+    
+    strcpy(strpathtft, hmifile.c_str());
+
+    File firmwaretft = SD_MMC.open(strpathtft, FILE_READ);
+    if (firmwaretft)
     {
-      // log_v("CALLBACK:  Update process at %d of %d bytes...", currSize, totalSize);
+      //writeStatusLCD("New display firmware");
+      myNex.writeStr("update.status.txt","Start to flashing display ...");
+      delay(2000);
+      // NOTA: Este metodo necesita que la pantalla esté alimentada con 5V
+      //uploadFirmDisplay(strpathtft);
 
-    #ifdef DEBUGMODE
-      logln("Uploading status: " + String(currSize / 1024) + "/" + String(totalSize / 1024) + " KB");
-    #endif
+      if (!uploadFirmDisplay(strpathtft)) 
+      {
+        myNex.writeStr("update.status.txt","HMI update failed");
+        log_error("HMI","HMI update failed");
+        return;  // Salir sin continuar
+      }        
 
-      // if (!pageScreenIsShown)
-      // {
-      //   hmi.writeString("page screen");
-      //   hmi.writeString("screen.updateBar.bco=23275");
-      //   pageScreenIsShown = true;
-      // }
+      // Esperamos al reinicio de la pantalla
+      myNex.writeStr("screen.statusLCD.txt","Waiting for update page ...");
+      delay(3000);
+      writeString("page update");
+      writeString("page update");
+      delay(500);   
+      //
+      myNex.writeStr("update.status.txt","Display firmware updated");
+      //tapeAnimationOFF();       
+    }
+    else
+    {
+      myNex.writeStr("update.status.txt","No display firmware found");
+      delay(2000);
+    }
+  }
+
+  void onOTAStart()
+  {
+    //pageScreenIsShown = false;
+  }
+
+  static void onOTAProgress(size_t currSize, size_t totalSize)
+  {
+    log_debug("HMI","Uploading status: " + String(currSize / 1024) + "/" + String(totalSize / 1024) + " KB");
 
       int prg = 0;
-      prg = (currSize * 100) / totalSize;
+    prg = (currSize * 100) / totalSize;
+    myNex.writeStr("update.status.txt","Flashing Audiokit ... " + String(prg) + " %");
+  }
 
-      //hmi.writeString("statusLCD.txt=\"FIRMWARE UPDATING " + String(prg) + " %\"");
-      myNex.writeStr("update.status.txt","Flashing Audiokit ... " + String(prg) + " %");
-      //hmi.writeString("screen.updateBar.val=" + String(prg));
-    }
-
-    void onOTAEnd(bool success)
+  void onOTAEnd(bool success)
+  {
+    if (success)
     {
-      if (success)
-      {
-        myNex.writeStr("update.status.txt","Update finished");
-      }
-      else
-      {
-        myNex.writeStr("update.status.txt","Update error");
-      }
+      myNex.writeStr("update.status.txt","Update finished");
     }
-
-    void updateESP32firmware()
+    else
     {
-        // log_v("");
-        // log_v("Search for firmware..");
-        char strpath[20] = {};
-        strcpy(strpath, "/firmware.bin");
+      myNex.writeStr("update.status.txt","Update error");
+    }
+  }
 
-        File firmware = SD_MMC.open(strpath, FILE_READ);
+  void updateESP32firmware()
+  {
+      // #ifdef DEBUG_LOG
+      // log_debug("OTA", "Search for firmware..");
+      // #endif
+      char strpath[20] = {};
+      strcpy(strpath, "/firmware.bin");
 
-        if (firmware)
+      File firmware = SD_MMC.open(strpath, FILE_READ);
+
+      if (firmware)
+      {
+        #ifdef INFO_LOG
+        log_info("OTA", "Firmware file opened " + String(strpath));
+        #endif
+        myNex.writeStr("update.status.txt","Checking firmware");
+        
+        // Verificar magic byte antes del update
+        uint8_t magicByte = firmware.peek();
+        #ifdef INFO_LOG
+        log_info("OTA", "First byte of firmware: 0x" + String(magicByte, HEX));
+        #endif
+        
+        if (magicByte != 0xE9) 
         {
-          logln("Firmware file opened " + String(strpath));
-          myNex.writeStr("update.status.txt","Checking firmware");
-          
-          // Verificar magic byte antes del update
-          uint8_t magicByte = firmware.peek();
-          logln("First byte of firmware: 0x" + String(magicByte, HEX));
-          
-          if (magicByte != 0xE9) 
-          {
-              logln("ERROR: Invalid firmware file - Wrong magic byte");
-              myNex.writeStr("update.status.txt","Invalid firmware file");
-              firmware.close();
-              
-              // Eliminar archivo inválido
-              if (SD_MMC.remove("/firmware.bin")) {
-                  logln("Invalid firmware file deleted");
-              }
-              return;
-          }    
-          myNex.writeStr("update.status.txt","Flashing Audiokit ...");
-          logln("Firmware found on SD_MMC");
-          onOTAStart();
-          logln("Updating firmware...");
-
-          Update.onProgress(onOTAProgress);
-
-          size_t firmwareSize = firmware.available();
-          logln("Firmware size: " + String(firmwareSize) + " bytes");
-
-          if(!Update.begin(firmwareSize))
-          {
-            logln("Error initializing updater obj.");
-            Update.getError();
-            Update.printError(Serial);
-          }
-          else
-          {
-              uint8_t buf[2048];
-              int bytesRead = 0;
-              size_t totalWritten = 0;
-
-              while ((bytesRead = firmware.read(buf, sizeof(buf))) > 0) 
-              {
-                Update.write(buf, bytesRead);
-                totalWritten += bytesRead;
-                Serial.printf("Escritos: %d/%d bytes\n", totalWritten, firmwareSize);
-              }        
-          }
-
-          if (Update.end())
-          {
-            log_v("Update finished!");
-            myNex.writeStr("update.status.txt","Update finished");
-            onOTAEnd(true);
-            delay(2000);
-          }
-          else
-          {
-            log_e("Update error!");
-            myNex.writeStr("update.status.txt","Update error");
+            #ifdef ERROR_LOG
+            log_error("OTA", "Invalid firmware file - Wrong magic byte");
+            #endif
+            myNex.writeStr("update.status.txt","Invalid firmware file");
+            firmware.close();
             
-            Update.getError();
-            Update.printError(Serial);
-            onOTAEnd(false);
-            delay(2000);
-          }
+            // Eliminar archivo inválido
+            if (SD_MMC.remove("/firmware.bin")) {
+                #ifdef INFO_LOG
+                log_info("OTA", "Invalid firmware file deleted");
+                #endif
+            }
+            return;
+        }    
+        myNex.writeStr("update.status.txt","Flashing Audiokit ...");
+        #ifdef INFO_LOG
+        log_info("OTA", "Firmware found on SD_MMC");
+        #endif
+        onOTAStart();
+        #ifdef INFO_LOG
+        log_info("OTA", "Updating firmware...");
+        #endif
 
-          firmware.close();
+        Update.onProgress(onOTAProgress);
 
-          if (SD_MMC.remove(strpath))
-          {
-            log_v("Firmware deleted succesfully!");
-          }
-          else
-          {
-            log_e("Firmware delete error!");
-          }
-          delay(2000);
+        size_t firmwareSize = firmware.available();
+        #ifdef INFO_LOG
+        log_info("OTA", "Firmware size: " + String(firmwareSize) + " bytes");
+        #endif
 
-          ESP.restart();
+        if(!Update.begin(firmwareSize))
+        {
+          #ifdef ERROR_LOG
+          log_error("OTA", "Error initializing updater obj.");
+          #endif
+          Update.getError();
+          Update.printError(Serial);
         }
         else
         {
-          log_v("not found!");
-          myNex.writeStr("update.status.txt","No firmware found");
+            uint8_t buf[2048];
+            int bytesRead = 0;
+            size_t totalWritten = 0;
+
+            while ((bytesRead = firmware.read(buf, sizeof(buf))) > 0) 
+            {
+              Update.write(buf, bytesRead);
+              totalWritten += bytesRead;
+              #ifdef DEBUG_LOG
+              Serial.printf("[OTA] Escritos: %d/%d bytes\n", totalWritten, firmwareSize);
+              #endif
+            }        
+        }
+
+        if (Update.end())
+        {
+          #ifdef INFO_LOG
+          log_info("OTA", "Update finished!");
+          #endif
+          myNex.writeStr("update.status.txt","Update finished");
+          onOTAEnd(true);
           delay(2000);
         }
-    }
+        else
+        {
+          #ifdef ERROR_LOG
+          log_error("OTA", "Update error!");
+          #endif
+          myNex.writeStr("update.status.txt","Update error");
+          
+          Update.getError();
+          Update.printError(Serial);
+          onOTAEnd(false);
+          delay(2000);
+        }
 
-    void uploadFirmDisplay(char *filetft)
-    {
-      
-      File file;
-      String ans = "";
-      
-      logln("Uploading file " + String(filetft));
-      try
-      {
-        file = SD_MMC.open(filetft,FILE_READ);
-      }
-      catch(String error)
-      {
-        myNex.writeStr("update.status.txt","Error opening TFT file");
+        firmware.close();
+
+        if (SD_MMC.remove(strpath))
+        {
+          #ifdef INFO_LOG
+          log_info("OTA", "Firmware deleted succesfully!");
+          #endif
+        }
+        else
+        {
+          #ifdef ERROR_LOG
+          log_error("OTA", "Firmware delete error!");
+          #endif
+        }
         delay(2000);
-        return;
-      }
-      
-      logln("File opened");
 
-      if (file)
+        ESP.restart();
+      }
+      else
       {
-          uint32_t filesize = file.available();
-          logln("Starting uploading");
-
-          //Enviamos comando de conexión
-          // Forzamos un reinicio de la pantalla
-          write("DRAKJHSUYDGBNCJHGJKSHBDN");
-          SerialHW.write(0xff);
-          SerialHW.write(0xff);
-          SerialHW.write(0xff);
-          delay(200);
-
-          SerialHW.write(0x00);
-          SerialHW.write(0xff);
-          SerialHW.write(0xff);
-          SerialHW.write(0xff);
-          delay(200);
-
-          write("connect");
-          SerialHW.write(0xff);
-          SerialHW.write(0xff);
-          SerialHW.write(0xff);
-          delay(500);
-
-          write("connect");
-          SerialHW.write(0xff);
-          SerialHW.write(0xff);
-          SerialHW.write(0xff);
-
-          ans = readStr();
-          delay(500);
-
-          write("runmod=2");
-          SerialHW.write(0xff);
-          SerialHW.write(0xff);
-          SerialHW.write(0xff);
-
-          write("print \"mystop_yesABC\"");
-          SerialHW.write(0xff);
-          SerialHW.write(0xff);
-          SerialHW.write(0xff);
-
-          ans = readStr();
-
-          write("get sleep");
-          SerialHW.write(0xff);
-          SerialHW.write(0xff);
-          SerialHW.write(0xff);
-          delay(200);
-
-          write("get dim");
-          SerialHW.write(0xff);
-          SerialHW.write(0xff);
-          SerialHW.write(0xff);
-          delay(200);
-
-          write("get baud");
-          SerialHW.write(0xff);
-          SerialHW.write(0xff);
-          SerialHW.write(0xff);
-          delay(200);
-
-          write("prints \"ABC\",0");
-          SerialHW.write(0xff);
-          SerialHW.write(0xff);
-          SerialHW.write(0xff);
-          delay(200);
-
-          ans = readStr();
-
-          SerialHW.write(0x00);
-          SerialHW.write(0xff);
-          SerialHW.write(0xff);
-          SerialHW.write(0xff);
-          delay(200);
-
-          write("whmi-wris " + String(filesize) + ",921600,1");
-          SerialHW.write(0xff);
-          SerialHW.write(0xff);
-          SerialHW.write(0xff);
-
-          delay(500);
-          ans = readStr();
-
-          //
-          file.seek(0);
-
-          // Enviamos los datos
-
-          uint8_t buf[4096];
-          size_t avail;
-          size_t readcount;
-          int bl = 0;
-
-          while (filesize > 0)
-          {
-            // Leemos un bloque de 4096 bytes o el residual final < 4096
-            readcount = file.read(buf, filesize > 4096 ? 4096 : filesize);
-
-            // Lo enviamos
-            SerialHW.write(buf, readcount);
-
-            // Si es el primer bloque esperamos respuesta de 0x05 o 0x08
-            // en el caso de 0x08 saltaremos a la posición que indica la pantalla.
-
-            if (bl == 0)
-            {
-              String res = "";
-
-              // Una vez enviado el primer bloque esperamos 2s
-              delay(2000);
-
-              while (1)
-              {
-                res = readStr();
-
-                if (res.indexOf(0x08) != -1)
-                {
-                  int offset = (pow(16, 6) * int(res[4])) + (pow(16, 4) * int(res[3])) + (pow(16, 2) * int(res[2])) + int(res[1]);
-
-                  if (offset != 0)
-                  {
-                    file.seek(0);
-                    delay(50);
-                    file.seek(offset);
-                    delay(50);
-                  }
-                  break;
-                }
-                delay(50);
-              }
-            }
-            else
-            {
-              String res = "";
-              while (1)
-              {
-                // Esperams un ACK 0x05
-                res = readStr();
-                if (res.indexOf(0x05) != -1)
-                {
-                  break;
-                }
-              }
-            }
-
-            //
-            bl++;
-            // Vemos lo que queda una vez he movido el seek o he leido un bloque
-            // ".available" mide lo que queda desde el puntero a EOF.
-            filesize = file.available();
-          }
-
-          file.close();   
+        log_v("not found!");
+        myNex.writeStr("update.status.txt","No firmware found");
+        delay(2000);
       }
+  }
 
+  bool uploadFirmDisplay(char *filetft)
+  {
+    
+    File file;
+    String ans = "";
+    
+    log_debug("HMI","Uploading file " + String(filetft));
+    try
+    {
+      file = SD_MMC.open(filetft,FILE_READ);
+    }
+    catch(String error)
+    {
+      myNex.writeStr("update.status.txt","Error opening TFT file");
       // Eliminamos el fichero
       delay(500);
-      SD_MMC.remove(filetft);
+      SD_MMC.remove(filetft);        
+      //
+      delay(2000);
+      return false;
+    }
+    
+    log_debug("HMI","File opened");
 
+    if (file)
+    {
+        uint32_t filesize = file.available();
+        log_debug("HMI","Starting uploading");
+
+        //Enviamos comando de conexión
+        // Forzamos un reinicio de la pantalla
+        write("DRAKJHSUYDGBNCJHGJKSHBDN");
+        SerialHW.write(0xff);
+        SerialHW.write(0xff);
+        SerialHW.write(0xff);
+        delay(200);
+
+        SerialHW.write(0x00);
+        SerialHW.write(0xff);
+        SerialHW.write(0xff);
+        SerialHW.write(0xff);
+        delay(200);
+
+        write("connect");
+        SerialHW.write(0xff);
+        SerialHW.write(0xff);
+        SerialHW.write(0xff);
+        delay(500);
+
+        write("connect");
+        SerialHW.write(0xff);
+        SerialHW.write(0xff);
+        SerialHW.write(0xff);
+
+        ans = readStr();
+        delay(500);
+
+        write("runmod=2");
+        SerialHW.write(0xff);
+        SerialHW.write(0xff);
+        SerialHW.write(0xff);
+
+        write("print \"mystop_yesABC\"");
+        SerialHW.write(0xff);
+        SerialHW.write(0xff);
+        SerialHW.write(0xff);
+
+        ans = readStr();
+
+        write("get sleep");
+        SerialHW.write(0xff);
+        SerialHW.write(0xff);
+        SerialHW.write(0xff);
+        delay(200);
+
+        write("get dim");
+        SerialHW.write(0xff);
+        SerialHW.write(0xff);
+        SerialHW.write(0xff);
+        delay(200);
+
+        write("get baud");
+        SerialHW.write(0xff);
+        SerialHW.write(0xff);
+        SerialHW.write(0xff);
+        delay(200);
+
+        write("prints \"ABC\",0");
+        SerialHW.write(0xff);
+        SerialHW.write(0xff);
+        SerialHW.write(0xff);
+        delay(200);
+
+        ans = readStr();
+
+        SerialHW.write(0x00);
+        SerialHW.write(0xff);
+        SerialHW.write(0xff);
+        SerialHW.write(0xff);
+        delay(200);
+
+        write("whmi-wris " + String(filesize) + ",921600,1");
+        SerialHW.write(0xff);
+        SerialHW.write(0xff);
+        SerialHW.write(0xff);
+
+        delay(500);
+        ans = readStr();
+
+        //
+        file.seek(0);
+
+        // Enviamos los datos
+
+        uint8_t buf[4096];
+        size_t avail;
+        size_t readcount;
+        int bl = 0;
+
+        while (filesize > 0)
+        {
+          // Leemos un bloque de 4096 bytes o el residual final < 4096
+          readcount = file.read(buf, filesize > 4096 ? 4096 : filesize);
+
+          // Lo enviamos
+          SerialHW.write(buf, readcount);
+
+          // Si es el primer bloque esperamos respuesta de 0x05 o 0x08
+          // en el caso de 0x08 saltaremos a la posición que indica la pantalla.
+
+          if (bl == 0)
+          {
+            String res = "";
+
+            // Una vez enviado el primer bloque esperamos 2s
+            delay(2000);
+
+            unsigned long timeout = millis() + 60000; // Timeout de 60s para esperar respuesta de la pantalla
+
+            // Esperamos respuesta de la pantalla. Puede ser un ACK 0x05 o un comando 0x08 con el offset al que debemos saltar.
+            while (millis() < timeout)
+            {
+              res = readStr();
+
+              if (res.indexOf(0x08) != -1)
+              {
+                int offset = (pow(16, 6) * int(res[4])) + (pow(16, 4) * int(res[3])) + (pow(16, 2) * int(res[2])) + int(res[1]);
+
+                if (offset != 0)
+                {
+                  file.seek(0);
+                  delay(50);
+                  file.seek(offset);
+                  delay(50);
+                }
+                break;
+              }
+              delay(50);
+            }
+
+            if (millis() >= timeout)
+            {
+              log_debug("HMI","Timeout waiting for screen response after first block");
+              file.close();
+              return false;
+            }
+          }
+          else
+          {
+            String res = "";
+            unsigned long timeout = millis() + 60000; // Timeout de 60s para esperar respuesta de la pantalla
+
+            while (millis() < timeout)
+            {
+              // Esperams un ACK 0x05
+              res = readStr();
+              if (res.indexOf(0x05) != -1)
+              {
+                break;
+              }
+            }
+
+            if (millis() >= timeout)
+            {
+              log_debug("HMI","Timeout waiting for screen ACK after block " + String(bl));
+              file.close();
+              return false;
+            }
+          }
+
+          //
+          bl++;
+          // Vemos lo que queda una vez he movido el seek o he leido un bloque
+          // ".available" mide lo que queda desde el puntero a EOF.
+          filesize = file.available();
+        }
+
+        file.close();   
     }
 
-      // Constructor
-      HMI()
-      {}
+    // Eliminamos el fichero
+    delay(500);
+    SD_MMC.remove(filetft);
+
+    return true;
+
+  }
+
+    // Constructor
+    HMI()
+    {}
 };

@@ -56,7 +56,7 @@
 // --------------------------------------------------------------
 // Configuración de la versión del software
 // --------------------------------------------------------------
-#define VERSION "v1.0r7.14" // Formato: vX.YrW.Z (X=major, Y=minor, W=revision, Z=revision_minor)
+#define VERSION "1.0r7.15" // Formato: vX.YrW.Z (X=major, Y=minor, W=revision, Z=revision_minor)
 
 // --------------------------------------------------------------
 // Configuración de memoria optimizada
@@ -102,6 +102,18 @@
 #define USE_AUDIO_LOGGING false
 // States of LOG_LEVEL: Debug, Info, Warning, Error
 #define LOG_LEVEL AudioLogger::Info
+
+// ======================================================================
+// CONFIGURACIÓN DE SISTEMA DE LOGGING CON CLASIFICACIÓN POR NIVELES
+// ======================================================================
+// Define estos valores a 1 para habilitar el nivel correspondiente
+// Define a 0 o comenta la línea para deshabilitar y ahorrar FLASH
+// ======================================================================
+#define INFO_LOG  1    // Información general (comentado = DESHABILITADO)
+#define ERROR_LOG 1       // Errores (1 = SIEMPRE habilitado)
+#define ALERT_LOG 0       // Alertas (1 = SIEMPRE habilitado)
+#define DEBUG_LOG 0     // Debug (comentado = DESHABILITADO)
+// #define DEBUG_LOG 1    // Debug (comentado = DESHABILITADO)
 
 // Reproduce un BEEP al arrancar para comprobar que el audio funciona
 #define TEST_AUDIOKIT_ON_BOOT
@@ -225,7 +237,7 @@ int GPIO_MSX_REMOTE_PAUSE = 19;
 // rate adecuado para maquinas de 8 bitsAjuste AZIMUT (Hz) - 22200 Hz
 
 // Sampling rate para WAV y REC WAV (pero ojo, no para PLAY TO WAV)
-//#define USE_ADPCM_ENCODER
+// #define USE_ADPCM_ENCODER  // Ahora usamos variable global USE_ADPCM_CODEC en runtime
 #define DEFAULT_WAV_SAMPLING_RATE 44100
 #define DEFAULT_WAV_SAMPLING_RATE_REC 96000
 #define DEFAULT_WAV_SAMPLING_RATE_REC_2 44100
@@ -241,6 +253,7 @@ int GPIO_MSX_REMOTE_PAUSE = 19;
 #define FAST_FORWARD_PER 0.02
 #define FAST_REWIND_PER 0.02
 #define CSW_REWIND_SPEED 0.02
+#define TZX_REWIND_SPEED 0.1
 
 // Demora en ms para saltar a avance super-rapido
 #define TIME_TO_FAST_FORWRD 1500
@@ -332,6 +345,8 @@ int GPIO_MSX_REMOTE_PAUSE = 19;
 // Particion mas pequeña de un silencio
 #define MIN_FRAME_FOR_SILENCE_PULSE_GENERATION 1024
 #define MOTOR_DELAY_MS                         20 // Retardo de arranque/parada de motor en ms (20ms = 50Hz)
+
+#define APPLY_ADPCM_LABEL                      true // Añade etiqueta "_ADPCM" a los ficheros WAV generados con ADPCM
 
 // --------------------------------------------------------------
 // TAP config.
@@ -432,3 +447,4 @@ bool TEST_LINE_IN_OUT = false;
 #define PAGE_RADIO                     7
 #define PAGE_KEYDEBUG                  8
 #define PAGE_CLOCK                     99
+

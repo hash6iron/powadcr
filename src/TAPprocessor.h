@@ -75,8 +75,9 @@ class TAPprocessor
         int _startBlock = 0;
         int _lastStartBlock = 0;
         
-        // C64 format detection flag
+        // Format detection flags
         bool _isC64Format = false;
+        bool _isOricFormat = false;
 
         // Ruta del fichero TAP actualmente abierto (para poder reabrirlo en play())
         char _tapFilePath[257] = {0};
@@ -481,6 +482,32 @@ class TAPprocessor
 
         bool getBlockDescriptor(File mFile, int sizeTAP)
         {
+            // Wrapper que detecta formato TAP (ORIC, C64, o ZX Spectrum)
+            // y llama al parser específico
+            
+            _mFile = mFile;
+            _sizeTAP = sizeTAP;
+            
+            // Intentar detectar ORIC primero (es el más nuevo)
+            if (detectOricFormat())
+            {
+                _isOricFormat = true;
+                ORIC_TAP_INSIDE = true; // Indicamos que estamos procesando un TAP de ORIC
+                return getBlockDescriptorOric();
+            }
+            
+            // Luego intentar detectar C64
+            if (detectC64Format())
+            {
+                _isC64Format = true;
+                return getBlockDescriptorC64();
+            }
+            
+            // Si no es ni ORIC ni C64, es ZX Spectrum (por defecto)
+            _isC64Format = false;
+            _isOricFormat = false;
+            
+            // ============ ZX SPECTRUM PARSING (Original logic) ============
             // Este procedimiento permite analizar un fichero .TAP
             // obteniendo de este información relevante y los distintos bloques que lo
             // forman. De cada bloque almacenaremos la dirección de inicio ó 
@@ -655,6 +682,11 @@ class TAPprocessor
             _myTAP.size = sizeTAP;
             _myTAP.numBlocks = numBlocks;
             
+            // Log final
+            #ifdef DEBUGMODE
+                logln("ZX Descriptor: numBlocks=" + String(numBlocks) + ", name=" + String(_myTAP.name));
+            #endif
+            
             return blockDescriptorOk;
         }
 
@@ -720,6 +752,130 @@ class TAPprocessor
         }
 
         // ============================================================================
+        // ORIC FORMAT DETECTION AND PROCESSING
+        // ============================================================================
+
+        bool detectOricFormat()
+        {
+            // Detecta si es un formato ORIC .TAP
+            // ORIC TAP signature: Múltiples bytes 0x16 (sync) seguidos de marker 0x24
+            // Estructura típica: [0x16, 0x16, ..., 0x16, 0x24, ...]
+            
+            if (_mFile == 0 || _sizeTAP < 6)
+                return false;
+
+            // Leer primeros 16 bytes para análisis exhaustivo
+            uint8_t* header = (uint8_t*)ps_calloc(16, sizeof(uint8_t));
+            readFileRange(_mFile, header, 0, 16, false);
+
+            // Excluir formatos conocidos primero
+            // ZX Spectrum TAP siempre comienza con [0x13, 0x00, 0x00]
+            bool isZXHeader = (header[0] == 19 && header[1] == 0 && header[2] == 0);
+
+            // C64 TAP a menudo comienza con 'C' (67) o tiene patrones específicos
+            bool isC64Start = (header[0] == 67);  // 'C' (C64-TAPE-RAW)
+            
+            // Búsqueda de patrón ORIC: secuencia de 0x16 (sync bytes)
+            // seguida de 0x24 (marker byte) dentro de los primeros 16 bytes
+            bool foundOricSync = false;
+            int syncCount = 0;
+            int markerPos = -1;
+            
+            // Contar bytes 0x16 al inicio
+            for (int i = 0; i < 16 && header[i] == 0x16; i++)
+            {
+                syncCount++;
+            }
+            
+            // Buscar marker 0x24 después de los sync bytes
+            if (syncCount >= 2)  // Al menos 2 sync bytes
+            {
+                for (int i = syncCount; i < 16; i++)
+                {
+                    if (header[i] == 0x24)
+                    {
+                        markerPos = i;
+                        foundOricSync = true;
+                        break;
+                    }
+                }
+            }
+            
+            // También verificar si 0x16 aparece en posición 0 y 1 (patrón común)
+            bool isOricPattern = (header[0] == 0x16 && header[1] == 0x16);
+            bool isOric = (isOricPattern || foundOricSync) && !isZXHeader && !isC64Start;
+            
+            logln("🔍 ORIC Detection: Format=" + String(isOric ? "ORIC ✅" : "NO-ORIC ❌") + 
+                  " | FirstBytes=[" + String(header[0], HEX) + "," + String(header[1], HEX) + "," + 
+                  String(header[2], HEX) + "," + String(header[3], HEX) + "] | SyncCount=" + 
+                  String(syncCount) + " | MarkerPos=" + String(markerPos) + 
+                  " | ZXhead=" + String(isZXHeader) + " | C64=" + String(isC64Start));
+            
+            free(header);
+            return isOric;
+        }
+
+        bool getBlockDescriptorOric()
+        {
+            // Procesa bloques ORIC .TAP (Oric-1, Oric Atmos)
+            // ORIC TAP es muy simple:
+            // - Estructura: Sync bytes (0x16) + Marker (0x24) + Parámetros + Nombre + Datos
+            // - Típicamente 1 solo bloque por archivo
+            // - Checksum XOR simple (igual que ZX)
+            
+            bool blockDescriptorOk = true;
+            
+            if (_myTAP.descriptor == nullptr)
+                return false;
+
+            // ORIC TAP: crear descriptor minimalista para 1 bloque
+            _myTAP.descriptor[0].offset = 0;           // Comienza desde el inicio
+            _myTAP.descriptor[0].size = _sizeTAP;      // Todo el archivo es datos
+            _myTAP.descriptor[0].chk = 0;              // No usamos checksum para ORIC
+            _myTAP.descriptor[0].header = false;
+            _myTAP.descriptor[0].type = 0x20;          // Marcar como tipo ORIC (0x20)
+            _myTAP.descriptor[0].playeable = true;
+            _myTAP.descriptor[0].playback_position = 0;
+            _myTAP.descriptor[0].nameDetected = true;
+            
+            // Contar bytes de sincronismo iniciales para la detección de velocidad
+            uint8_t firstBytes[64];
+            _mFile.seek(0);
+            int read = _mFile.read(firstBytes, 64);
+            int syncs = 0;
+            for(int i=0; i<read; i++) {
+                if (firstBytes[i] == 0x16) syncs++;
+                else if (firstBytes[i] == 0x24) break;
+            }
+
+            // Inicializar OricProcessor con los datos del archivo
+            oricp.initialize(_sizeTAP, syncs);
+            ORIC_TURBO_MODE = oricp.getTurboMode();
+
+            // Extraer nombre del archivo (sin extensión)
+            char fname[256] = {0};
+            strncpy(fname, _mFile.name(), 255);
+            char* dot = strrchr(fname, '.');
+            if (dot) *dot = 0;  // Remover extensión
+            strncpy(_myTAP.descriptor[0].name, fname, 10);
+            
+            // Label de tipo
+            strncpy(_myTAP.descriptor[0].typeName, "ORIC.DATA", 15);
+            
+            _myTAP.numBlocks = 1;
+            _myTAP.size = _sizeTAP;
+            strncpy(_myTAP.name, _myTAP.descriptor[0].name, 10);
+            
+            #ifdef DEBUGMODE
+                logln("ORIC Descriptor: offset=" + String(_myTAP.descriptor[0].offset) + 
+                      ", size=" + String(_myTAP.descriptor[0].size) +
+                      ", name=" + String(_myTAP.descriptor[0].name));
+            #endif
+            
+            return blockDescriptorOk;
+        }
+
+        // ============================================================================
         // COMMODORE C64 FORMAT DETECTION AND PROCESSING
         // ============================================================================
 
@@ -752,23 +908,23 @@ class TAPprocessor
                                        + String(header[8]) + String(header[9]) + String(header[10]) + String(header[11]) + "]");
 
             // Fallback: verificar size word como segundo criterio
-            if (!isC64)
-            {
-                // Leer byte adicional para size word
-                uint8_t byte4 = 0;
-                uint8_t* temp = (uint8_t*)ps_calloc(1, sizeof(uint8_t));
-                readFileRange(_mFile, temp, 3, 1, false);
-                byte4 = temp[0];
-                free(temp);
+            // if (!isC64)
+            // {
+            //     // Leer byte adicional para size word
+            //     uint8_t byte4 = 0;
+            //     uint8_t* temp = (uint8_t*)ps_calloc(1, sizeof(uint8_t));
+            //     readFileRange(_mFile, temp, 3, 1, false);
+            //     byte4 = temp[0];
+            //     free(temp);
                 
-                uint16_t possibleSize = (byte4 << 8) | header[1];
+            //     uint16_t possibleSize = (byte4 << 8) | header[1];
                 
-                // Si el size es inválido, podría ser C64 incluso con [19, 0, 0]
-                if (possibleSize > _sizeTAP || (possibleSize < 50 && possibleSize > 0))
-                {
-                    isC64 = true;
-                }
-            }
+            //     // Si el size es inválido, podría ser C64 incluso con [19, 0, 0]
+            //     if (possibleSize > _sizeTAP || (possibleSize < 50 && possibleSize > 0))
+            //     {
+            //         isC64 = true;
+            //     }
+            // }
             
             free(header);
             return isC64;
@@ -1256,320 +1412,516 @@ class TAPprocessor
         }
     }
 
+    void playZX80()
+    {
+        // Open ZX80/ZX81 file directly (raw binary, not TAP format)
+        File zxFile = SD_MMC.open(PATH_FILE_TO_LOAD.c_str(), FILE_READ);
+        if (!zxFile) {
+        logAlert("Cannot open ZX80/ZX81 file");
+        STOP = true;
+        return;
+        }
+        
+        uint32_t fileSize = zxFile.size();
+        log_info("TAP_ZX80","ZX80/ZX81 file size: " + String(fileSize) + " bytes");
 
+        LAST_MESSAGE = "Playing file.";
 
-        void play() 
-        {
-
-            if (_myTAP.descriptor != nullptr)
-            {         
+        
+        // Process file: stream if large, direct if small
+        if (fileSize >= SIZE_FOR_SPLIT) {
+        // STREAMING MODE: Read in chunks
+        uint8_t* bufferPlay = nullptr;
+        int blockSizeSplit = SIZE_FOR_SPLIT;
+        int blocks = fileSize / blockSizeSplit;
+        int lastBlockSize = fileSize - (blocks * blockSizeSplit);
+        
+        log_info("TAP_ZX80","Streaming mode: " + String(blocks + (lastBlockSize > 0 ? 1 : 0)) + " chunks");
+        
+        // Process full chunks
+        for (int n = 0; n < blocks; n++) {
+            if (STOP) break;
             
-                    // Inicializamos el buffer de reproducción. Memoria dinamica
-                    uint8_t* bufferPlay;
+            bufferPlay = (uint8_t*)ps_calloc(blockSizeSplit, sizeof(uint8_t));
+            if (!bufferPlay) {
+            logAlert("Memory allocation failed");
+            break;
+            }
+            
+            if (zxFile.read(bufferPlay, blockSizeSplit) != blockSizeSplit) {
+            log_error("TAP_ZX80","Read error on chunk " + String(n));
+            free(bufferPlay);
+            break;
+            }
+            
+            if (n == 0) {
+            zxp.playZX80DataBegin(bufferPlay, blockSizeSplit);
+            } else {
+            zxp.playZX80DataPartition(bufferPlay, blockSizeSplit);
+            }
+            free(bufferPlay);
+        }
+        
+        // Process last chunk if exists
+        if (lastBlockSize > 0 && !STOP) {
+            bufferPlay = (uint8_t*)ps_calloc(lastBlockSize, sizeof(uint8_t));
+            if (bufferPlay) {
+            if (zxFile.read(bufferPlay, lastBlockSize) == lastBlockSize) {
+                zxp.playZX80DataEnd(bufferPlay, lastBlockSize);
+            }
+            free(bufferPlay);
+            }
+        }
+        } else {
+            // DIRECT MODE: Small file, read all at once
+            uint8_t* bufferPlay = (uint8_t*)ps_calloc(fileSize, sizeof(uint8_t));
+            if (bufferPlay) {
+                if (zxFile.read(bufferPlay, fileSize) == fileSize) {
+                zxp.playZX80Data(bufferPlay, fileSize);
+                }
+                free(bufferPlay);
+            }
+        }
+        
+        zxFile.close();    
+    }
 
-                    // Si el fichero no está abierto (fue cerrado en eject o terminate),
-                    // lo reabrimos desde la ruta guardada. Esto corrige el bug donde el 3er
-                    // fichero C64 TAP reproducía el contenido del 2o fichero.
-                    if (!_mFile && _tapFilePath[0] != '\0') {
-                        logln("TAP play(): reabriendo fichero: " + String(_tapFilePath));
-                        _mFile = SD_MMC.open(_tapFilePath, FILE_READ);
+    void play() 
+    {
+
+        if (_myTAP.descriptor != nullptr)
+        {         
+        
+                // Inicializamos el buffer de reproducción. Memoria dinamica
+                uint8_t* bufferPlay;
+
+                // Si el fichero no está abierto (fue cerrado en eject o terminate),
+                // lo reabrimos desde la ruta guardada. Esto corrige el bug donde el 3er
+                // fichero C64 TAP reproducía el contenido del 2o fichero.
+                if (!_mFile && _tapFilePath[0] != '\0') {
+                    logln("TAP play(): reabriendo fichero: " + String(_tapFilePath));
+                    _mFile = SD_MMC.open(_tapFilePath, FILE_READ);
+                }
+
+                // Entregamos información por consola
+                // PROGRAM_NAME = FILE_LOAD;
+                TOTAL_BLOCKS = _myTAP.numBlocks + 1;
+                strncpy(LAST_NAME,&INITCHAR2[0],sizeof(&INITCHAR2[0]));
+
+                // Ahora reproducimos todos los bloques desde el seleccionado (para cuando se quiera uno concreto)
+                int m = BLOCK_SELECTED;
+
+                // Reiniciamos
+                BYTES_TOBE_LOAD = _rlen;
+                BYTES_LOADED = 0;
+
+                #ifdef DEBUGMODE
+                    logln("");
+                    log("File size: " + String(BYTES_TOBE_LOAD));
+                #endif
+
+                
+
+                for (int i = m; i < _myTAP.numBlocks; i++) 
+                {
+                    BLOCK_PLAYED = false;
+                    KEEP_CURRENT_EDGE = false;
+    
+                    // Obtenemos el nombre del bloque
+                    strncpy(LAST_NAME,_myTAP.descriptor[i].name,sizeof(_myTAP.descriptor[i].name));
+                    LAST_SIZE = _myTAP.descriptor[i].size;
+                    
+                    // Datos para la barra de progreso
+                    PRG_BAR_OFFSET_INI = _myTAP.descriptor[i].offset;
+                    PRG_BAR_OFFSET_END = _myTAP.descriptor[i].offset + _myTAP.descriptor[i].size;
+
+                        #ifdef DEBUGMODE
+                        logln("");
+                        log("Block num: " + String(i));
+                        logln("");
+                        log("Block offset: " + String(PRG_BAR_OFFSET_INI));
+                        logln("");
+                        log("Block size: " + String(_myTAP.descriptor[i].size + 2));
+                    #endif
+                    
+                    if (LOADING_STATE == 2)
+                    {
+                        LOADING_STATE = 0;
+                        PAUSE = false;
+                        STOP = true;
+                        PLAY = false;
+
+                        i = _myTAP.numBlocks+1;
+
+                        #ifdef DEBUGMODE
+                            log("LOADING_STATE 2");                           
+                        #endif
+
+                        return;
+                    }
+                    else if (LOADING_STATE == 3)
+                    {
+                        LOADING_STATE = 0;
+                        PAUSE = true;
+                        STOP = false;
+                        PLAY = false;
+
+                        //i = _myTAP.numBlocks+1;
+
+                        #ifdef DEBUGMODE
+                            log("LOADING_STATE 3"); 
+                        #endif
+
+                        return; 
+                    }
+                    else
+                    {
+                        // Almacenmas el bloque en curso para un posible PAUSE
+                        #ifdef DEBUGMODE
+                            log("LOADING_STATE unknow");
+                        #endif
+
+                        CURRENT_BLOCK_IN_PROGRESS = i;
+                        BLOCK_SELECTED = i;
+
+                        _hmi.writeString("currentBlock.val=" + String(i + 1));
+                        _hmi.writeString("progression.val=" + String(0));
                     }
 
-                    // Entregamos información por consola
-                    // PROGRAM_NAME = FILE_LOAD;
-                    TOTAL_BLOCKS = _myTAP.numBlocks + 1;
-                    strncpy(LAST_NAME,&INITCHAR2[0],sizeof(&INITCHAR2[0]));
+                    //Ahora vamos lanzando bloques dependiendo de su tipo
+                    //Esto actualiza el LAST_TYPE
+                    showInfoBlockInProgress(_myTAP.descriptor[i].type);
 
-                    // Ahora reproducimos todos los bloques desde el seleccionado (para cuando se quiera uno concreto)
-                    int m = BLOCK_SELECTED;
- 
-                    // Reiniciamos
-                    BYTES_TOBE_LOAD = _rlen;
-                    BYTES_LOADED = 0;
+                    // Actualizamos HMI
+                    _hmi.setBasicFileInformation(0,0,_myTAP.descriptor[BLOCK_SELECTED].name,_myTAP.descriptor[BLOCK_SELECTED].typeName,_myTAP.descriptor[BLOCK_SELECTED].size,true);
 
+                    //
                     #ifdef DEBUGMODE
-                        logln("");
-                        log("File size: " + String(BYTES_TOBE_LOAD));
+                        log("Tamaño del bloque ");
+                        log(String(_myTAP.descriptor[i].size) + " bytes");
                     #endif
 
-                    
-
-                    for (int i = m; i < _myTAP.numBlocks; i++) 
+                    // Reproducimos el fichero
+                    if (_myTAP.descriptor[i].type == 0) 
                     {
-                        BLOCK_PLAYED = false;
-                        KEEP_CURRENT_EDGE = false;
-        
-                        // Obtenemos el nombre del bloque
-                        strncpy(LAST_NAME,_myTAP.descriptor[i].name,sizeof(_myTAP.descriptor[i].name));
-                        LAST_SIZE = _myTAP.descriptor[i].size;
+
+                        // Reservamos memoria para el buffer de reproducción
+                        bufferPlay = (uint8_t*)(ps_calloc(_myTAP.descriptor[i].size, sizeof(uint8_t)));
+                        readFileRange(_mFile,bufferPlay, _myTAP.descriptor[i].offset, _myTAP.descriptor[i].size, false);
+
+                        // *** Cabecera PROGRAM
+                        // Llamamos a la clase de reproducción
+                        _zxp.playData(bufferPlay, _myTAP.descriptor[i].size,DPILOT_LEN,DPULSES_HEADER);
+
+                        // Liberamos el buffer de reproducción
+                        free(bufferPlay);
+                    } 
+                    else if (_myTAP.descriptor[i].type == 1 || _myTAP.descriptor[i].type == 7) 
+                    {
                         
-                        // Datos para la barra de progreso
-                        PRG_BAR_OFFSET_INI = _myTAP.descriptor[i].offset;
-                        PRG_BAR_OFFSET_END = _myTAP.descriptor[i].offset + _myTAP.descriptor[i].size;
+                        bufferPlay = (uint8_t*)(ps_calloc(_myTAP.descriptor[i].size, sizeof(uint8_t)));
+                        readFileRange(_mFile,bufferPlay, _myTAP.descriptor[i].offset, _myTAP.descriptor[i].size, false);
 
-                         #ifdef DEBUGMODE
-                            logln("");
-                            log("Block num: " + String(i));
-                            logln("");
-                            log("Block offset: " + String(PRG_BAR_OFFSET_INI));
-                            logln("");
-                            log("Block size: " + String(_myTAP.descriptor[i].size + 2));
-                        #endif
+                        // *** Cabecera BYTE
+                        // Llamamos a la clase de reproducción
+                        _zxp.playData(bufferPlay, _myTAP.descriptor[i].size,DPILOT_LEN,DPULSES_HEADER);
+
+                        // Liberamos el buffer de reproducción
+                        free(bufferPlay);
+                    } 
+                    else if (_myTAP.descriptor[i].type == C64_DATA_BLOCK) 
+                    {
+                        // *** Bloque C64 - Reproducción directa de pulsos
+                        bufferPlay = (uint8_t*)(ps_calloc(_myTAP.descriptor[i].size, sizeof(uint8_t)));
+                        readFileRange(_mFile, bufferPlay, _myTAP.descriptor[i].offset, _myTAP.descriptor[i].size, false);
+
+                        // Llamamos a la función de reproducción C64 con soporte PAUSE/RESUME/FFWD/RWD
+                        _zxp.playC64Data(bufferPlay, _myTAP.descriptor[i].size, &_myTAP.descriptor[i].playback_position);
+
+                        // Liberamos el buffer de reproducción
+                        free(bufferPlay);
+                    }
+                    else if (_myTAP.descriptor[i].type == 0x20)
+                    {
+                        uint32_t totalSize = _myTAP.descriptor[i].size;
+                        uint32_t offsetBase = _myTAP.descriptor[i].offset;
                         
-                        if (LOADING_STATE == 2)
+                        if (totalSize >= SIZE_FOR_SPLIT) 
                         {
-                            LOADING_STATE = 0;
-                            PAUSE = false;
-                            STOP = true;
-                            PLAY = false;
-
-                            i = _myTAP.numBlocks+1;
-
-                            #ifdef DEBUGMODE
-                                log("LOADING_STATE 2");                           
-                            #endif
-
-                            return;
-                        }
-                        else if (LOADING_STATE == 3)
-                        {
-                            LOADING_STATE = 0;
-                            PAUSE = true;
-                            STOP = false;
-                            PLAY = false;
-
-                            //i = _myTAP.numBlocks+1;
-
-                            #ifdef DEBUGMODE
-                                log("LOADING_STATE 3"); 
-                            #endif
-
-                            return; 
-                        }
-                        else
-                        {
-                            // Almacenmas el bloque en curso para un posible PAUSE
-                            #ifdef DEBUGMODE
-                                log("LOADING_STATE unknow");
-                            #endif
-
-                            CURRENT_BLOCK_IN_PROGRESS = i;
-                            BLOCK_SELECTED = i;
-
-                            _hmi.writeString("currentBlock.val=" + String(i + 1));
-                            _hmi.writeString("progression.val=" + String(0));
-                        }
-
-                        //Ahora vamos lanzando bloques dependiendo de su tipo
-                        //Esto actualiza el LAST_TYPE
-                        showInfoBlockInProgress(_myTAP.descriptor[i].type);
-
-                        // Actualizamos HMI
-                        _hmi.setBasicFileInformation(0,0,_myTAP.descriptor[BLOCK_SELECTED].name,_myTAP.descriptor[BLOCK_SELECTED].typeName,_myTAP.descriptor[BLOCK_SELECTED].size,true);
-
-                        //
-                        #ifdef DEBUGMODE
-                            log("Tamaño del bloque ");
-                            log(String(_myTAP.descriptor[i].size) + " bytes");
-                        #endif
-
-                        // Reproducimos el fichero
-                        if (_myTAP.descriptor[i].type == 0) 
-                        {
-
-                            // Reservamos memoria para el buffer de reproducción
-                            bufferPlay = (uint8_t*)(ps_calloc(_myTAP.descriptor[i].size, sizeof(uint8_t)));
-                            readFileRange(_mFile,bufferPlay, _myTAP.descriptor[i].offset, _myTAP.descriptor[i].size, false);
-
-                            // *** Cabecera PROGRAM
-                            // Llamamos a la clase de reproducción
-                            _zxp.playData(bufferPlay, _myTAP.descriptor[i].size,DPILOT_LEN,DPULSES_HEADER);
-
-                            // Liberamos el buffer de reproducción
-                            free(bufferPlay);
-                        } 
-                        else if (_myTAP.descriptor[i].type == 1 || _myTAP.descriptor[i].type == 7) 
-                        {
+                            // STREAMING MODE: Procesar en chunks para archivos grandes
+                            int blockSizeSplit = SIZE_FOR_SPLIT;
+                            int blocks = totalSize / blockSizeSplit;
+                            int lastBlockSize = totalSize - (blocks * blockSizeSplit);
+                            uint32_t newOffset;
                             
-                            bufferPlay = (uint8_t*)(ps_calloc(_myTAP.descriptor[i].size, sizeof(uint8_t)));
-                            readFileRange(_mFile,bufferPlay, _myTAP.descriptor[i].offset, _myTAP.descriptor[i].size, false);
-
-                            // *** Cabecera BYTE
-                            // Llamamos a la clase de reproducción
-                            _zxp.playData(bufferPlay, _myTAP.descriptor[i].size,DPILOT_LEN,DPULSES_HEADER);
-
-                            // Liberamos el buffer de reproducción
-                            free(bufferPlay);
+                            TOTAL_PARTS = blocks + (lastBlockSize > 0 ? 1 : 0);
+                            
+                            // Procesar cada partición
+                            for (int n = 0; n < blocks; n++)
+                            {
+                                PARTITION_BLOCK = n;
+                                newOffset = offsetBase + (blockSizeSplit * n);
+                                PRG_BAR_OFFSET_INI = newOffset;
+                                
+                                bufferPlay = (uint8_t*)ps_calloc(blockSizeSplit, sizeof(uint8_t));
+                                readFileRange(_mFile, bufferPlay, newOffset, blockSizeSplit, true);
+                                
+                                if (n == 0) {
+                                    _zxp.playOricDataBegin(bufferPlay, blockSizeSplit, &_myTAP.descriptor[i].playback_position);
+                                } else {
+                                    _zxp.playOricDataPartition(bufferPlay, blockSizeSplit, &_myTAP.descriptor[i].playback_position);                                    
+                                }
+                                free(bufferPlay);
+                            }
+                            
+                            // Procesar último bloque si existe
+                            if (lastBlockSize > 0)
+                            {
+                                newOffset = offsetBase + (blockSizeSplit * blocks);
+                                PRG_BAR_OFFSET_INI = newOffset;
+                                
+                                bufferPlay = (uint8_t*)ps_calloc(lastBlockSize, sizeof(uint8_t));
+                                readFileRange(_mFile, bufferPlay, newOffset, lastBlockSize, true);
+                                _zxp.playOricDataEnd(bufferPlay, lastBlockSize, &_myTAP.descriptor[i].playback_position);
+                                free(bufferPlay);
+                            }
                         } 
-                        else if (_myTAP.descriptor[i].type == C64_DATA_BLOCK) 
-                        {
-                            // *** Bloque C64 - Reproducción directa de pulsos
-                            bufferPlay = (uint8_t*)(ps_calloc(_myTAP.descriptor[i].size, sizeof(uint8_t)));
-                            readFileRange(_mFile, bufferPlay, _myTAP.descriptor[i].offset, _myTAP.descriptor[i].size, false);
-
-                            // Llamamos a la función de reproducción C64 con soporte PAUSE/RESUME/FFWD/RWD
-                            _zxp.playC64Data(bufferPlay, _myTAP.descriptor[i].size, &_myTAP.descriptor[i].playback_position);
-
-                            // Liberamos el buffer de reproducción
-                            free(bufferPlay);
-                        }
                         else 
                         {
-                            // *** Bloque de DATA / BASIC
+                            // DIRECT MODE: Archivo pequeño, procesar directamente
+                            bufferPlay = (uint8_t*)(ps_calloc(totalSize, sizeof(uint8_t)));
+                            readFileRange(_mFile, bufferPlay,  _myTAP.descriptor[i].offset, _myTAP.descriptor[i].size, false);
+                            _zxp.playOricData(bufferPlay, _myTAP.descriptor[i].size, &_myTAP.descriptor[i].playback_position);
+                            free(bufferPlay);
+                        }
+                    }
+                    // else if (_myTAP.descriptor[i].type == 0x20)
+                    // {
+                    //     // *** Bloque ORIC - Reproducción con soporte PAUSE/RESUME/FFWD/RWD
+                    //     bufferPlay = (uint8_t*)(ps_calloc(_myTAP.descriptor[i].size, sizeof(uint8_t)));
+                        
+                    //     log_info("TAP","Block size: " + String(_myTAP.descriptor[i].size) + " bytes");
 
+                    //     readFileRange(_mFile, bufferPlay, _myTAP.descriptor[i].offset, _myTAP.descriptor[i].size, false);
+
+                    //     // Llamamos a la función de reproducción ORIC con soporte PAUSE/RESUME/FFWD/RWD
+                    //     _zxp.playOricData(bufferPlay, _myTAP.descriptor[i].size, &_myTAP.descriptor[i].playback_position);
+
+                    //     // Liberamos el buffer de reproducción
+                    //     free(bufferPlay);
+                    // }
+                    else if (_myTAP.descriptor[i].type == 0x21)
+                    {
+                        // *** Bloque ZX80/ZX81 - Reproducción por streaming (sin cargar todo en memoria)
+                        uint32_t totalSize = _myTAP.descriptor[i].size;
+                        uint32_t offsetBase = _myTAP.descriptor[i].offset;
+                        
+                        if (totalSize >= SIZE_FOR_SPLIT) 
+                        {
+                            // STREAMING MODE: Procesar en chunks para archivos grandes
                             int blockSizeSplit = SIZE_FOR_SPLIT;
-
-                            if (_myTAP.descriptor[i].size > blockSizeSplit)
+                            int blocks = totalSize / blockSizeSplit;
+                            int lastBlockSize = totalSize - (blocks * blockSizeSplit);
+                            uint32_t newOffset;
+                            
+                            TOTAL_PARTS = blocks + (lastBlockSize > 0 ? 1 : 0);
+                            
+                            // Procesar cada partición
+                            for (int n = 0; n < blocks; n++)
                             {
-                                //log("Partiendo la pana");
-
-                                int totalSize = _myTAP.descriptor[i].size;
-                                PARTITION_SIZE = totalSize;
+                                PARTITION_BLOCK = n;
+                                newOffset = offsetBase + (blockSizeSplit * n);
+                                PRG_BAR_OFFSET_INI = newOffset;
                                 
-                                int offsetBase = _myTAP.descriptor[i].offset;
-                                int newOffset = 0;
-                                int blocks = totalSize / blockSizeSplit;
-                                int lastBlockSize = totalSize - (blocks * blockSizeSplit);
-
-                                // log("Información: ");
-                                // log(" - Tamaño total del bloque entero: " + String(totalSize));
-                                // log(" - Numero de particiones: " + String(blocks));
-                                // log(" - Ultimo bloque (size): " + String(lastBlockSize));
-                                // log(" - Offset: " + String(offsetBase));
-
-                                TOTAL_PARTS = blocks;
-
-                                // Recorremos el vector de particiones del bloque.
-                                for (int n=0;n < blocks;n++)
-                                {
-                                    PARTITION_BLOCK = n;
-                                    //log("Particion [" + String(n) + "/" + String(blocks) +  "]");
-
-                                    // Calculamos el offset del bloque
-                                    newOffset = offsetBase + (blockSizeSplit*n);
-                                    PRG_BAR_OFFSET_INI = newOffset;
-
-                                    // Accedemos a la SD y capturamos el bloque del fichero
-                                    // Reservamos memoria
-                                    bufferPlay = (uint8_t*)ps_calloc(blockSizeSplit, sizeof(uint8_t));
-                                    readFileRange(_mFile,bufferPlay, newOffset, blockSizeSplit, true);
-
-                                    #ifdef DEBUGMODE
-                                        showBufferPlay(bufferPlay,blockSizeSplit,newOffset);
-                                    #endif
-                                    
-                                    // Reproducimos la partición n, del bloque.
-                                    if (n==0)
-                                    {
-                                        // Primer bloque con tono guia y syncs
-                                        _zxp.playDataBegin(bufferPlay,blockSizeSplit,DPILOT_LEN,DPULSES_DATA);
-                                    }
-                                    else
-                                    {
-                                        // Bloque partido. Particiones
-                                        _zxp.playDataPartition(bufferPlay, blockSizeSplit);                                      
-                                    }
-                                    free(bufferPlay);
+                                bufferPlay = (uint8_t*)ps_calloc(blockSizeSplit, sizeof(uint8_t));
+                                readFileRange(_mFile, bufferPlay, newOffset, blockSizeSplit, true);
+                                
+                                if (n == 0) {
+                                    _zxp.playZX80DataBegin(bufferPlay, blockSizeSplit, &_myTAP.descriptor[i].playback_position);
+                                } else {
+                                    _zxp.playZX80DataPartition(bufferPlay, blockSizeSplit, &_myTAP.descriptor[i].playback_position);
                                 }
-
-                                // Ultimo bloque
-                                //
+                                free(bufferPlay);
+                            }
+                            
+                            // Procesar último bloque si existe
+                            if (lastBlockSize > 0)
+                            {
+                                newOffset = offsetBase + (blockSizeSplit * blocks);
+                                PRG_BAR_OFFSET_INI = newOffset;
                                 
-                                // Calculamos el offset del último bloque
-                                newOffset = offsetBase + (blockSizeSplit*blocks);
+                                bufferPlay = (uint8_t*)ps_calloc(lastBlockSize, sizeof(uint8_t));
+                                readFileRange(_mFile, bufferPlay, newOffset, lastBlockSize, true);
+                                _zxp.playZX80DataEnd(bufferPlay, lastBlockSize, &_myTAP.descriptor[i].playback_position);
+                                free(bufferPlay);
+                            }
+                        } 
+                        else 
+                        {
+                            // DIRECT MODE: Archivo pequeño, procesar directamente
+                            bufferPlay = (uint8_t*)(ps_calloc(totalSize, sizeof(uint8_t)));
+                            readFileRange(_mFile, bufferPlay, offsetBase, totalSize, false);
+                            _zxp.playZX80Data(bufferPlay, totalSize, &_myTAP.descriptor[i].playback_position);
+                            free(bufferPlay);
+                        }
+                    }
+                    else 
+                    {
+                        // *** Bloque de DATA / BASIC
+
+                        int blockSizeSplit = SIZE_FOR_SPLIT;
+
+                        if (_myTAP.descriptor[i].size > blockSizeSplit)
+                        {
+                            //log("Partiendo la pana");
+
+                            int totalSize = _myTAP.descriptor[i].size;
+                            PARTITION_SIZE = totalSize;
+                            
+                            int offsetBase = _myTAP.descriptor[i].offset;
+                            int newOffset = 0;
+                            int blocks = totalSize / blockSizeSplit;
+                            int lastBlockSize = totalSize - (blocks * blockSizeSplit);
+
+                            // log("Información: ");
+                            // log(" - Tamaño total del bloque entero: " + String(totalSize));
+                            // log(" - Numero de particiones: " + String(blocks));
+                            // log(" - Ultimo bloque (size): " + String(lastBlockSize));
+                            // log(" - Offset: " + String(offsetBase));
+
+                            TOTAL_PARTS = blocks;
+
+                            // Recorremos el vector de particiones del bloque.
+                            for (int n=0;n < blocks;n++)
+                            {
+                                PARTITION_BLOCK = n;
+                                //log("Particion [" + String(n) + "/" + String(blocks) +  "]");
+
+                                // Calculamos el offset del bloque
+                                newOffset = offsetBase + (blockSizeSplit*n);
                                 PRG_BAR_OFFSET_INI = newOffset;
 
-                                blockSizeSplit = lastBlockSize;
-
                                 // Accedemos a la SD y capturamos el bloque del fichero
+                                // Reservamos memoria
                                 bufferPlay = (uint8_t*)ps_calloc(blockSizeSplit, sizeof(uint8_t));
                                 readFileRange(_mFile,bufferPlay, newOffset, blockSizeSplit, true);
 
                                 #ifdef DEBUGMODE
-                                    showBufferPlay(bufferPlay,blockSizeSplit,newOffset); 
+                                    showBufferPlay(bufferPlay,blockSizeSplit,newOffset);
                                 #endif
                                 
-                                // Reproducimos el ultimo bloque con su terminador y silencio si aplica
-                                _zxp.playDataEnd(bufferPlay, blockSizeSplit);                                    
-
-                                free(bufferPlay); 
-
-                            } 
-                            else 
-                            {
-                                // En el caso de NO USAR SPLIT o el bloque es menor de "SIZE_FOR_SPLIT"
-                                //
-                                PRG_BAR_OFFSET_INI = _myTAP.descriptor[i].offset;
-
-                                bufferPlay = (uint8_t*)(ps_calloc((_myTAP.descriptor[i].size), sizeof(uint8_t)));
-                                readFileRange(_mFile,bufferPlay,_myTAP.descriptor[i].offset, _myTAP.descriptor[i].size, false);
-
-                                // if (_myTAP.descriptor[i].size==6914)
-                                // {
-                                //     // Es una pantalla de carga
-                                //     paintLoadingScreen(bufferPlay);
-                                // }
-
-                                // Reproducimos el bloque de datos
-                                _zxp.playData(bufferPlay, _myTAP.descriptor[i].size,DPILOT_LEN,DPULSES_DATA);
-
-                                // Liberamos el buffer de reproducción
+                                // Reproducimos la partición n, del bloque.
+                                if (n==0)
+                                {
+                                    // Primer bloque con tono guia y syncs
+                                    _zxp.playDataBegin(bufferPlay,blockSizeSplit,DPILOT_LEN,DPULSES_DATA);
+                                }
+                                else
+                                {
+                                    // Bloque partido. Particiones
+                                    _zxp.playDataPartition(bufferPlay, blockSizeSplit);                                      
+                                }
                                 free(bufferPlay);
                             }
-                        }
 
-                        BLOCK_PLAYED = true;
+                            // Ultimo bloque
+                            //
+                            
+                            // Calculamos el offset del último bloque
+                            newOffset = offsetBase + (blockSizeSplit*blocks);
+                            PRG_BAR_OFFSET_INI = newOffset;
+
+                            blockSizeSplit = lastBlockSize;
+
+                            // Accedemos a la SD y capturamos el bloque del fichero
+                            bufferPlay = (uint8_t*)ps_calloc(blockSizeSplit, sizeof(uint8_t));
+                            readFileRange(_mFile,bufferPlay, newOffset, blockSizeSplit, true);
+
+                            #ifdef DEBUGMODE
+                                showBufferPlay(bufferPlay,blockSizeSplit,newOffset); 
+                            #endif
+                            
+                            // Reproducimos el ultimo bloque con su terminador y silencio si aplica
+                            _zxp.playDataEnd(bufferPlay, blockSizeSplit);                                    
+
+                            free(bufferPlay); 
+
+                        } 
+                        else 
+                        {
+                            // En el caso de NO USAR SPLIT o el bloque es menor de "SIZE_FOR_SPLIT"
+                            //
+                            PRG_BAR_OFFSET_INI = _myTAP.descriptor[i].offset;
+
+                            bufferPlay = (uint8_t*)(ps_calloc((_myTAP.descriptor[i].size), sizeof(uint8_t)));
+                            readFileRange(_mFile,bufferPlay,_myTAP.descriptor[i].offset, _myTAP.descriptor[i].size, false);
+
+                            // if (_myTAP.descriptor[i].size==6914)
+                            // {
+                            //     // Es una pantalla de carga
+                            //     paintLoadingScreen(bufferPlay);
+                            // }
+
+                            // Reproducimos el bloque de datos
+                            _zxp.playData(bufferPlay, _myTAP.descriptor[i].size,DPILOT_LEN,DPULSES_DATA);
+
+                            // Liberamos el buffer de reproducción
+                            free(bufferPlay);
+                        }
                     }
 
-                    // //SerialHW.println("");
-                    // //SerialHW.println("Playing was finish.");
+                    BLOCK_PLAYED = true;
+                }
 
-                    // En el caso de no haber parado manualmente, 
-                    // Lanzamos el AUTO-STOP
-                    if (LOADING_STATE == 1) 
-                    {
-                        #ifdef DEBUGMODE
-                            logAlert("AUTO STOP launch.");
-                        #endif
+                // //SerialHW.println("");
+                // //SerialHW.println("Playing was finish.");
 
-                        PLAY = false;
-                        PAUSE = false;
-                        STOP = true;
-                        REC = false;
-                        ABORT = true;
-                        EJECT = false;
+                // En el caso de no haber parado manualmente, 
+                // Lanzamos el AUTO-STOP
+                if (LOADING_STATE == 1) 
+                {
+                    #ifdef DEBUGMODE
+                        logAlert("AUTO STOP launch.");
+                    #endif
 
-                        BLOCK_SELECTED = 0;
-                        BYTES_LOADED = 0; 
+                    PLAY = false;
+                    PAUSE = false;
+                    STOP = true;
+                    REC = false;
+                    ABORT = true;
+                    EJECT = false;
 
-                        AUTO_STOP = true;
+                    BLOCK_SELECTED = 0;
+                    BYTES_LOADED = 0; 
 
-                        _hmi.setBasicFileInformation(0,0,_myTAP.descriptor[BLOCK_SELECTED].name,_myTAP.descriptor[BLOCK_SELECTED].typeName,_myTAP.descriptor[BLOCK_SELECTED].size,true);
-                        //
-                    }              
-            }
-            else
-            {
-                // No se ha seleccionado ningún fichero
-                LAST_MESSAGE = "No file selected.";
-                _hmi.setBasicFileInformation(0,0,_myTAP.descriptor[BLOCK_SELECTED].name,_myTAP.descriptor[BLOCK_SELECTED].typeName,_myTAP.descriptor[BLOCK_SELECTED].size,true);
-                
-                #ifdef DEBUGMODE
-                    log("Error - No file selected");
-                #endif
-                //
-            }
+                    AUTO_STOP = true;
 
+                    _hmi.setBasicFileInformation(0,0,_myTAP.descriptor[BLOCK_SELECTED].name,_myTAP.descriptor[BLOCK_SELECTED].typeName,_myTAP.descriptor[BLOCK_SELECTED].size,true);
+                    //
+                }              
+        }
+        else
+        {
+            // No se ha seleccionado ningún fichero
+            LAST_MESSAGE = "No file selected.";
+            _hmi.setBasicFileInformation(0,0,_myTAP.descriptor[BLOCK_SELECTED].name,_myTAP.descriptor[BLOCK_SELECTED].typeName,_myTAP.descriptor[BLOCK_SELECTED].size,true);
+            
+            #ifdef DEBUGMODE
+                log("Error - No file selected");
+            #endif
+            //
         }
 
+    }
+
+    // Constructor de la clase
+    TAPprocessor()
+    {
         // Constructor de la clase
-        TAPprocessor()
-        {
-            // Constructor de la clase
-            strncpy(_myTAP.name,"          ",10);
-            _myTAP.numBlocks = 0;
-            _myTAP.size = 0;
-            _myTAP.descriptor = nullptr;
-        }      
+        strncpy(_myTAP.name,"          ",10);
+        _myTAP.numBlocks = 0;
+        _myTAP.size = 0;
+        _myTAP.descriptor = nullptr;
+    }      
 
 };

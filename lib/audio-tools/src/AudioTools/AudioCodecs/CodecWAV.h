@@ -60,7 +60,8 @@ class WAVHeader {
     memset((void *)&headerInfo, 0, sizeof(WAVAudioInfo));
 
     if (!setPos("RIFF")) return false;
-    headerInfo.file_size = read_int32();
+    // RIFF stores chunk_size (= file_size - 8): normalize to full file size
+    headerInfo.file_size = read_int32() + 8;
     if (!setPos("WAVE")) return false;
     if (!setPos("fmt ")) return false;
     int fmt_length = read_int32();
@@ -107,9 +108,14 @@ class WAVHeader {
 
   /// Just write a wav header to the indicated outputbu
   int writeHeader(Print *out) {
-    writeRiffHeader(buffer);
-    writeFMT(buffer);
-    writeDataHeader(buffer);
+    return writeHeader(out, headerInfo);
+  }
+
+  /// Just write a wav header with explicit info to the indicated output
+  int writeHeader(Print *out, const WAVAudioInfo &info) {
+    writeRiffHeader(buffer, info);
+    writeFMT(buffer, info);
+    writeDataHeader(buffer, info);
     int len = buffer.available();
     out->write(buffer.data(), buffer.available());
     return len;
@@ -142,7 +148,7 @@ class WAVHeader {
   }
 
  protected:
-  struct WAVAudioInfo headerInfo;
+  WAVAudioInfo headerInfo;
   SingleBuffer<uint8_t> buffer{MAX_WAV_HEADER_LEN};
   size_t data_pos = 0;
 
@@ -219,22 +225,39 @@ class WAVHeader {
     LOGI("WAVHeader format: %d", (int)headerInfo.format);
   }
 
-  void writeRiffHeader(BaseBuffer<uint8_t> &buffer) {
+  void writeRiffHeader(BaseBuffer<uint8_t> &buffer,
+                       const WAVAudioInfo &info) {
     buffer.writeArray((uint8_t *)"RIFF", 4);
-    write32(buffer, headerInfo.file_size - 8);
+    // chunk_size = file_size - 8 (RIFF header size)
+    write32(buffer, info.file_size - 8);
     buffer.writeArray((uint8_t *)"WAVE", 4);
   }
 
-  void writeFMT(BaseBuffer<uint8_t> &buffer) {
+  void writeFMT(BaseBuffer<uint8_t> &buffer, const WAVAudioInfo &info) {
     uint16_t fmt_len = 16;
     buffer.writeArray((uint8_t *)"fmt ", 4);
     write32(buffer, fmt_len);
-    write16(buffer, (uint16_t)headerInfo.format);  // PCM
-    write16(buffer, headerInfo.channels);
-    write32(buffer, headerInfo.sample_rate);
-    write32(buffer, headerInfo.byte_rate);
-    write16(buffer, headerInfo.block_align);  // frame size
-    write16(buffer, headerInfo.bits_per_sample);
+    write16(buffer, (uint16_t)info.format);  // PCM
+    write16(buffer, info.channels);
+    write32(buffer, info.sample_rate);
+    write32(buffer, info.byte_rate);
+    write16(buffer, info.block_align);  // frame size
+    write16(buffer, info.bits_per_sample);
+  }
+
+  void writeDataHeader(BaseBuffer<uint8_t> &buffer, const WAVAudioInfo &info) {
+    buffer.writeArray((uint8_t *)"data", 4);
+    uint32_t data_length = info.data_length;
+    if (data_length == 0) {
+      data_length = info.file_size - 36;  // data length = file size - header size (36 bytes)
+    }
+    write32(buffer, data_length);
+    int offset = info.offset;
+    if (offset > 0) {
+      uint8_t empty[offset];
+      memset(empty, 0, offset);
+      buffer.writeArray(empty, offset);  // resolve issue with wrong aligment
+    }
   }
 
   void write32(BaseBuffer<uint8_t> &buffer, uint64_t value) {
@@ -245,16 +268,6 @@ class WAVHeader {
     buffer.writeArray((uint8_t *)&value, 2);
   }
 
-  void writeDataHeader(BaseBuffer<uint8_t> &buffer) {
-    buffer.writeArray((uint8_t *)"data", 4);
-    write32(buffer, headerInfo.file_size);
-    int offset = headerInfo.offset;
-    if (offset > 0) {
-      uint8_t empty[offset];
-      memset(empty, 0, offset);
-      buffer.writeArray(empty, offset);  // resolve issue with wrong aligment
-    }
-  }
 };
 
 /**
@@ -291,6 +304,20 @@ class WAVDecoder : public AudioDecoder {
    *
    */
   WAVDecoder(AudioDecoderExt &dec, AudioFormat fmt) { setDecoder(dec, fmt); }
+
+  /// Destructor - cleanup embedded decoder reference
+  ~WAVDecoder() {
+    // Clean up embedded decoder if present
+    if (p_decoder != nullptr) {
+      try {
+        p_decoder->end();
+      } catch (...) {
+        // Ignore errors during cleanup
+      }
+      // NOTE: We do NOT delete p_decoder because it's externally managed
+      p_decoder = nullptr;
+    }
+  }
 
   /// Defines an optional decoder if the format is not PCM
   void setDecoder(AudioDecoderExt &dec, AudioFormat fmt) {
@@ -375,6 +402,9 @@ class WAVDecoder : public AudioDecoder {
   void setConvert24Bit(bool enable) {
     convert24 = enable;
   }
+
+  /// Access to the internal header parser and info
+  WAVHeader &getHeader() { return header; }
 
  protected:
   WAVHeader header;
@@ -584,16 +614,6 @@ class WAVEncoder : public AudioEncoder {
       wav_info.block_align =
           wav_info.bits_per_sample / 8 * wav_info.channels;
     }
-    if (wav_info.is_streamed || wav_info.data_length == 0 ||
-        wav_info.data_length >= 0x7fff0000) {
-      LOGI("is_streamed! because length is %u",
-           (unsigned)wav_info.data_length);
-      wav_info.is_streamed = true;
-      wav_info.data_length = ~0;
-    } else {
-      size_limit = wav_info.data_length;
-      LOGI("size_limit is %d", (int)size_limit);
-    }
   }
 
   /// starts the processing
@@ -607,6 +627,21 @@ class WAVEncoder : public AudioEncoder {
   virtual bool begin() override {
     TRACED();
     setupEncodedAudio();
+
+    // normalize streaming mode and payload limits at start time
+    if (wav_info.is_streamed || wav_info.data_length == 0 ||
+        wav_info.data_length >= 0x7fff0000) {
+      LOGI("is_streamed! because length is %u",
+           (unsigned)wav_info.data_length);
+      wav_info.is_streamed = true;
+      wav_info.data_length = ~0;
+      size_limit = 0;
+    } else {
+      wav_info.is_streamed = false;
+      size_limit = wav_info.data_length;
+      LOGI("size_limit is %d", (int)size_limit);
+    }
+
     header_written = false;
     is_open = true;
     return true;
@@ -629,15 +664,13 @@ class WAVEncoder : public AudioEncoder {
 
     if (!header_written) {
       LOGI("Writing Header");
-      header.setAudioInfo(wav_info);
-      int len = header.writeHeader(p_print);
-      wav_info.file_size -= len;
+      header.writeHeader(p_print, wav_info);
       header_written = true;
     }
 
     int32_t result = 0;
     Print *p_out = p_encoder == nullptr ? p_print : &enc_out;
-    ;
+    
     if (wav_info.is_streamed) {
       result = p_out->write((uint8_t *)data, len);
     } else if (size_limit > 0) {
@@ -661,6 +694,24 @@ class WAVEncoder : public AudioEncoder {
 
   /// Adds n empty bytes at the beginning of the data
   void setDataOffset(uint16_t offset) { wav_info.offset = offset; }
+
+  /// Defines the WAV payload length in bytes (without header)
+  void setDataLength(uint32_t data_length) {
+    wav_info.data_length = data_length;
+    wav_info.is_streamed =
+        (data_length == 0 || data_length >= 0x7fff0000);
+    if (!wav_info.is_streamed) {
+      // full file size = RIFF chunk (36) + data chunk payload
+      wav_info.file_size = wav_info.data_length + 36;
+    }
+    setAudioInfo(wav_info);
+  }
+
+  /// Extended WAV specific info
+  WAVAudioInfo &audioInfoEx() { return wav_info; }
+
+  /// Access to the internal header parser and info
+  WAVHeader &getHeader() { return header; }
 
  protected:
   WAVHeader header;

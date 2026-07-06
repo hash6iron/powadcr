@@ -1,0 +1,9 @@
+#pragma once
+
+/**
+ * @brief Tape animation functions for HMI display
+ * Called during I2S codec operations to show visual feedback
+ */
+
+void tapeAnimationON();
+void tapeAnimationOFF();

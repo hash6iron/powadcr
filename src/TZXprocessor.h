@@ -1467,8 +1467,7 @@ private:
 
     // Ahora cogemos el texto en el siguiente byte
     // #ifdef DEBUGMODE
-    logln("ID33 - sizeTextInformation = " + String(sizeTextInformation) +
-          " bytes");
+    logln("ID33 - sizeTextInformation = " + String(sizeTextInformation) + " bytes");
     // #endif
 
     uint8_t *grpN =
@@ -3996,11 +3995,11 @@ public:
                   // Obtenemos el tipo de polarización (solo bits 0-1 son válidos)
                   polarity = _myTZX.descriptor[i].symbol.symDefPilot[symbolID].symbolFlag & 0x03;
 
-                  #ifdef DEBUGMODE
+                  //#ifdef DEBUGMODE
                     logln("[" + String(j1) + "] Symbol ID: " + String(symbolID) +
                           " - Repeat: " + String(repeat) +
                           " - Polarity: " + String(polarity));
-                  #endif
+                  //#endif
 
                   // ******************************************************************************
                   // CORRECCIÓN GDB: El símbolo COMPLETO se repite 'repeat' veces
@@ -4110,6 +4109,7 @@ public:
               // Iteramos hasta leer TOTD símbolos (NO todos los bits del stream)
 
               ADD_ONE_SAMPLE_COMPENSATION = false;
+              KEEP_CURRENT_EDGE = false;  // Reset para que el primer pulso del data stream sea un toggle
 
               while (symbols_read < TOTD && bit_index < max_bits) 
               {
@@ -4178,13 +4178,14 @@ public:
                   //           is the polarity of the last pulse of the previous
                   //           block"
 
+                  bool firstPulseOfSymbol = true;
+
                   // Leemos cada semi-pulso que define el símbolo
                   for (int r1 = 0; r1 < NPD; r1++) 
                   {
                     if (STOP || PAUSE)
                       break;
 
-                    bool firstPulseOfSymbol = true;
                     // Cogemos la longitud del pulso
                     pulseLength = _myTZX.descriptor[i].symbol.symDefData[symbolID].pulse_array[r1];
 
@@ -4370,7 +4371,7 @@ public:
       #endif
 
       // Inicializamos el nivel de la señal según la polarización seleccionada
-      // EDGE_EAR_IS = INVERSETRAIN ? POLARIZATION ^ 1: POLARIZATION;
+      //EDGE_EAR_IS = INVERSETRAIN ? POLARIZATION ^ 1: POLARIZATION;
 
       for (int i = firstBlockToBePlayed; i < _myTZX.numBlocks; i++) 
       {

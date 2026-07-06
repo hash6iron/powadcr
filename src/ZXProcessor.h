@@ -42,6 +42,8 @@
 // #include <stdint.h>
 #include <math.h>
 #include "config.h"
+#include "OricProcessor.h"
+extern OricProcessor oricp;
 
 #pragma once
 
@@ -138,6 +140,22 @@ private:
   // false = LOW, true = HIGH. Empieza en false → primer toggle → HIGH.
   bool _c64EdgeIsHigh = false;
 
+  void setBaudRateF(double bauds_factor)
+  {
+    AudioInfo current_info = kitStream.audioInfo();
+    current_info.sample_rate = SAMPLING_RATE / bauds_factor;  // Asegurar que el SR es el esperado para ORIC
+    kitStream.setAudioInfo(current_info);
+    log_info("SYSTEM","Baud rate set to " + String(1200*bauds_factor) + " bauds, sampling rate = " + String(current_info.sample_rate) + " Hz");  
+  }
+
+  void setBaudrate(int bauds)
+  {
+    AudioInfo current_info = kitStream.audioInfo();
+    current_info.sample_rate = SAMPLING_RATE / (bauds/1200.0);  // Asegurar que el SR es el esperado para ORIC
+    kitStream.setAudioInfo(current_info);
+    log_info("SYSTEM","Baud rate set to " + String(bauds) + " bauds, sampling rate = " + String(current_info.sample_rate) + " Hz");  
+  }
+
   // ============================================================================
   // C64 PULSE PROCESSING HELPERS (always compiled, runtime controlled)
   // ============================================================================
@@ -221,24 +239,29 @@ private:
       ACU_ERROR = 0;
       STOP_OR_PAUSE_REQUEST = true;
       return true;
-    } else if (PAUSE || (!REM_DETECTED && STATUS_REM_ACTUATED)) {
+    }
+    else if (PAUSE)// || (!REM_DETECTED && STATUS_REM_ACTUATED)) 
+    {
       LAST_MESSAGE = "Pause requested. Wait.";
       LOADING_STATE = 3; // Pausa del bloque actual
       ACU_ERROR = 0;
       STOP_OR_PAUSE_REQUEST = true;
 
-      if (STATUS_REM_ACTUATED) {
-        STATUS_REM_ACTUATED = false;
-        PLAY = false;
-        PAUSE = true;
-        STOP = false;
-        REC = false;
-        ABORT = true;
-        EJECT = false;
-      }
+      // if (STATUS_REM_ACTUATED) 
+      // {
+      //   STATUS_REM_ACTUATED = false;
+      //   PLAY = false;
+      //   PAUSE = true;
+      //   STOP = false;
+      //   REC = false;
+      //   ABORT = true;
+      //   EJECT = false;
+      // }
 
       return true;
-    } else {
+    } 
+    else 
+    {
       return false;
     }
   }
@@ -298,11 +321,11 @@ private:
       if (OUT_TO_WAV) {
         if (WAV_8BIT_MONO)
         {
-          encoderOutWAV8.write(buffer, result);
+          encoderOutWAV8->write(buffer, result);
         }
         else
         {
-          encoderOutWAV.write(buffer, result);
+          encoderOutWAV->write(buffer, result);
         }
         
         kitStream.write(buffer, result);
@@ -318,22 +341,11 @@ private:
   }
 
   double getChannelAmplitude() {
-
     // Cambiamos el edge
-    if (!KEEP_CURRENT_EDGE) 
-    {
-      EDGE_EAR_IS ^= 1;
-    }
-
-    double A = 0;
-
-    if (EDGE_EAR_IS == down) {
-      A = minAmplitude;
-    } else {
-      A = maxAmplitude;
-    }
-
-    return (A);
+    if (!KEEP_CURRENT_EDGE) EDGE_EAR_IS ^= 1;
+    // Esto parece incongruente pero es la manera en la que funcionan
+    // las cargas que son sensibles a la polarización.
+    return ((EDGE_EAR_IS == up) ? minAmplitude : maxAmplitude);
   }
 
   // Obtiene la amplitud del siguiente semi-pulso C64, alternando el flanco propio.
@@ -341,55 +353,8 @@ private:
   double getC64Amplitude() 
   {
     _c64EdgeIsHigh = !_c64EdgeIsHigh;
-
     bool high = INVERSETRAIN ? !_c64EdgeIsHigh : _c64EdgeIsHigh;
     return high ? maxAmplitude : minAmplitude;
-  }
-
-  int firFilter(int data) {
-    _x[0] = _x[1];
-    long tmp = ((((data * 3269048L) >> 2)    //= (3.897009118e-1 * data)
-                 + ((_x[0] * 3701023L) >> 3) //+(  0.2205981765*v[0])
-                 ) +
-                1048576) >>
-               21; // round and downshift fixed point /2097152
-    _x[1] = (int)tmp;
-    return (int)(_x[0] + _x[1]); // 2^
-  }
-
-  int lowPass(int data) {
-    _xf[0] = _xf[1];
-    _xf[1] = data;
-    _yf[0] = _yf[1];
-    float gain = 10;
-
-    return (int)(gain * (0.969 * _yf[0] + 0.0155 * _xf[1] + 0.0155 * _xf[0]));
-  }
-
-  int highPass(int data) {
-    // Coeficientes de 2º orden. Butterworth
-    // https://www.meme.net.au/butterworth.html
-
-    float A = 1;
-    float B = 2;
-    float C = 1;
-    float D = 0.681;
-    float E = -0.703;
-
-    float gain = 6000;
-
-    // Calculos
-    _xf[0] = _xf[1];
-    _xf[1] = _xf[2];
-    _xf[2] = data;
-
-    _yf[0] = _yf[1];
-    _yf[1] = _yf[2];
-
-    _yf[2] = (int)(gain * ((A * _xf[2] - B * _xf[1] + C * _xf[0])) +
-                   D * _yf[1] - E * _yf[0]);
-
-    return _yf[2];
   }
 
   public: 
@@ -416,11 +381,11 @@ private:
     if (OUT_TO_WAV) {
       if (WAV_8BIT_MONO)
       {
-        encoderOutWAV8.write(buffer, 2 * chs);
+        encoderOutWAV8->write(buffer, 2 * chs);
       }
       else
       {
-        encoderOutWAV.write(buffer, 2 * chs);
+        encoderOutWAV->write(buffer, 2 * chs);
       }
       kitStream.write(buffer, 2 * chs);
     } else {
@@ -438,8 +403,6 @@ private:
     size_t bytes_written = 0;
 
     LAST_PULSE_WIDTH = width;
-
-  
 
     for (int j = 0; j < width; j++) 
     {
@@ -469,11 +432,11 @@ private:
     if (OUT_TO_WAV) {
       if (WAV_8BIT_MONO)
       {
-        encoderOutWAV8.write(buffer, result);
+        encoderOutWAV8->write(buffer, result);
       }
       else
       {
-        encoderOutWAV.write(buffer, result);
+        encoderOutWAV->write(buffer, result);
       }
       kitStream.write(buffer, result);
     } else {
@@ -697,7 +660,7 @@ private:
     }
 
     //
-    logln("(Silence END) -> EDGE is: " + String(EDGE_EAR_IS == down ? "DOWN" : "UP"));
+    //logln("(Silence END) -> EDGE is: " + String(EDGE_EAR_IS == down ? "DOWN" : "UP"));
   }
 
   void fullPulse(double dwidth, double calibrationValue = 0.0) {
@@ -825,8 +788,7 @@ private:
     }
   }
 
-
-  void semiPulse(double dwidth, double samples_compensation = 0) 
+  void semiPulse(double dwidth, double samples_compensation = 0, bool dwidthIsInTime = false) 
   {
     // Amplitud de la señal
     double amplitude = 0;
@@ -840,7 +802,9 @@ private:
 
     // Calculamos el numero de samples con alta precisión
     // Usamos acumulador de error para distribuir fracciones uniformemente
-    double rsamples = (((dwidth / freqCPU) * SAMPLING_RATE)) + samples_compensation;
+    // Esto lo hacemos para compatibilidad con ZX80/ZX81
+    double coefSamples = (dwidthIsInTime) ? (dwidth / 1000.0) : (dwidth / freqCPU);
+    double rsamples = (coefSamples * SAMPLING_RATE) + samples_compensation;
     
     // Acumular el valor exacto (incluyendo la parte fraccionaria)
     ERROR_ACCUMULATOR += rsamples;
@@ -1155,9 +1119,17 @@ public:
     #endif
         
     //Metemos un tail de 1ms para el ultimo pulso y cambio el flanco
-    double samples1ms = (1 / 1000.0) * SAMPLING_RATE;
-    pulseSilence(samples1ms); // Generamos un pulso de silencio de 1 muestra (ajustable)
-    duration -= 1.0; // Restamos 1ms al tiempo total de silencio
+    #ifdef TAIL_1ms_AFTER_SILENCE
+      double samples1ms = (1 / 1000.0) * SAMPLING_RATE;
+
+      // Para MSX no metemos TAIL
+      if (TYPE_FILE_LOAD != "TSX")
+      {
+        pulseSilence(samples1ms); // Generamos un pulso de silencio de 1 muestra (ajustable)
+        duration -= 1.0; // Restamos 1ms al tiempo total de silencio
+        //logln(" > Added 1ms tail for level change. Remaining silence duration: " + String(duration) + " ms");
+      }
+    #endif
 
     // Generar silencio adicional si duration > 0
     if (duration > 0.0) {
@@ -1359,12 +1331,8 @@ public:
     }
 
     // C64 TAP utiliza siempre la frecuencia real del hardware (96kHz).
-    // playingFile() establece SAMPLING_RATE = BASE_SR (87500 Hz para ZX) antes
-    // de llamar a pTAP.play(), pero el hardware AudioKit permanece a 96kHz
-    // porque no soporta 87500 Hz. Si usamos 87500 para calcular muestras y el
-    // hardware reproduce a 96000 Hz, los pulsos saldrían con el ancho erróneo.
     double savedSamplingRate = SAMPLING_RATE;
-    SAMPLING_RATE = STANDARD_SR_8_BIT_MACHINE;  // 96000.0
+    SAMPLING_RATE = STANDARD_SR_8_BIT_MACHINE / TAPE_BAUDRATE;  // 96000.0
 
     PROGRESS_BAR_BLOCK_VALUE = 0;
     ADD_ONE_SAMPLE_COMPENSATION = false;
@@ -1785,7 +1753,7 @@ public:
           int bytes_to_write = samples_in_buffer * 2 * chs;
 
           if (OUT_TO_WAV) {
-            encoderOutWAV.write(audio_buffer, bytes_to_write);
+            encoderOutWAV->write(audio_buffer, bytes_to_write);
             kitStream.write(audio_buffer, bytes_to_write);
           } else {
             kitStream.write(audio_buffer, bytes_to_write);
@@ -1811,7 +1779,7 @@ public:
       int bytes_to_write = samples_in_buffer * 2 * chs;
 
       if (OUT_TO_WAV) {
-        encoderOutWAV.write(audio_buffer, bytes_to_write);
+        encoderOutWAV->write(audio_buffer, bytes_to_write);
         kitStream.write(audio_buffer, bytes_to_write);
       } else {
         kitStream.write(audio_buffer, bytes_to_write);
@@ -1865,6 +1833,30 @@ public:
 
     for (int i = 0; i < size; i++) {
       bRead = bBlock[i];
+
+      // ========== Control de FFWIND/RWIND ==========
+      if ((FFWIND || KEEP_FFWIND) && size > 0) {
+        int jump = (int)((float)size * TZX_REWIND_SPEED);
+        i = (i + jump >= size) ? size - 1 : i + jump;
+        CSW_SEEK_MODE = 1;
+        if (!KEEP_FFWIND) FFWIND = false;
+        BYTES_LOADED = bytes_accumulated + i;
+        PROGRESS_BAR_BLOCK_VALUE = (int)(((bytes_accumulated + i + 1) * 100) / (total_block_size > 0 ? total_block_size : size));
+        delay(100);
+        continue;
+      }
+
+      if ((RWIND || KEEP_RWIND) && size > 0) {
+        int jump = (int)((float)size * TZX_REWIND_SPEED);
+        i = (i - jump < 0) ? 0 : i - jump;
+        CSW_SEEK_MODE = 2;
+        if (!KEEP_RWIND) RWIND = false;
+        BYTES_LOADED = bytes_accumulated + i;
+        PROGRESS_BAR_BLOCK_VALUE = (int)(((bytes_accumulated + i + 1) * 100) / (total_block_size > 0 ? total_block_size : size));
+        delay(100);
+        continue;
+      }
+      CSW_SEEK_MODE = 0;
 
       if (LOADING_STATE == 1 || TEST_RUNNING) {
         // Determinar máscara para este byte
@@ -1924,7 +1916,7 @@ public:
             if (samples_in_buffer >= DR_CHUNK_SIZE) {
               size_t bytes_to_write = samples_in_buffer * 2 * chs;
               if (OUT_TO_WAV) {
-                encoderOutWAV.write(audio_buffer, bytes_to_write);
+                encoderOutWAV->write(audio_buffer, bytes_to_write);
                 kitStream.write(audio_buffer, bytes_to_write);
               } else {
                 kitStream.write(audio_buffer, bytes_to_write);
@@ -1966,7 +1958,7 @@ public:
     if (samples_in_buffer > 0) {
       size_t bytes_to_write = samples_in_buffer * 2 * chs;
       if (OUT_TO_WAV) {
-        encoderOutWAV.write(audio_buffer, bytes_to_write);
+        encoderOutWAV->write(audio_buffer, bytes_to_write);
         kitStream.write(audio_buffer, bytes_to_write);
       } else {
         kitStream.write(audio_buffer, bytes_to_write);
@@ -2313,9 +2305,485 @@ public:
     }
   }
 
+  // ============================================================================
+  // ORIC TAP PLAYBACK - Completo, Limpio y Funcional
+  // ============================================================================
+// ================== ORIC STREAMING PLAYBACK ==================
+  // Streaming functions for ORIC TAP files (avoiding full file load into memory)
+  // Following same pattern as ZX80/ZX81 with pilot tone, sync, and data sections
+  void genBitOric(uint8_t bit) {
+      // Generar semi-pulsos para cada bit (SIEMPRE 2):
+      // Modo SLOW: Bit 0 asimétrico (LOW 208µs + HIGH 416µs)
+      //            Bit 1 simétrico (208µs + 208µs)
+      // Modo TURBO: Bit 0 asimétrico (LOW 60µs + HIGH 470µs)
+      //             Bit 1 simétrico (60µs + 60µs)
+      // Nota: Siempre 2 semi-pulsos para mantener alternancia correcta de _c64EdgeIsHigh
+      int chn = WAV_8BIT_MONO ? 1 : channels;
+      int numSemiPulsos = 2;
+
+      // Generar cada semi-pulso (LOW o HIGH)
+      for (int n = 0; n < numSemiPulsos; n++) 
+      {        
+        // Obtener ancho del semi-pulso actual (LOW o HIGH según _c64EdgeIsHigh)
+        double sp_width_us = oricp.getPulseWidthUs(bit, ORIC_TURBO_MODE, _c64EdgeIsHigh);
+        // Convertir a segundos para calcular muestras
+        double sp_width_s  = sp_width_us * 1e-6;
+        // Calcular número de muestras para este semi-pulso
+        int samples = (int)round(sp_width_s * SAMPLING_RATE);
+        if (samples < 1) samples = 1;
+        // Buffer de muestras para este semi-pulso
+        int bytes = samples * 2 * chn;
+        // Obtenemos la amplitud ajustada por volumen para este bit
+        // dentro de get64Amplitude() se alterna el semi-pulso
+        double amplitude  = getC64Amplitude();
+
+        // Calculamos la amplitud de los canales R y L aplicando el volumen maestro
+        uint16_t sample_R = (uint16_t)(amplitude * (MAIN_VOL_R / 100.0f));
+        uint16_t sample_L = (uint16_t)(amplitude * (MAIN_VOL_L / 100.0f));
+        // Generamos el semi-pulso en el bus I2S
+        createPulse(samples, bytes, sample_R, sample_L);
+        // Solicitud de parada
+        if (stopOrPauseRequest()) return;
+      }
+  }
+
+  void emitByteOric(uint8_t byte_val) {
+      uint8_t bitChecksum = 0;
+      for (int b = 0; b < 8; b++) {
+        uint8_t bit = (byte_val >> b) & 1;
+        bitChecksum ^= bit;
+      }
+      
+      genBitOric(0); // Start bit (siempre 0)
+      for (int b = 0; b < 8; b++) {
+        genBitOric((byte_val >> b) & 1);
+      }
+      // Paridad inversa (odd): si hay número impar de 1s (bitChecksum=1), enviar 0; si par (bitChecksum=0), enviar 1
+      genBitOric(bitChecksum == 0 ? 1 : 0); // Parity bit (inverse/odd)
+      // Tres bits de parada a '1'
+      genBitOric(1); 
+      genBitOric(1);
+      genBitOric(1);
+  }
+
+  void playOricDataBegin(uint8_t *data, uint16_t size, int *playback_position = nullptr) {
+    // First chunk: Emit pilot tone and then process data
+    // Pilot tone: 259 bytes of 0x16 (artificial guide tone for Oric hardware stabilization)
+    for (int i = 0; i < 259; i++) {
+      emitByteOric(0x16);
+      if (stopOrPauseRequest()) return;
+    }
+    
+    // Emit sync marker
+    emitByteOric(0x24);
+    
+    // Process the data bytes (without final pause)
+    playOricDataPartition(data, size, playback_position);
+  }
+
+  void playOricDataPartition(uint8_t *data, uint16_t size, int *playback_position = nullptr) {
+    // Middle chunks: Just emit data bytes without pilot tone or pause
+    // Calculate progress within the total file context
+    int progress_start = (PARTITION_BLOCK * 100) / TOTAL_PARTS;
+    int progress_end = ((PARTITION_BLOCK + 1) * 100) / TOTAL_PARTS;
+    int progress_range = progress_end - progress_start;
+    
+    for (uint16_t i = 0; i < size; i++) {
+      // Handle FFWIND (fast forward)
+      if ((FFWIND || KEEP_FFWIND)) {
+        int jump = (int)((float)size * C64_FFWD_SPEED);
+        i = (i + jump >= size) ? size - 1 : i + jump;
+        CSW_SEEK_MODE = 1;
+        if (!KEEP_FFWIND) FFWIND = false;
+        if (playback_position) *playback_position = i;
+        BYTES_LOADED = i;
+        PROGRESS_BAR_BLOCK_VALUE = progress_start + ((i + 1) * progress_range) / size;
+        delay(100);
+        continue;
+      }
+
+      // Handle RWIND (rewind)
+      if ((RWIND || KEEP_RWIND)) {
+        int jump = (int)((float)size * C64_RWD_SPEED);
+        i = (i - jump < 0) ? 0 : i - jump;
+        CSW_SEEK_MODE = 2;
+        if (!KEEP_RWIND) RWIND = false;
+        if (playback_position) *playback_position = i;
+        BYTES_LOADED = i;
+        PROGRESS_BAR_BLOCK_VALUE = progress_start + ((i + 1) * progress_range) / size;
+        delay(100);
+        continue;
+      }
+      CSW_SEEK_MODE = 0;
+
+      // Check for stop/pause requests
+      if (LOADING_STATE == 2) {
+        return;
+      }
+
+      if (stopOrPauseRequest()) {
+        if (playback_position && PAUSE && !STOP) *playback_position = i;
+        else if (playback_position && STOP) *playback_position = 0;
+        return;
+      }
+
+      emitByteOric(data[i]);
+      
+      // Update progress bar with accumulated progress across chunks
+      if (playback_position) *playback_position = i;
+      BYTES_LOADED = i;
+      PROGRESS_BAR_BLOCK_VALUE = progress_start + ((i + 1) * progress_range) / size;
+    }
+  }
+
+  void playOricDataEnd(uint8_t *data, uint16_t size, int *playback_position = nullptr) {
+    // Last chunk: Process data bytes and emit final pause
+    playOricDataPartition(data, size, playback_position);
+    
+    // Final pause: 100 bits of '1' (pause cycle)
+    for (int i = 0; i < 100; i++) {
+      genBitOric(1);
+      if (stopOrPauseRequest()) break;
+    }
+    
+    // Mark playback complete
+    if (playback_position) *playback_position = 0;
+    STOP = true;
+    PAUSE = false;
+    LOADING_STATE = 2;
+    TAPESTATE = 0;
+    LAST_MESSAGE = "ORIC playback done.";
+  }
+
+  void playOricData(uint8_t *bBlock, int lenBlock, int *playback_position = nullptr) {
+
+    if (!bBlock || lenBlock == 0) {
+      logln("ERROR: playOricData - No data");
+      return;
+    }
+
+    logln("ORIC playback START. baudrate=" + String(TAPE_BAUDRATE*1200) + " bauds");
+    if (TAPE_BAUDRATE == 1) {
+      myNex.writeStr("tape.bds.txt", "300 Bds");
+    }    
+
+    // ORIC_TURBO_MODE = (TAPE_BAUDRATE > 1.0) ? 1 : 0;
+
+    // if (ORIC_TURBO_MODE) 
+    // {
+    //   // Tenemos que volver a dejar el baudrate en 1200 porque
+    //   // ya se encarga la rutina de calcular el baudrate real con los pulsos.
+    //   setBaudrate(1.0);
+    // }
+
+    log_info("ORIC", "Turbo mode: " + String(ORIC_TURBO_MODE ? "ON" : "OFF"));
+
+    PROGRESS_BAR_BLOCK_VALUE = 0;
+    ERROR_ACCUMULATOR = 0.0;
+    _c64EdgeIsHigh = false;
+    EDGE_EAR_IS = down;
+
+    
+
+    // ========== SINCRONISMO: Generar tono guía artificial y sincronizar con el bloque del archivo ==========
+    int pos = 0;
+
+    // Tono guía artificial (bytes 0x16) para que el hardware del Oric estabilice la señal.
+    // Emitimos exactamente 259 bytes, tal como hace la subrutina de la ROM en $E75A.
+    for (int i = 0; i < 259; i++) {
+      emitByteOric(0x16);
+      if (stopOrPauseRequest()) return;
+    }
+    emitByteOric(0x24); // Marcador de fin de sincronismo emitido artificialmente
+    
+    // Localizamos el marcador 0x24 en el bloque de datos del archivo .TAP
+    while (pos < lenBlock && bBlock[pos] != 0x24) {
+      pos++;
+    }
+
+    // Verificación de seguridad: necesitamos el marcador + al menos 9 bytes de cabecera
+    if (pos + 9 >= lenBlock) 
+    {
+      log_error("ORIC", "Sync marker not found or block too short");
+      LAST_MESSAGE = "Error: sync not found.";
+      return;
+    } 
+
+    pos++; // IMPORTANTE: Saltamos el byte 0x24 del archivo para no enviarlo dos veces
+
+
+    // ========== HEADER (9 bytes, count_r 9..1) ==========
+    // [0-2]: magic | [3]: Type
+    // [4]: End_HI  [5]: End_LO  (count_r=5,4)
+    // [6]: Start_HI [7]: Start_LO (count_r=3,2)
+    // [8]: último byte (count_r=1)
+    if (lenBlock < pos + 9) {
+      logln("ERROR: Block too small for header");
+      return;
+    }
+    
+    uint8_t header[9];
+    for (int i = 0; i < 9; i++) {
+      header[i] = bBlock[pos++];
+    }
+    
+    // bytesToRead = (End - Start) + 1  (replicando lógica de oric.cpp NEWPARAM)
+    uint16_t endAddr   = (uint16_t)((header[4] << 8) | header[5]);
+    uint16_t startAddr = (uint16_t)((header[6] << 8) | header[7]);
+    int bytesToRead    = (int)(endAddr - startAddr) + 1;
+    
+    logln("  ORIC header: Type=0x" + String(header[3], HEX) +
+          " End=0x" + String(endAddr, HEX) +
+          " Start=0x" + String(startAddr, HEX) +
+          " Size=" + String(bytesToRead));
+    
+    if (bytesToRead <= 0 || bytesToRead > lenBlock) {
+      logln("ERROR: bytesToRead invalid=" + String(bytesToRead));
+      return;
+    }
+    
+    for (int i = 0; i < 9; i++) {
+      emitByteOric(header[i]);
+    }
+
+    // ========== NOMBRE (hasta null terminator o límite de 16 caracteres típicos) ==========
+    int nameLimit = 0;
+    while (pos < lenBlock && bBlock[pos] != 0 && nameLimit < 32) {
+      emitByteOric(bBlock[pos++]);
+      nameLimit++;
+    }
+    if (pos < lenBlock) {
+      emitByteOric(bBlock[pos++]);  // null terminator
+    }
+
+    // ========== GAP (100 ciclos de Bit 1) ==========
+    for (int i = 0; i < 100; i++) {
+      genBitOric(1);
+    }
+
+    // ========== DATOS (exactamente bytesToRead) ==========
+    int dataStart = pos;
+    
+    for (int i = 0; i < bytesToRead; i++) {
+      if (dataStart + i >= lenBlock) {
+        logln("ERROR: Insufficient data");
+        break;
+      }
+
+      if ((FFWIND || KEEP_FFWIND) && playback_position) {
+        int jump = (int)((float)bytesToRead * C64_FFWD_SPEED);
+        i = (i + jump >= bytesToRead) ? bytesToRead - 1 : i + jump;
+        *playback_position = i;
+        CSW_SEEK_MODE = 1;
+        if (!KEEP_FFWIND) FFWIND = false;
+        BYTES_LOADED = i;
+        PROGRESS_BAR_BLOCK_VALUE = (int)(((i + 1) * 100) / bytesToRead);
+        delay(100);
+        continue;
+      }
+
+      if ((RWIND || KEEP_RWIND) && playback_position) {
+        int jump = (int)((float)bytesToRead * C64_RWD_SPEED);
+        i = (i - jump < 0) ? 0 : i - jump;
+        *playback_position = i;
+        CSW_SEEK_MODE = 2;
+        if (!KEEP_RWIND) RWIND = false;
+        BYTES_LOADED = i;
+        PROGRESS_BAR_BLOCK_VALUE = (int)(((i + 1) * 100) / bytesToRead);
+        delay(100);
+        continue;
+      }
+      CSW_SEEK_MODE = 0;
+
+      if (LOADING_STATE == 2) {
+        if (playback_position) *playback_position = 0;
+        return;
+      }
+
+      if (stopOrPauseRequest()) {
+        if (playback_position && PAUSE && !STOP) *playback_position = i;
+        else if (playback_position && STOP) *playback_position = 0;
+        return;
+      }
+
+      emitByteOric(bBlock[dataStart + i]);
+      
+      BYTES_LOADED = i;
+      PROGRESS_BAR_BLOCK_VALUE = (int)(((i + 1) * 100) / bytesToRead);
+    }
+
+    // ========== PAUSE (100 ciclos de Bit 1) ==========
+    for (int i = 0; i < 100; i++) {
+      genBitOric(1);
+      if (stopOrPauseRequest()) break;
+    }
+
+    logln("ORIC: Playback complete");
+    if (playback_position) *playback_position = 0;
+    STOP = true;
+    PAUSE = false;
+    LOADING_STATE = 2;
+    TAPESTATE = 0;
+    LAST_MESSAGE = "ORIC playback done.";
+  }
+
+
+  // ================== ZX80/ZX81 PLAYBACK ==================
+  void playZX80Data(uint8_t *data, uint16_t size, int *playback_position = nullptr) {
+    // Initial 5-seconds silence (5000 ms)
+    silence(5000);
+
+    // Play each byte
+    for (uint16_t i = 0; i < size; i++) {
+      uint8_t byte = data[i];
+
+      // Play bits MSB first
+      for (int bit = 7; bit >= 0; bit--) {
+        bool bitValue = (byte >> bit) & 1;
+        // Specification: Bit0=4 pulses (1200µs), Bit1=9 pulses (2700µs)
+        // Each pulse = 150µs HIGH + 150µs LOW = 300µs
+        // semiPulse(0.15) generates 150µs, so need 2 calls per logical pulse
+        uint16_t semiPulseCount = bitValue ? 18 : 8;
+
+        // Generate semi-pulses: 150µs each (2 per logical pulse)
+        for (uint16_t p = 0; p < semiPulseCount; p++) {
+          if(stopOrPauseRequest()) {
+            return;
+          }
+          semiPulse(0.15, 0, true);  // 150µs half-pulse
+        }
+
+        // 1300µs silence between bits
+        silence(1.3);  // 1300µs
+      }
+
+      // Update progress tracking
+      if (playback_position) *playback_position = i;
+      BYTES_LOADED = i;
+      PROGRESS_BAR_BLOCK_VALUE = (int)(((i + 1) * 100) / size);
+    }
+
+    // Final 2-second silence
+    silence(2000);  // 2000 ms
+
+    // Mark playback complete
+    if (playback_position) *playback_position = 0;
+    STOP = true;
+    PAUSE = false;
+    LOADING_STATE = 2;
+    TAPESTATE = 0;
+  }
+
+  // ================== ZX80/ZX81 STREAMING PLAYBACK ==================
+  void playZX80DataBegin(uint8_t *data, uint16_t size, int *playback_position = nullptr) {
+    // Initial 5-seconds silence only on first chunk
+    silence(5000);
+    // Process bytes WITHOUT final silence
+    playZX80Bits(data, size, playback_position);
+  }
+
+  void playZX80DataPartition(uint8_t *data, uint16_t size, int *playback_position = nullptr) {
+    // Process bytes with NO leading or trailing silence (intermediate chunks)
+    playZX80Bits(data, size, playback_position);
+  }
+
+  void playZX80DataEnd(uint8_t *data, uint16_t size, int *playback_position = nullptr) {
+    // Process bytes with final silence only on last chunk
+    playZX80Bits(data, size, playback_position);
+    silence(2000);  // Final 2-second silence
+    
+    // Mark playback complete
+    if (playback_position) *playback_position = 0;
+    STOP = true;
+    PAUSE = false;
+    LOADING_STATE = 2;
+    TAPESTATE = 0;
+  }
+
+  void playZX80Bits(uint8_t *data, uint16_t size, int *playback_position = nullptr) {
+    // Helper: Generate bit pattern for ZX80/ZX81 (MSB first) with progress tracking
+    // Specification: Bit0=4 pulses (1200µs), Bit1=9 pulses (2700µs)
+    // Each pulse = 150µs HIGH + 150µs LOW = 300µs total
+    // semiPulse(0.15) generates 150µs alternating, need 2 calls per logical pulse
+    
+    // Calculate progress within the total file context for streaming mode
+    int progress_start = (TOTAL_PARTS > 0) ? (PARTITION_BLOCK * 100) / TOTAL_PARTS : 0;
+    int progress_end = (TOTAL_PARTS > 0) ? ((PARTITION_BLOCK + 1) * 100) / TOTAL_PARTS : 100;
+    int progress_range = progress_end - progress_start;
+    
+    for (uint16_t i = 0; i < size; i++) {
+      // Handle FFWIND (fast forward)
+      if ((FFWIND || KEEP_FFWIND)) {
+        int jump = (int)((float)size * C64_FFWD_SPEED);
+        i = (i + jump >= size) ? size - 1 : i + jump;
+        CSW_SEEK_MODE = 1;
+        if (!KEEP_FFWIND) FFWIND = false;
+        if (playback_position) *playback_position = i;
+        BYTES_LOADED = i;
+        PROGRESS_BAR_BLOCK_VALUE = progress_start + ((i + 1) * progress_range) / size;
+        delay(100);
+        continue;
+      }
+
+      // Handle RWIND (rewind)
+      if ((RWIND || KEEP_RWIND)) {
+        int jump = (int)((float)size * C64_RWD_SPEED);
+        i = (i - jump < 0) ? 0 : i - jump;
+        CSW_SEEK_MODE = 2;
+        if (!KEEP_RWIND) RWIND = false;
+        if (playback_position) *playback_position = i;
+        BYTES_LOADED = i;
+        PROGRESS_BAR_BLOCK_VALUE = progress_start + ((i + 1) * progress_range) / size;
+        delay(100);
+        continue;
+      }
+      CSW_SEEK_MODE = 0;
+
+      // Check for stop request
+      if (LOADING_STATE == 2) {
+        if (playback_position) *playback_position = 0;
+        return;
+      }
+
+      // Check for pause request
+      if (stopOrPauseRequest()) {
+        if (playback_position && PAUSE && !STOP) *playback_position = i;
+        else if (playback_position && STOP) *playback_position = 0;
+        return;
+      }
+
+      uint8_t byte = data[i];
+      
+      // Play bits MSB first (bit 7 → bit 0)
+      for (int bit = 7; bit >= 0; bit--) {
+        if (stopOrPauseRequest()) {
+          return;
+        }
+        bool bitValue = (byte >> bit) & 1;
+        // Bit0=4 pulses, Bit1=9 pulses
+        uint16_t pulseCount = bitValue ? 9 : 4;
+
+        // Generate complete pulses: each pulse = HIGH (150µs) + LOW (150µs)
+        // semiPulse alternates automatically via EDGE_EAR_IS
+        for (uint16_t p = 0; p < pulseCount; p++) {
+          semiPulse(0.15, 0, true);  // 150µs HIGH
+          semiPulse(0.15, 0, true);  // 150µs LOW (alternated automatically)
+        }
+
+        // 1300µs silence between bits
+        silence(1.3);  // 1300µs
+      }
+
+      // Update progress tracking with accumulated progress
+      if (playback_position) *playback_position = i;
+      BYTES_LOADED = i;
+      PROGRESS_BAR_BLOCK_VALUE = progress_start + ((i + 1) * progress_range) / size;
+    }
+  }
+
   // Constructor
   ZXProcessor() {
-    // Constructor de la clase
-    ACU_ERROR = 0;
+  // Constructor de la clase
+  ACU_ERROR = 0;
   }
 };

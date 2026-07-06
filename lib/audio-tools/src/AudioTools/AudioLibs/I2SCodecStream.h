@@ -2,6 +2,7 @@
 #include "AudioBoard.h"  // install audio-driver library
 #include "AudioToolsConfig.h"
 #include "AudioTools/CoreAudio/AudioI2S/I2SStream.h"
+#include "tapeAnimation.h"  // for tape animation callbacks
 
 //#pragma GCC diagnostic ignored "-Wclass-memaccess"
 
@@ -124,6 +125,22 @@ class I2SCodecStream : public AudioStream, public VolumeSupport {
   /// Writes the audio data to I2S
   virtual size_t write(const uint8_t *data, size_t len) {
     LOGD("I2SStream::write: %d", len);
+
+    // Detenemos el flujo del stream si se ha detectado una pulsacion del REM o se ha activado el REM_ENABLE
+    if(REM_ENABLE && !REM_DETECTED)
+    {
+      String msg = LAST_MESSAGE;
+      LAST_MESSAGE = "Wait for REM or press STOP ...";
+      tapeAnimationOFF();
+      while (REM_ENABLE && !REM_DETECTED && !STOP)
+      {
+        remDetection();
+        delay(50);
+      }      
+      LAST_MESSAGE = msg;
+      tapeAnimationON();
+    }
+  
     return i2s.write(data, len);
   }
 

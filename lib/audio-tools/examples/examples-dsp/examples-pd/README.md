@@ -1,1 +1,0 @@
-Pure Data (or just "Pd") is an open source visual programming language for multimedia. Further information can be found in the [Wiki](https://github.com/pschatzmann/arduino-audio-tools/wiki/Pure-Data)

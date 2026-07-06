@@ -99,10 +99,12 @@ EasyNex myNex(SerialHW);
 #include "AudioTools/AudioCodecs/CodecMP3Helix.h"
 #include "AudioTools/AudioCodecs/CodecWAV.h"
 
-#ifdef USE_ADPCM_ENCODER
-  #include "AudioTools/AudioCodecs/CodecADPCM.h"
-  #include "ADPCM.h"
-#endif
+// Reproductor FLAC optimizado
+#include "FLACPlayer.h"
+
+// Siempre incluir ADPCM (se selecciona en runtime con USE_ADPCM_CODEC)
+#include "AudioTools/AudioCodecs/CodecADPCM.h"
+#include "ADPCM.h"
 
 #include "AudioTools/Communication/AudioHttp.h"
 #include "AudioTools/CoreAudio/AudioFilter/Equalizer3Bands.h"
@@ -121,9 +123,12 @@ AudioBoardStream kitStream(powadcr_board);
 // El control de audio saliente ahora lo lleva VolumeStream
 VolumeStream volumeStream(kitStream);
 
-// SpotifyESP32
-#include <SpotifyEsp32.h>
-Spotify* sp;
+// Gestión manual del montaje SD_MMC
+bool mountSDCard(bool showStatus = true);
+bool unmountSDCard(bool showStatus = true);
+bool isSDCardMounted();
+
+// SpotifyESP32 - REMOVED (not used, saves ~120KB)
 
 #include "HMI.h"
 HMI hmi;
@@ -132,25 +137,34 @@ HMI hmi;
 File wavfile;
 File audioFile;
 
-// ADPCM
-#ifdef USE_ADPCM_ENCODER
-  ADPCMEncoder adpcm_encoder(AV_CODEC_ID_ADPCM_MS, ADAPCM_DEFAULT_BLOCK_SIZE);
-  WAVEncoder wav_encoder(adpcm_encoder, AudioFormat::ADPCM);
-  EncodedAudioStream encoderOutWAV(&wavfile, &wav_encoder);
-  NumberFormatConverterStreamT<int16_t, uint8_t> encoderOutWAV8(encoderOutWAV);
-#else
-  // PCM
-  WAVEncoder wavEncoder;
-  EncodedAudioStream encoderOutWAV(&wavfile, &wavEncoder);
-  NumberFormatConverterStreamT<int16_t, uint8_t> encoderOutWAV8(encoderOutWAV);
-#endif
+// WAV Encoders - ambos disponibles, se selecciona según USE_ADPCM_CODEC en runtime
+// ADPCM encoder
+//ADPCMEncoder adpcm_encoder(AV_CODEC_ID_ADPCM_MS, ADAPCM_DEFAULT_BLOCK_SIZE);
+ADPCMEncoder adpcm_encoder(AV_CODEC_ID_ADPCM_YAMAHA);
+WAVEncoder wav_encoder_adpcm(adpcm_encoder, AudioFormat::ADPCM);
+EncodedAudioStream encoderOutWAV_ADPCM(&wavfile, &wav_encoder_adpcm);
+NumberFormatConverterStreamT<int16_t, uint8_t> encoderOutWAV8_ADPCM(encoderOutWAV_ADPCM);
 
+// PCM encoder
+WAVEncoder wav_encoder_pcm;
+EncodedAudioStream encoderOutWAV_PCM(&wavfile, &wav_encoder_pcm);
+NumberFormatConverterStreamT<int16_t, uint8_t> encoderOutWAV8_PCM(encoderOutWAV_PCM);
+
+// Punteros selectores (apuntan al codec actual según USE_ADPCM_CODEC)
+EncodedAudioStream *encoderOutWAV = nullptr;  // Se asigna en setupWAVEncoder()
+NumberFormatConverterStreamT<int16_t, uint8_t> *encoderOutWAV8 = nullptr;  // Se asigna en setupWAVEncoder()
 
 
 #include "ZXProcessor.h"
+#include "ZX80Processor.h"
+ZX80Processor zx80p;
 
 // ZX Spectrum. Procesador de audio output
 ZXProcessor zxp;
+
+// ORIC TAP Processor - Agregado para soporte ORIC-1/Oric Atmos
+#include "OricProcessor.h"
+OricProcessor oricp;
 
 // Procesadores de cinta
 // #include "BlockProcessor.h"
@@ -248,8 +262,13 @@ void rewindAnimation(int direction);
 void showOption(String id, String value);
 void setupNTP();
 void setupWifi();
+void tapeAnimationOFF();
+void tapeAnimationON();
 String getFileNameFromPath(const String &filePath);
 String removeExtension(const String &filename);
+void updateWAVHeader(const String &file_path);
+bool updateEqualizerSettings(Equalizer3Bands &eq, ConfigEqualizer3Bands &cfg_eq, AudioInfo cfg);
+// bool volumeStreamSettings();
 
 
 // -----------------------------------------------------------------------
@@ -376,37 +395,74 @@ int *strToIPAddress(String strIPAddr) {
 }
 
 String getValueOfParam(String line, String param) {
-#ifdef DEBUGMODE
-  logln("Cfg. line: " + line);
-  log(" - Param: " + param);
+#ifdef DEBUG_LOG
+  log_debug("CONFIG", "Cfg. line: " + line);
+  log_debug("CONFIG", " - Searching for: " + param);
 #endif
 
-  int firstClosingBracket = line.indexOf('>');
+  // Construir la etiqueta de apertura que buscamos: <parametername>
+  String openTag = "<" + param + ">";
+  String closeTag = "</" + param + ">";
 
-  if (firstClosingBracket != -1) {
-    // int paramLen = param.length();
-    int firstOpeningEndLine = line.indexOf("</", firstClosingBracket + 1);
-
-    if (firstOpeningEndLine != -1) {
-      String res = line.substring(firstClosingBracket + 1, firstOpeningEndLine);
-#ifdef DEBUGMODE
-      log(" / Value = " + res);
+  // Buscar la etiqueta de apertura
+  int openTagIndex = line.indexOf(openTag);
+  if (openTagIndex == -1) {
+    // Si no encontramos la etiqueta, probamos con búsqueda de cierre
+    // En caso de que haya espacios o problemas
+    int firstOpeningBracket = line.indexOf('<');
+    if (firstOpeningBracket != -1) {
+      int firstClosingBracket = line.indexOf('>', firstOpeningBracket);
+      if (firstClosingBracket != -1) {
+        // Extraer el nombre del parámetro
+        String paramName = line.substring(firstOpeningBracket + 1, firstClosingBracket);
+        if (paramName.equalsIgnoreCase(param)) {
+          // Encontramos el parámetro
+          int closeTagIndex = line.indexOf(closeTag, firstClosingBracket);
+          if (closeTagIndex != -1) {
+            String res = line.substring(firstClosingBracket + 1, closeTagIndex);
+#ifdef DEBUG_LOG
+            log_debug("CONFIG", " / Found Value = " + res);
 #endif
-      return res;
+            return res;
+          }
+        }
+      }
     }
+#ifdef DEBUG_LOG
+    log_debug("CONFIG", " / NOT FOUND");
+#endif
+    return "null";
   }
 
+  // Encontramos la etiqueta de apertura
+  int valueStart = openTagIndex + openTag.length();
+  int valueEnd = line.indexOf(closeTag, valueStart);
+
+  if (valueEnd != -1) {
+    String res = line.substring(valueStart, valueEnd);
+#ifdef DEBUG_LOG
+    log_debug("CONFIG", " / Value = " + res);
+#endif
+    return res;
+  }
+
+#ifdef DEBUG_LOG
+  log_debug("CONFIG", " / Value extraction failed - closeTag not found");
+#endif
   return "null";
 }
 
 tConfig *readAllParamCfg(File mFile, int maxParameters) {
   tConfig *cfgData = new tConfig[maxParameters + 1];
 
+  // Inicializar todo el array a vacío
+  for (int j = 0; j <= maxParameters; j++) {
+    cfgData[j].cfgLine = "";
+    cfgData[j].enable = false;
+  }
+
   // Vamos a ir linea a linea obteniendo la información de cada parámetro.
-  char line[256];
   String tLine;
-  //
-  int n;
   int i = 0;
 
   // Vemos si el fichero ya está abierto
@@ -414,21 +470,24 @@ tConfig *readAllParamCfg(File mFile, int maxParameters) {
     // read lines from the file
     while (mFile.available()) {
       tLine = mFile.readStringUntil('\n');
-      tLine.toCharArray(line, sizeof(line));
-      // remove '\n'
-      line[n - 1] = 0;
-      String strRes = "";
+      
+      // Remover espacios en blanco al final (incluyendo \r de CRLF)
+      tLine.trim();
+      
+      // Si la línea está vacía, la ignoramos
+      if (tLine.length() == 0) {
+        continue;
+      }
 
-      strRes = line;
-#ifdef DEBUGMODE
-      logln("[" + String(i) + "]" + strRes);
+#ifdef DEBUG_LOG
+      log_debug("CONFIG", "[" + String(i) + "] " + tLine);
 #endif
 
       if (i <= maxParameters) {
-        cfgData[i].cfgLine = strRes;
+        cfgData[i].cfgLine = tLine;
         cfgData[i].enable = true;
       } else {
-        log("Out of space for cfg parameters. Max. " + String(maxParameters));
+        log_error("CONFIG", "Out of space for cfg parameters. Max. " + String(maxParameters));
       }
 
       i++;
@@ -438,6 +497,42 @@ tConfig *readAllParamCfg(File mFile, int maxParameters) {
   return cfgData;
 }
 
+// ============================================================================
+// Función auxiliar: busca un parámetro en el array CFGSYSTEM sin depender del orden
+// Esto permite que los parámetros en el archivo .cfg se encuentren en cualquier orden
+// ============================================================================
+String getConfigParamValue(const char* paramName, const char* defaultValue = "") {
+  if (CFGSYSTEM == nullptr) {
+    #ifdef ERROR_LOG
+      log_error("CONFIG", "CFGSYSTEM is nullptr when searching for: " + String(paramName));
+    #endif
+    return String(defaultValue);
+  }
+  
+  // Buscar en todo el array hasta encontrar una línea vacía
+  for (int i = 0; i < 100; i++) {
+    // Si llegamos a una línea vacía, salimos del loop
+    if (CFGSYSTEM[i].cfgLine.length() == 0) {
+      #ifdef DEBUG_LOG
+        log_debug("CONFIG", "Parameter '" + String(paramName) + "' not found. Using default: " + String(defaultValue));
+      #endif
+      break;
+    }
+    
+    // Buscamos el parámetro en esta línea
+    String result = getValueOfParam(CFGSYSTEM[i].cfgLine, paramName);
+    if (result != "null" && result.length() > 0) {
+      #ifdef DEBUG_LOG
+        log_debug("CONFIG", "Found parameter '" + String(paramName) + "' = " + result);
+      #endif
+      return result;
+    }
+  }
+  
+  // Si no encontramos el parámetro, retornamos el valor por defecto
+  return String(defaultValue);
+}
+
 bool loadCfgFile() {
 
   bool cfgloaded = false;
@@ -445,9 +540,7 @@ bool loadCfgFile() {
   if (SD_MMC.exists("/powadcr.cfg")) 
   {
 
-    #ifdef DEBUGMODE
-        logln("File powadcr.cfg exists");
-    #endif
+    log_info("SETUP", "File powadcr.cfg exists");
 
     char pathCfgFile[32] = {};
     strcpy(pathCfgFile, "/powadcr.cfg");
@@ -462,160 +555,145 @@ bool loadCfgFile() {
       CFGSYSTEM = readAllParamCfg(fCfg, 100);
 
       // WiFi settings
-      logln("");
-      logln("");
-      logln("");
-      logln("");
-      logln("");
-      logln("Settings:");
-      logln(
-          "------------------------------------------------------------------");
-      logln("");
+      log_info("CONFIG", "Settings:");
+      log_info("CONFIG", "------------------------------------------------------------------");
 
-      // Hostname
-      strcpy(HOSTNAME, (getValueOfParam(CFGSYSTEM[0].cfgLine, "hostname")).c_str());
-      logln(HOSTNAME);
+      // Hostname - busca sin depender del orden
+      strcpy(HOSTNAME, getConfigParamValue("hostname", "powaDCR").c_str());
+      log_info("CONFIG", "Hostname: " + String(HOSTNAME));
+
       // SSID - Wifi
-      ssid = (getValueOfParam(CFGSYSTEM[1].cfgLine, "ssid")).c_str();
-      logln("SSID in cfg file: " + ssid);
+      ssid = getConfigParamValue("ssid", "");
+      log_info("CONFIG", "SSID in cfg file: " + ssid);
 
       if (ssid.length() == 0) 
       {
         WIFI_ENABLE = false;
-        logln("SSID is empty. WiFi disabled.");
+        log_alert("SETUP", "SSID is empty. WiFi disabled.");
         saveHMIcfg("WIFIopt");
       }
+
       // Password - WiFi
-      strcpy(password, (getValueOfParam(CFGSYSTEM[2].cfgLine, "password")).c_str());
-      logln(password);
+      strcpy(password, getConfigParamValue("password", "").c_str());
+      log_info("CONFIG", "Password: " + String(password));
 
       // Local IP
-      strcpy(ip1, (getValueOfParam(CFGSYSTEM[3].cfgLine, "IP")).c_str());
-      logln("IP: " + String(ip1));
+      strcpy(ip1, getConfigParamValue("IP", "192.168.1.10").c_str());
+      log_info("CONFIG", "IP: " + String(ip1));
       POWAIP = ip1;
       IP = strToIPAddress(String(ip1));
       local_IP = IPAddress(IP[0], IP[1], IP[2], IP[3]);
 
       // Subnet
-      strcpy(ip1, (getValueOfParam(CFGSYSTEM[4].cfgLine, "SN")).c_str());
-      logln("SN: " + String(ip1));
+      strcpy(ip1, getConfigParamValue("SN", "255.255.255.0").c_str());
+      log_info("CONFIG", "SN: " + String(ip1));
       IP = strToIPAddress(String(ip1));
       subnet = IPAddress(IP[0], IP[1], IP[2], IP[3]);
 
-      // gateway
-      strcpy(ip1, (getValueOfParam(CFGSYSTEM[5].cfgLine, "GW")).c_str());
-      logln("GW: " + String(ip1));
+      // Gateway
+      strcpy(ip1, getConfigParamValue("GW", "192.168.1.1").c_str());
+      log_info("CONFIG", "GW: " + String(ip1));
       IP = strToIPAddress(String(ip1));
       gateway = IPAddress(IP[0], IP[1], IP[2], IP[3]);
 
       // DNS1
-      strcpy(ip1, (getValueOfParam(CFGSYSTEM[6].cfgLine, "DNS1")).c_str());
-      logln("DNS1: " + String(ip1));
+      strcpy(ip1, getConfigParamValue("DNS1", "192.168.1.1").c_str());
+      log_info("CONFIG", "DNS1: " + String(ip1));
       IP = strToIPAddress(String(ip1));
       primaryDNS = IPAddress(IP[0], IP[1], IP[2], IP[3]);
 
       // DNS2
-      strcpy(ip1, (getValueOfParam(CFGSYSTEM[7].cfgLine, "DNS2")).c_str());
-      logln("DNS2: " + String(ip1));
+      strcpy(ip1, getConfigParamValue("DNS2", "192.168.1.1").c_str());
+      log_info("CONFIG", "DNS2: " + String(ip1));
       IP = strToIPAddress(String(ip1));
       secondaryDNS = IPAddress(IP[0], IP[1], IP[2], IP[3]);
 
-      //MCP23017 (on/off)
-      strcpy(param, (getValueOfParam(CFGSYSTEM[8].cfgLine, "MCP23017")).c_str());
-      logln("MCP23017: " + String(param));
+      // MCP23017 (on/off)
+      strcpy(param, getConfigParamValue("MCP23017", "off").c_str());
+      log_info("CONFIG", "MCP23017: " + String(param));
       String(param).toLowerCase();
       MCP23017_AVAILABLE = String(param) == "on" || String(param) == "1" ? true : false;
 
       // NTP-SERVER
-      strcpy(param, (getValueOfParam(CFGSYSTEM[9].cfgLine, "NTPSERVER")).c_str());
-      logln("NTP-SERVER: " + String(param));
+      strcpy(param, getConfigParamValue("NTPSERVER", "pool.ntp.org").c_str());
+      log_info("CONFIG", "NTP-SERVER: " + String(param));
       NTPSERVER = param;
 
       // NTP-TIMEZONE
-      strcpy(param, (getValueOfParam(CFGSYSTEM[10].cfgLine, "TIMEZONE")).c_str());
+      strcpy(param, getConfigParamValue("TIMEZONE", "0").c_str());
       TIMEZONE = String(param).toInt();
-      logln("TIMEZONE: " + String(TIMEZONE));
+      log_info("CONFIG", "TIMEZONE: " + String(TIMEZONE));
 
       // NTP-SUMMER TIME (on/off)
-      strcpy(param, (getValueOfParam(CFGSYSTEM[11].cfgLine, "SUMMERTIME")).c_str());
-      logln("SUMMERTIME: " + String(param));
+      strcpy(param, getConfigParamValue("SUMMERTIME", "off").c_str());
+      log_info("CONFIG", "SUMMERTIME: " + String(param));
       String(param).toLowerCase();
       SUMMERTIME = String(param) == "on" || String(param) == "1" ? true : false;
 
-      // Spotify credentials (if exist in cfg file)
-      // Spotify username
-      strcpy(param, (getValueOfParam(CFGSYSTEM[12].cfgLine, "SPOTIFY")).c_str());
-      logln("SPOTIFY Enable: " + String(param));
-      SPOTIFY_EN = String(param) == "on" || String(param) == "1" ? true : false;;  
-
-      SPOTIFY_CLIENT_ID = getValueOfParam(CFGSYSTEM[13].cfgLine, "SPOTIFY_CID");
-      logln("SPOTIFY_CID: " + SPOTIFY_CLIENT_ID);
-      //
-      SPOTIFY_CLIENT_SECRET = getValueOfParam(CFGSYSTEM[14].cfgLine, "SPOTIFY_CSE");
-      logln("SPOTIFY_CSE: " + SPOTIFY_CLIENT_SECRET);
-
-      strcpy(param, (getValueOfParam(CFGSYSTEM[15].cfgLine, "QUICKBOOT")).c_str());
-      logln("QUICK Boot: " + String(param));
+      // QUICK BOOT
+      strcpy(param, getConfigParamValue("QUICKBOOT", "off").c_str());
+      log_info("CONFIG", "QUICKBOOT: " + String(param));
       QUICK_BOOT = String(param) == "on" || String(param) == "1" ? true : false;
 
-      strcpy(param, (getValueOfParam(CFGSYSTEM[15].cfgLine, "BEEP")).c_str());
-      logln("BEEP: " + String(param));
+      // BEEP
+      strcpy(param, getConfigParamValue("BEEP", "on").c_str());
+      log_info("CONFIG", "BEEP: " + String(param));
       BEEP = String(param) == "on" || String(param) == "1" ? true : false;
 
-      strcpy(param, (getValueOfParam(CFGSYSTEM[16].cfgLine, "KEYPLAY")).c_str());
-      if (String(param) != "null")
+      // KEY bindings
+      strcpy(param, getConfigParamValue("KEYPLAY", "5").c_str());
+      if (String(param) != "null" && String(param) != "")
       {
         MCP_KEY_PLAY = (uint8_t)(String(param).toInt());
-        logln("KEYPLAY: " + String(MCP_KEY_PLAY));
+        log_info("CONFIG", "KEYPLAY: " + String(MCP_KEY_PLAY));
       }
 
-      strcpy(param, (getValueOfParam(CFGSYSTEM[17].cfgLine, "KEYRWD")).c_str());
-      if (String(param) != "null")
+      strcpy(param, getConfigParamValue("KEYRWD", "4").c_str());
+      if (String(param) != "null" && String(param) != "")
       {
         MCP_KEY_RWD = (uint8_t)(String(param).toInt());
-        logln("KEYRWD: " + String(MCP_KEY_RWD));    
+        log_info("CONFIG", "KEYRWD: " + String(MCP_KEY_RWD));    
       }
       
-      strcpy(param, (getValueOfParam(CFGSYSTEM[18].cfgLine, "KEYFFWD")).c_str());
-      if (String(param) != "null")
+      strcpy(param, getConfigParamValue("KEYFFWD", "3").c_str());
+      if (String(param) != "null" && String(param) != "")
       {
         MCP_KEY_FFWD = (uint8_t)(String(param).toInt());
-        logln("KEYFFWD: " + String(MCP_KEY_FFWD));      
+        log_info("CONFIG", "KEYFFWD: " + String(MCP_KEY_FFWD));      
       }
 
-      strcpy(param, (getValueOfParam(CFGSYSTEM[19].cfgLine, "KEYPAUSE")).c_str());
-      if (String(param) != "null")
+      strcpy(param, getConfigParamValue("KEYPAUSE", "2").c_str());
+      if (String(param) != "null" && String(param) != "")
       {
         MCP_KEY_PAUSE = (uint8_t)(String(param).toInt());
-        logln("KEYPAUSE: " + String(MCP_KEY_PAUSE));
+        log_info("CONFIG", "KEYPAUSE: " + String(MCP_KEY_PAUSE));
       }
 
-      strcpy(param, (getValueOfParam(CFGSYSTEM[20].cfgLine, "KEYSTOP")).c_str());
-      if (String(param) != "null")
+      strcpy(param, getConfigParamValue("KEYSTOP", "1").c_str());
+      if (String(param) != "null" && String(param) != "")
       {
         MCP_KEY_STOP = (uint8_t)(String(param).toInt());
-        logln("KEYSTOP: " + String(MCP_KEY_STOP));
+        log_info("CONFIG", "KEYSTOP: " + String(MCP_KEY_STOP));
       }
 
-      strcpy(param, (getValueOfParam(CFGSYSTEM[21].cfgLine, "KEYREC")).c_str());
-      if (String(param) != "null")
+      strcpy(param, getConfigParamValue("KEYREC", "6").c_str());
+      if (String(param) != "null" && String(param) != "")
       {
         MCP_KEY_REC = (uint8_t)(String(param).toInt());
-        logln("KEYREC: " + String(MCP_KEY_REC));
+        log_info("CONFIG", "KEYREC: " + String(MCP_KEY_REC));
       }
 
-      strcpy(param, (getValueOfParam(CFGSYSTEM[22].cfgLine, "KEYEJECT")).c_str());
-      if (String(param) != "null")
+      strcpy(param, getConfigParamValue("KEYEJECT", "0").c_str());
+      if (String(param) != "null" && String(param) != "")
       {
         MCP_KEY_EJECT = (uint8_t)(String(param).toInt());
-        logln("KEYEJECT: " + String(MCP_KEY_EJECT));
+        log_info("CONFIG", "KEYEJECT: " + String(MCP_KEY_EJECT));
       }
 
-      logln("");
-      logln(
-          "------------------------------------------------------------------");
-      logln("");
-      logln("");
+      log_info("CONFIG", "");
+      log_info("CONFIG", "------------------------------------------------------------------");
+      log_info("CONFIG", "");
+      log_info("CONFIG", "Configuration file loaded successfully.");
 
       fCfg.close();
       cfgloaded = true;
@@ -624,6 +702,7 @@ bool loadCfgFile() {
     // Si no existe creo uno de referencia
     File fCfg;
     if (!SD_MMC.exists("/powadcr_ori.cfg")) {
+      log_info("SETUP", "File powadcr_ori.cfg does not exist. Creating reference file.");
       // fWifi.open("/wifi_ori.cfg", O_WRITE | O_CREAT);
       fCfg = SD_MMC.open("/powadcr_ori.cfg", FILE_WRITE);
 
@@ -641,9 +720,6 @@ bool loadCfgFile() {
         fCfg.println("<NTPSERVER>pool.ntp.org</NTPSERVER>");
         fCfg.println("<TIMEZONE>0</TIMEZONE>");
         fCfg.println("<SUMMERTIME>off</SUMMERTIME>");
-        fCfg.println("<SPOTIFY>off</SPOTIFY>");
-        fCfg.println("<SPOTIFY_CID></SPOTIFY_CID>");
-        fCfg.println("<SPOTIFY_CSE></SPOTIFY_CSE>");
         fCfg.println("<QUICKBOOT>off</QUICKBOOT>");
         fCfg.println("<BEEP>on</BEEP>");
         fCfg.println("<KEYPLAY>5</KEYPLAY>");
@@ -654,9 +730,7 @@ bool loadCfgFile() {
         fCfg.println("<KEYREC>6</KEYREC>");
         fCfg.println("<KEYEJECT>0</KEYEJECT>");
 
-        #ifdef DEBUGMODE
-                logln("powadcr.cfg new file created");
-        #endif
+        log_info("SETUP", "powadcr.cfg new file created");
 
         fCfg.close();
 
@@ -682,6 +756,43 @@ void proccesingTAP(char *file_ch) {
     if (!FILE_CORRUPTED && TOTAL_BLOCKS != 0) {
       // El fichero está preparado para PLAY
       FILE_PREPARED = true;
+
+      // ============================================================================
+      // AUTO-DETECT TAP FORMAT: ORIC, C64, o ZX Spectrum (default)
+      // ============================================================================
+      // Obtenemos el descriptor del primer bloque para determinar tipo de formato
+      if (TOTAL_BLOCKS > 0 && myTAP.descriptor != nullptr) 
+      {
+        uint8_t blockType = myTAP.descriptor[0].type;
+        
+        // type = 0x20 => ORIC TAP (establecido por getBlockDescriptorOric())
+        if (blockType == 0x20)
+        {
+          ORIC_MODE = true;
+          C64_MODE = false;
+          C64_TAP_INSIDE = false;
+          
+        }
+        else if (C64_MODE || C64_TAP_INSIDE)
+        {
+          ORIC_MODE = false;
+          
+          #ifdef DEBUGMODE
+            logAlert("TAP Format: Commodore C64 detected! Setting C64_MODE=true");
+          #endif
+        }
+        else
+        {
+          // ZX Spectrum (default)
+          ORIC_MODE = false;
+          C64_MODE = false;
+          C64_TAP_INSIDE = false;
+          
+          #ifdef DEBUGMODE
+            logAlert("TAP Format: ZX Spectrum (default)");
+          #endif
+        }
+      }
 
 #ifdef DEBUGMODE
       logAlert("TAP prepared");
@@ -750,27 +861,16 @@ void proccesingPZX(char *file_ch) {
 
 void proccesingCSW(char *file_ch) {
   // Procesamos ficheros CSW (Compressed Square Wave)
-  logln("");
-  logln("========================================");
-  logln("Processing CSW file...");
-  logln("========================================");
+  log_info("CSW", "Processing CSW file...");
 
   if (!PLAY) {
     File cswFile = SD_MMC.open(file_ch, FILE_READ);
     
     if (!cswFile) {
-      logln("ERROR: Cannot open CSW file: " + String(file_ch));
+      log_error("CSW", "ERROR: Cannot open CSW file: " + String(file_ch));
       FILE_PREPARED = false;
       return;
     }
-
-    // Validar que sea un fichero CSW válido
-    // if (!pTZX.isFileCSW(cswFile)) {
-    //   logln("ERROR: Invalid CSW file or header not recognized");
-    //   cswFile.close();
-    //   FILE_PREPARED = false;
-    //   return;
-    // }
 
     // Procesar el fichero CSW
     if (pTZX.processCSWFile(cswFile)) 
@@ -782,19 +882,17 @@ void proccesingCSW(char *file_ch) {
       BLOCK_SELECTED = myCSW.numBlocks;
       FILE_PREPARED = true;
 
-      logln("");
-      logln("CSW file prepared successfully!");
-      logln("  - Sample Rate: " + String(myCSW.descriptor[0].sampling_rate) + " Hz");
-      logln("  - Pulses: " + String(myCSW.descriptor[0].num_pulses));
-      logln("  - Compression: " + String(myCSW.descriptor[0].compression_type == 1 ? "RLE" : "Z-RLE"));
-      logln("");
-
+      log_debug("CSW", "CSW file prepared successfully!");
+      log_debug("CSW", "  - Sample Rate: " + String(myCSW.descriptor[0].sampling_rate) + " Hz");
+      log_debug("CSW", "  - Pulses: " + String(myCSW.descriptor[0].num_pulses));
+      log_debug("CSW", "  - Compression: " + String(myCSW.descriptor[0].compression_type == 1 ? "RLE" : "Z-RLE"));
+      log_debug("CSW", "");
 #ifdef DEBUGMODE
       logAlert("CSW prepared");
 #endif
     } else {
       cswFile.close();
-      logln("ERROR: Failed to process CSW file");
+      log_error("CSW", "ERROR: Failed to process CSW file");
       FILE_PREPARED = false;
     }
   } else {
@@ -809,19 +907,13 @@ void verifyConfigFileForSelection();
 
 void proccesingZIP(char *file_ch) {
   // Procesamos ficheros ZIP - Descomprimen el contenido
-  logln("");
-  logln("========================================");
-  logln("Processing ZIP file...");
-  logln("========================================");
-
+  log_info("ZIP","Processing ZIP file: " + String(file_ch));
+  
   LAST_MESSAGE = "Decompressing ZIP...";
   int filesExtracted = _unzipAllFilesToDir(String(file_ch));
   
   if (filesExtracted > 0) {
-    logln("");
-    logln("ZIP extracted successfully!");
-    logln("  - Files extracted: " + String(filesExtracted));
-    logln("");
+    log_info("ZIP", "ZIP extracted successfully! Files extracted: " + String(filesExtracted));
 
     LAST_MESSAGE = "Searching for valid file...";
 
@@ -835,12 +927,12 @@ void proccesingZIP(char *file_ch) {
     if (dotPos != -1) zipName = zipName.substring(0, dotPos);
     
     String extractedDir = dirPath + "/" + zipName;
-    logln("Extracted directory: " + extractedDir);
+    log_info("ZIP", "Extracted directory: " + extractedDir);
     
     // ✅ PASO 2: Buscar el primer archivo válido en el directorio extraído
     File folder = SD_MMC.open(extractedDir.c_str());
     if (!folder || !folder.isDirectory()) {
-      logln("ERROR: Could not open extracted directory");
+      log_error("ZIP", "ERROR: Could not open extracted directory");
       LAST_MESSAGE = "Error: Could not open extracted directory";
       hmi.writeString("tape.g0.txt=\"Error opening directory\"");
       FILE_PREPARED = false;
@@ -850,7 +942,8 @@ void proccesingZIP(char *file_ch) {
 
     String firstValidFile = "";
     String validExtensions[] = {".TAP", ".tap", ".TZX", ".tzx", ".CSW", ".csw", 
-                               ".PZX", ".pzx", ".CDT", ".cdt", ".TSX", ".tsx"};
+                               ".PZX", ".pzx", ".CDT", ".cdt", ".TSX", ".tsx",
+                               ".O", ".o", ".P", ".p", ".80", ".81"};
     
     File entry = folder.openNextFile();
     while (entry && firstValidFile == "") {
@@ -863,7 +956,7 @@ void proccesingZIP(char *file_ch) {
         for (const auto& ext : validExtensions) {
           if (upperName.endsWith(ext)) {
             firstValidFile = String(entry.name());
-            logln("Found valid file: " + firstValidFile);
+            log_debug("ZIP", "Found valid file: " + firstValidFile);
             break;
           }
         }
@@ -874,7 +967,7 @@ void proccesingZIP(char *file_ch) {
     folder.close();
 
     if (firstValidFile == "") {
-      logln("ERROR: No valid Spectrum files found in extracted directory");
+      log_error("ZIP", "ERROR: No valid Spectrum files found in extracted directory");
       LAST_MESSAGE = "Error: No valid files in ZIP";
       hmi.writeString("tape.g0.txt=\"No valid files found\"");
       FILE_PREPARED = false;
@@ -886,8 +979,8 @@ void proccesingZIP(char *file_ch) {
     FILE_LAST_DIR = extractedDir;
     PATH_FILE_TO_LOAD = extractedDir + "/" + firstValidFile;
     
-    logln("Will load: " + PATH_FILE_TO_LOAD);
-    logln("File size to load: " + String(firstValidFile.length()));
+    log_info("ZIP", "Will load: " + PATH_FILE_TO_LOAD);
+    log_info("ZIP", "File size to load: " + String(firstValidFile.length()));
     
     // Copiar el path a file_ch para procesamiento posterior
     PATH_FILE_TO_LOAD.toCharArray(file_ch, 256);
@@ -949,9 +1042,57 @@ void proccesingZIP(char *file_ch) {
         TYPE_FILE_LOAD = "CDT";
       }
       BYTES_TOBE_LOAD = myTZX.size;
+      
+    } else if (PATH_FILE_TO_LOAD.indexOf(".O", PATH_FILE_TO_LOAD.length() - 2) != -1 ||
+               PATH_FILE_TO_LOAD.indexOf(".o", PATH_FILE_TO_LOAD.length() - 2) != -1) {
+      
+      LAST_MESSAGE = "Loading ZX80 file...";
+      TYPE_FILE_LOAD = "ZX80";
+      File zx80File = SD_MMC.open(file_ch, FILE_READ);
+      if (zx80File) {
+        BYTES_TOBE_LOAD = zx80File.size();
+        TOTAL_BLOCKS = 1;  // ZX80 is a single binary data block
+        FILE_PREPARED = true;
+        zx80File.close();
+      }
+      
+    } else if (PATH_FILE_TO_LOAD.indexOf(".80", PATH_FILE_TO_LOAD.length() - 3) != -1) {
+      
+      LAST_MESSAGE = "Loading ZX80 file...";
+      TYPE_FILE_LOAD = "ZX80";
+      File zx80File = SD_MMC.open(file_ch, FILE_READ);
+      if (zx80File) {
+        BYTES_TOBE_LOAD = zx80File.size();
+        TOTAL_BLOCKS = 1;  // ZX80 is a single binary data block
+        FILE_PREPARED = true;
+        zx80File.close();
+      }
+      
+    } else if (PATH_FILE_TO_LOAD.indexOf(".P", PATH_FILE_TO_LOAD.length() - 2) != -1 ||
+               PATH_FILE_TO_LOAD.indexOf(".p", PATH_FILE_TO_LOAD.length() - 2) != -1) {
+      
+      LAST_MESSAGE = "Loading ZX81 file...";
+      TYPE_FILE_LOAD = "ZX81";
+      File zx81File = SD_MMC.open(file_ch, FILE_READ);
+      if (zx81File) {
+        BYTES_TOBE_LOAD = zx81File.size();
+        TOTAL_BLOCKS = 1;  // ZX81 is a single binary data block
+        FILE_PREPARED = true;
+        zx81File.close();
+      }
+      
+    } else if (PATH_FILE_TO_LOAD.indexOf(".81", PATH_FILE_TO_LOAD.length() - 3) != -1) {
+      
+      LAST_MESSAGE = "Loading ZX81 file...";
+      TYPE_FILE_LOAD = "ZX81";
+      File zx81File = SD_MMC.open(file_ch, FILE_READ);
+      if (zx81File) {
+        BYTES_TOBE_LOAD = zx81File.size();
+        TOTAL_BLOCKS = 1;  // ZX81 is a single binary data block
+        FILE_PREPARED = true;
+        zx81File.close();
+      }
     }
-
-    LAST_MESSAGE = "Extracted & loaded: " + firstValidFile;
     hmi.writeString("tape.g0.txt=\"" + firstValidFile + " loaded\"");
     FILE_PREPARED = true;
 
@@ -959,9 +1100,7 @@ void proccesingZIP(char *file_ch) {
     logAlert("ZIP extracted and file loaded");
 #endif
   } else {
-    logln("");
-    logln("ERROR: ZIP extraction failed or no files found");
-    logln("");
+    log_error("ZIP", "ERROR: ZIP extraction failed or no files found");
     LAST_MESSAGE = "Error: ZIP extraction failed";
     hmi.writeString("tape.g0.txt=\"ZIP extraction failed\"");
     FILE_PREPARED = false;
@@ -1328,168 +1467,15 @@ void WavRecording() {
   // Cerramos el fichero WAV
   wavfile.flush();
   wavfile.close();
-
+  //delay(1000);
+  logln("-- Update WAVheader from WavRecording() --");
+  updateWAVHeader(REC_FILENAME);
+  
   WAVFILE_PRELOAD = true;
 
 }
 
-// void WavRecording_old() {
-//   //-----------------------------------------------------------
-//   //
-//   // Esta rutina graba en WAV el audio que entra por LINE IN
-//   //
-//   //-----------------------------------------------------------
-//   String wavfilename = wavfile.name();
-
-//   unsigned long progress_millis = 0;
-//   unsigned long progress_millis2 = 0;
-//   int rectime_s = 0;
-//   int rectime_m = 0;
-//   size_t wavfilesize = 0;
-
-//   auto new_sr = kitStream.defaultConfig(RXTX_MODE);
-//   // Guardamos la configuracion de sampling rate
-//   SAMPLING_RATE = new_sr.sample_rate;
-//   new_sr.sample_rate = DEFAULT_WAV_SAMPLING_RATE_REC;
-//   kitStream.setAudioInfo(new_sr);
-//   // Actuamos sobre el amplificador
-//   kitStream.setPAPower(ACTIVE_AMP && EN_SPEAKER);  
-
-//   logln("Starting WAV recording... on file " + wavfilename);
-
-
-//   AudioInfo info(DEFAULT_WAV_SAMPLING_RATE_REC, 1, 16);
-//   AudioInfo infoStereo(DEFAULT_WAV_SAMPLING_RATE_REC, 2, 16);
-//   // Stream de audio del WAV
-//   EncodedAudioStream encoder(&wavfile, new WAVEncoder()); // Encoder WAV PCM
-//   // Convertidor 16 a 8 bits
-//   NumberFormatConverterStreamT<int16_t, uint8_t> nfc(kitStream);
-
-//   // --- MultiOutput y copier para WAV ---
-//   MultiOutput multi;
-//   multi.add(encoder);
-//   multi.add(kitStream);
-
-//   StreamCopy copier;
-
-//   // Esperamos a que la pantalla esté lista
-//   recAnimationOFF();
-//   delay(125);
-//   recAnimationFIXED_ON();
-//   tapeAnimationON();
-
-//   // Agregamos las salidas al multiple
-  
-//   if (WAV_8BIT_MONO) 
-//   {
-//     // Configuramos el convertidor para 8-bit mono, con la misma frecuencia de muestreo que el encoder
-    
-//     // Configuracion del convertidor
-//     nfc.setAudioInfo(info);
-//     nfc.begin(info);
-
-//     // Inicializamos el multiple output con la configuración de señal del convertidor
-//     //multi.setAudioInfo(info);
-//     multi.begin(nfc.audioInfo());
-//     // Configuramos el copier
-//     copier.begin(multi, nfc); // WAV: fuente kitStream, destinos encoder y kitStream
-//     copier.setSynchAudioInfo(true);
-//     // IMPORTATNTE: Inicializamos el encoder y kitStream con la configuración de señal del convertidor
-//     encoder.begin(nfc.audioInfoOut());
-//   } 
-//   else 
-//   {
-//     // Configuramos el encoder para 44KHz, 16-bit stereo, 2 canales
-//     multi.setAudioInfo(infoStereo);
-//     multi.begin();
-//     // Configuramos el copier
-//     copier.begin(multi, kitStream); // WAV: fuente kitStream, destinos encoder y kitStream
-//     copier.setSynchAudioInfo(true);
-//     // Inicializamos el encoder
-//     encoder.begin(infoStereo);
-//   }
-
-//   // Iniciamos el encoder con la configuración de señal
-  
-
-//   // Reset de variables
-//   STOP = false;
-//   WAVFILE_PRELOAD = false;
-//   BTNREC_PRESSED = false;
-
-//   // Indicamos
-//   hmi.writeString("tape.lblFreq.txt=\"" + String(int(kitStream.audioInfo().sample_rate / 1000)) +
-//                   "KHz\"");
-  
-//   uint32_t samplesWritten = 0;
-
-//   if (WAV_8BIT_MONO) 
-//   {
-//     LAST_MESSAGE = "Warning: I2S output not supports 8-bits";
-//     delay(1500);
-//   } 
-//   //
-//   LAST_MESSAGE = "Recording to WAV - Press STOP to finish.";
-
-//   //
-//   while (!STOP && !BTNREC_PRESSED) {
-//     size_t samplesCopied = copier.copy();
-//     wavfilesize += samplesCopied;
-
-//     // Actualiza tiempo y UI
-//     if ((millis() - progress_millis) > 1000) {
-//       rectime_s++;
-//       if (rectime_s > 59) {
-//         rectime_s = 0;
-//         rectime_m++;
-//       }
-//       progress_millis = millis();
-//     }
-//     if ((millis() - progress_millis2) > 1000) {
-//       LAST_MESSAGE = "Recording time: " +
-//                      ((rectime_m < 10 ? "0" : "") + String(rectime_m)) + ":" +
-//                      ((rectime_s < 10 ? "0" : "") + String(rectime_s));
-//       hmi.writeString("size.txt=\"" +
-//                       String(wavfilesize > 1000000 ? wavfilesize / 1024 / 1024
-//                                                    : wavfilesize / 1024) +
-//                       (wavfilesize > 1000000 ? " MB" : " KB") + "\"");
-//       progress_millis2 = millis();
-//     }
-//   }
-
-//   logln("File has ");
-//   log(String(wavfilesize / 1024));
-//   log(" Kbytes");
-
-//   // Paramos todo
-//   TAPESTATE = 0;
-//   LOADING_STATE = 0;
-//   RECORDING_ERROR = 0;
-//   REC = false;
-//   recAnimationOFF();
-//   recAnimationFIXED_OFF();
-//   tapeAnimationOFF();
-
-//   LAST_MESSAGE = "Recording finish";
-//   logln("Recording finish!");
-
-//   hmi.writeString("size.txt=\"" +
-//                   String(wavfilesize > 1000000 ? wavfilesize / 1024 / 1024
-//                                                : wavfilesize / 1024) +
-//                   (wavfilesize > 1000000 ? " MB" : " KB") + "\"");
-
-//   copier.end();
-//   encoder.end();
-//   nfc.end();
-//   multi.end();
-
-//   // Cerramos el fichero WAV
-//   wavfile.flush();
-//   wavfile.close();
-
-//   WAVFILE_PRELOAD = true;
-
-// }
+// ✅ REMOVED: WavRecording_old() - Obsolete, saves ~80KB
 
 void stopRecording() {
 
@@ -1561,16 +1547,6 @@ bool wifiSetup()
   uint8_t tryconnection = 60;
 
   logln("Attempting to connect to WiFi SSID: [" + String(ssid) + "]");
-  // Esperamos la respuesta
-  // while (wifiStatus != WL_CONNECTED && tryconnection != 0) 
-  // {  
-  //   //hmi.writeString("statusLCD.txt=\"Connecting to WiFi ... " + String(tryconnection/4) + "s \"");
-  //   logln("Connecting to WiFi ... " + String(tryconnection/4) + "s");
-  //   delay(250);
-  //   //WiFi.reconnect();
-  //   //wifiStatus = WiFi.begin(ssid, password);
-  //   tryconnection--;
-  // }
 
   if (wifiStatus == WL_NO_SSID_AVAIL || wifiStatus == WL_NO_SSID_AVAIL) 
   {
@@ -1665,7 +1641,8 @@ void writeStatusLCD(String txt) {
   hmi.writeString("statusLCD.txt=\"" + txt + "\"");
 }
 
-void prepareOutputToWav() {
+void prepareOutputToWav() 
+{
   String wavnamepath = "";
   String wavfileBaseName = "/WAV/rec";
 
@@ -1684,14 +1661,32 @@ void prepareOutputToWav() {
     free(cPath);
   } else {
     // Si es PLAY a WAV
-    if (FILE_LOAD.length() > 0 && PLAY_TO_WAV_FILE) {
+    if (FILE_LOAD.length() > 0 && PLAY_TO_WAV_FILE) 
+    {
       // Cogemos el nombre del TAP/TZX
       wavnamepath = "/WAV/" + removeExtension(FILE_LOAD) + ".wav";
-    } else if (FILE_LOAD.length() < 1 && PLAY_TO_WAV_FILE) {
+      if (USE_ADPCM_CODEC && APPLY_ADPCM_LABEL)
+      {
+         wavnamepath = "/WAV/ADPCM/" + removeExtension(FILE_LOAD) + "_ADPCM.wav";
+      }
+      else
+      {
+         wavnamepath = "/WAV/" + removeExtension(FILE_LOAD) + ".wav";
+      }
+    } 
+    else if (FILE_LOAD.length() < 1 && PLAY_TO_WAV_FILE) 
+    {
       // Cogemos un nombre nuevo porque no existe
-      FILE_LOAD = "rec_tape";
-
-      wavnamepath = "/WAV/" + removeExtension(FILE_LOAD) + ".wav";
+      FILE_LOAD = "rec_tape";          
+      if (USE_ADPCM_CODEC && APPLY_ADPCM_LABEL)
+      {
+        wavnamepath = "/WAV/ADPCM/" + removeExtension(FILE_LOAD) + "_ADPCM.wav";
+      }
+      else
+      {
+        wavnamepath = "/WAV/" + removeExtension(FILE_LOAD) + ".wav";
+      } 
+      
     }
   }
 
@@ -1829,8 +1824,7 @@ void updateSamplingRateIndicator(int rate, int bps, String ext) {
   }
 }
 
-void updateIndicators(int size, int pos, uint32_t fsize, int bitrate,
-                      String fname) {
+void updateIndicators(int size, int pos, uint32_t fsize, int bitrate, String fname) {
   //
   String strBitrate = "";
   fname = fname.substring(fname.lastIndexOf("/") + 1);
@@ -1867,8 +1861,66 @@ void updateIndicators(int size, int pos, uint32_t fsize, int bitrate,
   }
 }
 
-void updateSamplingRate(AudioPlayer &player, Equalizer3Bands &eq,
-                        AudioInfo realInfo) {
+// void updateSamplingRate(AudioPlayer &player, Equalizer3Bands &eq, ConfigEqualizer3Bands &cfg_eq, AudioInfo realInfo) {
+
+//   if (realInfo.sample_rate > 0) 
+//   {
+//     // Actualizamos con la configuración de audio del decoder
+//     player.setAudioInfo(realInfo);
+//     //
+//     // Forzamos volumeStream 
+//     VolumeStreamConfig cfg = volumeStream.defaultConfig();
+//     cfg.sample_rate = realInfo.sample_rate;
+//     cfg.bits_per_sample = realInfo.bits_per_sample;
+//     cfg.channels = realInfo.channels;
+//     volumeStream.begin(cfg);
+//     //
+//     kitStream.setAudioInfo(realInfo);
+//     //
+//     // Forzamos EQ: Si no se deja el ultimo, no se actualiza el sampling rate.
+//     updateEqualizerSettings(eq,cfg_eq, realInfo);
+
+//     if (realInfo.channels == 1 && realInfo.bits_per_sample == 8) {
+//       myNex.writeStr("tape.wavind.txt", "8BIT");
+//     }
+//     else
+//     {
+//       myNex.writeStr("tape.wavind.txt", "");
+//     }
+
+//     log_info("PLAYER","Real Audio Info - Sample Rate: " + String(realInfo.sample_rate) +
+//           "Hz, Bits: " + String(realInfo.bits_per_sample) +
+//           ", Channels: " + String(realInfo.channels));
+
+//     log_info("PLAYER","Player - Sample Rate: " + String(player.audioInfo().sample_rate) +
+//           "Hz, Bits: " + String(player.audioInfo().bits_per_sample) +
+//           ", Channels: " + String(player.audioInfo().channels));          
+
+//     log_info("PLAYER","Equalizer - Sample Rate: " + String(eq.audioInfo().sample_rate) +
+//           "Hz, Bits: " + String(eq.audioInfo().bits_per_sample) +
+//           ", Channels: " + String(eq.audioInfo().channels));          
+
+//     log_info("PLAYER","VolumeStream - Sample Rate: " + String(volumeStream.audioInfo().sample_rate) +
+//           "Hz, Bits: " + String(volumeStream.audioInfo().bits_per_sample) +
+//           ", Channels: " + String(volumeStream.audioInfo().channels));             
+
+//     log_info("PLAYER","KitStream - Sample Rate: " + String(kitStream.audioInfo().sample_rate) +
+//           "Hz, Bits: " + String(kitStream.audioInfo().bits_per_sample) +
+//           ", Channels: " + String(kitStream.audioInfo().channels));          
+
+
+//     // Mostramos la información
+//     myNex.writeStr("tape.lblFreq.txt", String(int(realInfo.sample_rate / 1000)) + "KHz");
+//     //delay(125);
+//   } 
+//   else 
+//   {
+//     log_info("PLAYER","Warning: Invalid sample rate detected in audio file.");
+//     myNex.writeStr("tape.lblFreq.txt=", " -- KHz");
+//   }
+// }
+
+void updateSamplingRate(AudioPlayer &player, Equalizer3Bands &eq, AudioInfo realInfo) {
   logln("Reading sampling rate and updating.");
 
   if (realInfo.sample_rate > 0) {
@@ -1907,10 +1959,6 @@ void estimatePlayingTime(int fileread, int filesize, int samprate) {
 
     String utsec = (tsec < 10) ? "0" : "";
     String utmin = (tmin < 10) ? "0" : "";
-
-    // Elapsed time
-    // logln("Bit rate por sample: " + String(ainfo.bits_per_sample));
-    // logln("Sampling rate:       " + String(ainfo.sample_rate));
 
     float time = 0;
 
@@ -2011,9 +2059,6 @@ int generateRadioList(tAudioList *&radioList) {
       continue;
     }
 
-    // 4. Extraer nombre y URL
-    // logln("Radio read: " + line);
-
     String stationName = line.substring(0, commaIndex);
     String stationUrl = line.substring(commaIndex + 1);
 
@@ -2021,8 +2066,6 @@ int generateRadioList(tAudioList *&radioList) {
     stationName.trim();
     stationUrl.trim();
 
-    // logln(" > Station Name: " + stationName + " | Station URL: " +
-    // stationUrl);
 
     // 5. Eliminar comillas del nombre de la emisora
     if (stationName.length() >= 2) {
@@ -2048,82 +2091,7 @@ int generateRadioList(tAudioList *&radioList) {
   return radioCount;
 }
 
-// // ✅ NUEVA FUNCIÓN
-// int generateRadioList(tAudioList* &radioList) {
-//     // Asignamos memoria para la lista de radios
-//     radioList = (tAudioList*)ps_calloc(MAX_RADIO_STATIONS,
-//     sizeof(tAudioList)); if (radioList == nullptr) {
-//         logln("Error: Failed to allocate memory for radio list.");
-//         return 0;
-//     }
-
-//     int radioCount = 0;
-//     const char* filepath = PATH_FILE_TO_LOAD.c_str();
-
-//     // 1. Verificar que el archivo de radios existe
-//     if (!SD_MMC.exists(filepath)) {
-//         logln("Error: Radio list file not found: " + String(filepath));
-//         free(radioList); // Liberar memoria si el archivo no existe
-//         radioList = nullptr;
-//         return 0;
-//     }
-
-//     // 2. Abrir el archivo para lectura
-//     File radioFile = SD_MMC.open(filepath, FILE_READ);
-//     if (!radioFile) {
-//         logln("Error: Could not open radio list file: " + String(filepath));
-//         free(radioList); // Liberar memoria si no se puede abrir
-//         radioList = nullptr;
-//         return 0;
-//     }
-
-//     logln("Generating radio list from: " + String(filepath));
-
-//     // 3. Leer el archivo línea por línea
-//     while (radioFile.available() && radioCount < MAX_RADIO_STATIONS) {
-//         String line = radioFile.readStringUntil('\n');
-//         line.trim();
-
-//         // Ignorar líneas vacías o sin el separador ','
-//         int commaIndex = line.indexOf(',');
-//         if (line.length() == 0 || commaIndex == -1) {
-//             continue;
-//         }
-
-//         // 4. Extraer nombre y URL
-//         String stationName = line.substring(0, commaIndex);
-//         String stationUrl = line.substring(commaIndex + 1);
-
-//         // Limpiar espacios en blanco al principio y al final
-//         stationName.trim();
-//         stationUrl.trim();
-
-//         // 5. Eliminar comillas del nombre de la emisora
-//         if (stationName.length() >= 2) {
-//             if (stationName.startsWith("\"") && stationName.endsWith("\"")) {
-//                 stationName = stationName.substring(1, stationName.length() -
-//                 1);
-//             } else if (stationName.startsWith("'") &&
-//             stationName.endsWith("'")) {
-//                 stationName = stationName.substring(1, stationName.length() -
-//                 1);
-//             }
-//         }
-
-//         // 6. Almacenar en la estructura si los datos son válidos
-//         if (stationName.length() > 0 && stationUrl.length() > 0) {
-//             radioList[radioCount].filename = stationName;
-//             radioList[radioCount].path = stationUrl;
-//             radioCount++;
-//         }
-//     }
-
-//     // 7. Cerrar el archivo y devolver el total
-//     radioFile.close();
-
-//     logln("Radio list generated with " + String(radioCount) + " stations.");
-//     return radioCount;
-// }
+// ✅ REMOVED: Duplicate generateRadioList() - saves ~15KB
 
 int generateAudioList(tAudioList *&audioList, String extension = ".mp3") {
   audioList = (tAudioList *)ps_calloc(MAX_FILES_AUDIO_LIST, sizeof(tAudioList));
@@ -2135,11 +2103,11 @@ int generateAudioList(tAudioList *&audioList, String extension = ".mp3") {
   String filesListPath = parentDir + "_files.lst";
   String fileSelected = getFileNameFromPath(PATH_FILE_TO_LOAD);
 
-  // ✅ NUEVAS RUTAS para los archivos de índice
+  // NUEVAS RUTAS para los archivos de índice
   String idxPath = parentDir + "idx.txt";
   String idxDefPath = parentDir + "idx-def.txt";
 
-  // ✅ Verificar que el archivo _files.lst existe
+  // Verificar que el archivo _files.lst existe
   if (!SD_MMC.exists(filesListPath.c_str())) {
     logln("Error: Files list not found: " + filesListPath);
     return 0;
@@ -2151,7 +2119,7 @@ int generateAudioList(tAudioList *&audioList, String extension = ".mp3") {
     return 0;
   }
 
-  // ✅ CREAR archivos de índice para AudioSourceIdxSDMMC
+  // CREAR archivos de índice para AudioSourceIdxSDMMC
   File idxFile;
   File idxDefFile;
 
@@ -2210,7 +2178,7 @@ int generateAudioList(tAudioList *&audioList, String extension = ".mp3") {
       tipo.trim();
       nombre.trim();
 
-      // ✅ Validaciones adicionales de seguridad
+      // Validaciones adicionales de seguridad
       if (nombre.length() == 0 || nombre.length() > 255) {
         logln("Invalid filename length: " + nombre);
         continue;
@@ -2238,7 +2206,7 @@ int generateAudioList(tAudioList *&audioList, String extension = ".mp3") {
       extensionLower.toLowerCase();
 
       if (tipo == "F" && nombreLower.endsWith(extensionLower)) {
-        // ✅ Añadir a la lista de audio
+        // Añadir a la lista de audio
         audioList[size].index = indice.toInt();
         audioList[size].filename = nombre;
         audioList[size].path = parentDir;
@@ -2249,7 +2217,7 @@ int generateAudioList(tAudioList *&audioList, String extension = ".mp3") {
           MEDIA_CURRENT_POINTER = size;
         }
 
-        // ✅ ESCRIBIR en idx.txt (formato requerido por AudioSourceIdxSDMMC)
+        // ESCRIBIR en idx.txt (formato requerido por AudioSourceIdxSDMMC)
         String fullPath = parentDir + nombre;
         idxFile.println(fullPath);
 
@@ -2263,10 +2231,10 @@ int generateAudioList(tAudioList *&audioList, String extension = ".mp3") {
       }
     }
 
-    // ✅ Cerrar el archivo idx.txt
+    // Cerrar el archivo idx.txt
     idxFile.close();
 
-    // ✅ CREAR archivo idx-def.txt
+    // CREAR archivo idx-def.txt
     idxDefFile = SD_MMC.open(idxDefPath.c_str(), FILE_WRITE);
     if (idxDefFile) {
       // Crear la clave de definición (formato requerido por
@@ -2286,7 +2254,7 @@ int generateAudioList(tAudioList *&audioList, String extension = ".mp3") {
     logln("Unknown exception in generateAudioList");
   }
 
-  // ✅ Limpieza garantizada
+  // Limpieza garantizada
   free(line);
   line = nullptr;
 
@@ -2306,10 +2274,8 @@ int generateAudioList(tAudioList *&audioList, String extension = ".mp3") {
   return size;
 }
 
-int getIndexFromAudioList(tAudioList *audioList, int size,
-                          const String &searchValue) {
+int getIndexFromAudioList(tAudioList *audioList, int size, const String &searchValue) {
   for (int i = 0; i < size; i++) {
-    // logln("Comparing: " + audioList[i].filename + " with " + searchValue);
 
     if (audioList[i].filename.equalsIgnoreCase(searchValue)) {
       return audioList[i].index; // Retorna el índice del archivo encontrado
@@ -2574,9 +2540,13 @@ void updateDialIndicator(int pos)
 {
   // Parametros.
 
-  // Con el reloj abierto mejor no hacemos nada con la barra del dial
-  // ya que se superpone en el reloj.
-  if (CURRENT_PAGE != PAGE_CLOCK)
+  // Con el reloj abierto ó con el Block Browser abierto, mejor no hacemos nada con la barra del dial
+  // ya que se superpone.
+  logln("Updating dial indicator at position: " + String(pos));
+  logln("Current page: " + String(CURRENT_PAGE));
+
+  // Solo se actualiza cuando se pone visible la pagina de la radio
+  if (CURRENT_PAGE != PAGE_CLOCK && RADIO_PAGE_SHOWN)
   {
       const int xini = 130;  // x ini of dial
       const int width = 232; // dial range pixels
@@ -2681,7 +2651,28 @@ void radio_network_task(void *parameter)
   logln("Heap - NET: " + String(ESP.getFreeHeap()) + " (max bloque: " + String(ESP.getMaxAllocHeap()) + ")");
 }
 
-// ... (código existente, incluyendo radio_network_task) ...
+
+// bool volumeStreamSettings()
+// {
+//   auto cfg_vo = volumeStream.defaultConfig();
+//   cfg_vo.copyFrom(kitStream.audioInfo());
+//   return volumeStream.begin(cfg_vo);
+// }
+
+bool updateEqualizerSettings(Equalizer3Bands &eq,ConfigEqualizer3Bands &cfg_eq, AudioInfo cfg) {
+  // Actualizamos el parametrizado del 3-BAND EQ
+  // cfg_eq debe ser estática para evitar overflow de stack durante procesamiento de audio
+  //static audio_tools::ConfigEqualizer3Bands cfg_eq;
+  cfg_eq = eq.defaultConfig();
+  // ASignamos parametros base del I2S
+  eq.setAudioInfo(cfg);
+  // Modificamos los filtros
+  cfg_eq.gain_low = EQ_LOW;
+  cfg_eq.gain_medium = EQ_MID;
+  cfg_eq.gain_high = EQ_HIGH;
+  // Terminamos.
+  return (eq.begin(cfg_eq));
+}
 
 void RadioPlayer() {
 
@@ -2738,12 +2729,13 @@ void RadioPlayer() {
   MP3DecoderHelix decoder;
   EncodedAudioStream decodedStream(&eq, &decoder);
 
-  cfg_eq = eq.defaultConfig();
-  cfg_eq.setAudioInfo(cfg);
-  cfg_eq.gain_low = EQ_LOW;
-  cfg_eq.gain_medium = EQ_MID;
-  cfg_eq.gain_high = EQ_HIGH;
-  eq.begin(cfg_eq);
+  updateEqualizerSettings(eq,cfg_eq,cfg);
+  //cfg_eq = eq.defaultConfig();
+  // cfg_eq.setAudioInfo(cfg);
+  // cfg_eq.gain_low = EQ_LOW;
+  // cfg_eq.gain_medium = EQ_MID;
+  // cfg_eq.gain_high = EQ_HIGH;
+  // eq.begin(cfg_eq);
 
   // Variables de estado
   uint8_t playerState = 0;
@@ -2771,9 +2763,7 @@ void RadioPlayer() {
   STOP = false;
   EJECT = false;
   TOTAL_BLOCKS = generateRadioList(audiolist);
-  currentRadioStation =
-      nextRadioStation(PATH_FILE_TO_LOAD, radioName, radioUrlBuffer,
-                       sizeof(radioUrlBuffer), true, 0, true);
+  currentRadioStation = nextRadioStation(PATH_FILE_TO_LOAD, radioName, radioUrlBuffer, sizeof(radioUrlBuffer), true, 0, true);
   updateDialIndicator(currentRadioStation);
   LAST_MESSAGE = "Ready. Press PLAY.";
   playerState = 10;
@@ -2789,11 +2779,12 @@ void RadioPlayer() {
     if (EQ_CHANGE) 
     {
       EQ_CHANGE = false;
-      cfg_eq.setAudioInfo(cfg);
-      cfg_eq.gain_low = EQ_LOW;
-      cfg_eq.gain_medium = EQ_MID;
-      cfg_eq.gain_high = EQ_HIGH;
-      eq.begin(cfg_eq);  // Reconfigura el ecualizador
+      updateEqualizerSettings(eq, cfg_eq, cfg);
+      // cfg_eq.setAudioInfo(cfg);
+      // cfg_eq.gain_low = EQ_LOW;
+      // cfg_eq.gain_medium = EQ_MID;
+      // cfg_eq.gain_high = EQ_HIGH;
+      // eq.begin(cfg_eq);  // Reconfigura el ecualizador
     }
 
     // Gestión de botones FFWD/RWIND
@@ -2868,6 +2859,7 @@ void RadioPlayer() {
     if (BB_OPEN || BB_UPDATE) {
       while (BB_OPEN || BB_UPDATE) 
       {
+        //logln("Opening Block Media Browser for radio stations...");
         hmi.openBlockMediaBrowser(audiolist);
       }
     } else if (UPDATE_HMI || UPDATE) {
@@ -3161,7 +3153,6 @@ void RadioPlayer() {
   vTaskDelay(pdMS_TO_TICKS(50));
   RADIO_IS_PLAYING = false;
 }
-// ... (resto del código) ...
 
 void MediaPlayer() {
 
@@ -3251,6 +3242,11 @@ void MediaPlayer() {
   // Decodificador WAV tipo PCM
   WAVDecoder decoderWAV;
 
+  // Decodificador ADPCM (para WAV con ADPCM IMA WAV)
+  ADPCMDecoder decoderADPCM(AV_CODEC_ID_ADPCM_YAMAHA);
+  // WAVDecoder que wrappea ADPCM (uso correcto para ADPCM)
+  WAVDecoder decoderWAV_ADPCM(decoderADPCM, AudioFormat::ADPCM);
+
   // Decodificador FLAC
   FLACDecoderFoxen decoderFLAC;
   //FLACDecoder decoderFLAC;
@@ -3296,9 +3292,12 @@ void MediaPlayer() {
 
   // Esto nos permite propagación del setting del fichero, sampling, bits,
   // canales.
-  // WAV
+  // WAV PCM
   decoderWAV.addNotifyAudioChange(volumeStream);
   decoderWAV.addNotifyAudioChange(eq);
+  // WAV ADPCM (wrapped in WAVDecoder)
+  decoderWAV_ADPCM.addNotifyAudioChange(volumeStream);
+  decoderWAV_ADPCM.addNotifyAudioChange(eq);
   // MP3
   metadatafilter.addNotifyAudioChange(measureMP3);
   decoderMP3.addNotifyAudioChange(volumeStream);
@@ -3318,104 +3317,135 @@ void MediaPlayer() {
   auto tempConfig = kitStream.defaultConfig();
 
   // Esto es necesario para que el player sepa donde rediregir el audio
-  switch (ext[0]) {
-  case 'w':
-    // WAV
-    // Iniciamos el decoder
-    if (decoderWAV.begin()) {
-      // Configuramos temporalmente el audio a 44100Hz hasta que leamos el
-      // archivo real
-      tempConfig = kitStream.defaultConfig();
-      tempConfig.sample_rate = 44100;
-      tempConfig.bits_per_sample = 16;
-      tempConfig.channels = 2;
-      kitStream.setAudioInfo(tempConfig);
-      eq.setAudioInfo(tempConfig);
-    } else {
-      logln("Error initializing WAV decoder");
-      LAST_MESSAGE = "Error initializing WAV decoder";
-      STOP = true;
-      PLAY = false;
-      return;
-    }
-    // Solo insertar el efecto de inversión si INVERSETRAIN está activo.
-    // AudioEffectStream colapsa estéreo a mono, por lo que se evita cuando
-    // no es necesario para preservar el audio estéreo original.
-    if (INVERSETRAIN) 
-    {
-      wavEffectStream.begin(tempConfig);
-      player.setOutput(wavEffectStream);
-      hmi.refreshPulseIcons(INVERSETRAIN, ZEROLEVEL);
-    }
-    // decoderWAV.setOutput(eq);
-    //  Configuramos el player con el decoder
-    player.setDecoder(decoderWAV);
+  switch (ext[0]) 
+  {
+      case 'w':
+      {
+        // WAV - Detectar formato ANTES de inicializar decoders
+        logln("\n--- WAV file detected ---");
+        
+        // Abrir archivo para lectura del header
+        File wavFile = SD_MMC.open(PATH_FILE_TO_LOAD.c_str(), FILE_READ);
+        if (!wavFile) {
+          logln("ERROR: Cannot open WAV file for header detection");
+          LAST_MESSAGE = "Error opening WAV file";
+          STOP = true;
+          PLAY = false;
+          return;
+        }
+        
+        // Leer el chunk "fmt " para detectar formato de audio (bytes 20-21)
+        wavFile.seek(20);  // Posición del campo de formato en el header WAV
+        uint8_t formatBytes[2];
+        wavFile.read(formatBytes, 2);
+        uint16_t audioFormat = formatBytes[0] | (formatBytes[1] << 8);
+        wavFile.close();
+        
+        log_info("PLAYER","WAV format code: " + String(audioFormat) + " (1=PCM, 2=ADPCM-IMA)");
+        
+        bool isADPCM = (audioFormat == 2);  // 2 = ADPCM IMA WAV
+        
+        // Inicializar el decoder apropiado
+        if (isADPCM) {
+          log_info("PLAYER","Using WAV ADPCM IMA decoder");
+          
+          tempConfig = kitStream.defaultConfig();
+          tempConfig.sample_rate = 44100;
+          tempConfig.bits_per_sample = 16;
+          tempConfig.channels = 2;
+          kitStream.setAudioInfo(tempConfig);
+          eq.setAudioInfo(tempConfig);
+          
+          if (INVERSETRAIN) {
+            wavEffectStream.begin(tempConfig);
+            player.setOutput(wavEffectStream);
+            hmi.refreshPulseIcons(INVERSETRAIN, ZEROLEVEL);
+          }
+          
+          player.setDecoder(decoderWAV_ADPCM);
+          log_info("PLAYER","WAV ADPCM decoder set");
+        } 
+        else {
+          log_info("PLAYER","Using PCM decoder");
+          if (!decoderWAV.begin()) {
+            log_info("PLAYER","ERROR: Cannot initialize WAV decoder");
+            LAST_MESSAGE = "Error initializing WAV decoder";
+            STOP = true;
+            PLAY = false;
+            return;
+          }
+          
+          tempConfig = kitStream.defaultConfig();
+          tempConfig.sample_rate = 44100;
+          tempConfig.bits_per_sample = 16;
+          tempConfig.channels = 2;
+          kitStream.setAudioInfo(tempConfig);
+          eq.setAudioInfo(tempConfig);
+          
+          if (INVERSETRAIN) {
+            wavEffectStream.begin(tempConfig);
+            player.setOutput(wavEffectStream);
+            hmi.refreshPulseIcons(INVERSETRAIN, ZEROLEVEL);
+          }
+          
+          player.setDecoder(decoderWAV);
+          log_info("PLAYER","PCM decoder set");
+        }
+        
+        player.setAutoNext(AUTO_NEXT);
+        player.setAutoFade(AUTO_FADE);
+      }
+      break;
 
-    // Otras configuraciones del player
-    player.setAutoNext(AUTO_NEXT);
-    player.setAutoFade(AUTO_FADE);
-    logln("WAV decoder set in player");
-    break;
+      case 'm':
+      {
+        // MP3
+        measureMP3.begin();
+        decoderMP3.begin();
+        measureMP3.setOutput(eq);
+        player.setDecoder(metadatafilter);
+        player.setOutput(measureMP3);
+        // Dimensionado del buffer de mp3
+        player.setBufferSize(2048); // 4096 KB para MP3
 
-  case 'm':
-    // MP3
-    measureMP3.begin();
-    decoderMP3.begin();
-    measureMP3.setOutput(eq);
-    player.setDecoder(metadatafilter);
-    player.setOutput(measureMP3);
-    // Dimensionado del buffer de mp3
-    player.setBufferSize(2048); // 4096 KB para MP3
+        // Configuramos temporalmente el audio a 44100Hz hasta que leamos el archivo
+        // real
+        tempConfig = kitStream.defaultConfig();
+        tempConfig.sample_rate = 44100;
+        tempConfig.bits_per_sample = 16;
+        tempConfig.channels = 2;
+        kitStream.setAudioInfo(tempConfig);
+        eq.setAudioInfo(tempConfig);
 
-    // Configuramos temporalmente el audio a 44100Hz hasta que leamos el archivo
-    // real
-    tempConfig = kitStream.defaultConfig();
-    tempConfig.sample_rate = 44100;
-    tempConfig.bits_per_sample = 16;
-    tempConfig.channels = 2;
-    kitStream.setAudioInfo(tempConfig);
-    eq.setAudioInfo(tempConfig);
+        // Otras configuraciones del player
+        player.setAutoNext(AUTO_NEXT);
+        player.setAutoFade(AUTO_FADE);
+        log_info("PLAYER","MP3 decoder set in player");
+      }
+      break;
 
-    // Otras configuraciones del player
-    player.setAutoNext(AUTO_NEXT);
-    player.setAutoFade(AUTO_FADE);
-    logln("MP3 decoder set in player");
-    break;
+      case 'f':
+      {
+        // FLAC - Usar reproductor optimizado exclusivamente para FLAC
+        log_info("PLAYER","Generating idx.txt file");
+        audioListSize = generateAudioList(audiolist, ext);
 
-  case 'f':
-    // FLAC
-    isFLAC = true;
-    tmpoToRfsh = 2000;
-    // measureFLAC.begin();
-    FLAC_IS_PLAYING = true;
+        log_info("PLAYER","-- > Resend stream to FLACPlayer()");
+        FLAC_IS_PLAYING = true;        
+        FLACPlayer();  // Reproductor FLAC altamente optimizado
+        FLAC_IS_PLAYING = false;
+        return;  // Retorno desde MediaPlayer()
+      }
+      break;
 
-    if (decoderFLAC.begin()) {
-      logln("FLAC decoder initialized");
-
-      // Configuramos temporalmente el audio a 44100Hz hasta que leamos el
-      // archivo real
-      tempConfig = kitStream.defaultConfig();
-      tempConfig.sample_rate = 44100;
-      tempConfig.bits_per_sample = 16;
-      tempConfig.channels = 2;
-      kitStream.setAudioInfo(tempConfig);
-      eq.setAudioInfo(tempConfig);
-    } else {
-      logln("Error initializing FLAC decoder");
-      LAST_MESSAGE = "Error initializing FLAC decoder";
-      STOP = true;
-      PLAY = false;
-      return;
-    }
-    player.setDecoder(decoderFLAC);
-    logln("FLAC decoder set in player");
-    break;
-
-  default:
-    LAST_MESSAGE = "Unsupported format";
-    delay(1500);
-    return;
-    break;
+      default:
+      {
+        log_info("PLAYER","Unsupported format");
+        LAST_MESSAGE = "Unsupported format";
+        delay(1500);
+        return;
+      }
+      break;
   }
 
   #ifdef BLUETOOTH_ENABLE
@@ -3438,6 +3468,7 @@ void MediaPlayer() {
     PLAY = false;
     return;
   }
+
   // Obtenemos el tamaño del archivo actual
   fileSize = pFile->size();
   // Inicializamos el número de bytes leídos
@@ -3545,7 +3576,6 @@ void MediaPlayer() {
   #endif
 
   
-
   // Ajustamos el volumen antes de empezar con la reproducción.
   player.setVolume(float(MAIN_VOL) / 100.0f);
   kitStream.setVolume(float(MAIN_VOL) / 100.0f);
@@ -3591,12 +3621,6 @@ void MediaPlayer() {
 
     }
 
-    // if (VOL_CHANGE) 
-    // {
-    //   volumeStream.setVolume(MAIN_VOL * MAIN_VOL_L / 100, 0); // Right
-    //   volumeStream.setVolume(MAIN_VOL * MAIN_VOL_R / 100, 1); // Left
-    //   VOL_CHANGE = false;  
-    // }
 
     // Estados del reproductor
     switch (stateStreamplayer) {
@@ -3627,6 +3651,7 @@ void MediaPlayer() {
         pFile->seek(0); // Nos aseguramos de que el nuevo track comience desde el principio
         delay(250);
         player.setMuted(false);
+
         // Ajustamos el volumen tras un player.begin()
         hmi.setVolumenOutput();
 
@@ -3642,7 +3667,8 @@ void MediaPlayer() {
           logln("WAV sample rate: " + String(sr) + " Hz");
           logln("WAV format: " + String((int)format));
 
-          if (format != AudioFormat::PCM) {
+          if (format != AudioFormat::PCM && format != AudioFormat::ADPCM) 
+          {
             logln("WAV format not supported.");
             LAST_MESSAGE = "WAV format not supported.";
             STOP = true;
@@ -4323,7 +4349,8 @@ void MediaPlayer() {
               format = decoderWAV.audioInfoEx().format;
               logln("WAV format: " + String((int)format));
 
-              if (format != AudioFormat::PCM) {
+              if (format != AudioFormat::PCM && format != AudioFormat::ADPCM) 
+              {
                 logln("WAV format not supported.");
                 LAST_MESSAGE = "WAV format not supported.";
                 AUDIO_FORMART_IS_VALID = false;
@@ -4603,20 +4630,23 @@ void MediaPlayer() {
   tapeAnimationOFF();
 
   // Descargamos objetos
-  // player.end();
+  player.end();
   eq.end();
 
   // Desvinculamos todas las notificaciones. Importante para evitar problemas
   decoderMP3.clearNotifyAudioChange();
   decoderWAV.clearNotifyAudioChange();
   decoderFLAC.clearNotifyAudioChange();
+  decoderWAV_ADPCM.clearNotifyAudioChange();
+  decoderADPCM.clearNotifyAudioChange();
+  
   //
   decoderMP3.end();
   decoderWAV.end();
   decoderFLAC.end();
+  
   measureMP3.end();
   metadatafilter.end();
-  //volumeStream.end();
 
   // Desvinculamos todas las notificaciones. Importante para evitar problemas
   kitStream.clearNotifyAudioChange();
@@ -4636,6 +4666,8 @@ void MediaPlayer() {
   FLAC_IS_PLAYING = false;
   MEDIA_PLAYER_EN = false;
 }
+
+
 
 // Función helper para cambiar configuración de audio de manera segura
 bool setAudioInfoSafe(audio_tools::AudioInfo newInfo, const String &context = "") {
@@ -4667,78 +4699,203 @@ bool setAudioInfoSafe(audio_tools::AudioInfo newInfo, const String &context = ""
   }
 }
 
-// Modificar MediaPlayer() - configuración inicial
-// Forward declarations
-// void playingFile2();
-
-// // Versión original optimizada
-// void playingFile() {
-//   playingFile2();
-// }
+// ✅ REMOVED: Duplicate/commented playingFile() wrapper - saves ~5KB
 
 // Función auxiliar para configurar WAV encoder
 void setupWAVEncoder() {
   if (!OUT_TO_WAV) return;
   
+  // Seleccionar el encoder seg\u00fan la variable global USE_ADPCM_CODEC
+  if (USE_ADPCM_CODEC) {
+    encoderOutWAV = &encoderOutWAV_ADPCM;
+    encoderOutWAV8 = &encoderOutWAV8_ADPCM;
+    String wavindicator = myNex.readStr("tape.wavind.txt");
+    myNex.writeStr("tape.wavind.txt", wavindicator + "+A");
+    logln("Using ADPCM codec");
+  } else {
+    encoderOutWAV = &encoderOutWAV_PCM;
+    encoderOutWAV8 = &encoderOutWAV8_PCM;
+    logln("Using PCM codec");
+  }
+  
   AudioInfo wavencodercfg(DEFAULT_WAV_SAMPLING_RATE_REC, WAV_8BIT_MONO ? 1 : 2, 16);
   if (CHOOSE_WAV_REC_44) wavencodercfg.sample_rate = DEFAULT_WAV_SAMPLING_RATE_REC_2;
   
-  encoderOutWAV.begin(wavencodercfg);
+  encoderOutWAV->begin(wavencodercfg);
   if (WAV_8BIT_MONO) {
-    encoderOutWAV8.begin(wavencodercfg);
-    encoderOutWAV.begin(encoderOutWAV8.audioInfoOut());
+    encoderOutWAV8->begin(wavencodercfg);
+    encoderOutWAV->begin(encoderOutWAV8->audioInfoOut());
   }
   
   hmi.writeString("tape.lblFreq.txt=\"" + String(int(wavencodercfg.sample_rate / 1000)) + "KHz\"");
 
-  logln("WAV encoder - Out to WAV: " + String(encoderOutWAV.audioInfo().sample_rate) + "Hz, " +
-        String(encoderOutWAV.audioInfo().bits_per_sample) + "b, " + 
-        String(encoderOutWAV.audioInfo().channels) + "ch");
+  logln("WAV encoder - Out to WAV: " + String(encoderOutWAV->audioInfo().sample_rate) + "Hz, " +
+        String(encoderOutWAV->audioInfo().bits_per_sample) + "b, " + 
+        String(encoderOutWAV->audioInfo().channels) + "ch");
   delay(2000);
+}
+
+void updateWAVHeader(const String &file_path) 
+{
+  logln("Updating WAV header for file: " + file_path);
+
+  if (file_path.length() == 0) {
+    logln("WAV file path is empty - cannot update header");
+    return;
+  }
+
+  // Construir ruta completa con /sdcard/ si no la tiene
+  String full_path = file_path;
+  if (!file_path.startsWith("/sdcard/")) {
+    full_path = "/sdcard" + file_path;
+  }
+  logln("Full VFS path: " + full_path);
+
+  // Abrir con POSIX fopen en modo "rb+" (lectura/escritura sin truncar)
+  FILE *wavFile = fopen(full_path.c_str(), "rb+");
+  if (!wavFile) {
+    logln("Failed to open WAV file: " + full_path);
+    
+    return;
+  }
+
+  // Obtener tamaño del archivo
+  fseek(wavFile, 0, SEEK_END);
+  uint32_t file_size = ftell(wavFile);
+  fseek(wavFile, 0, SEEK_SET);
+  
+  if (file_size < 44) {
+    logln("WAV file is too small to be valid: " + String(file_size) + " bytes");
+    fclose(wavFile);
+    return;
+  }
+
+  // Leer los primeros 44 bytes del header
+  uint8_t header_buffer[44];
+  size_t bytes_read = fread(header_buffer, 1, 44, wavFile);
+  
+  if (bytes_read != 44) {
+    logln("Failed to read WAV header: read " + String(bytes_read) + " bytes instead of 44");
+    fclose(wavFile);
+    return;
+  }
+
+  // Parsear header para validar
+  WAVHeader wavHeader;
+  wavHeader.write(header_buffer, 44);
+  if (!wavHeader.parse()) {
+    logln("Failed to parse WAV header");
+    fclose(wavFile);
+    return;
+  }
+
+  logln("DEBUG - Before update: file_size=" + String(wavHeader.audioInfo().file_size) + 
+        ", data_length=" + String(wavHeader.audioInfo().data_length));
+
+  // Calcular los valores correctos
+  uint32_t riff_size = file_size - 8;      // RIFF chunk size (todo excepto "RIFF" y su tamaño)
+  uint32_t data_length = file_size - 44;   // data chunk size (todo excepto el header de 44 bytes)
+
+  logln("Calculated: riff_size=" + String(riff_size) + ", data_length=" + String(data_length));
+
+  // Escribir RIFF size en bytes 4-7 (little-endian)
+  fseek(wavFile, 4, SEEK_SET);
+  fwrite(&riff_size, 4, 1, wavFile);
+
+  // Escribir data chunk size en bytes 40-43 (little-endian)
+  fseek(wavFile, 40, SEEK_SET);
+  fwrite(&data_length, 4, 1, wavFile);
+
+  // Verificación: leer nuevamente el header para confirmar
+  fseek(wavFile, 0, SEEK_SET);
+  uint8_t verify_buffer[44];
+  size_t verify_read = fread(verify_buffer, 1, 44, wavFile);
+
+  if (verify_read == 44) {
+    WAVHeader verifyHeader;
+    verifyHeader.write(verify_buffer, 44);
+    if (verifyHeader.parse()) {
+      logln("DEBUG - After update: file_size=" + String(verifyHeader.audioInfo().file_size) + 
+            ", data_length=" + String(verifyHeader.audioInfo().data_length));
+    }
+  }
+
+  fclose(wavFile);
+
+  logln("WAV header updated successfully: " + file_path);
+  logln("  Final file_size=" + String(file_size) + " bytes, data_length=" + String(data_length) + " bytes");
 }
 
 // Función auxiliar para limpiar y finalizar reproducción
 void finalizePlayback() {
-  hmi.writeString("tape.lblFreq.txt=\"" + String(int(SAMPLING_RATE / 1000)) + "KHz\"");
+  // Restauramos el baudrate por defecto para futuras reproducciones
+  myNex.writeStr("tape.lblFreq.txt",String(int(SAMPLING_RATE / 1000)) + "KHz");
+  myNex.writeStr("tape.bds.txt", "-- Bds");
+  // Reiniciamos las barras de progreso
+  myNex.writeStr("tape.progressTotal.val=0");
+  myNex.writeStr("tape.progressBlock.val=0");
+  //
+  PROGRESS_BAR_BLOCK_VALUE = 0;
+  PROGRESS_BAR_TOTAL_VALUE = 0;
+  
   sendStatus(REC_ST, 0);
+  
   TOTAL_PARTS = 0;
   PARTITION_BLOCK = 0;
+  
   tapeAnimationOFF();
-  if (OUT_TO_WAV) {
-    encoderOutWAV.end();
-    encoderOutWAV8.end();
+  
+  if (OUT_TO_WAV) 
+  {
+    encoderOutWAV->end();
+    encoderOutWAV8->end();
+    // Aqui no se actualiza la cabecera. Se deja para el tapeControl
   }
+
   DATA_IS_PLAYING = false;
 }
 
 void playingFile() 
 {
+
+  if (ORIC_TAP_INSIDE) {
+    // No se cambia el baudrate solo el ORIC_TURBO_MODE
+    ORIC_TURBO_MODE = (TAPE_BAUDRATE > 1.0) ? true : false;
+    TAPE_BAUDRATE = 1.0;
+  }
+  
   // Inicializamos
   kitStream.setPAPower(ACTIVE_AMP && EN_SPEAKER);
 
   // Establecemos configuración por defecto - base
   auto new_sr = kitStream.defaultConfig();
   new_sr.channels = 2;
-  LAST_SAMPLING_RATE = SAMPLING_RATE + TONE_ADJUST;
+  LAST_SAMPLING_RATE = SAMPLING_RATE ;
 
   //
   // Configurar sampling rate según preferencias
   //
-  if (CHOOSE_WAV_REC_44) {
-    SAMPLING_RATE = DEFAULT_WAV_SAMPLING_RATE_REC_2 + TONE_ADJUST;
-    new_sr.sample_rate = DEFAULT_WAV_SAMPLING_RATE_REC_2 + TONE_ADJUST;
-  } else {
-    SAMPLING_RATE = BASE_SR + TONE_ADJUST;
-    new_sr.sample_rate = BASE_SR + TONE_ADJUST;
+  if (CHOOSE_WAV_REC_44) 
+  {
+    SAMPLING_RATE = DEFAULT_WAV_SAMPLING_RATE_REC_2 ;
+    new_sr.sample_rate = SAMPLING_RATE;
   }
+  else 
+  {
+    SAMPLING_RATE = BASE_SR + TONE_ADJUST;
+    new_sr.sample_rate = SAMPLING_RATE;
+  }
+
+  // Ajustamos el baudrate
+  myNex.writeStr("tape.bds.txt", String(int(TAPE_BAUDRATE*1200.0)) + " Bds");
+  SAMPLING_RATE = SAMPLING_RATE / TAPE_BAUDRATE;
   
   // Aplicamos cambios en i2s
   kitStream.setAudioInfo(new_sr);
   hmi.setVolumenOutput();
 
   // Actualizamos indicador de sampling rate.
-  
-  hmi.writeString("tape.lblFreq.txt=\"" + String(int(SAMPLING_RATE / 1000)) + "KHz\"");
+  myNex.writeStr("tape.lblFreq.txt=", String(int(SAMPLING_RATE / 1000)) + "KHz");
 
   // Selección de medio
   if (TYPE_FILE_LOAD == "TAP") 
@@ -4747,10 +4904,18 @@ void playingFile()
 
     // C64 TAP usa 96kHz
     if (C64_TAP_INSIDE) {
-      SAMPLING_RATE = STANDARD_SR_8_BIT_MACHINE;
-      new_sr.sample_rate = (uint32_t)STANDARD_SR_8_BIT_MACHINE;
+      SAMPLING_RATE = (BASE_SR + TONE_ADJUST) / TAPE_BAUDRATE;
+      new_sr.sample_rate = (uint32_t)SAMPLING_RATE;
       logln("C64 TAP: forcing hardware + SAMPLING_RATE to 96000 Hz");
     }
+    else if (ORIC_TAP_INSIDE) {
+      // Para ORIC
+      SAMPLING_RATE = (BASE_SR + TONE_ADJUST) / TAPE_BAUDRATE;
+      new_sr.sample_rate = (uint32_t)SAMPLING_RATE;
+      logln("Oric TAP: forcing hardware + baudrate at 300 bauds");
+    }
+
+    log_info("SYSTEM","New sampling rate = " + String(SAMPLING_RATE));
 
     if (!setAudioInfoSafe(new_sr, "TAP playback")) {
       LAST_MESSAGE = "Error configuring audio for TAP";
@@ -4880,6 +5045,16 @@ void playingFile()
     //ZXDBPlayer();
     logln("Finish ZXDB playing file");
   } 
+  else if (TYPE_FILE_LOAD == "ZX80" || TYPE_FILE_LOAD == "ZX81")
+  {
+    logln("Type file load: " + TYPE_FILE_LOAD);
+    LAST_MESSAGE = "Playing previous silence.";
+        
+    setupWAVEncoder();
+    pTAP.playZX80();
+    logln("Finish ZX80/ZX81 playing file");
+    finalizePlayback();
+  } 
   else 
   {
     logAlert("Unknown type_file_load");
@@ -4934,25 +5109,26 @@ void verifyConfigFileForSelection() {
         logln("");
         log("Param: " + fileCfg[i].cfgLine);
 
-        if ((fileCfg[i].cfgLine).indexOf("freq") != -1) 
-        {
-          SAMPLING_RATE = (getValueOfParam(fileCfg[i].cfgLine, "freq")).toInt();
+        // if ((fileCfg[i].cfgLine).indexOf("freq") != -1) 
+        // {
+        //   SAMPLING_RATE = (getValueOfParam(fileCfg[i].cfgLine, "freq")).toInt();
 
-          // CAmbiamos el sampling rate del hardware de salida
-          // auto cfg = kitStream.audioInfo();
-          auto cfg = kitStream.defaultConfig();
-          cfg.sample_rate = SAMPLING_RATE;
-          kitStream.setAudioInfo(cfg);
+        //   // CAmbiamos el sampling rate del hardware de salida
+        //   // auto cfg = kitStream.audioInfo();
+        //   auto cfg = kitStream.defaultConfig();
+        //   cfg.sample_rate = SAMPLING_RATE;
+        //   kitStream.setAudioInfo(cfg);
 
-          // auto cfg2 = kitStream.audioInfo();
-          auto cfg2 = kitStream.defaultConfig();
-          cfg2.sample_rate = SAMPLING_RATE;
-          kitStream.setAudioInfo(cfg2);
+        //   // auto cfg2 = kitStream.audioInfo();
+        //   auto cfg2 = kitStream.defaultConfig();
+        //   cfg2.sample_rate = SAMPLING_RATE;
+        //   kitStream.setAudioInfo(cfg2);
 
-          logln("");
-          log("Sampling rate: " + String(SAMPLING_RATE));
-        }
-        else if ((fileCfg[i].cfgLine).indexOf("zerolevel") != -1) 
+        //   logln("");
+        //   log("Sampling rate: " + String(SAMPLING_RATE));
+        // }
+        // else 
+        if ((fileCfg[i].cfgLine).indexOf("zerolevel") != -1) 
         {
           ZEROLEVEL = getValueOfParam(fileCfg[i].cfgLine, "zerolevel").toInt();
 
@@ -5156,6 +5332,52 @@ void loadingFile(char *file_ch) {
       logln("ZXDB file to load: " + PATH_FILE_TO_LOAD);
       FILE_PREPARED = true;
       TYPE_FILE_LOAD = "ZXDB";
+    } else if (PATH_FILE_TO_LOAD.indexOf(".O", PATH_FILE_TO_LOAD.length() - 2) != -1 ||
+               PATH_FILE_TO_LOAD.indexOf(".o", PATH_FILE_TO_LOAD.length() - 2) != -1) {
+      logln("ZX80 file to load: " + PATH_FILE_TO_LOAD);
+      FILE_PREPARED = true;
+      TYPE_FILE_LOAD = "ZX80";
+      TOTAL_BLOCKS = 1;
+      File zx80File = SD_MMC.open(file_ch, FILE_READ);
+      if (zx80File) {
+        BYTES_TOBE_LOAD = zx80File.size();
+        LAST_SIZE = BYTES_TOBE_LOAD;
+        zx80File.close();
+      }
+    } else if (PATH_FILE_TO_LOAD.indexOf(".80", PATH_FILE_TO_LOAD.length() - 3) != -1) {
+      logln("ZX80 file to load: " + PATH_FILE_TO_LOAD);
+      FILE_PREPARED = true;
+      TYPE_FILE_LOAD = "ZX80";
+      TOTAL_BLOCKS = 1;
+      File zx80File = SD_MMC.open(file_ch, FILE_READ);
+      if (zx80File) {
+        BYTES_TOBE_LOAD = zx80File.size();
+        LAST_SIZE = BYTES_TOBE_LOAD;
+        zx80File.close();
+      }
+    } else if (PATH_FILE_TO_LOAD.indexOf(".P", PATH_FILE_TO_LOAD.length() - 2) != -1 ||
+               PATH_FILE_TO_LOAD.indexOf(".p", PATH_FILE_TO_LOAD.length() - 2) != -1) {
+      logln("ZX81 file to load: " + PATH_FILE_TO_LOAD);
+      FILE_PREPARED = true;
+      TYPE_FILE_LOAD = "ZX81";
+      TOTAL_BLOCKS = 1;
+      File zx81File = SD_MMC.open(file_ch, FILE_READ);
+      if (zx81File) {
+        BYTES_TOBE_LOAD = zx81File.size();
+        LAST_SIZE = BYTES_TOBE_LOAD;
+        zx81File.close();
+      }
+    } else if (PATH_FILE_TO_LOAD.indexOf(".81", PATH_FILE_TO_LOAD.length() - 3) != -1) {
+      logln("ZX81 file to load: " + PATH_FILE_TO_LOAD);
+      FILE_PREPARED = true;
+      TYPE_FILE_LOAD = "ZX81";
+      TOTAL_BLOCKS = 1;
+      File zx81File = SD_MMC.open(file_ch, FILE_READ);
+      if (zx81File) {
+        BYTES_TOBE_LOAD = zx81File.size();
+        LAST_SIZE = BYTES_TOBE_LOAD;
+        zx81File.close();
+      }
     } else if (PATH_FILE_TO_LOAD.indexOf(".ZIP", PATH_FILE_TO_LOAD.length() - 4) != -1) {
       logln("");
       logln("ZIP file");
@@ -5387,11 +5609,11 @@ void prevGroupBlock() {
 
 void isGroupStart() {
   // Verificamos si se entra en un grupo
-  logln("ID: " + String(myTZX.descriptor[BLOCK_SELECTED].ID));
-
   if (TYPE_FILE_LOAD != "TAP" && TYPE_FILE_LOAD != "WAV" &&
       TYPE_FILE_LOAD != "MP3" && TYPE_FILE_LOAD != "FLAC" &&
-      TYPE_FILE_LOAD != "RADIO") {
+      TYPE_FILE_LOAD != "RADIO" && TYPE_FILE_LOAD != "ZX80" &&
+      TYPE_FILE_LOAD != "ZX81") {
+    logln("ID: " + String(myTZX.descriptor[BLOCK_SELECTED].ID));
     if (myTZX.descriptor[BLOCK_SELECTED].ID == 33) {
       // Es un group start
       LAST_BLOCK_WAS_GROUP_START = true;
@@ -5407,11 +5629,11 @@ void isGroupStart() {
 
 void isGroupEnd() {
   // Verificamos si se entra en un grupo
-  logln("ID: " + String(myTZX.descriptor[BLOCK_SELECTED].ID));
-
   if (TYPE_FILE_LOAD != "TAP" && TYPE_FILE_LOAD != "WAV" &&
       TYPE_FILE_LOAD != "MP3" && TYPE_FILE_LOAD != "FLAC" &&
-      TYPE_FILE_LOAD != "RADIO") {
+      TYPE_FILE_LOAD != "RADIO" && TYPE_FILE_LOAD != "ZX80" &&
+      TYPE_FILE_LOAD != "ZX81") {
+    logln("ID: " + String(myTZX.descriptor[BLOCK_SELECTED].ID));
     if (myTZX.descriptor[BLOCK_SELECTED].ID == 34) {
       // Es un group start
       LAST_BLOCK_WAS_GROUP_END = true;
@@ -5441,13 +5663,17 @@ void putLogo() {
     // WAV file
     hmi.writeString("tape.logo.pic=46");
     delay(5);
-  } else if (TYPE_FILE_LOAD == "TAP" && !C64_TAP_INSIDE) {
+  } else if (TYPE_FILE_LOAD == "TAP" && !C64_TAP_INSIDE && !ORIC_TAP_INSIDE) {
     // Spectrum
     hmi.writeString("tape.logo.pic=41");
     delay(5);
-  } else if (TYPE_FILE_LOAD == "TAP" && C64_TAP_INSIDE) {
+  } else if (TYPE_FILE_LOAD == "TAP" && C64_TAP_INSIDE && !ORIC_TAP_INSIDE) {
     // C64
     hmi.writeString("tape.logo.pic=62");
+    delay(5);
+  } else if (TYPE_FILE_LOAD == "TAP" && ORIC_TAP_INSIDE && !C64_TAP_INSIDE) {
+    // ORIC
+    hmi.writeString("tape.logo.pic=63");
     delay(5);
   } else if (TYPE_FILE_LOAD == "TZX") {
     // TZX file
@@ -5469,6 +5695,10 @@ void putLogo() {
     // MSX
     hmi.writeString("tape.logo.pic=61");
     delay(5);
+  } else if (TYPE_FILE_LOAD == "ZX80" || TYPE_FILE_LOAD == "ZX81") {
+    // ZX80/ZX81
+    hmi.writeString("tape.logo.pic=62");
+    delay(5);    
   } else {
     // En blanco
     hmi.writeString("tape.logo.pic=42");
@@ -5513,36 +5743,10 @@ void getRandomFilenameWAV(char *&currentPath, String currentFileBaseName) {
   strcat(currentPath, extPath);
 }
 
-void  rewindAnimation(int direction) {
-  int p = 0;
-  int frames = 19;
-  int fdelay = 5;
-
-  logln("Rewind animation - Direction: " + String(direction));
-
-  while (p < frames) {
-
-    POS_ROTATE_CASSETTE += direction;
-
-    if (POS_ROTATE_CASSETTE > 23) {
-      POS_ROTATE_CASSETTE = 4;
-    }
-
-    if (POS_ROTATE_CASSETTE < 4) {
-      POS_ROTATE_CASSETTE = 23;
-    }
-
-    hmi.writeString("tape.animation.pic=" + String(POS_ROTATE_CASSETTE));
-    delay(20);
-
-    p++;
-  }
-}
-
 void getTheFirstPlayeableBlock() {
   // Buscamos ahora el primer bloque playeable
 
-  if (TYPE_FILE_LOAD != "TAP" && TYPE_FILE_LOAD != "PZX" && TYPE_FILE_LOAD != "CSW") {
+  if (TYPE_FILE_LOAD != "TAP" && TYPE_FILE_LOAD != "PZX" && TYPE_FILE_LOAD != "CSW" && TYPE_FILE_LOAD != "ZX80" && TYPE_FILE_LOAD != "ZX81") {
     int i = 0;
 
     while (!myTZX.descriptor[i].playeable) {
@@ -5574,7 +5778,8 @@ void getTheFirstPlayeableBlock() {
 void setFWIND() {
   logln("Set FFWD - " + String(LAST_BLOCK_WAS_GROUP_START));
 
-  if (TYPE_FILE_LOAD != "TAP" && TYPE_FILE_LOAD != "PZX" && TYPE_FILE_LOAD != "CSW") {
+  if (TYPE_FILE_LOAD != "TAP" && TYPE_FILE_LOAD != "PZX" && TYPE_FILE_LOAD != "CSW" &&
+      TYPE_FILE_LOAD != "ZX80" && TYPE_FILE_LOAD != "ZX81") {
     if (LAST_BLOCK_WAS_GROUP_START) {
       // Si el ultimo bloque fue un GroupStart entonces busco un Group End y
       // avanzo 1
@@ -5589,7 +5794,8 @@ void setFWIND() {
     BLOCK_SELECTED++;
   }
 
-  if (TYPE_FILE_LOAD != "TAP" && TYPE_FILE_LOAD != "PZX" && TYPE_FILE_LOAD != "CSW") {
+  if (TYPE_FILE_LOAD != "TAP" && TYPE_FILE_LOAD != "PZX" && TYPE_FILE_LOAD != "CSW" &&
+      TYPE_FILE_LOAD != "ZX80" && TYPE_FILE_LOAD != "ZX81") {
     // Para las estructuras TZX, CDT y TSX
     if (BLOCK_SELECTED > (TOTAL_BLOCKS - 1)) {
       BLOCK_SELECTED = 1;
@@ -5600,8 +5806,8 @@ void setFWIND() {
     if (BLOCK_SELECTED > (TOTAL_BLOCKS - 1)) {
       BLOCK_SELECTED = 1;
     }
-  } else if (TYPE_FILE_LOAD == "TAP") {
-    // Para el fichero TAP
+  } else if (TYPE_FILE_LOAD == "TAP" || TYPE_FILE_LOAD == "ZX80" || TYPE_FILE_LOAD == "ZX81") {
+    // Para el fichero TAP y archivos ZX80/ZX81
     if (BLOCK_SELECTED > (TOTAL_BLOCKS - 2)) {
       BLOCK_SELECTED = 0;
     }
@@ -5610,7 +5816,8 @@ void setFWIND() {
   logln("TOTAL_BLOCKS: " + String(TOTAL_BLOCKS));
   logln("BLOCK_SELECTED: " + String(BLOCK_SELECTED));
 
-  if (TYPE_FILE_LOAD != "TAP" && TYPE_FILE_LOAD != "PZX" && TYPE_FILE_LOAD != "CSW") {
+  if (TYPE_FILE_LOAD != "TAP" && TYPE_FILE_LOAD != "PZX" && TYPE_FILE_LOAD != "CSW" &&
+      TYPE_FILE_LOAD != "ZX80" && TYPE_FILE_LOAD != "ZX81") {
     // Para TZX, CDT, TSX
     hmi.setBasicFileInformation(myTZX.descriptor[BLOCK_SELECTED].ID,
                                 myTZX.descriptor[BLOCK_SELECTED].group,
@@ -5647,7 +5854,8 @@ void setRWIND() {
 
   logln("Set RWD - " + String(LAST_BLOCK_WAS_GROUP_END));
 
-  if (TYPE_FILE_LOAD != "TAP" && TYPE_FILE_LOAD != "PZX" && TYPE_FILE_LOAD != "CSW") {
+  if (TYPE_FILE_LOAD != "TAP" && TYPE_FILE_LOAD != "PZX" && TYPE_FILE_LOAD != "CSW" &&
+      TYPE_FILE_LOAD != "ZX80" && TYPE_FILE_LOAD != "ZX81") {
     if (LAST_BLOCK_WAS_GROUP_END) {
       // Si el ultimo bloque fue un Group End entonces busco un Group Start y
       // avanzo 1
@@ -5662,13 +5870,14 @@ void setRWIND() {
   }
 
   // Para las estructuras TZX, CDT y TSX
-  if (TYPE_FILE_LOAD != "TAP" && TYPE_FILE_LOAD != "PZX" && TYPE_FILE_LOAD != "CSW") {
+  if (TYPE_FILE_LOAD != "TAP" && TYPE_FILE_LOAD != "PZX" && TYPE_FILE_LOAD != "CSW" &&
+      TYPE_FILE_LOAD != "ZX80" && TYPE_FILE_LOAD != "ZX81") {
     if (BLOCK_SELECTED < 1) {
       BLOCK_SELECTED = (TOTAL_BLOCKS - 1);
       isGroupEnd();
     }
-  } else if (TYPE_FILE_LOAD == "TAP") {
-    // Para el fichero TAP
+  } else if (TYPE_FILE_LOAD == "TAP" || TYPE_FILE_LOAD == "ZX80" || TYPE_FILE_LOAD == "ZX81") {
+    // Para el fichero TAP y archivos ZX80/ZX81
     if (BLOCK_SELECTED < 0) {
       BLOCK_SELECTED = (TOTAL_BLOCKS - 2);
     }
@@ -5679,7 +5888,8 @@ void setRWIND() {
     }
   }
 
-  if (TYPE_FILE_LOAD != "TAP" && TYPE_FILE_LOAD != "PZX" && TYPE_FILE_LOAD != "CSW") {
+  if (TYPE_FILE_LOAD != "TAP" && TYPE_FILE_LOAD != "PZX" && TYPE_FILE_LOAD != "CSW" &&
+      TYPE_FILE_LOAD != "ZX80" && TYPE_FILE_LOAD != "ZX81") {
     // Para TZX, CDT, TSX
     hmi.setBasicFileInformation(myTZX.descriptor[BLOCK_SELECTED].ID,
                                 myTZX.descriptor[BLOCK_SELECTED].group,
@@ -5737,7 +5947,10 @@ void recCondition() {
   if (OUT_TO_WAV) {
     wavfile.flush();
     wavfile.close();
-    encoderOutWAV.end();
+    //delay(1000);
+    logln("-- Update WAVheader from recCondition()");
+    updateWAVHeader(REC_FILENAME);
+    //encoderOutWAV.end();
   }
 
   //
@@ -5829,38 +6042,85 @@ void tapeControl() {
     else if (DISABLE_SD) 
     {
       // ------------------
-      // Disable SD
+      // Enable / Disable SD
       // ------------------
+      if (isSDCardMounted()) 
+      {
+        log_info("TAPE","Unmounting SD card");
+        unmountSDCard(true);
+        // myNex.writeStr("debug.bt0.txt","Enable SD");
+        // delay(1500);
+        CURRENT_PAGE = PAGE_TAPE0;
+        hmi.writeString("page tape0");
+        delay(500);
+        myNex.writeStr("tape0.g0.txt", "Unmounting SD card");
+      } 
+      else 
+      {
+        log_info("TAPE","Mounting SD card");
+        mountSDCard();
+        // myNex.writeStr("debug.bt0.txt","Disable SD");
+        // delay(1500);
+        CURRENT_PAGE = PAGE_TAPE0;
+        hmi.writeString("page tape0");
+        delay(500);
+        myNex.writeStr("tape0.g0.txt", "Mounting SD card");
+      }
+
+      DISABLE_SD = false;
+      
     } 
     else if (PLAY) 
     {
       //
       // Reproducimos el ultimo fichero cargado
       //
-      logln("State: Play was pressed. Loading last file.");
-      // Cargamos el ultimo fichero reproducido en el cassette
-      FILE_BROWSER_OPEN = false;
-      UPDATE_FROM_REMOTE_CONTROL = false;
-      ABORT = false;
-      EJECT = false;
-      PLAY = false;
-      REC = false;
-      STOP = true;  //26/04/2026 - Lo ponemos para que cuando cargue el ultimo fichero reproducido y después EJECT, 
-                    // se haga EJECT, porque la cinta está parada.
-      // Esto se usa para reproducir
-      FILE_SELECTED = true;
-      FILE_PREPARED = false;
-      LOADING_STATE = 0;
-      TAPESTATE = 100;
 
       // Cargamos el medio
       PATH_FILE_TO_LOAD = hmi.loadLastMedia();
-      FILE_LOAD = getFileNameFromPath(PATH_FILE_TO_LOAD);
-      FILE_LAST_DIR = getDirFromPath(PATH_FILE_TO_LOAD);
 
-      // Mostramos la página de carga
-      hmi.writeString("page tape");          
-      delay(125);
+      // Verificamos que PATH_FILE_TO_LOAD existe      
+      if (!SD_MMC.exists(PATH_FILE_TO_LOAD)) {
+        // En ese caso lanzamos un mensaje de error.
+        log_error("TAPE","File does not exist: " + PATH_FILE_TO_LOAD);
+        myNex.writeStr("tape0.g0.txt", "File already does not exist.");
+        PLAY = false;
+        STOP = true;
+        FILE_SELECTED = false;
+        FILE_PREPARED = false;
+        LOADING_STATE = 0;
+        TAPESTATE = 0;        
+      }
+      else
+      {
+        log_info("TAPE","State: Play was pressed. Loading last file.");
+        // Cargamos el ultimo fichero reproducido en el cassette
+        FILE_BROWSER_OPEN = false;
+        UPDATE_FROM_REMOTE_CONTROL = false;
+        ABORT = false;
+        EJECT = false;
+        PLAY = false;
+        REC = false;
+        STOP = true;  //26/04/2026 - Lo ponemos para que cuando cargue el ultimo fichero reproducido y después EJECT, 
+                      // se haga EJECT, porque la cinta está parada.
+        // Esto se usa para reproducir
+        FILE_SELECTED = true;
+        FILE_PREPARED = false;
+        LOADING_STATE = 0;
+        TAPESTATE = 100;
+
+        // Cogemos el nombre del fichero
+        FILE_LOAD = getFileNameFromPath(PATH_FILE_TO_LOAD);
+        // Cogemos la ruta actual y la almacenamos
+        FILE_LAST_DIR = getDirFromPath(PATH_FILE_TO_LOAD);
+        // Cogemos el path anterior trabajando la cadena FILE_LAST_DIR
+        FILE_PREVIOUS_DIR = hmi.getPreviousDirFromPath(FILE_LAST_DIR); 
+        // Para el current dir que se muestra arriba. Ponemos un caracter " " al final como workaround, debido a un bug.
+        FILE_LAST_DIR_LAST = getDirFromPath(PATH_FILE_TO_LOAD) + " ";
+        // Mostramos la página de carga
+        hmi.writeString("page tape");          
+        delay(125);
+      }
     } 
     else 
     {
@@ -5918,10 +6178,15 @@ void tapeControl() {
       TAPESTATE = 0;
       LOADING_STATE = 0;
 
-      if (OUT_TO_WAV) {
+      if (OUT_TO_WAV) 
+      {
         wavfile.flush();
         wavfile.close();
-        encoderOutWAV.end();
+        // Actualizar la cabecera del WAV con el tamaño real de los datos grabados
+        //delay(1000);
+        logln("-- Update WAVheader from CASE 1 EJECT");
+        updateWAVHeader(REC_FILENAME);
+        //encoderOutWAV.end();
       }
     } else if (PAUSE) {
       TAPESTATE = 3;
@@ -5944,7 +6209,10 @@ void tapeControl() {
       if (OUT_TO_WAV) {
         wavfile.flush();
         wavfile.close();
-        encoderOutWAV.end();
+        //delay(1000);
+        //encoderOutWAV.end();
+        logln("-- Update WAVheader from CASE 1 PAUSE");
+        updateWAVHeader(REC_FILENAME);
       }
     } 
     else if (STOP) 
@@ -5971,6 +6239,7 @@ void tapeControl() {
       {
         LAST_MESSAGE = "Stop playing.";
         STOP_OR_PAUSE_REQUEST = false;
+        REM_ENABLE = false;
       }
       else 
       {
@@ -5981,6 +6250,16 @@ void tapeControl() {
         REC = false;
         EJECT = false;
         STOP_OR_PAUSE_REQUEST = false;
+      }
+      
+      // ✅ Restaurar TAPE_BAUDRATE si estábamos reproduciendo ORIC
+      if (ORIC_MODE)
+      {
+        TAPE_BAUDRATE = TAPE_BAUDRATE_SAVED;
+        ORIC_MODE = false;
+        #ifdef DEBUGMODE
+          logln("ORIC playback ended. Restoring TAPE_BAUDRATE = " + String(TAPE_BAUDRATE, 2));
+        #endif
       }
 
       setPolarization();
@@ -5997,7 +6276,10 @@ void tapeControl() {
       {
         wavfile.flush();
         wavfile.close();
-        encoderOutWAV.end();
+        //delay(1000);
+        logln("-- Update WAVheader from CASE 1 STOP");
+        updateWAVHeader(REC_FILENAME);
+        //encoderOutWAV.end();
       }
     } 
     else if (REC) 
@@ -6033,7 +6315,10 @@ void tapeControl() {
       {
         wavfile.flush();
         wavfile.close();
-        encoderOutWAV.end();
+        //delay(1000);
+        logln("-- Update WAVheader from CASE 1 REC");
+        updateWAVHeader(REC_FILENAME);
+        //encoderOutWAV.end();
       }
     } 
     else 
@@ -6085,20 +6370,32 @@ void tapeControl() {
 
         BTN_PLAY_PRESSED = true;
       }
+      else
+      {
+        // Se pulso PLAY en vez de REM = closed
+        REM_ENABLE = false;
+      }
       // Reanudamos la reproduccion
       TAPESTATE = 1;
       AUTO_PAUSE = false;
 
       recoverEdgeBeginOfBlock();
-    } else if (PAUSE) {
+    } 
+    else if (PAUSE) 
+    {
       // Reanudamos la reproduccion pero con PAUSE
+      REM_ENABLE = false;
+
       TAPESTATE = 5;
       AUTO_PAUSE = false;
 
       HMI_FNAME = FILE_LOAD;
 
       recoverEdgeBeginOfBlock();
-    } else if (STOP) {
+    } 
+    else if (STOP) 
+    {
+      REM_ENABLE = false;
       TAPESTATE = 1;
       AUTO_PAUSE = false;
 
@@ -6152,9 +6449,13 @@ void tapeControl() {
     //
     remDetection();
 
-    if (PLAY || REM_DETECTED) {
+    if (PLAY || REM_DETECTED) 
+    {
       if (REM_DETECTED)
+      {
         PLAY = true;
+        //REM_ENABLE=true;
+      }
 
       if (FILE_PREPARED) {
         // Ponemos esto aqui porque prepareOutputToWav() puede cambiar el
@@ -8620,21 +8921,6 @@ void buttonsControl()
   // DEBUG: Ver valor bruto del registro
   // static uint8_t lastValue = 0xFF;
 
-  // if (value != lastValue && value != 0x7F) 
-  // {
-  //   // Pressed
-  //   logln("> DEBUG PA RAW: 0x" + String(value, HEX) + " (" + String(value, BIN) + ")");
-  //   lastValue = value;
-  //   uint8_t changedBits = ~value;
-  //   logln(" - DEBUG PA INVERTED: 0x" + String(changedBits, HEX) + " (" + String(changedBits, BIN) + ")");
-  //   changedBits = changedBits & 0x7F; // Aplicar máscara para solo los bits de entrada
-  //   logln(" - DEBUG PA CHANGED: 0x" + String(changedBits, HEX) + " (" + String(changedBits, BIN) + ")");
-  // }
-  // else if (value != lastValue && value == 0x7F)
-  // {
-  //   logln("> Key released: " + String(lastValue, HEX) + " (" + String(lastValue, BIN) + ")");
-  // }
-
   value = ~value;                               // Invertimos los bits porque el hardware devuelve 0 para tecla presionada
   value = value & 0x7F;                         // Eliminamos los bits de salida (aplico mascara 00111111)
 
@@ -8644,7 +8930,6 @@ void buttonsControl()
   valuePB = ~valuePB;                           // Invertimos los bits porque el hardware devuelve 0 para tecla presionada
   valuePB = valuePB & 0x0F;                     // Eliminamos los bits de salida (aplico mascara 00001111)
 
-  
   uint8_t keyPressed = 0;
   uint8_t keyPressedPB = 0;
 
@@ -8998,12 +9283,16 @@ void buttonsControl()
           {
             // Release button, do nothing
             logln("Key released: " + String(lastKeyValue) + " - Value: " + String(keyPressed));
-            if (KEEP_FFWIND || KEEP_RWIND)
+            if (KEEP_FFWIND)
             {
               KEEP_FFWIND = false;
-              KEEP_RWIND = false;
               // Esto lo hacemos para salir del modo fast wind
               hmi.verifyCommand("FFWD");
+            } else if (KEEP_RWIND)
+            {
+              KEEP_RWIND = false;
+              // Esto lo hacemos para salir del modo fast wind
+              hmi.verifyCommand("RWD");
             }
             // Cambiamos de estado
             keyStatus = 0;
@@ -9101,7 +9390,6 @@ void Task0code(void *pvParameters) {
   int startTime4 = millis();
   int startTime5 = millis();
   int startTimeKey = millis();
-  int startTimeSpotify = millis();
   int startTimeToWifi = millis();
   int startNTPRetry = millis();
 
@@ -9111,7 +9399,7 @@ void Task0code(void *pvParameters) {
   int se = 0;
   int tScrRfsh = 1000;
   int timeRTC = 1000;
-  int timeKeyPoll = 250;
+  int timeKeyPoll = 125;
 
   uint8_t lasthour = 0;
   uint8_t lastminute = 0;
@@ -9390,37 +9678,6 @@ void Task0code(void *pvParameters) {
 
       if (!FLAC_IS_PLAYING && !DATA_IS_PLAYING)
       {
-        // Control de SpotiFy
-        // if (SPOTIFY_CONTROL)
-        // {
-        //     if (millis() - startTimeSpotify > 2500) 
-        //     {
-        //       // El reloj
-        //       if (CURRENT_PAGE == PAGE_CLOCK)
-        //       {
-        //         if (STOP)
-        //         {
-        //           hmi.verifyCommand("SP03");
-        //         }
-        //       }
-
-        //       // La pagina de Spotify
-        //       if (CURRENT_PAGE == PAGE_SPOTIFY && !ftpSrv.FTP_CONNECTED) 
-        //       {
-        //           String currentArtist = sp->current_artist_names();
-        //           String currentTrackname = sp->current_track_name();
-        //           String currentAlbum = sp->current_album_name();
-                                
-        //           logln("Artist: " + currentArtist);
-        //           myNex.writeStr("spotify.artist.txt",currentArtist);
-        //           logln("Track: " + currentTrackname);
-        //           myNex.writeStr("spotify.track.txt",currentTrackname);
-        //           logln("Album: " + currentAlbum);
-        //           myNex.writeStr("spotify.album.txt",currentAlbum);
-        //       }
-        //       startTimeSpotify = millis();
-        //     }
-        // }
 
         if (rotate_enable || ENABLE_ROTATE_FILEBROWSER) 
         {
@@ -9849,95 +10106,6 @@ void setupNTP()
   myNex.writeNum("clock.ntp.val", 1);
 }
 
-void setupSpotify() 
-{
-  // const char* CLIENT_ID = SPOTIFY_CLIENT_ID;
-  // const char* CLIENT_SECRET = SPOTIFY_CLIENT_SECRET;
-  char* REFRESH_TOKEN = nullptr;
-
-  logln("> Setting Spotify client.");
-  logln("Spotify Client ID: " + SPOTIFY_CLIENT_ID);
-  logln("Spotify Client Secret: " + SPOTIFY_CLIENT_SECRET); // No es
-
-  // Recuperar el refresh token de Spotify si existe en la SD
-  File tokenFile = SD_MMC.open("/_spotifytoken", FILE_READ);
-  if (tokenFile) 
-  {
-    String tokenString = tokenFile.readString();
-    tokenString.trim();
-    if (tokenString.length() > 0) 
-    {
-      REFRESH_TOKEN = strdup(tokenString.c_str());
-      logln("Refresh token read from /_spotifytoken");
-    } 
-    else 
-    {
-      logln("/_spotifytoken is empty");
-    }
-    
-    tokenFile.close();
-  } 
-  else 
-  {
-    logln("No /_spotifytoken found, refresh token not retrieved");
-  }
-
-  // Crear el objeto Spotify según si hay refresh token
-  if (REFRESH_TOKEN && strlen(REFRESH_TOKEN) > 0) 
-  {
-    sp = new Spotify(SPOTIFY_CLIENT_ID.c_str(), SPOTIFY_CLIENT_SECRET.c_str(), REFRESH_TOKEN);
-    logln("Spotify object created with refresh token");
-  } 
-  else 
-  {
-    sp = new Spotify(SPOTIFY_CLIENT_ID.c_str(), SPOTIFY_CLIENT_SECRET.c_str());
-    logln("Spotify object created without refresh token");
-  }
-
-  // Intentamos conectar a Spotify
-  sp->begin();
-  int spcount = 0;
-  const int stime = 6000; // tiempo de espera 2 min.
-  hmi.writeString("statusLCD.txt=\"Spotify pending auth\"");
-  while(!sp->is_auth() && spcount <= stime)
-  {
-      sp->handle_client();
-      spcount++;
-      delay(10);
-  }
-
-  if (spcount > stime)
-  {
-    logln("Timeout to connect to Spotify");
-    hmi.writeString("statusLCD.txt=\"Spotify timeout\"");
-    delay(1500);
-    SPOTIFY_CONTROL = false;
-  }
-  else
-  {
-    logln("Connected to Spotify");
-    logln("Authenticated! Refresh token: " + String(sp->get_user_tokens().refresh_token));
-    // Guardar el refresh_token en un archivo en la raíz de la SD
-    File tokenFile = SD_MMC.open("/_spotifytoken", FILE_WRITE);
-    if (tokenFile) {
-      tokenFile.seek(0);
-      tokenFile.print(sp->get_user_tokens().refresh_token);
-      tokenFile.close();
-      logln("Spotify refresh token saved /_spotifytoken");
-    } 
-    else 
-    {
-      logln("Failed to open /_spotifytoken to save the refresh token");
-    }
-    SPOTIFY_CONTROL = true;
-    if (!QUICK_BOOT) 
-    {
-      hmi.writeString("statusLCD.txt=\"Spotify auth ok\"");
-      delay(1500);
-    }
-  }
-}
-
 void prepareCardStructure() {
 
   logln("> Preparing initial directory structure on SD Card.");
@@ -9992,7 +10160,37 @@ void prepareCardStructure() {
     if (!QUICK_BOOT) delay(750);
   } 
 
-  // Creamos el directorio /fav
+  // Creamos el directorio /DOWNLOAD/ZX
+  fDir = "/DOWNLOAD/ZX";
+
+  // Esto lo hacemos para ver si el directorio existe
+  if (createSpecialDirectory(fDir)) {
+    hmi.writeString("statusLCD.txt=\"Creating DOWNLOAD/ZX directory\"");
+    hmi.reloadCustomDir("/");
+    if (!QUICK_BOOT) delay(750);
+  } 
+
+    // Creamos el directorio /DOWNLOAD/CPC
+  fDir = "/DOWNLOAD/CPC";
+
+  // Esto lo hacemos para ver si el directorio existe
+  if (createSpecialDirectory(fDir)) {
+    hmi.writeString("statusLCD.txt=\"Creating DOWNLOAD/CPC directory\"");
+    hmi.reloadCustomDir("/");
+    if (!QUICK_BOOT) delay(750);
+  } 
+
+  // Creamos el directorio /DOWNLOAD/MSX
+  fDir = "/DOWNLOAD/MSX";
+
+  // Esto lo hacemos para ver si el directorio existe
+  if (createSpecialDirectory(fDir)) {
+    hmi.writeString("statusLCD.txt=\"Creating DOWNLOAD/MSX directory\"");
+    hmi.reloadCustomDir("/");
+    if (!QUICK_BOOT) delay(750);
+  }
+
+  // Creamos el directorio /FAV
   fDir = "/FAV";
 
   // Esto lo hacemos para ver si el directorio existe
@@ -10031,6 +10229,26 @@ void prepareCardStructure() {
     hmi.reloadCustomDir("/");
     if (!QUICK_BOOT) delay(750);
   }
+
+    // Creamos el directorio /wav
+  fDir = "/WAV/PCM";
+
+  // Esto lo hacemos para ver si el directorio existe
+  if (createSpecialDirectory(fDir)) {
+    hmi.writeString("statusLCD.txt=\"Creating WAV/PCM directory\"");
+    hmi.reloadCustomDir("/");
+    if (!QUICK_BOOT) delay(750);
+  }
+
+  // Creamos el directorio /wav
+  fDir = "/WAV/ADPCM";
+
+  // Esto lo hacemos para ver si el directorio existe
+  if (createSpecialDirectory(fDir)) {
+    hmi.writeString("statusLCD.txt=\"Creating WAV/ADPCM directory\"");
+    hmi.reloadCustomDir("/");
+    if (!QUICK_BOOT) delay(750);
+  }  
 
   // Creamos el directorio /mp3
   fDir = "/MP3";
@@ -10111,13 +10329,59 @@ void setupMCP()
   }
 }
 
+static bool g_sdMounted = false;
+
+bool isSDCardMounted() {
+  if (!g_sdMounted) {
+    return false;
+  }
+  return SD_MMC.cardType() != CARD_NONE;
+}
+
+bool mountSDCard(bool showStatus) {
+  if (isSDCardMounted()) {
+    if (showStatus) {
+      hmi.writeString("statusLCD.txt=\"SD already mounted\"");
+    }
+    return true;
+  }
+
+  const int sdSpeed = SD_FRQ_MHZ_INITIAL; // Velocidad en Hz (config.h)
+  if (!SD_MMC.begin("/sdcard", false, false, sdSpeed)) {
+    g_sdMounted = false;
+    return false;
+  }
+
+  g_sdMounted = true;
+  logln("SD Card mounted");
+  if (showStatus) {
+    hmi.writeString("statusLCD.txt=\"SD_MMC available\"");
+  }
+  return true;
+}
+
+bool unmountSDCard(bool showStatus) {
+  if (!g_sdMounted) {
+    if (showStatus) {
+      hmi.writeString("statusLCD.txt=\"SD already unmounted\"");
+    }
+    return true;
+  }
+
+  SD_MMC.end();
+  g_sdMounted = false;
+  log_info("SD","SD Card unmounted");
+  if (showStatus) {
+    hmi.writeString("statusLCD.txt=\"SD unmounted\"");
+  }
+  return true;
+}
+
 void setupSDCard() {
   logln("Waiting for SD Card");
 
   hmi.writeString("statusLCD.txt=\"WAITING FOR SD CARD\"");
   delay(125);
-
-  int SD_Speed = SD_FRQ_MHZ_INITIAL; // Velocidad en Hz (config.h)
 
   // ****************************************************************
   //
@@ -10126,7 +10390,9 @@ void setupSDCard() {
   //
   //
   // ****************************************************************
-  if (!SD_MMC.begin("/sdcard", false, false, SD_Speed)) {
+
+
+  if (!mountSDCard(false)) {
 
     // SD no inicializada
     while (1) {
@@ -10136,9 +10402,14 @@ void setupSDCard() {
       delay(2000);
       hmi.writeString("statusLCD.txt=\"- Verify audiokit switches.\"");
       delay(2000);
+
+      if (mountSDCard(false)) {
+        hmi.writeString("statusLCD.txt=\"SD_MMC available\"");
+        delay(125);
+        break;
+      }
     }
   } else {
-    logln("SD Card mounted");
     hmi.writeString("statusLCD.txt=\"SD_MMC available\"");
     delay(125);
   }
@@ -10160,17 +10431,23 @@ void setupSDCard() {
 void loadHMICfgfromNVS() {
   //LAST_MESSAGE = "Loading HMI settings.";
   
-  logln("> Loading HMI configuration from NVS.");
+  log_info("BOOT", "Assigning NVS values to HMI configuration.");
 
   //loadHMICfg();
 
   // Actualizamos la configuracion
-  logln("EN_STERO = " + String(EN_STEREO));
-  logln("MUTE AMP = " + String(!ACTIVE_AMP));
-  logln("VOL_LIMIT_HEADPHONE = " + String(VOL_LIMIT_HEADPHONE));
-  logln("MAIN_VOL" + String(MAIN_VOL));
-  logln("MAIN_VOL_L" + String(MAIN_VOL_L));
-  logln("MAIN_VOL_R" + String(MAIN_VOL_R));
+  log_debug("BOOT", "> EN_STERO = " + String(EN_STEREO));
+  log_debug("BOOT", "> Master vol: " + String(MAIN_VOL));
+  log_debug("BOOT", "> Master vol R: " + String(MAIN_VOL_R));
+  log_debug("BOOT", "> Master vol L: " + String(MAIN_VOL_L));
+  log_debug("BOOT", "> BALANCE " + String(BALANCE_VOL));
+  log_debug("BOOT", "> VOL_LIMIT_HEADPHONE = " + String(VOL_LIMIT_HEADPHONE));
+  log_debug("BOOT", "> EQ_HIGH = " + String(EQ_HIGH));
+  log_debug("BOOT", "> EQ_MID = " + String(EQ_MID));
+  log_debug("BOOT", "> EQ_LOW = " + String(EQ_LOW));
+  log_debug("BOOT", "> MUTE AMP = " + String(!ACTIVE_AMP));  
+  log_debug("BOOT", "> REC GAIN = " + String(IN_REC_VOL));
+  
   //
   showOption("menu.wifiEn.val", String(WIFI_ENABLE));
   // EN_STEREO
@@ -10200,15 +10477,16 @@ void loadHMICfgfromNVS() {
   }
 
   //
-
-  if (ACTIVE_AMP) {
-    MAIN_VOL_L = 5;
-  } else {
-    MAIN_VOL_L = MAIN_VOL_R;
-  }
   // Actualizamos el HMI
-  hmi.writeString("menuAudio.volL.val=" + String(MAIN_VOL_L));
-  hmi.writeString("menuAudio.volLevel.val=" + String(MAIN_VOL_L));
+  // Canal derecho
+  myNex.writeNum("menuAudio.volR.val", MAIN_VOL_R);
+  myNex.writeNum("menuAudio.volLevel.val", MAIN_VOL_R);
+  // Canal izquierdo
+  myNex.writeNum("menuAudio.volL.val", MAIN_VOL_L);
+  myNex.writeNum("menuAudio.volLevelL.val", MAIN_VOL_L);
+  // Volumen general
+  myNex.writeNum("menuAudio.volM.val", MAIN_VOL);
+  myNex.writeNum("menuAudio.volLevelM.val", MAIN_VOL);
 
   if (EN_SPEAKER) {
     // Actualizamos el HMI
@@ -10217,8 +10495,6 @@ void loadHMICfgfromNVS() {
 
   // VOL_LIMIT
   showOption("menuAudio.volLimit.val", String(VOL_LIMIT_HEADPHONE));
-
-  //MAIN_VOL = float(MASTER_VOL);
 
   if (MAIN_VOL > MAX_VOL_FOR_HEADPHONE_LIMIT && VOL_LIMIT_HEADPHONE) {
     MAIN_VOL = MAX_VOL_FOR_HEADPHONE_LIMIT;
@@ -10245,6 +10521,10 @@ void loadHMICfgfromNVS() {
   showOption("menuEq.eqLowL.val", String(int(EQ_LOW * 100)));
   EQ_CHANGE = true;
 
+  // Rec gain
+  showOption("menuAudio3.h0.val", String(int(IN_REC_VOL * 100)));
+  showOption("menuAudio3.invol.val", String(int(IN_REC_VOL * 100)));
+
   // Esto lo hacemos porque depende de la configuración cargada.
   kitStream.setPAPower(ACTIVE_AMP && EN_SPEAKER);
   //
@@ -10260,20 +10540,17 @@ void setup() {
   SerialHW.setRxBufferSize(4096);
   SerialHW.setTxBufferSize(4096);
 
-  logln("PowaDCR " + String(VERSION));
-  logln("Initializing system...");
-  logln("");
-
-
+  log_debug("BOOT", "PowaDCR " + String(VERSION));
+  log_debug("BOOT", "Initializing system...");
+  
   // Leemos la variable de NVS
-  logln("> Loading HMI configuration from NVS. This will determine the pinout for HMI communication.");
+  log_info("BOOT", "Loading HMI configuration from NVS.");
   //
   if (!loadHMICfg())
   {
-    logln("Failed to load HMI configuration from NVS. Defaulting to standard pinout.");
+    log_error("BOOT", "Failed to load HMI configuration from NVS. Defaulting to standard pinout.");
     // Si no se pudo cargar la configuración, asumimos que no hay MCP23017
     MCP23017_AVAILABLE = false;
-    //saveHMIcfg("MCPAVAIL");
   }
 
   // -------------------------------------------------------------------------
@@ -10329,7 +10606,7 @@ void setup() {
     if (myNex.readNumber("screen.reg.val") == 1) 
     {
       hmidetected = true;
-      logln("HMI detected on default pins.");
+      log_info("BOOT", "HMI detected on default pins.");
       myNex.writeNum("screen.ack.val", 2);
       delay(125);       
       myNex.writeNum("screen.tm0.en", 0);
@@ -10358,7 +10635,7 @@ void setup() {
       if (myNex.readNumber("screen.reg.val") == 1) 
       {
         hmidetected = true;
-        logln("HMI detected on alternative pins.");
+        log_info("BOOT", "HMI detected on alternative pins.");
         myNex.writeNum("screen.ack.val", 2);
         delay(125);
         myNex.writeNum("screen.tm0.en", 0);
@@ -10366,7 +10643,7 @@ void setup() {
       } 
       else 
       {
-        logln("HMI not detected after multiple attempts. Please check connections and configuration.");
+        log_error("BOOT", "HMI not detected after multiple attempts. Please check connections and configuration.");
         while (1) 
         {
           // Aquí podrías agregar un mensaje en el LCD o un parpadeo para indicar el error
@@ -10397,7 +10674,7 @@ void setup() {
       if (myNex.readNumber("screen.reg.val") == 1) 
       {
         hmidetected = true;
-        logln("HMI detected on alternative pins.");
+        log_info("BOOT", "HMI detected on alternative pins.");
         myNex.writeNum("screen.ack.val", 2);
         delay(125);
         myNex.writeNum("screen.tm0.en", 0);
@@ -10406,7 +10683,7 @@ void setup() {
       } 
       else 
       {
-        logln("HMI not detected after multiple attempts. Please check connections and configuration.");
+        log_error("BOOT", "HMI not detected after multiple attempts. Please check connections and configuration.");
         while (1) 
         {
           // Aquí podrías agregar un mensaje en el LCD o un parpadeo para indicar el error
@@ -10512,25 +10789,7 @@ void setup() {
     // Conectamos a la red wifi
     WiFi.begin(ssid, password);
   }
-  // -------------------------------------------------------------------------
-  //
-  // Configuramos el reloj interno del sistema
-  //
-  // -------------------------------------------------------------------------
-  // if (WIFI_CONNECTED && WIFI_ENABLE)
-  // {  
-  //   setupNTP();
-  // }
-  // Connect to Spotify
-  // Leer el token de Spotify si existe en la SD
 
-  #ifdef SPOTIFY_CONTROL_ENABLE
-    if (WIFI_CONNECTED && WIFI_ENABLE && SPOTIFY_EN)
-    {  
-      setupSpotify();
-    }
-  #endif
-  
 
 // -------------------------------------------------------------------------
 //

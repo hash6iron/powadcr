@@ -1,0 +1,57 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "PlatformIO Upload",
+      "type": "shell",
+      "command": "C:\\Users\\atama\\.platformio\\penv\\Scripts\\platformio.exe",
+      "args": [
+        "run",
+        "--target",
+        "upload",
+        "--environment",
+        "esp32devCOM"
+      ],
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "PlatformIO Monitor",
+      "type": "shell",
+      "command": "C:\\Users\\atama\\.platformio\\penv\\Scripts\\platformio.exe",
+      "args": [
+        "device",
+        "monitor",
+        "--environment",
+        "esp32devCOM",
+        "--baud",
+        "115200"
+      ],
+      "problemMatcher": [],
+      "isBackground": true,
+      "presentation": {
+        "reveal": "always",
+        "panel": "new"
+      }
+    },
+    {
+      "label": "PlatformIO Upload & Monitor",
+      "dependsOn": [
+        "PlatformIO Upload",
+        "PlatformIO Monitor"
+      ],
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    }
+  ]
+}

@@ -40,7 +40,7 @@
 #include <string>
 #include <miniz.h>
 
-#define up 1
+#define up   1
 #define down 0
 
 File global_dir;
@@ -54,6 +54,14 @@ bool C64_MODE = false;  // Set to true for Commodore C64, false for ZX Spectrum 
 bool C64_TAP_INSIDE = false; // Flag to indicate if we're currently processing a C64 TAP file (used for conditional logic in various functions)
 double C64_CLK_CYCLES = 985248.0; // C64 CPU clock cycles per second (985248 Hz)
 uint8_t C64_TAP_VERSION = 0;  // TAP version: 0=original (overflow on 0x00), 1=updated (extended on 0x00)
+
+// ======================================================================
+// ORIC MODE - Runtime switchable via auto-detection
+// ======================================================================
+bool ORIC_MODE = false;  // Set to true for Oric-1/Oric Atmos 8-bit computer
+bool ORIC_TAP_INSIDE = false; // Flag to indicate if we're currently processing an ORIC TAP file (used for conditional logic in various functions)
+bool ORIC_TURBO_MODE = false;  // Detect/use ORIC turbo mode (>2400 bps) if available
+double TAPE_BAUDRATE_SAVED = 1.0;  // Guarda el TAPE_BAUDRATE original antes de cambiar para ORIC
 
 // Corrección de sesgo temporal para pulsos C64.
 // Se añade al acumulador de error ANTES del truncamiento integer, por lo que
@@ -76,6 +84,19 @@ const double C64_TIMING_UNIT = (1.0 / (C64_CPU_FREQ_MHZ * 1000000.0 * 8.0));
 const int C64_PULSE_THRESHOLD = 1024;       // ~8.3ms - separates 0 bits from 1 bits
 const uint8_t C64_LEAD_IN_BYTE = 0x02;      // Standard C64 lead-in byte (loader dependent)
 const uint8_t C64_SYNC_BYTE = 0x09;         // Standard C64 sync byte (loader dependent)
+
+// ======================================================================
+// ORIC-1 / ORIC ATMOS TIMING CONSTANTS
+// ======================================================================
+// Pulse durations in microseconds for standard 2400 bps mode
+const int ORICZEROLOWPULSE   = 274;    // 0-bit: LOW pulse (~274µs)
+const int ORICZEROHIGHPULSE  = 274;    // 0-bit: HIGH pulse (~274µs)
+const int ORICONEPULSE       = 140;    // 1-bit: HIGH pulse (~140µs, shorter)
+// Turbo mode (>2400 bps)
+const int ORICTURBOZERO      = 182;    // Turbo 0-bit pulse
+const int ORICTURBIONE       = 92;     // Turbo 1-bit pulse
+const uint8_t ORIC_SYNC_BYTE = 0x16;   // ORIC sync byte (repeat pattern)
+const uint8_t ORIC_MARKER_BYTE = 0x24; // ORIC data marker byte
 
 int stackFreeCore0 = 0;
 int stackFreeCore1 = 0;
@@ -106,7 +127,7 @@ int SD_SPEED_MHZ = 4;
 // generar y no al final para el siguiente. entonces hay que empezar en HIGH
 // para que el primer pulso baje a LOW. Si empezamos en LOW, el primer pulso
 // sube a HIGH y eso no es compatible con el estandar TZX.
-uint8_t POLARIZATION = 1;
+uint8_t POLARIZATION = up;    // Para que el primer pulso sea "down"
 uint8_t EDGE_EAR_IS = POLARIZATION;
 bool CHANGE_PZX_LEVEL = false;
 bool FORZE_LEVEL = false;       // Forzar nivel inicial en bloques PZX
@@ -470,6 +491,7 @@ bool CHOOSE_WAV_REC_44 = false;
 bool PLAY_TO_WAV_FILE = false;
 bool WAV_8BIT_MONO = false;
 bool disable_auto_media_stop = false;
+bool USE_ADPCM_CODEC = false;  // true = ADPCM, false = PCM
 
 // Power led
 bool POWERLED_ON = true;
@@ -496,9 +518,9 @@ bool MCP23017_AVAILABLE = false;
 // bool FIRST_BLOCK_INVERTED = false;
 // edge SCOPE = down;
 // bool APPLY_END = false;
-double SAMPLING_RATE = STANDARD_SR_8_BIT_MACHINE; // STANDARD_SR_ZX_SPECTRUM               // 44100
-int BASE_SR = STANDARD_SR_REC_ZX_SPECTRUM; // STANDARD_SR_ZX_SPECTRUM // 44100
-int BASE_SR_TAP = 31250; // STANDARD_SR_8_BIT_MACHINE_TAP         // 44100
+double SAMPLING_RATE = STANDARD_SR_8_BIT_MACHINE; // STANDARD_SR_ZX_SPECTRUM 96KHz
+int BASE_SR = STANDARD_SR_8_BIT_MACHINE;          // STANDARD_SR_ZX_SPECTRUM 96KHz
+int BASE_SR_TAP = 31250;                          // 31250Hz
 int LAST_SAMPLING_RATE = 22050;                    // 44100;
 int WAV_SAMPLING_RATE = DEFAULT_WAV_SAMPLING_RATE; // 44100;
 //int WAV_BITS_PER_SAMPLE = 16;
@@ -749,7 +771,7 @@ bool BB_UPDATE = false;
 int BB_PAGE = 0;
 int BB_PTR_ITEM = 0;
 bool UPDATE_HMI = false;
-bool BLOCK_BROWSER_OPEN = false;
+//bool BLOCK_BROWSER_OPEN = false;
 int BB_PAGE_SELECTED = 1;
 int BB_BROWSER_STEP = 0; // 0 = info general, 1..MAX_BLOCKS_IN_BROWSER = items
 int BB_BROWSER_MAX = 0;
@@ -799,7 +821,7 @@ float BOOSTER_FACTOR = 1.5;
 float BALANCE_VOL = 0;
 float MAIN_VOL = 90;
 float MAIN_VOL_R = 90;
-float MAIN_VOL_L = 5;
+float MAIN_VOL_L = 90;
 float EQ_HIGH = 0.9;
 float EQ_MID = 0.5;
 float EQ_LOW = 0.7;
@@ -846,7 +868,7 @@ String BLUETOOTH_DEVICE_PAIRED = "JBL T450BT";
 #endif
 
 // Control remoto de motor (REM)
-bool REM_ENABLE = true;
+bool REM_ENABLE = false;
 bool REM_DETECTED = false;
 bool STATUS_REM_ACTUATED = false;
 int firstBytes_REM = 0;
@@ -870,7 +892,7 @@ bool WAS_LAUNCHED = false;
 // Internet Radio
 bool IRADIO_EN = false;
 bool URL_RADIO_IS_READY = false;
-bool RADIO_BUFFERED = false;
+//bool RADIO_BUFFERED = false;
 
 // Remote control
 bool UPDATE_FROM_REMOTE_CONTROL = false;
@@ -904,11 +926,6 @@ bool DATA_IS_PLAYING = false;
 
 // Auto-update
 String HMI_MODEL = "";
-
-bool SPOTIFY_CONTROL = false;
-bool SPOTIFY_EN = false;
-String SPOTIFY_CLIENT_ID = "";
-String SPOTIFY_CLIENT_SECRET = "";
 
 //
 bool QUICK_BOOT = false;
@@ -945,11 +962,167 @@ uint8_t MCP_LED_IO_PIN     = 7;   // Pin 7 del PA del MCP23017 para Power LED
 //
 uint8_t SKIN_SELECTED = 1;
 
+// Baudrate
+double TAPE_BAUDRATE = 1; // 0.25 = 300, 1 = 1200, 2 = 2400, 3 = 3600, 3.21 = 3850
+
+
+// ======================================================================
+// SISTEMA DE LOGGING PROFESIONAL CON CLASIFICACIÓN POR NIVELES
+// ======================================================================
+// Niveles disponibles: INFO_LOG, ERROR_LOG, DEBUG_LOG
+// Formato: "timestamp [sección] - mensaje"
+// 
+// MIGRACIÓN GRADUAL:
+// - Nuevo código: usar log_info(), log_error(), log_debug(), log_alert()
+// - Código antiguo: seguir usando logln(), que se wrappea automáticamente
+// ======================================================================
+
+// Función helper para obtener timestamp en ms
+inline unsigned long getLogTimestamp() {
+  return millis();
+}
+
+// Función helper para formatear logs con timestamp y sección
+void _log_formatted(const char* level, const int line, const char* func, const char* section, const String& message) {
+  unsigned long ts = getLogTimestamp();
+  Serial.printf("[%06lu] [%s] %d - %s - %s - %s\r\n", ts, level, line, func, section, message.c_str());
+}
+
+void _log_formatted(const char* level, const int line, const char* func, const char* section, const char* message) {
+  unsigned long ts = getLogTimestamp();
+  Serial.printf("[%06lu] [%s] %d - %s - %s - %s\r\n", ts, level, line, func, section, message);
+}
+
+// ======================================================================
+// MACROS DE LOGGING CLASIFICADOS (INFO, ERROR, DEBUG, ALERT)
+// ======================================================================
+
+#define log_info(section, message) \
+  do { \
+    if (INFO_LOG) { \
+      _log_formatted("INFO", __LINE__, __func__, section, message); \
+    } \
+  } while(0)
+
+#define log_error(section, message) \
+  do { \
+    if (ERROR_LOG) { \
+      _log_formatted("ERROR",  __LINE__, __func__, section, message); \
+    } \
+  } while(0)
+
+#define log_debug(section, message) \
+  do { \
+    if (DEBUG_LOG) { \
+      _log_formatted("DEBUG", __LINE__, __func__, section, message); \
+    } \
+  } while(0)
+
+#define log_alert(section, message) \
+  do { \
+    if (ALERT_LOG) { \
+      _log_formatted("ALERT",  __LINE__, __func__, section, message); \
+    } \
+  } while(0)
+
+// ======================================================================
+// MACROS PARA LOGS NUMÉRICOS
+// ======================================================================
+
+#define LOGHEX(section, value) \
+  do { \
+    if (INFO_LOG) { \
+      Serial.printf("[%06lu] [INFO] %s - 0x%02X\r\n", getLogTimestamp(), section, value); \
+    } \
+  } while(0)
+
+#define LOGERRORHEX(section, value) \
+  do { \
+    if (ERROR_LOG) { \
+      Serial.printf("[%06lu] [ERROR] %s - 0x%02X\r\n", getLogTimestamp(), section, value); \
+    } \
+  } while(0)
+
+#define LOGBIN(section, value) \
+  do { \
+    if (INFO_LOG) { \
+      Serial.printf("[%06lu] [INFO] %s - 0b", getLogTimestamp(), section); \
+      Serial.print(value, BIN); \
+      Serial.println(); \
+    } \
+  } while(0)
+
+// ======================================================================
+// FUNCIONES LEGACY (COMPATIBILIDAD CON CÓDIGO EXISTENTE)
+// ======================================================================
+// Nota: Envueltas con #ifdef para control granular
+
+void logHEX(int n) {
+  #ifdef INFO_LOG
+  if (INFO_LOG) {
+    Serial.print(" 0x");
+    Serial.print(n, HEX);
+  }
+  #endif
+}
+
+void logBIN(int n) {
+  #ifdef INFO_LOG
+  if (INFO_LOG) {
+    Serial.print(" 0b");
+    Serial.print(n, BIN);
+  }
+  #endif
+}
+
+void log(String txt) { 
+  #ifdef INFO_LOG
+  if (INFO_LOG) {
+    Serial.print(txt);
+  }
+  #endif
+}
+
+void logln(String txt) {
+  #ifdef INFO_LOG
+  if (INFO_LOG) {
+    Serial.print(txt);
+    Serial.println("");
+  }
+  #endif
+}
+
+void loglnf(const char *format, String txt)
+{
+  #ifdef INFO_LOG
+  if (INFO_LOG) {
+    Serial.printf(format, txt.c_str());
+  }
+  #endif
+}
+
+String lastAlertTxt = "";
+
+void logAlert(String txt) {
+  #ifdef ALERT_LOG
+  if (ALERT_LOG) {
+    // Solo muestra una vez el mismo mensaje.
+    // esta rutina es perfecta para no llenar el buffer de salida serie con
+    // mensajes ciclicos
+    if (lastAlertTxt != txt) {
+      Serial.println("");
+      Serial.print(txt);
+      Serial.println("");
+    }
+    lastAlertTxt = txt;
+  }
+  #endif
+}
+
 // Declaraciones de metodos
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 // void save();
 // void saveHMIcfg(string value);
-void logln(String txt);
 
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
@@ -961,6 +1134,7 @@ ConfigEntry configEntries[] = {
     {"VOLMopt", CONFIG_TYPE_FLOAT, &MAIN_VOL},
     {"VOLLopt", CONFIG_TYPE_FLOAT, &MAIN_VOL_L},
     {"VOLRopt", CONFIG_TYPE_FLOAT, &MAIN_VOL_R},
+    {"BALopt", CONFIG_TYPE_FLOAT, &BALANCE_VOL},
     {"EQHopt", CONFIG_TYPE_FLOAT, &EQ_HIGH},
     {"EQMopt", CONFIG_TYPE_FLOAT, &EQ_MID},
     {"EQLopt", CONFIG_TYPE_FLOAT, &EQ_LOW},
@@ -969,15 +1143,45 @@ ConfigEntry configEntries[] = {
     {"PLDopt", CONFIG_TYPE_BOOL, &POWER_LED_MODE},
     {"HVKopt", CONFIG_TYPE_BOOL, &HIDE_VIRTUAL_KEY},
     {"SPKopt", CONFIG_TYPE_BOOL, &EN_SPEAKER},
-    {"RBUFopt", CONFIG_TYPE_BOOL, &RADIO_BUFFERED},
     {"DHCPFopt", CONFIG_TYPE_BOOL, &DHCP_ENABLE},
     {"MCPAVAIL", CONFIG_TYPE_BOOL, &MCP23017_AVAILABLE},
     {"WIFIopt", CONFIG_TYPE_BOOL, &WIFI_ENABLE},
     {"SKINopt", CONFIG_TYPE_UINT8, &SKIN_SELECTED},
+    {"IVOopt", CONFIG_TYPE_FLOAT, &IN_REC_VOL},
 };
 
-//           s.end());
-// }
+// ********************************************************************************************
+//
+// Funciones globales
+//
+// ********************************************************************************************
+
+void rewindAnimation(int direction) {
+  // Animación de rebobinado/avance rápido de la cinta
+  int p = 0;
+  int frames = 19;
+  int fdelay = 5;
+
+  log_info("FLAC","Rewind animation - Direction: " + String(direction));
+
+  while (p < frames) {
+
+    POS_ROTATE_CASSETTE += direction;
+
+    if (POS_ROTATE_CASSETTE > 23) {
+      POS_ROTATE_CASSETTE = 4;
+    }
+
+    if (POS_ROTATE_CASSETTE < 4) {
+      POS_ROTATE_CASSETTE = 23;
+    }
+
+    myNex.writeNum("tape.animation.pic", POS_ROTATE_CASSETTE);
+    delay(20);
+
+    p++;
+  }
+}
 
 // Function to load the configuration
 bool loadHMICfg() {
@@ -990,102 +1194,171 @@ bool loadHMICfg() {
   }
   ESP_ERROR_CHECK(err);
 
-  // Open NVS
+  // Open NVS for reading
   nvs_handle_t handle;
   err = nvs_open("storage", NVS_READONLY, &handle);
   if (err != ESP_OK) {
     printf("Error (%s) opening NVS handle for read!\n", esp_err_to_name(err));
-    logln("Error - abriendo NVS");
-    return true;
+    log_error("BOOT","Error - abriendo NVS");
+    return false;
   }
+
+  // Track missing keys to save later
+  std::vector<std::string> missing_keys;
 
   // Iterate over the configuration entries and load them
   for (auto &entry : configEntries) {
     switch (entry.type) {
-    case CONFIG_TYPE_STRING: {
-      size_t required_size = 0;
-      err = nvs_get_str(handle, entry.key, NULL,
-                        &required_size); // Get required size first
-      if (err == ESP_OK && required_size > 0) {
-        std::string *str_value = static_cast<std::string *>(entry.value);
-        char *buffer = new char[required_size];
-        err = nvs_get_str(handle, entry.key, buffer, &required_size);
-        if (err == ESP_OK) {
-          // Asignar el contenido del buffer al string
-          *str_value = std::string(
-              buffer,
-              required_size - 1); // Se resta 1 para no incluir el carácter nulo
+        case CONFIG_TYPE_STRING: {
+          size_t required_size = 0;
+          err = nvs_get_str(handle, entry.key, NULL,
+                            &required_size); // Get required size first
+          if (err == ESP_OK && required_size > 0) {
+            std::string *str_value = static_cast<std::string *>(entry.value);
+            char *buffer = new char[required_size];
+            err = nvs_get_str(handle, entry.key, buffer, &required_size);
+            if (err == ESP_OK) {
+              // Asignar el contenido del buffer al string
+              *str_value = std::string(
+                  buffer,
+                  required_size - 1); // Se resta 1 para no incluir el carácter nulo
+            }
+            delete[] buffer; // Free memory
+          } else if (err == ESP_ERR_NVS_NOT_FOUND) {
+            log_error("BOOT","Key '" + String(entry.key) + "' not found, will initialize with default.");
+            missing_keys.push_back(entry.key);
+          }
+          break;
         }
-        delete[] buffer; // Free memory
-      } else if (err == ESP_ERR_NVS_NOT_FOUND) {
-        printf("Key '%s' not found, skipping...\n", entry.key);
-      }
-      break;
-    }
-    case CONFIG_TYPE_BOOL: {
-      std::string bool_str;
-      size_t required_size = 0;
-      err = nvs_get_str(handle, entry.key, NULL,
-                        &required_size); // Get size of boolean string
-      if (err == ESP_OK && required_size > 0) {
-        char *buffer = new char[required_size];
-        err = nvs_get_str(handle, entry.key, buffer, &required_size);
-        if (err == ESP_OK) {
-          bool_str = buffer;
-          *static_cast<bool *>(entry.value) = (bool_str == "true");
+        case CONFIG_TYPE_BOOL: {
+          std::string bool_str;
+          size_t required_size = 0;
+          err = nvs_get_str(handle, entry.key, NULL,
+                            &required_size); // Get size of boolean string
+          if (err == ESP_OK && required_size > 0) {
+            char *buffer = new char[required_size];
+            err = nvs_get_str(handle, entry.key, buffer, &required_size);
+            if (err == ESP_OK) {
+              bool_str = buffer;
+              *static_cast<bool *>(entry.value) = (bool_str == "true");
+            }
+            delete[] buffer;
+          } else if (err == ESP_ERR_NVS_NOT_FOUND) {
+            log_error("BOOT","Key '" + String(entry.key) + "' not found, will initialize with default.");
+            missing_keys.push_back(entry.key);
+          }
+          break;
         }
-        delete[] buffer;
-      } else if (err == ESP_ERR_NVS_NOT_FOUND) {
-        printf("Key '%s' not found, skipping...\n", entry.key);
-      }
-      break;
-    }
-    case CONFIG_TYPE_UINT8: {
-      err = nvs_get_u8(handle, entry.key, static_cast<uint8_t *>(entry.value));
-      if (err == ESP_ERR_NVS_NOT_FOUND) {
-        printf("Key '%s' not found, skipping...\n", entry.key);
-      }
-      break;
-    }
-    case CONFIG_TYPE_UINT16: {
-      err =
-          nvs_get_u16(handle, entry.key, static_cast<uint16_t *>(entry.value));
-      if (err == ESP_ERR_NVS_NOT_FOUND) {
-        printf("Key '%s' not found, skipping...\n", entry.key);
-      }
-      break;
-    }
-    case CONFIG_TYPE_FLOAT: {
-      err = nvs_get_i32(handle, entry.key, static_cast<int32_t *>(entry.value));
-      if (err == ESP_ERR_NVS_NOT_FOUND) {
-        printf("Key '%s' not found, skipping...\n", entry.key);
-      }
-      break;
-    }
-    case CONFIG_TYPE_DOUBLE: {
-      err = nvs_get_i64(handle, entry.key, static_cast<int64_t *>(entry.value));
-      if (err == ESP_ERR_NVS_NOT_FOUND) {
-        printf("Key '%s' not found, skipping...\n", entry.key);
-      }
-      break;
-    }
-    case CONFIG_TYPE_INT8: {
-      err = nvs_get_i8(handle, entry.key, static_cast<int8_t *>(entry.value));
-      if (err == ESP_ERR_NVS_NOT_FOUND) {
-        printf("Key '%s' not found, skipping...\n", entry.key);
-      }
-      break;
-    }
+        case CONFIG_TYPE_UINT8: {
+          err = nvs_get_u8(handle, entry.key, static_cast<uint8_t *>(entry.value));
+          if (err == ESP_ERR_NVS_NOT_FOUND) {
+            log_error("BOOT","Key '" + String(entry.key) + "' not found, will initialize with default.");
+            missing_keys.push_back(entry.key);
+          }
+          break;
+        }
+        case CONFIG_TYPE_UINT16: {
+          err =
+              nvs_get_u16(handle, entry.key, static_cast<uint16_t *>(entry.value));
+          if (err == ESP_ERR_NVS_NOT_FOUND) {
+            log_error("BOOT","Key '" + String(entry.key) + "' not found, will initialize with default.");
+            missing_keys.push_back(entry.key);
+          }
+          break;
+        }
+        case CONFIG_TYPE_FLOAT: {
+          err = nvs_get_i32(handle, entry.key, static_cast<int32_t *>(entry.value));
+          if (err == ESP_ERR_NVS_NOT_FOUND) {
+            log_error("BOOT","Key '" + String(entry.key) + "' not found, will initialize with default.");
+            missing_keys.push_back(entry.key);
+          }
+          break;
+        }
+        case CONFIG_TYPE_DOUBLE: {
+          err = nvs_get_i64(handle, entry.key, static_cast<int64_t *>(entry.value));
+          if (err == ESP_ERR_NVS_NOT_FOUND) {
+            log_error("BOOT","Key '" + String(entry.key) + "' not found, will initialize with default.");
+            missing_keys.push_back(entry.key);
+          }
+          break;
+        }
+        case CONFIG_TYPE_INT8: {
+          err = nvs_get_i8(handle, entry.key, static_cast<int8_t *>(entry.value));
+          if (err == ESP_ERR_NVS_NOT_FOUND) {
+            log_error("BOOT","Key '" + String(entry.key) + "' not found, will initialize with default.");
+            missing_keys.push_back(entry.key);
+          }
+          break;
+        }
     }
 
     // Print error if there's a problem reading any entry
     if (err != ESP_OK && err != ESP_ERR_NVS_NOT_FOUND) {
-      printf("Error (%s) reading key '%s'!\n", esp_err_to_name(err), entry.key);
+      log_error("BOOT","Error (" + String(esp_err_to_name(err)) + ") reading key '" + String(entry.key) + "'!");
     }
   }
 
-  // Close NVS
+  // Close NVS read handle
   nvs_close(handle);
+
+  // If there are missing keys, save their current (default) values to NVS
+  if (!missing_keys.empty()) {
+    log_info("BOOT", "Found " + String(missing_keys.size()) + " missing keys. Saving defaults to NVS...");
+    
+    // Open NVS for writing
+    err = nvs_open("storage", NVS_READWRITE, &handle);
+    if (err == ESP_OK) {
+      for (const auto &missing_key : missing_keys) {
+        // Find the corresponding entry and save it
+        for (const auto &entry : configEntries) {
+          if (entry.key == missing_key) {
+            switch (entry.type) {
+            case CONFIG_TYPE_STRING:
+              nvs_set_str(handle, entry.key,
+                          static_cast<std::string *>(entry.value)->c_str());
+              break;
+            case CONFIG_TYPE_BOOL: {
+              bool val = *static_cast<bool *>(entry.value);
+              std::string bool_str = val ? "true" : "false";
+              nvs_set_str(handle, entry.key, bool_str.c_str());
+              break;
+            }
+            case CONFIG_TYPE_UINT8:
+              nvs_set_u8(handle, entry.key, *static_cast<uint8_t *>(entry.value));
+              break;
+            case CONFIG_TYPE_UINT16:
+              nvs_set_u16(handle, entry.key,
+                          *static_cast<uint16_t *>(entry.value));
+              break;
+            case CONFIG_TYPE_FLOAT:
+              nvs_set_i32(handle, entry.key,
+                          *static_cast<int32_t *>(entry.value));
+              break;
+            case CONFIG_TYPE_DOUBLE:
+              nvs_set_i64(handle, entry.key,
+                          *static_cast<int64_t *>(entry.value));
+              break;
+            case CONFIG_TYPE_INT8:
+              nvs_set_i8(handle, entry.key, *static_cast<int8_t *>(entry.value));
+              break;
+            }
+            log_info("BOOT", "Saved default for key '" + String(entry.key) + "'");
+            break;
+          }
+        }
+      }
+      nvs_commit(handle);
+      nvs_close(handle);
+      log_info("BOOT", "Missing keys initialized and saved.");
+    } else {
+      log_error("BOOT", "Could not open NVS for writing missing keys.");
+    }
+  }
+  else
+  {
+    log_info("BOOT", "All keys loaded successfully from NVS.");
+    return true;
+  }
 
   return false;
 }
@@ -1106,8 +1379,7 @@ void saveHMIcfg(std::string value) {
   nvs_handle_t handle;
   err = nvs_open("storage", NVS_READWRITE, &handle);
   if (err != ESP_OK) {
-    printf("Error (%s) opening NVS handle!\n", esp_err_to_name(err));
-    logln("Error opening NVS handle");
+    log_error("BOOT", "Error opening NVS handle");
     return;
   }
 
@@ -1133,8 +1405,7 @@ void saveHMIcfg(std::string value) {
         nvs_set_u32(handle, entry.key, *static_cast<uint32_t *>(entry.value));
         break;
       case CONFIG_TYPE_FLOAT:
-        nvs_set_blob(handle, entry.key, static_cast<float *>(entry.value),
-                     sizeof(float));
+        nvs_set_i32(handle, entry.key, *static_cast<int32_t *>(entry.value));
         break;
       case CONFIG_TYPE_INT8:
         nvs_set_i8(handle, entry.key, *static_cast<int8_t *>(entry.value));
@@ -1153,9 +1424,11 @@ void saveHMIcfg(std::string value) {
   nvs_close(handle);
 }
 
-void saveVolSliders() {
+void saveVolSliders() 
+{
   saveHMIcfg("VOLLopt");
   saveHMIcfg("VOLRopt");
+  saveHMIcfg("VOLMopt");
 }
 
 // Function to load configuration from SD using fopen
@@ -1216,84 +1489,6 @@ bool loadFromSD() {
   return false;
 }
 
-void logHEX(int n) {
-  Serial.print(" 0x");
-  Serial.print(n, HEX);
-}
-
-void logBIN(int n) {
-  Serial.print(" 0x");
-  Serial.print(n, BIN);
-}
-
-void log(String txt) { Serial.print(txt); }
-
-void logln(String txt) {
-  //Serial.println("");
-  Serial.print(txt);
-  Serial.println("");
-}
-
-void loglnf(const char *format, String txt)
-{
-  Serial.printf(format,txt);
-}
-
-String lastAlertTxt = "";
-
-void logAlert(String txt) {
-  // Solo muestra una vez el mismo mensaje.
-  // esta rutina es perfecta para no llenar el buffer de salida serie con
-  // mensajes ciclicos
-  if (lastAlertTxt != txt) {
-    Serial.println("");
-    Serial.print(txt);
-    Serial.println("");
-  }
-
-  lastAlertTxt = txt;
-}
-
-// void readFileRange(File mFile, uint8_t* &bufferFile, uint32_t offset, int
-// size, bool logOn=false)
-// {
-//     if (mFile)
-//     {
-//         // Ponemos a cero el puntero de lectura del fichero
-//         mFile.seek(0);
-
-//         // Obtenemos el tamano del fichero
-//         int rlen = mFile.available();
-//         FILE_LENGTH = rlen;
-
-//         // Posicionamos el puntero en la posicion indicada por offset
-//         mFile.seek(offset);
-
-//         // Si el fichero tiene aun datos entonces capturo
-//         if (rlen != 0)
-//         {
-//             // Leo el bloque y lo meto en bufferFile.
-//             mFile.read(bufferFile, size);
-
-//             #ifdef DEBUGMODE
-//                 logln("buffer read: ");
-//                 for (int i=0; i<size; i++)
-//                 {
-//                     logHEX(bufferFile[i]);
-//                     log(" ");
-//                 }
-//             #endif
-//         }
-//     }
-//     else
-//     {
-//         #ifdef DEBUGMODE
-//             logln("SD Card: error opening file.");
-//             logln(mFile.name());
-//         #endif
-//     }
-// }
-
 // ✅ VERSIÓN OPTIMIZADA - SIN MALLOC/FREE INNECESARIOS
 void readFileRange(File &file, uint8_t *buffer, int offset, int size,
                    bool usePrgBar = false) {
@@ -1308,8 +1503,7 @@ void readFileRange(File &file, uint8_t *buffer, int offset, int size,
   size_t bytesRead = file.read(buffer, size);
 
   if (bytesRead != size) {
-    logln("Warning: Expected " + String(size) + " bytes, read " +
-          String(bytesRead));
+    log_info("SYSTEM","Warning: Expected " + String(size) + " bytes, read " + String(bytesRead));
   }
 
   // ✅ ACTUALIZAR BARRA DE PROGRESO SI APLICA
@@ -1459,17 +1653,18 @@ void remDetection() {
     isAvailableForREM = false;
   }
 
-  if (REM_ENABLE && isAvailableForREM) 
+  if (isAvailableForREM) 
   {
     if (digitalRead(GPIO_MSX_REMOTE_PAUSE) == LOW && !REM_DETECTED) 
     {
       // Informamos del REM detectado
       myNex.writeStr("tape.wavind.txt", "REM");
-      logln("REM detected");
+      log_debug("SYSTEM","REM detected");
       // Retardo de arranque de motor 20ms (50Hz)
       delay(MOTOR_DELAY_MS);
       // Flag del REM a true
       REM_DETECTED = true;
+      REM_ENABLE = true;
     }
     else if (digitalRead(GPIO_MSX_REMOTE_PAUSE) != LOW && REM_DETECTED) 
     {
@@ -1480,7 +1675,7 @@ void remDetection() {
         myNex.writeStr("tape.wavind.txt", "");
       }
 
-      logln("REM released");
+      log_debug("SYSTEM","REM released");
       // Retardo de parada de motor 20ms (50Hz)
       delay(MOTOR_DELAY_MS);
       // Reseteamos el flag
@@ -1534,7 +1729,7 @@ bool _downloadBinaryToSD(const String& url, const String& localPath)
   int httpCode = http.GET();
   if (httpCode != HTTP_CODE_OK)
   {
-    logln("HTTP error " + String(httpCode) + " downloading: " + url);
+    log_error("SYSTEM", "HTTP error " + String(httpCode) + " downloading: " + url);
     http.end();
     return false;
   }
@@ -1542,7 +1737,7 @@ bool _downloadBinaryToSD(const String& url, const String& localPath)
   File file = SD_MMC.open(localPath.c_str(), FILE_WRITE);
   if (!file)
   {
-    logln("No se pudo crear fichero: " + localPath);
+    log_error("SYSTEM", "No se pudo crear fichero: " + localPath);
     http.end();
     return false;
   }
@@ -1551,7 +1746,7 @@ bool _downloadBinaryToSD(const String& url, const String& localPath)
   uint8_t* buf = (uint8_t*)malloc(bufSize);
   if (!buf)
   {
-    logln("No se pudo reservar buffer para descarga");
+    log_error("SYSTEM", "No se pudo reservar buffer para descarga");
     file.close();
     http.end();
     return false;
@@ -1570,6 +1765,8 @@ bool _downloadBinaryToSD(const String& url, const String& localPath)
     if (bytesRead == 0) { delay(10); continue; }
     file.write(buf, bytesRead);
     total += bytesRead;
+    // Barra de progreso
+    if (contentLength > 0) myNex.writeNum("tape.progressTotal.val", (total*100)/contentLength);
   }
 
   file.flush();
@@ -1577,7 +1774,8 @@ bool _downloadBinaryToSD(const String& url, const String& localPath)
   free(buf);
   http.end();
 
-  logln("Descargados " + String(total) + " bytes -> " + localPath);
+  log_info("SYSTEM", "Descargados " + String(total) + " bytes -> " + localPath);
+  //myNex.writeStr("tape.size.txt", String(total) + " bytes");
   return (total > 0);
 }
 
@@ -1586,13 +1784,13 @@ bool _downloadBinaryToSD(const String& url, const String& localPath)
 int _unzipGameFilesToDir(const String& zipPath, const String& destDir)
 {
   File zf = SD_MMC.open(zipPath.c_str(), FILE_READ);
-  if (!zf) { logln("_unzipGameFilesToDir: no se pudo abrir " + zipPath); return 0; }
+  if (!zf) { log_error("SYSTEM", "_unzipGameFilesToDir: no se pudo abrir " + zipPath); return 0; }
 
   size_t zipSize = zf.size();
   uint8_t* zipBuf = (uint8_t*)ps_malloc(zipSize);
   if (!zipBuf)
   {
-    logln("_unzipGameFilesToDir: sin PSRAM para " + String(zipSize) + " bytes");
+    log_error("SYSTEM", "_unzipGameFilesToDir: sin PSRAM para " + String(zipSize) + " bytes");
     zf.close();
     return 0;
   }
@@ -1603,7 +1801,7 @@ int _unzipGameFilesToDir(const String& zipPath, const String& destDir)
   memset(&zip, 0, sizeof(zip));
   if (!mz_zip_reader_init_mem(&zip, zipBuf, zipSize, 0))
   {
-    logln("_unzipGameFilesToDir: ZIP inválido: " + zipPath);
+    log_error("SYSTEM", "_unzipGameFilesToDir: ZIP inválido: " + zipPath);
     free(zipBuf);
     return 0;
   }
@@ -1630,7 +1828,7 @@ int _unzipGameFilesToDir(const String& zipPath, const String& destDir)
 
     size_t uncompSize = (size_t)fs.m_uncomp_size;
     uint8_t* outBuf = (uint8_t*)ps_malloc(uncompSize);
-    if (!outBuf) { logln("Sin PSRAM para extraer: " + entryName); continue; }
+    if (!outBuf) { log_error("SYSTEM", "Sin PSRAM para extraer: " + entryName); continue; }
 
     if (mz_zip_reader_extract_to_mem(&zip, i, outBuf, uncompSize, 0))
     {
@@ -1641,14 +1839,18 @@ int _unzipGameFilesToDir(const String& zipPath, const String& destDir)
         outFile.write(outBuf, uncompSize);
         outFile.flush();
         outFile.close();
-        logln("Extraído: " + outPath + " (" + String(uncompSize) + " bytes)");
+        log_info("SYSTEM", "Extraído: " + outPath + " (" + String(uncompSize) + " bytes)");
+        //myNex.writeStr("tape.size.txt", String(uncompSize) + " bytes");
         extracted++;
       }
-      else { logln("Error creando: " + outPath); }
+      else { log_error("SYSTEM", "Error creando: " + outPath); }
     }
-    else { logln("Error extrayendo: " + entryName); }
+    else { log_error("SYSTEM", "Error extrayendo: " + entryName); }
 
     free(outBuf);
+    // Actualizar progreso. Barra de progreso
+    if (numEntries > 0) myNex.writeNum("tape.progressBlock.val", (i*100)/numEntries);
+
   }
 
   mz_zip_reader_end(&zip);
@@ -1677,21 +1879,21 @@ int _unzipAllFilesToDir(const String& zipPath)
   {
     if (!SD_MMC.mkdir(destDir.c_str()))
     {
-      logln("_unzipAllFilesToDir: Error al crear directorio: " + destDir);
+      log_error("SYSTEM", " Error al crear directorio: " + destDir);
       return 0;
     }
-    logln("_unzipAllFilesToDir: Directorio creado: " + destDir);
+    log_info("SYSTEM", " Directorio creado: " + destDir);
   }
   
   // Abrir y leer el ZIP
   File zf = SD_MMC.open(zipPath.c_str(), FILE_READ);
-  if (!zf) { logln("_unzipAllFilesToDir: no se pudo abrir " + zipPath); return 0; }
+  if (!zf) { log_error("SYSTEM", " no se pudo abrir " + zipPath); return 0; }
 
   size_t zipSize = zf.size();
   uint8_t* zipBuf = (uint8_t*)ps_malloc(zipSize);
   if (!zipBuf)
   {
-    logln("_unzipAllFilesToDir: sin PSRAM para " + String(zipSize) + " bytes");
+    log_error("SYSTEM", " sin PSRAM para " + String(zipSize) + " bytes");
     zf.close();
     return 0;
   }
@@ -1702,7 +1904,7 @@ int _unzipAllFilesToDir(const String& zipPath)
   memset(&zip, 0, sizeof(zip));
   if (!mz_zip_reader_init_mem(&zip, zipBuf, zipSize, 0))
   {
-    logln("_unzipAllFilesToDir: ZIP inválido: " + zipPath);
+    log_error("SYSTEM", " ZIP inválido: " + zipPath);
     free(zipBuf);
     return 0;
   }
@@ -1711,7 +1913,7 @@ int _unzipAllFilesToDir(const String& zipPath)
   int extracted = 0;
   unsigned long lastUpdateTime = millis();
 
-  logln("_unzipAllFilesToDir: Iniciando extracción de " + String(numEntries) + " archivo(s)");
+  log_info("SYSTEM", " Iniciando extracción de " + String(numEntries) + " archivo(s)");
   LAST_MESSAGE = "Extracting ZIP: 0/" + String(numEntries);
 
   // Extraer todos los archivos
@@ -1732,7 +1934,7 @@ int _unzipAllFilesToDir(const String& zipPath)
     size_t uncompSize = (size_t)fs.m_uncomp_size;
     uint8_t* outBuf = (uint8_t*)ps_malloc(uncompSize);
     if (!outBuf) { 
-      logln("Sin PSRAM para extraer: " + entryName); 
+      log_error("SYSTEM", " Sin PSRAM para extraer: " + entryName); 
       LAST_MESSAGE = "Memory error extracting: " + entryName.substring(0, 20);
       continue; 
     }
@@ -1752,19 +1954,19 @@ int _unzipAllFilesToDir(const String& zipPath)
         outFile.write(outBuf, uncompSize);
         outFile.flush();
         outFile.close();
-        logln("Extraído: " + outPath + " (" + String(uncompSize) + " bytes)");
+        log_info("SYSTEM", "Extraído: " + outPath + " (" + String(uncompSize) + " bytes)");
         extracted++;
-        
+        //myNex.writeStr("tape.size.txt", String(uncompSize) + " bytes");
         // Actualizar progreso
         LAST_MESSAGE = "Extracted: " + String(extracted) + "/" + String(numEntries) + " (" + entryName.substring(0, 20) + ")";
       }
       else { 
-        logln("Error creando: " + outPath); 
+        log_error("SYSTEM", " Error creando: " + outPath); 
         LAST_MESSAGE = "Error creating file: " + entryName.substring(0, 20);
       }
     }
     else { 
-      logln("Error extrayendo: " + entryName); 
+      log_error("SYSTEM", " Error extrayendo: " + entryName); 
       LAST_MESSAGE = "Error extracting: " + entryName.substring(0, 20);
     }
 
@@ -1775,7 +1977,7 @@ int _unzipAllFilesToDir(const String& zipPath)
   free(zipBuf);
   
   if (extracted > 0) {
-    logln("_unzipAllFilesToDir: " + String(extracted) + " archivos extraídos a: " + destDir);
+    log_info("SYSTEM", String(extracted) + " archivos extraídos a: " + destDir);
     LAST_MESSAGE = "ZIP extracted: " + String(extracted) + " file(s)";
   } else {
     LAST_MESSAGE = "ZIP extraction: No files extracted";
@@ -1795,12 +1997,13 @@ void downloadFromZXDB(String gameId, String title)
   TYPE_FILE_LOAD = "ZXDB";
 
   LAST_MESSAGE = "Downloading: " + title;
-  myNex.writeStr("tape.g0.txt", LAST_MESSAGE);
+  //myNex.writeStr("tape.g0.txt", LAST_MESSAGE);
 
   if (!WIFI_CONNECTED || !WIFI_ENABLE)
   {
-    logln("WiFi no disponible para descarga ZXDB");
-    myNex.writeStr("tape.g0.txt", "No WiFi");
+    log_info("SYSTEM", " WiFi no disponible para descarga ZXDB");
+    LAST_MESSAGE = "No WiFi connection";
+    //myNex.writeStr("tape.g0.txt", "No WiFi");
     return;
   }
 
@@ -1822,16 +2025,17 @@ void downloadFromZXDB(String gameId, String title)
   {
     if (!SD_MMC.mkdir(destDir))
     {
-      logln("Error al crear directorio: " + destDir);
-      myNex.writeStr("tape.g0.txt", "Error creating dir");
+      log_error("SYSTEM", " Error al crear directorio: " + destDir);
+      LAST_MESSAGE = "Error creating dir";
       return;
     }
   }
 
   // Obtener metadata del juego de la API ZXDB
   String metaUrl = "https://api.zxinfo.dk/v3/games/" + gameId + "?mode=compact&output=flat";
-  logln("Obteniendo metadata ZXDB: " + metaUrl);
-  myNex.writeStr("tape.g0.txt", "Fetching metadata...");
+  log_info("SYSTEM", " Obteniendo metadata ZXDB: " + metaUrl);
+  LAST_MESSAGE = "Fetching metadata...";
+  myNex.writeStr("tape.g0.txt", LAST_MESSAGE.c_str());
 
   // Payload declarado fuera del bloque para usarlo luego al parsear
   String payload;
@@ -1840,12 +2044,13 @@ void downloadFromZXDB(String gameId, String title)
   // el heap, necesitamos reconectar aquí. Esperamos hasta 15 s.
   if (WIFI_ENABLE && WIFI_CONNECTED) 
   {
-    logln("WiFi conectado para ZXDB");
+    log_info("SYSTEM", " WiFi conectado para ZXDB");
   }
   else 
   {
-    logln("WiFi no disponible para descarga ZXDB");
-    myNex.writeStr("tape.g0.txt", "No WiFi");
+    log_info("SYSTEM", " WiFi no disponible para descarga ZXDB");
+    LAST_MESSAGE = "No WiFi connection";
+    //myNex.writeStr("tape.g0.txt", "No WiFi");
 
     return;
   }
@@ -1854,12 +2059,12 @@ void downloadFromZXDB(String gameId, String title)
   // (MALLOC_CAP_INTERNAL). mbedTLS usa SRAM interna exclusivamente.
   size_t sramLibre = heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
   size_t maxBloque = heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
-  logln("[ZXDB] WiFi conectado. Heap SRAM interna libre  : " + String(sramLibre));
-  logln("[ZXDB] Max bloque SRAM interna                  : " + String(maxBloque));
-  logln("[ZXDB] Heap total (incl PSRAM)                  : " + String(ESP.getFreeHeap()));
+  log_debug("ZXDB", " WiFi conectado. Heap SRAM interna libre  : " + String(sramLibre));
+  log_debug("ZXDB", " Max bloque SRAM interna                  : " + String(maxBloque));
+  log_debug("ZXDB", " Heap total (incl PSRAM)                  : " + String(ESP.getFreeHeap()));
   
   if (maxBloque < 45000) {
-    logln("[ZXDB] ⚠ ADVERTENCIA: Max bloque < 45KB. SSL probable fail con ECP_ALLOC");
+    log_info("ZXDB", " ⚠ ADVERTENCIA: Max bloque < 45KB. SSL probable fail con ECP_ALLOC");
   }
 
   // Bloque de scope con retry: el WiFiClientSecure se destruye en cada iteración,
@@ -1869,8 +2074,9 @@ void downloadFromZXDB(String gameId, String title)
   {
     if (attempt > 0)
     {
-      logln("Reintento metadata " + String(attempt) + " (fragmentacion de heap)...");
-      myNex.writeStr("tape.g0.txt", "Retry " + String(attempt) + "...");
+      log_debug("ZXDB", "Reintento metadata " + String(attempt) + " (fragmentacion de heap)...");
+      LAST_MESSAGE = "Retrying metadata... (" + String(attempt) + "/3)";
+      myNex.writeStr("tape.g0.txt", LAST_MESSAGE.c_str());
       vTaskDelay(pdMS_TO_TICKS(1500));
     }
 
@@ -1891,8 +2097,9 @@ void downloadFromZXDB(String gameId, String title)
     }
     else
     {
-      logln("Error HTTP metadata [intento " + String(attempt + 1) + "]: " + String(httpCode));
-      myNex.writeStr("tape.g0.txt", "Error " + String(httpCode) + " (" + String(attempt + 1) + "/3)");
+      log_error("ZXDB", " Error HTTP metadata [intento " + String(attempt + 1) + "]: " + String(httpCode));
+      LAST_MESSAGE = "Error " + String(httpCode) + " fetching metadata";
+      //myNex.writeStr("tape.g0.txt", "Error " + String(httpCode) + " (" + String(attempt + 1) + "/3)");
       http.end();
     }
     // secureClient destruido aquí al salir del scope del for, liberando SSL context
@@ -1900,14 +2107,16 @@ void downloadFromZXDB(String gameId, String title)
 
   if (!metaOK)
   {
-    logln("Fallo al obtener metadata tras 3 intentos.");
-    myNex.writeStr("tape.g0.txt", "Metadata error after retries");
+    log_error("ZXDB", "Fallo al obtener metadata tras 3 intentos.");
+    LAST_MESSAGE = "Metadata error";
+    //myNex.writeStr("tape.g0.txt", "Metadata error after retries");
     //
     LAST_MESSAGE = "Memory allocation error. Reboot ESP32";
-    myNex.writeStr("tape.g0.txt", LAST_MESSAGE);
+    //myNex.writeStr("tape.g0.txt", LAST_MESSAGE);
     return;
   }
-  logln("Metadata recibida: " + String(payload.length()) + " bytes");
+  log_info("ZXDB", "Metadata recibida: " + String(payload.length()) + " bytes");
+  LAST_SIZE = payload.length();
 
   // Parsear releases.X.files.Y.path= buscando ficheros .zip
   // Los ficheros en ZXDB son siempre .zip (ej: 1LineCaveAdventure.tzx.zip)
@@ -1941,27 +2150,31 @@ void downloadFromZXDB(String gameId, String title)
         String zipName = (lastSlash != -1) ? filePath.substring(lastSlash + 1) : filePath;
         String downloadUrl = "https://spectrumcomputing.co.uk" + filePath;
 
-        logln("Descargando ZIP: " + downloadUrl);
-        myNex.writeStr("tape.g0.txt", "Downloading: " + zipName);
+        log_info("ZXDB", "Descargando ZIP: " + downloadUrl);
+        LAST_MESSAGE = "Downloading: " + zipName;
+        myNex.writeStr("tape.g0.txt", LAST_MESSAGE.c_str());
+        // delay(125);
+        // myNex.writeStr("tape.g0.txt", "Downloading: " + zipName);
+        // delay(125);
+        // myNex.writeStr("tape.g0.txt", "Downloading: " + zipName);
 
         if (_downloadBinaryToSD(downloadUrl, tmpZip))
         {
-          myNex.writeStr("tape.g0.txt", "Extracting: " + zipName);
+          LAST_MESSAGE = "Extracting: " + zipName;
+          myNex.writeStr("tape.g0.txt", LAST_MESSAGE.c_str());
           int n = _unzipGameFilesToDir(tmpZip, destDir);
           filesDownloaded += n;
           SD_MMC.remove(tmpZip);  // borrar ZIP temporal
           
           LAST_MESSAGE = "Downloading done. See /DOWNLOAD";
-          myNex.writeStr("tape.g0.txt", LAST_MESSAGE);
-
-
         }
         else 
         { 
-          logln("Error descargando: " + zipName); 
+          log_error("ZXDB", "Error descargando: " + zipName); 
           LAST_MESSAGE = "Downloading error";
-          myNex.writeStr("tape.g0.txt", LAST_MESSAGE);
         }
+        // Actualizamos el mensaje en pantalla después de cada descarga/extracción
+        myNex.writeStr("tape.g0.txt", LAST_MESSAGE.c_str());
       }
 
       fileIdx++;
@@ -1971,13 +2184,21 @@ void downloadFromZXDB(String gameId, String title)
 
   if (filesDownloaded == 0)
   {
-    logln("No se encontraron ficheros de juego para ID: " + gameId);
-    myNex.writeStr("tao.message.txt", "No game files found");
+    log_error("ZXDB", "No se encontraron ficheros de juego para ID: " + gameId);
+    LAST_MESSAGE = "No game files found";
+    // delay(125);
+    // myNex.writeStr("tape.g0.txt", "No game files found");
+    // delay(125);
+    // myNex.writeStr("tape.g0.txt", "No game files found");
   }
   else
   {
-    logln("Descargados " + String(filesDownloaded) + " fichero(s) en " + destDir);
-    myNex.writeStr("tape.g0.txt", "Done: " + String(filesDownloaded) + " file(s)");
+    log_info("ZXDB", "Descargados " + String(filesDownloaded) + " fichero(s) en " + destDir);
+    LAST_MESSAGE = "Done: " + String(filesDownloaded) + " file(s)";
+    // delay(1250);
+    // myNex.writeStr("tape.g0.txt", "Done: " + String(filesDownloaded) + " file(s)");
+    // delay(125);
+    // myNex.writeStr("tape.g0.txt", "Done: " + String(filesDownloaded) + " file(s)");
   }
 
   DOWNLOADING_ZXDB = false;
@@ -2008,8 +2229,7 @@ int get_total_files_ZXDB(const char* baseurl)
   }
   else 
   {
-    Serial.print("Error HTTP: ");
-    Serial.println(httpCode);
+    log_error("ZXDB", "Error HTTP: " + String(httpCode));
   }
   http.end();
   return totalFiles;  
@@ -2027,19 +2247,17 @@ void updateZXDB(String letter = "0")
     {
         // Reseteamos la barra de progreso
         myNex.writeNum("zxdb.j0.val", 0);
-
-        //logln("Capturing ZXDB catalogue from letter: " + letter);
         //
         // Recorremos una cadena de busqueda para obtener todo el catálogo de ZXDB usando la API v3
         //
         if (letter != "0")
         {
           searchChain = letter;
-          logln("Capturing ZXDB catalogue for letter: " + letter);
+          log_debug("ZXDB", "Capturing ZXDB catalogue for letter: " + letter);
         }
         else
         {
-          logln("Capturing entire ZXDB catalogue");
+          log_debug("ZXDB", "Capturing entire ZXDB catalogue");
         }
 
         // Calculamos el total de items encontrados para mostrar una banda de progreso
@@ -2060,17 +2278,17 @@ void updateZXDB(String letter = "0")
             myNex.writeStr("zxdb.message.txt", "Calculating total items: " + String(totalItemsFound));
         }
 
-        logln("Total " + String(totalItemsFound) + " files in ZXDB");
+        log_info("ZXDB","Total " + String(totalItemsFound) + " files in ZXDB");
 
         // Bucle principal
         for (int i = 0; i < searchChain.length(); i++)
         {
 
-          logln("Capturing files list for letter: " + String(letter));
+          log_debug("ZXDB", "Capturing files list for letter: " + String(letter));
           myNex.writeStr("zxdb.message.txt", "Capturing for letter: <" + String(letter) + ">");
 
           char letter = searchChain.charAt(i);
-          logln("Generating files list for letter: " + String(letter));
+          log_debug("ZXDB", "Generating files list for letter: " + String(letter));
           
           // Buscamos. Actualizamos el subpath y ruta
           const char* subpath = &letter;
@@ -2079,10 +2297,10 @@ void updateZXDB(String letter = "0")
           // Vemos si existe el subpath. Si no existe, lo creamos.
           if (!SD_MMC.exists("/ONLINE/ZX/" + dir)) 
           {
-            logln("Creating directory /ONLINE/ZX/" + dir);
+            log_debug("ZXDB", "Creating directory /ONLINE/ZX/" + dir);
             if(!SD_MMC.mkdir("/ONLINE/ZX/" + dir))
             {
-              logln("Error al crear /ONLINE/ZX/" + dir);
+              log_error("ZXDB", "Error al crear /ONLINE/ZX/" + dir);
               continue;
             }
           }
@@ -2092,7 +2310,7 @@ void updateZXDB(String letter = "0")
             File f = SD_MMC.open("/ONLINE/ZX/" + dir + "/_files.lst", FILE_WRITE);
             if (!f)
             {
-              logln("No se pudo crear _files.lst: /ONLINE/ZX/" + dir + "/_files.lst");
+              log_error("ZXDB", "No se pudo crear _files.lst: /ONLINE/ZX/" + dir + "/_files.lst");
               myNex.writeStr("zxdb.message.txt", "Error on _files.lst");
               continue;
             }
@@ -2104,7 +2322,7 @@ void updateZXDB(String letter = "0")
             File f = SD_MMC.open("/ONLINE/ZX/" + dir + "/_files.inf", FILE_WRITE);
             if (!f)
             {
-              logln("No se pudo crear _files.inf: /ONLINE/ZX/" + dir + "/_files.inf");
+              log_error("ZXDB", "No se pudo crear _files.inf: /ONLINE/ZX/" + dir + "/_files.inf");
               myNex.writeStr("zxdb.message.txt", "Error on _files.inf");
               continue;
             }
@@ -2127,18 +2345,18 @@ void updateZXDB(String letter = "0")
 
           // Cogemos el total de items
           int total = get_total_files_ZXDB(urlToSearch.c_str());
-          logln("Total " + String(total) + " files in ZXDB");
+          log_info("ZXDB","Total " + String(total) + " files in ZXDB");
 
           //
           // Ahora bucle para coger todos los items de cada letra
           //
           npages = total / nrows;
           if (total % nrows > 0) npages++;
-          logln("Total pages to capture: " + String(npages));
+          log_debug("ZXDB","Total pages to capture: " + String(npages));
 
           while (count < npages)
           {
-            logln("Page: " + String(count+1) + " of " + String(npages));
+            log_debug("ZXDB", "Page: " + String(count+1) + " of " + String(npages));
 
             String linesBuffer = "";  // Buffer para acumular líneas antes de escribir en SD
 
@@ -2150,8 +2368,7 @@ void updateZXDB(String letter = "0")
             if (httpCode == 200) 
             {
               String payload = http.getString();
-              Serial.print("Payload length: ");
-              Serial.println(payload.length());
+              log_debug("ZXDB", "Payload length: " + String(payload.length()));
 
               int pageHit = 0;  // Siempre empieza en 0 para cada página
 
@@ -2177,7 +2394,7 @@ void updateZXDB(String letter = "0")
                   
                 if (id.length() != 0 && title.length() != 0)
                 {
-                  //logln("[" + String(lineNum) + "] Found: " + title + " (ID: " + id + ")");
+                  log_debug("ZXDB", "[" + String(lineNum) + "] Found: " + title + " (ID: " + id + ")");
                   linesBuffer += String(lineNum) + "|F|0|" + title + ".zxdb|" + id + "\n";
                   pageHit++;
                   lineNum++;
@@ -2207,7 +2424,7 @@ void updateZXDB(String letter = "0")
               }
               else
               {
-                logln("Error al abrir _files.lst para FILE_APPEND");
+                log_error("ZXDB", "Error al abrir _files.lst para FILE_APPEND");
               }
             }
 
@@ -2227,15 +2444,15 @@ void updateZXDB(String letter = "0")
               inf.println("CDIR=0");
               inf.flush();
               inf.close();
-              logln("Closed _files.inf");
+              log_debug("ZXDB", "Closed _files.inf");
             } 
             else 
             {
-              logln("No se pudo abrir _files.inf para escribir: /ONLINE/ZX/" + dir + "/_files.inf");
+              log_error("ZXDB", "No se pudo abrir _files.inf para escribir: /ONLINE/ZX/" + dir + "/_files.inf");
               myNex.writeStr("zxdb.message.txt", "Error on _files.inf");
             }
           }
-          logln("_files.lst y _files.inf generados correctamente desde ZXDB flat");
+          log_info("ZXDB", "_files.lst y _files.inf generados correctamente desde ZXDB flat");
 
           // Mensaje de finalización
           myNex.writeStr("zxdb.message.txt", "Capturing finished");
@@ -2266,7 +2483,7 @@ void downloadFromCPCDB(String fileName, String title)
 
   if (!WIFI_CONNECTED || !WIFI_ENABLE)
   {
-    logln("WiFi no disponible para descarga CPCDB");
+    log_info("CPCDB", "WiFi no disponible para descarga CPCDB");
     myNex.writeStr("tape.g0.txt", "No WiFi");
     DOWNLOADING_CPCDB = false;
     return;
@@ -2290,7 +2507,7 @@ void downloadFromCPCDB(String fileName, String title)
   {
     if (!SD_MMC.mkdir(destDir))
     {
-      logln("Error al crear directorio: " + destDir);
+      log_error("CPCDB", "Error al crear directorio: " + destDir);
       myNex.writeStr("tape.g0.txt", "Error creating dir");
       DOWNLOADING_CPCDB = false;
       return;
@@ -2312,7 +2529,7 @@ void downloadFromCPCDB(String fileName, String title)
                        + String(CPCDB_ZIP_NAME) + "/CDT/"
                        + encodedFileName;
 
-  logln("Descargando CDT: " + downloadUrl);
+  log_debug("CPCDB", "Descargando CDT: " + downloadUrl);
   myNex.writeStr("tape.g0.txt", "Downloading: " + fileName);
 
   String localPath = destDir + "/" + fileName;
@@ -2339,20 +2556,20 @@ void downloadFromCPCDB(String fileName, String title)
         int written = http.writeToStream(&file);
         file.flush();
         file.close();
-        logln("Descargados " + String(written) + " bytes -> " + localPath);
+        log_info("CPCDB", "Descargados " + String(written) + " bytes -> " + localPath);
         LAST_MESSAGE = "Download done. See /DOWNLOAD_CPC";
         myNex.writeStr("tape.g0.txt", LAST_MESSAGE);
       }
       else
       {
-        logln("No se pudo crear fichero: " + localPath);
+        log_error("CPCDB", "No se pudo crear fichero: " + localPath);
         LAST_MESSAGE = "Error creating file";
         myNex.writeStr("tape.g0.txt", LAST_MESSAGE);
       }
     }
     else
     {
-      logln("Error HTTP " + String(httpCode) + " descargando: " + downloadUrl);
+      log_error("CPCDB", "Error HTTP " + String(httpCode) + " descargando: " + downloadUrl);
       LAST_MESSAGE = "Download error " + String(httpCode);
       myNex.writeStr("tape.g0.txt", LAST_MESSAGE);
     }
@@ -2379,16 +2596,16 @@ void updateCPCDB(String letter = "0")
         if (letter != "0")
         {
           searchChain = letter;
-          logln("Capturing CPCDB catalogue for letter: " + letter);
+          log_debug("CPCDB", "Capturing CPCDB catalogue for letter: " + letter);
         }
         else
         {
-          logln("Capturing entire CPCDB catalogue");
+          log_debug("CPCDB", "Capturing entire CPCDB catalogue");
         }
 
         // Primero descargamos la lista completa de ficheros del ZIP
         // usando la API de metadata de Archive.org
-        logln("Fetching CPCDB file list from Archive.org...");
+        log_debug("CPCDB", "Fetching CPCDB file list from Archive.org...");
         myNex.writeStr("zxdb.message.txt", "Fetching CPC catalog...");
 
         WiFiClientSecure secureClient;
@@ -2409,7 +2626,7 @@ void updateCPCDB(String letter = "0")
         int httpCode = http.GET();
         if (httpCode != 200)
         {
-          logln("Error HTTP al obtener listado CPCDB: " + String(httpCode));
+          log_error("CPCDB", "Error HTTP al obtener listado CPCDB: " + String(httpCode));
           myNex.writeStr("zxdb.message.txt", "Error " + String(httpCode));
           http.end();
           return;
@@ -2558,7 +2775,7 @@ void updateCPCDB(String letter = "0")
           }
         }
 
-        logln("CPCDB: " + String(totalFiles) + " ficheros catalogados");
+        log_debug("CPCDB", String(totalFiles) + " ficheros catalogados");
         myNex.writeStr("zxdb.message.txt", "Done: " + String(totalFiles) + " CPC games");
         myNex.writeNum("zxdb.j0.val", 100);
     }
@@ -2584,7 +2801,7 @@ void downloadFromMSXDB(String fileName, String title)
 
   if (!WIFI_CONNECTED || !WIFI_ENABLE)
   {
-    logln("WiFi no disponible para descarga MSXDB");
+    log_info("MSXDB", "WiFi no disponible para descarga MSXDB");
     myNex.writeStr("tape.g0.txt", "No WiFi");
     DOWNLOADING_MSXDB = false;
     return;
@@ -2608,7 +2825,7 @@ void downloadFromMSXDB(String fileName, String title)
   {
     if (!SD_MMC.mkdir(destDir))
     {
-      logln("Error al crear directorio: " + destDir);
+      log_error("MSXDB", "Error al crear directorio: " + destDir);
       myNex.writeStr("tape.g0.txt", "Error creating dir");
       DOWNLOADING_MSXDB = false;
       return;
@@ -2628,7 +2845,7 @@ void downloadFromMSXDB(String fileName, String title)
 
   String downloadUrl = "https://" + String(MSXDB_HOST) + "/tsx-files/" + encodedFileName;
 
-  logln("Descargando TSX: " + downloadUrl);
+  log_info("MSXDB", "Descargando TSX: " + downloadUrl);
   myNex.writeStr("tape.g0.txt", "Downloading: " + title);
 
   String localPath = destDir + "/" + fileName;
@@ -2653,20 +2870,20 @@ void downloadFromMSXDB(String fileName, String title)
         int written = http.writeToStream(&file);
         file.flush();
         file.close();
-        logln("Descargados " + String(written) + " bytes -> " + localPath);
+        log_debug("MSXDB", "Descargados " + String(written) + " bytes -> " + localPath);
         LAST_MESSAGE = "Download done. See /DOWNLOAD_MSX";
         myNex.writeStr("tape.g0.txt", LAST_MESSAGE);
       }
       else
       {
-        logln("No se pudo crear fichero: " + localPath);
+        log_error("MSXDB", "No se pudo crear fichero: " + localPath);
         LAST_MESSAGE = "Error creating file";
         myNex.writeStr("tape.g0.txt", LAST_MESSAGE);
       }
     }
     else
     {
-      logln("Error HTTP " + String(httpCode) + " descargando: " + downloadUrl);
+      log_error("MSXDB", "Error HTTP " + String(httpCode) + " descargando: " + downloadUrl);
       LAST_MESSAGE = "Download error " + String(httpCode);
       myNex.writeStr("tape.g0.txt", LAST_MESSAGE);
     }
@@ -2693,14 +2910,14 @@ void updateMSXDB(String letter = "0")
         if (letter != "0")
         {
           searchChain = letter;
-          logln("Capturing MSXDB catalogue for letter: " + letter);
+          log_debug("MSXDB", "Capturing MSXDB catalogue for letter: " + letter);
         }
         else
         {
-          logln("Capturing entire MSXDB catalogue");
+          log_debug("MSXDB", "Capturing entire MSXDB catalogue");
         }
 
-        logln("Fetching MSXDB from tsx.eslamejor.com...");
+        log_info("MSXDB", "Fetching MSXDB from tsx.eslamejor.com...");
         myNex.writeStr("zxdb.message.txt", "Fetching MSX catalog...");
 
         int totalFiles = 0;
@@ -2875,7 +3092,7 @@ void updateMSXDB(String letter = "0")
           }
         }
 
-        logln("MSXDB: " + String(totalFiles) + " ficheros catalogados");
+        log_info("MSXDB", String(totalFiles) + " ficheros catalogados");
         myNex.writeStr("zxdb.message.txt", "Done: " + String(totalFiles) + " MSX games");
         myNex.writeNum("zxdb.j0.val", 100);
     }
