@@ -3402,17 +3402,21 @@ void MediaPlayer() {
       {
         // MP3
         // Ajustamos buffers
+        // recomendado 12 * 1024
+        // 3200
         decoderMP3.setMaxPCMSize(15 * 1024);
         decoderMP3.setMaxFrameSize(4096);
-        
+        //
         measureMP3.begin();
         decoderMP3.begin();
         measureMP3.setOutput(eq);
         //player.setDecoder(metadatafilter);
         player.setDecoder(decoderMP3);
         player.setOutput(measureMP3);
+        
         // Dimensionado del buffer de mp3
-        player.setBufferSize(4096); // 4096 KB para MP3
+        // originalmente 2048
+        player.setBufferSize(4096); // 4096 KB para MP3 mas exigentes.
 
 
         // Configuramos temporalmente el audio a 44100Hz hasta que leamos el archivo
@@ -8968,7 +8972,7 @@ void buttonsControl()
     if ((value & 0x01) == 1)
     {
       hmi.writeString("keypad.PA0.txt=\"" + String(keyPressed) + "\"");
-      logln("Key pressed on PORTA: " + String(keyPressed) + " (value: 0x" + String(value, HEX) + ")");
+      log_info("BUTTONS","Key pressed on PORTA: " + String(keyPressed) + " (value: 0x" + String(value, HEX) + ")");
     }
     else
     {
@@ -8979,7 +8983,7 @@ void buttonsControl()
     if ((value & 0x02) == 2)
     {
       hmi.writeString("keypad.PA1.txt=\"" + String(keyPressed) + "\"");
-      logln("Key pressed on PORTA: " + String(keyPressed) + " (value: 0x" + String(value, HEX) + ")");
+      log_info("BUTTONS","Key pressed on PORTA: " + String(keyPressed) + " (value: 0x" + String(value, HEX) + ")");
     }
     else
     {
@@ -8990,7 +8994,7 @@ void buttonsControl()
     if ((value & 0x04) == 4)
     {
       hmi.writeString("keypad.PA2.txt=\"" + String(keyPressed) + "\"");
-      logln("Key pressed on PORTA: " + String(keyPressed) + " (value: 0x" + String(value, HEX) + ")");
+      log_info("BUTTONS","Key pressed on PORTA: " + String(keyPressed) + " (value: 0x" + String(value, HEX) + ")");
     }
     else
     {
@@ -9001,7 +9005,7 @@ void buttonsControl()
     if ((value & 0x08) == 8)
     {
       hmi.writeString("keypad.PA3.txt=\"" + String(keyPressed) + "\"");
-      logln("Key pressed on PORTA: " + String(keyPressed) + " (value: 0x" + String(value, HEX) + ")");
+      log_info("BUTTONS","Key pressed on PORTA: " + String(keyPressed) + " (value: 0x" + String(value, HEX) + ")");
     }
     else
     {
@@ -9012,7 +9016,7 @@ void buttonsControl()
     if ((value & 0x10) == 0x10)
     {
       hmi.writeString("keypad.PA4.txt=\"" + String(keyPressed) + "\"");
-      logln("Key pressed on PORTA: " + String(keyPressed) + " (value: 0x" + String(value, HEX) + ")");
+      log_info("BUTTONS","Key pressed on PORTA: " + String(keyPressed) + " (value: 0x" + String(value, HEX) + ")");
     }
     else
     {
@@ -9023,7 +9027,7 @@ void buttonsControl()
     if ((value & 0x20) == 0x20)
     {
       hmi.writeString("keypad.PA5.txt=\"" + String(keyPressed) + "\"");
-      logln("Key pressed on PORTA: " + String(keyPressed) + " (value: 0x" + String(value, HEX) + ")");
+      log_info("BUTTONS","Key pressed on PORTA: " + String(keyPressed) + " (value: 0x" + String(value, HEX) + ")");
     }
     else
     {
@@ -9034,7 +9038,7 @@ void buttonsControl()
     if ((value & 0x40) == 0x40)
     {
       hmi.writeString("keypad.PA6.txt=\"" + String(keyPressed) + "\"");
-      logln("Key pressed on PORTA: " + String(keyPressed) + " (value: 0x" + String(value, HEX) + ")");
+      log_info("BUTTONS","Key pressed on PORTA: " + String(keyPressed) + " (value: 0x" + String(value, HEX) + ")");
     }
     else
     {
@@ -9117,7 +9121,7 @@ void buttonsControl()
             }
             else
             {
-              logln("Unknow key pressed - Value: " + String(lastKeyValuePB));
+              log_info("BUTTONS","Unknow key pressed - Value: " + String(lastKeyValuePB));
               keyStatusPB = 0;       
             }
           }
@@ -9127,28 +9131,28 @@ void buttonsControl()
           {
             // Long pressed
             // Aquí puedes manejar la lógica para una pulsación larga en el puerto B
-            //logln("> PORTB: LONG key pressed: keycode: " + String(lastKeyValuePB));
+            //log_info("BUTTONS","> PORTB: LONG key pressed: keycode: " + String(lastKeyValuePB));
             // Short pressed
             if (keyPressedPB == 8)
             {
-              logln("PORTB: Releasing long pressed");
+              log_info("BUTTONS","PORTB: Releasing long pressed");
               keyStatusPB = 0;       
             }
             else if (lastKeyValuePB == MCP_KEY_VOLUP)
             {
-              //logln("VOL+ button keeps pressed - Value: " + String(lastKeyValuePB));
+              //log_info("BUTTONS","VOL+ button keeps pressed - Value: " + String(lastKeyValuePB));
               hmi.verifyCommand("VOLUP");   
               //keyStatusPB = 0;       
             }
             else if (lastKeyValuePB == MCP_KEY_VOLDOWN)
             {
-              //logln("VOL- button keeps pressed - Value: " + String(lastKeyValuePB));
+              //log_info("BUTTONS","VOL- button keeps pressed - Value: " + String(lastKeyValuePB));
               hmi.verifyCommand("VOLDW");   
               //keyStatusPB = 0;       
             }
             else
             {
-              logln("Unknow key pressed - Value: " + String(lastKeyValuePB));
+              log_info("BUTTONS","Unknow key pressed - Value: " + String(lastKeyValuePB));
               keyStatusPB = 0;       
             }    }
           break;
@@ -9159,7 +9163,7 @@ void buttonsControl()
             if (keyPressedPB == 8)
             {
               keyStatusPB = 0;
-              logln("Key released");
+              log_info("BUTTONS","Key released");
                     
             }
           }
@@ -9210,7 +9214,7 @@ void buttonsControl()
             if (keykp_count[lastKeyValue] > 0)
             {
               keyStatus = 2;
-              logln("SHORT!! Detected");
+              log_info("BUTTONS","Short press detected");
             }
           }
         }
@@ -9221,63 +9225,117 @@ void buttonsControl()
           // Short pressed
           if (lastKeyValue == 8)
           {
-            logln("Unknow key - Short press");
+            log_info("BUTTONS","Unknow key - Short press");
             keyStatus = 5;       
           }
           else if (lastKeyValue == MCP_KEY_PLAY)
           {
-            logln("PLAY button pressed - Value: " + String(lastKeyValue));
-            hmi.verifyCommand("PLAY");   
-            keyStatus = 5;       
+            log_info("BUTTONS","PLAY button pressed - Value: " + String(lastKeyValue));
+            if (CURRENT_PAGE == PAGE_FILE_BROWSER )
+            {
+              // Cogemos el path
+              String strPath = myNex.readStr("file.path.txt");
+              log_info("BUTTONS","Trying to load selected file -> " + strPath);
+
+              // Vemos si no estça en blanco
+              if (strPath.length() > 0)
+              {
+                // Cgemos el indice pulsado en la pantalla
+                int tmpNum = myNex.readNumber("file.lastPressed.val");
+                // Ejecutamos la verificacion del comando serie.
+                log_info("BUTTONS","Loading file at index: " + String(tmpNum));
+                FROM_BUTTONS_CONTROL = true;
+                FILE_IDX_SELECTED = tmpNum;
+                hmi.verifyCommand("LFI=" + String(tmpNum));
+                keyStatus = 5;
+                FROM_BUTTONS_CONTROL = false;
+
+                // Salimos
+                myNex.writeNum("file.searchMode.val", 0);
+                delay(125);
+                hmi.verifyCommand("OUTFB");
+                delay(125);
+                hmi.writeString("page tape");
+                delay(125);
+
+                // Comenzamos la reproducción
+                hmi.verifyCommand("PLAY");   
+                keyStatus = 5;       
+              }
+            }
+            else
+            {
+              hmi.verifyCommand("PLAY");   
+              keyStatus = 5;       
+            }
           }
           else if (lastKeyValue == MCP_KEY_STOP)
           {
             if (!STOP)
             {
                 hmi.verifyCommand("STOP");
-                logln("STOP button pressed - Value: " + String(lastKeyValue));
+                log_info("BUTTONS","STOP button pressed - Value: " + String(lastKeyValue));
                 keyStatus = 5;       
             }
             else 
             {
-                hmi.verifyCommand("EJECT");
-                logln("STOP is active, then EJECT");
-                keyStatus = 5;
+                // Hacemos EJECT si no estoy en filebrowser. En otro caso no hago nada.
+                if (!FILE_BROWSER_OPEN)
+                {
+                  hmi.verifyCommand("EJECT");
+                  log_info("BUTTONS","STOP is active, then EJECT");
+                  keyStatus = 5;
+                }
             }
           }
           else if (lastKeyValue == MCP_KEY_PAUSE)
           {
-            hmi.verifyCommand("PAUSE");
-            logln("PAUSE button pressed - Value: " + String(lastKeyValue));
-            keyStatus = 5;       
+            if (!FILE_BROWSER_OPEN)
+            {
+              hmi.verifyCommand("PAUSE");
+              log_info("BUTTONS","PAUSE button pressed - Value: " + String(lastKeyValue));
+              keyStatus = 5;       
+            }
           }
           else if (lastKeyValue == MCP_KEY_FFWD)
           {
-            hmi.verifyCommand("FFWD");
-            logln("FFWD button pressed - Value: " + String(lastKeyValue));
-            keyStatus = 5;       
+            if (!FILE_BROWSER_OPEN)
+            {
+              hmi.verifyCommand("FFWD");
+              log_info("BUTTONS","FFWD button pressed - Value: " + String(lastKeyValue));
+              keyStatus = 5;       
+            }
           }
           else if (lastKeyValue == MCP_KEY_RWD)
           {
-            hmi.verifyCommand("RWD");
-            logln("RWD button pressed - Value: " + String(lastKeyValue));
-            keyStatus = 5;       
+            if (!FILE_BROWSER_OPEN)
+            {
+              hmi.verifyCommand("RWD");
+              log_info("BUTTONS","RWD button pressed - Value: " + String(lastKeyValue));
+              keyStatus = 5;       
+            }
           }
           else if (lastKeyValue == MCP_KEY_REC)
           {
-            hmi.verifyCommand("REC");
-            logln("REC button pressed - Value: " + String(lastKeyValue));
-            keyStatus = 5;       
+            if (!FILE_BROWSER_OPEN)
+            {
+              hmi.verifyCommand("REC");
+              log_info("BUTTONS","REC button pressed - Value: " + String(lastKeyValue));
+              keyStatus = 5;       
+            }
           }
           else if (lastKeyValue == MCP_KEY_EJECT)
           {
-            hmi.verifyCommand("EJECT");
-            logln("EJECT button pressed - Value: " + String(lastKeyValue));
-            keyStatus = 5;       
+            if (!FILE_BROWSER_OPEN)
+            {
+              hmi.verifyCommand("EJECT");
+              log_info("BUTTONS","EJECT button pressed - Value: " + String(lastKeyValue));
+              keyStatus = 5;       
+            }
           }
           else
           {
-            logln("Unknow key pressed");
+            log_info("BUTTONS","Unknow key pressed");
             keyStatus = 0;       
           }
         }
@@ -9289,7 +9347,7 @@ void buttonsControl()
           if (keyPressed == 8)
           {
             // Release button, do nothing
-            logln("Key released: " + String(lastKeyValue) + " - Value: " + String(keyPressed));
+            log_info("BUTTONS","Key released: " + String(lastKeyValue) + " - Value: " + String(keyPressed));
             if (KEEP_FFWIND)
             {
               KEEP_FFWIND = false;
@@ -9343,6 +9401,7 @@ void buttonsControl()
           }
           else
           {
+            log_info("BUTTONS","Unknown key LONG pressed");
             keyStatus = 0;
           }
         }
@@ -9677,7 +9736,7 @@ void Task0code(void *pvParameters) {
       // Hacemos poll de la botonera
       if (millis() - startTimeKey > timeKeyPoll)
       {
-        if (!FILE_BROWSER_OPEN && MCP23017_AVAILABLE) //(CURRENT_PAGE <= 1 || CURRENT_PAGE == 99) &&
+        if (MCP23017_AVAILABLE) //&& !FILE_BROWSER_OPEN)
         {
             buttonsControl();
         }          

@@ -56,7 +56,7 @@
 // --------------------------------------------------------------
 // Configuración de la versión del software
 // --------------------------------------------------------------
-#define VERSION "1.0r7.15p15" // Formato: vX.YrW.Z (X=major, Y=minor, W=revision, Z=revision_minor)
+#define VERSION "1.0r7.15p16" // Formato: vX.YrW.Z (X=major, Y=minor, W=revision, Z=revision_minor)
 
 // --------------------------------------------------------------
 // Configuración de memoria optimizada
@@ -446,5 +446,8 @@ bool TEST_LINE_IN_OUT = false;
 #define PAGE_SPOTIFY                   6
 #define PAGE_RADIO                     7
 #define PAGE_KEYDEBUG                  8
+#define PAGE_FILE_BROWSER              9
+#define PAGE_BLOCK_BROWSER             10
+#define PAGE_TRACK_BROWSER             11
 #define PAGE_CLOCK                     99
 

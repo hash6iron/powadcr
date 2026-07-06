@@ -2429,17 +2429,22 @@ private:
       // Load file - Carga en el TAPE el fichero seleccionado en pantalla
       else if (strCmd.indexOf("LFI=") != -1) 
       {
+          
           // Con este comando
           // devolvamos el fichero que se ha seleccionado en la pantalla
-          uint8_t buff[8];
-          strCmd.getBytes(buff, 7);
-          long val = (long)((int)buff[4] + (256*(int)buff[5]) + (65536*(int)buff[6]));
-          String num = String(val);
-    
-          FILE_IDX_SELECTED = num.toInt();
+          if (!FROM_BUTTONS_CONTROL)
+          {
+              uint8_t buff[8];
+              strCmd.getBytes(buff, 7);
+              long val = (long)((int)buff[4] + (256*(int)buff[5]) + (65536*(int)buff[6]));
+              String num = String(val);
+              FILE_IDX_SELECTED = num.toInt();
+          }
+
+          FROM_BUTTONS_CONTROL = false;
           FILE_SELECTED = false;
 
-          log_debug("HMI","File selected: " + String(FILE_IDX_SELECTED));
+          log_info("HMI","File selected: " + String(FILE_IDX_SELECTED));
 
           // Path completo del fichero
           if (FILE_IDX_SELECTED >=0 && FILE_IDX_SELECTED < 14)
@@ -2448,13 +2453,13 @@ private:
             // Fichero sin path
             FILE_LOAD = FILES_BUFF[FILE_IDX_SELECTED+1].path;                
 
-            log_debug("HMI","File path to load: " + PATH_FILE_TO_LOAD);
-            log_debug("HMI","File name only   : " + FILE_LOAD);
+            log_info("HMI","File path to load: " + PATH_FILE_TO_LOAD);
+            log_info("HMI","File name only   : " + FILE_LOAD);
 
             if (FILE_LOAD.indexOf(".zxdb") != -1)
             {
               // Es un fichero virtual ZXDB. Hay que descargarlo primero.
-              log_debug("HMI","File is a virtual ZXDB file. Downloading ...");
+              log_info("HMI","File is a virtual ZXDB file. Downloading ...");
               // Cogemos el nombre del fichero sin .zxdb
               String tittle = FILE_LOAD.substring(0, FILE_LOAD.length() - 5);
               // Buscamos en _files.lst el ID que le corresponde a ese fichero para descargarlo
@@ -2462,9 +2467,9 @@ private:
 
               if (idFile != "")
               {
-                log_debug("HMI","File id to download: " + idFile);
-                log_debug("HMI","Title of file to download: " + tittle);
-                log_debug("HMI","Starting download from ZXDB ...");
+                log_info("HMI","File id to download: " + idFile);
+                log_info("HMI","Title of file to download: " + tittle);
+                log_info("HMI","Starting download from ZXDB ...");
 
                 LAST_MESSAGE = "Trying to download from ZXDB. Please wait ...";
                 myNex.writeStr("tape.g0.txt", LAST_MESSAGE.c_str());
@@ -2477,7 +2482,7 @@ private:
             else if (FILE_LOAD.indexOf(".cpcdb") != -1)
             {
               // Es un fichero virtual CPCDB. Hay que descargarlo primero.
-              log_debug("HMI","File is a virtual CPCDB file. Downloading ...");
+              log_info("HMI","File is a virtual CPCDB file. Downloading ...");
               // Cogemos el nombre del fichero sin .cpcdb
               String tittle = FILE_LOAD.substring(0, FILE_LOAD.length() - 6);
               // Buscamos en _files.lst el nombre real del CDT
@@ -2485,9 +2490,9 @@ private:
 
               if (cdtFileName != "")
               {
-                log_debug("HMI","CDT file to download: " + cdtFileName);
-                log_debug("HMI","Title of file to download: " + tittle);
-                log_debug("HMI","Starting download from CPCDB ...");
+                log_info("HMI","CDT file to download: " + cdtFileName);
+                log_info("HMI","Title of file to download: " + tittle);
+                log_info("HMI","Starting download from CPCDB ...");
                 downloadFromCPCDB(cdtFileName, tittle);
               }
 
@@ -2495,7 +2500,7 @@ private:
             else if (FILE_LOAD.indexOf(".msxdb") != -1)
             {
               // Es un fichero virtual MSXDB. Hay que descargarlo primero.
-              log_debug("HMI","File is a virtual MSXDB file. Downloading ...");
+              log_info("HMI","File is a virtual MSXDB file. Downloading ...");
               // Cogemos el nombre del fichero sin .msxdb
               String tittle = FILE_LOAD.substring(0, FILE_LOAD.length() - 6);
               // Buscamos en _files.lst la ruta real del CAS (e.g. "CLOAD/Game (EU).cas")
@@ -2503,9 +2508,9 @@ private:
 
               if (casFileName != "")
               {
-                log_debug("HMI","CAS file to download: " + casFileName);
-                log_debug("HMI","Title of file to download: " + tittle);
-                log_debug("HMI","Starting download from MSXDB ...");
+                log_info("HMI","CAS file to download: " + casFileName);
+                log_info("HMI","Title of file to download: " + tittle);
+                log_info("HMI","Starting download from MSXDB ...");
                 downloadFromMSXDB(casFileName, tittle);
               }
 
@@ -2539,7 +2544,7 @@ private:
             PATH_FILE_TO_LOAD = "";
           }
     
-          log_debug("HMI","File to load = " + PATH_FILE_TO_LOAD);
+          log_info("HMI","File to load = " + PATH_FILE_TO_LOAD);
 
           FILE_STATUS = 0;
     
@@ -3708,13 +3713,13 @@ private:
       else if (strCmd.indexOf("PDEBUG") != -1)
       {
           // Estamos en la pantalla DEBUG
-          log_debug("HMI","PAGE DEBUG");
+          log_info("HMI","PAGE DEBUG");
           CURRENT_PAGE = PAGE_DEBUG;
       }
       else if (strCmd.indexOf("KEYDB") != -1)
       {
           // Estamos en la pantalla DEBUG
-          log_debug("HMI","PAGE KEYPAD Debug");
+          log_info("HMI","PAGE KEYPAD Debug");
           CURRENT_PAGE = PAGE_KEYDEBUG;
       }        
       else if (strCmd.indexOf("PMENU1") != -1)
@@ -3738,7 +3743,7 @@ private:
       else if (strCmd.indexOf("PMENU2") != -1)
       {
           // Estamos en la pantalla MENU
-          log_debug("HMI","PAGE MENU(Eq)");
+          log_info("HMI","PAGE MENU(Eq)");
           CURRENT_PAGE = PAGE_EQ;
           delay(500);          
           myNex.writeNum("menuEq.eqHigh.val", int(EQ_HIGH*100));
@@ -3750,7 +3755,7 @@ private:
       }
       else if (strCmd.indexOf("PMENU3") != -1)
       {
-          log_debug("HMI","PAGE MENU(Next)");
+          log_info("HMI","PAGE MENU(Next)");
           CURRENT_PAGE = 3;
           //delay(150);          
           switch((int)ceil(TAPE_BAUDRATE))
@@ -3801,7 +3806,7 @@ private:
       }         
       else if (strCmd.indexOf("PMENU5") != -1)
       {
-          log_debug("HMI","PAGE MENU(Next)");
+          log_info("HMI","PAGE MENU(Next)");
           CURRENT_PAGE = 5;
           //delay(150);          
           myNex.writeNum("menu2.pwled.val", int(!POWER_LED_MODE));
@@ -3822,7 +3827,7 @@ private:
       else if (strCmd.indexOf("PTAPE") != -1)
       {
           // Estamos en la pantalla TAPE
-          log_debug("HMI","PAGE TAPE");
+          log_info("HMI","PAGE TAPE");
           CURRENT_PAGE = 1;
           updateInformationMainPage(true);
           TAPE_PAGE_SHOWN = true;
@@ -3830,14 +3835,14 @@ private:
       }
       else if (strCmd.indexOf("PSPOT") != -1)
       {
-          // Estamos en la pantalla TAPE
-          log_debug("HMI","PAGE SPOTIFY");
+          // Estamos en la pantalla SPOTIFY
+          log_info("HMI","PAGE SPOTIFY");
           CURRENT_PAGE = PAGE_SPOTIFY;
       }
       else if (strCmd.indexOf("0TAPE") != -1)
       {
           // Estamos en la pantalla TAPE
-          log_debug("HMI","PAGE TAPE0");
+          log_info("HMI","PAGE TAPE0");
           CURRENT_PAGE = PAGE_TAPE0;
           //updateInformationMainPage(true);
           TAPE_PAGE_SHOWN = false;
@@ -3847,13 +3852,31 @@ private:
       else if (strCmd.indexOf("PCLOCK") != -1)
       {
           // Estamos en la pantalla TAPE
-          log_debug("HMI","PAGE CLOCK");
+          log_info("HMI","PAGE CLOCK");
           CURRENT_PAGE = PAGE_CLOCK;
           //updateInformationMainPage(true);
           TAPE_PAGE_SHOWN = false;
           RADIO_PAGE_SHOWN = false;
           //
-      }              
+      }  
+      else if (strCmd.indexOf("PFILE") != -1)
+      {
+        // Estamos en la pantalla FILE BROWSER
+        log_info("HMI","PAGE FILE BROWSER");
+        CURRENT_PAGE = PAGE_FILE_BROWSER;
+      } 
+      else if (strCmd.indexOf("PBLOC") != -1)
+      {
+        // Estamos en la pantalla Block BROWSER
+        log_info("HMI","PAGE BLOCK BROWSER");
+        CURRENT_PAGE = PAGE_BLOCK_BROWSER;
+      }  
+      else if (strCmd.indexOf("PBBROW") != -1)
+      {
+        // Estamos en la pantalla Track BROWSER
+        log_info("HMI","PAGE TRACK BROWSER");
+        CURRENT_PAGE = PAGE_TRACK_BROWSER;
+      }                             
       else if (strCmd.indexOf("CHKUPD") != -1)
       {
         //-------------------------------------------------------------------------

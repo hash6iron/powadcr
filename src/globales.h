@@ -707,6 +707,7 @@ bool ENABLE_ROTATE_FILEBROWSER = false;
 bool LST_FILE_IS_OPEN = false;
 int FILE_LAST_INDEX = 0;
 int FILE_IDX_SELECTED = -1;
+bool FROM_BUTTONS_CONTROL = false;
 bool FILE_SELECTED = false;
 bool FILE_PREPARED = false;
 bool FILE_INSIDE_TAPE = false;
