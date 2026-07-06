@@ -1024,7 +1024,9 @@ void FLACPlayer() {
     MEDIA_PLAYER_EN = true;
     MUSIC_IS_PLAYING = true;
 
-    PLAY = false;
+    PLAY = FROM_BUTTONS_CONTROL ? true : false;  // Si viene de botones, iniciar automáticamente
+    FROM_BUTTONS_CONTROL = false;  // Resetear flag de control externo
+    
     PAUSE = false;
     EJECT = false;
     STOP = true;  // Comenzar en STOP
