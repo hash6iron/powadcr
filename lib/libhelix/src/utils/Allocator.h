@@ -1,13 +1,19 @@
 #pragma once
 #include <stdlib.h>
 #include <string.h>
+#include <assert.h>
+#include "ConfigHelix.h"
 #include "utils/helix_log.h"
-#if defined(ESP32)
+#if defined(ESP32) || defined(ESP_PLATFORM)
 #  if defined(ARDUINO)
 #    include "Arduino.h"
 #  else
 #    include "esp_heap_caps.h"
 #  endif
+#endif
+
+#ifndef LOGE_HELIX
+#define LOGE_HELIX(...) assert(false)
 #endif
 
 namespace libhelix {
@@ -70,9 +76,7 @@ class Allocator {
     if (result == nullptr) {
       LOGE_HELIX("Allocateation failed for %zu bytes", size);
       while(1);
-    } else {
-      LOGD_HELIX("Allocated %zu", size);
-    }
+    } 
     return result;
   }
 
@@ -98,7 +102,7 @@ class AllocatorExt : public Allocator {
   void* do_allocate(size_t size) {
     void* result = nullptr;
     if (size == 0) size = 1;
-#if defined(ESP32) 
+#if defined(ESP32) || defined(ESP_PLATFORM)
 #  if defined(ARDUINO)
     result = ps_malloc(size);
 #  else
@@ -116,7 +120,7 @@ class AllocatorExt : public Allocator {
   }
 };
 
-#if defined(ESP32) && defined(ARDUINO)
+#if (defined(ESP32) || defined(ESP_PLATFORM)) && defined(ARDUINO)
 
 /**
  * @brief Memory allocateator which uses ps_malloc to allocate the memory in
@@ -142,6 +146,6 @@ class AllocatorPSRAM : public Allocator {
 #endif
 
 // Define the default allocator
-static AllocatorExt DefaultAllocator;
+static ALLOCATOR DefaultAllocator;
 
 }  // namespace audio_tools

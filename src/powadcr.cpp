@@ -3258,12 +3258,13 @@ void MediaPlayer() {
 
   // Configuración del filtrado de metadatos para el codec MP3
   // ---------------------------------------------------------
-  MetaDataFilterDecoder metadatafilter(decoderMP3);
+  //MetaDataFilterDecoder metadatafilter(decoderMP3);
 
   // Configuración de las mediciones de tiempo
   // ---------------------------------------------------------
   // MeasuringStream measureWAV(decoderWAV);
-  MeasuringStream measureMP3(metadatafilter);
+  MeasuringStream measureMP3(decoderMP3);
+  //MeasuringStream measureMP3(metadatafilter);
   // MeasuringStream measureFLAC(decoderFLAC);
 
   // Variables para medida de tiempo
@@ -3299,7 +3300,7 @@ void MediaPlayer() {
   decoderWAV_ADPCM.addNotifyAudioChange(volumeStream);
   decoderWAV_ADPCM.addNotifyAudioChange(eq);
   // MP3
-  metadatafilter.addNotifyAudioChange(measureMP3);
+  //metadatafilter.addNotifyAudioChange(measureMP3);
   decoderMP3.addNotifyAudioChange(volumeStream);
   decoderMP3.addNotifyAudioChange(eq);
   // FLAC
@@ -3400,13 +3401,19 @@ void MediaPlayer() {
       case 'm':
       {
         // MP3
+        // Ajustamos buffers
+        decoderMP3.setMaxPCMSize(15 * 1024);
+        decoderMP3.setMaxFrameSize(4096);
+        
         measureMP3.begin();
         decoderMP3.begin();
         measureMP3.setOutput(eq);
-        player.setDecoder(metadatafilter);
+        //player.setDecoder(metadatafilter);
+        player.setDecoder(decoderMP3);
         player.setOutput(measureMP3);
         // Dimensionado del buffer de mp3
-        player.setBufferSize(2048); // 4096 KB para MP3
+        player.setBufferSize(4096); // 4096 KB para MP3
+
 
         // Configuramos temporalmente el audio a 44100Hz hasta que leamos el archivo
         // real
@@ -4646,7 +4653,7 @@ void MediaPlayer() {
   decoderFLAC.end();
   
   measureMP3.end();
-  metadatafilter.end();
+  //metadatafilter.end();
 
   // Desvinculamos todas las notificaciones. Importante para evitar problemas
   kitStream.clearNotifyAudioChange();

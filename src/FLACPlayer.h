@@ -999,7 +999,6 @@ void updateInformation(OptimizedFLACPlayer &player)
     // Mostrar información del archivo parado
     uint32_t size_kb = player.getState().file_size / 1024;
     myNex.writeStr("tape2.size.txt", String(size_kb) + " KB");
-    
     myNex.writeStr("tape2.name.txt", player.getCurrentTrackName());                
 }
 

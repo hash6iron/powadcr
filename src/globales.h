@@ -920,6 +920,7 @@ struct tm TIMEINFO;
 bool RADIO_IS_PLAYING = false;
 bool MUSIC_IS_PLAYING = false;
 bool FLAC_IS_PLAYING = false;
+bool MP3_IS_PLAYING = false;
 bool NTP_AVAILABLE = false;
 bool DATA_IS_PLAYING = false;
 // bool PZX_EJECT_RQT = false;
