@@ -370,7 +370,7 @@ bool TEST_LINE_IN_OUT = false;
 // --------------------------------------------------------------
 //  HMI
 // --------------------------------------------------------------
-#define windowNameLengthFB 50
+#define windowNameLengthFB 40
 #define tRotateNameRfsh 230
 
 // Limitador de volumen
@@ -451,3 +451,4 @@ bool TEST_LINE_IN_OUT = false;
 #define PAGE_TRACK_BROWSER             11
 #define PAGE_CLOCK                     99
 
+//#define MP3_METADATA_FILTER

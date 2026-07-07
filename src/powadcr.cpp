@@ -3263,8 +3263,12 @@ void MediaPlayer() {
   // Configuración de las mediciones de tiempo
   // ---------------------------------------------------------
   // MeasuringStream measureWAV(decoderWAV);
-  MeasuringStream measureMP3(decoderMP3);
-  //MeasuringStream measureMP3(metadatafilter);
+  #ifndef MP3_METADATA_FILTER
+    MeasuringStream measureMP3(decoderMP3);
+  #else
+    MetaDataFilterDecoder metadatafilter(decoderMP3);
+    MeasuringStream measureMP3(metadatafilter);
+  #endif
   // MeasuringStream measureFLAC(decoderFLAC);
 
   // Variables para medida de tiempo
@@ -3300,7 +3304,9 @@ void MediaPlayer() {
   decoderWAV_ADPCM.addNotifyAudioChange(volumeStream);
   decoderWAV_ADPCM.addNotifyAudioChange(eq);
   // MP3
-  //metadatafilter.addNotifyAudioChange(measureMP3);
+  #ifdef MP3_METADATA_FILTER
+    metadatafilter.addNotifyAudioChange(measureMP3);
+  #endif
   decoderMP3.addNotifyAudioChange(volumeStream);
   decoderMP3.addNotifyAudioChange(eq);
   // FLAC
@@ -3410,8 +3416,13 @@ void MediaPlayer() {
         measureMP3.begin();
         decoderMP3.begin();
         measureMP3.setOutput(eq);
-        //player.setDecoder(metadatafilter);
-        player.setDecoder(decoderMP3);
+        
+        #ifdef MP3_METADATA_FILTER
+          player.setDecoder(metadatafilter);
+        #else
+          player.setDecoder(decoderMP3);
+        #endif
+
         player.setOutput(measureMP3);
         
         // Dimensionado del buffer de mp3
@@ -4657,7 +4668,11 @@ void MediaPlayer() {
   decoderFLAC.end();
   
   measureMP3.end();
-  //metadatafilter.end();
+  
+  #ifdef MP3_METADATA_FILTER
+    metadatafilter.end();
+  #endif
+  
 
   // Desvinculamos todas las notificaciones. Importante para evitar problemas
   kitStream.clearNotifyAudioChange();
@@ -9456,6 +9471,7 @@ void Task0code(void *pvParameters) {
   int startTime3 = millis();
   int startTime4 = millis();
   int startTime5 = millis();
+  int startTime6 = millis();
   int startTimeKey = millis();
   int startTimeToWifi = millis();
   int startNTPRetry = millis();
@@ -9516,7 +9532,83 @@ void Task0code(void *pvParameters) {
     #ifdef FTP_SERVER_ENABLE
       if (!IRADIO_EN && WIFI_ENABLE && WIFI_CONNECTED && !FLAC_IS_PLAYING && !DOWNLOADING_ZXDB && !DATA_IS_PLAYING && !REC) 
       {
-        ftpSrv.handleFTP();
+        int ftpStatus = ftpSrv.handleFTP();
+        FTP_CONNECTED = ftpStatus > 0 ? true : false;
+
+        if ((millis() - startTime6) > 2000) 
+        {
+
+          switch (ftpStatus + uint8_t(FTP_TRANSFER_INPROGRESS)) 
+          {
+            case 0:
+              // No hay conexión FTP
+              myNex.writeNum("tape.t1.pco", 23275);
+              myNex.writeNum("tape.t1.pco", 23275);
+              // FTP_CONNECTED_IND = false;
+              log_debug("FTP","Checking FTP connection status... GRAY");
+              break;
+            case 1:
+              // Conexión establecida, pero sin transferencia
+              myNex.writeNum("tape.t1.pco", 60868);
+              myNex.writeNum("tape.t1.pco", 60868);
+              // FTP_CONNECTED_IND = true;
+              log_debug("FTP","Checking FTP connection status... YELLOW");
+              break;
+            case 2:
+              // Transferencia en progreso
+              myNex.writeNum("tape.t1.pco", 2016);
+              myNex.writeNum("tape.t1.pco", 2016);
+              log_debug("FTP","Checking FTP connection status... GREEN");
+              break;
+            default:
+              // Conexión establecida, pero sin transferencia
+              myNex.writeNum("tape.t1.pco", 23275);
+              myNex.writeNum("tape.t1.pco", 23275);
+              // FTP_CONNECTED_IND = true;
+              log_debug("FTP","Checking FTP connection status... DEFAULT");
+
+              break;
+          }
+
+          // Comprobamos el estado de la conexión FTP cada 2 segundos
+          log_debug("FTP","Checking FTP connection status = " + String(ftpStatus));
+
+          // // Indicador de FTP conectada
+          // if (FTP_CONNECTED && !FTP_CONNECTED_IND)
+          // {
+          //   // Mostramos el indicador NTP
+          //   myNex.writeNum("tape.t1.pco", 60868);
+          //   myNex.writeNum("tape.t1.pco", 60868);
+          //   FTP_CONNECTED_IND = true;
+          //   log_debug("FTP","Checking FTP connection status... YELLOW");
+          // }
+          // else if (!FTP_CONNECTED && FTP_CONNECTED_IND)
+          // {
+          //   // Mostramos el indicador NTP
+          //   myNex.writeNum("tape.t1.pco", 23275);
+          //   myNex.writeNum("tape.t1.pco", 23275);
+          //   FTP_CONNECTED_IND = false;
+          //   log_debug("FTP","Checking FTP connection status... GRAY");
+          // }
+
+          // if (FTP_CONNECTED && FTP_TRANSFER_INPROGRESS)
+          // {
+          //   // Mostramos el indicador NTP
+          //   myNex.writeNum("tape.t1.pco", 2016);
+          //   myNex.writeNum("tape.t1.pco", 2016);
+          //   log_debug("FTP","Checking FTP connection status... GREEN");
+          // }
+          // else if (FTP_CONNECTED && !FTP_TRANSFER_INPROGRESS)
+          // {
+          //   // Mostramos el indicador NTP
+          //   myNex.writeNum("tape.t1.pco", 60868);
+          //   myNex.writeNum("tape.t1.pco", 60868);
+          //   log_debug("FTP","Checking FTP connection status... YELLOW (end transfer)");
+          // }
+
+          // Si no hay conexión FTP, mostramos el indicador de desconexión
+          startTime6 = millis();
+        }
       }
     #endif
 

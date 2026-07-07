@@ -46,6 +46,9 @@
 File global_dir;
 
 extern bool FTP_CONNECTED;
+extern bool FTP_TRANSFER_INPROGRESS;
+bool FTP_CONNECTED_IND = false;
+
 
 // ======================================================================
 // C64 MODE - Runtime switchable via HMI menu
