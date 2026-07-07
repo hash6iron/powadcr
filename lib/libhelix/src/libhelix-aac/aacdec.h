@@ -64,11 +64,13 @@
 #
 #elif defined(__GNUC__) && (defined(__powerpc__) || defined(__POWERPC__))
 #
+#elif defined(__GNUC__) && defined(__APPLE__)
+#
 #elif defined(_OPENWAVE_SIMULATOR) || defined(_OPENWAVE_ARMULATOR)
 #
 #elif defined(_SOLARIS) && !defined(__GNUC__)
 #
-#elif defined(ARDUINO) || defined(ESP32)
+#elif defined(ARDUINO) || defined(ESP32) || defined(ESP_PLATFORM) || defined(__ZEPHYR__)
 #
 #else
 #error No platform defined. See valid options in aacdec.h

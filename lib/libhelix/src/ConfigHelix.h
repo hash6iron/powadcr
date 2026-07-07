@@ -11,10 +11,10 @@
 
 // mp3
 #ifndef MP3_MAX_OUTPUT_SIZE
-#  define MP3_MAX_OUTPUT_SIZE 1024 * 5
+#  define MP3_MAX_OUTPUT_SIZE (1024 * 5)
 #endif
 #ifndef MP3_MAX_FRAME_SIZE
-#  define MP3_MAX_FRAME_SIZE 1024 * 2
+#  define MP3_MAX_FRAME_SIZE (1024 * 2)
 #endif
 #ifndef MP3_MIN_FRAME_SIZE
 #  define MP3_MIN_FRAME_SIZE 1024
@@ -22,7 +22,7 @@
 
 // aac
 #ifndef AAC_MAX_OUTPUT_SIZE
-#  define AAC_MAX_OUTPUT_SIZE 1024 * 8
+#  define AAC_MAX_OUTPUT_SIZE (1024 * 8)
 #endif
 #ifndef AAC_MAX_FRAME_SIZE
 #  define AAC_MAX_FRAME_SIZE 2100
@@ -47,12 +47,12 @@
 #  define LOG_METHOD __PRETTY_FUNCTION__
 #endif
 
-#if HELIX_LOGGING_ACTIVE && !defined(HELIX_LOGGING_OUT)
+#if !defined(HELIX_LOGGING_OUT) && HELIX_LOGGING_ACTIVE && defined(ARDUINO) 
 #  define HELIX_LOGGING_OUT Serial
 #endif
 
-/// Use the IDF logger for ESP32 wieh
-#if HELIX_LOGGING_ACTIVE && defined(ESP32) && !defined(ARDUINO)
+/// Use the IDF logger for ESP32
+#if !defined(USE_IDF_LOGGER) && HELIX_LOGGING_ACTIVE && (defined(ESP32) || defined(ESP_PLATFORM)) && !defined(ARDUINO)
 #  define USE_IDF_LOGGER
 #endif
 

@@ -46,6 +46,9 @@
 File global_dir;
 
 extern bool FTP_CONNECTED;
+extern bool FTP_TRANSFER_INPROGRESS;
+bool FTP_CONNECTED_IND = false;
+
 
 // ======================================================================
 // C64 MODE - Runtime switchable via HMI menu
@@ -707,6 +710,7 @@ bool ENABLE_ROTATE_FILEBROWSER = false;
 bool LST_FILE_IS_OPEN = false;
 int FILE_LAST_INDEX = 0;
 int FILE_IDX_SELECTED = -1;
+bool FROM_BUTTONS_CONTROL = false;
 bool FILE_SELECTED = false;
 bool FILE_PREPARED = false;
 bool FILE_INSIDE_TAPE = false;
@@ -920,6 +924,7 @@ struct tm TIMEINFO;
 bool RADIO_IS_PLAYING = false;
 bool MUSIC_IS_PLAYING = false;
 bool FLAC_IS_PLAYING = false;
+bool MP3_IS_PLAYING = false;
 bool NTP_AVAILABLE = false;
 bool DATA_IS_PLAYING = false;
 // bool PZX_EJECT_RQT = false;

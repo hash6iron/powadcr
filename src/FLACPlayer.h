@@ -999,7 +999,6 @@ void updateInformation(OptimizedFLACPlayer &player)
     // Mostrar información del archivo parado
     uint32_t size_kb = player.getState().file_size / 1024;
     myNex.writeStr("tape2.size.txt", String(size_kb) + " KB");
-    
     myNex.writeStr("tape2.name.txt", player.getCurrentTrackName());                
 }
 
@@ -1025,10 +1024,12 @@ void FLACPlayer() {
     MEDIA_PLAYER_EN = true;
     MUSIC_IS_PLAYING = true;
 
-    PLAY = false;
+    PLAY = FROM_BUTTONS_CONTROL ? true : false;  // Si viene de botones, iniciar automáticamente
+    FROM_BUTTONS_CONTROL = false;  // Resetear flag de control externo
+
     PAUSE = false;
     EJECT = false;
-    STOP = true;  // Comenzar en STOP
+    STOP = PLAY ? false : true;  // Si no se presionó PLAY, iniciar en STOP
     
     // Inicializar lista de reproducción desde el directorio del archivo seleccionado
     log_info("FLAC","Inicializando playlist para: " + PATH_FILE_TO_LOAD);

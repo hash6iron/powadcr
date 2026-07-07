@@ -81,6 +81,10 @@
 WiFiServer ftpServer( FTP_CTRL_PORT );
 WiFiServer dataServer( FTP_DATA_PORT_PASV );
 
+// Global variables to track FTP connection and transfer status
+bool FTP_CONNECTED = false;
+bool FTP_TRANSFER_INPROGRESS = false;
+
 FtpServer::FtpServer() {
 }
 
@@ -121,7 +125,7 @@ void FtpServer::iniVariables() {
 
   rnfrCmd = false;
   transferStatus = 0;
-
+  FTP_TRANSFER_INPROGRESS = false;
 }
 
 
@@ -134,7 +138,7 @@ int FtpServer::handleFTP() {
     client.stop();
     client = ftpServer.available();
     if (client.connected()) {
-      FTP_CONNECTED = true;
+     // FTP_CONNECTED = true;
     }
   }
 
@@ -202,7 +206,7 @@ int FtpServer::handleFTP() {
     millisDelay = millis() + 200;
     cmdStatus = 0;
   }
-  return    transferStatus != 0 || cmdStatus     != 0;
+  return transferStatus != 0 || cmdStatus != 0;
 }
 
 void FtpServer::clientConnected() {
@@ -222,7 +226,7 @@ void FtpServer::disconnectClient() {
   abortTransfer();
   client.println("221 Goodbye");
   client.stop();
-  FTP_CONNECTED = false;
+  //FTP_CONNECTED = false;
 }
 
 boolean FtpServer::userIdentity() {
@@ -246,10 +250,11 @@ boolean FtpServer::userPassword() {
   else if ( strcmp( parameters, _FTP_PASS.c_str() ))
     client.println( "530 ");
   else {
-#ifdef FTP_DEBUG
-    Serial.println( "OK. Waiting for commands.");
-#endif
+  #ifdef FTP_DEBUG
+      Serial.println( "OK. Waiting for commands.");
+  #endif
     client.println( "230 OK.");
+    //FTP_CONNECTED = true;
     return true;
   }
   // delay of 100 ms
@@ -563,6 +568,7 @@ boolean FtpServer::processCommand() {
         millisBeginTrans = millis();
         bytesTransfered = 0;
         transferStatus = 1;
+        FTP_TRANSFER_INPROGRESS = true;
       }
     }
   }
@@ -587,6 +593,7 @@ boolean FtpServer::processCommand() {
         millisBeginTrans = millis();
         bytesTransfered = 0;
         transferStatus = 2;
+        FTP_TRANSFER_INPROGRESS = true;
       }
     }
   }
@@ -777,6 +784,7 @@ boolean FtpServer::doStore() {
   // Asegurar flush final antes de cerrar
   file.flush();
   closeTransfer();
+  FTP_TRANSFER_INPROGRESS = false;
   return false;
 }
 
@@ -789,12 +797,14 @@ void FtpServer::closeTransfer() {
     client.println( "226 File successfully transferred");
   file.close();
   data.stop();
+  FTP_TRANSFER_INPROGRESS = false;
 }
 
 void FtpServer::abortTransfer() {
   if ( transferStatus > 0 ) {
     file.close();
     data.stop();
+    FTP_TRANSFER_INPROGRESS = false;
     client.println( "426 Transfer aborted"  );
 #ifdef FTP_DEBUG
     Serial.println( "Transfer aborted!") ;
