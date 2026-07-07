@@ -9259,6 +9259,7 @@ void buttonsControl()
                 delay(125);
 
                 // Comenzamos la reproducción
+                FROM_BUTTONS_CONTROL = true;
                 hmi.verifyCommand("PLAY");   
                 keyStatus = 5;       
               }

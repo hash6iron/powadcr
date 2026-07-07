@@ -1029,7 +1029,7 @@ void FLACPlayer() {
 
     PAUSE = false;
     EJECT = false;
-    STOP = ~PLAY;  // Si no se presionó PLAY, iniciar en STOP
+    STOP = PLAY ? false : true;  // Si no se presionó PLAY, iniciar en STOP
     
     // Inicializar lista de reproducción desde el directorio del archivo seleccionado
     log_info("FLAC","Inicializando playlist para: " + PATH_FILE_TO_LOAD);
