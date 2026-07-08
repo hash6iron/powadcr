@@ -107,6 +107,7 @@ EasyNex myNex(SerialHW);
 #include "ADPCM.h"
 
 #include "AudioTools/Communication/AudioHttp.h"
+#include "AudioTools/Communication/HTTP/ICYStream.h"
 #include "AudioTools/CoreAudio/AudioFilter/Equalizer3Bands.h"
 #include "AudioTools/Disk/AudioSourceIdxSDMMC.h"
 #include "AudioTools/Disk/AudioSourceURL.h"
@@ -268,7 +269,28 @@ String getFileNameFromPath(const String &filePath);
 String removeExtension(const String &filename);
 void updateWAVHeader(const String &file_path);
 bool updateEqualizerSettings(Equalizer3Bands &eq, ConfigEqualizer3Bands &cfg_eq, AudioInfo cfg);
+String extractRadioTrackName(const String &metadataValue);
+String getCurrentRadioTrackName();
+int getCurrentPlaybackBitrate(const String &mediaType, MP3DecoderHelix *mp3Decoder = nullptr,
+                             WAVDecoder *wavDecoder = nullptr);
 // bool volumeStreamSettings();
+
+struct AudioNotifySubscriptionGuard {
+  AudioInfoSource *source = nullptr;
+  AudioInfoSupport *target = nullptr;
+
+  AudioNotifySubscriptionGuard() = default;
+
+  AudioNotifySubscriptionGuard(AudioInfoSource *notifySource,
+                               AudioInfoSupport *notifyTarget)
+      : source(notifySource), target(notifyTarget) {}
+
+  ~AudioNotifySubscriptionGuard() {
+    if (source != nullptr && target != nullptr) {
+      source->removeNotifyAudioChange(*target);
+    }
+  }
+};
 
 
 // -----------------------------------------------------------------------
@@ -1838,7 +1860,11 @@ void updateIndicators(int size, int pos, uint32_t fsize, int bitrate, String fna
       strBitrate = "(" + String(bitrate / 1000) + " Kbps)";
     }
   } else {
-    strBitrate = "(Vble. br)";
+    if (TYPE_FILE_LOAD == "WAV") {
+      strBitrate = "(-- KBps)";
+    } else {
+      strBitrate = "(-- Kbps)";
+    }
   }
 
   if (fname != LASTFNAME) {
@@ -1859,6 +1885,17 @@ void updateIndicators(int size, int pos, uint32_t fsize, int bitrate, String fna
   } else {
     hmi.writeString("size.txt=\"" + String(fsize / 1024 / 1024) + " MB\"");
   }
+}
+
+int getCurrentPlaybackBitrate(const String &mediaType, MP3DecoderHelix *mp3Decoder,
+                             WAVDecoder *wavDecoder) {
+  if (mediaType == "MP3" && mp3Decoder != nullptr) {
+    return mp3Decoder->audioInfoEx().bitrate;
+  }
+  if (mediaType == "WAV" && wavDecoder != nullptr) {
+    return wavDecoder->audioInfoEx().byte_rate;
+  }
+  return 0;
 }
 
 // void updateSamplingRate(AudioPlayer &player, Equalizer3Bands &eq, ConfigEqualizer3Bands &cfg_eq, AudioInfo realInfo) {
@@ -2592,13 +2629,100 @@ void dialIndicator(bool enable) {
 }
 
 struct RadioNetworkTaskParams {
-  URLStream *stream;
+  AbstractURLStream *stream;
   SimpleCircularBuffer *buffer;
   volatile bool running;
   volatile bool new_url;
   volatile bool taskDone;  // la tarea lo pone a true justo antes de vTaskDelete(NULL)
   char url_buffer[256];
 };
+
+portMUX_TYPE gRadioMetaMux = portMUX_INITIALIZER_UNLOCKED;
+char gRadioTrackName[192] = {0};
+
+String extractRadioTrackName(const String &metadataValue) {
+  String value = metadataValue;
+  value.trim();
+
+  // ICY metadata often comes as: StreamTitle='Artist - Track';
+  if (value.startsWith("StreamTitle=")) {
+    int firstQuote = value.indexOf('\'');
+    int lastQuote = value.lastIndexOf('\'');
+    if (firstQuote >= 0 && lastQuote > firstQuote) {
+      value = value.substring(firstQuote + 1, lastQuote);
+    } else {
+      int equalPos = value.indexOf('=');
+      if (equalPos >= 0 && equalPos + 1 < value.length()) {
+        value = value.substring(equalPos + 1);
+      }
+    }
+    value.trim();
+  }
+
+  // Remove optional trailing semicolon and wrapping quotes.
+  if (value.endsWith(";")) {
+    value.remove(value.length() - 1);
+    value.trim();
+  }
+  if ((value.startsWith("\"") && value.endsWith("\"")) ||
+      (value.startsWith("'") && value.endsWith("'"))) {
+    value = value.substring(1, value.length() - 1);
+  }
+
+  // Common format: Artist - Track
+  int sep = value.indexOf(" - ");
+  if (sep > 0 && sep + 3 < value.length()) {
+    String track = value.substring(sep + 3);
+    track.trim();
+    return track;
+  }
+
+  value.trim();
+  return value;
+}
+
+void onRadioMetadata(MetaDataType info, const char *str, int len) {
+  if (str == nullptr || len <= 0) {
+    return;
+  }
+
+  // Keep parsing scoped and bounded to avoid oversized temporary allocations.
+  const int safeLen = min(len, 255);
+  char rawMeta[256] = {0};
+  memcpy(rawMeta, str, safeLen);
+  rawMeta[safeLen] = '\0';
+
+  if (info == Title || info == Name || info == Description) {
+    String trackName = extractRadioTrackName(String(rawMeta));
+    trackName.trim();
+    if (trackName.length() == 0) {
+      return;
+    }
+
+    if (lastTrackname != trackName) {
+      lastTrackname = trackName;
+      portENTER_CRITICAL(&gRadioMetaMux);
+      strncpy(gRadioTrackName, trackName.c_str(), sizeof(gRadioTrackName) - 1);
+      gRadioTrackName[sizeof(gRadioTrackName) - 1] = '\0';
+      portEXIT_CRITICAL(&gRadioMetaMux);
+      log_info("RADIO", "Now playing: " + trackName);
+      LAST_MESSAGE = "Playing: " + trackName;
+      myNex.writeStr("tape.g0.txt", "Playing: " + trackName);
+    }
+  } else if (info == Artist) {
+    lastArtist = String(rawMeta);
+    lastArtist.trim();
+  }
+}
+
+String getCurrentRadioTrackName() {
+  char currentTrack[192] = {0};
+  portENTER_CRITICAL(&gRadioMetaMux);
+  strncpy(currentTrack, gRadioTrackName, sizeof(currentTrack) - 1);
+  currentTrack[sizeof(currentTrack) - 1] = '\0';
+  portEXIT_CRITICAL(&gRadioMetaMux);
+  return String(currentTrack);
+}
 
 void radio_network_task(void *parameter) 
 {
@@ -2676,9 +2800,9 @@ bool updateEqualizerSettings(Equalizer3Bands &eq,ConfigEqualizer3Bands &cfg_eq, 
 
 void RadioPlayer() {
 
-  logln("Heap: " + String(ESP.getFreeHeap()) + " (max bloque: " + String(ESP.getMaxAllocHeap()) + ")");
-  logln("[Radio INICIO] SRAM interna libre  : " + String(heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT)));
-  logln("[Radio INICIO] Max bloque SRAM int  : " + String(heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT)));
+  log_info("RADIO","Heap: " + String(ESP.getFreeHeap()) + " (max bloque: " + String(ESP.getMaxAllocHeap()) + ")");
+  log_info("RADIO","[Radio INICIO] SRAM interna libre  : " + String(heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT)));
+  log_info("RADIO","[Radio INICIO] Max bloque SRAM int  : " + String(heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT)));
 
   rotate_enable = false;
   ENABLE_ROTATE_FILEBROWSER = false;
@@ -2687,7 +2811,15 @@ void RadioPlayer() {
   RADIO_IS_PLAYING = true;
   // 1. CONFIGURACIÓN DE TAREAS Y BUFFERS
   SimpleCircularBuffer radioBuffer(RADIO_BUFFER_SIZE);
-  URLStream urlStream(ssid.c_str(), password);
+  ICYStream urlStream(ssid.c_str(), password);
+  urlStream.setMetadataCallback(onRadioMetadata);
+
+  // Clear previous station metadata before starting a new radio session.
+  portENTER_CRITICAL(&gRadioMetaMux);
+  gRadioTrackName[0] = '\0';
+  portEXIT_CRITICAL(&gRadioMetaMux);
+  lastTrackname = "";
+  lastArtist = "";
 
   RadioNetworkTaskParams taskParams;
   taskParams.stream = &urlStream;
@@ -2704,6 +2836,8 @@ void RadioPlayer() {
   const size_t BUFFER_STOP_THRESHOLD = RADIO_BUFFER_SIZE * 0.25;
   bool isBuffering = true;
   bool dialIndicatorIsShown = false;
+
+  double timeToShowTrack = 0;
 
 
   // Configuración del pipeline de audio
@@ -2724,6 +2858,7 @@ void RadioPlayer() {
   IRADIO_EN = true;
 
   audio_tools::Equalizer3Bands eq(volumeStream);
+  AudioNotifySubscriptionGuard radioEqNotifyGuard{&volumeStream, &eq};
   audio_tools::ConfigEqualizer3Bands cfg_eq;
 
   MP3DecoderHelix decoder;
@@ -2770,7 +2905,7 @@ void RadioPlayer() {
   
   isBuffering = false;
 
-  logln("Heap: " + String(ESP.getFreeHeap()) + " (max bloque: " + String(ESP.getMaxAllocHeap()) + ")");
+  log_info("RADIO","Heap: " + String(ESP.getFreeHeap()) + " (max bloque: " + String(ESP.getMaxAllocHeap()) + ")");
 
   while (!EJECT && WIFI_CONNECTED) 
   {
@@ -2780,15 +2915,28 @@ void RadioPlayer() {
     {
       EQ_CHANGE = false;
       updateEqualizerSettings(eq, cfg_eq, cfg);
-      // cfg_eq.setAudioInfo(cfg);
-      // cfg_eq.gain_low = EQ_LOW;
-      // cfg_eq.gain_medium = EQ_MID;
-      // cfg_eq.gain_high = EQ_HIGH;
-      // eq.begin(cfg_eq);  // Reconfigura el ecualizador
     }
 
     // Gestión de botones FFWD/RWIND
     if (!isBuffering && (FFWIND || RWIND)) {
+
+      // **************************
+
+        // playerState = 10;
+        // PLAY = false;
+        bufferw = 0;
+        statusSignalOk = false;
+        isBuffering = true;
+        radioBuffer.clear();
+        dialIndicator(false);
+
+        taskParams.new_url = false;
+        urlStream.end();
+
+        isBuffering = false;
+
+      // ***************************
+
       dialIndicator(false);
       bufferw = 0; 
       // ✅ CORRECCIÓN DEFINITIVA: Parada y reinicio completo del pipeline de
@@ -2842,6 +2990,8 @@ void RadioPlayer() {
         // anterior antes de alloc del nuevo: evita fragmentación de SRAM interna.
         vTaskDelay(pdMS_TO_TICKS(50));
         xTaskCreatePinnedToCore(radio_network_task, "RadioNetworkTask", 8192, &taskParams, 1, &networkTaskHandle, 0);
+
+        
 
       } else {
         LAST_MESSAGE = "Select: " + radioName;
@@ -3008,10 +3158,12 @@ void RadioPlayer() {
       {
         if (isBuffering) {
           size_t bufAvail = radioBuffer.getAvailable();
-          LAST_MESSAGE =
-              "Buffering: " +
-              String((bufAvail * 100) / RADIO_BUFFER_SIZE) +
-              "%";
+          // LAST_MESSAGE =
+
+          //     "Buffering: " +
+          //     String((bufAvail * 100) / RADIO_BUFFER_SIZE) +
+          //     "%";
+          PROGRESS_BAR_BLOCK_VALUE = (bufAvail * 100) / RADIO_BUFFER_SIZE;
 
           // Si el buffer ha crecido, actualizar el timestamp
           if (bufAvail > lastBufferSnapshot) 
@@ -3056,7 +3208,7 @@ void RadioPlayer() {
           if (bufAvail >= BUFFER_START_THRESHOLD) {
             logln("Buffer filled. Starting playback.");
             isBuffering = false;
-            LAST_MESSAGE = "Playing: " + radioName;
+            //LAST_MESSAGE = "Playing: " + radioName + " - " + getCurrentRadioTrackName();
           }
         } else {
           if (radioBuffer.getAvailable() < BUFFER_STOP_THRESHOLD) {
@@ -3278,6 +3430,7 @@ void MediaPlayer() {
   // Configuración del ecualizador
   // ---------------------------------------------------------
   audio_tools::Equalizer3Bands eq(volumeStream);
+  AudioNotifySubscriptionGuard mediaEqNotifyGuard{&volumeStream, &eq};
   audio_tools::ConfigEqualizer3Bands cfg_eq;
 
   cfg_eq = eq.defaultConfig();
@@ -3569,6 +3722,7 @@ void MediaPlayer() {
   EQ_CHANGE = false;
 
   // Mostramos informacion del fichero seleccionado en el browser.
+  bitRateRead = getCurrentPlaybackBitrate(TYPE_FILE_LOAD, &decoderMP3, &decoderWAV);
   updateIndicators(totalFilesIdx, currentPointer + 1, fileSize, bitRateRead, audiolist[currentPointer].filename);
   // -------------------------------------------------------------------
   // -
@@ -3722,6 +3876,7 @@ void MediaPlayer() {
         }
 
         // Actualización inicial de indicadores
+        bitRateRead = getCurrentPlaybackBitrate(TYPE_FILE_LOAD, &decoderMP3, &decoderWAV);
         updateIndicators(totalFilesIdx, currentPointer + 1, fileSize, bitRateRead, source.toStr());
 
         // Cambiamos de estado
@@ -3815,6 +3970,7 @@ void MediaPlayer() {
             fileread = 0;
             stateStreamplayer = 4; // Auto-stop
             hmi.writeString("tape.currentBlock.val=1");
+            bitRateRead = getCurrentPlaybackBitrate(TYPE_FILE_LOAD, &decoderMP3, &decoderWAV);
             updateIndicators(totalFilesIdx, 1, fileSize, bitRateRead, audiolist[0].filename);
             delay(125);
           }
@@ -3857,6 +4013,7 @@ void MediaPlayer() {
 
             // Reiniciar el reproductor
             fileSize = getStreamfileSize(pFile);
+            bitRateRead = getCurrentPlaybackBitrate(TYPE_FILE_LOAD, &decoderMP3, &decoderWAV);
             updateIndicators(totalFilesIdx, currentPointer, fileSize, bitRateRead, audiolist[currentPointer].filename);
             delay(125);
           }
@@ -3900,6 +4057,7 @@ void MediaPlayer() {
           hmi.setVolumenOutput();
 
           fileSize = getStreamfileSize(pFile);
+          bitRateRead = getCurrentPlaybackBitrate(TYPE_FILE_LOAD, &decoderMP3, &decoderWAV);
           updateIndicators(totalFilesIdx, currentPointer, fileSize, bitRateRead, audiolist[currentPointer].filename);
           delay(125);
         }
@@ -3937,8 +4095,9 @@ void MediaPlayer() {
 
       if (millis() - lastUpdate > tmpoToRfsh) {
         // Mostramos informacion del fichero.
+        bitRateRead = getCurrentPlaybackBitrate(TYPE_FILE_LOAD, &decoderMP3, &decoderWAV);
         updateIndicators(totalFilesIdx, currentPointer + 1, fileSize,
-                         bitRateRead, audiolist[currentPointer].filename);
+             bitRateRead, audiolist[currentPointer].filename);
 
         uint32_t stime_total = 0;   // Tiempo total del archivo en segundos
         uint32_t stime_elapsed = 0; // Tiempo transcurrido en segundos
@@ -4353,6 +4512,7 @@ void MediaPlayer() {
             FFWIND = RWIND = false;
             fileread = 0;
             //
+            bitRateRead = getCurrentPlaybackBitrate(TYPE_FILE_LOAD, &decoderMP3, &decoderWAV);
             updateIndicators(totalFilesIdx, currentPointer + 1, fileSize, bitRateRead,
                             audiolist[currentPointer].filename);
 
@@ -4574,8 +4734,9 @@ void MediaPlayer() {
         hmi.writeString("tape.lblFreq.txt=\"" + String(int(srd / 1000)) +
                         "KHz\"");
         // Actualizamos HMI
+        bitRateRead = getCurrentPlaybackBitrate(TYPE_FILE_LOAD, &decoderMP3, &decoderWAV);
         updateIndicators(totalFilesIdx, currentPointer + 1, fileSize,
-                         bitRateRead, audiolist[currentPointer].filename);
+             bitRateRead, audiolist[currentPointer].filename);
       }
 
       UPDATE_HMI = false;
@@ -4624,12 +4785,7 @@ void MediaPlayer() {
       fileSize = getStreamfileSize(pFile);
 
       // Esto lo hacemos para indicar el sampling rate del reproductor
-      if (ext == "mp3")
-        bitRateRead = 0;
-      else if (ext == "wav")
-        bitRateRead = decoderWAV.audioInfoEx().byte_rate;
-      else
-        bitRateRead = 0;
+      bitRateRead = getCurrentPlaybackBitrate(TYPE_FILE_LOAD, &decoderMP3, &decoderWAV);
 
       // bitRateRead = isWav ? decoderWAV.audioInfoEx().byte_rate : 0;
       updateIndicators(totalFilesIdx, currentPointer + 1, fileSize, bitRateRead, audiolist[currentPointer].filename);

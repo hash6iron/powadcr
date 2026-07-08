@@ -89,6 +89,62 @@ struct FLACPlayState {
     bool track_end_reached = false;
 };
 
+inline bool readFLACStreamInfoMetadata(File &file, uint32_t &sampleRate,
+                                       uint8_t &channels,
+                                       uint8_t &bitsPerSample) {
+    if (!file) {
+        return false;
+    }
+
+    size_t originalPos = file.position();
+    sampleRate = 0;
+    channels = 0;
+    bitsPerSample = 0;
+
+    file.seek(0);
+
+    uint8_t signature[4] = {0};
+    if (file.read(signature, sizeof(signature)) != sizeof(signature) ||
+        memcmp(signature, "fLaC", sizeof(signature)) != 0) {
+        file.seek(originalPos);
+        return false;
+    }
+
+    while (file.available() >= 4) {
+        uint8_t header[4] = {0};
+        if (file.read(header, sizeof(header)) != sizeof(header)) {
+            break;
+        }
+
+        uint8_t blockType = header[0] & 0x7F;
+        uint32_t blockLength = ((uint32_t)header[1] << 16) |
+                               ((uint32_t)header[2] << 8) |
+                               (uint32_t)header[3];
+
+        if (blockType == 0 && blockLength >= 34) {
+            uint8_t streamInfo[34] = {0};
+            if (file.read(streamInfo, sizeof(streamInfo)) != sizeof(streamInfo)) {
+                break;
+            }
+
+            sampleRate = ((uint32_t)streamInfo[10] << 12) |
+                         ((uint32_t)streamInfo[11] << 4) |
+                         ((uint32_t)(streamInfo[12] & 0xF0) >> 4);
+            channels = ((streamInfo[12] & 0x0E) >> 1) + 1;
+            bitsPerSample = (((streamInfo[12] & 0x01) << 4) |
+                             ((streamInfo[13] & 0xF0) >> 4)) + 1;
+
+            file.seek(originalPos);
+            return sampleRate > 0;
+        }
+
+        file.seek(file.position() + blockLength);
+    }
+
+    file.seek(originalPos);
+    return false;
+}
+
 // ============================================================================
 // GESTOR DE LISTA DE REPRODUCCIÓN FLAC
 // ============================================================================
@@ -494,6 +550,15 @@ public:
         state.stop_requested = false;
         state.error_occurred = false;
         state.track_end_reached = false;
+
+        if (!readFLACStreamInfoMetadata(current_file, state.sample_rate,
+                                        state.channels,
+                                        state.bits_per_sample)) {
+            log_error("FLAC", "No se pudo leer STREAMINFO del fichero FLAC");
+            state.sample_rate = 0;
+            state.channels = 0;
+            state.bits_per_sample = 0;
+        }
         
         // Limpiar buffers
         input_buffer->clear();
@@ -998,8 +1063,15 @@ void updateInformation(OptimizedFLACPlayer &player)
                         
     // Mostrar información del archivo parado
     uint32_t size_kb = player.getState().file_size / 1024;
+    String samplingRateTrack = "FLAC file (-- KHz)";
+    if (player.getState().sample_rate > 0) {
+        float sampleRateKhz = player.getState().sample_rate / 1000.0f;
+        unsigned int decimals = (player.getState().sample_rate % 1000) == 0 ? 0U : 1U;
+        samplingRateTrack = "FLAC file (" + String(player.getState().bits_per_sample) + " bits / " + String(sampleRateKhz, decimals) + " KHz)";
+    }
     myNex.writeStr("tape2.size.txt", String(size_kb) + " KB");
-    myNex.writeStr("tape2.name.txt", player.getCurrentTrackName());                
+    myNex.writeStr("tape2.name.txt", player.getCurrentTrackName());
+    myNex.writeStr("tape.type.txt", samplingRateTrack);
 }
 
 void FLACPlayer() {
