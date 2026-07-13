@@ -5,5 +5,7 @@
  * Called during I2S codec operations to show visual feedback
  */
 
-void tapeAnimationON();
-void tapeAnimationOFF();
+void tapeAnimationON(bool cd);
+void tapeAnimationOFF(bool cd);
+void resetTapeAnimation();
+void downSpinMotorAnimation();

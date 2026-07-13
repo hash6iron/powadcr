@@ -263,8 +263,9 @@ void rewindAnimation(int direction);
 void showOption(String id, String value);
 void setupNTP();
 void setupWifi();
-void tapeAnimationOFF();
-void tapeAnimationON();
+void tapeAnimationOFF(bool cd);
+void tapeAnimationON(bool cd);
+void resetTapeAnimation();
 String getFileNameFromPath(const String &filePath);
 String removeExtension(const String &filename);
 void updateWAVHeader(const String &file_path);
@@ -1231,23 +1232,73 @@ void hideRadioDial() {
   hmi.writeString("tape.animation.pic=4");
 }
 
-void tapeAnimationON() {
-  // Activamos animacion cinta
-  hmi.writeString("tape2.tmAnimation.en=1");
-  hmi.writeString("tape.tmAnimation.en=1");
-  delay(250);
-  hmi.writeString("tape2.tmAnimation.en=1");
-  hmi.writeString("tape.tmAnimation.en=1");
+void resetTapeAnimation(bool cd) {
+  // Reseteamos animacion cinta
+  if (cd) 
+  {
+    // Inicializamos con CD
+    myNex.writeNum("tape.animation.pic", 65);  
+    myNex.writeNum("tape.animation.pic", 65); 
+    //
+    myNex.writeNum("tape.tm1.tim", 50); 
+    myNex.writeNum("tape.tm1.tim", 50);
+  }
+  else
+  {
+    // Inicializamos con TAPE
+    int step = myNex.readNumber("tape.va1.val");
+
+    myNex.writeNum("tape.animation.pic", step);  
+    myNex.writeNum("tape.animation.pic", step);  
+  }
+
 }
 
-void tapeAnimationOFF() {
-  // Desactivamos animacion cinta
-  hmi.writeString("tape2.tmAnimation.en=0");
-  hmi.writeString("tape.tmAnimation.en=0");
-  delay(250);
-  hmi.writeString("tape2.tmAnimation.en=0");
-  hmi.writeString("tape.tmAnimation.en=0");
+void tapeAnimationON(bool cd) {
+  // Activamos animacion cinta
+  if (cd) 
+  {
+    //resetTapeAnimation(false);
+    resetTapeAnimation(true);
+    hmi.writeString("tape.tm1.en=1");
+    hmi.writeString("tape.tm1.en=1");
+  }
+  else
+  {
+    //resetTapeAnimation(true);
+    resetTapeAnimation(false);
+    hmi.writeString("tape.tmAnimation.en=1");
+    hmi.writeString("tape.tmAnimation.en=1");
+  }
 }
+
+void downSpinMotorAnimation()
+{
+    LAST_MESSAGE  = "Slowing down spin motor. Wait.";
+    // Pausa de animación retardada CD - Down spin motor.
+    int i = 50;
+    while (i < 100)
+    {
+      myNex.writeNum("tape.tm1.tim", i);
+      i += 3;
+      delay(125);
+    }
+}
+
+void tapeAnimationOFF(bool cd) {
+  // Desactivamos animacion cinta
+
+    //
+    hmi.writeString("tape.tm1.en=0");
+    hmi.writeString("tape.tm1.en=0");
+    //
+    hmi.writeString("tape.tmAnimation.en=0");
+    hmi.writeString("tape.tmAnimation.en=0");
+
+    resetTapeAnimation(cd);
+}
+
+
 
 void recAnimationON() {
   // Indicador REC parpadea
@@ -1384,7 +1435,7 @@ void WavRecording() {
   recAnimationOFF();
   delay(125);
   recAnimationFIXED_ON();
-  tapeAnimationON();
+  tapeAnimationON(false);
 
   // Agregamos las salidas al multiple
   
@@ -1471,7 +1522,7 @@ void WavRecording() {
   REC = false;
   recAnimationOFF();
   recAnimationFIXED_OFF();
-  tapeAnimationOFF();
+  tapeAnimationOFF(false);
 
   LAST_MESSAGE = "Recording finish";
   logln("Recording finish!");
@@ -1515,7 +1566,7 @@ void stopRecording() {
       taprec.terminate(false);
       //
       LAST_MESSAGE = "Recording STOP.";
-      tapeAnimationOFF();
+      tapeAnimationOFF(false);
       //
       delay(1500);
     } else {
@@ -1529,14 +1580,14 @@ void stopRecording() {
 
         taprec.terminate(true);
         LAST_MESSAGE = "Recording STOP.";
-        tapeAnimationOFF();
+        tapeAnimationOFF(false);
         //
         delay(1500);
       } else if (taprec.fileWasNotCreated) {
         // Si no se crea el fichero no se puede seguir grabando
         taprec.terminate(false);
         LAST_MESSAGE = "Error in filesystem or SD.";
-        tapeAnimationOFF();
+        tapeAnimationOFF(false);
         //
         delay(1500);
       }
@@ -1555,7 +1606,7 @@ void stopRecording() {
   taprec.fileWasNotCreated = true;
 
   // Paramos la animación del indicador de recording
-  tapeAnimationOFF();
+  tapeAnimationOFF(false);
 
   //
 }
@@ -1761,7 +1812,7 @@ void setSTOP() {
   }
   delay(125);
   // Paramos la animación del indicador de recording
-  tapeAnimationOFF();
+  tapeAnimationOFF(false);
   //
   delay(125);
   //
@@ -3299,8 +3350,6 @@ void RadioPlayer() {
     free(audiolist);
   }
   dialIndicator(false);
-  hmi.writeString("tape.tm0.en=1");
-  hmi.writeString("tape.tm1.en=1");
 
   vTaskDelay(pdMS_TO_TICKS(50));
   RADIO_IS_PLAYING = false;
@@ -3481,6 +3530,7 @@ void MediaPlayer() {
   {
       case 'w':
       {
+        
         // WAV - Detectar formato ANTES de inicializar decoders
         logln("\n--- WAV file detected ---");
         
@@ -3563,6 +3613,7 @@ void MediaPlayer() {
         // Ajustamos buffers
         // recomendado 12 * 1024
         // 3200
+
         decoderMP3.setMaxPCMSize(15 * 1024);
         decoderMP3.setMaxFrameSize(4096);
         //
@@ -3850,7 +3901,7 @@ void MediaPlayer() {
             STOP = true;
             PLAY = false;
             AUDIO_FORMART_IS_VALID = false;
-            tapeAnimationOFF();
+            tapeAnimationOFF(false);
             player.stop();
             break;
           }
@@ -3881,7 +3932,7 @@ void MediaPlayer() {
 
         // Cambiamos de estado
         stateStreamplayer = 1;
-        tapeAnimationON();
+        tapeAnimationON(false);
       }
 
       if (UPDATE_FROM_REMOTE_CONTROL && FILE_POS_REMOTE_CONTROL >= 0) {
@@ -3906,7 +3957,7 @@ void MediaPlayer() {
         STOP = true;
         PLAY = false;
         stateStreamplayer = 0;
-        tapeAnimationOFF();
+        tapeAnimationOFF(false);
         break;
       }
 
@@ -4066,12 +4117,12 @@ void MediaPlayer() {
       if (STOP) {
         stateStreamplayer = 0;
         fileread = 0;
-        tapeAnimationOFF();
+        tapeAnimationOFF(false);
       }
 
       if (PAUSE) {
         stateStreamplayer = 2; // Pausa
-        tapeAnimationOFF();
+        tapeAnimationOFF(false);
         PLAY = false;
         PAUSE = false;
       }
@@ -4262,12 +4313,12 @@ void MediaPlayer() {
     {
       if (PAUSE || PLAY) {
         stateStreamplayer = 1; // Reproduciendo
-        tapeAnimationON();
+        tapeAnimationON(false);
         PAUSE = false;
       } else if (STOP) {
         stateStreamplayer = 0;
         fileread = 0;
-        tapeAnimationOFF();
+        tapeAnimationOFF(false);
       }
     }
     break;
@@ -4275,7 +4326,7 @@ void MediaPlayer() {
     case 4: // Auto-stop
     {
       player.stop();
-      tapeAnimationOFF();
+      tapeAnimationOFF(false);
 
       // Reiniciamos el índice
       BLOCK_SELECTED = 0;
@@ -4538,7 +4589,7 @@ void MediaPlayer() {
                 AUDIO_FORMART_IS_VALID = false;
                 STOP = true;
                 PLAY = false;
-                tapeAnimationOFF();
+                tapeAnimationOFF(false);
                 stateStreamplayer = 0;
                 player.stop();
               }
@@ -4805,7 +4856,7 @@ void MediaPlayer() {
   logln("Final Audio Settings - Sample Rate: " + String(finalAudioInfo.sample_rate) + "Hz, Bits: " + String(finalAudioInfo.bits_per_sample) +
         ", Channels: " + String(finalAudioInfo.channels));
   updateSamplingRateIndicator(finalAudioInfo.sample_rate, finalAudioInfo.bits_per_sample, ext); // Paramos animación
-  tapeAnimationOFF();
+  tapeAnimationOFF(false);
 
   // Descargamos objetos
   player.end();
@@ -5025,7 +5076,7 @@ void finalizePlayback() {
   TOTAL_PARTS = 0;
   PARTITION_BLOCK = 0;
   
-  tapeAnimationOFF();
+  tapeAnimationOFF(false);
   
   if (OUT_TO_WAV) 
   {
@@ -5082,6 +5133,8 @@ void playingFile()
   // Selección de medio
   if (TYPE_FILE_LOAD == "TAP") 
   {
+    tapeAnimationOFF(false);
+
     DATA_IS_PLAYING = true;
 
     // C64 TAP usa 96kHz
@@ -5112,6 +5165,8 @@ void playingFile()
   } 
   else if (TYPE_FILE_LOAD == "TZX" || TYPE_FILE_LOAD == "CDT" || TYPE_FILE_LOAD == "TSX")
   {
+    tapeAnimationOFF(false);
+
     DATA_IS_PLAYING = true;
     logln("New sampling rate = " + String(SAMPLING_RATE));
 
@@ -5128,6 +5183,8 @@ void playingFile()
   } 
   else if (TYPE_FILE_LOAD == "CSW") 
   {
+    tapeAnimationOFF(false);
+
     DATA_IS_PLAYING = true;
     logln("New sampling rate = " + String(SAMPLING_RATE));
 
@@ -5154,6 +5211,8 @@ void playingFile()
   }
   else if (TYPE_FILE_LOAD == "PZX") 
   {
+    tapeAnimationOFF(false);
+
     DATA_IS_PLAYING = true;
     logln("New sampling rate = " + String(SAMPLING_RATE));
 
@@ -5170,6 +5229,9 @@ void playingFile()
   } 
   else if (TYPE_FILE_LOAD == "WAV") 
   {
+
+    tapeAnimationOFF(false);
+
     // Indicamos el sampling rate
     hmi.writeString("tape.lblFreq.txt=\"" + String(int(DEFAULT_WAV_SAMPLING_RATE / 1000)) + "KHz\"");
 
@@ -5182,6 +5244,8 @@ void playingFile()
   } 
   else if (TYPE_FILE_LOAD == "MP3") 
   {
+    tapeAnimationOFF(false);
+
     logln("Type file load: " + TYPE_FILE_LOAD + " and MODEWAV: " + String(MODEWAV));
     // Reproducimos el MP3 file
     LAST_MESSAGE = "Wait for scanning end.";
@@ -5190,6 +5254,7 @@ void playingFile()
   } 
   else if (TYPE_FILE_LOAD == "FLAC") 
   {
+    tapeAnimationOFF(true);
     logln("Type file load: " + TYPE_FILE_LOAD);
     // Reproducimos el FLAC file
     LAST_MESSAGE = "Wait for scanning end.";
@@ -5202,9 +5267,10 @@ void playingFile()
     logln("Type file load: " + TYPE_FILE_LOAD);
     //
     // Paramos los timers y animaciones
-    hmi.writeString("tape.tm0.en=0");
+    hmi.writeString("tape.tmAnimation.en=0");
     hmi.writeString("tape.tm1.en=0");
-    tapeAnimationOFF();
+    hmi.writeString("tape.animation.pic=69");
+    //tapeAnimationOFF(false);
     showRadioDial();
     // Reproducimos el FLAC file
     if (WIFI_CONNECTED) 
@@ -5221,6 +5287,7 @@ void playingFile()
   } 
   else if (TYPE_FILE_LOAD == "ZXDB") 
   {
+
     logln("Type file load: " + TYPE_FILE_LOAD);
     // Reproducimos el ZXDB file
     LAST_MESSAGE = "Wait for scanning end.";
@@ -5586,7 +5653,7 @@ void stopFile() {
   // Paramos la animación
   setSTOP();
   // Paramos la animación
-  tapeAnimationOFF();
+  tapeAnimationOFF(false);
 }
 
 void freeMemoryFromDescriptorPZX(tPZXBlockDescriptor *descriptor) {
@@ -5698,7 +5765,7 @@ void prepareRecording() {
   // Preparamos para recording
 
   // Activamos la animación
-  tapeAnimationON();
+  tapeAnimationON(false);
 }
 
 void RECready() { prepareRecording(); }
@@ -5836,6 +5903,8 @@ void putLogo() {
   } else if (TYPE_FILE_LOAD == "FLAC") {
     // FLAC
     hmi.writeString("tape.logo.pic=49");
+    delay(125);
+    hmi.writeString("tape.animation.pic=65");
     delay(5);
   } else if (TYPE_FILE_LOAD == "RADIO") {
     // iRADIO
@@ -5879,7 +5948,7 @@ void putLogo() {
     delay(5);
   } else if (TYPE_FILE_LOAD == "ZX80" || TYPE_FILE_LOAD == "ZX81") {
     // ZX80/ZX81
-    hmi.writeString("tape.logo.pic=62");
+    hmi.writeString("tape.logo.pic=64");
     delay(5);    
   } else {
     // En blanco
@@ -6345,7 +6414,7 @@ void tapeControl() {
       //
       LOADING_STATE = 1;
       // Activamos la animación
-      tapeAnimationON();
+      tapeAnimationON(false);
       // Reproducimos el fichero
       if (TYPE_FILE_LOAD != "WAV" && TYPE_FILE_LOAD != "MP3" &&
           TYPE_FILE_LOAD != "FLAC" && TYPE_FILE_LOAD != "RADIO") {
@@ -6408,7 +6477,7 @@ void tapeControl() {
       TAPESTATE = 10;
 
       if (LOADING_STATE == 1) {
-        tapeAnimationOFF();
+        tapeAnimationOFF(false);
         LOADING_STATE = 2;
       }
 
@@ -6478,7 +6547,7 @@ void tapeControl() {
         FILE_PREPARED = false;
         FILE_SELECTED = false;
         hmi.clearInformationFile();
-        tapeAnimationOFF();
+        tapeAnimationOFF(false);
         recAnimationON();
 
         if (MODEWAV) 
@@ -6532,7 +6601,7 @@ void tapeControl() {
 
     LOADING_STATE = 3;
     // Activamos la animación
-    tapeAnimationOFF();
+    tapeAnimationOFF(false);
 
     // Reproducimos el fichero
     LAST_MESSAGE = "Tape paused. Press play or select block.";
@@ -11308,8 +11377,12 @@ hmi.writeString("statusLCD.txt=\"Preparing environment\"");
   }
 
   CURRENT_PAGE = PAGE_TAPE0;
-  //
-  tapeAnimationOFF();
+  
+  // Paramos los timers
+  hmi.writeString("tape.tmAnimation.en=0");
+  hmi.writeString("tape.tm1.en=0");
+  
+  //tapeAnimationOFF(false);
 
   // fin del setup()
   LAST_MESSAGE = "Press EJECT to select a file or REC.";
