@@ -6,7 +6,6 @@ Multi-format TAP/TZX/TSX/CDT/CSW digital cassette recorder with WAV/MP3 playback
 
 <p align="center">
   <img width="400" height="400" src="/doc/powadcr.png" />
-  <img width="400" height="400" src="/doc/powadcr2.jpg" />
 </p>
 
 ---
@@ -17,6 +16,10 @@ POWADCR is a professional-grade digital cassette recorder designed for retrocomp
 
 <p align="center">
   <img width="100%" src="https://github.com/user-attachments/assets/c3fa02bd-d66c-483b-bbb5-5842725ea170" />
+</p>
+
+<p align="center">
+  <img width="100%" alt="powadcr2" src="https://github.com/user-attachments/assets/6c93b7ac-8313-4c6a-a557-cbd183bb3aa7" />
 </p>
 
 ---
