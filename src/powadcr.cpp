@@ -246,7 +246,7 @@ String plLastName = "";
 
 bool statusTXLine = false;
 bool statusRXLine = false;
-
+bool tapeWasReset = false;
 //
 // -----------------------------------------------------------------------
 //
@@ -265,7 +265,7 @@ void setupNTP();
 void setupWifi();
 void tapeAnimationOFF(bool cd);
 void tapeAnimationON(bool cd);
-void resetTapeAnimation();
+
 String getFileNameFromPath(const String &filePath);
 String removeExtension(const String &filename);
 void updateWAVHeader(const String &file_path);
@@ -1232,7 +1232,7 @@ void hideRadioDial() {
   hmi.writeString("tape.animation.pic=4");
 }
 
-void resetTapeAnimation(bool cd) {
+bool resetTapeAnimation(bool cd) {
   // Reseteamos animacion cinta
   if (cd) 
   {
@@ -1242,15 +1242,20 @@ void resetTapeAnimation(bool cd) {
     //
     myNex.writeNum("tape.tm1.tim", 50); 
     myNex.writeNum("tape.tm1.tim", 50);
+    log_info("ANIMATION", "CD animation was reset");    
   }
   else
   {
     // Inicializamos con TAPE
-    int step = myNex.readNumber("tape.va1.val");
-
-    myNex.writeNum("tape.animation.pic", step);  
-    myNex.writeNum("tape.animation.pic", step);  
+    // uint32_t step = myNex.readNumber("tape.va1.val");
+    // if (step < 4) step = 4;
+    myNex.writeNum("tape.animation.pic", 4);  
+    delay(125);
+    myNex.writeNum("tape.animation.pic", 4);  
+    log_info("ANIMATION", "Tape animation was reset");
   }
+  
+  return true;
 
 }
 
@@ -1269,11 +1274,13 @@ void tapeAnimationON(bool cd) {
     resetTapeAnimation(false);
     hmi.writeString("tape.tmAnimation.en=1");
     hmi.writeString("tape.tmAnimation.en=1");
+    log_info("ANIMATION", "Tape animation ON");
   }
 }
 
 void downSpinMotorAnimation()
 {
+    log_info("ANIMATION", "Slowing down spin motor. Wait...");  
     LAST_MESSAGE  = "Slowing down spin motor. Wait.";
     // Pausa de animación retardada CD - Down spin motor.
     int i = 50;
@@ -1283,6 +1290,7 @@ void downSpinMotorAnimation()
       i += 3;
       delay(125);
     }
+    log_info("ANIMATION", "Spin motor slowed down.");
 }
 
 void tapeAnimationOFF(bool cd) {
@@ -1296,6 +1304,8 @@ void tapeAnimationOFF(bool cd) {
     hmi.writeString("tape.tmAnimation.en=0");
 
     resetTapeAnimation(cd);
+
+    log_info("ANIMATION", "Tape animation OFF");
 }
 
 
@@ -5090,6 +5100,7 @@ void finalizePlayback() {
 
 void playingFile() 
 {
+  tapeWasReset = false;
 
   if (ORIC_TAP_INSIDE) {
     // No se cambia el baudrate solo el ORIC_TURBO_MODE
@@ -5165,7 +5176,7 @@ void playingFile()
   } 
   else if (TYPE_FILE_LOAD == "TZX" || TYPE_FILE_LOAD == "CDT" || TYPE_FILE_LOAD == "TSX")
   {
-    tapeAnimationOFF(false);
+    //tapeAnimationOFF(false);
 
     DATA_IS_PLAYING = true;
     logln("New sampling rate = " + String(SAMPLING_RATE));
@@ -5183,7 +5194,7 @@ void playingFile()
   } 
   else if (TYPE_FILE_LOAD == "CSW") 
   {
-    tapeAnimationOFF(false);
+    //tapeAnimationOFF(false);
 
     DATA_IS_PLAYING = true;
     logln("New sampling rate = " + String(SAMPLING_RATE));
@@ -5211,7 +5222,7 @@ void playingFile()
   }
   else if (TYPE_FILE_LOAD == "PZX") 
   {
-    tapeAnimationOFF(false);
+    //(false);
 
     DATA_IS_PLAYING = true;
     logln("New sampling rate = " + String(SAMPLING_RATE));
@@ -5230,7 +5241,7 @@ void playingFile()
   else if (TYPE_FILE_LOAD == "WAV") 
   {
 
-    tapeAnimationOFF(false);
+    //(false);
 
     // Indicamos el sampling rate
     hmi.writeString("tape.lblFreq.txt=\"" + String(int(DEFAULT_WAV_SAMPLING_RATE / 1000)) + "KHz\"");
@@ -5244,7 +5255,7 @@ void playingFile()
   } 
   else if (TYPE_FILE_LOAD == "MP3") 
   {
-    tapeAnimationOFF(false);
+    //(false);
 
     logln("Type file load: " + TYPE_FILE_LOAD + " and MODEWAV: " + String(MODEWAV));
     // Reproducimos el MP3 file
@@ -5254,7 +5265,7 @@ void playingFile()
   } 
   else if (TYPE_FILE_LOAD == "FLAC") 
   {
-    tapeAnimationOFF(true);
+    //(true);
     logln("Type file load: " + TYPE_FILE_LOAD);
     // Reproducimos el FLAC file
     LAST_MESSAGE = "Wait for scanning end.";
@@ -6219,7 +6230,7 @@ void tapeControl() {
   // 4 - REC
   //
   // Nuevo tapeControl
-
+  
   if (UPDATE_HMI) {
     updateHMIOnBlockChange();
     UPDATE_HMI = false;
@@ -6248,6 +6259,8 @@ void tapeControl() {
   case 0: {
 
     LOADING_STATE = 0;
+
+    tapeWasReset = false;
 
     #ifdef DEBUGMODE
         logAlert("Tape state 0");
@@ -6369,8 +6382,9 @@ void tapeControl() {
         // Para el current dir que se muestra arriba. Ponemos un caracter " " al final como workaround, debido a un bug.
         FILE_LAST_DIR_LAST = getDirFromPath(PATH_FILE_TO_LOAD) + " ";
         // Mostramos la página de carga
-        hmi.writeString("page tape");          
+        hmi.writeString("page tape"); 
         delay(125);
+        if (!tapeWasReset) tapeWasReset = resetTapeAnimation(TYPE_FILE_LOAD == "FLAC");
       }
     } 
     else 
@@ -6446,7 +6460,7 @@ void tapeControl() {
       PAUSE = false;
       //
       if (AUTO_PAUSE) {
-        logln("Auto-pause activated");
+        log_info("TAPE","Auto-pause activated");
         LAST_MESSAGE = "Tape auto-paused. Follow machine instructions.";
         ABORT = false;
         STOP = false;
@@ -6462,9 +6476,13 @@ void tapeControl() {
         wavfile.close();
         //delay(1000);
         //encoderOutWAV.end();
-        logln("-- Update WAVheader from CASE 1 PAUSE");
+        log_info("TAPE","-- Update WAVheader from CASE 1 PAUSE");
         updateWAVHeader(REC_FILENAME);
       }
+  
+      // Paramos la animación
+      tapeAnimationOFF(false);
+
     } 
     else if (STOP) 
     {
@@ -6600,8 +6618,6 @@ void tapeControl() {
     #endif
 
     LOADING_STATE = 3;
-    // Activamos la animación
-    tapeAnimationOFF(false);
 
     // Reproducimos el fichero
     LAST_MESSAGE = "Tape paused. Press play or select block.";
@@ -6755,16 +6771,17 @@ void tapeControl() {
     } else {
       TAPESTATE = 10;
       LOADING_STATE = 0;
+      
     }
   } break;
 
   case 99: {
-//
-// Eject
-//
-#ifdef DEBUGMODE
-    logAlert("Tape state 99");
-#endif
+    //
+    // Eject
+    //
+    #ifdef DEBUGMODE
+        logAlert("Tape state 99");
+    #endif
 
     if (FILE_BROWSER_OPEN) {
       // Abrimos el filebrowser
@@ -6792,6 +6809,8 @@ void tapeControl() {
     //
     // Filebrowser open
     //
+    if (!tapeWasReset) tapeWasReset = resetTapeAnimation(TYPE_FILE_LOAD == "FLAC");
+
     #ifdef DEBUGMODE
         logAlert("Tape state 100");
     #endif
@@ -6807,6 +6826,8 @@ void tapeControl() {
       // y entramos en el estado FILE_PREPARED (inside the tape)
       //
       EJECT = false;
+      //
+      
 
       // Si se ha seleccionado un fichero, habilitamos la rotacion del texto
       rotate_enable = FILE_LOAD != "" ? true : false;
@@ -6829,6 +6850,7 @@ void tapeControl() {
         // Damos tiempo a que la pagina del remote recargue y no interfiera
         LAST_MESSAGE = ".. receiving from remote ..";
         delay(1000);
+        //
         //
         playingFile();
       } 
@@ -6921,7 +6943,6 @@ void tapeControl() {
           {
             LAST_MESSAGE = "No file inside the tape";
           }
-          
         }
       }
 

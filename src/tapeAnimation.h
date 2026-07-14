@@ -7,5 +7,4 @@
 
 void tapeAnimationON(bool cd);
 void tapeAnimationOFF(bool cd);
-void resetTapeAnimation();
 void downSpinMotorAnimation();

@@ -1569,6 +1569,10 @@ void FLACPlayer() {
 
     MEDIA_PLAYER_EN = false;
     MUSIC_IS_PLAYING = false;
+
+    // Esto lo hacemos para que cuando salga del reproductor de FLAC
+    // otras funciones no sigan pensando que hay un FLAC cargado.
+    TYPE_FILE_LOAD = "";
     
     log_info("FLAC","Reproductor finalizado");
     log_info("FLAC", player.getStatsReport());
