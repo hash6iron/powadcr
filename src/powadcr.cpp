@@ -5144,7 +5144,7 @@ void playingFile()
   // Selección de medio
   if (TYPE_FILE_LOAD == "TAP") 
   {
-    tapeAnimationOFF(false);
+    //tapeAnimationOFF(false);
 
     DATA_IS_PLAYING = true;
 
@@ -9496,7 +9496,7 @@ void buttonsControl()
             {
               // Cogemos el path
               String strPath = myNex.readStr("file.path.txt");
-              log_info("BUTTONS","Trying to load selected file -> " + strPath);
+              //log_info("BUTTONS","Trying to load selected file -> " + strPath);
 
               // Vemos si no estça en blanco
               if (strPath.length() > 0)
@@ -9728,7 +9728,7 @@ void Task0code(void *pvParameters) {
   int se = 0;
   int tScrRfsh = 1000;
   int timeRTC = 1000;
-  int timeKeyPoll = 125;
+  int timeKeyPoll = 250;
 
   uint8_t lasthour = 0;
   uint8_t lastminute = 0;
