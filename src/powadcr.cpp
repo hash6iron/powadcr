@@ -2701,7 +2701,8 @@ struct RadioNetworkTaskParams {
 portMUX_TYPE gRadioMetaMux = portMUX_INITIALIZER_UNLOCKED;
 char gRadioTrackName[192] = {0};
 
-String extractRadioTrackName(const String &metadataValue) {
+String getStreamTitle(const String &metadataValue)
+{
   String value = metadataValue;
   value.trim();
 
@@ -2729,6 +2730,28 @@ String extractRadioTrackName(const String &metadataValue) {
       (value.startsWith("'") && value.endsWith("'"))) {
     value = value.substring(1, value.length() - 1);
   }
+  
+  return value;
+}
+
+String extractRadioArtist(const String &metadataValue) {
+
+  String value = getStreamTitle(metadataValue);
+  
+  // Common format: Artist - Track
+  int sep = value.indexOf(" - ");
+  if (sep > 0 && sep + 3 < value.length()) {
+    String artist = value.substring(0, sep);
+    artist.trim();
+    return artist;
+  }
+
+  value.trim();
+  return value;
+}
+
+String extractRadioTrackName(const String &metadataValue) {
+  String value = getStreamTitle(metadataValue);
 
   // Common format: Artist - Track
   int sep = value.indexOf(" - ");
@@ -2754,7 +2777,7 @@ void onRadioMetadata(MetaDataType info, const char *str, int len) {
   rawMeta[safeLen] = '\0';
 
   if (info == Title || info == Name || info == Description) {
-    String trackName = extractRadioTrackName(String(rawMeta));
+    String trackName = extractRadioArtist(String(rawMeta)) + " - " + extractRadioTrackName(String(rawMeta));
     trackName.trim();
     if (trackName.length() == 0) {
       return;
