@@ -131,14 +131,14 @@ class I2SCodecStream : public AudioStream, public VolumeSupport {
     {
       String msg = LAST_MESSAGE;
       LAST_MESSAGE = "Wait for REM or press STOP ...";
-      tapeAnimationOFF();
+      tapeAnimationOFF(false);
       while (REM_ENABLE && !REM_DETECTED && !STOP)
       {
         remDetection();
         delay(50);
       }      
       LAST_MESSAGE = msg;
-      tapeAnimationON();
+      tapeAnimationON(false);
     }
   
     return i2s.write(data, len);

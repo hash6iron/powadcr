@@ -107,6 +107,7 @@ EasyNex myNex(SerialHW);
 #include "ADPCM.h"
 
 #include "AudioTools/Communication/AudioHttp.h"
+#include "AudioTools/Communication/HTTP/ICYStream.h"
 #include "AudioTools/CoreAudio/AudioFilter/Equalizer3Bands.h"
 #include "AudioTools/Disk/AudioSourceIdxSDMMC.h"
 #include "AudioTools/Disk/AudioSourceURL.h"
@@ -245,7 +246,7 @@ String plLastName = "";
 
 bool statusTXLine = false;
 bool statusRXLine = false;
-
+bool tapeWasReset = false;
 //
 // -----------------------------------------------------------------------
 //
@@ -262,13 +263,35 @@ void rewindAnimation(int direction);
 void showOption(String id, String value);
 void setupNTP();
 void setupWifi();
-void tapeAnimationOFF();
-void tapeAnimationON();
+void tapeAnimationOFF(bool cd);
+void tapeAnimationON(bool cd);
+
 String getFileNameFromPath(const String &filePath);
 String removeExtension(const String &filename);
 void updateWAVHeader(const String &file_path);
 bool updateEqualizerSettings(Equalizer3Bands &eq, ConfigEqualizer3Bands &cfg_eq, AudioInfo cfg);
+String extractRadioTrackName(const String &metadataValue);
+String getCurrentRadioTrackName();
+int getCurrentPlaybackBitrate(const String &mediaType, MP3DecoderHelix *mp3Decoder = nullptr,
+                             WAVDecoder *wavDecoder = nullptr);
 // bool volumeStreamSettings();
+
+struct AudioNotifySubscriptionGuard {
+  AudioInfoSource *source = nullptr;
+  AudioInfoSupport *target = nullptr;
+
+  AudioNotifySubscriptionGuard() = default;
+
+  AudioNotifySubscriptionGuard(AudioInfoSource *notifySource,
+                               AudioInfoSupport *notifyTarget)
+      : source(notifySource), target(notifyTarget) {}
+
+  ~AudioNotifySubscriptionGuard() {
+    if (source != nullptr && target != nullptr) {
+      source->removeNotifyAudioChange(*target);
+    }
+  }
+};
 
 
 // -----------------------------------------------------------------------
@@ -1209,23 +1232,83 @@ void hideRadioDial() {
   hmi.writeString("tape.animation.pic=4");
 }
 
-void tapeAnimationON() {
-  // Activamos animacion cinta
-  hmi.writeString("tape2.tmAnimation.en=1");
-  hmi.writeString("tape.tmAnimation.en=1");
-  delay(250);
-  hmi.writeString("tape2.tmAnimation.en=1");
-  hmi.writeString("tape.tmAnimation.en=1");
+bool resetTapeAnimation(bool cd) {
+  // Reseteamos animacion cinta
+  if (cd) 
+  {
+    // Inicializamos con CD
+    myNex.writeNum("tape.animation.pic", 65);  
+    myNex.writeNum("tape.animation.pic", 65); 
+    //
+    myNex.writeNum("tape.tm1.tim", 50); 
+    myNex.writeNum("tape.tm1.tim", 50);
+    log_info("ANIMATION", "CD animation was reset");    
+  }
+  else
+  {
+    // Inicializamos con TAPE
+    // uint32_t step = myNex.readNumber("tape.va1.val");
+    // if (step < 4) step = 4;
+    myNex.writeNum("tape.animation.pic", 4);  
+    delay(125);
+    myNex.writeNum("tape.animation.pic", 4);  
+    log_info("ANIMATION", "Tape animation was reset");
+  }
+  
+  return true;
+
 }
 
-void tapeAnimationOFF() {
-  // Desactivamos animacion cinta
-  hmi.writeString("tape2.tmAnimation.en=0");
-  hmi.writeString("tape.tmAnimation.en=0");
-  delay(250);
-  hmi.writeString("tape2.tmAnimation.en=0");
-  hmi.writeString("tape.tmAnimation.en=0");
+void tapeAnimationON(bool cd) {
+  // Activamos animacion cinta
+  if (cd) 
+  {
+    //resetTapeAnimation(false);
+    resetTapeAnimation(true);
+    hmi.writeString("tape.tm1.en=1");
+    hmi.writeString("tape.tm1.en=1");
+  }
+  else
+  {
+    //resetTapeAnimation(true);
+    resetTapeAnimation(false);
+    hmi.writeString("tape.tmAnimation.en=1");
+    hmi.writeString("tape.tmAnimation.en=1");
+    log_info("ANIMATION", "Tape animation ON");
+  }
 }
+
+void downSpinMotorAnimation()
+{
+    log_info("ANIMATION", "Slowing down spin motor. Wait...");  
+    LAST_MESSAGE  = "Slowing down spin motor. Wait.";
+    // Pausa de animación retardada CD - Down spin motor.
+    int i = 50;
+    while (i < 100)
+    {
+      myNex.writeNum("tape.tm1.tim", i);
+      i += 3;
+      delay(125);
+    }
+    log_info("ANIMATION", "Spin motor slowed down.");
+}
+
+void tapeAnimationOFF(bool cd) {
+  // Desactivamos animacion cinta
+
+    //
+    hmi.writeString("tape.tm1.en=0");
+    hmi.writeString("tape.tm1.en=0");
+    //
+    hmi.writeString("tape.tmAnimation.en=0");
+    hmi.writeString("tape.tmAnimation.en=0");
+
+    resetTapeAnimation(cd);
+
+    log_info("ANIMATION", "Tape animation OFF");
+}
+
+
 
 void recAnimationON() {
   // Indicador REC parpadea
@@ -1362,7 +1445,7 @@ void WavRecording() {
   recAnimationOFF();
   delay(125);
   recAnimationFIXED_ON();
-  tapeAnimationON();
+  tapeAnimationON(false);
 
   // Agregamos las salidas al multiple
   
@@ -1449,7 +1532,7 @@ void WavRecording() {
   REC = false;
   recAnimationOFF();
   recAnimationFIXED_OFF();
-  tapeAnimationOFF();
+  tapeAnimationOFF(false);
 
   LAST_MESSAGE = "Recording finish";
   logln("Recording finish!");
@@ -1493,7 +1576,7 @@ void stopRecording() {
       taprec.terminate(false);
       //
       LAST_MESSAGE = "Recording STOP.";
-      tapeAnimationOFF();
+      tapeAnimationOFF(false);
       //
       delay(1500);
     } else {
@@ -1507,14 +1590,14 @@ void stopRecording() {
 
         taprec.terminate(true);
         LAST_MESSAGE = "Recording STOP.";
-        tapeAnimationOFF();
+        tapeAnimationOFF(false);
         //
         delay(1500);
       } else if (taprec.fileWasNotCreated) {
         // Si no se crea el fichero no se puede seguir grabando
         taprec.terminate(false);
         LAST_MESSAGE = "Error in filesystem or SD.";
-        tapeAnimationOFF();
+        tapeAnimationOFF(false);
         //
         delay(1500);
       }
@@ -1533,7 +1616,7 @@ void stopRecording() {
   taprec.fileWasNotCreated = true;
 
   // Paramos la animación del indicador de recording
-  tapeAnimationOFF();
+  tapeAnimationOFF(false);
 
   //
 }
@@ -1739,7 +1822,7 @@ void setSTOP() {
   }
   delay(125);
   // Paramos la animación del indicador de recording
-  tapeAnimationOFF();
+  tapeAnimationOFF(false);
   //
   delay(125);
   //
@@ -1838,7 +1921,11 @@ void updateIndicators(int size, int pos, uint32_t fsize, int bitrate, String fna
       strBitrate = "(" + String(bitrate / 1000) + " Kbps)";
     }
   } else {
-    strBitrate = "(Vble. br)";
+    if (TYPE_FILE_LOAD == "WAV") {
+      strBitrate = "(-- KBps)";
+    } else {
+      strBitrate = "(-- Kbps)";
+    }
   }
 
   if (fname != LASTFNAME) {
@@ -1859,6 +1946,17 @@ void updateIndicators(int size, int pos, uint32_t fsize, int bitrate, String fna
   } else {
     hmi.writeString("size.txt=\"" + String(fsize / 1024 / 1024) + " MB\"");
   }
+}
+
+int getCurrentPlaybackBitrate(const String &mediaType, MP3DecoderHelix *mp3Decoder,
+                             WAVDecoder *wavDecoder) {
+  if (mediaType == "MP3" && mp3Decoder != nullptr) {
+    return mp3Decoder->audioInfoEx().bitrate;
+  }
+  if (mediaType == "WAV" && wavDecoder != nullptr) {
+    return wavDecoder->audioInfoEx().byte_rate;
+  }
+  return 0;
 }
 
 // void updateSamplingRate(AudioPlayer &player, Equalizer3Bands &eq, ConfigEqualizer3Bands &cfg_eq, AudioInfo realInfo) {
@@ -2592,13 +2690,100 @@ void dialIndicator(bool enable) {
 }
 
 struct RadioNetworkTaskParams {
-  URLStream *stream;
+  AbstractURLStream *stream;
   SimpleCircularBuffer *buffer;
   volatile bool running;
   volatile bool new_url;
   volatile bool taskDone;  // la tarea lo pone a true justo antes de vTaskDelete(NULL)
   char url_buffer[256];
 };
+
+portMUX_TYPE gRadioMetaMux = portMUX_INITIALIZER_UNLOCKED;
+char gRadioTrackName[192] = {0};
+
+String extractRadioTrackName(const String &metadataValue) {
+  String value = metadataValue;
+  value.trim();
+
+  // ICY metadata often comes as: StreamTitle='Artist - Track';
+  if (value.startsWith("StreamTitle=")) {
+    int firstQuote = value.indexOf('\'');
+    int lastQuote = value.lastIndexOf('\'');
+    if (firstQuote >= 0 && lastQuote > firstQuote) {
+      value = value.substring(firstQuote + 1, lastQuote);
+    } else {
+      int equalPos = value.indexOf('=');
+      if (equalPos >= 0 && equalPos + 1 < value.length()) {
+        value = value.substring(equalPos + 1);
+      }
+    }
+    value.trim();
+  }
+
+  // Remove optional trailing semicolon and wrapping quotes.
+  if (value.endsWith(";")) {
+    value.remove(value.length() - 1);
+    value.trim();
+  }
+  if ((value.startsWith("\"") && value.endsWith("\"")) ||
+      (value.startsWith("'") && value.endsWith("'"))) {
+    value = value.substring(1, value.length() - 1);
+  }
+
+  // Common format: Artist - Track
+  int sep = value.indexOf(" - ");
+  if (sep > 0 && sep + 3 < value.length()) {
+    String track = value.substring(sep + 3);
+    track.trim();
+    return track;
+  }
+
+  value.trim();
+  return value;
+}
+
+void onRadioMetadata(MetaDataType info, const char *str, int len) {
+  if (str == nullptr || len <= 0) {
+    return;
+  }
+
+  // Keep parsing scoped and bounded to avoid oversized temporary allocations.
+  const int safeLen = min(len, 255);
+  char rawMeta[256] = {0};
+  memcpy(rawMeta, str, safeLen);
+  rawMeta[safeLen] = '\0';
+
+  if (info == Title || info == Name || info == Description) {
+    String trackName = extractRadioTrackName(String(rawMeta));
+    trackName.trim();
+    if (trackName.length() == 0) {
+      return;
+    }
+
+    if (lastTrackname != trackName) {
+      lastTrackname = trackName;
+      portENTER_CRITICAL(&gRadioMetaMux);
+      strncpy(gRadioTrackName, trackName.c_str(), sizeof(gRadioTrackName) - 1);
+      gRadioTrackName[sizeof(gRadioTrackName) - 1] = '\0';
+      portEXIT_CRITICAL(&gRadioMetaMux);
+      log_info("RADIO", "Now playing: " + trackName);
+      LAST_MESSAGE = "Playing: " + trackName;
+      myNex.writeStr("tape.g0.txt", "Playing: " + trackName);
+    }
+  } else if (info == Artist) {
+    lastArtist = String(rawMeta);
+    lastArtist.trim();
+  }
+}
+
+String getCurrentRadioTrackName() {
+  char currentTrack[192] = {0};
+  portENTER_CRITICAL(&gRadioMetaMux);
+  strncpy(currentTrack, gRadioTrackName, sizeof(currentTrack) - 1);
+  currentTrack[sizeof(currentTrack) - 1] = '\0';
+  portEXIT_CRITICAL(&gRadioMetaMux);
+  return String(currentTrack);
+}
 
 void radio_network_task(void *parameter) 
 {
@@ -2676,9 +2861,9 @@ bool updateEqualizerSettings(Equalizer3Bands &eq,ConfigEqualizer3Bands &cfg_eq, 
 
 void RadioPlayer() {
 
-  logln("Heap: " + String(ESP.getFreeHeap()) + " (max bloque: " + String(ESP.getMaxAllocHeap()) + ")");
-  logln("[Radio INICIO] SRAM interna libre  : " + String(heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT)));
-  logln("[Radio INICIO] Max bloque SRAM int  : " + String(heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT)));
+  log_info("RADIO","Heap: " + String(ESP.getFreeHeap()) + " (max bloque: " + String(ESP.getMaxAllocHeap()) + ")");
+  log_info("RADIO","[Radio INICIO] SRAM interna libre  : " + String(heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT)));
+  log_info("RADIO","[Radio INICIO] Max bloque SRAM int  : " + String(heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT)));
 
   rotate_enable = false;
   ENABLE_ROTATE_FILEBROWSER = false;
@@ -2687,7 +2872,15 @@ void RadioPlayer() {
   RADIO_IS_PLAYING = true;
   // 1. CONFIGURACIÓN DE TAREAS Y BUFFERS
   SimpleCircularBuffer radioBuffer(RADIO_BUFFER_SIZE);
-  URLStream urlStream(ssid.c_str(), password);
+  ICYStream urlStream(ssid.c_str(), password);
+  urlStream.setMetadataCallback(onRadioMetadata);
+
+  // Clear previous station metadata before starting a new radio session.
+  portENTER_CRITICAL(&gRadioMetaMux);
+  gRadioTrackName[0] = '\0';
+  portEXIT_CRITICAL(&gRadioMetaMux);
+  lastTrackname = "";
+  lastArtist = "";
 
   RadioNetworkTaskParams taskParams;
   taskParams.stream = &urlStream;
@@ -2704,6 +2897,8 @@ void RadioPlayer() {
   const size_t BUFFER_STOP_THRESHOLD = RADIO_BUFFER_SIZE * 0.25;
   bool isBuffering = true;
   bool dialIndicatorIsShown = false;
+
+  double timeToShowTrack = 0;
 
 
   // Configuración del pipeline de audio
@@ -2724,6 +2919,7 @@ void RadioPlayer() {
   IRADIO_EN = true;
 
   audio_tools::Equalizer3Bands eq(volumeStream);
+  AudioNotifySubscriptionGuard radioEqNotifyGuard{&volumeStream, &eq};
   audio_tools::ConfigEqualizer3Bands cfg_eq;
 
   MP3DecoderHelix decoder;
@@ -2770,7 +2966,7 @@ void RadioPlayer() {
   
   isBuffering = false;
 
-  logln("Heap: " + String(ESP.getFreeHeap()) + " (max bloque: " + String(ESP.getMaxAllocHeap()) + ")");
+  log_info("RADIO","Heap: " + String(ESP.getFreeHeap()) + " (max bloque: " + String(ESP.getMaxAllocHeap()) + ")");
 
   while (!EJECT && WIFI_CONNECTED) 
   {
@@ -2780,15 +2976,28 @@ void RadioPlayer() {
     {
       EQ_CHANGE = false;
       updateEqualizerSettings(eq, cfg_eq, cfg);
-      // cfg_eq.setAudioInfo(cfg);
-      // cfg_eq.gain_low = EQ_LOW;
-      // cfg_eq.gain_medium = EQ_MID;
-      // cfg_eq.gain_high = EQ_HIGH;
-      // eq.begin(cfg_eq);  // Reconfigura el ecualizador
     }
 
     // Gestión de botones FFWD/RWIND
     if (!isBuffering && (FFWIND || RWIND)) {
+
+      // **************************
+
+        // playerState = 10;
+        // PLAY = false;
+        bufferw = 0;
+        statusSignalOk = false;
+        isBuffering = true;
+        radioBuffer.clear();
+        dialIndicator(false);
+
+        taskParams.new_url = false;
+        urlStream.end();
+
+        isBuffering = false;
+
+      // ***************************
+
       dialIndicator(false);
       bufferw = 0; 
       // ✅ CORRECCIÓN DEFINITIVA: Parada y reinicio completo del pipeline de
@@ -2842,6 +3051,8 @@ void RadioPlayer() {
         // anterior antes de alloc del nuevo: evita fragmentación de SRAM interna.
         vTaskDelay(pdMS_TO_TICKS(50));
         xTaskCreatePinnedToCore(radio_network_task, "RadioNetworkTask", 8192, &taskParams, 1, &networkTaskHandle, 0);
+
+        
 
       } else {
         LAST_MESSAGE = "Select: " + radioName;
@@ -3008,10 +3219,12 @@ void RadioPlayer() {
       {
         if (isBuffering) {
           size_t bufAvail = radioBuffer.getAvailable();
-          LAST_MESSAGE =
-              "Buffering: " +
-              String((bufAvail * 100) / RADIO_BUFFER_SIZE) +
-              "%";
+          // LAST_MESSAGE =
+
+          //     "Buffering: " +
+          //     String((bufAvail * 100) / RADIO_BUFFER_SIZE) +
+          //     "%";
+          PROGRESS_BAR_BLOCK_VALUE = (bufAvail * 100) / RADIO_BUFFER_SIZE;
 
           // Si el buffer ha crecido, actualizar el timestamp
           if (bufAvail > lastBufferSnapshot) 
@@ -3056,7 +3269,7 @@ void RadioPlayer() {
           if (bufAvail >= BUFFER_START_THRESHOLD) {
             logln("Buffer filled. Starting playback.");
             isBuffering = false;
-            LAST_MESSAGE = "Playing: " + radioName;
+            //LAST_MESSAGE = "Playing: " + radioName + " - " + getCurrentRadioTrackName();
           }
         } else {
           if (radioBuffer.getAvailable() < BUFFER_STOP_THRESHOLD) {
@@ -3147,8 +3360,6 @@ void RadioPlayer() {
     free(audiolist);
   }
   dialIndicator(false);
-  hmi.writeString("tape.tm0.en=1");
-  hmi.writeString("tape.tm1.en=1");
 
   vTaskDelay(pdMS_TO_TICKS(50));
   RADIO_IS_PLAYING = false;
@@ -3278,6 +3489,7 @@ void MediaPlayer() {
   // Configuración del ecualizador
   // ---------------------------------------------------------
   audio_tools::Equalizer3Bands eq(volumeStream);
+  AudioNotifySubscriptionGuard mediaEqNotifyGuard{&volumeStream, &eq};
   audio_tools::ConfigEqualizer3Bands cfg_eq;
 
   cfg_eq = eq.defaultConfig();
@@ -3328,6 +3540,7 @@ void MediaPlayer() {
   {
       case 'w':
       {
+        
         // WAV - Detectar formato ANTES de inicializar decoders
         logln("\n--- WAV file detected ---");
         
@@ -3410,6 +3623,7 @@ void MediaPlayer() {
         // Ajustamos buffers
         // recomendado 12 * 1024
         // 3200
+
         decoderMP3.setMaxPCMSize(15 * 1024);
         decoderMP3.setMaxFrameSize(4096);
         //
@@ -3569,6 +3783,7 @@ void MediaPlayer() {
   EQ_CHANGE = false;
 
   // Mostramos informacion del fichero seleccionado en el browser.
+  bitRateRead = getCurrentPlaybackBitrate(TYPE_FILE_LOAD, &decoderMP3, &decoderWAV);
   updateIndicators(totalFilesIdx, currentPointer + 1, fileSize, bitRateRead, audiolist[currentPointer].filename);
   // -------------------------------------------------------------------
   // -
@@ -3696,7 +3911,7 @@ void MediaPlayer() {
             STOP = true;
             PLAY = false;
             AUDIO_FORMART_IS_VALID = false;
-            tapeAnimationOFF();
+            tapeAnimationOFF(false);
             player.stop();
             break;
           }
@@ -3722,11 +3937,12 @@ void MediaPlayer() {
         }
 
         // Actualización inicial de indicadores
+        bitRateRead = getCurrentPlaybackBitrate(TYPE_FILE_LOAD, &decoderMP3, &decoderWAV);
         updateIndicators(totalFilesIdx, currentPointer + 1, fileSize, bitRateRead, source.toStr());
 
         // Cambiamos de estado
         stateStreamplayer = 1;
-        tapeAnimationON();
+        tapeAnimationON(false);
       }
 
       if (UPDATE_FROM_REMOTE_CONTROL && FILE_POS_REMOTE_CONTROL >= 0) {
@@ -3751,7 +3967,7 @@ void MediaPlayer() {
         STOP = true;
         PLAY = false;
         stateStreamplayer = 0;
-        tapeAnimationOFF();
+        tapeAnimationOFF(false);
         break;
       }
 
@@ -3815,6 +4031,7 @@ void MediaPlayer() {
             fileread = 0;
             stateStreamplayer = 4; // Auto-stop
             hmi.writeString("tape.currentBlock.val=1");
+            bitRateRead = getCurrentPlaybackBitrate(TYPE_FILE_LOAD, &decoderMP3, &decoderWAV);
             updateIndicators(totalFilesIdx, 1, fileSize, bitRateRead, audiolist[0].filename);
             delay(125);
           }
@@ -3857,6 +4074,7 @@ void MediaPlayer() {
 
             // Reiniciar el reproductor
             fileSize = getStreamfileSize(pFile);
+            bitRateRead = getCurrentPlaybackBitrate(TYPE_FILE_LOAD, &decoderMP3, &decoderWAV);
             updateIndicators(totalFilesIdx, currentPointer, fileSize, bitRateRead, audiolist[currentPointer].filename);
             delay(125);
           }
@@ -3900,6 +4118,7 @@ void MediaPlayer() {
           hmi.setVolumenOutput();
 
           fileSize = getStreamfileSize(pFile);
+          bitRateRead = getCurrentPlaybackBitrate(TYPE_FILE_LOAD, &decoderMP3, &decoderWAV);
           updateIndicators(totalFilesIdx, currentPointer, fileSize, bitRateRead, audiolist[currentPointer].filename);
           delay(125);
         }
@@ -3908,12 +4127,12 @@ void MediaPlayer() {
       if (STOP) {
         stateStreamplayer = 0;
         fileread = 0;
-        tapeAnimationOFF();
+        tapeAnimationOFF(false);
       }
 
       if (PAUSE) {
         stateStreamplayer = 2; // Pausa
-        tapeAnimationOFF();
+        tapeAnimationOFF(false);
         PLAY = false;
         PAUSE = false;
       }
@@ -3937,8 +4156,9 @@ void MediaPlayer() {
 
       if (millis() - lastUpdate > tmpoToRfsh) {
         // Mostramos informacion del fichero.
+        bitRateRead = getCurrentPlaybackBitrate(TYPE_FILE_LOAD, &decoderMP3, &decoderWAV);
         updateIndicators(totalFilesIdx, currentPointer + 1, fileSize,
-                         bitRateRead, audiolist[currentPointer].filename);
+             bitRateRead, audiolist[currentPointer].filename);
 
         uint32_t stime_total = 0;   // Tiempo total del archivo en segundos
         uint32_t stime_elapsed = 0; // Tiempo transcurrido en segundos
@@ -4103,12 +4323,12 @@ void MediaPlayer() {
     {
       if (PAUSE || PLAY) {
         stateStreamplayer = 1; // Reproduciendo
-        tapeAnimationON();
+        tapeAnimationON(false);
         PAUSE = false;
       } else if (STOP) {
         stateStreamplayer = 0;
         fileread = 0;
-        tapeAnimationOFF();
+        tapeAnimationOFF(false);
       }
     }
     break;
@@ -4116,7 +4336,7 @@ void MediaPlayer() {
     case 4: // Auto-stop
     {
       player.stop();
-      tapeAnimationOFF();
+      tapeAnimationOFF(false);
 
       // Reiniciamos el índice
       BLOCK_SELECTED = 0;
@@ -4353,6 +4573,7 @@ void MediaPlayer() {
             FFWIND = RWIND = false;
             fileread = 0;
             //
+            bitRateRead = getCurrentPlaybackBitrate(TYPE_FILE_LOAD, &decoderMP3, &decoderWAV);
             updateIndicators(totalFilesIdx, currentPointer + 1, fileSize, bitRateRead,
                             audiolist[currentPointer].filename);
 
@@ -4378,7 +4599,7 @@ void MediaPlayer() {
                 AUDIO_FORMART_IS_VALID = false;
                 STOP = true;
                 PLAY = false;
-                tapeAnimationOFF();
+                tapeAnimationOFF(false);
                 stateStreamplayer = 0;
                 player.stop();
               }
@@ -4574,8 +4795,9 @@ void MediaPlayer() {
         hmi.writeString("tape.lblFreq.txt=\"" + String(int(srd / 1000)) +
                         "KHz\"");
         // Actualizamos HMI
+        bitRateRead = getCurrentPlaybackBitrate(TYPE_FILE_LOAD, &decoderMP3, &decoderWAV);
         updateIndicators(totalFilesIdx, currentPointer + 1, fileSize,
-                         bitRateRead, audiolist[currentPointer].filename);
+             bitRateRead, audiolist[currentPointer].filename);
       }
 
       UPDATE_HMI = false;
@@ -4624,12 +4846,7 @@ void MediaPlayer() {
       fileSize = getStreamfileSize(pFile);
 
       // Esto lo hacemos para indicar el sampling rate del reproductor
-      if (ext == "mp3")
-        bitRateRead = 0;
-      else if (ext == "wav")
-        bitRateRead = decoderWAV.audioInfoEx().byte_rate;
-      else
-        bitRateRead = 0;
+      bitRateRead = getCurrentPlaybackBitrate(TYPE_FILE_LOAD, &decoderMP3, &decoderWAV);
 
       // bitRateRead = isWav ? decoderWAV.audioInfoEx().byte_rate : 0;
       updateIndicators(totalFilesIdx, currentPointer + 1, fileSize, bitRateRead, audiolist[currentPointer].filename);
@@ -4649,7 +4866,7 @@ void MediaPlayer() {
   logln("Final Audio Settings - Sample Rate: " + String(finalAudioInfo.sample_rate) + "Hz, Bits: " + String(finalAudioInfo.bits_per_sample) +
         ", Channels: " + String(finalAudioInfo.channels));
   updateSamplingRateIndicator(finalAudioInfo.sample_rate, finalAudioInfo.bits_per_sample, ext); // Paramos animación
-  tapeAnimationOFF();
+  tapeAnimationOFF(false);
 
   // Descargamos objetos
   player.end();
@@ -4869,7 +5086,7 @@ void finalizePlayback() {
   TOTAL_PARTS = 0;
   PARTITION_BLOCK = 0;
   
-  tapeAnimationOFF();
+  tapeAnimationOFF(false);
   
   if (OUT_TO_WAV) 
   {
@@ -4883,6 +5100,7 @@ void finalizePlayback() {
 
 void playingFile() 
 {
+  tapeWasReset = false;
 
   if (ORIC_TAP_INSIDE) {
     // No se cambia el baudrate solo el ORIC_TURBO_MODE
@@ -4926,6 +5144,8 @@ void playingFile()
   // Selección de medio
   if (TYPE_FILE_LOAD == "TAP") 
   {
+    //tapeAnimationOFF(false);
+
     DATA_IS_PLAYING = true;
 
     // C64 TAP usa 96kHz
@@ -4956,6 +5176,8 @@ void playingFile()
   } 
   else if (TYPE_FILE_LOAD == "TZX" || TYPE_FILE_LOAD == "CDT" || TYPE_FILE_LOAD == "TSX")
   {
+    //tapeAnimationOFF(false);
+
     DATA_IS_PLAYING = true;
     logln("New sampling rate = " + String(SAMPLING_RATE));
 
@@ -4972,6 +5194,8 @@ void playingFile()
   } 
   else if (TYPE_FILE_LOAD == "CSW") 
   {
+    //tapeAnimationOFF(false);
+
     DATA_IS_PLAYING = true;
     logln("New sampling rate = " + String(SAMPLING_RATE));
 
@@ -4998,6 +5222,8 @@ void playingFile()
   }
   else if (TYPE_FILE_LOAD == "PZX") 
   {
+    //(false);
+
     DATA_IS_PLAYING = true;
     logln("New sampling rate = " + String(SAMPLING_RATE));
 
@@ -5014,6 +5240,9 @@ void playingFile()
   } 
   else if (TYPE_FILE_LOAD == "WAV") 
   {
+
+    //(false);
+
     // Indicamos el sampling rate
     hmi.writeString("tape.lblFreq.txt=\"" + String(int(DEFAULT_WAV_SAMPLING_RATE / 1000)) + "KHz\"");
 
@@ -5026,6 +5255,8 @@ void playingFile()
   } 
   else if (TYPE_FILE_LOAD == "MP3") 
   {
+    //(false);
+
     logln("Type file load: " + TYPE_FILE_LOAD + " and MODEWAV: " + String(MODEWAV));
     // Reproducimos el MP3 file
     LAST_MESSAGE = "Wait for scanning end.";
@@ -5034,6 +5265,7 @@ void playingFile()
   } 
   else if (TYPE_FILE_LOAD == "FLAC") 
   {
+    //(true);
     logln("Type file load: " + TYPE_FILE_LOAD);
     // Reproducimos el FLAC file
     LAST_MESSAGE = "Wait for scanning end.";
@@ -5046,9 +5278,10 @@ void playingFile()
     logln("Type file load: " + TYPE_FILE_LOAD);
     //
     // Paramos los timers y animaciones
-    hmi.writeString("tape.tm0.en=0");
+    hmi.writeString("tape.tmAnimation.en=0");
     hmi.writeString("tape.tm1.en=0");
-    tapeAnimationOFF();
+    hmi.writeString("tape.animation.pic=69");
+    //tapeAnimationOFF(false);
     showRadioDial();
     // Reproducimos el FLAC file
     if (WIFI_CONNECTED) 
@@ -5065,6 +5298,7 @@ void playingFile()
   } 
   else if (TYPE_FILE_LOAD == "ZXDB") 
   {
+
     logln("Type file load: " + TYPE_FILE_LOAD);
     // Reproducimos el ZXDB file
     LAST_MESSAGE = "Wait for scanning end.";
@@ -5430,7 +5664,7 @@ void stopFile() {
   // Paramos la animación
   setSTOP();
   // Paramos la animación
-  tapeAnimationOFF();
+  tapeAnimationOFF(false);
 }
 
 void freeMemoryFromDescriptorPZX(tPZXBlockDescriptor *descriptor) {
@@ -5542,7 +5776,7 @@ void prepareRecording() {
   // Preparamos para recording
 
   // Activamos la animación
-  tapeAnimationON();
+  tapeAnimationON(false);
 }
 
 void RECready() { prepareRecording(); }
@@ -5680,6 +5914,8 @@ void putLogo() {
   } else if (TYPE_FILE_LOAD == "FLAC") {
     // FLAC
     hmi.writeString("tape.logo.pic=49");
+    delay(125);
+    hmi.writeString("tape.animation.pic=65");
     delay(5);
   } else if (TYPE_FILE_LOAD == "RADIO") {
     // iRADIO
@@ -5723,7 +5959,7 @@ void putLogo() {
     delay(5);
   } else if (TYPE_FILE_LOAD == "ZX80" || TYPE_FILE_LOAD == "ZX81") {
     // ZX80/ZX81
-    hmi.writeString("tape.logo.pic=62");
+    hmi.writeString("tape.logo.pic=64");
     delay(5);    
   } else {
     // En blanco
@@ -5994,7 +6230,7 @@ void tapeControl() {
   // 4 - REC
   //
   // Nuevo tapeControl
-
+  
   if (UPDATE_HMI) {
     updateHMIOnBlockChange();
     UPDATE_HMI = false;
@@ -6023,6 +6259,8 @@ void tapeControl() {
   case 0: {
 
     LOADING_STATE = 0;
+
+    tapeWasReset = false;
 
     #ifdef DEBUGMODE
         logAlert("Tape state 0");
@@ -6144,8 +6382,9 @@ void tapeControl() {
         // Para el current dir que se muestra arriba. Ponemos un caracter " " al final como workaround, debido a un bug.
         FILE_LAST_DIR_LAST = getDirFromPath(PATH_FILE_TO_LOAD) + " ";
         // Mostramos la página de carga
-        hmi.writeString("page tape");          
+        hmi.writeString("page tape"); 
         delay(125);
+        if (!tapeWasReset) tapeWasReset = resetTapeAnimation(TYPE_FILE_LOAD == "FLAC");
       }
     } 
     else 
@@ -6189,7 +6428,7 @@ void tapeControl() {
       //
       LOADING_STATE = 1;
       // Activamos la animación
-      tapeAnimationON();
+      tapeAnimationON(false);
       // Reproducimos el fichero
       if (TYPE_FILE_LOAD != "WAV" && TYPE_FILE_LOAD != "MP3" &&
           TYPE_FILE_LOAD != "FLAC" && TYPE_FILE_LOAD != "RADIO") {
@@ -6221,7 +6460,7 @@ void tapeControl() {
       PAUSE = false;
       //
       if (AUTO_PAUSE) {
-        logln("Auto-pause activated");
+        log_info("TAPE","Auto-pause activated");
         LAST_MESSAGE = "Tape auto-paused. Follow machine instructions.";
         ABORT = false;
         STOP = false;
@@ -6237,9 +6476,13 @@ void tapeControl() {
         wavfile.close();
         //delay(1000);
         //encoderOutWAV.end();
-        logln("-- Update WAVheader from CASE 1 PAUSE");
+        log_info("TAPE","-- Update WAVheader from CASE 1 PAUSE");
         updateWAVHeader(REC_FILENAME);
       }
+  
+      // Paramos la animación
+      tapeAnimationOFF(false);
+
     } 
     else if (STOP) 
     {
@@ -6252,7 +6495,7 @@ void tapeControl() {
       TAPESTATE = 10;
 
       if (LOADING_STATE == 1) {
-        tapeAnimationOFF();
+        tapeAnimationOFF(false);
         LOADING_STATE = 2;
       }
 
@@ -6322,7 +6565,7 @@ void tapeControl() {
         FILE_PREPARED = false;
         FILE_SELECTED = false;
         hmi.clearInformationFile();
-        tapeAnimationOFF();
+        tapeAnimationOFF(false);
         recAnimationON();
 
         if (MODEWAV) 
@@ -6375,8 +6618,6 @@ void tapeControl() {
     #endif
 
     LOADING_STATE = 3;
-    // Activamos la animación
-    tapeAnimationOFF();
 
     // Reproducimos el fichero
     LAST_MESSAGE = "Tape paused. Press play or select block.";
@@ -6530,16 +6771,17 @@ void tapeControl() {
     } else {
       TAPESTATE = 10;
       LOADING_STATE = 0;
+      
     }
   } break;
 
   case 99: {
-//
-// Eject
-//
-#ifdef DEBUGMODE
-    logAlert("Tape state 99");
-#endif
+    //
+    // Eject
+    //
+    #ifdef DEBUGMODE
+        logAlert("Tape state 99");
+    #endif
 
     if (FILE_BROWSER_OPEN) {
       // Abrimos el filebrowser
@@ -6567,6 +6809,8 @@ void tapeControl() {
     //
     // Filebrowser open
     //
+    if (!tapeWasReset) tapeWasReset = resetTapeAnimation(TYPE_FILE_LOAD == "FLAC");
+
     #ifdef DEBUGMODE
         logAlert("Tape state 100");
     #endif
@@ -6582,6 +6826,8 @@ void tapeControl() {
       // y entramos en el estado FILE_PREPARED (inside the tape)
       //
       EJECT = false;
+      //
+      
 
       // Si se ha seleccionado un fichero, habilitamos la rotacion del texto
       rotate_enable = FILE_LOAD != "" ? true : false;
@@ -6604,6 +6850,7 @@ void tapeControl() {
         // Damos tiempo a que la pagina del remote recargue y no interfiera
         LAST_MESSAGE = ".. receiving from remote ..";
         delay(1000);
+        //
         //
         playingFile();
       } 
@@ -6696,7 +6943,6 @@ void tapeControl() {
           {
             LAST_MESSAGE = "No file inside the tape";
           }
-          
         }
       }
 
@@ -9250,7 +9496,7 @@ void buttonsControl()
             {
               // Cogemos el path
               String strPath = myNex.readStr("file.path.txt");
-              log_info("BUTTONS","Trying to load selected file -> " + strPath);
+              //log_info("BUTTONS","Trying to load selected file -> " + strPath);
 
               // Vemos si no estça en blanco
               if (strPath.length() > 0)
@@ -9482,7 +9728,7 @@ void Task0code(void *pvParameters) {
   int se = 0;
   int tScrRfsh = 1000;
   int timeRTC = 1000;
-  int timeKeyPoll = 125;
+  int timeKeyPoll = 250;
 
   uint8_t lasthour = 0;
   uint8_t lastminute = 0;
@@ -11152,8 +11398,12 @@ hmi.writeString("statusLCD.txt=\"Preparing environment\"");
   }
 
   CURRENT_PAGE = PAGE_TAPE0;
-  //
-  tapeAnimationOFF();
+  
+  // Paramos los timers
+  hmi.writeString("tape.tmAnimation.en=0");
+  hmi.writeString("tape.tm1.en=0");
+  
+  //tapeAnimationOFF(false);
 
   // fin del setup()
   LAST_MESSAGE = "Press EJECT to select a file or REC.";

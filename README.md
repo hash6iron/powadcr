@@ -18,6 +18,10 @@ POWADCR is a professional-grade digital cassette recorder designed for retrocomp
   <img width="100%" src="https://github.com/user-attachments/assets/c3fa02bd-d66c-483b-bbb5-5842725ea170" />
 </p>
 
+<p align="center">
+  <img width="100%" alt="powadcr2" src="https://github.com/user-attachments/assets/6c93b7ac-8313-4c6a-a557-cbd183bb3aa7" />
+</p>
+
 ---
 
 ## Evolution & Applications

@@ -89,6 +89,62 @@ struct FLACPlayState {
     bool track_end_reached = false;
 };
 
+inline bool readFLACStreamInfoMetadata(File &file, uint32_t &sampleRate,
+                                       uint8_t &channels,
+                                       uint8_t &bitsPerSample) {
+    if (!file) {
+        return false;
+    }
+
+    size_t originalPos = file.position();
+    sampleRate = 0;
+    channels = 0;
+    bitsPerSample = 0;
+
+    file.seek(0);
+
+    uint8_t signature[4] = {0};
+    if (file.read(signature, sizeof(signature)) != sizeof(signature) ||
+        memcmp(signature, "fLaC", sizeof(signature)) != 0) {
+        file.seek(originalPos);
+        return false;
+    }
+
+    while (file.available() >= 4) {
+        uint8_t header[4] = {0};
+        if (file.read(header, sizeof(header)) != sizeof(header)) {
+            break;
+        }
+
+        uint8_t blockType = header[0] & 0x7F;
+        uint32_t blockLength = ((uint32_t)header[1] << 16) |
+                               ((uint32_t)header[2] << 8) |
+                               (uint32_t)header[3];
+
+        if (blockType == 0 && blockLength >= 34) {
+            uint8_t streamInfo[34] = {0};
+            if (file.read(streamInfo, sizeof(streamInfo)) != sizeof(streamInfo)) {
+                break;
+            }
+
+            sampleRate = ((uint32_t)streamInfo[10] << 12) |
+                         ((uint32_t)streamInfo[11] << 4) |
+                         ((uint32_t)(streamInfo[12] & 0xF0) >> 4);
+            channels = ((streamInfo[12] & 0x0E) >> 1) + 1;
+            bitsPerSample = (((streamInfo[12] & 0x01) << 4) |
+                             ((streamInfo[13] & 0xF0) >> 4)) + 1;
+
+            file.seek(originalPos);
+            return sampleRate > 0;
+        }
+
+        file.seek(file.position() + blockLength);
+    }
+
+    file.seek(originalPos);
+    return false;
+}
+
 // ============================================================================
 // GESTOR DE LISTA DE REPRODUCCIÓN FLAC
 // ============================================================================
@@ -494,6 +550,15 @@ public:
         state.stop_requested = false;
         state.error_occurred = false;
         state.track_end_reached = false;
+
+        if (!readFLACStreamInfoMetadata(current_file, state.sample_rate,
+                                        state.channels,
+                                        state.bits_per_sample)) {
+            log_error("FLAC", "No se pudo leer STREAMINFO del fichero FLAC");
+            state.sample_rate = 0;
+            state.channels = 0;
+            state.bits_per_sample = 0;
+        }
         
         // Limpiar buffers
         input_buffer->clear();
@@ -998,12 +1063,22 @@ void updateInformation(OptimizedFLACPlayer &player)
                         
     // Mostrar información del archivo parado
     uint32_t size_kb = player.getState().file_size / 1024;
+    String samplingRateTrack = "FLAC file (-- KHz)";
+    if (player.getState().sample_rate > 0) {
+        float sampleRateKhz = player.getState().sample_rate / 1000.0f;
+        unsigned int decimals = (player.getState().sample_rate % 1000) == 0 ? 0U : 1U;
+        samplingRateTrack = "FLAC file (" + String(player.getState().bits_per_sample) + " bits / " + String(sampleRateKhz, decimals) + " KHz)";
+    }
     myNex.writeStr("tape2.size.txt", String(size_kb) + " KB");
-    myNex.writeStr("tape2.name.txt", player.getCurrentTrackName());                
+    myNex.writeStr("tape2.name.txt", player.getCurrentTrackName());
+    myNex.writeStr("tape.type.txt", samplingRateTrack);
 }
 
 void FLACPlayer() {
     
+    // Activamos animación de CD Scan
+    tapeAnimationON(true);
+
     OptimizedFLACPlayer player;
     String current_playing_file = "";
     bool file_prepared = false;
@@ -1045,6 +1120,10 @@ void FLACPlayer() {
     log_info("FLAC","Playlist cargada: " + String(TOTAL_BLOCKS) + " pistas");
     myNex.writeNum("tape.totalBlocks.val", TOTAL_BLOCKS);
     myNex.writeNum("tape.currentBlock.val", TOTAL_BLOCKS);
+
+    // Paramos animación de CD Scan
+    downSpinMotorAnimation();
+    tapeAnimationOFF(true);
 
 
     while (!EJECT && !REC && MEDIA_PLAYER_EN) {
@@ -1124,7 +1203,7 @@ void FLACPlayer() {
                         playerStatus = 1;  // Cambiar a PLAYING
                         player.resume();
                         is_currently_playing = true;
-                        tapeAnimationON();  // ✅ Activar animación del cassette
+                        tapeAnimationON(true);  // ✅ Activar animación del cassette
                     }
                 }
                     break;
@@ -1134,11 +1213,12 @@ void FLACPlayer() {
                         playerStatus = 2;       // Cambiar a PAUSED
                         player.pause();
                         PAUSE = false;
-                        tapeAnimationOFF();     // ✅ Detener animación
+                        //tapeAnimationOFF(true);     // ✅ Detener animación
                     } else if (STOP || EJECT) {
                         playerStatus = 0;  // Cambiar a STOPPED
                         player.stop();
-                        tapeAnimationOFF();  // ✅ Detener animación
+                        downSpinMotorAnimation();
+                        tapeAnimationOFF(true);  // ✅ Detener animación
                         is_currently_playing = false;
                         decoder_iterations = 0;
                         PATH_FILE_TO_LOAD = player.selectTrack1Based(1);  // Volver al primer track;                        
@@ -1176,7 +1256,8 @@ void FLACPlayer() {
                                 // Parar: fin de playlist
                                 log_info("FLAC","Last track end - Mode STOP. Stop playing...");
                                 player.stop();
-                                tapeAnimationOFF();
+                                downSpinMotorAnimation();
+                                tapeAnimationOFF(true);
                                 playerStatus = 0;
                                 is_currently_playing = false;
                                 STOP = true;
@@ -1204,11 +1285,12 @@ void FLACPlayer() {
                         PAUSE = false;          // Resetear bandera de pausa
                         playerStatus = 1;       // Cambiar a PLAYING
                         player.resume();
-                        tapeAnimationON();      // ✅ Activar animación del cassette
+                        tapeAnimationON(true);      // ✅ Activar animación del cassette
                     } else if (STOP) {
                         playerStatus = 0;  // Cambiar a STOPPED
                         player.stop();
-                        tapeAnimationOFF();  // ✅ Detener animación
+                        downSpinMotorAnimation();
+                        tapeAnimationOFF(true);  // ✅ Detener animación
                         is_currently_playing = false;
                         decoder_iterations = 0;
                         player.selectTrack(0);  // Reiniciar a la primera pista
@@ -1226,7 +1308,7 @@ void FLACPlayer() {
             // RWIND - Pista anterior (presión simple de RWD)
             if ((RWIND && !FFWIND) || (KEEP_RWIND && !KEEP_FFWIND))
             {
-                rewindAnimation(-1);
+                //rewindAnimation(-1);
 
                 // Reiniciar pista actual una vez superado el 5% de reproducción
                 if (RWIND && !lastWasFastRWind && player.getProgress() > 10)
@@ -1325,7 +1407,7 @@ void FLACPlayer() {
             }
             else if ((FFWIND && !RWIND) || (KEEP_FFWIND && !KEEP_RWIND))
             {
-                rewindAnimation(1);
+                //rewindAnimation(1);
 
                 // FFWIND - Siguiente pista (presión simple de FFWD)
                 if (FFWIND && !lastWasFastFFWind) {
@@ -1475,7 +1557,7 @@ void FLACPlayer() {
         if (track_changed && PATH_FILE_TO_LOAD != current_playing_file) {
             log_info("FLAC","Reopening new file...");
             player.stop();
-            tapeAnimationOFF();  // Detener animación
+            //tapeAnimationOFF(true);  // Detener animación
 
             continue;  // Volver al inicio del bucle externo
         }
@@ -1483,10 +1565,14 @@ void FLACPlayer() {
     
     // Limpieza final
     player.stop();
-    tapeAnimationOFF();  // Detener animación de la cinta
+    tapeAnimationOFF(true);  // Detener animación de la cinta
 
     MEDIA_PLAYER_EN = false;
     MUSIC_IS_PLAYING = false;
+
+    // Esto lo hacemos para que cuando salga del reproductor de FLAC
+    // otras funciones no sigan pensando que hay un FLAC cargado.
+    TYPE_FILE_LOAD = "";
     
     log_info("FLAC","Reproductor finalizado");
     log_info("FLAC", player.getStatsReport());

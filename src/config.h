@@ -33,47 +33,13 @@
  +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
 
 //
-// Dependency Graph works fine with v1.0r6 (06/10/2025)
-//
-// |-- WiFi @ 2.0.0
-// |-- WiFiClientSecure @ 2.0.0
-// |-- Easy Nextion Library @ 1.0.6+sha.4bd06b2
-// |-- ESP32-A2DP @ 1.8.8+sha.e86ab93
-// |-- audio-driver @ 0.1.4+sha.c8e422b
-// |-- audio-tools @ 1.2.0+sha.0ad0a61
-// |-- libhelix @ 0.8.9+sha.0d77734
-// |-- libflac @ 1.3.4+sha.2618e4d
-// |-- libopus @ 1.3.2+sha.bae0f85
-// |-- ESP32_FTPSERVER_SD @ 0.0.0+20251006181015.sha.0f6d214
-// |-- libfoxenflac @ 1.0.0+sha.e491d2e
-// |-- SPI @ 2.0.0
-// |-- SD @ 2.0.0
-// |-- FS @ 2.0.0
-// |-- SD_MMC @ 2.0.0
-// |-- Wire @ 2.0.0
-// |-- Update @ 2.0.0
+
 #pragma once
 // --------------------------------------------------------------
 // Configuración de la versión del software
 // --------------------------------------------------------------
-#define VERSION "1.0r7.15" // Formato: vX.YrW.Z (X=major, Y=minor, W=revision, Z=revision_minor)
+#define VERSION "1.0r7.16p5" // Formato: vX.YrW.Z (X=major, Y=minor, W=revision, Z=revision_minor)
 
-// --------------------------------------------------------------
-// Configuración de memoria optimizada
-// --------------------------------------------------------------
-
-// #define CONFIG_SPIRAM_SUPPORT 1
-// #define CONFIG_SPIRAM_USE_MALLOC 1
-// #define CONFIG_SPIRAM_TYPE_AUTO 1
-
-// // Reducir uso de IRAM
-// #define CONFIG_ESP32_WIFI_IRAM_OPT 0
-// #define CONFIG_ESP32_WIFI_RX_IRAM_OPT 0
-
-// // Optimizar stack sizes
-// #ifndef CONFIG_ARDUINO_LOOP_STACK_SIZE
-// #define CONFIG_ARDUINO_LOOP_STACK_SIZE 8192
-// #endif
 
 // --------------------------------------------------------------
 // Configuración necesaria para powaDCR
