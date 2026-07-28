@@ -55,6 +55,10 @@ The POWADCR platform has been adapted to numerous hardware implementations and u
 
 *Walkman-style POWADCR device by Jose Gal - [View on Mastodon](https://masto.es/@Jose/116532569484667256)*
 
+<img width="100%" src="https://makerworld.bblmw.com/makerworld/model/DSM00000003042829/design/c01194b65d0c2bec.jpg?x-oss-process=image%2Fformat%2Cwebp" />
+
+*Old school radio-cassette version. Beautiful 3D job of Patum - [Visit makeworld](https://makerworld.com/es/models/3042829-powadcr-2026)*
+
 ---
 
 ## Hardware Architecture
