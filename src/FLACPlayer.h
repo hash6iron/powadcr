@@ -49,13 +49,37 @@ extern VolumeStream volumeStream;
 #define FLAC_DISK_READ_SIZE         (8 * 1024)    // Lectura por chunk de disco
 #define FLAC_DISK_READ_QUEUE_SIZE   4             // Queue de lectura
 #define FLAC_DISK_PRIORITY          (tskIDLE_PRIORITY + 2)
-//#define FLAC_FAST_SEEK_STEP_KB      256           // Paso de avance/retroceso rapido dentro de pista
 
 // Configuración de decodificador FLAC
 // Nota: FLAC_MAX_BLOCK_SIZE y FLAC_MAX_CHANNELS están definidos en foxen-flac.h
 #define FLAC_MAX_CHANNELS           2
 #define FLAC_OUTPUT_BITS            24            // 24-bit output
 #define FLAC_SAMPLE_RATE            96000         // 96kHz sample rate
+
+// ============================================================================
+// AVANCE/RETROCESO RÁPIDO ACELERADO
+// ============================================================================
+// Cada FLAC_FAST_SEEK_TIER_MS mantenidos, el salto por ciclo (50ms) sube al
+// siguiente escalón de FLAC_FAST_SEEK_STEPS_BYTES. Ver doc/FLACPlayer_FastSeek_Design.md
+#define FLAC_FAST_SEEK_TIER_MS      5000  // 5 segundos por escalón
+
+static const uint32_t FLAC_FAST_SEEK_STEPS_BYTES[] = {
+    128 * 1024UL,   // 0-5s
+    256 * 1024UL,   // 5-10s
+    512 * 1024UL,   // 10-15s
+    1024 * 1024UL   // >15s (tope)
+};
+static const uint8_t FLAC_FAST_SEEK_TIER_COUNT =
+    sizeof(FLAC_FAST_SEEK_STEPS_BYTES) / sizeof(FLAC_FAST_SEEK_STEPS_BYTES[0]);
+
+// Devuelve el paso (bytes) según cuánto tiempo lleva mantenida la tecla.
+inline uint32_t flacFastSeekStepBytes(uint32_t held_ms) {
+    uint32_t tier = held_ms / FLAC_FAST_SEEK_TIER_MS;
+    if (tier >= FLAC_FAST_SEEK_TIER_COUNT) {
+        tier = FLAC_FAST_SEEK_TIER_COUNT - 1;
+    }
+    return FLAC_FAST_SEEK_STEPS_BYTES[tier];
+}
 
 // ============================================================================
 // ESTRUCTURA DE CONTROL DE REPRODUCCIÓN FLAC
@@ -841,7 +865,8 @@ public:
     
     uint32_t getProgress() const {
         if (state.file_size == 0) return 0;
-        return (state.file_position * 100) / state.file_size;
+        // uint64_t obligatorio: file_position * 100 desborda uint32_t a partir de ~41MB
+        return (uint32_t)(((uint64_t)state.file_position * 100) / state.file_size);
     }
     
     uint32_t getTrackSize() const {
@@ -1086,6 +1111,8 @@ void FLACPlayer() {
     uint8_t stausFastRWind = 0;  // 0=ninguno, 1=FFWD, 2=RWD
     bool lastWasFastFFWind = false;
     bool lastWasFastRWind = false;
+    uint32_t fast_ffwd_hold_start_ms = 0;  // Instante en que se empezó a mantener FFWD
+    uint32_t fast_rwd_hold_start_ms = 0;   // Instante en que se empezó a mantener RWD
     
     // Inicializar reproductor
     if (!player.begin()) {
@@ -1350,6 +1377,7 @@ void FLACPlayer() {
                             if (KEEP_RWIND)
                             {
                                 stausFastRWind = 1;
+                                fast_rwd_hold_start_ms = millis();  // Arrancar contador de aceleración
                                 log_info("FLAC","RWD: Fast rewind mode activated");
                                 // Borramos este flag para evitar cambio de track al soltar el boton.
                             }
@@ -1377,18 +1405,21 @@ void FLACPlayer() {
                                 if (now_ffwd - last_rwd_ffwd_time > 50) {
                                     last_rwd_ffwd_time = now_ffwd;
 
+                                    uint32_t held_ms = now_ffwd - fast_rwd_hold_start_ms;
+                                    uint32_t step = flacFastSeekStepBytes(held_ms);
 
-                                    if (player.getProgress() > 0) {
-            
-                                        size_t p_file_seek_pos = player.getState().file_position;
-                                        if (p_file_seek_pos >= 0) {
-                                            player.seekToPosition(p_file_seek_pos - 1024 * 128);  // Sincronizar el reproductor con el nuevo position del archivo
-                                        }
+                                    uint32_t current_pos = player.getState().file_position;
+
+                                    // Límite inferior: no bajar de 0. Clamp exacto a 0 si el
+                                    // salto se pasaría (antes esto podía desbordar uint32_t).
+                                    if (current_pos > 0) {
+                                        uint32_t new_pos = (current_pos > step) ? (current_pos - step) : 0;
+                                        player.seekToPosition(new_pos);
                                     }
 
-                                    PROGRESS_BAR_TOTAL_VALUE = player.getProgress();                            
+                                    PROGRESS_BAR_TOTAL_VALUE = player.getProgress();
                                 }
-                                
+
                             }
                         }
                         break;
@@ -1432,7 +1463,8 @@ void FLACPlayer() {
                             if (KEEP_FFWIND)
                             {
                                 stausFastFFWind = 1;
-                                // Borramos este flag para evitar cambio de track al soltar el boton.                            
+                                fast_ffwd_hold_start_ms = millis();  // Arrancar contador de aceleración
+                                // Borramos este flag para evitar cambio de track al soltar el boton.
                             }
                         }
                         break;
@@ -1455,17 +1487,25 @@ void FLACPlayer() {
                                 if (now_ffwd - last_rwd_ffwd_time > 50) {
                                     last_rwd_ffwd_time = now_ffwd;
 
-                                    // Controlamos los limites (alcanzar 90%)
-                                    if (player.getProgress() <= 90) 
-                                    {
-                                        size_t p_file_seek_pos = player.getState().file_position;
-                                        if (p_file_seek_pos <= player.getState().file_size) {
-                                            player.seekToPosition(p_file_seek_pos + 1024 * 128);
-                                        }  
+                                    uint32_t held_ms = now_ffwd - fast_ffwd_hold_start_ms;
+                                    uint32_t step = flacFastSeekStepBytes(held_ms);
+
+                                    // Límite superior: no pasar del 90% del fichero. Si el
+                                    // salto se pasaría, clamp exacto a esa posición.
+                                    uint32_t file_size = player.getState().file_size;
+                                    uint32_t limit_pos = (uint32_t)(((uint64_t)file_size * 90) / 100);
+                                    uint32_t current_pos = player.getState().file_position;
+
+                                    if (current_pos < limit_pos) {
+                                        uint32_t new_pos = current_pos + step;
+                                        if (new_pos > limit_pos) {
+                                            new_pos = limit_pos;
+                                        }
+                                        player.seekToPosition(new_pos);
                                     }
 
-                                    PROGRESS_BAR_TOTAL_VALUE = player.getProgress();                            
-                                }                            
+                                    PROGRESS_BAR_TOTAL_VALUE = player.getProgress();
+                                }
                             }
                         }
                         break;
