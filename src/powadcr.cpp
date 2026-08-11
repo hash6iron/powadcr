@@ -11336,6 +11336,10 @@ hmi.writeString("statusLCD.txt=\"Preparing environment\"");
       // MSX
       myNex.writeNum("menu2.c5.val", 1);
       break;
+    case 6:
+      // ESPectrum
+      myNex.writeNum("menu2.c6.val", 1);
+      break;      
     default:
       // Powa skin
       myNex.writeNum("menu2.c1.val", 1);

@@ -61,7 +61,7 @@ extern VolumeStream volumeStream;
 // ============================================================================
 // Cada FLAC_FAST_SEEK_TIER_MS mantenidos, el salto por ciclo (50ms) sube al
 // siguiente escalón de FLAC_FAST_SEEK_STEPS_BYTES. Ver doc/FLACPlayer_FastSeek_Design.md
-#define FLAC_FAST_SEEK_TIER_MS      5000  // 5 segundos por escalón
+#define FLAC_FAST_SEEK_TIER_MS      2500  // 2.5 segundos por escalón
 
 static const uint32_t FLAC_FAST_SEEK_STEPS_BYTES[] = {
     128 * 1024UL,   // 0-5s

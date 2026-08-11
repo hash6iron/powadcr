@@ -3934,7 +3934,11 @@ private:
           case 53:
             // MSX
             SKIN_SELECTED = 5;
-            break;              
+            break; 
+          case 54:
+            // MSX
+            SKIN_SELECTED = 6;
+            break;                          
           default:
             // Powa skin
             SKIN_SELECTED = 1;
