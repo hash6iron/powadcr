@@ -8,6 +8,15 @@ Multi-format TAP/TZX/TSX/CDT/CSW digital cassette recorder with WAV/MP3 playback
   <img width="400" height="400" src="/doc/powadcr.png" />
 </p>
 
+Help me to continue supporting this project.
+(paypal friend, please)
+
+<p align="center">
+  <a href="https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=BAWGJFZGXE5GE&source=url">
+    <img src="/doc/paypal_boton.png" alt="Donate via PayPal" />
+  </a>
+</p>
+
 ---
 
 ## Overview
