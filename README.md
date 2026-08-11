@@ -8,7 +8,7 @@ Multi-format TAP/TZX/TSX/CDT/CSW digital cassette recorder with WAV/MP3 playback
   <img width="400" height="400" src="/doc/powadcr.png" />
 </p>
 
-Help me to continue supporting this project.
+Help me to continue working on this project.
 (paypal friend, please)
 
 <p align="center">
