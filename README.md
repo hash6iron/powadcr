@@ -492,10 +492,6 @@ If you find POWADCR valuable and wish to support continued development, contribu
   <a href="https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=BAWGJFZGXE5GE&source=url">
     <img src="/doc/paypal_boton.png" alt="Donate via PayPal" />
   </a>
-  &nbsp;&nbsp;&nbsp;&nbsp;
-  <a href="https://www.buymeacoffee.com/atamairon">
-    <img src="/doc/coffe.jpg" alt="Buy me a coffee" />
-  </a>
 </p>
 
 ---
