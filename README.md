@@ -238,6 +238,36 @@ The 4-pin LCD connector integrates with the ESP32 Audio Kit extended GPIO header
   <img width="100%" src="/doc/GPIO.png" />
 </p>
 
+Change the settings in powadcr.cfg. Modify this line below (to OFF)
+
+NOTE: The "+ " is only to indicate the line, should not be written in the file.
+
+```diff
+<hostname>powaDCR</hostname>
+<ssid>mySSID</ssid>
+<password>1234</password>
+<IP>192.168.1.21</IP>
+<SN>255.255.255.0</SN>
+<GW>192.168.1.1</GW>
+<DNS1>192.168.1.1</DNS1>
+<DNS2>192.168.1.1</DNS2>
++ <MCP23017>off</MCP23017>
+<NTPSERVER>ntp.roa.es</NTPSERVER>
+<TIMEZONE>+1</TIMEZONE>
+<SUMMERTIME>on</SUMMERTIME>
+<SPOTIFY>on</SPOTIFY>
+<SPOTIFY_CID></SPOTIFY_CID>
+<SPOTIFY_CSE></SPOTIFY_CSE>
+<QUICKBOOT>on</QUICKBOOT>
+<KEYPLAY>4</KEYPLAY>
+<KEYRWD>3</KEYRWD>
+<KEYFFWD>2</KEYFFWD>
+<KEYPAUSE>1</KEYPAUSE>
+<KEYSTOP>0</KEYSTOP>
+<KEYREC>5</KEYREC>
+<KEYEJECT>6</KEYEJECT>
+```
+
 ### LED Status Indicator
 
 A single indicator LED provides power and recording status feedback:
@@ -278,6 +308,36 @@ When using external keypad expansion, HMI (display) connections must be reassign
 | TX | GPIO default | IO5 |
 | RX | GPIO default | IO22 |
 | REM | GPIO 19 | GPIO 19 (unchanged) |
+
+Change the settings in powadcr.cfg. Modify this line below (to ON)
+
+NOTE: The "+ " is only to indicate the line, should not be written in the file.
+
+```diff
+<hostname>powaDCR</hostname>
+<ssid>mySSID</ssid>
+<password>1234</password>
+<IP>192.168.1.21</IP>
+<SN>255.255.255.0</SN>
+<GW>192.168.1.1</GW>
+<DNS1>192.168.1.1</DNS1>
+<DNS2>192.168.1.1</DNS2>
++ <MCP23017>on</MCP23017>
+<NTPSERVER>ntp.roa.es</NTPSERVER>
+<TIMEZONE>+1</TIMEZONE>
+<SUMMERTIME>on</SUMMERTIME>
+<SPOTIFY>on</SPOTIFY>
+<SPOTIFY_CID></SPOTIFY_CID>
+<SPOTIFY_CSE></SPOTIFY_CSE>
+<QUICKBOOT>on</QUICKBOOT>
+<KEYPLAY>4</KEYPLAY>
+<KEYRWD>3</KEYRWD>
+<KEYFFWD>2</KEYFFWD>
+<KEYPAUSE>1</KEYPAUSE>
+<KEYSTOP>0</KEYSTOP>
+<KEYREC>5</KEYREC>
+<KEYEJECT>6</KEYEJECT>
+```
 
 > Note: This modification enables external keypad operation while maintaining REM functionality.
 
