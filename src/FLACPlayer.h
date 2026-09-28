@@ -1622,20 +1622,20 @@ void FLACPlayer() {
 // VARIABLES GLOBALES AUXILIARES (para ser accesibles desde powadcr.cpp)
 // ============================================================================
 
-extern bool PLAY;
-extern bool PAUSE;
-extern bool STOP;
-extern bool EJECT;
-extern bool REC;
-extern bool FFWIND;
-extern bool RWIND;
+extern volatile bool PLAY;
+extern volatile bool PAUSE;
+extern volatile bool STOP;
+extern volatile bool EJECT;
+extern volatile bool REC;
+extern volatile bool FFWIND;
+extern volatile bool RWIND;
 extern bool KEEP_FFWIND;
 extern bool KEEP_RWIND;
-extern bool PLAY;
-extern bool PAUSE;
-extern bool STOP;
-extern bool EJECT;
-extern bool REC;
+extern volatile bool PLAY;
+extern volatile bool PAUSE;
+extern volatile bool STOP;
+extern volatile bool EJECT;
+extern volatile bool REC;
 extern bool MEDIA_PLAYER_EN;
 extern bool MUSIC_IS_PLAYING;
 extern bool EQ_CHANGE;
@@ -1649,4 +1649,4 @@ extern bool EN_SPEAKER;
 extern bool disable_auto_media_stop;  // 
 extern String PATH_FILE_TO_LOAD;
 extern String LAST_MESSAGE;
-extern int PROGRESS_BAR_TOTAL_VALUE;
+extern volatile int PROGRESS_BAR_TOTAL_VALUE;

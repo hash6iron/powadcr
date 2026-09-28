@@ -89,6 +89,8 @@ EasyNex myNex(SerialHW);
 
 #include "globales.h"
 //
+#include "AudioFileSource.h"
+#include "AudioGeneratorMOD.h"
 #include "AudioTools.h"
 #include "AudioTools/AudioLibs/AudioBoardStream.h"
 
@@ -1917,14 +1919,18 @@ void updateIndicators(int size, int pos, uint32_t fsize, int bitrate, String fna
   if (bitrate != 0) {
     if (TYPE_FILE_LOAD == "WAV") {
       strBitrate = "(" + String(bitrate / 1000) + " KBps)";
-    } else {
+    } else if (TYPE_FILE_LOAD != "MOD") {
       strBitrate = "(" + String(bitrate / 1000) + " Kbps)";
+    } else {
+      strBitrate = "(" + String(bitrate) + " Channels)";
     }
   } else {
     if (TYPE_FILE_LOAD == "WAV") {
       strBitrate = "(-- KBps)";
-    } else {
+    } else if (TYPE_FILE_LOAD != "MOD") {
       strBitrate = "(-- Kbps)";
+    } else {
+      strBitrate = "(-- Channels)";
     }
   }
 
@@ -3386,6 +3392,287 @@ void RadioPlayer() {
 
   vTaskDelay(pdMS_TO_TICKS(50));
   RADIO_IS_PLAYING = false;
+}
+
+class MODSDFileSource : public ::AudioFileSource {
+public:
+  bool open(const char *filename) override {
+    file = SD_MMC.open(filename, FILE_READ);
+    return static_cast<bool>(file);
+  }
+
+  uint32_t read(void *data, uint32_t length) override {
+    return file ? file.read(static_cast<uint8_t *>(data), length) : 0;
+  }
+
+  bool seek(int32_t offset, int origin) override {
+    if (!file) return false;
+
+    int32_t base = 0;
+    if (origin == SEEK_CUR) base = file.position();
+    else if (origin == SEEK_END) base = file.size();
+    else if (origin != SEEK_SET) return false;
+
+    int32_t target = base + offset;
+    if (target < 0 || target > file.size()) return false;
+    return file.seek(static_cast<uint32_t>(target));
+  }
+
+  bool close() override {
+    file.close();
+    return true;
+  }
+
+  bool isOpen() override { return static_cast<bool>(file); }
+  uint32_t getSize() override { return file ? file.size() : 0; }
+  uint32_t getPos() override { return file ? file.position() : 0; }
+
+private:
+  File file;
+};
+
+class MODPlayerDecoder : public AudioGeneratorMOD {
+public:
+  uint8_t channelCount() const { return Mod.numberOfChannels; }
+
+  uint8_t activeChannelCount() const {
+    uint8_t active = 0;
+    for (uint8_t channel = 0; channel < Mod.numberOfChannels; ++channel) {
+      uint8_t sample = Mixer.channelSampleNumber[channel];
+      if (Mixer.channelFrequency[channel] && Mixer.channelVolume[channel] &&
+          sample < SAMPLES && Mod.samples[sample].length) {
+        ++active;
+      }
+    }
+    return active;
+  }
+
+  uint8_t progressPercent() const {
+    uint32_t totalRows = static_cast<uint32_t>(Mod.songLength) * ROWS;
+    if (totalRows == 0) return 0;
+
+    uint32_t currentRow = static_cast<uint32_t>(Player.orderIndex) * ROWS + Player.row;
+    uint32_t percent = (currentRow * 100) / totalRows;
+    return percent > 100 ? 100 : percent;
+  }
+};
+
+class MODKitAudioOutput : public ::AudioOutput {
+public:
+  bool SetRate(int rate) override {
+    if (rate < 8000 || rate > 96000) return false;
+    sampleRate = rate;
+    return true;
+  }
+
+  bool begin() override {
+    kitStream.setMute(false);
+    AudioInfo config = kitStream.audioInfo();
+    config.sample_rate = sampleRate;
+    config.bits_per_sample = 16;
+    config.channels = 2;
+    kitStream.setAudioInfo(config);
+    kitStream.setVolume(float(MAIN_VOL) / 100.0f);
+    hmi.setVolumenOutput();
+    return true;
+  }
+
+  void flush() override { kitStream.flush(); }
+
+  bool stop() override {
+    hmi.setVolumenOutput(true);
+    return kitStream.setMute(true);
+  }
+
+  bool ConsumeSample(int16_t sample[2]) override {
+    if (STOP || EJECT || REC || FFWIND || RWIND) return false;
+    if (volumeStream.write(reinterpret_cast<uint8_t *>(sample), sizeof(int16_t) * 2) != sizeof(int16_t) * 2) return false;
+
+    if (++samplesSinceYield >= 4096) {
+      samplesSinceYield = 0;
+      return false;
+    }
+    return true;
+  }
+
+private:
+  int sampleRate = 44100;
+  uint16_t samplesSinceYield = 0;
+};
+
+void modPlayer() {
+  MEDIA_PLAYER_EN = true;
+  MUSIC_IS_PLAYING = true;
+  EJECT = false;
+
+  tAudioList *modList = nullptr;
+  int modCount = generateAudioList(modList, ".mod");
+  int modIndex = modCount > 0 ? MEDIA_CURRENT_POINTER : 0;
+  if (modIndex < 0 || modIndex >= modCount) modIndex = 0;
+
+  MODSDFileSource source;
+  MODKitAudioOutput output;
+  MODPlayerDecoder decoder;
+  bool decoderActive = false;
+  bool modPaused = false;
+  unsigned long lastStatusUpdate = 0;
+
+  LAST_MESSAGE = "MOD file prepared";
+  hmi.writeString("statusLCD.txt=\"" + LAST_MESSAGE + "\"");
+  PROGRESS_BAR_BLOCK_VALUE = 0;
+  PROGRESS_BAR_TOTAL_VALUE = 0;
+  if (modCount > 0) {
+    PATH_FILE_TO_LOAD = modList[modIndex].path + modList[modIndex].filename;
+    FILE_LOAD = modList[modIndex].filename;
+    updateIndicators(modCount, modIndex + 1, source.getSize(), decoder.channelCount(), FILE_LOAD);
+  }
+
+  while (!EJECT && !REC) {
+    if (decoderActive && PAUSE) {
+      tapeAnimationOFF(false);
+      delay(50);
+      PAUSE = false;
+      modPaused = !modPaused;
+      PLAY = !modPaused;
+      STOP = false;
+      MUSIC_IS_PLAYING = !modPaused;
+      LAST_MESSAGE = modPaused ? "Paused" : "Playing";
+      hmi.writeString("statusLCD.txt=\"" + LAST_MESSAGE + "\"");
+    }
+
+    if (decoderActive && PLAY && modPaused) {
+      modPaused = false;
+      MUSIC_IS_PLAYING = true;
+      LAST_MESSAGE = "Playing";
+      hmi.writeString("statusLCD.txt=\"" + LAST_MESSAGE + "\"");
+    }
+
+    if (STOP && decoderActive) 
+    {      
+      tapeAnimationOFF(false);
+      delay(50);
+      decoder.stop();
+      source.close();
+      decoderActive = false;
+      modPaused = false;
+      PLAY = false;
+      STOP = true;
+      MUSIC_IS_PLAYING = false;
+      LAST_MESSAGE = "Stopped";
+    }
+    
+    if (FFWIND || RWIND) {
+      
+      if (FFWIND) rewindAnimation(1);
+      if (RWIND) rewindAnimation(-1);
+
+      bool nextTrack = FFWIND;
+      bool resumePlayback = decoderActive && PLAY;
+      FFWIND = false;
+      RWIND = false;
+
+      if (modCount > 0) {
+        if (decoderActive) {
+          decoder.stop();
+          source.close();
+          decoderActive = false;
+          modPaused = false;
+          MUSIC_IS_PLAYING = false;
+        }
+
+        modIndex = nextTrack ? (modIndex + 1) % modCount
+                             : (modIndex + modCount - 1) % modCount;
+        PATH_FILE_TO_LOAD = modList[modIndex].path + modList[modIndex].filename;
+        FILE_LOAD = modList[modIndex].filename;
+        //updateIndicators(modCount, modIndex + 1, source.getSize(), decoder.channelCount(), FILE_LOAD);
+        PROGRESS_BAR_BLOCK_VALUE = 0;
+        PROGRESS_BAR_TOTAL_VALUE = (modIndex * 100) / modCount;
+
+        PLAY = resumePlayback;
+        STOP = !resumePlayback;
+        LAST_MESSAGE = resumePlayback ? "Playing" : "MOD selected";
+        hmi.writeString("statusLCD.txt=\"" + LAST_MESSAGE + "\"");
+      }
+    }
+
+
+    if (PLAY && !decoderActive) {
+      if (!source.open(PATH_FILE_TO_LOAD.c_str())) {
+        log_error("MOD", "Failed to open file:");
+        LAST_MESSAGE = "Open error";
+        STOP = true;
+        PLAY = false;
+      } else if (!decoder.begin(&source, &output)) {
+        log_error("MOD", "Failed to start decoder for file");
+        source.close();
+        LAST_MESSAGE = "Start error";
+        STOP = true;
+        PLAY = false;
+      } else {
+        decoderActive = true;
+        modPaused = false;
+        MUSIC_IS_PLAYING = true;
+        LAST_MESSAGE = "Playing";
+        tapeAnimationON(false);
+        delay(50);
+      }
+      hmi.writeString("statusLCD.txt=\"" + LAST_MESSAGE + "\"");
+      lastStatusUpdate = millis();
+    }
+
+    if (decoderActive && PLAY && !decoder.loop()) {
+      Serial.println("[MOD] End of file");
+      decoder.stop();
+      source.close();
+      decoderActive = false;
+      modPaused = false;
+      MUSIC_IS_PLAYING = false;
+
+      if (modCount > 0) {
+        modIndex = (modIndex + 1) % modCount;
+        PATH_FILE_TO_LOAD = modList[modIndex].path + modList[modIndex].filename;
+        FILE_LOAD = modList[modIndex].filename;
+        //updateIndicators(modCount, modIndex + 1, source.getSize(), decoder.channelCount(), FILE_LOAD);
+        PROGRESS_BAR_BLOCK_VALUE = 0;
+        PROGRESS_BAR_TOTAL_VALUE = (modIndex * 100) / modCount;
+        PLAY = true;
+        STOP = false;
+        LAST_MESSAGE = "Next: " + FILE_LOAD;
+      } else {
+        PLAY = false;
+        STOP = true;
+        LAST_MESSAGE = "End MOD";
+      }
+      hmi.writeString("statusLCD.txt=\"" + LAST_MESSAGE + "\"");
+    }
+
+    if (decoderActive && PLAY && millis() - lastStatusUpdate >= 500) {
+      uint8_t trackProgress = decoder.progressPercent();
+      PROGRESS_BAR_BLOCK_VALUE = trackProgress;
+      PROGRESS_BAR_TOTAL_VALUE = modCount > 0
+                                     ? (modIndex * 100 + trackProgress) / modCount
+                                     : trackProgress;
+      LAST_MESSAGE = "Playing. Ch. active : [ " + String(decoder.activeChannelCount()) + " / " +
+                     String(decoder.channelCount()) + " ]";
+      hmi.writeString("statusLCD.txt=\"" + LAST_MESSAGE + "\"");
+      lastStatusUpdate = millis();
+      // Actualizamos informacion del mod
+      updateIndicators(modCount, modIndex + 1, source.getSize(), decoder.channelCount(), FILE_LOAD);
+    }
+
+    vTaskDelay(pdMS_TO_TICKS(1));
+  }
+
+  if (decoderActive) decoder.stop();
+  source.close();
+  if (modList != nullptr) free(modList);
+  PROGRESS_BAR_BLOCK_VALUE = 0;
+  PROGRESS_BAR_TOTAL_VALUE = 0;
+  MEDIA_PLAYER_EN = false;
+  MUSIC_IS_PLAYING = false;
+  STOP = true;
+  LAST_MESSAGE = "Stopped";
+  //tapeAnimationOFF(false);
 }
 
 void MediaPlayer() {
@@ -5124,6 +5411,7 @@ void finalizePlayback() {
 void playingFile() 
 {
   tapeWasReset = false;
+  kitStream.setMute(false);
 
   if (ORIC_TAP_INSIDE) {
     // No se cambia el baudrate solo el ORIC_TURBO_MODE
@@ -5295,6 +5583,13 @@ void playingFile()
     MediaPlayer();
     // FLACplayer();
     logln("Finish FLAC playing file");
+  }
+  else if (TYPE_FILE_LOAD == "MOD")
+  {
+    logln("Type file load: " + TYPE_FILE_LOAD);
+    LAST_MESSAGE = "Wait for scanning end.";
+    modPlayer();
+    logln("Finish MOD playing file");
   } 
   else if (TYPE_FILE_LOAD == "RADIO") 
   {
@@ -5607,6 +5902,10 @@ void loadingFile(char *file_ch) {
       logln("FLAC file to load: " + PATH_FILE_TO_LOAD);
       FILE_PREPARED = true;
       TYPE_FILE_LOAD = "FLAC";
+    } else if (PATH_FILE_TO_LOAD.indexOf(".MOD", PATH_FILE_TO_LOAD.length() - 4) != -1) {
+      logln("MOD file to load: " + PATH_FILE_TO_LOAD);
+      FILE_PREPARED = true;
+      TYPE_FILE_LOAD = "MOD";
     } else if (PATH_FILE_TO_LOAD.indexOf(".RADIO", PATH_FILE_TO_LOAD.length() - 6) != -1) {
       logln("RADIO file to load: " + PATH_FILE_TO_LOAD);
       FILE_PREPARED = true;
@@ -5764,7 +6063,7 @@ void ejectingFile() {
       // pPZX.terminate();
     }
   } else if (TYPE_FILE_LOAD == "WAV" || TYPE_FILE_LOAD == "MP3" ||
-             TYPE_FILE_LOAD == "FLAC" || TYPE_FILE_LOAD == "RADIO") {
+             TYPE_FILE_LOAD == "FLAC" || TYPE_FILE_LOAD == "MOD" || TYPE_FILE_LOAD == "RADIO") {
     logln("Eject WAV / MP3 / FLAC / RADIO");
     // No hay nada que liberar
   } else {
@@ -5930,7 +6229,7 @@ void isGroupEnd() {
 }
 
 void putLogo() {
-  if (TYPE_FILE_LOAD == "MP3") {
+  if (TYPE_FILE_LOAD == "MP3" || TYPE_FILE_LOAD == "MOD") {
     // MP3 file
     hmi.writeString("tape.logo.pic=45");
     delay(5);
@@ -6031,7 +6330,7 @@ void getRandomFilenameWAV(char *&currentPath, String currentFileBaseName) {
 void getTheFirstPlayeableBlock() {
   // Buscamos ahora el primer bloque playeable
 
-  if (TYPE_FILE_LOAD != "TAP" && TYPE_FILE_LOAD != "PZX" && TYPE_FILE_LOAD != "CSW" && TYPE_FILE_LOAD != "ZX80" && TYPE_FILE_LOAD != "ZX81") {
+  if (TYPE_FILE_LOAD != "TAP" && TYPE_FILE_LOAD != "PZX" && TYPE_FILE_LOAD != "CSW" && TYPE_FILE_LOAD != "ZX80" && TYPE_FILE_LOAD != "ZX81" && TYPE_FILE_LOAD != "MOD") {
     int i = 0;
 
     while (!myTZX.descriptor[i].playeable) {
@@ -6558,8 +6857,8 @@ void tapeControl() {
       //STOP = false; // 28/11
       STOP = true;  //26/04/2026
 
-      if (TYPE_FILE_LOAD != "WAV" && TYPE_FILE_LOAD != "MP3" &&
-          TYPE_FILE_LOAD != "FLAC" && TYPE_FILE_LOAD != "RADIO") 
+        if (TYPE_FILE_LOAD != "WAV" && TYPE_FILE_LOAD != "MP3" &&
+          TYPE_FILE_LOAD != "FLAC" && TYPE_FILE_LOAD != "MOD" && TYPE_FILE_LOAD != "RADIO") 
       {
         getTheFirstPlayeableBlock();
       }
@@ -6691,16 +6990,16 @@ void tapeControl() {
 
       HMI_FNAME = FILE_LOAD;
 
-      if (TYPE_FILE_LOAD != "WAV" && TYPE_FILE_LOAD != "MP3" &&
-          TYPE_FILE_LOAD != "FLAC" && TYPE_FILE_LOAD != "RADIO") {
+        if (TYPE_FILE_LOAD != "WAV" && TYPE_FILE_LOAD != "MP3" &&
+          TYPE_FILE_LOAD != "FLAC" && TYPE_FILE_LOAD != "MOD" && TYPE_FILE_LOAD != "RADIO") {
         getTheFirstPlayeableBlock();
       }
       //
       setPolarization();
     } else if (FFWIND || RWIND) {
 
-      if (TYPE_FILE_LOAD != "WAV" && TYPE_FILE_LOAD != "MP3" &&
-          TYPE_FILE_LOAD != "FLAC" && TYPE_FILE_LOAD != "RADIO" && TYPE_FILE_LOAD != "CSW") {
+        if (TYPE_FILE_LOAD != "WAV" && TYPE_FILE_LOAD != "MP3" &&
+          TYPE_FILE_LOAD != "FLAC" && TYPE_FILE_LOAD != "MOD" && TYPE_FILE_LOAD != "RADIO" && TYPE_FILE_LOAD != "CSW") {
         logln("Cambio de bloque");
         // Actuamos sobre el cassette
         if (FFWIND) {
@@ -6906,8 +7205,8 @@ void tapeControl() {
               // Para poner mas logos actualizar el HMI
               putLogo();
 
-              if (TYPE_FILE_LOAD != "WAV" && TYPE_FILE_LOAD != "MP3" &&
-                  TYPE_FILE_LOAD != "FLAC" && TYPE_FILE_LOAD != "RADIO") 
+                if (TYPE_FILE_LOAD != "WAV" && TYPE_FILE_LOAD != "MP3" &&
+                  TYPE_FILE_LOAD != "FLAC" && TYPE_FILE_LOAD != "MOD" && TYPE_FILE_LOAD != "RADIO") 
                   {
                 getTheFirstPlayeableBlock();
 
@@ -7219,8 +7518,8 @@ void tapeControl() {
   // Actualizamos el HMI - indicadores
   if (UPDATE) {
     if (TYPE_FILE_LOAD != "TAP" && TYPE_FILE_LOAD != "WAV" &&
-        TYPE_FILE_LOAD != "MP3" && TYPE_FILE_LOAD != "FLAC" &&
-        TYPE_FILE_LOAD != "RADIO" && TYPE_FILE_LOAD != "PZX") {
+      TYPE_FILE_LOAD != "MP3" && TYPE_FILE_LOAD != "FLAC" &&
+      TYPE_FILE_LOAD != "MOD" && TYPE_FILE_LOAD != "RADIO" && TYPE_FILE_LOAD != "PZX") {
       // Forzamos un refresco de los indicadores para TZX, CDT y TSX
       hmi.setBasicFileInformation(myTZX.descriptor[BLOCK_SELECTED].ID,
                                   myTZX.descriptor[BLOCK_SELECTED].group,
@@ -8473,6 +8772,7 @@ void handleWebClient(WiFiClient client)
                     if (fileNameUpper.endsWith(".WAV") ||
                         fileNameUpper.endsWith(".MP3") ||
                         fileNameUpper.endsWith(".FLAC") ||
+                      fileNameUpper.endsWith(".MOD") ||
                         fileNameUpper.endsWith(".RADIO")) {
 
                       if (!firstItem)
@@ -8539,8 +8839,8 @@ void handleWebClient(WiFiClient client)
                 logln("Not in /RADIO directory, skipping .RADIO file search");
               }
 
-              // ✅ PASO 4: BUSCAR ARCHIVOS SPECTRUM (TAP, TZX, CSW, PZX, CDT, TSX) Y ZIP
-              logln("Searching for Spectrum files and ZIP archives");
+              // ✅ PASO 4: BUSCAR ARCHIVOS SPECTRUM, MOD Y ZIP
+              logln("Searching for supported files and ZIP archives");
               File specDir = SD_MMC.open(parentDir.c_str());
               if (specDir && specDir.isDirectory()) {
                 File specFile = specDir.openNextFile();
@@ -8557,6 +8857,7 @@ void handleWebClient(WiFiClient client)
                                       fileNameUpper.endsWith(".PZX") ||
                                       fileNameUpper.endsWith(".CDT") ||
                                       fileNameUpper.endsWith(".TSX") ||
+                                      fileNameUpper.endsWith(".MOD") ||
                                       fileNameUpper.endsWith(".ZIP");
 
                     if (isSpecFile) {
@@ -8719,6 +9020,7 @@ void handleWebClient(WiFiClient client)
 
                 bool isSupportedFile = fileUpper.endsWith(".WAV") || fileUpper.endsWith(".MP3") ||
                     fileUpper.endsWith(".FLAC") ||
+                  fileUpper.endsWith(".MOD") ||
                     fileUpper.endsWith(".RADIO") ||
                     fileUpper.endsWith(".TAP") ||
                     fileUpper.endsWith(".TZX") ||
@@ -8735,6 +9037,8 @@ void handleWebClient(WiFiClient client)
                     TYPE_FILE_LOAD = "WAV";
                   else if (fileUpper.endsWith(".FLAC"))
                     TYPE_FILE_LOAD = "FLAC";
+                  else if (fileUpper.endsWith(".MOD"))
+                    TYPE_FILE_LOAD = "MOD";
                   else if (fileUpper.endsWith(".RADIO"))
                     TYPE_FILE_LOAD = "RADIO";
                   else if (fileUpper.endsWith(".TAP"))
@@ -10112,7 +10416,7 @@ void Task0code(void *pvParameters) {
           if ((millis() - startTime2) > tRotateNameRfsh && (FILE_LOAD.length() > maxTextRotateName || ((ROTATE_FILENAME.length() > windowNameLengthFB)) * ENABLE_ROTATE_FILEBROWSER)) 
           {
             // Capturamos el texto con tamaño de la ventana
-            if ((TYPE_FILE_LOAD == "WAV" || TYPE_FILE_LOAD == "MP3" || TYPE_FILE_LOAD == "FLAC")) 
+            if ((TYPE_FILE_LOAD == "WAV" || TYPE_FILE_LOAD == "MP3" || TYPE_FILE_LOAD == "FLAC" || TYPE_FILE_LOAD == "MOD"))
             {
               hmi.writeString("name.txt=\"" + FILE_LOAD.substring(posRotateName, posRotateName + maxTextRotateName) + "\"");
             }
@@ -10160,7 +10464,7 @@ void Task0code(void *pvParameters) {
             // Movemos el display de NAME
             startTime2 = millis();
           } 
-          else if (FILE_LOAD.length() <= maxTextRotateName && (TYPE_FILE_LOAD == "WAV" || TYPE_FILE_LOAD == "MP3" || TYPE_FILE_LOAD == "FLAC")) 
+          else if (FILE_LOAD.length() <= maxTextRotateName && (TYPE_FILE_LOAD == "WAV" || TYPE_FILE_LOAD == "MP3" || TYPE_FILE_LOAD == "FLAC" || TYPE_FILE_LOAD == "MOD"))
           {
             if (STOP) 
             {
