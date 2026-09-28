@@ -11000,6 +11000,15 @@ void prepareCardStructure() {
     if (!QUICK_BOOT) delay(750);
   }
 
+  // Creamos el directorio /mp3
+  fDir = "/MOD";
+
+  if (createSpecialDirectory(fDir)) {
+    hmi.writeString("statusLCD.txt=\"Creating MOD directory\"");
+    hmi.reloadCustomDir("/");
+    if (!QUICK_BOOT) delay(750);
+  }  
+
   // Creamos el directorio /radio
   fDir = "/RADIO";
 
