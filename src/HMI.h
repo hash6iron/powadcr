@@ -559,7 +559,7 @@ private:
                         if (strcmp(ext, "tap") == 0 || strcmp(ext, "tzx") == 0 || strcmp(ext, "pzx") == 0 ||
                             strcmp(ext, "tsx") == 0 || strcmp(ext, "cdt") == 0 ||
                             strcmp(ext, "wav") == 0 || strcmp(ext, "mp3") == 0 ||
-                          strcmp(ext, "flac") == 0 || strcmp(ext, "mod") == 0 || strcmp(ext, "lst") == 0 ||
+                            strcmp(ext, "flac") == 0 || strcmp(ext, "mod") == 0 || strcmp(ext, "xm") == 0 || strcmp(ext, "lst") == 0 ||
                             strcmp(ext, "dsc") == 0 || strcmp(ext, "inf") == 0 ||
                             strcmp(ext, "txt") == 0 || strcmp(ext, "radio") == 0 || 
                             strcmp(ext, "zxdb") == 0 || strcmp(ext, "csw") == 0 || strcmp(ext, "zip") == 0 ||
@@ -1309,7 +1309,7 @@ private:
             {
               color = ZIP_FILE_COLOR;
             }
-            else if (type == ".TAP" || type == ".TZX" || type == ".TSX" || type == ".CDT" || type == ".PZX" || type == ".WAV" || type == ".MP3" || type == ".FLAC" || type == ".MOD" || type == ".RADIO" || type == ".ZXDB" || type == ".CPCDB" || type == ".MSXDB" || type == ".ZIP" || type == ".CSW" || type == ".O" || type == ".P" || type == ".80" || type == ".81")
+            else if (type == ".TAP" || type == ".TZX" || type == ".TSX" || type == ".CDT" || type == ".PZX" || type == ".WAV" || type == ".MP3" || type == ".FLAC" || type == ".MOD" || type == ".XM" || type == ".RADIO" || type == ".ZXDB" || type == ".CPCDB" || type == ".MSXDB" || type == ".ZIP" || type == ".CSW" || type == ".O" || type == ".P" || type == ".80" || type == ".81")
             {
                 //Ficheros
                 if (SD_MMC.exists("/fav/" + szName))
@@ -4129,7 +4129,7 @@ private:
         int blType = 0;
         String blName = "";
         // Para el caso de los players, no se usa esto.
-        if (TYPE_FILE_LOAD != "MP3" && TYPE_FILE_LOAD != "WAV" && TYPE_FILE_LOAD != "FLAC" && TYPE_FILE_LOAD != "RADIO")
+        if (TYPE_FILE_LOAD != "MP3" && TYPE_FILE_LOAD != "WAV" && TYPE_FILE_LOAD != "FLAC" && TYPE_FILE_LOAD != "RADIO" && TYPE_FILE_LOAD != "MOD" && TYPE_FILE_LOAD != "XM")
         {
               if ((STOP || PAUSE) && !REC)
               {

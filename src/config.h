@@ -38,7 +38,7 @@
 // --------------------------------------------------------------
 // Configuración de la versión del software
 // --------------------------------------------------------------
-#define VERSION "1.0r8.0" // Formato: vX.YrW.Z (X=major, Y=minor, W=revision, Z=revision_minor)
+#define VERSION "1.0r8.1" // Formato: vX.YrW.Z (X=major, Y=minor, W=revision, Z=revision_minor)
 
 
 // --------------------------------------------------------------
@@ -240,7 +240,7 @@ int GPIO_MSX_REMOTE_PAUSE = 19;
 #define PER_TO_SHOW_ESTIMATED_TIME 3
 
 // Maximo numero de ficheros capturados en la lista de audio por directorio
-#define MAX_FILES_AUDIO_LIST 2048
+#define MAX_FILES_AUDIO_LIST 1500
 
 // Compensacion para precisar la señal 5%
 #define PZX_COMPENSATION_FACTOR 0
@@ -419,3 +419,7 @@ bool TEST_LINE_IN_OUT = false;
 
 //#define MP3_METADATA_FILTER
 #define MP3_METADATA_FILTER
+
+// XM tracker support
+#define SAMPLING_RATE_TO_20Ch           18000
+#define SAMPLING_RATE_TO_12Ch           22050
