@@ -634,8 +634,8 @@ int LOADING_STATE =
 int CURRENT_BLOCK_IN_PROGRESS = 0;
 int PROGRESS_BAR_REFRESH = 256;
 int PROGRESS_BAR_REFRESH_2 = 32;
-int PROGRESS_BAR_BLOCK_VALUE = 0;
-int PROGRESS_BAR_TOTAL_VALUE = 0;
+volatile int PROGRESS_BAR_BLOCK_VALUE = 0;
+volatile int PROGRESS_BAR_TOTAL_VALUE = 0;
 int PARTITION_SIZE = 0;
 bool BLOCK_PLAYED = false;
 String TYPE_FILE_LOAD = "";
@@ -781,23 +781,23 @@ int BB_BROWSER_STEP = 0; // 0 = info general, 1..MAX_BLOCKS_IN_BROWSER = items
 int BB_BROWSER_MAX = 0;
 
 // Variables de control de la reproducción
-bool PLAY = false;
+volatile bool PLAY = false;
 bool BTN_PLAY_PRESSED = false;
 
-bool PAUSE = true;
-bool REC = false;
+volatile bool PAUSE = true;
+volatile bool REC = false;
 bool BTNREC_PRESSED = false;
-bool STOP = false;
+volatile bool STOP = false;
 bool AUTO_STOP = false;
 bool AUTO_PAUSE = false;
-bool FFWIND = false;
-bool RWIND = false;
+volatile bool FFWIND = false;
+volatile bool RWIND = false;
 bool KEEP_FFWIND = false;
 bool KEEP_RWIND = false;
 bool AUDIO_FORMART_IS_VALID = false;
 // bool RECORDING_IN_PROGRESS = false;
 
-bool EJECT = false;
+volatile bool EJECT = false;
 bool UP = false;
 bool DOWN = false;
 bool LEFT = false;

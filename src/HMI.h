@@ -121,6 +121,19 @@ public:
 
 private:
 
+  static uint32_t decodeCommandValue24(const String &command) {
+    uint8_t bytes[8];
+    command.getBytes(bytes, 7);
+    return (uint32_t)bytes[4] | ((uint32_t)bytes[5] << 8) |
+         ((uint32_t)bytes[6] << 16);
+  }
+
+  static uint8_t decodeCommandByte4(const String &command) {
+    uint8_t bytes[8];
+    command.getBytes(bytes, 7);
+    return bytes[4];
+  }
+
     struct tFileLST
     {
         int ID=0;
@@ -546,7 +559,7 @@ private:
                         if (strcmp(ext, "tap") == 0 || strcmp(ext, "tzx") == 0 || strcmp(ext, "pzx") == 0 ||
                             strcmp(ext, "tsx") == 0 || strcmp(ext, "cdt") == 0 ||
                             strcmp(ext, "wav") == 0 || strcmp(ext, "mp3") == 0 ||
-                            strcmp(ext, "flac") == 0 || strcmp(ext, "lst") == 0 ||
+                            strcmp(ext, "flac") == 0 || strcmp(ext, "mod") == 0 || strcmp(ext, "xm") == 0 || strcmp(ext, "lst") == 0 ||
                             strcmp(ext, "dsc") == 0 || strcmp(ext, "inf") == 0 ||
                             strcmp(ext, "txt") == 0 || strcmp(ext, "radio") == 0 || 
                             strcmp(ext, "zxdb") == 0 || strcmp(ext, "csw") == 0 || strcmp(ext, "zip") == 0 ||
@@ -1296,7 +1309,7 @@ private:
             {
               color = ZIP_FILE_COLOR;
             }
-            else if (type == ".TAP" || type == ".TZX" || type == ".TSX" || type == ".CDT" || type == ".PZX" || type == ".WAV" || type == ".MP3" || type == ".FLAC" || type == ".RADIO" || type == ".ZXDB" || type == ".CPCDB" || type == ".MSXDB" || type == ".ZIP" || type == ".CSW" || type == ".O" || type == ".P" || type == ".80" || type == ".81")
+            else if (type == ".TAP" || type == ".TZX" || type == ".TSX" || type == ".CDT" || type == ".PZX" || type == ".WAV" || type == ".MP3" || type == ".FLAC" || type == ".MOD" || type == ".XM" || type == ".RADIO" || type == ".ZXDB" || type == ".CPCDB" || type == ".MSXDB" || type == ".ZIP" || type == ".CSW" || type == ".O" || type == ".P" || type == ".80" || type == ".81")
             {
                 //Ficheros
                 if (SD_MMC.exists("/fav/" + szName))
@@ -1532,32 +1545,30 @@ private:
       LAST_COMMAND = "";
 
       // Selección de bloque desde keypad - pantalla
-      if(strCmd.indexOf("RSET") != -1)
+      if(strCmd.startsWith("RSET"))
       {
         delay(1000);
         ESP.restart();
       }
-      else if (strCmd.indexOf("YES") != -1)
+      else if (strCmd.startsWith("YES"))
       {
           YES = true;
           NO = false;
       }
-      else if (strCmd.indexOf("NO") != -1)
+      else if (strCmd.startsWith("NO"))
       {
           YES = false;
           NO = true;
       }
-      else if (strCmd.indexOf("DSD") != -1)
+      else if (strCmd.startsWith("DSD"))
       {
           DISABLE_SD = true;
       }
       // Enable Powerled oscilation
-      else if (strCmd.indexOf("PLE=") != -1) 
+      else if (strCmd.startsWith("PLE="))
       {
         //Cogemos el valor
-        uint8_t buff[8];
-        strCmd.getBytes(buff, 7);
-        int valEn = (int)buff[4];
+        int valEn = decodeCommandByte4(strCmd);
         //
         if (valEn==1)
         {
@@ -1570,12 +1581,10 @@ private:
 
         saveHMIcfg("PLEopt");
       }    
-      else if (strCmd.indexOf("SFF=") != -1) 
+      else if (strCmd.startsWith("SFF="))
       {
         //Cogemos el valor
-        uint8_t buff[8];
-        strCmd.getBytes(buff, 7);
-        int valEn = (int)buff[4];
+        int valEn = decodeCommandByte4(strCmd);
         //
         if (valEn==1)
         {
@@ -1588,12 +1597,10 @@ private:
 
         saveHMIcfg("SFFopt");
       }   
-      else if (strCmd.indexOf("PLD=") != -1) 
+      else if (strCmd.startsWith("PLD="))
       {
         //Cogemos el valor
-        uint8_t buff[8];
-        strCmd.getBytes(buff, 7);
-        int valEn = (int)buff[4];
+        int valEn = decodeCommandByte4(strCmd);
         //
         if (valEn==1)
         {
@@ -1606,14 +1613,12 @@ private:
 
         saveHMIcfg("PLDopt");
       }     
-      else if (strCmd.indexOf("HVK=") != -1) 
+      else if (strCmd.startsWith("HVK="))
       {
         // Hide Virtual Keyboard
 
         //Cogemos el valor
-        uint8_t buff[8];
-        strCmd.getBytes(buff, 7);
-        int valEn = (int)buff[4];
+        int valEn = decodeCommandByte4(strCmd);
         //
         if (valEn==1)
         {
@@ -1627,7 +1632,7 @@ private:
         saveHMIcfg("HVKopt");
       }                       
       // ✅ CSW FFWD Speed: CSW_FFWD=XX (XX = 01 a 10 = 1% a 10%)
-      else if (strCmd.indexOf("CSW_FFWD=") != -1)
+      else if (strCmd.startsWith("CSW_FFWD="))
       {
         uint8_t buff[12];
         strCmd.getBytes(buff, 11);
@@ -1640,7 +1645,7 @@ private:
         log_debug("HMI","CSW FFWD Speed set to: " + String(ffwd_pct) + "%");
       }
       // ✅ CSW RWD Speed: CSW_RWD=XX (XX = 01 a 10 = 1% a 10%)
-      else if (strCmd.indexOf("CSW_RWD=") != -1)
+      else if (strCmd.startsWith("CSW_RWD="))
       {
         uint8_t buff[12];
         strCmd.getBytes(buff, 10);
@@ -1652,7 +1657,7 @@ private:
         setCSWSeekSpeed(CSW_FFWD_SPEED, rwd_speed);
         log_debug("HMI","CSW RWD Speed set to: " + String(rwd_pct) + "%");
       }   
-      else if (strCmd.indexOf("DHCP=") != -1) 
+      else if (strCmd.startsWith("DHCP="))
       {
         //Cogemos el valor
         uint8_t buff[8];
@@ -1671,22 +1676,18 @@ private:
         log_debug("HMI","DHCP enabled: " + String(DHCP_ENABLE));
         saveHMIcfg("DHCPFopt");
       }               
-      else if (strCmd.indexOf("BKX=") != -1) 
+      else if (strCmd.startsWith("BKX="))
       {
           // Con este procedimiento capturamos el bloque seleccionado
           // desde la pantalla.
           if (TAPESTATE == 10 || TAPESTATE == 3 || TAPESTATE == 2)
           {
-            uint8_t buff[8];
+            long val = decodeCommandValue24(strCmd);
 
-            strCmd.getBytes(buff, 7);
-            long val = (long)((int)buff[4] + (256*(int)buff[5]) + (65536*(int)buff[6]));
-            String num = String(val);
-
-            log_debug("HMI","Block selected: " + num);
+            log_debug("HMI","Block selected: " + String(val));
             log_debug("HMI","Block total: " + String(TOTAL_BLOCKS));
 
-            BLOCK_SELECTED = num.toInt();
+            BLOCK_SELECTED = val;
 
             // Esto lo hacemos para poder actualizar la info del bloque
             if (!IRADIO_EN)
@@ -1712,20 +1713,17 @@ private:
             START_FFWD_ANIMATION = true;
           }
       }
-      else if (strCmd.indexOf("REL=") != -1)
+      else if (strCmd.startsWith("REL="))
       {
           // Recarga la pantalla de ficheros
           firstLoadingFilesFB();
       }
-      else if (strCmd.indexOf("PAG=") != -1) 
+      else if (strCmd.startsWith("PAG="))
       {
           // Con este procedimiento obtenemos la pàgina del filebrowser
           // que se desea visualizar
-          uint8_t buff[8];
-          strCmd.getBytes(buff, 7);
-          long val = (long)((int)buff[4] + (256*(int)buff[5]) + (65536*(int)buff[6]));
-          String num = String(val);
-          int pageSelected = num.toInt();
+          long val = decodeCommandValue24(strCmd);
+          int pageSelected = val;
 
 
           // Vemos que pagina tenemos abierta
@@ -1799,7 +1797,7 @@ private:
           }
       
       }      
-      else if (strCmd.indexOf("INFB") != -1) 
+      else if (strCmd.startsWith("INFB"))
       {
           // Con este comando nos indica la pantalla que 
           // está en modo FILEBROWSER
@@ -1810,14 +1808,14 @@ private:
           #endif
 
       }
-      else if (strCmd.indexOf("SHR") != -1) 
+      else if (strCmd.startsWith("SHR"))
       {
           // Con este comando nos indica la pantalla que 
           // está en modo searching
           //FILE_BROWSER_SEARCHING = true;
           findTheTextInFiles();      
       }
-      else if (strCmd.indexOf("OUTFB") != -1) 
+      else if (strCmd.startsWith("OUTFB"))
       {
 
           // Con este comando nos indica la pantalla que 
@@ -1828,7 +1826,7 @@ private:
             logAlert("OUTFB output: File browser closed");
           #endif
       }
-      else if (strCmd.indexOf("GFIL") != -1) 
+      else if (strCmd.startsWith("GFIL"))
       {
           // Con este comando nos indica la pantalla que quiere
           // le devolvamos ficheros en la posición actual del puntero
@@ -1864,7 +1862,7 @@ private:
               //FILE_BROWSER_SEARCHING = false;                   
           }            
       }
-      else if (strCmd.indexOf("RFSH") != -1) 
+      else if (strCmd.startsWith("RFSH"))
       {
           // No se hace rescan en los subdirectorios de /ONLINE porque destruye el catalogo
           if (!FB_READING_FILES && !(FILE_LAST_DIR.indexOf("/ONLINE/ZX/") != -1) && !(FILE_LAST_DIR.indexOf("/ONLINE/CPC/") != -1) && !(FILE_LAST_DIR.indexOf("/ONLINE/MSX/") != -1))
@@ -1878,7 +1876,7 @@ private:
             FB_CANCEL_READING_FILES = true;
           }
       }
-      else if (strCmd.indexOf("FINI") != -1) 
+      else if (strCmd.startsWith("FINI"))
       {
           // Posicionamos entonces en la primera página
           // Cogemos el primer item y refrescamos
@@ -1890,7 +1888,7 @@ private:
           delay(125);
           showInformationAboutFiles();                     
       }
-      else if (strCmd.indexOf("FEND") != -1) 
+      else if (strCmd.startsWith("FEND"))
       {
           // Posicionamos entonces en la ultima página
           int totalPages = ((FILE_TOTAL_FILES) / TOTAL_FILES_IN_BROWSER_PAGE);
@@ -1903,7 +1901,7 @@ private:
           delay(125);
           showInformationAboutFiles();                       
       }        
-      else if (strCmd.indexOf("FPUP") != -1) 
+      else if (strCmd.startsWith("FPUP"))
       {
           // Con este comando nos indica la pantalla que quiere
           // le devolvamos ficheros en la posición actual del puntero
@@ -1919,7 +1917,7 @@ private:
           delay(125);
           showInformationAboutFiles();            
       }
-      else if (strCmd.indexOf("FPDOWN") != -1) 
+      else if (strCmd.startsWith("FPDOWN"))
       {
           // Con este comando nos indica la pantalla que quiere
           // le devolvamos ficheros en la posición actual del puntero
@@ -1938,7 +1936,7 @@ private:
           delay(125);
           showInformationAboutFiles();
       }
-      else if (strCmd.indexOf("FPHOME") != -1) 
+      else if (strCmd.startsWith("FPHOME"))
       {
           // Con este comando nos indica la pantalla que quiere
           // le devolvamos ficheros en la posición actual del puntero
@@ -1956,7 +1954,7 @@ private:
           getFilesFromSD(false,SOURCE_FILE_TO_MANAGE,SOURCE_FILE_INF_TO_MANAGE);
           refreshFiles(); 
       }        
-      else if (strCmd.indexOf("FAV=") != -1) 
+      else if (strCmd.startsWith("FAV="))
       {
           
           #ifdef DEBUGMODE
@@ -1966,12 +1964,9 @@ private:
           // Con este comando añadimos el fichero seleccionado a la carpeta favoritos si no existe
           // Con este comando
           // devolvamos el fichero que se ha seleccionado en la pantalla
-          uint8_t buff[8];
-          strCmd.getBytes(buff, 7);
-          long val = (long)((int)buff[4] + (256*(int)buff[5]) + (65536*(int)buff[6]));
-          String num = String(val);
+          long val = decodeCommandValue24(strCmd);
     
-          FILE_IDX_SELECTED = num.toInt();
+          FILE_IDX_SELECTED = val;
           FILE_SELECTED = false;
     
           //Extraemos el fichero
@@ -2031,7 +2026,7 @@ private:
               }
           }     
       }              
-      else if (strCmd.indexOf("BBOPEN") != -1)
+      else if (strCmd.startsWith("BBOPEN"))
       {
         // Block browser abierto
         //
@@ -2045,7 +2040,7 @@ private:
         BB_OPEN = true;
         //BLOCK_BROWSER_OPEN = true;
       }
-      else if (strCmd.indexOf("BBCL=") != -1)
+      else if (strCmd.startsWith("BBCL="))
       {
         // Block browser cerrado con ID seleccionado o -1 para ninguno
         // Con este procedimiento obtenemos la pàgina del filebrowser
@@ -2079,7 +2074,7 @@ private:
         //BLOCK_BROWSER_OPEN = false;
         UPDATE_HMI = true;
       }        
-      else if (strCmd.indexOf("BDOWN") != -1)
+      else if (strCmd.startsWith("BDOWN"))
       {
         // Pagina arriba block browser
         BB_PTR_ITEM += MAX_BLOCKS_IN_BROWSER;
@@ -2093,7 +2088,7 @@ private:
         BB_UPDATE = true;
 
       }
-      else if (strCmd.indexOf("BUP") != -1)
+      else if (strCmd.startsWith("BUP"))
       {
         // Pagina arriba block browser
         BB_PTR_ITEM -= MAX_BLOCKS_IN_BROWSER;
@@ -2107,14 +2102,14 @@ private:
         BB_UPDATE = true;
 
       }
-      else if (strCmd.indexOf("BHOME") != -1)
+      else if (strCmd.startsWith("BHOME"))
       {
         // Pagina arriba block browser
         BB_PTR_ITEM = 0;
         BB_PAGE_SELECTED = 1;
         BB_UPDATE = true;
       }        
-      else if (strCmd.indexOf("BPDOWN") != -1)
+      else if (strCmd.startsWith("BPDOWN"))
       {
         // Pagina arriba block browser
 
@@ -2146,7 +2141,7 @@ private:
           BB_UPDATE = true;            
         }
       }
-      else if (strCmd.indexOf("BPUP") != -1)
+      else if (strCmd.startsWith("BPUP"))
       {
         // Pagina arriba block browser
         BB_PTR_ITEM -= (MAX_BLOCKS_IN_BROWSER * 10);
@@ -2160,7 +2155,7 @@ private:
         BB_UPDATE = true;
 
       }        
-      else if (strCmd.indexOf("CHD=") != -1) 
+      else if (strCmd.startsWith("CHD="))
       {
           uint32_t val=0;
 
@@ -2270,7 +2265,7 @@ private:
           //clearRotate();
 
       }
-      else if (strCmd.indexOf("PAR=") != -1) 
+      else if (strCmd.startsWith("PAR="))
       {
           // Con este comando capturamos el directorio padre
           String oldDir = FILE_PREVIOUS_DIR;
@@ -2331,15 +2326,11 @@ private:
 
     
       }
-      else if (strCmd.indexOf("ROT=") != -1) 
+      else if (strCmd.startsWith("ROT="))
       {
           // Con este comando capturamos el fichero a rotar
-          uint8_t buff[8];
-          strCmd.getBytes(buff, 7);
-          long val = (long)((int)buff[4] + (256*(int)buff[5]) + (65536*(int)buff[6]));
-          String num = String(val);
-    
-          int idx = num.toInt();  
+          long val = decodeCommandValue24(strCmd);
+          int idx = val;
           log_debug("HMI","Rotating index: " + String(idx));
 
           if (idx >=0 && idx < 14)
@@ -2361,22 +2352,18 @@ private:
           //writeString("file.lastPressed.val=15");
           
       }
-      else if (strCmd.indexOf("ROC=") != -1)
+      else if (strCmd.startsWith("ROC="))
       {
         ROTATE_FILENAME = "";
         ENABLE_ROTATE_FILEBROWSER = false;          
       } 
-      else if (strCmd.indexOf("TRS=") != -1) 
+      else if (strCmd.startsWith("TRS="))
       {
           // Con este comando
           // Borramos el fichero que se ha seleccionado en la pantalla
-          uint8_t buff[8];
-          strCmd.getBytes(buff, 7);
-
-          long val = (long)((int)buff[4] + (256*(int)buff[5]) + (65536*(int)buff[6]));
-          String num = String(val);
+          long val = decodeCommandValue24(strCmd);
     
-          FILE_IDX_SELECTED = num.toInt();
+          FILE_IDX_SELECTED = val;
           FILE_SELECTED_DELETE = false;
     
           FILE_TO_DELETE = FILE_LAST_DIR + "/" + FILES_BUFF[FILE_IDX_SELECTED+1].path;      
@@ -2427,18 +2414,15 @@ private:
           }
       }      
       // Load file - Carga en el TAPE el fichero seleccionado en pantalla
-      else if (strCmd.indexOf("LFI=") != -1) 
+      else if (strCmd.startsWith("LFI="))
       {
           
           // Con este comando
           // devolvamos el fichero que se ha seleccionado en la pantalla
           if (!FROM_BUTTONS_CONTROL)
           {
-              uint8_t buff[8];
-              strCmd.getBytes(buff, 7);
-              long val = (long)((int)buff[4] + (256*(int)buff[5]) + (65536*(int)buff[6]));
-              String num = String(val);
-              FILE_IDX_SELECTED = num.toInt();
+              long val = decodeCommandValue24(strCmd);
+              FILE_IDX_SELECTED = val;
           }
 
           FROM_BUTTONS_CONTROL = false;
@@ -2553,12 +2537,12 @@ private:
       }   
       // Configuración de frecuencias de muestreo
       // Indica que la pantalla está activa
-      else if (strCmd.indexOf("LCDON") != -1) 
+      else if (strCmd.startsWith("LCDON"))
       {
           LCD_ON = true;
       }
       // Control de TAPE
-      else if (strCmd.indexOf("FFWD") != -1) 
+      else if (strCmd.startsWith("FFWD"))
       {
           log_info("HMI","FFWD pressed");
           FFWIND = true;
@@ -2570,7 +2554,7 @@ private:
             verifyCommand("SPO4");
           }
       }
-      else if (strCmd.indexOf("RWD") != -1) 
+      else if (strCmd.startsWith("RWD"))
       {
           log_info("HMI","RWD pressed");
           FFWIND = false;
@@ -2583,7 +2567,7 @@ private:
           }
 
       }
-      else if (strCmd.indexOf("SFWD") != -1) 
+      else if (strCmd.startsWith("SFWD"))
       {
           log_debug("HMI","S_FFWD pressed");
           FFWIND = false;
@@ -2591,7 +2575,7 @@ private:
           KEEP_FFWIND = true;
           KEEP_RWIND = false;
       }
-      else if (strCmd.indexOf("TTWD") != -1) 
+      else if (strCmd.startsWith("TTWD"))
       {
           log_debug("HMI","S_RWD pressed");
           FFWIND = false;
@@ -2599,7 +2583,7 @@ private:
           KEEP_RWIND = true;
           KEEP_FFWIND = false;
       }        
-      else if (strCmd.indexOf("PLAY") != -1) 
+      else if (strCmd.startsWith("PLAY"))
       {
         if (isSDCardMounted())
         {
@@ -2621,7 +2605,7 @@ private:
           }        
         }
       }   
-      else if (strCmd.indexOf("REC") != -1) 
+      else if (strCmd.startsWith("REC"))
       {
 
         log_debug("HMI","REC pressed.");
@@ -2661,7 +2645,7 @@ private:
 
         
       }
-      else if (strCmd.indexOf("PAUSE") != -1) 
+      else if (strCmd.startsWith("PAUSE"))
       {
 
         log_debug("HMI","PAUSE pressed.");
@@ -2674,7 +2658,7 @@ private:
         EJECT = false;
         //updateInformationMainPage();
       }    
-      else if (strCmd.indexOf("STOP") != -1) 
+      else if (strCmd.startsWith("STOP"))
       {
 
         log_debug("HMI","STOP pressed.");
@@ -2695,7 +2679,7 @@ private:
         }
 
       }     
-      else if (strCmd.indexOf("EJECT") != -1) 
+      else if (strCmd.startsWith("EJECT"))
       {
         if (isSDCardMounted)
         {
@@ -2748,12 +2732,10 @@ private:
         }
 
       }    
-      else if (strCmd.indexOf("VLI=") != -1) 
+      else if (strCmd.startsWith("VLI="))
       {
         //Cogemos el valor
-        uint8_t buff[8];
-        strCmd.getBytes(buff, 7);
-        int valVol = (int)buff[4];
+        int valVol = decodeCommandByte4(strCmd);
 
         if (valVol == 1)
         {
@@ -2797,12 +2779,10 @@ private:
 
       }
       // Ajuste del volumen
-      else if (strCmd.indexOf("BOS=") != -1) 
+      else if (strCmd.startsWith("BOS="))
       {
         //Cogemos el valor
-        uint8_t buff[8];
-        strCmd.getBytes(buff, 7);
-        int valVol = (int)buff[4];
+        int valVol = decodeCommandByte4(strCmd);
         BOOSTER_VOLUME = valVol==1 ? true : false;
         log_debug("HMI","Booster volume: " + String(BOOSTER_VOLUME));
         VolumeStreamConfig volumeCfg;
@@ -2811,12 +2791,10 @@ private:
         volumeStream.setAudioInfo(volumeCfg);
         saveHMIcfg("BOSopt");
       }
-      else if (strCmd.indexOf("BAL=") != -1) 
+      else if (strCmd.startsWith("BAL="))
       {
         //Cogemos el valor
-        uint8_t buff[8];
-        strCmd.getBytes(buff, 7);
-        int valVol = (int)buff[4];
+        int valVol = decodeCommandByte4(strCmd);
         BALANCE_VOL = valVol;
 
         float b = (BALANCE_VOL - 50) / 50;
@@ -2845,12 +2823,10 @@ private:
         log_debug("HMI","Balance: " + String(BALANCE_VOL / 100));
       }
       // Ajuste del volumen
-      else if (strCmd.indexOf("VOL=") != -1) 
+      else if (strCmd.startsWith("VOL="))
       {
         //Cogemos el valor
-        uint8_t buff[8];
-        strCmd.getBytes(buff, 7);
-        int valVol = (int)buff[4];
+        int valVol = decodeCommandByte4(strCmd);
         MAIN_VOL = valVol;
 
         if (VOL_LIMIT_HEADPHONE)
@@ -2872,12 +2848,10 @@ private:
         log_debug("HMI","Master Volume: " + String(MAIN_VOL / 100));
       }
       // Ajuste el vol canal R
-      else if (strCmd.indexOf("VRR=") != -1) 
+      else if (strCmd.startsWith("VRR="))
       {
         //Cogemos el valor
-        uint8_t buff[8];
-        strCmd.getBytes(buff, 7);
-        int valVol = (int)buff[4];
+        int valVol = decodeCommandByte4(strCmd);
 
         MAIN_VOL_R = valVol;
         if (VOL_LIMIT_HEADPHONE)
@@ -2895,12 +2869,10 @@ private:
 
       }
       // Ajuste el vol canal L
-      else if (strCmd.indexOf("VLL=") != -1) 
+      else if (strCmd.startsWith("VLL="))
       {
         //Cogemos el valor
-        uint8_t buff[8];
-        strCmd.getBytes(buff, 7);
-        int valVol = (int)buff[4];
+        int valVol = decodeCommandByte4(strCmd);
         MAIN_VOL_L = valVol;
         
         if (VOL_LIMIT_HEADPHONE)
@@ -2924,48 +2896,40 @@ private:
         VOL_CHANGE = true;
 
       }
-      else if (strCmd.indexOf("EQH=") != -1) 
+      else if (strCmd.startsWith("EQH="))
       {
         //Cogemos el valor
-        uint8_t buff[8];
-        strCmd.getBytes(buff, 7);
-        int valVol = (int)buff[4];
+        int valVol = decodeCommandByte4(strCmd);
 
         EQ_HIGH = valVol/100.0;      
         EQ_CHANGE = true;    
         log_debug("HMI","EQ HIGH: " + String(EQ_HIGH)); 
         saveHMIcfg("EQHopt");
       } 
-      else if (strCmd.indexOf("EQM=") != -1) 
+      else if (strCmd.startsWith("EQM="))
       {
         //Cogemos el valor
-        uint8_t buff[8];
-        strCmd.getBytes(buff, 7);
-        int valVol = (int)buff[4];
+        int valVol = decodeCommandByte4(strCmd);
 
         EQ_MID = valVol/100.0;          
         EQ_CHANGE = true;    
         log_debug("HMI","EQ MID: " + String(EQ_MID)); 
         saveHMIcfg("EQMopt");
       }   
-      else if (strCmd.indexOf("EQL=") != -1) 
+      else if (strCmd.startsWith("EQL="))
       {
         //Cogemos el valor
-        uint8_t buff[8];
-        strCmd.getBytes(buff, 7);
-        int valVol = (int)buff[4];
+        int valVol = decodeCommandByte4(strCmd);
 
         EQ_LOW = valVol/100.0;          
         EQ_CHANGE = true;   
         log_debug("HMI","EQ LOW: " + String(EQ_LOW)); 
         saveHMIcfg("EQLopt");
       }      
-      else if (strCmd.indexOf("TON=") != -1) 
+      else if (strCmd.startsWith("TON="))
       {
         //Cogemos el valor
-        uint8_t buff[8];
-        strCmd.getBytes(buff, 7);
-        int valVol = (int)buff[4];
+        int valVol = decodeCommandByte4(strCmd);
 
         // Le cambiamos el signo para que cuando seleccionemos -1 sea bajar tono en vez de quitar una muestra que es todo lo contrario (aumentar frecuencia)
         // y lo mismo con el +1
@@ -2984,7 +2948,7 @@ private:
         }
         //saveHMIcfg("EQLopt");
       }    
-      else if (strCmd.indexOf("WWW") != -1) 
+      else if (strCmd.startsWith("WWW"))
       {
         // Salta al directorio de ZXDB online.
         log_debug("HMI","Jumping to ZXDB dir.");
@@ -3003,7 +2967,7 @@ private:
         getFilesFromSD(true,SOURCE_FILE_TO_MANAGE,SOURCE_FILE_INF_TO_MANAGE);
         refreshFiles();           
       }
-      else if (strCmd.indexOf("CCPC") != -1)
+      else if (strCmd.startsWith("CCPC"))
       {
         // Salta al directorio de CPCDB online (Amstrad CPC).
         log_debug("HMI","Jumping to CPCDB dir.");
@@ -3020,7 +2984,7 @@ private:
         getFilesFromSD(true,SOURCE_FILE_TO_MANAGE,SOURCE_FILE_INF_TO_MANAGE);
         refreshFiles();
       }
-      else if (strCmd.indexOf("CMSX") != -1)
+      else if (strCmd.startsWith("CMSX"))
       {
         // Salta al directorio de MSXDB online (MSX).
         log_debug("HMI","Jumping to MSXDB dir.");
@@ -3037,7 +3001,7 @@ private:
         getFilesFromSD(true,SOURCE_FILE_TO_MANAGE,SOURCE_FILE_INF_TO_MANAGE);
         refreshFiles();
       }
-      else if (strCmd.indexOf("RADI") != -1)
+      else if (strCmd.startsWith("RADI"))
       {
         // Salta al directorio de RADIO internet.
         log_debug("HMI","Jumping to internet radio dir.");
@@ -3059,30 +3023,24 @@ private:
         refreshFiles();            
       }
       // Devuelve el % de filtrado aplicado en pantalla. Filtro del recording
-      else if (strCmd.indexOf("THR=") != -1) 
+      else if (strCmd.startsWith("THR="))
       {
         //Cogemos el valor
-        uint8_t buff[8];
-        strCmd.getBytes(buff, 7);
-        int valThr = (int)buff[4];
+        int valThr = decodeCommandByte4(strCmd);
         SCHMITT_THR = valThr;
         log_debug("HMI","Threshold value=" + String(SCHMITT_THR));
       }
-      else if (strCmd.indexOf("AMP=") != -1) 
+      else if (strCmd.startsWith("AMP="))
       {
         //Cogemos el valor
-        uint8_t buff[8];
-        strCmd.getBytes(buff, 7);
-        int valAmp = (int)buff[4];
+        int valAmp = decodeCommandByte4(strCmd);
         SCHMITT_AMP = valAmp;
         log_debug("HMI","Amplification value=" + String(SCHMITT_AMP));
       } 
-      else if (strCmd.indexOf("IVO=") != -1) 
+      else if (strCmd.startsWith("IVO="))
       {
         //Cogemos el valor
-        uint8_t buff[8];
-        strCmd.getBytes(buff, 7);
-        int valInVol = (int)buff[4];
+        int valInVol = decodeCommandByte4(strCmd);
         IN_REC_VOL = valInVol/100.0; // Valor en %
         log_debug("HMI","Input rec gain=" + String(IN_REC_VOL));
         //
@@ -3090,12 +3048,10 @@ private:
         // Ajustamos el input gain
         kitStream.setInputVolume(IN_REC_VOL); // Ajustamos el volumen de entrada al 50%          
       } 
-      else if (strCmd.indexOf("C64=") != -1) 
+      else if (strCmd.startsWith("C64="))
       {
         //Cogemos el valor
-        uint8_t buff[8];
-        strCmd.getBytes(buff, 7);
-        int valEn = (int)buff[4];
+        int valEn = decodeCommandByte4(strCmd);
         //
         if (valEn==1)
         {
@@ -3110,16 +3066,14 @@ private:
 
         log_debug("HMI","C64 Mode ENABLE =" + String(C64_MODE));
       }
-      else if (strCmd.indexOf("RS1=") != -1) 
+      else if (strCmd.startsWith("RS1="))
       {
         //
         // Remove CSW silences (for C64 FPGA with REM patched)
         //
 
         //Cogemos el valor
-        uint8_t buff[8];
-        strCmd.getBytes(buff, 7);
-        int valEn = (int)buff[4];
+        int valEn = decodeCommandByte4(strCmd);
         //
         if (valEn==1)
         {
@@ -3134,12 +3088,10 @@ private:
 
         log_debug("HMI","Remove CSW silences ENABLE =" + String(REMOVE_SILENCES_CSW));
       }        
-      else if (strCmd.indexOf("48K=") != -1) 
+      else if (strCmd.startsWith("48K="))
       {
         //Cogemos el valor
-        uint8_t buff[8];
-        strCmd.getBytes(buff, 7);
-        int valEn = (int)buff[4];
+        int valEn = decodeCommandByte4(strCmd);
         //
         if (valEn==1)
         {
@@ -3155,12 +3107,10 @@ private:
         log_debug("HMI","48K Silence Compensation ENABLE =" + String(SILENCE_COMPENSATION_48K_EN));
       }        
       // Polarización de la señal
-      else if (strCmd.indexOf("PLZ=") != -1) 
+      else if (strCmd.startsWith("PLZ="))
       {
         //Cogemos el valor
-        uint8_t buff[8];
-        strCmd.getBytes(buff, 7);
-        int valEn = (int)buff[4];
+        int valEn = decodeCommandByte4(strCmd);
         //
         INVERSETRAIN = valEn;
         if (valEn==0)
@@ -3189,12 +3139,10 @@ private:
 
       }
       // Nivel LOW a cero
-      else if (strCmd.indexOf("ZER=") != -1) 
+      else if (strCmd.startsWith("ZER="))
       {
         //Cogemos el valor
-        uint8_t buff[8];
-        strCmd.getBytes(buff, 7);
-        int valEn = (int)buff[4];
+        int valEn = decodeCommandByte4(strCmd);
         //
         if (valEn==1)
         {
@@ -3211,12 +3159,10 @@ private:
 
       }
       // Enable Schmitt Trigger threshold adjust
-      else if (strCmd.indexOf("ESH=") != -1) 
+      else if (strCmd.startsWith("ESH="))
       {
         //Cogemos el valor
-        uint8_t buff[8];
-        strCmd.getBytes(buff, 7);
-        int valEn = (int)buff[4];
+        int valEn = decodeCommandByte4(strCmd);
         //
         if (valEn==1)
         {
@@ -3231,12 +3177,10 @@ private:
 
       }
       // Enable MIC inversion
-      else if (strCmd.indexOf("EIN=") != -1) 
+      else if (strCmd.startsWith("EIN="))
       {
         //Cogemos el valor
-        uint8_t buff[8];
-        strCmd.getBytes(buff, 7);
-        int valEn = (int)buff[4];
+        int valEn = decodeCommandByte4(strCmd);
         //
         if (valEn==1)
         {
@@ -3251,12 +3195,10 @@ private:
 
       }        
       // Mutea la salida amplificada
-      else if (strCmd.indexOf("MAM=") != -1) 
+      else if (strCmd.startsWith("MAM="))
       {
         //Cogemos el valor
-        uint8_t buff[8];
-        strCmd.getBytes(buff, 7);
-        int valEn = (int)buff[4];
+        int valEn = decodeCommandByte4(strCmd);
         //
         ACTIVE_AMP = !valEn;
 
@@ -3283,12 +3225,10 @@ private:
         AMP_CHANGE = true;
       }        
       // Habilita los dos canales
-      else if (strCmd.indexOf("STE=") != -1) 
+      else if (strCmd.startsWith("STE="))
       {
         //Cogemos el valor
-        uint8_t buff[8];
-        strCmd.getBytes(buff, 7);
-        int valEn = (int)buff[4];
+        int valEn = decodeCommandByte4(strCmd);
         //
         EN_STEREO = valEn;
 
@@ -3299,12 +3239,10 @@ private:
         log_debug("HMI","Mute enable=" + String(EN_STEREO));
       }
       // Habilita el Speaker
-      else if (strCmd.indexOf("SPK=") != -1) 
+      else if (strCmd.startsWith("SPK="))
       {
         //Cogemos el valor
-        uint8_t buff[8];
-        strCmd.getBytes(buff, 7);
-        int valEn = (int)buff[4];
+        int valEn = decodeCommandByte4(strCmd);
         //
         if (valEn==1)
         {
@@ -3327,7 +3265,7 @@ private:
         log_debug("HMI","Speaker enable=" + String(EN_SPEAKER));
       }
       // Save polarization in ID 0x2B
-      else if (strCmd.indexOf("SAV") != -1) 
+      else if (strCmd.startsWith("SAV"))
       {
         //Guardamos la configuracion en un fichero
         String path = FILE_LAST_DIR;
@@ -3368,12 +3306,10 @@ private:
         log_debug("HMI","Config. saved");
       }
       // Habilitar recording sobre WAV file
-      else if (strCmd.indexOf("WAV=") != -1) 
+      else if (strCmd.startsWith("WAV="))
       {
         //Cogemos el valor
-        uint8_t buff[8];
-        strCmd.getBytes(buff, 7);
-        int valEn = (int)buff[4];
+        int valEn = decodeCommandByte4(strCmd);
         //
         if (valEn==1)
         {
@@ -3391,12 +3327,10 @@ private:
         log_debug("HMI","Modo WAV =" + String(MODEWAV));
       }
       // Habilitar play to WAV file file
-      else if (strCmd.indexOf("PTW=") != -1) 
+      else if (strCmd.startsWith("PTW="))
       {
         //Cogemos el valor
-        uint8_t buff[8];
-        strCmd.getBytes(buff, 7);
-        int valEn = (int)buff[4];
+        int valEn = decodeCommandByte4(strCmd);
         //
         if (valEn==1)
         {
@@ -3413,12 +3347,10 @@ private:
 
         log_debug("HMI","Modo Out to WAV =" + String(OUT_TO_WAV));
       }
-      else if (strCmd.indexOf("C44=") != -1) 
+      else if (strCmd.startsWith("C44="))
       {
         //Cogemos el valor
-        uint8_t buff[8];
-        strCmd.getBytes(buff, 7);
-        int valEn = (int)buff[4];
+        int valEn = decodeCommandByte4(strCmd);
         //
         if (valEn==1)
         {
@@ -3438,12 +3370,10 @@ private:
         log_debug("HMI","Modo Out to WAV at 44.1KHz=" + String(OUT_TO_WAV));
       }        
       // Habilitar play to WAV file file a 8-bits
-      else if (strCmd.indexOf("WA8=") != -1) 
+      else if (strCmd.startsWith("WA8="))
       {
         //Cogemos el valor
-        uint8_t buff[8];
-        strCmd.getBytes(buff, 7);
-        int valEn = (int)buff[4];
+        int valEn = decodeCommandByte4(strCmd);
         //
         if (valEn==1)
         {
@@ -3459,12 +3389,10 @@ private:
         log_debug("HMI","Modo WAV mono 8-bits =" + String(WAV_8BIT_MONO));
       }
       // Habilitar Codec ADPCM
-      else if (strCmd.indexOf("ADP=") != -1) 
+      else if (strCmd.startsWith("ADP="))
       {
         //Cogemos el valor
-        uint8_t buff[8];
-        strCmd.getBytes(buff, 7);
-        int valEn = (int)buff[4];
+        int valEn = decodeCommandByte4(strCmd);
         //
         if (valEn==1)
         {
@@ -3479,37 +3407,34 @@ private:
 
         log_debug("HMI","Modo ADPCM Codec =" + String(USE_ADPCM_CODEC));
       }       
-      else if (strCmd.indexOf("BAU1") != -1) 
+      else if (strCmd.startsWith("BAU1"))
       {
         //Cogemos el valor
         TAPE_BAUDRATE = 1;
         log_debug("HMI","Baud rate = 1200");
       }         
-      else if (strCmd.indexOf("BAU2") != -1) 
+      else if (strCmd.startsWith("BAU2"))
       {
         //Cogemos el valor
         TAPE_BAUDRATE = 2;
         log_debug("HMI","Baud rate = 2400");
       }         
-      else if (strCmd.indexOf("BAU3") != -1) 
+      else if (strCmd.startsWith("BAU3"))
       {
         //Cogemos el valor
         TAPE_BAUDRATE = 3;
         log_debug("HMI","Baud rate = 3600");
       }         
-      else if (strCmd.indexOf("BAU4") != -1) 
+      else if (strCmd.startsWith("BAU4"))
       {
         //Cogemos el valor
         TAPE_BAUDRATE = 3.21;
         log_debug("HMI","Baud rate = 3850");
       }         
       // Deshabilitar Auto Stop en WAV and MP3 player.
-      else if (strCmd.indexOf("DPS=") != -1) 
+      else if (strCmd.startsWith("DPS="))
       {
         //Cogemos el valor
-        uint8_t buff[8];
-        strCmd.getBytes(buff, 7);
-        int valEn = (int)buff[4];
         //
         disable_auto_media_stop = !disable_auto_media_stop;
         
@@ -3537,12 +3462,10 @@ private:
         log_debug("HMI","Modo Auto STOP player =" + String(OUT_TO_WAV));
       }        
       // Habilitar Audio output cuando está grabando.
-      else if (strCmd.indexOf("LOO=") != -1) 
+      else if (strCmd.startsWith("LOO="))
       {
         //Cogemos el valor
-        uint8_t buff[8];
-        strCmd.getBytes(buff, 7);
-        int valEn = (int)buff[4];
+        int valEn = decodeCommandByte4(strCmd);
         //
         if (valEn==1)
         {
@@ -3555,12 +3478,10 @@ private:
         }
       }
       // Habilitar/Des WiFi RADIO.
-      else if (strCmd.indexOf("WIF=") != -1) 
+      else if (strCmd.startsWith("WIF="))
       {
         //Cogemos el valor
-        uint8_t buff[8];
-        strCmd.getBytes(buff, 7);
-        int valEn = (int)buff[4];
+        int valEn = decodeCommandByte4(strCmd);
         //
         if (valEn==1)
         {
@@ -3583,12 +3504,10 @@ private:
         saveHMIcfg("WIFIopt");
       }
       // Show data debug by serial console
-      else if (strCmd.indexOf("SDD=") != -1) 
+      else if (strCmd.startsWith("SDD="))
       {
         //Cogemos el valor
-        uint8_t buff[8];
-        strCmd.getBytes(buff, 7);
-        int valEn = (int)buff[4];
+        int valEn = decodeCommandByte4(strCmd);
         //
         if (valEn==1)
         {
@@ -3600,7 +3519,7 @@ private:
         }
         log_debug("HMI","SHOW_DATA_DEBUG enable=" + String(SHOW_DATA_DEBUG));
       }     
-      else if (strCmd.indexOf("VOLUP") != -1) 
+      else if (strCmd.startsWith("VOLUP"))
       {
         MAIN_VOL += 1;
         
@@ -3628,7 +3547,7 @@ private:
 
 
       }        
-      else if (strCmd.indexOf("VOLDW") != -1) 
+      else if (strCmd.startsWith("VOLDW"))
       {
         MAIN_VOL -= 1;
         
@@ -3646,12 +3565,12 @@ private:
         setVolumenOutput();
         log_debug("HMI","VOL DOWN");
       }
-      else if (strCmd.indexOf("TONE") != -1) 
+      else if (strCmd.startsWith("TONE"))
       {
           SAMPLINGTEST = true;
       }
       // Busqueda de ficheros
-      else if (strCmd.indexOf("TXTF=") != -1) 
+      else if (strCmd.startsWith("TXTF="))
       {
         //Cogemos el valor
         uint8_t buff[50];
@@ -3682,7 +3601,7 @@ private:
         
         findTheTextInFiles();
       }
-      else if (strCmd.indexOf("ZXDB=") != -1)
+      else if (strCmd.startsWith("ZXDB="))
       {
         //Cogemos el valor
         uint8_t buff[8];
@@ -3692,7 +3611,7 @@ private:
         log_debug("HMI","Update ZXDB with letter: " + String(str));
         updateZXDB(String(str));
       }
-      else if (strCmd.indexOf("CPCD=") != -1)
+      else if (strCmd.startsWith("CPCD="))
       {
         // Actualizar catálogo CPCDB para una letra
         uint8_t buff[8];
@@ -3701,7 +3620,7 @@ private:
         log_debug("HMI","Update CPCDB with letter: " + String(str));
         updateCPCDB(String(str));
       }
-      else if (strCmd.indexOf("MSXD=") != -1)
+      else if (strCmd.startsWith("MSXD="))
       {
         // Actualizar catálogo MSXDB para una letra
         uint8_t buff[8];
@@ -3710,19 +3629,19 @@ private:
         log_debug("HMI","Update MSXDB with letter: " + String(str));
         updateMSXDB(String(str));
       }
-      else if (strCmd.indexOf("PDEBUG") != -1)
+      else if (strCmd.startsWith("PDEBUG"))
       {
           // Estamos en la pantalla DEBUG
           log_info("HMI","PAGE DEBUG");
           CURRENT_PAGE = PAGE_DEBUG;
       }
-      else if (strCmd.indexOf("KEYDB") != -1)
+      else if (strCmd.startsWith("KEYDB"))
       {
           // Estamos en la pantalla DEBUG
           log_info("HMI","PAGE KEYPAD Debug");
           CURRENT_PAGE = PAGE_KEYDEBUG;
       }        
-      else if (strCmd.indexOf("PMENU1") != -1)
+      else if (strCmd.startsWith("PMENU1"))
       {
           if (CURRENT_PAGE == PAGE_MENU_GENERAL_SETTINGS) {
             return;
@@ -3734,13 +3653,13 @@ private:
           myNex.writeNum("menu.dhcp.val", int(DHCP_ENABLE));           
       }
       
-      else if (strCmd.indexOf("PMENU0") != -1)
+      else if (strCmd.startsWith("PMENU0"))
       {
           // Estamos en la pantalla MENU
           CURRENT_PAGE = PAGE_MENU_GENERAL_SETTINGS_EXT;
           writeString("mainmenu.verFirmware.txt=\" powadcr " + String(VERSION) + "\"");     
       }  
-      else if (strCmd.indexOf("PMENU2") != -1)
+      else if (strCmd.startsWith("PMENU2"))
       {
           // Estamos en la pantalla MENU
           log_info("HMI","PAGE MENU(Eq)");
@@ -3753,7 +3672,7 @@ private:
           myNex.writeNum("menuEq.eqMidL.val", int(EQ_MID*100));
           myNex.writeNum("menuEq.eqLowL.val", int(EQ_LOW*100));          
       }
-      else if (strCmd.indexOf("PMENU3") != -1)
+      else if (strCmd.startsWith("PMENU3"))
       {
           log_info("HMI","PAGE MENU(Next)");
           CURRENT_PAGE = 3;
@@ -3801,10 +3720,10 @@ private:
             break;
           }
       }  
-      else if (strCmd.indexOf("PMENU4") != -1)
+      else if (strCmd.startsWith("PMENU4"))
       {
       }         
-      else if (strCmd.indexOf("PMENU5") != -1)
+      else if (strCmd.startsWith("PMENU5"))
       {
           log_info("HMI","PAGE MENU(Next)");
           CURRENT_PAGE = 5;
@@ -3824,7 +3743,7 @@ private:
             myNex.writeNum("tape.p0.pic",48);
           }
       }         
-      else if (strCmd.indexOf("PTAPE") != -1)
+      else if (strCmd.startsWith("PTAPE"))
       {
           // Estamos en la pantalla TAPE
           log_info("HMI","PAGE TAPE");
@@ -3833,13 +3752,13 @@ private:
           TAPE_PAGE_SHOWN = true;
           RADIO_PAGE_SHOWN = true;
       }
-      else if (strCmd.indexOf("PSPOT") != -1)
+      else if (strCmd.startsWith("PSPOT"))
       {
           // Estamos en la pantalla SPOTIFY
           log_info("HMI","PAGE SPOTIFY");
           CURRENT_PAGE = PAGE_SPOTIFY;
       }
-      else if (strCmd.indexOf("0TAPE") != -1)
+      else if (strCmd.startsWith("0TAPE"))
       {
           // Estamos en la pantalla TAPE
           log_info("HMI","PAGE TAPE0");
@@ -3849,7 +3768,7 @@ private:
           RADIO_PAGE_SHOWN = false;
           TAPE0_PAGE_SHOWN = true;
       }      
-      else if (strCmd.indexOf("PCLOCK") != -1)
+      else if (strCmd.startsWith("PCLOCK"))
       {
           // Estamos en la pantalla TAPE
           log_info("HMI","PAGE CLOCK");
@@ -3859,25 +3778,25 @@ private:
           RADIO_PAGE_SHOWN = false;
           //
       }  
-      else if (strCmd.indexOf("PFILE") != -1)
+      else if (strCmd.startsWith("PFILE"))
       {
         // Estamos en la pantalla FILE BROWSER
         log_info("HMI","PAGE FILE BROWSER");
         CURRENT_PAGE = PAGE_FILE_BROWSER;
       } 
-      else if (strCmd.indexOf("PBLOC") != -1)
+      else if (strCmd.startsWith("PBLOC"))
       {
         // Estamos en la pantalla Block BROWSER
         log_info("HMI","PAGE BLOCK BROWSER");
         CURRENT_PAGE = PAGE_BLOCK_BROWSER;
       }  
-      else if (strCmd.indexOf("PBBROW") != -1)
+      else if (strCmd.startsWith("PBBROW"))
       {
         // Estamos en la pantalla Track BROWSER
         log_info("HMI","PAGE TRACK BROWSER");
         CURRENT_PAGE = PAGE_TRACK_BROWSER;
       }                             
-      else if (strCmd.indexOf("CHKUPD") != -1)
+      else if (strCmd.startsWith("CHKUPD"))
       {
         //-------------------------------------------------------------------------
         //
@@ -3895,7 +3814,7 @@ private:
           }
         #endif          
       }    
-      else if (strCmd.indexOf("IDSC=") != -1) 
+      else if (strCmd.startsWith("IDSC="))
       {
         uint8_t buff[8];
         strCmd.getBytes(buff, 7);
@@ -3906,12 +3825,10 @@ private:
         else  
         {IGNORE_DSC = false;}
       }    
-      else if (strCmd.indexOf("SKN=") != -1) 
+      else if (strCmd.startsWith("SKN="))
       {
         //Cogemos el valor
-        uint8_t buff[8];
-        strCmd.getBytes(buff, 7);
-        int valEn = (int)buff[4];
+        int valEn = decodeCommandByte4(strCmd);
         //
         switch (valEn)
         {
@@ -3949,7 +3866,7 @@ private:
         log_info("HMI","Skin selection=" + String(valEn));
 
       }            
-      else if (strCmd.indexOf("UPDATE") != -1)
+      else if (strCmd.startsWith("UPDATE"))
       {
         //-------------------------------------------------------------------------
         //
@@ -4212,7 +4129,7 @@ private:
         int blType = 0;
         String blName = "";
         // Para el caso de los players, no se usa esto.
-        if (TYPE_FILE_LOAD != "MP3" && TYPE_FILE_LOAD != "WAV" && TYPE_FILE_LOAD != "FLAC" && TYPE_FILE_LOAD != "RADIO")
+        if (TYPE_FILE_LOAD != "MP3" && TYPE_FILE_LOAD != "WAV" && TYPE_FILE_LOAD != "FLAC" && TYPE_FILE_LOAD != "RADIO" && TYPE_FILE_LOAD != "MOD" && TYPE_FILE_LOAD != "XM")
         {
               if ((STOP || PAUSE) && !REC)
               {

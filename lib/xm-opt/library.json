@@ -1,0 +1,7 @@
+{
+  "name": "libxm",
+  "version": "0.0.0-local",
+  "build": {
+    "flags": "-O3 -ffast-math"
+  }
+}

@@ -38,7 +38,7 @@
 // --------------------------------------------------------------
 // Configuración de la versión del software
 // --------------------------------------------------------------
-#define VERSION "1.0r7.17" // Formato: vX.YrW.Z (X=major, Y=minor, W=revision, Z=revision_minor)
+#define VERSION "1.0r8.1" // Formato: vX.YrW.Z (X=major, Y=minor, W=revision, Z=revision_minor)
 
 
 // --------------------------------------------------------------
@@ -75,7 +75,7 @@
 // Define estos valores a 1 para habilitar el nivel correspondiente
 // Define a 0 o comenta la línea para deshabilitar y ahorrar FLASH
 // ======================================================================
-#define INFO_LOG  1    // Información general (comentado = DESHABILITADO)
+#define INFO_LOG  0    // Reduce flash; habilitar para diagnóstico detallado
 #define ERROR_LOG 1       // Errores (1 = SIEMPRE habilitado)
 #define ALERT_LOG 0       // Alertas (1 = SIEMPRE habilitado)
 #define DEBUG_LOG 0     // Debug (comentado = DESHABILITADO)
@@ -240,7 +240,7 @@ int GPIO_MSX_REMOTE_PAUSE = 19;
 #define PER_TO_SHOW_ESTIMATED_TIME 3
 
 // Maximo numero de ficheros capturados en la lista de audio por directorio
-#define MAX_FILES_AUDIO_LIST 128
+#define MAX_FILES_AUDIO_LIST 1500
 
 // Compensacion para precisar la señal 5%
 #define PZX_COMPENSATION_FACTOR 0
@@ -418,3 +418,8 @@ bool TEST_LINE_IN_OUT = false;
 #define PAGE_CLOCK                     99
 
 //#define MP3_METADATA_FILTER
+#define MP3_METADATA_FILTER
+
+// XM tracker support
+#define SAMPLING_RATE_TO_20Ch           18000
+#define SAMPLING_RATE_TO_12Ch           22050
