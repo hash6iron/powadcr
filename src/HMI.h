@@ -4831,7 +4831,7 @@ private:
       http.end();
       
       // ✅ PARSEAR JSON SIMPLE - SOLO EL TAG
-      DynamicJsonDocument doc(4096);
+      JsonDocument doc;
       if (deserializeJson(doc, payload) != DeserializationError::Ok) {
           #ifdef ERROR_LOG
           log_error("OTA", "JSON parse error");
